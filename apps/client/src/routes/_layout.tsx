@@ -1,7 +1,5 @@
-import { AirportTowerIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstack/react-router";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AnnouncementBanner } from "@/components/announcement-banner";
@@ -53,8 +51,6 @@ function AppLayout() {
   useTwoFactorRedirect();
 
   const { visible: isWCO } = useWindowControlsOverlay();
-  const [logoFailed, setLogoFailed] = useState(false);
-
   const currentRoute = [...matches]
     .reverse()
     .find((match) => (match.staticData as RouteHandle)?.titleKey || (match.staticData as RouteHandle)?.title);
@@ -100,17 +96,10 @@ function AppLayout() {
                 {isWCO && (
                   <Link
                     to="/"
-                    className="flex items-center gap-2 mr-1 shrink-0"
+                    className="flex items-center mr-1 shrink-0"
                     style={{ WebkitAppRegion: "no-drag", appRegion: "no-drag" } as React.CSSProperties}
                   >
-                    <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-6 items-center justify-center rounded-md overflow-hidden">
-                      {logoFailed ? (
-                        <HugeiconsIcon icon={AirportTowerIcon} className="size-3.5" />
-                      ) : (
-                        <img src="/logo.webp" alt={APP_NAME} className="size-full object-contain" onError={() => setLogoFailed(true)} />
-                      )}
-                    </div>
-                    <span className="font-medium text-sm">{APP_NAME}</span>
+                    <img src="/btsearch.webp" alt={APP_NAME} className="h-6 w-auto object-contain dark:invert" />
                   </Link>
                 )}
                 <span style={isWCO ? ({ WebkitAppRegion: "no-drag", appRegion: "no-drag" } as React.CSSProperties) : undefined}>

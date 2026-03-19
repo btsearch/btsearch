@@ -176,7 +176,7 @@
     "revokeConfirmDescription": "Czy na pewno chcesz unieważnić \"{{name}}\"? Tej akcji nie można cofnąć, a wszystkie aplikacje używające tego klucza przestaną działać.",
     "revokeSuccess": "Klucz API został unieważniony",
     "noKeys": "Brak kluczy API",
-    "noKeysDescription": "Utwórz klucz API, aby programistycznie korzystać z API OpenBTS.",
+    "noKeysDescription": "Utwórz klucz API, aby programistycznie korzystać z API BTSearch.",
     "typeBadge": {
       "secret": "Tajny",
       "publishable": "Publiczny"

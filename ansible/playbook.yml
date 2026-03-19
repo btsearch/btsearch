@@ -359,9 +359,9 @@
       set_fact:
         auth_secret: "{{ lookup('ansible.builtin.password', '/root/.ansible/openbts_auth_secret length=64 chars=ascii_letters,digits') }}"
 
-    - name: Clone openbts repository
+    - name: Clone btsearch repository
       git:
-        repo: https://github.com/sakilabs/openbts.git
+        repo: https://github.com/btsearch/btsearch.git
         dest: /opt/openbts
         version: main
         update: false

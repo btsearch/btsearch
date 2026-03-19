@@ -1,13 +1,13 @@
 openapi: 3.0.3
 info:
-  title: OpenBTS API
+  title: BTSearch API
   description: |
-    API for OpenBTS Backend
+    API for BTSearch Backend
     Last updated: 2026-04-07
   version: 1.0.1
 
 servers:
-  - url: https://openbts.sakilabs.com/api/v1
+  - url: https://btsearch.pl/api/v1
     description: API v1 base path
 
 tags:

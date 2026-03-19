@@ -176,7 +176,7 @@
     "revokeConfirmDescription": "Are you sure you want to revoke \"{{name}}\"? This action cannot be undone and any applications using this key will stop working.",
     "revokeSuccess": "API key revoked successfully",
     "noKeys": "No API keys yet",
-    "noKeysDescription": "Create an API key to access the OpenBTS API programmatically.",
+    "noKeysDescription": "Create an API key to access the BTSearch API programmatically.",
     "typeBadge": {
       "secret": "Secret",
       "publishable": "Public"
