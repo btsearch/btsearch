@@ -224,7 +224,7 @@ function ContactPage() {
           <h2 className="text-xl font-semibold">Projekt</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <a
-              href="https://github.com/sakilabs/openbts"
+              href="https://github.com/btsearch/btsearch"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -232,7 +232,7 @@ function ContactPage() {
               <HugeiconsIcon icon={GithubIcon} className="size-5 shrink-0" />
               <div>
                 <p className="text-sm font-medium">GitHub</p>
-                <p className="text-xs text-muted-foreground">sakilabs/openbts</p>
+                <p className="text-xs text-muted-foreground">btsearch/btsearch</p>
               </div>
             </a>
           </div>

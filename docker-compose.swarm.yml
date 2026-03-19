@@ -120,7 +120,7 @@ services:
         condition: on-failure
 
   postgres:
-    image: openbts-postgres
+    image: btsearch-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}

@@ -189,7 +189,7 @@ export default class App {
     this.fastify.register(scalarReference, {
       routePrefix: "/api/v1/docs",
       configuration: {
-        title: "OpenBTS API Documentation",
+        title: "BTSearch API Documentation",
         url: "/api/v1/openapi.yaml",
       },
     });

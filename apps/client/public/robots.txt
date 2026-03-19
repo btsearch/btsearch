@@ -4,7 +4,7 @@ Allow: /stations
 Allow: /statistics
 Allow: /about
 Allow: /contact
-Allow: /tos
+Allow: /terms
 Allow: /changelog
 Allow: /analyzer
 Allow: /clf-export

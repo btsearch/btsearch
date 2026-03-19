@@ -14,6 +14,7 @@ import {
   GitBranchIcon,
   InformationCircleIcon,
   LegalDocument01Icon,
+  LegalDocument02Icon,
   Location01Icon,
   Login01Icon,
   Mail01Icon,
@@ -89,7 +90,8 @@ const infoNavConfig = [
       { titleKey: "items.releasenotes", url: "/release-v3", icon: NewsIcon },
       { titleKey: "items.about", url: "/about", icon: InformationCircleIcon },
       { titleKey: "items.contact", url: "/contact", icon: Mail01Icon },
-      { titleKey: "items.tos", url: "/tos", icon: LegalDocument01Icon },
+      { titleKey: "items.terms", url: "/terms", icon: LegalDocument01Icon },
+      { titleKey: "items.privacy", url: "/privacy", icon: LegalDocument02Icon },
       { titleKey: "items.apiDocs", url: "#", href: "/api/v1/docs", icon: FileBracesIcon },
       { titleKey: "items.discord", url: "#", href: "https://discord.gg/SZETJPeayg", icon: DiscordIcon },
     ],
@@ -139,7 +141,6 @@ function translateNav(config: NavConfigSection[], t: (key: string) => string) {
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation("nav");
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [logoFailed, setLogoFailed] = useState(false);
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { visible: isWCO, isMacOS } = useWindowControlsOverlay();
@@ -171,22 +172,32 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
       {isWCO && isMacOS ? (
-        <SidebarHeader style={{ height: "env(titlebar-area-height, 3rem)", WebkitAppRegion: "drag", appRegion: "drag" } as React.CSSProperties} />
+        <SidebarHeader
+          style={{ height: "env(titlebar-area-height, 3rem)", WebkitAppRegion: "drag", appRegion: "drag" } as React.CSSProperties}
+          className="flex items-center justify-center"
+        >
+          <img
+            src="/btsearch.webp"
+            alt={APP_NAME}
+            className="h-10 w-auto object-contain dark:invert pointer-events-none group-data-[collapsible=icon]:hidden"
+          />
+          <img
+            src="/btsearch_transparent.webp"
+            alt={APP_NAME}
+            className="hidden h-8 w-auto object-contain dark:invert pointer-events-none group-data-[collapsible=icon]:block"
+          />
+        </SidebarHeader>
       ) : !isWCO ? (
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" render={<Link to="/" />}>
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
-                  {logoFailed ? (
-                    <HugeiconsIcon icon={AirportTowerIcon} className="size-4" />
-                  ) : (
-                    <img src="/logo.webp" alt={APP_NAME} className="size-full object-contain" onError={() => setLogoFailed(true)} />
-                  )}
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{APP_NAME}</span>
-                </div>
+              <SidebarMenuButton size="lg" render={<Link to="/" />} className="justify-center">
+                <img src="/btsearch.webp" alt={APP_NAME} className="h-10 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden" />
+                <img
+                  src="/btsearch_transparent.webp"
+                  alt={APP_NAME}
+                  className="hidden h-8 w-auto object-contain dark:invert group-data-[collapsible=icon]:block"
+                />
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -246,7 +257,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                   <span className="truncate">
                     {import.meta.env.VITE_GIT_COMMIT && (
                       <a
-                        href={`https://github.com/sakilabs/openbts/commit/${import.meta.env.VITE_GIT_COMMIT}`}
+                        href={`https://github.com/btsearch/btsearch/commit/${import.meta.env.VITE_GIT_COMMIT}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-mono text-chart-1 hover:underline"
