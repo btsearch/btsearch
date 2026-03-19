@@ -28,11 +28,11 @@ self.addEventListener("push", (event) => {
   try {
     data = ((event as PushEvent).data?.json() as PushPayload) ?? {};
   } catch {
-    data = { title: (event as PushEvent).data?.text() ?? "OpenBTS" };
+    data = { title: (event as PushEvent).data?.text() ?? "BTSearch" };
   }
 
   (event as ExtendableEvent).waitUntil(
-    self.registration.showNotification(data.title ?? "OpenBTS", {
+    self.registration.showNotification(data.title ?? "BTSearch", {
       body: data.body || undefined,
       icon: "/pwa-192x192.png",
       data: { actionUrl: data.actionUrl, notificationId: data.notificationId },

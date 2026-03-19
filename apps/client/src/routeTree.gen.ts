@@ -12,11 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ShareTargetRouteImport } from './routes/share-target'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
-import { Route as LayoutTosRouteImport } from './routes/_layout/tos'
+import { Route as LayoutTermsRouteImport } from './routes/_layout/terms'
 import { Route as LayoutSubmissionRouteImport } from './routes/_layout/submission'
 import { Route as LayoutStatisticsRouteImport } from './routes/_layout/statistics'
 import { Route as LayoutStationsRouteImport } from './routes/_layout/stations'
 import { Route as LayoutReleaseV3RouteImport } from './routes/_layout/release-v3'
+import { Route as LayoutPrivacyRouteImport } from './routes/_layout/privacy'
 import { Route as LayoutPreferencesRouteImport } from './routes/_layout/preferences'
 import { Route as LayoutListsRouteImport } from './routes/_layout/lists'
 import { Route as LayoutDeletedEntriesRouteImport } from './routes/_layout/deleted-entries'
@@ -62,9 +63,9 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutTosRoute = LayoutTosRouteImport.update({
-  id: '/tos',
-  path: '/tos',
+const LayoutTermsRoute = LayoutTermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSubmissionRoute = LayoutSubmissionRouteImport.update({
@@ -85,6 +86,11 @@ const LayoutStationsRoute = LayoutStationsRouteImport.update({
 const LayoutReleaseV3Route = LayoutReleaseV3RouteImport.update({
   id: '/release-v3',
   path: '/release-v3',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutPrivacyRoute = LayoutPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutPreferencesRoute = LayoutPreferencesRouteImport.update({
@@ -265,11 +271,12 @@ export interface FileRoutesByFullPath {
   '/deleted-entries': typeof LayoutDeletedEntriesRoute
   '/lists': typeof LayoutListsRouteWithChildren
   '/preferences': typeof LayoutPreferencesRoute
+  '/privacy': typeof LayoutPrivacyRoute
   '/release-v3': typeof LayoutReleaseV3Route
   '/stations': typeof LayoutStationsRoute
   '/statistics': typeof LayoutStatisticsRoute
   '/submission': typeof LayoutSubmissionRoute
-  '/tos': typeof LayoutTosRoute
+  '/terms': typeof LayoutTermsRoute
   '/account/reset-password': typeof LayoutAccountResetPasswordRoute
   '/account/settings': typeof LayoutAccountSettingsRoute
   '/account/submissions': typeof LayoutAccountSubmissionsRoute
@@ -302,11 +309,12 @@ export interface FileRoutesByTo {
   '/contact': typeof LayoutContactRoute
   '/deleted-entries': typeof LayoutDeletedEntriesRoute
   '/preferences': typeof LayoutPreferencesRoute
+  '/privacy': typeof LayoutPrivacyRoute
   '/release-v3': typeof LayoutReleaseV3Route
   '/stations': typeof LayoutStationsRoute
   '/statistics': typeof LayoutStatisticsRoute
   '/submission': typeof LayoutSubmissionRoute
-  '/tos': typeof LayoutTosRoute
+  '/terms': typeof LayoutTermsRoute
   '/': typeof LayoutIndexRoute
   '/account/reset-password': typeof LayoutAccountResetPasswordRoute
   '/account/settings': typeof LayoutAccountSettingsRoute
@@ -342,11 +350,12 @@ export interface FileRoutesById {
   '/_layout/deleted-entries': typeof LayoutDeletedEntriesRoute
   '/_layout/lists': typeof LayoutListsRouteWithChildren
   '/_layout/preferences': typeof LayoutPreferencesRoute
+  '/_layout/privacy': typeof LayoutPrivacyRoute
   '/_layout/release-v3': typeof LayoutReleaseV3Route
   '/_layout/stations': typeof LayoutStationsRoute
   '/_layout/statistics': typeof LayoutStatisticsRoute
   '/_layout/submission': typeof LayoutSubmissionRoute
-  '/_layout/tos': typeof LayoutTosRoute
+  '/_layout/terms': typeof LayoutTermsRoute
   '/_layout/': typeof LayoutIndexRoute
   '/_layout/account/reset-password': typeof LayoutAccountResetPasswordRoute
   '/_layout/account/settings': typeof LayoutAccountSettingsRoute
@@ -384,11 +393,12 @@ export interface FileRouteTypes {
     | '/deleted-entries'
     | '/lists'
     | '/preferences'
+    | '/privacy'
     | '/release-v3'
     | '/stations'
     | '/statistics'
     | '/submission'
-    | '/tos'
+    | '/terms'
     | '/account/reset-password'
     | '/account/settings'
     | '/account/submissions'
@@ -421,11 +431,12 @@ export interface FileRouteTypes {
     | '/contact'
     | '/deleted-entries'
     | '/preferences'
+    | '/privacy'
     | '/release-v3'
     | '/stations'
     | '/statistics'
     | '/submission'
-    | '/tos'
+    | '/terms'
     | '/'
     | '/account/reset-password'
     | '/account/settings'
@@ -460,11 +471,12 @@ export interface FileRouteTypes {
     | '/_layout/deleted-entries'
     | '/_layout/lists'
     | '/_layout/preferences'
+    | '/_layout/privacy'
     | '/_layout/release-v3'
     | '/_layout/stations'
     | '/_layout/statistics'
     | '/_layout/submission'
-    | '/_layout/tos'
+    | '/_layout/terms'
     | '/_layout/'
     | '/_layout/account/reset-password'
     | '/_layout/account/settings'
@@ -518,11 +530,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/tos': {
-      id: '/_layout/tos'
-      path: '/tos'
-      fullPath: '/tos'
-      preLoaderRoute: typeof LayoutTosRouteImport
+    '/_layout/terms': {
+      id: '/_layout/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof LayoutTermsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/submission': {
@@ -551,6 +563,13 @@ declare module '@tanstack/react-router' {
       path: '/release-v3'
       fullPath: '/release-v3'
       preLoaderRoute: typeof LayoutReleaseV3RouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/privacy': {
+      id: '/_layout/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof LayoutPrivacyRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/preferences': {
@@ -829,11 +848,12 @@ interface LayoutRouteChildren {
   LayoutDeletedEntriesRoute: typeof LayoutDeletedEntriesRoute
   LayoutListsRoute: typeof LayoutListsRouteWithChildren
   LayoutPreferencesRoute: typeof LayoutPreferencesRoute
+  LayoutPrivacyRoute: typeof LayoutPrivacyRoute
   LayoutReleaseV3Route: typeof LayoutReleaseV3Route
   LayoutStationsRoute: typeof LayoutStationsRoute
   LayoutStatisticsRoute: typeof LayoutStatisticsRoute
   LayoutSubmissionRoute: typeof LayoutSubmissionRoute
-  LayoutTosRoute: typeof LayoutTosRoute
+  LayoutTermsRoute: typeof LayoutTermsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   LayoutAccountResetPasswordRoute: typeof LayoutAccountResetPasswordRoute
   LayoutAccountSettingsRoute: typeof LayoutAccountSettingsRoute
@@ -851,11 +871,12 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDeletedEntriesRoute: LayoutDeletedEntriesRoute,
   LayoutListsRoute: LayoutListsRouteWithChildren,
   LayoutPreferencesRoute: LayoutPreferencesRoute,
+  LayoutPrivacyRoute: LayoutPrivacyRoute,
   LayoutReleaseV3Route: LayoutReleaseV3Route,
   LayoutStationsRoute: LayoutStationsRoute,
   LayoutStatisticsRoute: LayoutStatisticsRoute,
   LayoutSubmissionRoute: LayoutSubmissionRoute,
-  LayoutTosRoute: LayoutTosRoute,
+  LayoutTermsRoute: LayoutTermsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutAccountResetPasswordRoute: LayoutAccountResetPasswordRoute,
   LayoutAccountSettingsRoute: LayoutAccountSettingsRoute,

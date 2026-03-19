@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 
 export const API_BASE = import.meta.env.VITE_API_URL || "https://openbts.sakilabs.com/api/v1";
-export const APP_NAME = import.meta.env.VITE_APP_NAME || "OpenBTS";
+export const APP_NAME = import.meta.env.VITE_APP_NAME || "BTSearch";
 
 type ApiError = { code: string; message: string };
 
