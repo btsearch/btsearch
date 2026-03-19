@@ -669,7 +669,7 @@ function FloatingAccountCluster() {
                     <span className="min-w-0 truncate">
                       {gitCommit ? (
                         <a
-                          href={`https://github.com/sakilabs/openbts/commit/${gitCommit}`}
+                          href={`https://github.com/btsearch/btsearch/commit/${gitCommit}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-mono text-chart-1 hover:underline"

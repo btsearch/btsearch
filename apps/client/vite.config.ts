@@ -57,9 +57,10 @@ export default defineConfig({
       filename: "sw.ts",
       registerType: "prompt",
       manifest: {
-        name: "OpenBTS",
-        short_name: "OpenBTS",
-        description: "Baza stacji bazowych sieci komórkowych w Polsce",
+        name: "BTSearch",
+        short_name: "BTSearch",
+        description:
+          "Baza stacji bazowych sieci komórkowych w Polsce; mapa lokalizacji stacji bazowych w oparciu o ogólnodostępny wykaz pozwoleń radiowych",
         lang: "pl-PL",
         theme_color: "#0c0c0c",
         display: "standalone",

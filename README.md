@@ -1,13 +1,11 @@
-![OpenBTS banner](./.github/assets/banner.png)
+<h1 align="center"><b>BTSearch</b></h1>
 
-<h1 align="center"><b>OpenBTS</b></h1>
-
-**OpenBTS** is an improved map of BTSearch that includes aggregated data of Polish BT stations & UKE permits and radiolines.
+BTSearch to Polska mapa stacji bazowych w całej Polsce wraz z łatwym dostępem do pozwoleń UKE i radiolinii
 
 ## Features
 
 - View stations on simple to use map
-- See UKE (Urząd Komunikacji Elektronicznej) data in very simple view which is updated every 30 days
+- See UKE (Urząd Komunikacji Elektronicznej) permits and radiolines
 - Very powerful & public REST API
 - Create private or public lists with your favorite stations
 - Fast & beautiful interface

@@ -63,7 +63,7 @@ services:
       - KMZ_OUTPUT_DIR=/app/kmz
     volumes:
       - uploads-volume:/app/uploads
-      - /opt/openbts/kmz:/app/kmz
+      - /opt/btsearch/kmz:/app/kmz
     depends_on:
       - postgres
       - redis

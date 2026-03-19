@@ -29,7 +29,7 @@ export function CookieConsentBanner() {
             <p className="text-sm font-medium">{t("cookieConsent.title")}</p>
             <p className="text-xs text-muted-foreground">
               {t("cookieConsent.description")}{" "}
-              <Link to="/tos" className="underline underline-offset-2 hover:text-foreground transition-colors">
+              <Link to="/terms" className="underline underline-offset-2 hover:text-foreground transition-colors">
                 {t("cookieConsent.learnMore")}
               </Link>
             </p>

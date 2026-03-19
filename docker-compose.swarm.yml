@@ -29,7 +29,7 @@ x-server-common: &server-common
   volumes:
     - uploads-volume:/app/uploads
     - type: bind
-      source: /opt/openbts/kmz
+      source: /opt/btsearch/kmz
       target: /app/kmz
   networks:
     - internal
@@ -146,7 +146,7 @@ services:
         condition: on-failure
 
   postgres:
-    image: openbts-postgres
+    image: btsearch-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
