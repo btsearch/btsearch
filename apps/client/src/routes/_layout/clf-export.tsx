@@ -374,7 +374,7 @@ function ClfExportPage() {
           <form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}>
             {({ isSubmitting }) => (
               <div className="flex items-center gap-3">
-                <Button type="submit" disabled={isSubmitting} size="lg" className="flex-1 md:flex-none">
+                <Button type="submit" disabled={isSubmitting} size="lg" className="flex-1 md:flex-none cursor-pointer">
                   {isSubmitting ? (
                     <>
                       <Spinner data-icon="inline-start" />
