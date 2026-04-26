@@ -36,9 +36,9 @@
   },
   "rejectApproveCard": {
     "confirmReject": "Are you sure you want to reject this submission?",
-    "confirmRejectDesc": "This action is irreversible. The station submitted in this submission will not be added to the database",
+    "confirmRejectDesc": "This can't be undone. The station won't be added to the database.",
     "confirmApprove": "Are you sure you want to approve this submission?",
-    "confirmApproveDesc": "This action is irreversible. The station submitted in this submission will be added to the database, and the submission will be marked as approved"
+    "confirmApproveDesc": "This can't be undone. The station will be added to the database and the submission marked as approved."
   },
   "deletionBanner": "This submission requests deletion of station {{stationId}}. If approved, the station will be marked as inactive.",
   "adminTitle": "Submission Management",
@@ -53,12 +53,12 @@
     "new": "New",
     "existing": "Existing",
     "existingStation": "Existing Station",
-    "newStationHint": "Fill in station and location details below"
+    "newStationHint": "Start by placing the station on the map below."
   },
   "actionSelector": {
-    "title": "Select Action",
+    "title": "Submission Type",
     "update": "Update",
-    "delete": "Deletion"
+    "delete": "Delete"
   },
   "ratSelector": {
     "title": "Radio Technologies",
@@ -68,7 +68,7 @@
   },
   "deleteStation": {
     "title": "Delete Station",
-    "warning": "The station will be marked for deletion. A moderator will verify your submission",
+    "warning": "This station will be flagged for deletion and reviewed by a moderator.",
     "reason": "Reason for deletion",
     "reasonPlaceholder": "Why should this station be deleted?"
   },
@@ -100,10 +100,10 @@
     "arfcnBandMismatch": "ARFCN does not match the selected band"
   },
   "form": {
-    "summary": "Leave a note if needed",
-    "summaryPlaceholder": "Add a note explaining changes (optional)...",
-    "editingBanner": "You are editing submission",
-    "noChanges": "No changes to submit. Modify data or add a note to continue."
+    "summary": "Change note",
+    "summaryPlaceholder": "Describe what you changed (optional)...",
+    "editingBanner": "Editing submission",
+    "noChanges": "No changes detected - edit a field or add a note to enable the update button."
   },
   "table": {
     "cells": "Cell Count",
@@ -120,7 +120,6 @@
     "deleteFailed": "Failed to delete comment"
   },
   "diff": {
-    "current": "Current",
     "was": "Was",
     "locationChanged": "Location has been changed"
   },
@@ -134,7 +133,7 @@
     "photoUploadFailed": "Submission created, but photo upload failed"
   },
   "warnings": {
-    "photosTitle": "Warnings regarding photos",
+    "photosTitle": "Note about photos",
     "photosDesc": "If you plan to add these photos to multiple stations at this location, wait for the first submission to be approved - once accepted, you can select those photos for other stations without re-uploading them."
   },
   "photos": {
@@ -150,7 +149,7 @@
     "uploadFailed": "Failed to upload photos",
     "fileTooLarge": "{{name}} is too large (max {{size}})",
     "confirmDelete": "Delete this photo?",
-    "confirmDeleteDesc": "This action cannot be undone. The photo will be permanently removed.",
+    "confirmDeleteDesc": "This can't be undone. The photo will be permanently deleted.",
     "deleteFailed": "Failed to delete photo",
     "setMainFailed": "Failed to update main photo",
     "addNote": "Add note...",
@@ -173,7 +172,7 @@
     "editTooltip": "Edit submission",
     "deleteTooltip": "Delete submission",
     "confirmDelete": "Are you sure you want to delete this submission?",
-    "confirmDeleteDesc": "This action cannot be undone. The submission will be permanently removed."
+    "confirmDeleteDesc": "This can't be undone. The submission will be permanently deleted."
   },
   "unsavedChangesConfirm": "You have unsaved changes. Are you sure you want to leave?"
 }

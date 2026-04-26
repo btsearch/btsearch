@@ -7,6 +7,19 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Added collapsed sidebar support
 - Added initial support for generating KMZ files for UKE data
+- Redesigned submission form layout: flattened card sections for a cleaner, less nested appearance
+- New station form's extra identificators section is now a separate card instead of being nested inside the station info card
+- Submit section is now a borderless area with a top divider instead of a bordered card
+- Submit button uses destructive variant when the selected action is deletion
+- Editing submission banner redesigned with a cleaner layout and monospace submission ID badge
+- UMTS band selector now defaults to FDD duplex when both FDD and TDD options are available
+- Change badges on location fields now say "Was" instead of "Current" for clearer diff labeling
+- Extra identificators are no longer skipped for Play (MNC 26006) operator on admin station edit
+- Improved i18n: shorter, more consistent confirmation dialogs, form hints, and labels across en-US and pl-PL locales
+
+### 🩹 Fixes
+
+- The unload hook will not be enabled on submission edit mode when nothing was changed on that edit page
 
 # 2026-04-24
 

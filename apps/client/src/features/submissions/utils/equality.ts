@@ -124,6 +124,7 @@ export interface OriginalState {
   networksId?: number | null;
   networksName?: string;
   mnoName?: string;
+  submitterNote?: string;
 }
 
 const EMPTY_STATION: ProposedStationForm = { station_id: "", operator_id: null, notes: "" };
@@ -135,13 +136,20 @@ const EMPTY_LOCATION: ProposedLocationForm = {
   latitude: null,
 };
 
-export function hasFormChanges(current: FormState, original: OriginalState, isEditMode = false): boolean {
+export function hasFormChanges(current: FormState, original: OriginalState): boolean {
   if (current.action === "delete") return true;
 
   if (current.mode === "new") {
-    if (!isEqualStation(current.newStation, EMPTY_STATION)) return true;
-    if (!isEqualLocation(current.location, EMPTY_LOCATION)) return true;
-    if (current.cells.some((cell) => cell.band_id !== null || Object.values(cell.details).some(isMeaningfulValue))) return true;
+    const refStation = original.station ?? EMPTY_STATION;
+    if (!isEqualStation(current.newStation, refStation)) return true;
+    const refLocation = original.location ?? EMPTY_LOCATION;
+    if (!isEqualLocation(current.location, refLocation)) return true;
+    const refCells = original.cells;
+    if (refCells !== undefined) {
+      if (!isEqualCells(current.cells, refCells)) return true;
+    } else if (current.cells.some((cell) => cell.band_id !== null || Object.values(cell.details).some(isMeaningfulValue))) {
+      return true;
+    }
     return false;
   }
 
@@ -151,7 +159,9 @@ export function hasFormChanges(current: FormState, original: OriginalState, isEd
   const refCells = original.cells ?? [];
   if (!isEqualCells(current.cells, refCells)) return true;
 
-  return isEditMode;
+  if (current.submitterNote !== (original.submitterNote ?? "")) return true;
+
+  return false;
 }
 
 export interface SubmissionPayload {

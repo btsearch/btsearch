@@ -12,8 +12,8 @@ import { Slider } from "@/components/ui/slider";
 import { type PushPreferences, fetchPushPreferences, updatePushPreferences } from "@/features/notifications/api";
 import { usePushSubscription } from "@/features/notifications/usePushSubscription";
 import { OpenStreetMapIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
-import { type UserPreferences, usePreferences } from "@/hooks/usePreferences";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
+import { type UserPreferences, usePreferences } from "@/hooks/usePreferences";
 import { authClient } from "@/lib/authClient";
 import { cn, toggleValue } from "@/lib/utils";
 

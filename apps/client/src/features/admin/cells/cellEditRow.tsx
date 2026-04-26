@@ -57,7 +57,7 @@ export const CellEditRow = memo(function CellEditRow({
 
   const handleBandValueChange = (value: number | null) => {
     const opts = value !== null ? [...new Set(bandsForRat.filter((b) => b.value === value).map((b) => b.duplex))] : [];
-    const defaultDuplex = opts.length === 1 ? opts[0] : null;
+    const defaultDuplex = opts.length === 1 ? opts[0] : localCell.rat === "UMTS" && opts.includes("FDD") ? "FDD" : null;
     const newBandId = findBandId(value, defaultDuplex);
     if (newBandId) {
       const patch: Partial<CellDraftBase> = { band_id: newBandId };

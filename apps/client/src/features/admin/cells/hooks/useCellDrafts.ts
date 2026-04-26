@@ -125,7 +125,8 @@ export function useCellDrafts<T extends CellDraftBase>({
         return;
       }
       setCells((prev) => {
-        const newCell = createNewCell(rat, bandsForRat[0]);
+        const defaultBand = rat === "UMTS" ? (bandsForRat.find((b) => b.duplex === "FDD") ?? bandsForRat[0]) : bandsForRat[0];
+        const newCell = createNewCell(rat, defaultBand);
         const existingSibling = prev.find((c) => c.rat === rat);
         if (existingSibling) {
           const sharedFields = getSharedDetailFields(rat);

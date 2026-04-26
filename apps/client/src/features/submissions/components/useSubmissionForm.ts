@@ -123,7 +123,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     ): boolean => {
       if (photos.length > 0) return true;
       if (locationPhotoIds.length > 0) return true;
-      if (hasFormChanges({ mode, action, newStation, location, cells, submitterNote }, originalState, isEditMode)) return true;
+      if (hasFormChanges({ mode, action, newStation, location, cells, submitterNote }, originalState)) return true;
       if (mode === "existing") {
         if (networksId !== (originalState.networksId ?? null)) return true;
         if (networksId !== null && networksName !== (originalState.networksName ?? "")) return true;
@@ -131,7 +131,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       }
       return false;
     },
-    [originalState, isEditMode, photos.length, locationPhotoIds.length],
+    [originalState, photos.length, locationPhotoIds.length],
   );
 
   const form = useForm({
@@ -505,20 +505,64 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           form.setFieldValue("cells", mergedCells);
           form.setFieldValue("selectedRats", [...new Set(mergedCells.map((c) => c.rat))]);
 
-          if (station.location && !submission.proposedLocation) {
-            form.setFieldValue("location", {
-              latitude: station.location.latitude,
-              longitude: station.location.longitude,
-              city: station.location.city ?? "",
-              address: station.location.address ?? "",
-              region_id: station.location.region?.id ?? null,
-            });
+          const effectiveLocation = submission.proposedLocation
+            ? {
+                region_id: submission.proposedLocation.region_id,
+                city: submission.proposedLocation.city ?? "",
+                address: submission.proposedLocation.address ?? "",
+                longitude: submission.proposedLocation.longitude,
+                latitude: submission.proposedLocation.latitude,
+              }
+            : station.location
+              ? {
+                  latitude: station.location.latitude,
+                  longitude: station.location.longitude,
+                  city: station.location.city ?? "",
+                  address: station.location.address ?? "",
+                  region_id: station.location.region?.id ?? null,
+                }
+              : INITIAL_VALUES.location;
+
+          if (!submission.proposedLocation && station.location) {
+            form.setFieldValue("location", effectiveLocation);
           }
+
+          setOriginalState({
+            location: effectiveLocation,
+            cells: structuredClone(mergedCells),
+            networksId: submission.proposedStation?.networks_id ?? null,
+            networksName: submission.proposedStation?.networks_name ?? "",
+            mnoName: submission.proposedStation?.mno_name ?? "",
+            submitterNote: submission.submitter_note ?? "",
+          });
         });
       } else {
         form.setFieldValue("cells", proposedCells);
         if (isNew) form.setFieldValue("originalCells", []);
         form.setFieldValue("selectedRats", [...new Set(proposedCells.map((c) => c.rat))]);
+
+        const newLocation = submission.proposedLocation
+          ? {
+              region_id: submission.proposedLocation.region_id,
+              city: submission.proposedLocation.city ?? "",
+              address: submission.proposedLocation.address ?? "",
+              longitude: submission.proposedLocation.longitude,
+              latitude: submission.proposedLocation.latitude,
+            }
+          : INITIAL_VALUES.location;
+
+        setOriginalState({
+          station: submission.proposedStation
+            ? {
+                station_id: submission.proposedStation.station_id ?? "",
+                operator_id: submission.proposedStation.operator_id,
+                notes: submission.proposedStation.notes ?? "",
+              }
+            : null,
+          location: newLocation,
+          cells: structuredClone(proposedCells),
+          submitterNote: submission.submitter_note ?? "",
+        });
       }
     });
 

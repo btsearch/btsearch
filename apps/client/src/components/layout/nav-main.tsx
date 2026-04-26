@@ -82,9 +82,11 @@ export const NavMain = memo(function NavMain({ items }: { items: NavItem[] }) {
                 <Tooltip>
                   <SidebarMenuButton
                     render={
-                      subItem.href
-                        ? <TooltipTrigger render={<a href={subItem.href} target="_blank" rel="noopener noreferrer" />} />
-                        : <TooltipTrigger render={<Link to={subItem.url} />} />
+                      subItem.href ? (
+                        <TooltipTrigger render={<a href={subItem.href} target="_blank" rel="noopener noreferrer" />} />
+                      ) : (
+                        <TooltipTrigger render={<Link to={subItem.url} />} />
+                      )
                     }
                     isActive={!subItem.href && location.pathname === subItem.url}
                   >

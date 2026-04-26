@@ -439,7 +439,7 @@ function StationDetailForm({
         networksId: networksId ?? undefined,
         networksName: networksName || undefined,
         mnoName: mnoName || undefined,
-        skipExtraIds: selectedOperator?.mnc === 26006,
+        skipExtraIds: false,
       },
       {
         onSuccess: async (result) => {

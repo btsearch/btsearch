@@ -114,49 +114,49 @@ export function StationInfoForm({
             <Checkbox checked={isConfirmed} onCheckedChange={(checked) => onIsConfirmedChange(checked === true)} />
             <Label>{t("common:labels.confirmed")}</Label>
           </div>
+        </div>
+      </div>
 
-          {showSection && (
-            <div className="border-t pt-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <HugeiconsIcon icon={Globe02Icon} className="size-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">Extra Identificators</span>
-              </div>
-              {showExtraIdsFields && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t("common:labels.networksId")}</Label>
-                    <Input
-                      type="number"
-                      value={networksId ?? ""}
-                      placeholder="e.g. 12345"
-                      onChange={(e) => onNetworksIdChange?.(e.target.value ? Number(e.target.value) : null)}
-                      className="font-mono"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t("common:labels.networksName")}</Label>
-                    <Input
-                      value={networksName ?? ""}
-                      maxLength={50}
-                      placeholder={t("common:placeholder.optional")}
-                      onChange={(e) => onNetworksNameChange?.(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
+      {showSection && (
+        <div className="border rounded-xl px-4 py-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <HugeiconsIcon icon={Globe02Icon} className="size-4 text-muted-foreground" />
+            <span className="font-semibold text-sm">Extra Identificators</span>
+          </div>
+          {showExtraIdsFields && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperator?.mnc) })}</Label>
+                <Label>{t("common:labels.networksId")}</Label>
                 <Input
-                  value={mnoName ?? ""}
+                  type="number"
+                  value={networksId ?? ""}
+                  placeholder="e.g. 12345"
+                  onChange={(e) => onNetworksIdChange?.(e.target.value ? Number(e.target.value) : null)}
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("common:labels.networksName")}</Label>
+                <Input
+                  value={networksName ?? ""}
                   maxLength={50}
                   placeholder={t("common:placeholder.optional")}
-                  onChange={(e) => onMnoNameChange?.(e.target.value)}
+                  onChange={(e) => onNetworksNameChange?.(e.target.value)}
                 />
               </div>
             </div>
           )}
+          <div className="space-y-2">
+            <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperator?.mnc) })}</Label>
+            <Input
+              value={mnoName ?? ""}
+              maxLength={50}
+              placeholder={t("common:placeholder.optional")}
+              onChange={(e) => onMnoNameChange?.(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <LocationPicker
         location={location}

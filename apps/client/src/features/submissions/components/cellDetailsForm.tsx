@@ -184,7 +184,7 @@ const CellRow = memo(function CellRow({
   const handleBandValueChange = useCallback(
     (value: number | null) => {
       const opts = value ? [...new Set(bandsForRat.filter((b) => b.value === value).map((b) => b.duplex))] : [];
-      const defaultDuplex = opts.length === 1 ? opts[0] : null;
+      const defaultDuplex = opts.length === 1 ? opts[0] : rat === "UMTS" && opts.includes("FDD") ? "FDD" : null;
       const newBandId = findBandId(value, defaultDuplex);
       if (!newBandId) return;
       const patch: Partial<ProposedCellForm> = { band_id: newBandId };

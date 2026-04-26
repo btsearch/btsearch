@@ -56,25 +56,28 @@ export function SubmitSection({
   const showNoChangesMessage = !hasChanges && (mode === "new" || selectedStation) && !isDeleteAction;
 
   return (
-    <div className="border rounded-xl overflow-hidden">
-      <div className="px-4 py-3 bg-muted/30 space-y-3">
-        {!isDeleteAction && <div className="text-xs text-muted-foreground">{t("form.summary")}</div>}
-        {isDeleteAction && <div className="text-xs text-amber-600 dark:text-amber-500">{t("deleteStation.warning")}</div>}
-        {showNoChangesMessage && <div className="text-xs text-amber-600 dark:text-amber-500 flex items-center gap-1.5">{t("form.noChanges")}</div>}
-        {(mode === "new" || selectedStation) && (
-          <Textarea
-            placeholder={notePlaceholder}
-            value={submitterNote}
-            onChange={(e) => onSubmitterNoteChange(e.target.value)}
-            className="min-h-15 text-sm resize-none"
-            rows={2}
-          />
-        )}
-        <Button type="submit" disabled={!canSubmit || isSubmitting || isPending} size="sm" className="w-full h-8">
-          {buttonText}
-          {isLoading ? <Spinner data-icon="inline-end" /> : <HugeiconsIcon icon={buttonIcon} className="size-3.5" data-icon="inline-end" />}
-        </Button>
-      </div>
+    <div className="pt-3 border-t space-y-3">
+      {!isDeleteAction && isPending && <div className="text-xs text-muted-foreground">{t("form.summary")}</div>}
+      {isDeleteAction && <div className="text-xs text-destructive font-medium">{t("deleteStation.warning")}</div>}
+      {showNoChangesMessage && <div className="text-xs text-amber-600 dark:text-amber-500">{t("form.noChanges")}</div>}
+      {(mode === "new" || selectedStation) && (
+        <Textarea
+          placeholder={notePlaceholder}
+          value={submitterNote}
+          onChange={(e) => onSubmitterNoteChange(e.target.value)}
+          className="min-h-15 text-sm resize-none"
+          rows={2}
+        />
+      )}
+      <Button
+        type="submit"
+        disabled={!canSubmit || isSubmitting || isPending}
+        variant={isDeleteAction ? "destructive" : "default"}
+        className="w-full font-semibold"
+      >
+        {buttonText}
+        {isLoading ? <Spinner data-icon="inline-end" /> : <HugeiconsIcon icon={buttonIcon} className="size-4" data-icon="inline-end" />}
+      </Button>
     </div>
   );
 }

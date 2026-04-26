@@ -36,9 +36,9 @@
   },
   "rejectApproveCard": {
     "confirmReject": "Czy na pewno chcesz odrzucić to zgłoszenie?",
-    "confirmRejectDesc": "Ta akcja jest nieodwracalna. Stacja zgłoszona w tym zgłoszeniu nie zostanie dodana do bazy danych",
+    "confirmRejectDesc": "Tej operacji nie można cofnąć. Stacja nie zostanie dodana do bazy danych.",
     "confirmApprove": "Czy na pewno chcesz zatwierdzić to zgłoszenie?",
-    "confirmApproveDesc": "Ta akcja jest nieodwracalna. Stacja zgłoszona w tym zgłoszeniu zostanie dodana do bazy danych, a zgłoszenie zostanie oznaczone jako zatwierdzone"
+    "confirmApproveDesc": "Tej operacji nie można cofnąć. Stacja zostanie dodana do bazy danych, a zgłoszenie oznaczone jako zatwierdzone."
   },
   "deletionBanner": "To zgłoszenie dotyczy usunięcia stacji {{stationId}}. Po zatwierdzeniu stacja zostanie oznaczona jako nieaktywna.",
   "adminTitle": "Zarządzanie zgłoszeniami",
@@ -53,10 +53,10 @@
     "new": "Nowa",
     "existing": "Istniejąca",
     "existingStation": "Istniejąca stacja",
-    "newStationHint": "Wypełnij poniżej dane stacji i lokalizacji"
+    "newStationHint": "Zacznij od zaznaczenia lokalizacji stacji na mapie poniżej."
   },
   "actionSelector": {
-    "title": "Wybierz akcję",
+    "title": "Typ zgłoszenia",
     "update": "Aktualizacja",
     "delete": "Usunięcie"
   },
@@ -68,7 +68,7 @@
   },
   "deleteStation": {
     "title": "Usunięcie stacji",
-    "warning": "Stacja zostanie oznaczona do usunięcia. Moderator zweryfikuje Twoje zgłoszenie",
+    "warning": "Ta stacja zostanie oznaczona do usunięcia i zweryfikowana przez moderatora.",
     "reason": "Powód usunięcia",
     "reasonPlaceholder": "Dlaczego ta stacja powinna zostać usunięta?"
   },
@@ -100,10 +100,10 @@
     "arfcnBandMismatch": "ARFCN nie pasuje do wybranego pasma"
   },
   "form": {
-    "summary": "Pozostaw po sobie notatkę jeżeli jest taka potrzeba",
-    "summaryPlaceholder": "Dodaj notatkę wyjaśniającą zmiany (opcjonalnie)...",
-    "editingBanner": "Edytujesz zgłoszenie",
-    "noChanges": "Brak zmian do przesłania. Zmodyfikuj dane lub dodaj notatkę, aby kontynuować."
+    "summary": "Notatka o zmianach",
+    "summaryPlaceholder": "Opisz co zmieniłeś (opcjonalnie)...",
+    "editingBanner": "Edycja zgłoszenia",
+    "noChanges": "Nie wykryto zmian - edytuj pole lub dodaj notatkę, aby odblokować przycisk aktualizacji."
   },
   "table": {
     "cells": "Ilość komórek",
@@ -120,7 +120,6 @@
     "deleteFailed": "Nie udało się usunąć komentarza"
   },
   "diff": {
-    "current": "Aktualnie",
     "was": "Było",
     "locationChanged": "Lokalizacja została zmieniona"
   },
@@ -134,7 +133,7 @@
     "photoUploadFailed": "Zgłoszenie utworzone, ale przesyłanie zdjęć nie powiodło się"
   },
   "warnings": {
-    "photosTitle": "Uwagi dotyczące zdjęć",
+    "photosTitle": "Wskazówka dotycząca zdjęć",
     "photosDesc": "Jeśli planujesz dodać te zdjęcia do wielu stacji w tej lokalizacji, poczekaj na zatwierdzenie pierwszego zgłoszenia - po akceptacji będziesz mógł wybrać te zdjęcia dla pozostałych stacji bez ponownego wgrywania."
   },
   "photos": {

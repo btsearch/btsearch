@@ -71,29 +71,34 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
   }
 
   return (
-    <form onSubmit={handleFormSubmit} onKeyDown={handleKeyDown} className="flex flex-wrap gap-4 h-full">
-      <div className="flex-[1.5_0_300px] min-w-0 space-y-3">
+    <form onSubmit={handleFormSubmit} onKeyDown={handleKeyDown} className="flex flex-wrap gap-4 min-h-full">
+      <div className="flex-[1.5_0_300px] min-w-0 space-y-4">
         {isEditMode && (
-          <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 flex items-center gap-2.5">
-            <HugeiconsIcon icon={PencilEdit02Icon} className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              {t("form.editingBanner")} <span className="font-mono font-semibold text-foreground">#{editSubmissionId}</span>
-            </p>
+          <div className="rounded-xl border bg-muted/50 px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <HugeiconsIcon icon={PencilEdit02Icon} className="size-4 text-muted-foreground shrink-0" />
+              <p className="text-sm text-foreground/80">{t("form.editingBanner")}</p>
+            </div>
+            <span className="font-mono text-sm font-semibold text-foreground bg-background border px-2 py-0.5 rounded-md shrink-0">
+              #{editSubmissionId}
+            </span>
           </div>
         )}
 
-        <form.Subscribe selector={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
-          {({ mode, selectedStation }) => (
-            <StationSelector mode={mode} selectedStation={selectedStation} onModeChange={handleModeChange} onStationSelect={loadStation} />
-          )}
-        </form.Subscribe>
+        <div className="space-y-2">
+          <form.Subscribe selector={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
+            {({ mode, selectedStation }) => (
+              <StationSelector mode={mode} selectedStation={selectedStation} onModeChange={handleModeChange} onStationSelect={loadStation} />
+            )}
+          </form.Subscribe>
 
-        <form.Subscribe selector={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation })}>
-          {({ mode, action, selectedStation }) => {
-            if (mode !== "existing" || !selectedStation) return null;
-            return <ActionSelector action={action} onActionChange={handleActionChange} />;
-          }}
-        </form.Subscribe>
+          <form.Subscribe selector={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation })}>
+            {({ mode, action, selectedStation }) => {
+              if (mode !== "existing" || !selectedStation) return null;
+              return <ActionSelector action={action} onActionChange={handleActionChange} />;
+            }}
+          </form.Subscribe>
+        </div>
 
         <form.Subscribe
           selector={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation, location: s.values.location })}
