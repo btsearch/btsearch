@@ -1,4 +1,4 @@
-import { ArrowRight02Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown02Icon, ArrowRight02Icon, ArrowUp02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 
@@ -13,7 +13,8 @@ export type RadioLineTooltipContentProps = {
   directions: { freq: string; bandwidth: string | null; polarization: string | null; forward: boolean }[];
   directionCount: number;
   linkType?: RadioLinkType;
-  totalSpeed?: string | null;
+  dlSpeed?: string | null;
+  ulSpeed?: string | null;
 };
 
 export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
@@ -23,7 +24,8 @@ export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
   directions,
   directionCount,
   linkType,
-  totalSpeed,
+  dlSpeed,
+  ulSpeed,
 }: RadioLineTooltipContentProps) {
   const linkTypeStyle = linkType ? getLinkTypeStyle(linkType) : null;
 
@@ -32,7 +34,7 @@ export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
       <div className="flex items-center gap-2 px-2.5 py-1.5">
         <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} aria-hidden />
         <span className="text-xs font-medium truncate">{operatorName}</span>
-        <div className="ml-auto flex items-center text-[10px] font-mono whitespace-nowrap">
+        <div className="ml-auto flex items-center text-[11px] font-mono whitespace-nowrap">
           <span className="text-muted-foreground">{distanceFormatted}</span>
           {linkTypeStyle && linkType && (
             <>
@@ -40,10 +42,26 @@ export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
               <span className={cn("font-bold uppercase", linkTypeStyle.text)}>{linkType}</span>
             </>
           )}
-          {totalSpeed && (
+          {((dlSpeed !== null && dlSpeed !== undefined) || (ulSpeed !== null && ulSpeed !== undefined)) && (
             <>
               <span className="text-muted-foreground/40">/</span>
-              <span className="font-semibold text-emerald-600">{totalSpeed}</span>
+              <span className="inline-flex items-center gap-0.5 font-semibold">
+                {dlSpeed !== null && dlSpeed !== undefined && (
+                  <span className="inline-flex items-center gap-0.5">
+                    <HugeiconsIcon icon={ArrowDown02Icon} className="size-2.5 text-foreground" />
+                    <span className="text-emerald-600">{dlSpeed}</span>
+                  </span>
+                )}
+                {dlSpeed !== null && dlSpeed !== undefined && ulSpeed !== null && ulSpeed !== undefined && (
+                  <span className="text-muted-foreground/40 mx-0.5">/</span>
+                )}
+                {ulSpeed !== null && ulSpeed !== undefined && (
+                  <span className="inline-flex items-center gap-0.5">
+                    <HugeiconsIcon icon={ArrowUp02Icon} className="size-2.5 text-foreground" />
+                    <span className="text-emerald-600">{ulSpeed}</span>
+                  </span>
+                )}
+              </span>
             </>
           )}
         </div>

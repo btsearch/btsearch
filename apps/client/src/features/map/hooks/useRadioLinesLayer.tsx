@@ -111,7 +111,8 @@ type TooltipEntry = {
   directionCount: number;
   directions: Direction[];
   linkType: RadioLinkType | undefined;
-  totalSpeed: string | null | undefined;
+  dlSpeed: string | null | undefined;
+  ulSpeed: string | null | undefined;
 };
 
 function deduplicateByGroupId(features: maplibregl.MapGeoJSONFeature[], duplexLinks: DuplexRadioLink[]): DuplexRadioLink[] {
@@ -209,7 +210,8 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
           directionCount: p.directionCount ?? 1,
           directions: parseDirections(p.directionsJson),
           linkType: p.linkType as RadioLinkType | undefined,
-          totalSpeed: p.totalSpeed,
+          dlSpeed: p.dlSpeed,
+          ulSpeed: p.ulSpeed,
         };
       });
 
@@ -233,7 +235,8 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
               directions={entry.directions}
               directionCount={entry.directionCount}
               linkType={entry.linkType}
-              totalSpeed={entry.totalSpeed}
+              dlSpeed={entry.dlSpeed}
+              ulSpeed={entry.ulSpeed}
             />
           ))}
         </div>,

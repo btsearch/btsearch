@@ -13,7 +13,7 @@ import type { DuplexRadioLink } from "../utils";
 import {
   buildRadiolineShareUrl,
   calculateDistance,
-  calculateLinkTotalSpeed,
+  calculateLinkDirectionalSpeeds,
   calculateRadiolineSpeed,
   formatBandwidth,
   formatDistance,
@@ -21,6 +21,7 @@ import {
   formatSpeed,
   getLinkTypeStyle,
 } from "../utils";
+import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
 
 const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 
@@ -98,7 +99,7 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
   const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
   const permitNumber = first.permit.number;
   const linkTypeStyle = getLinkTypeStyle(link.linkType);
-  const totalSpeed = calculateLinkTotalSpeed(link);
+  const { dl: dlSpeed, ul: ulSpeed } = calculateLinkDirectionalSpeeds(link);
 
   return (
     <div className="w-72 text-sm relative">
@@ -110,7 +111,7 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
         </div>
 
         <div className="flex items-center gap-2 mt-1.5 pl-3.5">
-          <div className="flex items-center text-[9px] font-mono whitespace-nowrap">
+          <div className="flex items-center text-[10px] font-mono whitespace-nowrap">
             <span className="text-muted-foreground">{formatDistance(distance)}</span>
             {linkTypeStyle ? (
               <>
@@ -118,10 +119,10 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
                 <span className={cn("font-bold uppercase", linkTypeStyle.text)}>{link.linkType}</span>
               </>
             ) : null}
-            {totalSpeed !== null && totalSpeed !== undefined ? (
+            {dlSpeed !== null || ulSpeed !== null ? (
               <>
                 <span className="text-muted-foreground/40">/</span>
-                <span className="font-semibold text-emerald-600">{formatSpeed(totalSpeed)}</span>
+                <DirectionalSpeedBadge dl={dlSpeed !== null ? formatSpeed(dlSpeed) : null} ul={ulSpeed !== null ? formatSpeed(ulSpeed) : null} />
               </>
             ) : null}
           </div>

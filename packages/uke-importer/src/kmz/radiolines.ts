@@ -164,8 +164,14 @@ function buildLinkDescription(group: DuplexGroup): string {
   const operatorName = first.operator?.name ?? "Unknown";
   const distance = calculateDistance(first.tx_latitude, first.tx_longitude, first.rx_latitude, first.rx_longitude);
 
-  let totalSpeed = 0;
-  let anySpeedCalc = false;
+  const p1Key = `${first.tx_latitude},${first.tx_longitude}`;
+  const p2Key = `${first.rx_latitude},${first.rx_longitude}`;
+  const aKey = p1Key <= p2Key ? p1Key : p2Key;
+
+  let dlSpeed = 0;
+  let ulSpeed = 0;
+  let anyDl = false;
+  let anyUl = false;
 
   const lines: string[] = [];
   lines.push(`<b>Operator:</b> ${escapeXml(operatorName)}`);
@@ -186,7 +192,9 @@ function buildLinkDescription(group: DuplexGroup): string {
   lines.push("<b>Directions:</b>");
 
   for (const entry of group.entries) {
+    const isForward = `${entry.tx_latitude},${entry.tx_longitude}` === aKey;
     const dirParts: string[] = [];
+    dirParts.push(isForward ? "A→B" : "B→A");
     dirParts.push(`${formatFrequency(entry.freq)}`);
     if (entry.polarization) dirParts.push(`${entry.polarization}`);
     if (entry.ch_width) dirParts.push(`${entry.ch_width} MHz`);
@@ -195,9 +203,14 @@ function buildLinkDescription(group: DuplexGroup): string {
     if (entry.ch_width && entry.modulation_type) {
       const speed = calculateRadiolineSpeed(entry.ch_width, entry.modulation_type);
       if (speed !== null) {
-        dirParts.push(`Speed: ${formatSpeed(speed)}`);
-        totalSpeed += speed;
-        anySpeedCalc = true;
+        dirParts.push(formatSpeed(speed));
+        if (isForward) {
+          dlSpeed += speed;
+          anyDl = true;
+        } else {
+          ulSpeed += speed;
+          anyUl = true;
+        }
       }
     } else if (entry.bandwidth) dirParts.push(`${formatBandwidth(entry.bandwidth)}`);
 
@@ -205,8 +218,11 @@ function buildLinkDescription(group: DuplexGroup): string {
     lines.push(`${dirParts.join(" | ")}`);
   }
 
-  if (anySpeedCalc) {
-    lines.splice(4, 0, `<b>Total Speed:</b> ${formatSpeed(totalSpeed)}`);
+  if (anyDl || anyUl) {
+    const speedLines = [anyDl ? `<b>Downlink:</b> ${formatSpeed(dlSpeed)}` : null, anyUl ? `<b>Uplink:</b> ${formatSpeed(ulSpeed)}` : null]
+      .filter(Boolean)
+      .join("  ");
+    lines.splice(4, 0, speedLines);
   }
 
   const txType = first.txTransmitterType;

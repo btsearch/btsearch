@@ -122,21 +122,20 @@ export function getPermitBands(permits: UkePermit[]): string[] {
   return sortBands([...new Set(bands)]);
 }
 
-export function calculateLinkTotalSpeed(link: DuplexRadioLink): number | null {
-  let total = 0;
-  let anyCalculated = false;
+export function calculateLinkDirectionalSpeeds(link: DuplexRadioLink): { dl: number | null; ul: number | null } {
+  const aKey = `${link.a.latitude},${link.a.longitude}`;
+  let dl: number | null = null;
+  let ul: number | null = null;
 
   for (const dir of link.directions) {
-    if (dir.link.ch_width && dir.link.modulation_type) {
-      const speed = calculateRadiolineSpeed(dir.link.ch_width, dir.link.modulation_type);
-      if (speed !== null && speed !== undefined) {
-        total += speed;
-        anyCalculated = true;
-      }
-    }
+    const speed = dir.link.ch_width && dir.link.modulation_type ? calculateRadiolineSpeed(dir.link.ch_width, dir.link.modulation_type) : null;
+    if (speed === null) continue;
+    const isForward = `${dir.tx.latitude},${dir.tx.longitude}` === aKey;
+    if (isForward) dl = (dl ?? 0) + speed;
+    else ul = (ul ?? 0) + speed;
   }
 
-  return anyCalculated ? total : null;
+  return { dl, ul };
 }
 
 export function buildRadiolineShareUrl(link: DuplexRadioLink): string {

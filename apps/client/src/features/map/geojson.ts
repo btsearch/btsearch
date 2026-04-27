@@ -3,7 +3,7 @@ import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPer
 
 import {
   calculateDistance,
-  calculateLinkTotalSpeed,
+  calculateLinkDirectionalSpeeds,
   calculateRadiolineSpeed,
   formatBandwidth,
   formatDistance,
@@ -110,7 +110,7 @@ export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
     const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
     const distanceFormatted = formatDistance(distance);
 
-    const totalSpeed = calculateLinkTotalSpeed(link);
+    const { dl, ul } = calculateLinkDirectionalSpeeds(link);
 
     const directionsJson = JSON.stringify(
       link.directions.map((d) => {
@@ -144,7 +144,8 @@ export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
         directionsJson,
         directionCount: link.directions.length,
         linkType: link.linkType,
-        totalSpeed: totalSpeed !== null && totalSpeed !== undefined ? formatSpeed(totalSpeed) : null,
+        dlSpeed: dl !== null ? formatSpeed(dl) : null,
+        ulSpeed: ul !== null ? formatSpeed(ul) : null,
       },
     });
 
@@ -159,7 +160,8 @@ export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
       directionsJson,
       directionCount: link.directions.length,
       linkType: link.linkType,
-      totalSpeed: totalSpeed !== null && totalSpeed !== undefined ? formatSpeed(totalSpeed) : null,
+      dlSpeed: dl !== null ? formatSpeed(dl) : null,
+      ulSpeed: ul !== null ? formatSpeed(ul) : null,
     };
 
     endpointFeatures.push(

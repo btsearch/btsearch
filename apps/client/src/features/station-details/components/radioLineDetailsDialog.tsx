@@ -20,11 +20,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DirectionalSpeedBadge } from "@/features/map/components/directionalSpeedBadge";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import {
   buildRadiolineShareUrl,
   calculateDistance,
-  calculateLinkTotalSpeed,
+  calculateLinkDirectionalSpeeds,
   calculateRadiolineSpeed,
   formatBandwidth,
   formatDistance,
@@ -122,7 +123,7 @@ export function RadioLineDetailsDialog({ link, onClose }: RadioLineDetailsDialog
   const linkTypeStyle = getLinkTypeStyle(link.linkType);
 
   const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
-  const totalSpeed = calculateLinkTotalSpeed(link);
+  const { dl: dlSpeed, ul: ulSpeed } = calculateLinkDirectionalSpeeds(link);
   const dirSpeed =
     radioLine.link.ch_width && radioLine.link.modulation_type
       ? calculateRadiolineSpeed(radioLine.link.ch_width, radioLine.link.modulation_type)
@@ -156,10 +157,14 @@ export function RadioLineDetailsDialog({ link, onClose }: RadioLineDetailsDialog
                   <span className="font-medium text-foreground/90">{formatFrequency(radioLine.link.freq)}</span>
                   {(link.linkType === "FDD" || link.linkType === "2+0 FDD" || link.linkType === "XPIC" || link.linkType === "SD") &&
                     link.directions.length > 1 && <span className="text-xs">+{link.directions.length - 1}</span>}
-                  {totalSpeed !== null ? (
+                  {dlSpeed !== null || ulSpeed !== null ? (
                     <>
                       <span>·</span>
-                      <span className="font-medium font-mono text-foreground/90">{formatSpeed(totalSpeed)}</span>
+                      <DirectionalSpeedBadge
+                        dl={dlSpeed !== null ? formatSpeed(dlSpeed) : null}
+                        ul={ulSpeed !== null ? formatSpeed(ulSpeed) : null}
+                        iconSize="size-3"
+                      />
                     </>
                   ) : null}
                 </div>
@@ -215,9 +220,6 @@ export function RadioLineDetailsDialog({ link, onClose }: RadioLineDetailsDialog
                   <InfoRow icon={DashboardSpeed01Icon} label={t("radiolines.dataRate")} value={formatSpeed(dirSpeed)} mono />
                 ) : radioLine.link.bandwidth !== null && radioLine.link.bandwidth !== undefined ? (
                   <InfoRow icon={DashboardSpeed01Icon} label={t("radiolines.bandwidth")} value={formatBandwidth(radioLine.link.bandwidth)} />
-                ) : null}
-                {totalSpeed !== null ? (
-                  <InfoRow icon={DashboardSpeed01Icon} label={t("radiolines.totalSpeed")} value={formatSpeed(totalSpeed)} mono />
                 ) : null}
               </div>
             </div>
