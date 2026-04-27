@@ -292,7 +292,7 @@ function buildRadiolinesKmz(links: DuplexGroup[], title: string): Uint8Array {
     getArrayBucket(byType, link.linkType).push(pm);
   }
 
-  const styles = [...operatorStyles.values()].map(({ styleId, color }) => lineStyle(styleId, hexToKmlColor(color), 2)).join("\n");
+  const styles = [...operatorStyles.values()].map(({ styleId, color }) => lineStyle(styleId, hexToKmlColor(color, "b3"), 2)).join("\n");
 
   const operatorFolders = [...byOperator.entries()]
     .sort(([a], [b]) => a.localeCompare(b))

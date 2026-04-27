@@ -228,7 +228,7 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
     return true;
   });
 
-  const azimuthStyles = uniqueMncs.map((mnc) => lineStyle(azimuthStyleId(mnc), hexToKmlColor(getOperatorColor(mnc ?? -1)), 2));
+  const azimuthStyles = uniqueMncs.map((mnc) => lineStyle(azimuthStyleId(mnc), hexToKmlColor(getOperatorColor(mnc ?? -1)), 3));
 
   const stationIconStyles = uniqueMncs.map((mnc) =>
     iconStyle(
