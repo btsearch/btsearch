@@ -224,6 +224,38 @@ paths:
                     items: { $ref: "#/components/schemas/PermitsHistoryRow" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /stats/stations/history:
+    get:
+      tags: [Stats]
+      summary: Get unique station counts per operator over time
+      description: Returns unique station count per operator per snapshot date.
+      parameters:
+        - name: operator_id
+          in: query
+          schema: { type: integer }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: granularity
+          in: query
+          schema: { type: string, enum: [daily, monthly], default: monthly }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/StationsHistoryRow" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /stats/voivodeships:
     get:
       tags: [Stats]
@@ -4281,6 +4313,20 @@ components:
             name: { type: string }
         unique_stations: { type: integer }
         permits_count: { type: integer }
+    StationsHistoryRow:
+      type: object
+      required: [date, operator, unique_stations]
+      properties:
+        date: { type: string, format: date }
+        operator:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        unique_stations:
+          type: integer
+          description: Count of unique stations for this operator on this date
     VoivodeshipUKE:
       type: object
       properties:

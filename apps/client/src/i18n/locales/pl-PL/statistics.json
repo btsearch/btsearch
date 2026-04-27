@@ -26,6 +26,9 @@
     "allBands": "Wszystkie pasma",
     "granularity": "Okres",
     "monthly": "Miesięczne",
-    "daily": "Dziennie"
+    "daily": "Dziennie",
+    "view": "Widok",
+    "byBand": "Wg pasma",
+    "byOperator": "Wg operatora"
   }
 }

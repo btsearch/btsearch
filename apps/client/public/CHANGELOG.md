@@ -1,6 +1,18 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/sakilabs/openbts/issues/new) or send me an email [ririxi@sakilabs.com](mailto:ririxi@sakilabs.com)
 
+# 2026-04-27
+
+### 🚀 Enhancements
+
+- Statistics page: Historical Trends section now has a **View** dropdown to switch between "By Band" (permits per band per operator) and "By Operator" (unique stations per operator across all bands)
+- The "By Operator" trend uses a dedicated endpoint backed by unique stations per operator
+- Trend tooltips now show the absolute change next to the percentage (e.g. `+1.10% (+88)`)
+
+### 🩹 Fixes
+
+- Fixed monthly granularity in Historical Trends showing the first snapshot of the month instead of the most recent one
+
 # 2026-04-26
 
 ### 🚀 Enhancements

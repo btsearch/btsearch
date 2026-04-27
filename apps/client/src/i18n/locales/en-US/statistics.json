@@ -26,6 +26,9 @@
     "allBands": "All Bands",
     "granularity": "Period",
     "monthly": "Monthly",
-    "daily": "Daily"
+    "daily": "Daily",
+    "view": "View",
+    "byBand": "By Band",
+    "byOperator": "By Operator"
   }
 }

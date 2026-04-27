@@ -14,6 +14,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -558,15 +559,16 @@ export const statsSnapshots = pgTable(
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    band_id: integer("band_id")
-      .references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" })
-      .notNull(),
+    band_id: integer("band_id").references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" }),
     unique_stations_count: integer("unique_stations_count").notNull(),
-    permits_count: integer("permits_count").notNull(),
+    permits_count: integer("permits_count").notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique("stats_snapshots_date_operator_band_unique").on(t.snapshot_date, t.operator_id, t.band_id),
+    uniqueIndex("stats_snapshots_date_operator_null_band_unique")
+      .on(t.snapshot_date, t.operator_id)
+      .where(sql`${t.band_id} IS NULL`),
     index("stats_snapshots_date_idx").on(t.snapshot_date),
     index("stats_snapshots_operator_id_idx").on(t.operator_id),
     index("stats_snapshots_date_operator_band_idx").on(t.snapshot_date, t.operator_id, t.band_id),

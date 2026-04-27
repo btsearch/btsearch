@@ -51,6 +51,9 @@ const IMPORT_COMPLETE_CHANNEL = "uke:import:complete";
 
 async function computeImportDelta(startedAt: string): Promise<ImportDelta> {
   const since = new Date(startedAt);
+  since.setUTCHours(0, 0, 0, 0);
+
+  const deletedSince = new Date(startedAt);
 
   const [stationsAdded, permitsAdded, permitsUpdated, permitsDeleted, radiolinesAdded, radiolinesDeleted] = await Promise.all([
     db.select({ count: count() }).from(stations).where(gte(stations.createdAt, since)),
@@ -62,12 +65,12 @@ async function computeImportDelta(startedAt: string): Promise<ImportDelta> {
     db
       .select({ count: count() })
       .from(deletedEntries)
-      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, since))),
+      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, deletedSince))),
     db.select({ count: count() }).from(ukeRadiolines).where(gte(ukeRadiolines.createdAt, since)),
     db
       .select({ count: count() })
       .from(deletedEntries)
-      .where(and(eq(deletedEntries.source_table, "uke_radiolines"), gte(deletedEntries.deleted_at, since))),
+      .where(and(eq(deletedEntries.source_table, "uke_radiolines"), gte(deletedEntries.deleted_at, deletedSince))),
   ]);
 
   return {

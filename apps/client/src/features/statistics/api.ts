@@ -63,21 +63,45 @@ export interface StatsHistoryRow {
   permits_count: number;
 }
 
+export interface StatsStationsHistoryRow {
+  date: string;
+  operator: { id: number; name: string };
+  unique_stations: number;
+}
+
 export const fetchStatsSummary = (operatorId?: number) =>
   fetchApiData<StatsSummary>(`stats/summary${operatorId ? `?operator_id=${operatorId}` : ""}`);
 
 export const fetchStatsPermits = (operatorId?: number) =>
   fetchApiData<StatsPermitsResponse>(`stats/permits${operatorId ? `?operator_id=${operatorId}` : ""}`);
 
-export const fetchStatsHistory = (params?: { operator_id?: number; band_id?: number; from?: string; to?: string; granularity?: string }) => {
+function buildHistoryParams(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
-  if (params?.operator_id) search.set("operator_id", String(params.operator_id));
-  if (params?.band_id) search.set("band_id", String(params.band_id));
-  if (params?.from) search.set("from", params.from);
-  if (params?.to) search.set("to", params.to);
-  if (params?.granularity) search.set("granularity", params.granularity);
-  const qs = search.toString();
-  return fetchApiData<StatsHistoryRow[]>(`stats/permits/history${qs ? `?${qs}` : ""}`);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.set(key, String(value));
+  }
+  return search.toString();
+}
+
+export const fetchStatsHistory = (params?: { operator_id?: number; band_id?: number; from?: string; to?: string; granularity?: string }) => {
+  const historyParams = buildHistoryParams({
+    operator_id: params?.operator_id,
+    band_id: params?.band_id,
+    from: params?.from,
+    to: params?.to,
+    granularity: params?.granularity,
+  });
+  return fetchApiData<StatsHistoryRow[]>(`stats/permits/history${historyParams ? `?${historyParams}` : ""}`);
+};
+
+export const fetchStatsStationsHistory = (params?: { operator_id?: number; from?: string; to?: string; granularity?: string }) => {
+  const historyParams = buildHistoryParams({
+    operator_id: params?.operator_id,
+    from: params?.from,
+    to: params?.to,
+    granularity: params?.granularity,
+  });
+  return fetchApiData<StatsStationsHistoryRow[]>(`stats/stations/history${historyParams ? `?${historyParams}` : ""}`);
 };
 
 export const fetchStatsVoivodeships = (operatorId?: number) =>

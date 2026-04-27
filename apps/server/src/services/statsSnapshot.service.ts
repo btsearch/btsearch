@@ -1,5 +1,5 @@
 import { bands, operators, statsSnapshots, ukePermits } from "@openbts/drizzle";
-import { count, countDistinct, desc, eq, sql } from "drizzle-orm";
+import { and, count, countDistinct, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../database/psql.js";
 import { logger } from "../utils/logger.js";
@@ -8,17 +8,26 @@ export async function takeStatsSnapshot(): Promise<void> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const rows = await db
-    .select({
-      operator_id: ukePermits.operator_id,
-      band_id: ukePermits.band_id,
-      unique_stations_count: countDistinct(ukePermits.station_id),
-      permits_count: count(),
-    })
-    .from(ukePermits)
-    .groupBy(ukePermits.operator_id, ukePermits.band_id);
+  const [bandRows, operatorRows] = await Promise.all([
+    db
+      .select({
+        operator_id: ukePermits.operator_id,
+        band_id: ukePermits.band_id,
+        unique_stations_count: countDistinct(ukePermits.station_id),
+        permits_count: count(),
+      })
+      .from(ukePermits)
+      .groupBy(ukePermits.operator_id, ukePermits.band_id),
+    db
+      .select({
+        operator_id: ukePermits.operator_id,
+        unique_stations_count: countDistinct(ukePermits.station_id),
+      })
+      .from(ukePermits)
+      .groupBy(ukePermits.operator_id),
+  ]);
 
-  if (rows.length === 0) {
+  if (bandRows.length === 0) {
     logger.info("Stats snapshot: no permit data found, skipping");
     return;
   }
@@ -26,7 +35,7 @@ export async function takeStatsSnapshot(): Promise<void> {
   await db
     .insert(statsSnapshots)
     .values(
-      rows.map((row) => ({
+      bandRows.map((row) => ({
         snapshot_date: today,
         operator_id: row.operator_id,
         band_id: row.band_id,
@@ -42,7 +51,27 @@ export async function takeStatsSnapshot(): Promise<void> {
       },
     });
 
-  logger.info(`Stats snapshot: saved ${rows.length} rows for ${today.toISOString().slice(0, 10)}`);
+  // One summary row per operator (band_id = NULL) with the true deduplicated station count
+  await db
+    .insert(statsSnapshots)
+    .values(
+      operatorRows.map((row) => ({
+        snapshot_date: today,
+        operator_id: row.operator_id,
+        band_id: null,
+        unique_stations_count: row.unique_stations_count,
+        permits_count: 0,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [statsSnapshots.snapshot_date, statsSnapshots.operator_id],
+      targetWhere: sql`${statsSnapshots.band_id} IS NULL`,
+      set: {
+        unique_stations_count: sql`excluded.unique_stations_count`,
+      },
+    });
+
+  logger.info(`Stats snapshot: saved ${bandRows.length} band rows + ${operatorRows.length} operator rows for ${today.toISOString().slice(0, 10)}`);
 }
 
 export interface SnapshotOperatorDelta {
@@ -84,8 +113,8 @@ export async function getSnapshotDelta(): Promise<SnapshotDelta | null> {
       })
       .from(statsSnapshots)
       .leftJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-      .leftJoin(bands, eq(statsSnapshots.band_id, bands.id))
-      .where(eq(statsSnapshots.snapshot_date, date));
+      .leftJoin(bands, eq(statsSnapshots.band_id!, bands.id))
+      .where(and(eq(statsSnapshots.snapshot_date, date), isNotNull(statsSnapshots.band_id)));
 
   const [currentRows, previousRows] = await Promise.all([fetchRows(currentDate), fetchRows(previousDate)]);
 
@@ -117,11 +146,11 @@ export async function getSnapshotDelta(): Promise<SnapshotDelta | null> {
   const previousByBand = new Map<number, number>();
 
   for (const row of currentRows) {
-    bandNames.set(row.band_id, row.band_name ?? `Band ${row.band_id}`);
-    currentByBand.set(row.band_id, (currentByBand.get(row.band_id) ?? 0) + row.permits_count);
+    bandNames.set(row.band_id!, row.band_name ?? `Band ${row.band_id}`);
+    currentByBand.set(row.band_id!, (currentByBand.get(row.band_id!) ?? 0) + row.permits_count);
   }
   for (const row of previousRows) {
-    previousByBand.set(row.band_id, (previousByBand.get(row.band_id) ?? 0) + row.permits_count);
+    previousByBand.set(row.band_id!, (previousByBand.get(row.band_id!) ?? 0) + row.permits_count);
   }
 
   const allBandIds = new Set([...currentByBand.keys(), ...previousByBand.keys()]);
