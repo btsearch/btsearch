@@ -1,5 +1,6 @@
 import { ukeRadiolines } from "@openbts/drizzle";
 import { db } from "@openbts/drizzle/db";
+import { getOperatorColorByName } from "@openbts/shared/operatorUtils";
 import {
   calculateDistance,
   calculateRadiolineSpeed,
@@ -8,13 +9,13 @@ import {
   formatFrequency,
   formatSpeed,
 } from "@openbts/shared/radiolinesUtils";
-import { count } from "drizzle-orm";
+import { count, max } from "drizzle-orm";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { KMZ_BATCH_SIZE, REGION_BY_TERYT_PREFIX } from "../config.ts";
 import { createLogger } from "../utils.ts";
-import { buildKmz, escapeXml, folder, lineLodRegion, lineStyle, placemark, wrapKml } from "./kml-utils.ts";
+import { buildKmz, escapeXml, folder, hexToKmlColor, lineStyle, placemark, wrapKml } from "./kml-utils.ts";
 
 const PROVINCE_TO_REGION_CODE: Record<string, string> = Object.fromEntries(
   Object.values(REGION_BY_TERYT_PREFIX).map(({ name, code }) => [name.toLowerCase(), code]),
@@ -137,6 +138,27 @@ async function fetchAllRadiolines(): Promise<RadiolineRow[]> {
   return pages.flat() as unknown as RadiolineRow[];
 }
 
+async function fetchLatestDayRadiolines(): Promise<{ rows: RadiolineRow[]; day: Date | null }> {
+  const [maxRow] = await db.select({ value: max(ukeRadiolines.createdAt) }).from(ukeRadiolines);
+  const maxDate = maxRow?.value ? new Date(maxRow.value) : null;
+  if (!maxDate) return { rows: [], day: null };
+
+  const dayStart = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth(), maxDate.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const rows = await db.query.ukeRadiolines.findMany({
+    with: {
+      operator: true,
+      txTransmitterType: { with: { manufacturer: true } },
+      txAntennaType: { with: { manufacturer: true } },
+      rxAntennaType: { with: { manufacturer: true } },
+    },
+    where: { createdAt: { gte: dayStart, lt: dayEnd } },
+  });
+
+  return { rows: rows as unknown as RadiolineRow[], day: dayStart };
+}
+
 function buildLinkDescription(group: DuplexGroup): string {
   const first = group.entries[0]!;
   const operatorName = first.operator?.name ?? "Unknown";
@@ -205,16 +227,13 @@ function formatEquipment(name: string, manufacturer: { name: string } | null): s
   return `${escapeXml(name)}${manufacturer ? ` (${escapeXml(manufacturer.name)})` : ""}`;
 }
 
-const LINK_TYPE_COLORS: Record<RadioLinkType, string> = {
-  FDD: "ffff6600", // blue
-  "2+0 FDD": "ffff9900", // lighter blue
-  XPIC: "ff00aaff", // amber/orange
-  SD: "ff888888", // gray
-  UNKNOWN: "ff0000ff", // red
-};
-
-function linkStyleId(linkType: RadioLinkType): string {
-  return `line-${linkType.replace(/\s+/g, "-")}`;
+function operatorStyleId(operatorName: string): string {
+  const slug = operatorName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `line-op-${slug || "default"}`;
 }
 
 function getOperatorTypeBuckets(byOperator: Map<string, Map<RadioLinkType, string[]>>, operatorName: string): Map<RadioLinkType, string[]> {
@@ -239,32 +258,33 @@ function groupLinksByRegion(links: DuplexGroup[]): Map<string, DuplexGroup[]> {
 
 function buildRadiolinesKmz(links: DuplexGroup[], title: string): Uint8Array {
   const byOperator = new Map<string, Map<RadioLinkType, string[]>>();
+  const operatorStyles = new Map<string, { styleId: string; color: string }>();
 
   for (const link of links) {
     const first = link.entries[0]!;
     const operatorName = first.operator?.name ?? "Unknown";
-    const styleUrl = `#${linkStyleId(link.linkType)}`;
+    const styleId = operatorStyleId(operatorName);
+    if (!operatorStyles.has(styleId)) operatorStyles.set(styleId, { styleId, color: getOperatorColorByName(operatorName) });
+
+    const styleUrl = `#${styleId}`;
     const name = `${formatFrequency(first.freq)} [${link.linkType}]`;
     const description = buildLinkDescription(link);
     const coords = `<LineString><coordinates>${first.tx_longitude},${first.tx_latitude},0 ${first.rx_longitude},${first.rx_latitude},0</coordinates></LineString>`;
-    const region = lineLodRegion(first.tx_latitude, first.tx_longitude, first.rx_latitude, first.rx_longitude);
-    const pm = placemark(name, description, coords, styleUrl, region);
+    const pm = placemark(name, description, coords, styleUrl, undefined, false);
 
     const byType = getOperatorTypeBuckets(byOperator, operatorName);
     getArrayBucket(byType, link.linkType).push(pm);
   }
 
-  const styles = Object.entries(LINK_TYPE_COLORS)
-    .map(([type, color]) => lineStyle(linkStyleId(type as RadioLinkType), color, 2))
-    .join("\n");
+  const styles = [...operatorStyles.values()].map(({ styleId, color }) => lineStyle(styleId, hexToKmlColor(color), 2)).join("\n");
 
   const operatorFolders = [...byOperator.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([opName, byType]) => {
       const typeFolders = [...byType.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([linkType, pms]) => folder(`${linkType} (${pms.length})`, pms.join("\n"), true));
-      return folder(`${opName} (${[...byType.values()].reduce((s, v) => s + v.length, 0)})`, typeFolders.join("\n"), true);
+        .map(([linkType, pms]) => folder(`${linkType} (${pms.length})`, pms.join("\n"), true, false));
+      return folder(`${opName} (${[...byType.values()].reduce((s, v) => s + v.length, 0)})`, typeFolders.join("\n"), false, false);
     });
 
   return buildKmz(wrapKml(title, `${styles}\n${operatorFolders.join("\n")}`));
@@ -301,4 +321,18 @@ export async function generateRadiolinesKmz(outputDir: string, dateStr: string):
   }
 
   logger.log(`Generated ${byRegion.size} regional radiolines KMZ files`);
+
+  logger.log("Fetching radiolines created on the latest day...");
+  const { rows: latestRows, day } = await fetchLatestDayRadiolines();
+  if (!day || latestRows.length === 0) {
+    logger.log("No radiolines found for the latest createdAt day");
+    return;
+  }
+
+  const dayStr = day.toISOString().slice(0, 10);
+  logger.log(`Latest createdAt day: ${dayStr} (${latestRows.length} radiolines)`);
+
+  const newLinks = groupIntoLinks(latestRows);
+  const newKmz = buildRadiolinesKmz(newLinks, `Radiolinie UKE - nowe (${dayStr})`);
+  writeKmz(path.join(outputDir, `radiolines_new_${dayStr}.kmz`), newKmz);
 }

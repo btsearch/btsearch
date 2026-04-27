@@ -1,5 +1,5 @@
 import { cells, locations, stations, ukeImportMetadata, ukeLocations, ukePermits, ukeRadiolines } from "@openbts/drizzle";
-import { and, count, desc, eq, max, or } from "drizzle-orm";
+import { and, count, eq, inArray, max } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -46,26 +46,18 @@ const schemaRoute = {
 };
 
 async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>) {
-  const [importTimestamps, stationsLastUpdatedResult, ...countResults] = await Promise.all([
-    db
-      .select({
-        import_type: ukeImportMetadata.import_type,
-        last_import_date: ukeImportMetadata.last_import_date,
-      })
-      .from(ukeImportMetadata)
-      .where(
-        and(
-          eq(ukeImportMetadata.status, "success"),
-          or(
-            eq(ukeImportMetadata.import_type, "permits"),
-            eq(ukeImportMetadata.import_type, "device_registry"),
-            eq(ukeImportMetadata.import_type, "radiolines"),
-          ),
-        ),
-      )
-      .orderBy(desc(ukeImportMetadata.last_import_date)),
-
+  const [stationsLastUpdatedResult, permitsImportResult, radiolinesImportResult, ...countResults] = await Promise.all([
     db.select({ value: max(stations.updatedAt) }).from(stations),
+
+    db
+      .select({ value: max(ukeImportMetadata.last_import_date) })
+      .from(ukeImportMetadata)
+      .where(and(eq(ukeImportMetadata.status, "success"), inArray(ukeImportMetadata.import_type, ["permits", "device_registry"]))),
+
+    db
+      .select({ value: max(ukeImportMetadata.last_import_date) })
+      .from(ukeImportMetadata)
+      .where(and(eq(ukeImportMetadata.status, "success"), eq(ukeImportMetadata.import_type, "radiolines"))),
 
     db.select({ value: count() }).from(locations),
     db.select({ value: count() }).from(stations),
@@ -77,15 +69,9 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
 
   const lastUpdated: Response["lastUpdated"] = {
     stations: stationsLastUpdatedResult[0]?.value?.toISOString() ?? null,
-    stations_permits: null,
-    radiolines: null,
+    stations_permits: permitsImportResult[0]?.value?.toISOString() ?? null,
+    radiolines: radiolinesImportResult[0]?.value?.toISOString() ?? null,
   };
-
-  for (const row of importTimestamps) {
-    if ((row.import_type === "permits" || row.import_type === "device_registry") && !lastUpdated.stations_permits)
-      lastUpdated.stations_permits = row.last_import_date.toISOString();
-    else if (row.import_type === "radiolines" && !lastUpdated.radiolines) lastUpdated.radiolines = row.last_import_date.toISOString();
-  }
 
   const [locationsCount, stationsCount, cellsCount, ukeLocationsCount, ukePermitsCount, ukeRadiolinesCount] = countResults;
 

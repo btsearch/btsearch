@@ -2,13 +2,13 @@ import { ukePermits } from "@openbts/drizzle";
 import { db } from "@openbts/drizzle/db";
 import { getOperatorColor, resolveOperatorMnc } from "@openbts/shared/operatorUtils";
 import { destinationPoint } from "@openbts/shared/radiolinesUtils";
-import { count } from "drizzle-orm";
+import { count, max } from "drizzle-orm";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { KMZ_BATCH_SIZE } from "../config.ts";
 import { createLogger } from "../utils.ts";
-import { buildKmz, escapeXml, folder, hexToKmlColor, iconStyle, lineStyle, lodRegion, placemark, wrapKml } from "./kml-utils.ts";
+import { buildKmz, escapeXml, folder, hexToKmlColor, iconStyle, lineStyle, placemark, wrapKml } from "./kml-utils.ts";
 
 const logger = createLogger("stations-kmz");
 
@@ -32,6 +32,27 @@ type PermitRow = {
   band: { name: string; rat: string; value: number | null; duplex: string | null } | null;
   sectors: { azimuth: number | null; elevation: number | null; antenna_height: number | null; antenna_type: string | null }[];
 };
+
+async function fetchLatestDayPermits(): Promise<{ rows: PermitRow[]; day: Date | null }> {
+  const [maxRow] = await db.select({ value: max(ukePermits.createdAt) }).from(ukePermits);
+  const maxDate = maxRow?.value ? new Date(maxRow.value) : null;
+  if (!maxDate) return { rows: [], day: null };
+
+  const dayStart = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth(), maxDate.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const rows = await db.query.ukePermits.findMany({
+    with: {
+      operator: true,
+      location: { with: { region: true } },
+      band: true,
+      sectors: true,
+    },
+    where: { createdAt: { gte: dayStart, lt: dayEnd } },
+  });
+
+  return { rows: rows as unknown as PermitRow[], day: dayStart };
+}
 
 async function fetchAllPermits(): Promise<PermitRow[]> {
   const [countRow] = await db.select({ value: count() }).from(ukePermits);
@@ -153,6 +174,10 @@ function azimuthStyleId(mnc: number | null): string {
   return `azimuth-${mnc ?? "default"}`;
 }
 
+function stationIconStyleId(mnc: number | null): string {
+  return `station-icon-${mnc ?? "default"}`;
+}
+
 function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
   const byOperator = new Map<string, OperatorKmzBuckets>();
   const operatorMncs = new Map<string, number | null>();
@@ -163,15 +188,15 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
 
     const bandsSummary = [...new Set(station.permits.map((p) => p.band?.name).filter(Boolean))].join(", ");
     const stationName = station.station_id;
-    const region = lodRegion(station.latitude, station.longitude);
 
     op.stationPlacemarks.push(
       placemark(
         stationName,
         `<b>Bands:</b> ${escapeXml(bandsSummary)}<br/>${buildStationDescription(station)}`,
         `<Point><coordinates>${station.longitude},${station.latitude},0</coordinates></Point>`,
-        "#station-icon",
-        region,
+        `#${stationIconStyleId(station.operator_mnc)}`,
+        undefined,
+        false,
       ),
     );
 
@@ -183,7 +208,8 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
           `<b>Azimuth:</b> ${az}°`,
           `<LineString><coordinates>${station.longitude},${station.latitude},0 ${endLon},${endLat},0</coordinates></LineString>`,
           `#${azimuthStyleId(station.operator_mnc)}`,
-          region,
+          undefined,
+          false,
         ),
       );
     }
@@ -191,21 +217,32 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
 
   const sortedOperators = [...byOperator.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-  const stationFolders = sortedOperators.map(([op, { stationPlacemarks }]) => folder(op, stationPlacemarks.join("\n"), true));
-  const azimuthFolders = sortedOperators.map(([op, { azimuthPlacemarks }]) => folder(op, azimuthPlacemarks.join("\n")));
+  const stationFolders = sortedOperators.map(([op, { stationPlacemarks }]) => folder(op, stationPlacemarks.join("\n"), false, false));
+  const azimuthFolders = sortedOperators.map(([op, { azimuthPlacemarks }]) => folder(op, azimuthPlacemarks.join("\n"), false, false));
 
   const seenMncs = new Set<string>();
-  const azimuthStyles = [...operatorMncs.values()]
-    .filter((mnc) => {
-      const key = String(mnc);
-      if (seenMncs.has(key)) return false;
-      seenMncs.add(key);
-      return true;
-    })
-    .map((mnc) => lineStyle(azimuthStyleId(mnc), hexToKmlColor(getOperatorColor(mnc ?? -1)), 2));
+  const uniqueMncs = [...operatorMncs.values()].filter((mnc) => {
+    const key = String(mnc);
+    if (seenMncs.has(key)) return false;
+    seenMncs.add(key);
+    return true;
+  });
 
-  const styles = [iconStyle("station-icon", "http://maps.google.com/mapfiles/kml/shapes/target.png", 0.7), ...azimuthStyles].join("\n");
-  const content = [styles, folder("Stacje", stationFolders.join("\n"), true), folder("Azymuty", azimuthFolders.join("\n"))].join("\n");
+  const azimuthStyles = uniqueMncs.map((mnc) => lineStyle(azimuthStyleId(mnc), hexToKmlColor(getOperatorColor(mnc ?? -1)), 2));
+
+  const stationIconStyles = uniqueMncs.map((mnc) =>
+    iconStyle(
+      stationIconStyleId(mnc),
+      "http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png",
+      0.9,
+      hexToKmlColor(getOperatorColor(mnc ?? -1)),
+    ),
+  );
+
+  const styles = [...stationIconStyles, ...azimuthStyles].join("\n");
+  const content = [styles, folder("Stacje", stationFolders.join("\n"), true, false), folder("Azymuty", azimuthFolders.join("\n"), false, false)].join(
+    "\n",
+  );
 
   return buildKmz(wrapKml(title, content));
 }
@@ -246,4 +283,16 @@ export async function generateStationsKmz(outputDir: string, dateStr: string): P
     logger.log(`Source ${source}: ${sourceStations.length} stations`);
     writeStationSet(sourceStations, sourceDir, `stations_${dateStr}_${source}`, ` - ${source}`);
   }
+
+  logger.log("Fetching permits created on the latest day...");
+  const { rows: latestPermits, day } = await fetchLatestDayPermits();
+  if (!day || latestPermits.length === 0) {
+    logger.log("No permits found for the latest createdAt day");
+    return;
+  }
+
+  const dayStr = day.toISOString().slice(0, 10);
+  const newStations = groupByStation(latestPermits);
+  logger.log(`Latest createdAt day: ${dayStr} (${latestPermits.length} permits, ${newStations.length} stations)`);
+  writeKmz(path.join(outputDir, `stations_new_${dayStr}.kmz`), buildStationsKmz(newStations, `Pozwolenia UKE - nowe (${dayStr})`));
 }

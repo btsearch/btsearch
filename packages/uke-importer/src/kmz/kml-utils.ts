@@ -56,9 +56,10 @@ export function lineLodRegion(lat1: number, lon1: number, lat2: number, lon2: nu
 </Region>`;
 }
 
-export function placemark(name: string, description: string, coords: string, styleUrl?: string, region?: string): string {
+export function placemark(name: string, description: string, coords: string, styleUrl?: string, region?: string, visible = true): string {
   return `<Placemark>
 <name>${escapeXml(name)}</name>
+<visibility>${visible ? 1 : 0}</visibility>
 <description><![CDATA[${description}]]></description>
 ${styleUrl ? `<styleUrl>${styleUrl}</styleUrl>` : ""}
 ${region ?? ""}
@@ -66,8 +67,8 @@ ${coords}
 </Placemark>`;
 }
 
-export function folder(name: string, content: string, open = false): string {
-  return `<Folder><name>${escapeXml(name)}</name><open>${open ? 1 : 0}</open>\n${content}\n</Folder>`;
+export function folder(name: string, content: string, open = false, visible = true): string {
+  return `<Folder><name>${escapeXml(name)}</name><open>${open ? 1 : 0}</open><visibility>${visible ? 1 : 0}</visibility>\n${content}\n</Folder>`;
 }
 
 export function hexToKmlColor(hex: string, alpha = "ff"): string {

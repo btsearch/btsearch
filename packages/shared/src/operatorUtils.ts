@@ -39,6 +39,29 @@ export function resolveOperatorMnc(mnc?: number | null, name?: string | null): n
   return OPERATOR_NAME_TO_MNC[name.toLowerCase().trim()] ?? null;
 }
 
+const DEFAULT_OPERATOR_COLOR = "#00E1FF";
+
+const OPERATOR_NAME_TO_COLOR: Record<string, string> = {
+  orange: "#F59E0B",
+  "orange polska": "#F59E0B",
+  "t-mobile": "#E2007A",
+  "t-mobile polska": "#E2007A",
+  plus: "#24B570",
+  polkomtel: "#24B570",
+  "towerlink poland": "#24B570",
+  play: "#8549CE",
+  p4: "#8549CE",
+  networks: "#A2334C",
+  "pge systemy": "#0E4AC0",
+  "pkp plk": "#0082F4",
+  "pkp polskie linie kolejowe": "#0082F4",
+};
+
+export function getOperatorColorByName(name?: string | null): string {
+  if (!name) return DEFAULT_OPERATOR_COLOR;
+  return OPERATOR_NAME_TO_COLOR[name.toLowerCase().trim()] ?? DEFAULT_OPERATOR_COLOR;
+}
+
 export function normalizeOperatorName(name: string): string {
   return name.toLowerCase().replace(/(?:^|\s|-)\w/g, (char) => char.toUpperCase());
 }
