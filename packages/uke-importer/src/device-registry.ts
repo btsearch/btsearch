@@ -542,13 +542,13 @@ export async function importDeviceRegistry(): Promise<boolean> {
   logger.log(`Found ${links.length} files:`, links.map((l) => l.operatorKey).join(", "));
 
   const linksForCheck = links.map((l) => ({ href: l.href, text: l.text }));
-  const previousFileNames = await getLastImportedFileNames("permits");
+  const previousFileNames = await getLastImportedFileNames("device_registry");
   const newLinks = previousFileNames ? links.filter((l) => !previousFileNames.has(l.href.split("/").pop() ?? l.href)) : links;
 
   if (newLinks.length === 0) {
     if (previousFileNames && previousFileNames.size !== links.length) {
       logger.log("No new files to process, updating metadata");
-      await recordImportMetadata("permits", linksForCheck, "success");
+      await recordImportMetadata("device_registry", linksForCheck, "success");
     } else {
       logger.log("Data is up-to-date, skipping import");
     }
@@ -628,7 +628,7 @@ export async function importDeviceRegistry(): Promise<boolean> {
   }
 
   logger.log(`Total: ${totalRows} rows processed, ${totalInserted} records inserted`);
-  const importMetadataId = await recordImportMetadata("permits", linksForCheck, "success");
+  const importMetadataId = await recordImportMetadata("device_registry", linksForCheck, "success");
 
   logger.log("Deleting stale device registry permits...");
   let staleCount = 0;

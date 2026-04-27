@@ -1,5 +1,5 @@
-import { bands, operators, statsSnapshots } from "@openbts/drizzle";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { bands, operators, statsSnapshots, ukeImportMetadata } from "@openbts/drizzle";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -99,28 +99,47 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return res.send(response);
   }
 
-  const rows = await db
-    .selectDistinctOn([sql`date_trunc('month', ${statsSnapshots.snapshot_date})`, statsSnapshots.operator_id, statsSnapshots.band_id], {
-      date: statsSnapshots.snapshot_date,
-      operator_id: operators.id,
-      operator_name: operators.name,
-      band_id: bands.id,
-      band_name: bands.name,
-      unique_stations: statsSnapshots.unique_stations_count,
-      permits_count: statsSnapshots.permits_count,
-    })
-    .from(statsSnapshots)
-    .innerJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-    .innerJoin(bands, eq(statsSnapshots.band_id, bands.id))
-    .where(whereClause)
-    .orderBy(
-      sql`date_trunc('month', ${statsSnapshots.snapshot_date})`,
-      statsSnapshots.operator_id,
-      statsSnapshots.band_id,
-      statsSnapshots.snapshot_date,
-    );
+  const [rows, importRows] = await Promise.all([
+    db
+      .selectDistinctOn([sql`date_trunc('month', ${statsSnapshots.snapshot_date})`, statsSnapshots.operator_id, statsSnapshots.band_id], {
+        date: statsSnapshots.snapshot_date,
+        operator_id: operators.id,
+        operator_name: operators.name,
+        band_id: bands.id,
+        band_name: bands.name,
+        unique_stations: statsSnapshots.unique_stations_count,
+        permits_count: statsSnapshots.permits_count,
+      })
+      .from(statsSnapshots)
+      .innerJoin(operators, eq(statsSnapshots.operator_id, operators.id))
+      .innerJoin(bands, eq(statsSnapshots.band_id, bands.id))
+      .where(whereClause)
+      .orderBy(
+        sql`date_trunc('month', ${statsSnapshots.snapshot_date})`,
+        statsSnapshots.operator_id,
+        statsSnapshots.band_id,
+        statsSnapshots.snapshot_date,
+      ),
+    db
+      .selectDistinctOn([sql`date_trunc('month', ${ukeImportMetadata.last_import_date})`], {
+        date: ukeImportMetadata.last_import_date,
+      })
+      .from(ukeImportMetadata)
+      .where(and(eq(ukeImportMetadata.import_type, "permits"), eq(ukeImportMetadata.status, "success")))
+      .orderBy(sql`date_trunc('month', ${ukeImportMetadata.last_import_date})`, desc(ukeImportMetadata.last_import_date)),
+  ]);
 
-  const response = { data: mapRows(rows) };
+  const importDateByMonth = new Map(importRows.map((r) => [r.date.toISOString().slice(0, 7), r.date.toISOString().slice(0, 10)]));
+
+  const response = {
+    data: rows.map((r) => ({
+      date: importDateByMonth.get(r.date.toISOString().slice(0, 7)) ?? r.date.toISOString().slice(0, 10),
+      operator: { id: r.operator_id, name: r.operator_name },
+      band: { id: r.band_id, name: r.band_name },
+      unique_stations: r.unique_stations,
+      permits_count: r.permits_count,
+    })),
+  };
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
   res.send(response);
 }

@@ -54,7 +54,14 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
       })
       .from(ukeImportMetadata)
       .where(
-        and(eq(ukeImportMetadata.status, "success"), or(eq(ukeImportMetadata.import_type, "permits"), eq(ukeImportMetadata.import_type, "stations"))),
+        and(
+          eq(ukeImportMetadata.status, "success"),
+          or(
+            eq(ukeImportMetadata.import_type, "permits"),
+            eq(ukeImportMetadata.import_type, "device_registry"),
+            eq(ukeImportMetadata.import_type, "radiolines"),
+          ),
+        ),
       )
       .orderBy(desc(ukeImportMetadata.last_import_date)),
 
@@ -74,13 +81,10 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
     radiolines: null,
   };
 
-  const seen = new Set<string>();
   for (const row of importTimestamps) {
-    if (seen.has(row.import_type)) continue;
-    seen.add(row.import_type);
-
-    if (row.import_type === "permits") lastUpdated.stations_permits = row.last_import_date.toISOString();
-    else if (row.import_type === "radiolines") lastUpdated.radiolines = row.last_import_date.toISOString();
+    if ((row.import_type === "permits" || row.import_type === "device_registry") && !lastUpdated.stations_permits)
+      lastUpdated.stations_permits = row.last_import_date.toISOString();
+    else if (row.import_type === "radiolines" && !lastUpdated.radiolines) lastUpdated.radiolines = row.last_import_date.toISOString();
   }
 
   const [locationsCount, stationsCount, cellsCount, ukeLocationsCount, ukePermitsCount, ukeRadiolinesCount] = countResults;

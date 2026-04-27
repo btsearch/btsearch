@@ -147,13 +147,13 @@ export async function importPermits(): Promise<boolean> {
   const links = unfiltered;
   logger.log(`Found ${links.length} files to process`);
 
-  const previousFileNames = await getLastImportedFileNames("stations");
+  const previousFileNames = await getLastImportedFileNames("permits");
   const newLinks = previousFileNames ? links.filter((l) => !previousFileNames.has(l.href.split("/").pop() ?? l.href)) : links;
 
   if (newLinks.length === 0) {
     if (previousFileNames && previousFileNames.size !== links.length) {
       logger.log("No new files to process, updating metadata");
-      await recordImportMetadata("stations", links, "success");
+      await recordImportMetadata("permits", links, "success");
     } else {
       logger.log("Data is up-to-date, skipping import");
     }
@@ -222,7 +222,7 @@ export async function importPermits(): Promise<boolean> {
     await insertUkePermits(fr.rows, bandMap, operatorIdByName, locationIdByLonLat, parseBandFromLabel, fr.label, fr.fileDate);
   }
 
-  const importMetadataId = await recordImportMetadata("stations", links, "success");
+  const importMetadataId = await recordImportMetadata("permits", links, "success");
 
   logger.log("Deleting stale station permits...");
   let staleCount = 0;

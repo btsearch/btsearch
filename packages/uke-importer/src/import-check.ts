@@ -1,7 +1,7 @@
 import { ukeImportMetadata } from "@openbts/drizzle";
 import { db } from "@openbts/drizzle/db";
 
-type ImportType = "stations" | "radiolines" | "stations_permits" | "permits";
+type ImportType = "permits" | "radiolines" | "stations_permits" | "device_registry";
 
 export async function getLastImportedFileNames(importType: ImportType): Promise<Set<string> | null> {
   const latestImport = await db.query.ukeImportMetadata.findFirst({
