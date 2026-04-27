@@ -136,7 +136,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       if (operators) conditions.push(inArray(f.operator_id, operators));
       if (recentDays) {
         const cutoff = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000);
-        conditions.push(sql`${f.updatedAt} >= ${cutoff.toISOString()}`);
+        conditions.push(sql`${f.createdAt} >= ${cutoff.toISOString()}`);
       }
 
       return conditions;
