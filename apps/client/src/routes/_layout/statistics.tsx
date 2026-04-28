@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRegisterPageSections } from "@/contexts/pageSections";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { InternalKpiCards, UkeKpiCards } from "@/features/statistics/components/kpiCards";
 import { statsPermitsQueryOptions, statsSummaryQueryOptions, statsVoivodeshipsQueryOptions } from "@/features/statistics/queries";
@@ -105,6 +106,12 @@ function StatisticsPage() {
   const { data: voivodeships, isLoading: voivodeshipsLoading } = useQuery(statsVoivodeshipsQueryOptions());
   const { data: operators } = useQuery(operatorsQueryOptions());
 
+  useRegisterPageSections([
+    { id: "uke-permits", title: t("stationDetails:tabs.permits") },
+    { id: "internal-db", title: t("main:stats.internalData") },
+    { id: "history", title: t("charts.history") },
+  ]);
+
   return (
     <main className="flex-1 overflow-y-auto p-6">
       <div className="space-y-12">
@@ -113,7 +120,7 @@ function StatisticsPage() {
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
 
-        <section className="space-y-6">
+        <section id="uke-permits" className="space-y-6">
           <div className="space-y-4">
             <SectionHeader>{t("stationDetails:tabs.permits")}</SectionHeader>
             <UkeKpiCards data={summary} isLoading={summaryLoading} />
@@ -131,7 +138,7 @@ function StatisticsPage() {
 
         <hr className="border-border" />
 
-        <section className="space-y-6">
+        <section id="internal-db" className="space-y-6">
           <div className="space-y-4">
             <SectionHeader>{t("main:stats.internalData")}</SectionHeader>
             <InternalKpiCards data={summary} isLoading={summaryLoading} />
@@ -155,7 +162,7 @@ function StatisticsPage() {
 
         <hr className="border-border" />
 
-        <section className="space-y-6">
+        <section id="history" className="space-y-6">
           <SectionHeader>{t("charts.history")}</SectionHeader>
           <LazyChart fallback={chartSkeleton}>
             <HistoryChart operators={operators} />
