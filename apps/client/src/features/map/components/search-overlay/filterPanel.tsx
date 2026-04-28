@@ -140,7 +140,7 @@ function OperatorsSection({
             filter={(op, query, itemToString) => {
               if (!query.trim()) return true;
               const q = query.toLowerCase().trim();
-              const label = (itemToString?.(op) ?? op.name).toLowerCase();
+              const label = (itemToString?.(op) ?? op.name ?? "").toLowerCase();
               const full = (op.full_name ?? "").toLowerCase();
               return label.includes(q) || full.includes(q);
             }}

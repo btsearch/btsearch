@@ -452,6 +452,17 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       ...viewport,
     });
 
+    // MapLibre sets _style = null mid setStyle(). A mousemove in that window crashes on getLayer()
+    // Return undefined instead of throwing, same as "layer not found"
+    const _originalGetLayer = map.getLayer.bind(map);
+    map.getLayer = (id: string) => {
+      try {
+        return _originalGetLayer(id);
+      } catch {
+        return undefined;
+      }
+    };
+
     const styleDataHandler = () => {
       clearStyleTimeout();
       // Delay to ensure style is fully processed before allowing layer operations

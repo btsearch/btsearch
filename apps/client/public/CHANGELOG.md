@@ -1,6 +1,13 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/sakilabs/openbts/issues/new) or send me an email [ririxi@sakilabs.com](mailto:ririxi@sakilabs.com)
 
+# 2026-04-28
+
+### 🩹 Fixes
+
+- Potentially fixed map crash (`Cannot read properties of null (reading 'getLayer')`) occurring when moving the mouse during a map style change
+- Fixed radioline operator combobox crashing with `Cannot read properties of undefined (reading 'toLowerCase')` when an operator has no name (somehow?)
+
 # 2026-04-27
 
 ### 🚀 Enhancements
