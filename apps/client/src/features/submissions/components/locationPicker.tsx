@@ -370,6 +370,7 @@ function PickerMapInner({
   const { nearbyPanel, ukeStationPanel, dispatchPanel } = useLocationPickerState();
 
   const lastInternalCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const userHasInteractedRef = useRef(false);
 
   const { data: viewportLocations = [] } = useQuery({
     queryKey: ["picker-locations", bounds],
@@ -414,6 +415,7 @@ function PickerMapInner({
         const locationId = features[0].properties?.locationId;
         const loc = viewportLocationsRef.current.find((l) => l.id === locationId);
         if (loc) {
+          userHasInteractedRef.current = true;
           lastInternalCoordsRef.current = { lat: loc.latitude, lng: loc.longitude };
           callbackRefs.current.onExistingLocationSelect(loc);
           dispatchPanel({ type: "SELECT_LOCATION" });
@@ -440,6 +442,7 @@ function PickerMapInner({
       if (nearby.length > 0) {
         dispatchPanel({ type: "NEARBY", coords: { lat, lng }, locations: nearby });
       } else {
+        userHasInteractedRef.current = true;
         lastInternalCoordsRef.current = { lat, lng };
         callbackRefs.current.onCoordinatesSet(lat, lng);
         dispatchPanel({ type: "CLEAR_BOTH" });
@@ -481,15 +484,16 @@ function PickerMapInner({
     const lng = roundCoord(location.longitude);
     const match = viewportLocations.find((l) => roundCoord(l.latitude) === lat && roundCoord(l.longitude) === lng);
     if (match) {
-      if (matchedLocationIdRef.current !== match.id) {
+      if (matchedLocationIdRef.current !== match.id && userHasInteractedRef.current) {
         matchedLocationIdRef.current = match.id;
         callbackRefs.current.onExistingLocationSelect(match);
-      }
+      } else if (!userHasInteractedRef.current) matchedLocationIdRef.current = match.id;
     } else matchedLocationIdRef.current = null;
   }, [location.latitude, location.longitude, viewportLocations]);
 
   const handleDragEnd = useCallback(
     (lngLat: { lng: number; lat: number }) => {
+      userHasInteractedRef.current = true;
       lastInternalCoordsRef.current = { lat: lngLat.lat, lng: lngLat.lng };
       onCoordinatesSet(lngLat.lat, lngLat.lng);
     },
@@ -498,6 +502,7 @@ function PickerMapInner({
 
   const handleSelectNearby = useCallback(
     (loc: LocationWithStations) => {
+      userHasInteractedRef.current = true;
       lastInternalCoordsRef.current = { lat: loc.latitude, lng: loc.longitude };
       onExistingLocationSelect(loc);
       dispatchPanel({ type: "CLEAR_NEARBY" });

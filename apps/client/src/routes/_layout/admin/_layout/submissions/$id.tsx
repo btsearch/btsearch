@@ -2,7 +2,7 @@ import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -197,34 +197,32 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     mno_name: submission.proposedStation?.mno_name ?? "",
   }));
 
-  const [locationForm, setLocationForm] = useState<ProposedLocationForm>(() => ({
-    region_id: submission.proposedLocation?.region_id ?? null,
-    city: submission.proposedLocation?.city ?? "",
-    address: submission.proposedLocation?.address ?? "",
-    longitude: submission.proposedLocation?.longitude ?? null,
-    latitude: submission.proposedLocation?.latitude ?? null,
-  }));
-
-  const { data: operators = [] } = useQuery(operatorsQueryOptions());
-  const { data: allBands = [] } = useQuery(bandsQueryOptions());
-
   const isReadOnly = submission.status !== "pending";
   const isDeleteSubmission = submission.type === "delete";
   const isFormDisabled = isReadOnly || isDeleteSubmission;
 
-  useEffect(() => {
+  const [locationForm, setLocationForm] = useState<ProposedLocationForm>(() => {
     if (isReadOnly && currentStation?.location) {
-      queueMicrotask(() =>
-        setLocationForm({
-          region_id: currentStation.location.region.id,
-          city: currentStation.location.city ?? "",
-          address: currentStation.location.address ?? "",
-          longitude: currentStation.location.longitude,
-          latitude: currentStation.location.latitude,
-        }),
-      );
+      return {
+        region_id: currentStation.location.region.id,
+        city: currentStation.location.city ?? "",
+        address: currentStation.location.address ?? "",
+        longitude: currentStation.location.longitude,
+        latitude: currentStation.location.latitude,
+      };
     }
-  }, [isReadOnly, currentStation]);
+
+    return {
+      region_id: submission.proposedLocation?.region_id ?? null,
+      city: submission.proposedLocation?.city ?? "",
+      address: submission.proposedLocation?.address ?? "",
+      longitude: submission.proposedLocation?.longitude ?? null,
+      latitude: submission.proposedLocation?.latitude ?? null,
+    };
+  });
+
+  const { data: operators = [] } = useQuery(operatorsQueryOptions());
+  const { data: allBands = [] } = useQuery(bandsQueryOptions());
 
   const initialCells = useMemo(() => computeInitialCells(submission, currentStation), [submission, currentStation]);
 
