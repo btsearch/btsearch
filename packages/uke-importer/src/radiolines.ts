@@ -10,7 +10,16 @@ import { getLastImportedFileNames, recordImportMetadata } from "./import-check.j
 import { scrapeXlsxLinks } from "./scrape.js";
 import type { RawRadioLineData } from "./types.js";
 import { upsertUkeOperators } from "./upserts.js";
-import { chunk, convertDMSToDD, downloadFile, ensureDownloadDir, parseExcelDate, readSheetAsJson, stripCompanySuffixForName } from "./utils.js";
+import {
+  chunk,
+  convertDMSToDD,
+  downloadFile,
+  ensureDownloadDir,
+  parseExcelDate,
+  parseFileDateWithImportTime,
+  readSheetAsJson,
+  stripCompanySuffixForName,
+} from "./utils.js";
 
 type UkeRadiolineInsert = typeof ukeRadiolines.$inferInsert;
 type UkeRadiolineSelect = typeof ukeRadiolines.$inferSelect;
@@ -192,11 +201,8 @@ export async function importRadiolines(): Promise<boolean> {
   }
   console.log(`[radiolines] Found ${manufNames.size} manufacturers, ${antTypeTuples.size} antenna types, ${txTypeTuples.size} transmitter types`);
 
-  const fileNameDateStr = first.href
-    .split("/")
-    .pop()
-    ?.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
-  const fileDate = fileNameDateStr ? new Date(fileNameDateStr) : new Date();
+  const importTime = new Date();
+  const fileDate = parseFileDateWithImportTime(first.href, importTime);
 
   console.log("[radiolines] Upserting manufacturers...");
   const manufArr = Array.from(manufNames).filter((s) => s.length > 0);

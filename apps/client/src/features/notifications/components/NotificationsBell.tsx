@@ -32,7 +32,6 @@ type NotificationMetadata = {
   station_id?: string;
   station_operator_name?: string;
   submitter_name?: string;
-  submitter_note?: string;
   uke_stations_added?: number;
   removed?: number;
   updated?: number;
@@ -72,7 +71,6 @@ function NotificationItem({ notification, onRead }: { notification: Notification
   const stationLabel = formatStationLabel(stationId, stationOperatorName);
   const reviewerNote = metadata?.reviewer_note;
   const reviewerName = metadata?.reviewer_name;
-  const submitterNote = metadata?.submitter_note;
   const submitterName = metadata?.submitter_name;
   const cellsAdded = metadata?.added;
   const cellsRemoved = metadata?.removed;
@@ -100,7 +98,6 @@ function NotificationItem({ notification, onRead }: { notification: Notification
         {stationLabel && <p className="text-xs text-muted-foreground truncate">{t("station", { stationId: stationLabel })}</p>}
         {reviewerName && <p className="text-xs text-muted-foreground truncate">{t("reviewerName", { name: reviewerName })}</p>}
         {reviewerNote && <p className="text-xs text-muted-foreground truncate italic">{reviewerNote}</p>}
-        {submitterNote && <p className="text-xs text-muted-foreground truncate italic">{t("submitterNote", { note: submitterNote })}</p>}
         {cellsAdded !== undefined && cellsAdded > 0 ? (
           <p className="text-xs text-muted-foreground truncate">{t("cellsAdded", { count: cellsAdded })}</p>
         ) : null}

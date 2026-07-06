@@ -7,13 +7,14 @@ import url from "node:url";
 import XLSX from "xlsx";
 
 import { BATCH_SIZE, DOWNLOAD_DIR, PERMITS_DEVICES_URL, PERMIT_FILE_OPERATOR_MAP, REGION_BY_TERYT_PREFIX } from "./config.ts";
-import { chunk, convertDMSToDD, createLogger, downloadFile, ensureDownloadDir } from "./utils.ts";
+import { chunk, convertDMSToDD, createLogger, downloadFile, ensureDownloadDir, parseFileDateWithImportTime } from "./utils.ts";
 
 const logger = createLogger("device-registry");
 import { db } from "@openbts/drizzle/db";
 import { and, eq, inArray, lt } from "drizzle-orm/sql/expressions/conditions";
 
 import { getLastImportedFileNames, recordImportMetadata } from "./import-check.ts";
+import { findCreatedPermitStationIds } from "./permit-activity.ts";
 import { scrapePermitDeviceLinks } from "./scrape.ts";
 import { cleanupOrphanedUkeStations, getUkeStationKey, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.ts";
 import { upsertBands, upsertRegions, upsertUkeLocations } from "./upserts.ts";
@@ -498,6 +499,7 @@ async function processChunk(
   }
 
   const uniquePermits = Array.from(deduplicatedPermitsMap.entries());
+  const createdPermitStationIds = await findCreatedPermitStationIds(uniquePermits.map(([, permit]) => permit));
 
   let insertedCount = 0;
   for (const group of chunk(uniquePermits, BATCH_SIZE)) {
@@ -544,7 +546,7 @@ async function processChunk(
     }
   }
 
-  await refreshUkeStationActivity(stationIdByKey.values());
+  await refreshUkeStationActivity(createdPermitStationIds);
   return insertedCount;
 }
 
@@ -595,6 +597,7 @@ export async function importDeviceRegistry(): Promise<boolean> {
   const regionIds = await upsertRegions(regionItems);
 
   logger.log("Downloading all files...");
+  const importTime = new Date();
   const downloadedFiles = (
     await Promise.all(
       newLinks.map(async (l) => {
@@ -610,11 +613,7 @@ export async function importDeviceRegistry(): Promise<boolean> {
         }
         const fileName = `${(l.text || path.basename(new url.URL(l.href).pathname)).replace(/\s+/g, "_").replace("_plik_XLSX", "")}.xlsx`;
         const filePath = path.join(DOWNLOAD_DIR, fileName);
-        const fileDateStr = l.href
-          .split("/")
-          .pop()
-          ?.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
-        const fileDate = fileDateStr ? new Date(fileDateStr) : new Date();
+        const fileDate = parseFileDateWithImportTime(l.href, importTime);
         logger.log(`Downloading: ${fileName}`);
         await downloadFile(l.href, filePath);
         return { filePath, operatorKey: l.operatorKey, operatorId, fileDate };

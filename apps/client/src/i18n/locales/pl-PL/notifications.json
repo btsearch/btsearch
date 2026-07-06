@@ -8,7 +8,6 @@
   "station": "Stacja: {{stationId}}",
   "reviewerNote": "Notatka: {{note}}",
   "reviewerName": "Sprawdzający: {{name}}",
-  "submitterNote": "Notatka zgłaszającego: {{note}}",
   "submittedBy": "Od {{name}}",
   "cellsAdded": "Dodane komórki: {{count}}",
   "cellsRemoved": "Usunięte komórki: {{count}}",

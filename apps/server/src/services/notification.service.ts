@@ -124,7 +124,6 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
     station_operator_name,
     reviewer_note,
     reviewer_name,
-    submitter_note,
     added,
     removed,
     updated,
@@ -140,7 +139,6 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
   }
   if (typeof reviewer_name === "string") lines.push(`${labels.reviewerName}: ${reviewer_name}`);
   if (typeof reviewer_note === "string") lines.push(`${labels.reviewerNote}: ${reviewer_note}`);
-  if (typeof submitter_note === "string") lines.push(`${labels.submitterNote}: ${submitter_note}`);
   if (typeof added === "number" && added > 0) lines.push(`${labels.cellsAdded}: ${added}`);
   if (typeof removed === "number" && removed > 0) lines.push(`${labels.cellsRemoved}: ${removed}`);
   if (typeof updated === "number" && updated > 0) lines.push(`${labels.cellsUpdated}: ${updated}`);

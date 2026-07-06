@@ -36,7 +36,6 @@ export default {
     submittedBy: "By",
     reviewerName: "Reviewed by",
     reviewerNote: "Note",
-    submitterNote: "Submitter note",
     cellsAdded: "Cells added",
     cellsRemoved: "Cells removed",
     cellsUpdated: "Cells updated",

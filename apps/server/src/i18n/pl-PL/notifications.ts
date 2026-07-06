@@ -36,7 +36,6 @@ export default {
     submittedBy: "Od",
     reviewerName: "Sprawdzający",
     reviewerNote: "Notatka",
-    submitterNote: "Notatka zgłaszającego",
     cellsAdded: "Dodane komórki",
     cellsRemoved: "Usunięte komórki",
     cellsUpdated: "Zmienione komórki",

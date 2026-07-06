@@ -1276,7 +1276,6 @@ export async function approveSubmissionAction({
       ...(stationStringId ? { station_id: stationStringId } : {}),
       ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
       ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
-      ...(submission.submitter_note ? { submitter_note: submission.submitter_note.slice(0, 150) } : {}),
     },
     actionUrl: "/account/submissions",
   }).catch((e) => logger.error("Failed to send notification", { error: e }));
@@ -1363,7 +1362,6 @@ export async function rejectSubmissionAction({
       ...(stationStringId ? { station_id: stationStringId } : {}),
       ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
       ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
-      ...(submission.submitter_note ? { submitter_note: submission.submitter_note.slice(0, 150) } : {}),
     },
     actionUrl: "/account/submissions",
   }).catch((e) => logger.error("Failed to send notification", { error: e }));

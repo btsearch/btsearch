@@ -1,7 +1,9 @@
 import {
+  locations,
   proposedCells,
   proposedGSMCells,
   proposedLTECells,
+  proposedLocations,
   proposedNRCells,
   proposedStations,
   proposedUMTSCells,
@@ -39,6 +41,23 @@ const schemaRoute = {
     status: z.enum(["pending", "approved", "rejected"]).optional(),
     type: z.enum(["new", "update", "delete"]).optional(),
     submitter_ids: z.string().optional(),
+    operators: z
+      .string()
+      .regex(/^\d+(,\d+)*$/)
+      .optional()
+      .transform((val): number[] | undefined =>
+        val
+          ? val
+              .split(",")
+              .map(Number)
+              .filter((n) => !Number.isNaN(n))
+          : undefined,
+      ),
+    regions: z
+      .string()
+      .regex(/^[A-Z]{3}(,[A-Z]{3})*$/)
+      .optional()
+      .transform((val): string[] | undefined => (val ? val.split(",").filter(Boolean) : undefined)),
     search: z.string().optional(),
     sort: z.enum(["asc", "desc"]).default("asc"),
   }),
@@ -78,7 +97,7 @@ type ResponseBody = { data: ResponseData[]; totalCount: number };
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
   if (!getRuntimeSettings().submissionsEnabled) throw new ErrorResponse("FORBIDDEN");
-  const { limit, offset, status, type, submitter_ids, search, sort } = req.query;
+  const { limit, offset, status, type, submitter_ids, operators: operatorMncs, regions: regionCodes, search, sort } = req.query;
 
   const session = req.userSession;
   const apiToken = req.apiToken;
@@ -86,6 +105,36 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const userId = session?.user?.id;
   if (!userId) throw new ErrorResponse("UNAUTHORIZED");
+
+  const [operatorRows, regionRows] = await Promise.all([
+    operatorMncs?.length
+      ? db.query.operators.findMany({
+          columns: { id: true },
+          where: {
+            mnc: { in: operatorMncs },
+          },
+        })
+      : [],
+    regionCodes?.length
+      ? db.query.regions.findMany({
+          columns: { id: true },
+          where: {
+            code: { in: regionCodes },
+          },
+        })
+      : [],
+  ]);
+  const operatorIds = operatorRows.map((operator) => operator.id);
+  const regionIds = regionRows.map((region) => region.id);
+
+  if (operatorMncs?.length && operatorIds.length === 0) return res.send({ data: [], totalCount: 0 });
+  if (regionCodes?.length && regionIds.length === 0) return res.send({ data: [], totalCount: 0 });
+
+  const sqlIntArray = (ids: number[]) =>
+    sql`ARRAY[${sql.join(
+      ids.map((id) => sql`${id}`),
+      sql`,`,
+    )}]::int4[]`;
 
   const buildConditions = (t: typeof submissions) => {
     const conds: SQL[] = [];
@@ -96,6 +145,37 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     }
     if (status) conds.push(eq(t.status, status));
     if (type) conds.push(eq(t.type, type));
+    if (operatorIds.length) {
+      const operatorArray = sqlIntArray(operatorIds);
+      conds.push(sql`(
+        EXISTS (
+          SELECT 1 FROM ${stations}
+          WHERE ${stations.id} = ${t.station_id}
+          AND ${stations.operator_id} = ANY(${operatorArray})
+        )
+        OR EXISTS (
+          SELECT 1 FROM ${proposedStations}
+          WHERE ${proposedStations.submission_id} = ${t.id}
+          AND ${proposedStations.operator_id} = ANY(${operatorArray})
+        )
+      )`);
+    }
+    if (regionIds.length) {
+      const regionArray = sqlIntArray(regionIds);
+      conds.push(sql`(
+        EXISTS (
+          SELECT 1 FROM ${stations}
+          INNER JOIN ${locations} ON ${locations.id} = ${stations.location_id}
+          WHERE ${stations.id} = ${t.station_id}
+          AND ${locations.region_id} = ANY(${regionArray})
+        )
+        OR EXISTS (
+          SELECT 1 FROM ${proposedLocations}
+          WHERE ${proposedLocations.submission_id} = ${t.id}
+          AND ${proposedLocations.region_id} = ANY(${regionArray})
+        )
+      )`);
+    }
     if (search?.trim()) {
       const trimmed = search.trim();
       const like = `%${trimmed}%`;

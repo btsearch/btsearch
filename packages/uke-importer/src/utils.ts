@@ -88,8 +88,29 @@ export function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-export function parseExcelDate(val: number | string | undefined): Date {
-  if (val == null || val === "") return new Date();
+export function parseFileDateWithImportTime(href: string, importTime = new Date()): Date {
+  const fileName = href.split("/").pop() ?? "";
+  const match = fileName.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return new Date(importTime.getTime());
+
+  const [, year, month, day] = match;
+  if (year === undefined || month === undefined || day === undefined) return new Date(importTime.getTime());
+
+  return new Date(
+    Date.UTC(
+      Number.parseInt(year, 10),
+      Number.parseInt(month, 10) - 1,
+      Number.parseInt(day, 10),
+      importTime.getUTCHours(),
+      importTime.getUTCMinutes(),
+      importTime.getUTCSeconds(),
+      importTime.getUTCMilliseconds(),
+    ),
+  );
+}
+
+export function parseExcelDate(val: number | string | null | undefined): Date {
+  if (val === null || val === undefined || val === "") return new Date();
   if (typeof val === "number") {
     const epoch = new Date(Date.UTC(1899, 11, 30));
     return new Date(epoch.getTime() + val * 86400000);

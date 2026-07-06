@@ -2071,6 +2071,14 @@ paths:
           in: query
           description: Comma-separated list of submitter user IDs to filter by
           schema: { type: string }
+        - name: operators
+          in: query
+          description: Comma-separated operator MNCs to filter by
+          schema: { type: string, pattern: '^\d+(,\d+)*$' }
+        - name: regions
+          in: query
+          description: Comma-separated 3-letter region codes to filter by
+          schema: { type: string, pattern: "^[A-Z]{3}(,[A-Z]{3})*$" }
         - name: search
           in: query
           description: Search by submission ID prefix or station ID

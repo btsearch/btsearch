@@ -73,6 +73,15 @@ export function StationsFilters({
   );
   const otherOperators = useMemo(() => operators.filter((op) => !TOP4_MNCS.includes(op.mnc)), [operators]);
   const hasSelectedOther = useMemo(() => otherOperators.some((op) => filters.operators.includes(op.mnc)), [otherOperators, filters.operators]);
+  const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
+  const selectedRegionItems = useMemo(
+    () => selectedRegions.map((id) => regionById.get(id)).filter((region): region is Region => region !== undefined),
+    [selectedRegions, regionById],
+  );
+  const visibleSelectedRegions = useMemo(() => selectedRegionItems.slice(0, 1), [selectedRegionItems]);
+  const visibleSelectedBands = useMemo(() => filters.bands.slice(0, 2), [filters.bands]);
+  const hiddenSelectedRegionCount = selectedRegionItems.length - visibleSelectedRegions.length;
+  const hiddenSelectedBandCount = filters.bands.length - visibleSelectedBands.length;
 
   const {
     query,
@@ -280,18 +289,22 @@ export function StationsFilters({
 
         <div>
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.region")}</span>
-          <Combobox
-            multiple
-            value={selectedRegions.map((id) => regions.find((r) => r.id === id)).filter(Boolean) as Region[]}
-            onValueChange={(values) => onRegionsChange(values.map((v) => v.id))}
-            items={regions}
-          >
-            <ComboboxChips ref={regionChipsRef} className="min-h-8 max-h-16 overflow-y-auto text-sm">
-              {selectedRegions.map((regionId) => {
-                const region = regions.find((r) => r.id === regionId);
-                return region ? <ComboboxChip key={regionId}>{region.name}</ComboboxChip> : null;
-              })}
-              <ComboboxChipsInput placeholder={selectedRegions.length === 0 ? t("common:placeholder.selectRegions") : ""} />
+          <Combobox multiple value={selectedRegionItems} onValueChange={(values) => onRegionsChange(values.map((v) => v.id))} items={regions}>
+            <ComboboxChips ref={regionChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+              {visibleSelectedRegions.map((region) => (
+                <ComboboxChip key={region.id} className="max-w-40 shrink-0">
+                  <span className="truncate">{region.name}</span>
+                </ComboboxChip>
+              ))}
+              {hiddenSelectedRegionCount > 0 ? (
+                <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                  +{hiddenSelectedRegionCount}
+                </ComboboxChip>
+              ) : null}
+              <ComboboxChipsInput
+                className={selectedRegions.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                placeholder={selectedRegions.length === 0 ? t("common:placeholder.selectRegions") : ""}
+              />
             </ComboboxChips>
             <ComboboxContent anchor={regionChipsRef}>
               <ComboboxList>
@@ -329,11 +342,19 @@ export function StationsFilters({
         <div>
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.band")} (MHz)</span>
           <Combobox multiple value={filters.bands} onValueChange={handleBandsChange} items={uniqueBandValues}>
-            <ComboboxChips ref={bandChipsRef} className="min-h-8 max-h-16 overflow-y-auto text-sm">
-              {filters.bands.map((band) => (
+            <ComboboxChips ref={bandChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+              {visibleSelectedBands.map((band) => (
                 <ComboboxChip key={band}>{band === 0 ? t("stations:cells.unknownBand") : band}</ComboboxChip>
               ))}
-              <ComboboxChipsInput placeholder={filters.bands.length === 0 ? t("common:placeholder.selectBand") : ""} />
+              {hiddenSelectedBandCount > 0 ? (
+                <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                  +{hiddenSelectedBandCount}
+                </ComboboxChip>
+              ) : null}
+              <ComboboxChipsInput
+                className={filters.bands.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                placeholder={filters.bands.length === 0 ? t("common:placeholder.selectBand") : ""}
+              />
             </ComboboxChips>
             <ComboboxContent anchor={bandChipsRef}>
               <ComboboxList>

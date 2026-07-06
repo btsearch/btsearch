@@ -3,14 +3,24 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
-import { operatorsQueryOptions } from "@/features/admin/queries";
+import { operatorsQueryOptions, regionsQueryOptions } from "@/features/admin/queries";
 import { SUBMISSION_STATUS, SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionListItem } from "@/features/admin/submissions/types";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
@@ -21,11 +31,20 @@ import { API_BASE, fetchJson } from "@/lib/api";
 import { formatShortDate, resolveAvatarUrl } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
-import type { Operator } from "@/types/station";
+import type { Operator, Region } from "@/types/station";
 
 const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
 
 const columnHelper = createColumnHelper<SubmissionListItem>();
+
+function loadStoredNumberArray(key: string) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
+  } catch {
+    return [];
+  }
+}
 
 function StationIdentityCell({ stationId, operator, fallback }: { stationId: string | null; operator: Operator | undefined; fallback: string }) {
   if (!stationId && !operator) return <span className="text-muted-foreground italic text-xs">{fallback}</span>;
@@ -90,6 +109,10 @@ function AdminSubmissionsListPage() {
       return [];
     }
   });
+  const [selectedOperatorMncs, setSelectedOperatorMncs] = useState<number[]>(() => loadStoredNumberArray("admin:submissions:operators"));
+  const [selectedRegionIds, setSelectedRegionIds] = useState<number[]>(() => loadStoredNumberArray("admin:submissions:regions"));
+  const operatorChipsRef = useRef<HTMLDivElement>(null);
+  const regionChipsRef = useRef<HTMLDivElement>(null);
 
   const debouncedUpdate = useDebouncedCallback((value: string) => {
     setActiveSearch(value);
@@ -131,6 +154,26 @@ function AdminSubmissionsListPage() {
     localStorage.setItem("admin:submissions:submitters", JSON.stringify(ids));
   }, []);
 
+  const handleOperatorChange = useCallback(
+    (operators: Operator[]) => {
+      const mncs = operators.map((operator) => operator.mnc);
+      setSelectedOperatorMncs(mncs);
+      localStorage.setItem("admin:submissions:operators", JSON.stringify(mncs));
+      void navigate({ from: Route.fullPath, search: (s) => ({ ...s, page: 0 }), replace: true });
+    },
+    [navigate],
+  );
+
+  const handleRegionChange = useCallback(
+    (regions: Region[]) => {
+      const ids = regions.map((region) => region.id);
+      setSelectedRegionIds(ids);
+      localStorage.setItem("admin:submissions:regions", JSON.stringify(ids));
+      void navigate({ from: Route.fullPath, search: (s) => ({ ...s, page: 0 }), replace: true });
+    },
+    [navigate],
+  );
+
   const handleSortToggle = useCallback(() => {
     setSortOrder((prev) => {
       const next = prev === "asc" ? "desc" : "asc";
@@ -161,7 +204,30 @@ function AdminSubmissionsListPage() {
   );
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
-  const operatorById = useMemo(() => new Map(operators.map((operator) => [operator.id, operator])), [operators]);
+  const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const { operatorById, operatorByMnc } = useMemo(() => {
+    const byId = new Map<number, Operator>();
+    const byMnc = new Map<number, Operator>();
+    for (const operator of operators) {
+      byId.set(operator.id, operator);
+      byMnc.set(operator.mnc, operator);
+    }
+    return { operatorById: byId, operatorByMnc: byMnc };
+  }, [operators]);
+  const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
+  const selectedOperators = useMemo(
+    () => selectedOperatorMncs.map((mnc) => operatorByMnc.get(mnc)).filter((operator): operator is Operator => operator !== undefined),
+    [selectedOperatorMncs, operatorByMnc],
+  );
+  const selectedRegions = useMemo(
+    () => selectedRegionIds.map((id) => regionById.get(id)).filter((region): region is Region => region !== undefined),
+    [selectedRegionIds, regionById],
+  );
+  const visibleSelectedOperators = useMemo(() => selectedOperators.slice(0, 1), [selectedOperators]);
+  const visibleSelectedRegions = useMemo(() => selectedRegions.slice(0, 1), [selectedRegions]);
+  const hiddenSelectedOperatorCount = selectedOperators.length - visibleSelectedOperators.length;
+  const hiddenSelectedRegionCount = selectedRegions.length - visibleSelectedRegions.length;
+  const selectedRegionCodes = useMemo(() => selectedRegions.map((region) => region.code), [selectedRegions]);
   const getOperatorById = useCallback(
     (operatorId: number | null | undefined) => (operatorId !== null && operatorId !== undefined ? operatorById.get(operatorId) : undefined),
     [operatorById],
@@ -178,6 +244,8 @@ function AdminSubmissionsListPage() {
       activeSearch,
       sortOrder,
       selectedSubmitterIds,
+      selectedOperatorMncs,
+      selectedRegionCodes,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -187,6 +255,8 @@ function AdminSubmissionsListPage() {
       if (typeFilter !== "all") params.set("type", typeFilter);
       if (activeSearch) params.set("search", activeSearch);
       if (selectedSubmitterIds.length > 0) params.set("submitter_ids", selectedSubmitterIds.join(","));
+      if (selectedOperatorMncs.length > 0) params.set("operators", selectedOperatorMncs.join(","));
+      if (selectedRegionCodes.length > 0) params.set("regions", selectedRegionCodes.join(","));
       params.set("sort", sortOrder);
       return fetchJson<{ data: SubmissionListItem[]; totalCount: number }>(`${API_BASE}/submissions/admin?${params.toString()}`);
     },
@@ -352,9 +422,73 @@ function AdminSubmissionsListPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <UserPickerPopover selectedUserIds={selectedSubmitterIds} onSelectionChange={handleSubmitterChange} />
-          <div className="relative">
+          <div className="w-full sm:w-44">
+            <Combobox multiple value={selectedOperators} onValueChange={handleOperatorChange} items={operators}>
+              <ComboboxChips ref={operatorChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+                {visibleSelectedOperators.map((operator) => (
+                  <ComboboxChip key={operator.id} className="max-w-20 shrink-0">
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <span className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
+                      <span className="truncate">{operator.name}</span>
+                    </span>
+                  </ComboboxChip>
+                ))}
+                {hiddenSelectedOperatorCount > 0 ? (
+                  <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                    +{hiddenSelectedOperatorCount}
+                  </ComboboxChip>
+                ) : null}
+                <ComboboxChipsInput
+                  className={selectedOperatorMncs.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                  placeholder={selectedOperatorMncs.length === 0 ? t("common:labels.operator") : ""}
+                />
+              </ComboboxChips>
+              <ComboboxContent anchor={operatorChipsRef}>
+                <ComboboxList>
+                  <ComboboxEmpty>-</ComboboxEmpty>
+                  {operators.map((operator) => (
+                    <ComboboxItem key={operator.id} value={operator}>
+                      <span className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
+                      <span className="truncate">{operator.name}</span>
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+          <div className="w-full sm:w-52">
+            <Combobox multiple value={selectedRegions} onValueChange={handleRegionChange} items={regions}>
+              <ComboboxChips ref={regionChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+                {visibleSelectedRegions.map((region) => (
+                  <ComboboxChip key={region.id} className="max-w-32 shrink-0">
+                    <span className="truncate">{region.name}</span>
+                  </ComboboxChip>
+                ))}
+                {hiddenSelectedRegionCount > 0 ? (
+                  <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                    +{hiddenSelectedRegionCount}
+                  </ComboboxChip>
+                ) : null}
+                <ComboboxChipsInput
+                  className={selectedRegionIds.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                  placeholder={selectedRegionIds.length === 0 ? t("common:labels.region") : ""}
+                />
+              </ComboboxChips>
+              <ComboboxContent anchor={regionChipsRef}>
+                <ComboboxList>
+                  <ComboboxEmpty>-</ComboboxEmpty>
+                  {regions.map((region) => (
+                    <ComboboxItem key={region.id} value={region}>
+                      {region.name}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+          <div className="relative w-full sm:w-auto">
             <HugeiconsIcon
               icon={Search01Icon}
               className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"

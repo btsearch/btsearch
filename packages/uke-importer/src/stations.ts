@@ -12,6 +12,7 @@ import {
   downloadFile,
   ensureDownloadDir,
   parseExcelDate,
+  parseFileDateWithImportTime,
   readSheetAsJson,
   stripCompanySuffixForName,
 } from "./utils.js";
@@ -20,6 +21,7 @@ const logger = createLogger("stations");
 import { db } from "@openbts/drizzle/db";
 
 import { getLastImportedFileNames, recordImportMetadata } from "./import-check.js";
+import { findCreatedPermitStationIds } from "./permit-activity.js";
 import { scrapeXlsxLinks } from "./scrape.js";
 import type { RawUkeData } from "./types.js";
 import { cleanupOrphanedUkeStations, getUkeStationKey, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.js";
@@ -56,12 +58,6 @@ function parseBandFromLabel(
             : ("NR" as const);
   const bandValue = rat === "NR" && value === 3600 ? 3500 : value;
   return { rat, value: bandValue, variant: "commercial" };
-}
-
-function extractDateFromFileName(href: string): Date {
-  const fileName = href.split("/").pop() ?? "";
-  const dateStr = fileName.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
-  return dateStr ? new Date(dateStr) : new Date();
 }
 
 async function insertUkePermits(
@@ -139,6 +135,8 @@ async function insertUkePermits(
     })
     .filter((v): v is NonNullable<typeof v> => v !== null && v !== undefined);
 
+  const createdPermitStationIds = await findCreatedPermitStationIds(permitValues);
+
   for (const group of chunk(permitValues, BATCH_SIZE)) {
     if (group.length) {
       await db
@@ -150,7 +148,7 @@ async function insertUkePermits(
         });
     }
   }
-  await refreshUkeStationActivity(stationIdByKey.values());
+  await refreshUkeStationActivity(createdPermitStationIds);
 }
 
 export async function importPermits(): Promise<boolean> {
@@ -191,6 +189,7 @@ export async function importPermits(): Promise<boolean> {
   const operatorNamesSet = new Set<string>();
   const locationItems: Array<{ regionName: string; city: string | null; address: string | null; lon: number; lat: number }> = [];
   const fileRows: Array<{ label: string; rows: RawUkeData[]; fileDate: Date }> = [];
+  const importTime = new Date();
 
   let totalCount = 0;
   for (const l of newLinks) {
@@ -201,7 +200,7 @@ export async function importPermits(): Promise<boolean> {
     const rows = readSheetAsJson<RawUkeData>(filePath);
     logger.log(`Read ${rows.length} rows`);
     totalCount += rows.length;
-    fileRows.push({ label: l.text, rows, fileDate: extractDateFromFileName(l.href) });
+    fileRows.push({ label: l.text, rows, fileDate: parseFileDateWithImportTime(l.href, importTime) });
     for (const r of rows) {
       const fullOp = String(r["Nazwa Operatora"] || "").trim();
       if (fullOp) operatorNamesSet.add(fullOp);

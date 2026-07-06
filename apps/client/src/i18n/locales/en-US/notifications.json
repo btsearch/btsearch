@@ -8,7 +8,6 @@
   "station": "Station: {{stationId}}",
   "reviewerNote": "Note: {{note}}",
   "reviewerName": "Reviewed by {{name}}",
-  "submitterNote": "Submitter note: {{note}}",
   "submittedBy": "By {{name}}",
   "cellsAdded": "Cells added: {{count}}",
   "cellsRemoved": "Cells removed: {{count}}",
