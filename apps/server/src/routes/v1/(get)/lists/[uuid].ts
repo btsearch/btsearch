@@ -26,22 +26,23 @@ import { getRuntimeSettings } from "../../../../services/settings.service.js";
 
 const ukePermitSectorResponseSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true });
 
-const ukePermitResponseSchema = createSelectSchema(ukePermits)
+const ukeStationPermitResponseSchema = createSelectSchema(ukePermits)
   .omit({ uke_station_id: true, band_id: true })
   .extend({
     band: createSelectSchema(bands).nullable(),
-    station: createSelectSchema(ukeStations)
-      .omit({ operator_id: true, location_id: true })
-      .extend({
-        operator: createSelectSchema(operators).nullable(),
-      }),
     sectors: z.array(ukePermitSectorResponseSchema).optional(),
+  });
+const ukeLocationStationResponseSchema = createSelectSchema(ukeStations)
+  .omit({ operator_id: true, location_id: true })
+  .extend({
+    operator: createSelectSchema(operators).nullable(),
+    permits: z.array(ukeStationPermitResponseSchema),
   });
 const ukeLocationResponseSchema = createSelectSchema(ukeLocations)
   .omit({ point: true, region_id: true })
   .extend({
     region: createSelectSchema(regions),
-    permits: z.array(ukePermitResponseSchema),
+    stations: z.array(ukeLocationStationResponseSchema),
   });
 
 const manufacturerSchema = createSelectSchema(radioLinesManufacturers);
@@ -233,20 +234,6 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       : [],
   ]);
 
-  const ukeLocationsData = ukeLocationsDataRaw.map(({ stations: ukeStationRows, ...location }) => ({
-    ...location,
-    permits: ukeStationRows.flatMap((station) => {
-      const { permits, operator, ...stationData } = station;
-      return permits.map((permit) => ({
-        ...permit,
-        station: {
-          ...stationData,
-          operator,
-        },
-      }));
-    }),
-  }));
-
   const mappedRadiolines: RadioLineResponse[] = radiolinesData.map((radioLine) => ({
     id: radioLine.id,
     tx: {
@@ -301,7 +288,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       notificationsEnabled: list.notificationsEnabled,
       stations: stationsData,
       radiolines: mappedRadiolines,
-      ukeLocations: ukeLocationsData,
+      ukeLocations: ukeLocationsDataRaw,
       createdAt: list.createdAt,
       updatedAt: list.updatedAt,
     },

@@ -17,7 +17,7 @@ export type UkePermitDialogItem = {
 const MAX_UKE_PERMIT_DIALOGS = 2;
 
 function getUkePermitDialogKey(station: UkeStation) {
-  return `uke:${station.station_id}:${station.operator?.mnc ?? "unknown"}`;
+  return `uke:${station.id}`;
 }
 
 export function useUkePermitDialogStackState() {

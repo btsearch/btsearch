@@ -3045,7 +3045,7 @@ paths:
   /uke/locations:
     get:
       tags: [UKE]
-      summary: List UKE locations with permits
+      summary: List UKE locations with stations and permits
       parameters:
         - name: bounds
           in: query
@@ -3238,8 +3238,31 @@ paths:
                 type: object
                 required: [data, totalCount]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/UkeStationWithPermits" } }
+                  data: { type: array, items: { $ref: "#/components/schemas/UkeStationWithLocationAndPermits" } }
                   totalCount: { type: integer }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /uke/stations/{id}:
+    get:
+      tags: [UKE]
+      summary: Get UKE station with permits
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/UkeStationWithLocationAndPermits" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -4972,7 +4995,7 @@ components:
         - $ref: "#/components/schemas/UkeLocation"
         - type: object
           properties:
-            permits: { type: array, items: { $ref: "#/components/schemas/UkePermitWithBandOperator" } }
+            stations: { type: array, items: { $ref: "#/components/schemas/UkeStationWithPermits" } }
     UkeOperator:
       type: object
       properties:
@@ -5020,8 +5043,16 @@ components:
         - $ref: "#/components/schemas/UkeStation"
         - type: object
           properties:
-            operator: { $ref: "#/components/schemas/Operator" }
-            location: { $ref: "#/components/schemas/UkeLocation" }
+            operator:
+              allOf:
+                - $ref: "#/components/schemas/Operator"
+              nullable: true
+            permits: { type: array, items: { $ref: "#/components/schemas/UkePermitWithBand" } }
+    UkeStationWithLocationAndPermits:
+      allOf:
+        - $ref: "#/components/schemas/UkeStationWithOptionalOperatorLocation"
+        - type: object
+          properties:
             permits: { type: array, items: { $ref: "#/components/schemas/UkePermitWithBand" } }
     UkeStationPermitAssociation:
       allOf:
@@ -5410,7 +5441,7 @@ components:
         ukeLocations:
           type: array
           items: { $ref: "#/components/schemas/UkeLocationWithPermits" }
-          description: Full UKE location objects with permits
+          description: Full UKE location objects with stations and permits
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 

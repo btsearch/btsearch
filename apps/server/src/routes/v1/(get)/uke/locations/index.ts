@@ -24,22 +24,26 @@ const ukePermitsSchema = createSelectSchema(ukePermits)
 const ukeStationsSchema = createSelectSchema(ukeStations)
   .omit({ operator_id: true, location_id: true })
   .extend({ createdAt: z.iso.datetime({ offset: true }), updatedAt: z.iso.datetime({ offset: true }) });
+const ukePermitSectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true });
 const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 
-const permitResponseSchema = ukePermitsSchema.extend({
+const stationPermitResponseSchema = ukePermitsSchema.extend({
   band: bandsSchema.nullable(),
-  station: ukeStationsSchema.extend({
-    operator: operatorsSchema.nullable(),
-  }),
+  sectors: z.array(ukePermitSectorsSchema).optional(),
+});
+
+const stationResponseSchema = ukeStationsSchema.extend({
+  operator: operatorsSchema.nullable(),
+  permits: z.array(stationPermitResponseSchema),
 });
 
 const responseSchema = z.object({
   data: z.array(
     ukeLocationsSchema.extend({
       region: regionsSchema,
-      permits: z.array(permitResponseSchema),
+      stations: z.array(stationResponseSchema),
     }),
   ),
   totalCount: z.number(),
@@ -108,22 +112,30 @@ const schemaRoute = {
 };
 
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
-type PermitData = z.infer<typeof permitResponseSchema>;
-type ResponseData = z.infer<typeof ukeLocationsSchema> & {
-  region: z.infer<typeof regionsSchema>;
-  permits: PermitData[];
-};
+type StationData = z.infer<typeof stationResponseSchema>;
+type ResponseData = z.infer<typeof ukeLocationsSchema> & { region: z.infer<typeof regionsSchema>; stations: StationData[] };
 type ResponseBody = z.infer<typeof responseSchema>;
 
 const CACHE_TTL = 30;
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const cacheKey = `uke:loc:${JSON.stringify(req.query)}`;
+  const { bounds, limit, page, rat, operators: operatorMncs, bands: bandValues, regions: regionNames, since, azimuths } = req.query;
+
+  const cacheKey = `uke:loc:${JSON.stringify({
+    bounds: bounds ?? null,
+    limit,
+    page,
+    rat: rat ? [...rat].sort() : null,
+    operators: operatorMncs ? [...operatorMncs].sort((a, b) => a - b) : null,
+    bands: bandValues ? [...bandValues].sort((a, b) => a - b) : null,
+    regions: regionNames ? [...regionNames].sort() : null,
+    since: since ? `${[...since.fields].sort().join(",")}:${since.cutoff.toISOString()}` : null,
+    azimuths,
+  })}`;
   const cached = await redis.get(cacheKey);
 
   if (cached) return res.send(JSON.parse(cached));
 
-  const { bounds, limit, page, rat, operators: operatorMncs, bands: bandValues, regions: regionNames, since, azimuths } = req.query;
   const offset = (page - 1) * limit;
   const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
 
@@ -205,7 +217,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const buildStationFilterCondition = (locationIdCol: typeof ukeLocations.id): SQL<unknown> => {
     const conditions: SQL<unknown>[] = [eq(ukeStations.location_id, locationIdCol)];
     if (operatorIds.length) conditions.push(inArray(ukeStations.operator_id, operatorIds));
-    return and(...conditions) ?? eq(ukeStations.location_id, locationIdCol);
+    return and(...conditions)!;
   };
 
   const buildPermitFilterCondition = (): SQL<unknown> => {
@@ -213,7 +225,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     const conditions: SQL<unknown>[] = [stationCondition];
     if (eligibleBandIds.length) conditions.push(inArray(ukePermits.band_id, eligibleBandIds));
     if (sinceCondition !== null) conditions.push(sinceCondition);
-    return and(...conditions) ?? stationCondition;
+    return and(...conditions)!;
   };
 
   const buildMatchingLocationCondition = (): SQL<unknown> => {
@@ -276,19 +288,6 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               'duplex',  ${bands.duplex},
               'variant', ${bands.variant}
             ),
-            'station', json_build_object(
-              'id',         ${ukeStations.id},
-              'station_id', ${ukeStations.station_id},
-              'createdAt',  ${ukeStations.createdAt},
-              'updatedAt',  ${ukeStations.updatedAt},
-              'operator', json_build_object(
-                'id',        ${operators.id},
-                'name',      ${operators.name},
-                'full_name', ${operators.full_name},
-                'parent_id', ${operators.parent_id},
-                'mnc',       ${operators.mnc}
-              )
-            ),
             'sectors', ${sectorsSubquery}
           )`
       : sql`json_build_object(
@@ -306,51 +305,74 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               'name',    ${bands.name},
               'duplex',  ${bands.duplex},
               'variant', ${bands.variant}
-            ),
-            'station', json_build_object(
-              'id',         ${ukeStations.id},
-              'station_id', ${ukeStations.station_id},
-              'createdAt',  ${ukeStations.createdAt},
-              'updatedAt',  ${ukeStations.updatedAt},
-              'operator', json_build_object(
-                'id',        ${operators.id},
-                'name',      ${operators.name},
-                'full_name', ${operators.full_name},
-                'parent_id', ${operators.parent_id},
-                'mnc',       ${operators.mnc}
-              )
             )
           )`;
 
-    const permitsAgg = sql<PermitData[]>`
+    const pageLocationsSelection = { id: ukeLocations.id, totalCount: sql<number>`count(*) over()`.as("total_count") };
+    const pageLocationsCte = db
+      .$with("page_locations")
+      .as(
+        matchingLocations !== null
+          ? db
+              .select(pageLocationsSelection)
+              .from(ukeLocations)
+              .innerJoin(matchingLocations, eq(matchingLocations.id, ukeLocations.id))
+              .where(locationWhereClause)
+              .orderBy(desc(ukeLocations.id))
+              .limit(limit)
+              .offset(offset)
+          : db
+              .select(pageLocationsSelection)
+              .from(ukeLocations)
+              .where(locationWhereClause)
+              .orderBy(desc(ukeLocations.id))
+              .limit(limit)
+              .offset(offset),
+      );
+
+    const stationRows = db
+      .select({
+        id: ukeStations.id,
+        locationId: ukeStations.location_id,
+        station: sql<StationData>`json_build_object(
+          'id',         ${ukeStations.id},
+          'station_id', ${ukeStations.station_id},
+          'createdAt',  ${ukeStations.createdAt},
+          'updatedAt',  ${ukeStations.updatedAt},
+          'operator', CASE
+            WHEN ${operators.id} IS NULL THEN NULL
+            ELSE json_build_object(
+              'id',        ${operators.id},
+              'name',      ${operators.name},
+              'full_name', ${operators.full_name},
+              'parent_id', ${operators.parent_id},
+              'mnc',       ${operators.mnc}
+            )
+          END,
+          'permits', COALESCE(
+            json_agg(${permitObject} ORDER BY ${ukePermits.id})
+              FILTER (WHERE ${ukePermits.id} IS NOT NULL),
+            '[]'::json
+          )
+        )`.as("station"),
+      })
+      .from(pageLocationsCte)
+      .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocationsCte.id))
+      .innerJoin(ukeStations, stationJoinCondition)
+      .innerJoin(ukePermits, permitJoinCondition)
+      .leftJoin(bands, eq(bands.id, ukePermits.band_id))
+      .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
+      .groupBy(ukeStations.id, operators.id)
+      .as("station_rows");
+
+    const stationsAgg = sql<StationData[]>`
       COALESCE(
-        json_agg(
-          ${permitObject} ORDER BY ${ukePermits.id}
-        ) FILTER (WHERE ${ukePermits.id} IS NOT NULL),
+        json_agg(${stationRows.station} ORDER BY ${stationRows.id})
+          FILTER (WHERE ${stationRows.id} IS NOT NULL),
         '[]'::json
       )`;
 
-    const pageLocations =
-      matchingLocations !== null
-        ? db
-            .select({ id: ukeLocations.id })
-            .from(ukeLocations)
-            .innerJoin(matchingLocations, eq(matchingLocations.id, ukeLocations.id))
-            .where(locationWhereClause)
-            .orderBy(desc(ukeLocations.id))
-            .limit(limit)
-            .offset(offset)
-            .as("page_locations")
-        : db
-            .select({ id: ukeLocations.id })
-            .from(ukeLocations)
-            .where(locationWhereClause)
-            .orderBy(desc(ukeLocations.id))
-            .limit(limit)
-            .offset(offset)
-            .as("page_locations");
-
-    const runCountQuery = async (): Promise<number> => {
+    const runFallbackCountQuery = async (): Promise<number> => {
       if (matchingLocations !== null) {
         const result = await db
           .select({ count: count() })
@@ -367,39 +389,43 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       return result[0]?.count ?? 0;
     };
 
-    const [totalCount, rows] = await Promise.all([
-      runCountQuery(),
-      db
-        .select({
-          id: ukeLocations.id,
-          city: ukeLocations.city,
-          address: ukeLocations.address,
-          longitude: ukeLocations.longitude,
-          latitude: ukeLocations.latitude,
-          createdAt: ukeLocations.createdAt,
-          updatedAt: ukeLocations.updatedAt,
-          region: sql<z.infer<typeof regionsSchema>>`json_build_object(
-            'id',   ${regions.id},
-            'name', ${regions.name},
-            'code', ${regions.code}
-          )`,
-          permits: permitsAgg,
-        })
-        .from(pageLocations)
-        .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocations.id))
-        .innerJoin(regions, eq(regions.id, ukeLocations.region_id))
-        .leftJoin(ukeStations, stationJoinCondition)
-        .leftJoin(ukePermits, permitJoinCondition)
-        .leftJoin(bands, eq(bands.id, ukePermits.band_id))
-        .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
-        .groupBy(ukeLocations.id, regions.id)
-        .orderBy(desc(ukeLocations.id)),
-    ]);
+    const rows = await db
+      .with(pageLocationsCte)
+      .select({
+        id: ukeLocations.id,
+        city: ukeLocations.city,
+        address: ukeLocations.address,
+        longitude: ukeLocations.longitude,
+        latitude: ukeLocations.latitude,
+        createdAt: ukeLocations.createdAt,
+        updatedAt: ukeLocations.updatedAt,
+        totalCount: sql<number>`max(${pageLocationsCte.totalCount})`.mapWith(Number),
+        region: sql<z.infer<typeof regionsSchema>>`json_build_object(
+          'id',   ${regions.id},
+          'name', ${regions.name},
+          'code', ${regions.code}
+        )`,
+        stations: stationsAgg,
+      })
+      .from(pageLocationsCte)
+      .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocationsCte.id))
+      .innerJoin(regions, eq(regions.id, ukeLocations.region_id))
+      .leftJoin(stationRows, eq(stationRows.locationId, ukeLocations.id))
+      .groupBy(ukeLocations.id, regions.id)
+      .orderBy(desc(ukeLocations.id));
+
+    const totalCount = rows.length > 0 ? rows[0]!.totalCount : await runFallbackCountQuery();
 
     const data = rows.map((row) => ({
-      ...row,
+      id: row.id,
+      city: row.city,
+      address: row.address,
+      longitude: row.longitude,
+      latitude: row.latitude,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      region: row.region,
+      stations: row.stations,
     })) as ResponseData[];
 
     await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify({ data, totalCount }));

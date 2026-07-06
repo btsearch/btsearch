@@ -26,7 +26,7 @@ import { useHeatmapLayer } from "../hooks/useHeatmapLayer";
 import { useMapLayer } from "../hooks/useMapLayer";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useUrlSync } from "../hooks/useURLSync";
-import { groupPermitsByStation, toLocationInfo } from "../utils";
+import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } from "../utils";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 
 const EMPTY_GEOJSON = { type: "FeatureCollection" as const, features: [] };
@@ -302,8 +302,7 @@ export function StationsLayer({
       longitude: ukeLocation.longitude,
     };
 
-    const ukeStations = groupPermitsByStation(ukeLocation.permits ?? [], ukeLocation);
-    showPopup([location.longitude, location.latitude], location, null, ukeStations, filters.source);
+    showPopup([location.longitude, location.latitude], location, null, attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation), filters.source);
     onPopupLocationChange({ locationId, source: filters.source });
   }, [map, locations, filters.source, showPopup, onPopupLocationChange, locationById]);
 
@@ -326,12 +325,11 @@ export function StationsLayer({
 
       if (source === "uke") {
         const ukeLocation = locationById.get(locationId) as UkeLocationWithPermits | undefined;
-        const ukeStations = groupPermitsByStation(ukeLocation?.permits ?? [], ukeLocation);
         showPopup(
           coordinates,
           { id: locationId, city, address, region: ukeLocation?.region?.name, latitude: lat, longitude: lng },
           null,
-          ukeStations,
+          attachUkeLocationToStations(ukeLocation?.stations ?? [], ukeLocation),
           source as StationSource,
         );
         onPopupLocationChange({ locationId, source: source as StationSource });
@@ -372,9 +370,8 @@ export function StationsLayer({
       let entries: Array<{ name: string; color: string; stationId: string }>;
       if (isUke) {
         const ukeLocation = locationById.get(data.locationId) as UkeLocationWithPermits | undefined;
-        if (!ukeLocation?.permits?.length) return null;
-        const ukeStations = groupPermitsByStation(ukeLocation.permits, ukeLocation);
-        entries = ukeStations.map((s) => ({
+        if (!ukeLocation?.stations?.length) return null;
+        entries = ukeLocation.stations.map((s) => ({
           name: s.operator?.name || "Unknown",
           color: s.operator?.mnc ? getOperatorColor(s.operator.mnc) : "#3b82f6",
           stationId: s.station_id,

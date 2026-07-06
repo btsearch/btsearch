@@ -16,6 +16,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - LTE validation now prevents T-Mobile and Orange station cells from reusing the same CLID with a different eNBID on the same station
 - Fixed UKE station `updatedAt` changing during unchanged permit refreshes; it now updates only when a permit is created or removed
 - UKE importer timestamps now keep the source file date with the import time instead of midnight UTC
+- UKE locations now return stations with their assigned permits instead of a flat permit list per location
+- UKE station dialogs now load station details from `/uke/stations/:id` and show the station `updatedAt` timestamp in the header
 - SI2PEM dropdowns in station and UKE station dialogs now stay above floating dialogs after repeated focus changes
 - NTM and NetMonitor CLF exports now mark unconfirmed cells with `[!]` at the start of their description
 - Submission status notifications now show reviewer notes without including submitter notes

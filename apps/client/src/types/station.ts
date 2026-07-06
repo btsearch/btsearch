@@ -216,7 +216,7 @@ export type UkePermitSector = {
   antenna_type: "indoor" | "outdoor" | null;
 };
 
-export type UkePermit = {
+export type UkeStationPermit = {
   id: number;
   decision_number: string;
   decision_type: "zmP" | "P";
@@ -226,6 +226,9 @@ export type UkePermit = {
   updatedAt: string;
   createdAt: string;
   band?: Band | null;
+};
+
+export type UkePermit = UkeStationPermit & {
   station: Omit<UkeStation, "permits">;
 };
 
@@ -238,7 +241,7 @@ export type UkeLocationWithPermits = {
   updatedAt: string;
   createdAt: string;
   region: Region;
-  permits: UkePermit[];
+  stations: UkeStation[];
 };
 
 export type UkeStation = {
@@ -247,8 +250,8 @@ export type UkeStation = {
   createdAt?: string;
   updatedAt?: string;
   operator: UkeOperator | null;
-  permits: UkePermit[];
-  location:
+  permits: UkeStationPermit[];
+  location?:
     | (Omit<UkeLocation, "createdAt" | "updatedAt"> & {
         createdAt?: string;
         updatedAt?: string;

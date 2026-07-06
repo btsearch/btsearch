@@ -17,7 +17,7 @@ import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
 import { useWakeLock } from "../hooks/useWakeLock";
 import type { UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
-import { groupPermitsByStation, toLocationInfo } from "../utils";
+import { attachUkeLocationToStations, toLocationInfo } from "../utils";
 import { MapSearchOverlay } from "./search-overlay";
 import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, locationQueryKey, saveMapFilters } from "./stationsLayer";
 
@@ -231,7 +231,6 @@ function MapViewInner() {
       if (currentFilters.source === "uke") {
         const ukeLocations = locationsRef.current as unknown as UkeLocationWithPermits[];
         const ukeLocation = ukeLocations.find((loc) => loc.latitude.toFixed(6) === lat.toFixed(6) && loc.longitude.toFixed(6) === lng.toFixed(6));
-        const ukeStations = groupPermitsByStation(ukeLocation?.permits ?? [], ukeLocation);
 
         const location: LocationInfo = {
           id: ukeLocation?.id ?? station.id,
@@ -241,7 +240,7 @@ function MapViewInner() {
           latitude: lat,
           longitude: lng,
         };
-        showPopup([lng, lat], location, null, ukeStations, currentFilters.source);
+        showPopup([lng, lat], location, null, attachUkeLocationToStations(ukeLocation?.stations ?? [], ukeLocation), currentFilters.source);
         setActivePopupLocation({ locationId: ukeLocation?.id ?? station.id, source: currentFilters.source });
         return;
       }

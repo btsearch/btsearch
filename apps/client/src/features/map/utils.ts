@@ -11,7 +11,7 @@ import {
 } from "@openbts/shared/radiolinesUtils";
 
 import { isPermitExpired } from "@/lib/dateUtils";
-import type { Cell, LocationInfo, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation } from "@/types/station";
+import type { Cell, LocationInfo, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation, UkeStationPermit } from "@/types/station";
 
 export {
   calculateBearing,
@@ -72,9 +72,20 @@ export function groupPermitsByStation(permits: UkePermit[], ukeLocation?: UkeLoc
 
   for (const permit of permits) {
     const station = permit.station;
+    const stationPermit: UkeStationPermit = {
+      id: permit.id,
+      decision_number: permit.decision_number,
+      decision_type: permit.decision_type,
+      expiry_date: permit.expiry_date,
+      source: permit.source,
+      sectors: permit.sectors,
+      updatedAt: permit.updatedAt,
+      createdAt: permit.createdAt,
+      band: permit.band,
+    };
     const existing = stationMap.get(String(station.id));
     if (existing) {
-      existing.permits.push(permit);
+      existing.permits.push(stationPermit);
     } else {
       stationMap.set(String(station.id), {
         id: station.id,
@@ -82,13 +93,33 @@ export function groupPermitsByStation(permits: UkePermit[], ukeLocation?: UkeLoc
         createdAt: station.createdAt,
         updatedAt: station.updatedAt,
         operator: station.operator ?? null,
-        permits: [permit],
+        permits: [stationPermit],
         location: overrideLocation ?? station.location ?? null,
       });
     }
   }
 
   return Array.from(stationMap.values());
+}
+
+export function attachUkeLocationToStations(stations: UkeStation[], ukeLocation?: UkeLocationWithPermits): UkeStation[] {
+  if (!ukeLocation) return stations;
+
+  const location: NonNullable<UkeStation["location"]> = {
+    id: ukeLocation.id,
+    city: ukeLocation.city,
+    address: ukeLocation.address,
+    latitude: ukeLocation.latitude,
+    longitude: ukeLocation.longitude,
+    region: ukeLocation.region,
+    createdAt: ukeLocation.createdAt,
+    updatedAt: ukeLocation.updatedAt,
+  };
+
+  return stations.map((station) => ({
+    ...station,
+    location: station.location ?? location,
+  }));
 }
 
 function ratOrder(rat: string): number {
@@ -116,7 +147,7 @@ export function getStationBands(cells: Cell[]): string[] {
   return sortBands([...new Set(cells.map((c) => `${c.rat}${c.band.value}`))]);
 }
 
-export function getPermitBands(permits: UkePermit[]): string[] {
+export function getPermitBands(permits: Array<{ band?: UkeStationPermit["band"] }>): string[] {
   const bands = permits.reduce<string[]>((acc, p) => {
     if (!p.band) return acc;
     const rat = p.band.rat === "GSM" && p.band.variant === "railway" ? "GSM-R" : p.band.rat;

@@ -2,9 +2,10 @@ import { StationResponseSchema } from "@openbts/proto/gen/stations_pb";
 import { PermitsResponseSchema as UKEPermitsResponseSchema } from "@openbts/proto/gen/uke_pb";
 
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
-import type { Station, UkePermit } from "@/types/station";
+import type { Station, UkePermit, UkeStation } from "@/types/station";
 
 export const fetchStation = (id: number) => fetchApiData<Station>(`stations/${id}`, { proto: StationResponseSchema });
+export const fetchUkeStation = (id: number) => fetchApiData<UkeStation>(`uke/stations/${id}`);
 export const fetchUkePermit = (id: string) => fetchApiData<UkePermit[]>(`uke/permits?station_id=${id}`, { proto: UKEPermitsResponseSchema });
 export const fetchStationWatch = (stationId: number, source: "internal" | "uke" = "internal") =>
   fetchApiData<{ watched: boolean }>(source === "uke" ? `uke/stations/${stationId}/watch` : `stations/${stationId}/watch`);

@@ -17,7 +17,7 @@ import { PICKER_LAYER_IDS, PICKER_NEARBY_RADIUS_METERS, PICKER_UKE_LAYER_IDS, PO
 import { getOperatorData } from "@/features/map/geojson";
 import { useAzimuthLayer } from "@/features/map/hooks/useAzimuthLayer";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
-import { calculateDistance, groupPermitsByStation } from "@/features/map/utils";
+import { attachUkeLocationToStations, calculateDistance } from "@/features/map/utils";
 import { regionsQueryOptions } from "@/features/shared/queries";
 import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
@@ -67,9 +67,9 @@ function ukeLocationsToPickerGeoJSON(locations: UkeLocationWithPermits[]): GeoJS
   const features: GeoJSON.Feature[] = [];
 
   for (const loc of locations) {
-    if (!loc.latitude || !loc.longitude || !loc.permits?.length) continue;
+    if (!loc.latitude || !loc.longitude || !loc.stations?.length) continue;
 
-    const { operators, isMultiOperator, color } = getOperatorData(loc.permits.map((p) => p.station.operator?.mnc));
+    const { operators, isMultiOperator, color } = getOperatorData(loc.stations.map((s) => s.operator?.mnc));
     const pieImageId = isMultiOperator ? `picker-uke-pie-${operators.join("-")}` : undefined;
 
     features.push({
@@ -79,7 +79,7 @@ function ukeLocationsToPickerGeoJSON(locations: UkeLocationWithPermits[]): GeoJS
         locationId: loc.id,
         city: loc.city ?? "",
         address: loc.address ?? "",
-        stationCount: loc.permits.length,
+        stationCount: loc.stations.length,
         color,
         isMultiOperator,
         operators: JSON.stringify(operators),
@@ -442,8 +442,7 @@ function PickerMapInner({
           const locationId = ukeFeatures[0].properties?.locationId;
           const ukeLoc = viewportUkeLocationsRef.current.find((l) => l.id === locationId);
           if (ukeLoc) {
-            const stations = groupPermitsByStation(ukeLoc.permits ?? [], ukeLoc);
-            dispatchPanel({ type: "SELECT_UKE", location: ukeLoc, stations });
+            dispatchPanel({ type: "SELECT_UKE", location: ukeLoc, stations: attachUkeLocationToStations(ukeLoc.stations ?? [], ukeLoc) });
           }
           return;
         }

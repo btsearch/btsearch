@@ -60,6 +60,29 @@ message Permit {
   string createdAt = 10;
 }
 
+message StationPermit {
+  int32 id = 1;
+  string decision_number = 2;
+  DecisionType decision_type = 3;
+  string expiry_date = 4;
+  PermitSource source = 5;
+  Band band = 6;
+  repeated Sector sectors = 7;
+
+  string updatedAt = 8;
+  string createdAt = 9;
+}
+
+message UKELocationStation {
+  int32 id = 1;
+  string station_id = 2;
+  Operator operator = 3;
+  repeated StationPermit permits = 4;
+
+  string updatedAt = 5;
+  string createdAt = 6;
+}
+
 message UKELocation {
   int32 id = 1;
   string city = 2;
@@ -67,7 +90,7 @@ message UKELocation {
   double latitude = 4;
   double longitude = 5;
   Region region = 6;
-  repeated Permit permits = 7;
+  repeated UKELocationStation stations = 7;
 
   string updatedAt = 8;
   string createdAt = 9;

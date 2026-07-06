@@ -39,7 +39,7 @@ export function UkeStationPanelOverlay({ ukeStationPanel, onStationSelect }: Uke
                 <button
                   key={station.station_id}
                   type="button"
-                  onClick={() => onStationSelect(station)}
+                  onClick={() => onStationSelect({ ...station, location: station.location ?? ukeStationPanel.location })}
                   className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/30 last:border-0"
                 >
                   <div className="flex items-center gap-1.5">

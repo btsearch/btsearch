@@ -12,11 +12,11 @@ import { UKESourceBadge } from "@/components/uke-source-badge";
 import { fetchApiData } from "@/lib/api";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-import type { UkePermit } from "@/types/station";
+import type { UkePermit, UkeStationPermit } from "@/types/station";
 
 import { RAT_ICONS } from "../utils";
 
-async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<UkePermit[]> {
+async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<UkeStationPermit[]> {
   if (isUkeSource) {
     const permit = await fetchApiData<UkePermit>(`uke/permits/${stationId}`);
     return permit ? [permit] : [];
@@ -28,8 +28,8 @@ async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<Uk
   return permits ?? [];
 }
 
-function groupPermitsByRat(permits: UkePermit[]): Map<string, UkePermit[]> {
-  const groups = new Map<string, UkePermit[]>();
+function groupPermitsByRat(permits: UkeStationPermit[]): Map<string, UkeStationPermit[]> {
+  const groups = new Map<string, UkeStationPermit[]>();
 
   for (const permit of permits) {
     const rat = permit.band?.rat?.toUpperCase() || "OTHER";
@@ -47,7 +47,7 @@ function groupPermitsByRat(permits: UkePermit[]): Map<string, UkePermit[]> {
   }
 
   const ratOrder = ["NR", "LTE", "UMTS", "CDMA", "GSM", "IOT", "OTHER"];
-  const sorted = new Map<string, UkePermit[]>();
+  const sorted = new Map<string, UkeStationPermit[]>();
   for (const rat of ratOrder) {
     if (groups.has(rat)) {
       const groupGet = groups.get(rat);
@@ -61,7 +61,7 @@ function groupPermitsByRat(permits: UkePermit[]): Map<string, UkePermit[]> {
 type PermitsListProps = {
   stationId?: number;
   isUkeSource?: boolean;
-  permits?: UkePermit[];
+  permits?: UkeStationPermit[];
   isExternalLoading?: boolean;
 };
 
@@ -148,7 +148,7 @@ export function PermitsList({ stationId, isUkeSource = false, permits: externalP
 
 type CollapsiblePermitGroupProps = {
   rat: string;
-  ratPermits: UkePermit[];
+  ratPermits: UkeStationPermit[];
   t: ReturnType<typeof useTranslation<"stationDetails">>["t"];
   i18n: ReturnType<typeof useTranslation>["i18n"];
   showAntennaData?: boolean;

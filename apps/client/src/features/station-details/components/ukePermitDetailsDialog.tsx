@@ -18,7 +18,6 @@ import { useTranslation } from "react-i18next";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -28,7 +27,7 @@ import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
 import type { UkeStation } from "@/types/station";
 
-import { fetchElevation, fetchPemReports } from "../api";
+import { fetchElevation, fetchPemReports, fetchUkeStation } from "../api";
 import { CopyButton } from "./copyButton";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
@@ -69,42 +68,35 @@ export function UkePermitDetailsDialogPanel({
   const isAdmin = userRole === "admin" || userRole === "editor";
   const isLoggedIn = !!session?.user;
 
-  const { data: permits, isLoading: permitsLoading } = useQuery({
-    queryKey: ["uke-permits-by-station", station.station_id, station.operator?.mnc],
-    queryFn: () => fetchUkePermitsByStationId(station.station_id, station.operator?.mnc),
+  const { data: ukeStation = station, isLoading: stationLoading } = useQuery({
+    queryKey: ["uke-station", station.id],
+    queryFn: () => fetchUkeStation(station.id),
+    placeholderData: station,
     staleTime: 1000 * 60 * 5,
   });
 
+  const { location: stationLocation, operator, permits, station_id } = ukeStation;
+
   const { data: pemReports } = useQuery({
-    queryKey: ["station-pem", station.station_id, station.location?.latitude, station.location?.longitude, station.operator?.mnc],
-    queryFn: () => fetchPemReports(station.station_id, station.location!.latitude, station.location!.longitude, station.operator!.mnc!),
+    queryKey: ["station-pem", station_id, stationLocation?.latitude, stationLocation?.longitude, operator?.mnc],
+    queryFn: () => fetchPemReports(station_id, stationLocation!.latitude, stationLocation!.longitude, operator!.mnc!),
     staleTime: 1000 * 60 * 60,
-    enabled: !!station.station_id && !!station.location && !!station.operator?.mnc,
+    enabled: !!station_id && !!stationLocation && !!operator?.mnc,
     retry: false,
   });
 
   const { data: elevation } = useQuery({
-    queryKey: ["elevation", station.location?.latitude, station.location?.longitude],
-    queryFn: () => fetchElevation(station.location!.latitude, station.location!.longitude),
+    queryKey: ["elevation", stationLocation?.latitude, stationLocation?.longitude],
+    queryFn: () => fetchElevation(stationLocation!.latitude, stationLocation!.longitude),
     staleTime: 1000 * 60 * 60 * 24,
-    enabled: !!station.location && preferences.showElevation,
+    enabled: !!stationLocation && preferences.showElevation,
     retry: false,
   });
 
-  const { location: stationLocation, operator, station_id } = station;
   const operatorColor = operator?.mnc ? getOperatorColor(operator.mnc) : "#3b82f6";
   const headerDragClassName = headerDragProps?.className;
-
-  let oldestCreatedAt: string | null = null;
-  let newestUpdatedAt: string | null = null;
-  if (permits?.length) {
-    oldestCreatedAt = permits[0].createdAt;
-    newestUpdatedAt = permits[0].updatedAt;
-    for (const p of permits) {
-      if (p.createdAt < oldestCreatedAt) oldestCreatedAt = p.createdAt;
-      if (p.updatedAt > newestUpdatedAt) newestUpdatedAt = p.updatedAt;
-    }
-  }
+  const createdAt = ukeStation.createdAt;
+  const updatedAt = ukeStation.updatedAt;
 
   return (
     <div className={cn("relative", className)} style={style}>
@@ -130,20 +122,20 @@ export function UkePermitDetailsDialogPanel({
                   <div className="flex flex-col gap-0.5">
                     <p className="text-sm font-medium text-foreground truncate">{stationLocation.address || t("dialog.btsStation")}</p>
                     <p className="text-xs text-muted-foreground font-medium">{stationLocation.city}</p>
-                    {oldestCreatedAt && newestUpdatedAt && (
+                    {createdAt && updatedAt && (
                       <div className="flex flex-col items-start sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 pt-0.5">
                         <Tooltip>
                           <TooltipTrigger className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                            {tCommon("labels.created")}: {formatRelativeTime(oldestCreatedAt, tCommon)}
+                            {tCommon("labels.created")}: {formatRelativeTime(createdAt, tCommon)}
                           </TooltipTrigger>
-                          <TooltipContent>{formatFullDate(oldestCreatedAt, i18n.language)}</TooltipContent>
+                          <TooltipContent>{formatFullDate(createdAt, i18n.language)}</TooltipContent>
                         </Tooltip>
                         <span className="hidden sm:inline text-xs text-muted-foreground/40">·</span>
                         <Tooltip>
                           <TooltipTrigger className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                            {tCommon("labels.lastSeen")}: {formatRelativeTime(newestUpdatedAt, tCommon)}
+                            {tCommon("labels.updated")}: {formatRelativeTime(updatedAt, tCommon)}
                           </TooltipTrigger>
-                          <TooltipContent>{formatFullDate(newestUpdatedAt, i18n.language)}</TooltipContent>
+                          <TooltipContent>{formatFullDate(updatedAt, i18n.language)}</TooltipContent>
                         </Tooltip>
                       </div>
                     )}
@@ -154,7 +146,7 @@ export function UkePermitDetailsDialogPanel({
             <div className="flex items-center gap-1 shrink-0 -mt-1 -mr-2">
               {stationLocation && (
                 <>
-                  <WatchButton stationId={station.id} source="uke" size="md" />
+                  <WatchButton stationId={ukeStation.id} source="uke" size="md" />
                   <ShareButton
                     title={`${operator?.name ?? "UKE"} - ${station_id}`}
                     text={`${operator?.name ?? "UKE"} ${station_id} - ${stationLocation.city}`}
@@ -334,7 +326,7 @@ export function UkePermitDetailsDialogPanel({
                   <TooltipContent>{t("permits.sourceUke")}</TooltipContent>
                 </Tooltip>
               </div>
-              <PermitsList permits={permits} isExternalLoading={permitsLoading} />
+              <PermitsList permits={permits} isExternalLoading={stationLoading} />
             </div>
           </div>
         </div>
