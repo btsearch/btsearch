@@ -197,11 +197,9 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const hasPermitFilters = operatorIds.length > 0 || eligibleBandIds.length > 0;
 
-  const buildCreatedSinceCondition = (cutoff: Date): SQL<unknown> =>
-    sql`${ukePermits.uke_station_id} NOT IN (SELECT ${ukePermits.uke_station_id} FROM ${ukePermits} WHERE ${ukePermits.createdAt} < ${cutoff.toISOString()})`;
+  const buildCreatedSinceCondition = (cutoff: Date): SQL<unknown> => sql`${ukeStations.createdAt} >= ${cutoff.toISOString()}`;
 
-  const buildUpdatedSinceCondition = (cutoff: Date): SQL<unknown> =>
-    sql`${ukePermits.uke_station_id} IN (SELECT ${ukePermits.uke_station_id} FROM ${ukePermits} WHERE ${ukePermits.updatedAt} >= ${cutoff.toISOString()})`;
+  const buildUpdatedSinceCondition = (cutoff: Date): SQL<unknown> => sql`${ukeStations.updatedAt} >= ${cutoff.toISOString()}`;
 
   const buildSinceCondition = (): SQL<unknown> | null => {
     if (since === null) return null;
@@ -217,6 +215,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const buildStationFilterCondition = (locationIdCol: typeof ukeLocations.id): SQL<unknown> => {
     const conditions: SQL<unknown>[] = [eq(ukeStations.location_id, locationIdCol)];
     if (operatorIds.length) conditions.push(inArray(ukeStations.operator_id, operatorIds));
+    if (sinceCondition !== null) conditions.push(sinceCondition);
     return and(...conditions)!;
   };
 
@@ -224,7 +223,6 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     const stationCondition = eq(ukePermits.uke_station_id, ukeStations.id);
     const conditions: SQL<unknown>[] = [stationCondition];
     if (eligibleBandIds.length) conditions.push(inArray(ukePermits.band_id, eligibleBandIds));
-    if (sinceCondition !== null) conditions.push(sinceCondition);
     return and(...conditions)!;
   };
 
@@ -248,13 +246,15 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     const locationWhereClause = locationConditions.length ? and(...locationConditions) : undefined;
     const needsPermitLocationFilter = hasPermitFilters || since !== null;
     const matchingLocations = needsPermitLocationFilter
-      ? db
-          .select({ id: ukeStations.location_id })
-          .from(ukeStations)
-          .innerJoin(ukePermits, eq(ukePermits.uke_station_id, ukeStations.id))
-          .where(buildMatchingLocationCondition())
-          .groupBy(ukeStations.location_id)
-          .as("matching_locations")
+      ? (eligibleBandIds.length
+          ? db
+              .select({ id: ukeStations.location_id })
+              .from(ukeStations)
+              .innerJoin(ukePermits, eq(ukePermits.uke_station_id, ukeStations.id))
+              .where(buildMatchingLocationCondition())
+              .groupBy(ukeStations.location_id)
+          : db.select({ id: ukeStations.location_id }).from(ukeStations).where(buildMatchingLocationCondition()).groupBy(ukeStations.location_id)
+        ).as("matching_locations")
       : null;
 
     const stationJoinCondition = buildStationFilterCondition(ukeLocations.id);
