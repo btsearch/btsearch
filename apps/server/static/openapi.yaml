@@ -4291,7 +4291,7 @@ components:
       type: object
       properties:
         id: { type: integer }
-        azimuth: { type: integer, minimum: 0, maximum: 359 }
+        azimuth: { type: integer, minimum: 0, maximum: 360 }
         updatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
     StationSectorInput:
@@ -4299,7 +4299,7 @@ components:
       required: [azimuth]
       properties:
         id: { type: integer, description: "Existing station sector ID. Omit to create a new sector" }
-        azimuth: { type: integer, minimum: 0, maximum: 359 }
+        azimuth: { type: integer, minimum: 0, maximum: 360 }
     Station:
       type: object
       required: [status]
@@ -4657,7 +4657,7 @@ components:
           { type: integer, nullable: true, description: "Existing station sector ID being retained or edited. Omit/null for a newly proposed sector" }
         local_id:
           { type: string, description: "Client-generated identifier used by proposed cells to reference this proposed sector before approval" }
-        azimuth: { type: integer, minimum: 0, maximum: 359 }
+        azimuth: { type: integer, minimum: 0, maximum: 360 }
     ProposedCellInsert:
       type: object
       properties:
@@ -4766,7 +4766,7 @@ components:
         submission_id: { type: string, format: uuid, nullable: true }
         target_sector_id: { type: integer, nullable: true }
         local_id: { type: string }
-        azimuth: { type: integer, minimum: 0, maximum: 359 }
+        azimuth: { type: integer, minimum: 0, maximum: 360 }
         updatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
     ProposedCellWithDetails:

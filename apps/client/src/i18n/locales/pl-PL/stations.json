@@ -71,6 +71,7 @@
     "stationIdRquired": "Identyfikator stacji jest wymagany",
     "operatorRequired": "Operator jest wymagany",
     "locationRequired": "Lokalizacja jest wymagana",
+    "sectorAzimuthsRequired": "Uzupełnij azymuty sektorów (0-360)",
     "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
     "cellsSaved": "Komórki zostały zapisane",
     "saved": "Stacja została zapisana",

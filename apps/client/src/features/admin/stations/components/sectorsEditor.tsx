@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type { SectorDraft } from "@/types/station";
 
 const MAX_SECTORS = 15;
+const OMNIDIRECTIONAL_AZIMUTH = 360;
 
 type SectorRowProps = {
   sector: SectorDraft;
@@ -41,7 +42,7 @@ const SectorRow = memo(function SectorRow({
         return;
       }
       const azimuth = Number.parseInt(raw, 10);
-      if (!Number.isNaN(azimuth) && azimuth >= 0 && azimuth <= 359) onAzimuthChange(sector._localId, azimuth);
+      if (!Number.isNaN(azimuth) && azimuth >= 0 && azimuth <= OMNIDIRECTIONAL_AZIMUTH) onAzimuthChange(sector._localId, azimuth);
     },
     [sector._localId, onAzimuthChange],
   );
@@ -56,12 +57,12 @@ const SectorRow = memo(function SectorRow({
         <Input
           type="number"
           min={0}
-          max={359}
+          max={OMNIDIRECTIONAL_AZIMUTH}
           value={sector.azimuth}
           onChange={handleAzimuthChange}
           disabled={readOnly}
           className="w-20 h-7 text-sm tabular-nums"
-          placeholder="0-359"
+          placeholder="0-360"
         />
         {previousAzimuth !== undefined && previousAzimuth !== sector.azimuth ? (renderPreviousAzimuth?.(previousAzimuth) ?? null) : null}
       </div>
@@ -103,6 +104,10 @@ function getSectorPath(azimuth: number) {
   return `M ${COMPASS_CENTER} ${COMPASS_CENTER} L ${left.x} ${left.y} A ${COMPASS_SECTOR_RADIUS} ${COMPASS_SECTOR_RADIUS} 0 0 1 ${right.x} ${right.y} Z`;
 }
 
+function isOmnidirectionalAzimuth(azimuth: number) {
+  return azimuth === OMNIDIRECTIONAL_AZIMUTH;
+}
+
 function SectorCompass({ sectors }: { sectors: SectorDraft[] }) {
   const validSectors = sectors.flatMap((sector) =>
     typeof sector.azimuth === "number" ? [{ azimuth: sector.azimuth, localId: sector._localId }] : [],
@@ -114,16 +119,29 @@ function SectorCompass({ sectors }: { sectors: SectorDraft[] }) {
       <svg className="absolute inset-0 size-full overflow-visible text-primary" viewBox="0 0 128 128" aria-hidden="true">
         {validSectors.map((sector) => {
           const label = getCompassPoint(sector.azimuth, COMPASS_LABEL_RADIUS);
+          const isOmnidirectional = isOmnidirectionalAzimuth(sector.azimuth);
           return (
             <g key={sector.localId}>
-              <path
-                d={getSectorPath(sector.azimuth)}
-                fill="currentColor"
-                fillOpacity={0.25}
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinejoin="round"
-              />
+              {isOmnidirectional ? (
+                <circle
+                  cx={COMPASS_CENTER}
+                  cy={COMPASS_CENTER}
+                  r={COMPASS_SECTOR_RADIUS - 1}
+                  fill="currentColor"
+                  fillOpacity={0.2}
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                />
+              ) : (
+                <path
+                  d={getSectorPath(sector.azimuth)}
+                  fill="currentColor"
+                  fillOpacity={0.25}
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                />
+              )}
               <text
                 x={label.x}
                 y={label.y}

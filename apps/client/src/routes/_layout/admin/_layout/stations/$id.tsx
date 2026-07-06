@@ -447,7 +447,7 @@ function StationDetailForm({
     }
 
     if (sectors.some((sector) => sector.azimuth === "")) {
-      toast.error("Uzupełnij azymuty sektorów (0-359).");
+      toast.error(t("toast.sectorAzimuthsRequired"));
       return;
     }
 

@@ -182,7 +182,7 @@ export const stationSectors = pgTable(
   (t) => [
     index("station_sectors_station_id_idx").on(t.station_id),
     unique("station_sectors_station_azimuth_unique").on(t.station_id, t.azimuth),
-    check("station_sectors_azimuth_range", sql`${t.azimuth} BETWEEN 0 AND 359`),
+    check("station_sectors_azimuth_range", sql`${t.azimuth} BETWEEN 0 AND 360`),
   ],
 );
 

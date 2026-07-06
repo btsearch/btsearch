@@ -15,9 +15,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { ChangeBadge } from "@/features/admin/submissions/components/common";
 import { PICKER_LAYER_IDS, PICKER_NEARBY_RADIUS_METERS, PICKER_UKE_LAYER_IDS, POLAND_CENTER } from "@/features/map/constants";
 import { getOperatorData } from "@/features/map/geojson";
+import { useAzimuthLayer } from "@/features/map/hooks/useAzimuthLayer";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { calculateDistance, groupPermitsByStation } from "@/features/map/utils";
 import { regionsQueryOptions } from "@/features/shared/queries";
+import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
 import type { Location, LocationWithStations, Region, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
@@ -365,23 +367,25 @@ function PickerMapInner({
   currentLocation,
 }: PickerMapInnerProps) {
   const { map, isLoaded } = useMap();
-  const { bounds } = useMapBounds({ map, isLoaded, debounceMs: 500 });
+  const { bounds, zoom } = useMapBounds({ map, isLoaded, debounceMs: 500 });
+  const { preferences } = usePreferences();
   const { nearbyPanel, ukeStationPanel, dispatchPanel } = useLocationPickerState();
+  const azimuthEnabled = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
 
   const lastInternalCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const userHasInteractedRef = useRef(false);
 
   const { data: viewportLocations = [] } = useQuery({
-    queryKey: ["picker-locations", bounds],
-    queryFn: () => fetchLocationsInViewport(bounds, { orphaned: true }),
+    queryKey: ["picker-locations", bounds, azimuthEnabled],
+    queryFn: () => fetchLocationsInViewport(bounds, { orphaned: true, azimuths: azimuthEnabled }),
     enabled: !!bounds,
     staleTime: 1000 * 60 * 2,
     placeholderData: (prev) => prev,
   });
 
   const { data: viewportUkeLocations = [] } = useQuery({
-    queryKey: ["picker-uke-locations", bounds],
-    queryFn: () => fetchUkeLocationsInViewport(bounds),
+    queryKey: ["picker-uke-locations", bounds, azimuthEnabled],
+    queryFn: () => fetchUkeLocationsInViewport(bounds, { azimuths: azimuthEnabled }),
     enabled: !!bounds && showUkeLocations,
     staleTime: 1000 * 60 * 2,
     placeholderData: (prev) => prev,
@@ -391,6 +395,16 @@ function PickerMapInner({
   const ukeGeoJSON = useMemo(() => ukeLocationsToPickerGeoJSON(viewportUkeLocations), [viewportUkeLocations]);
 
   usePickerMapLayers({ map, isLoaded, geoJSON, ukeGeoJSON, showUkeLocations });
+  useAzimuthLayer({
+    map,
+    isLoaded,
+    locations: viewportLocations,
+    ukeLocations: showUkeLocations ? viewportUkeLocations : [],
+    enabled: azimuthEnabled,
+    minZoom: preferences.azimuthsMinZoom,
+    lineLength: preferences.azimuthLineLength,
+    spread: preferences.azimuthSpread,
+  });
 
   const viewportLocationsRef = useRef(viewportLocations);
   const viewportUkeLocationsRef = useRef(viewportUkeLocations);

@@ -3,6 +3,11 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 # 2026-07-06
 
+### 🚀 Enhancements
+
+- Sector azimuths can now use `360°` for omnidirectional picocells, rendering as full circles on the map and sector previews
+- Location picker maps now show station and UKE sector azimuths when enabled in map preferences
+
 ### 🩹 Fixes
 
 - Analyzer batch submission rate limiting now counts only successful requests and uses a 4 submissions per 32 hours limit for normal users

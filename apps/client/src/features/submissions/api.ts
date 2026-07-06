@@ -58,13 +58,20 @@ export async function reverseGeocode(lat: number, lon: number): Promise<Geocodin
   }
 }
 
-export async function fetchLocationsInViewport(bounds: string, options?: { orphaned?: boolean }): Promise<LocationWithStations[]> {
-  const params = `bounds=${encodeURIComponent(bounds)}&limit=500${options?.orphaned ? "&orphaned=true" : ""}`;
-  return fetchApiData<LocationWithStations[]>(`locations?${params}`);
+export async function fetchLocationsInViewport(
+  bounds: string,
+  options?: { orphaned?: boolean; azimuths?: boolean },
+): Promise<LocationWithStations[]> {
+  const params = new URLSearchParams({ bounds, limit: "500" });
+  if (options?.orphaned) params.set("orphaned", "true");
+  if (options?.azimuths) params.set("azimuths", "true");
+  return fetchApiData<LocationWithStations[]>(`locations?${params.toString()}`);
 }
 
-export async function fetchUkeLocationsInViewport(bounds: string): Promise<UkeLocationWithPermits[]> {
-  return fetchApiData<UkeLocationWithPermits[]>(`uke/locations?bounds=${encodeURIComponent(bounds)}&limit=500`);
+export async function fetchUkeLocationsInViewport(bounds: string, options?: { azimuths?: boolean }): Promise<UkeLocationWithPermits[]> {
+  const params = new URLSearchParams({ bounds, limit: "500" });
+  if (options?.azimuths) params.set("azimuths", "true");
+  return fetchApiData<UkeLocationWithPermits[]>(`uke/locations?${params.toString()}`);
 }
 
 export type SubmissionResponse = {

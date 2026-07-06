@@ -61,6 +61,7 @@ const COMPASS_CENTER = 64;
 const COMPASS_LINE_RADIUS = 48;
 const COMPASS_SECTOR_RADIUS = COMPASS_CENTER;
 const COMPASS_LABEL_RADIUS = Math.round(COMPASS_LINE_RADIUS * 0.6);
+const OMNIDIRECTIONAL_AZIMUTH = 360;
 
 const COMPASS_HALF_ANGLE = 20;
 
@@ -78,6 +79,10 @@ function getSectorPath(azimuth: number) {
   return `M ${COMPASS_CENTER} ${COMPASS_CENTER} L ${left.x} ${left.y} A ${COMPASS_SECTOR_RADIUS} ${COMPASS_SECTOR_RADIUS} 0 0 1 ${right.x} ${right.y} Z`;
 }
 
+function isOmnidirectionalAzimuth(azimuth: number) {
+  return azimuth === OMNIDIRECTIONAL_AZIMUTH;
+}
+
 function SectorMiniCompass({ sectors }: { sectors: Sector[] }) {
   return (
     <div className="relative size-64 rounded-full border bg-background shadow-inner">
@@ -85,16 +90,29 @@ function SectorMiniCompass({ sectors }: { sectors: Sector[] }) {
       <svg className="absolute inset-0 size-full overflow-visible text-primary" viewBox="0 0 128 128" aria-hidden="true">
         {sectors.map((sector) => {
           const label = getCompassPoint(sector.azimuth, COMPASS_LABEL_RADIUS);
+          const isOmnidirectional = isOmnidirectionalAzimuth(sector.azimuth);
           return (
             <g key={sector.id}>
-              <path
-                d={getSectorPath(sector.azimuth)}
-                fill="currentColor"
-                fillOpacity={0.25}
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinejoin="round"
-              />
+              {isOmnidirectional ? (
+                <circle
+                  cx={COMPASS_CENTER}
+                  cy={COMPASS_CENTER}
+                  r={COMPASS_SECTOR_RADIUS - 1}
+                  fill="currentColor"
+                  fillOpacity={0.2}
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                />
+              ) : (
+                <path
+                  d={getSectorPath(sector.azimuth)}
+                  fill="currentColor"
+                  fillOpacity={0.25}
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                />
+              )}
               <text
                 x={label.x}
                 y={label.y}

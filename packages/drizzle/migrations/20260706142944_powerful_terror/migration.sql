@@ -1,0 +1,2 @@
+ALTER TABLE "station_sectors" DROP CONSTRAINT "station_sectors_azimuth_range", ADD CONSTRAINT "station_sectors_azimuth_range" CHECK ("azimuth" BETWEEN 0 AND 360);--> statement-breakpoint
+ALTER TABLE "submissions"."proposed_sectors" DROP CONSTRAINT "proposed_sectors_azimuth_range", ADD CONSTRAINT "proposed_sectors_azimuth_range" CHECK ("azimuth" BETWEEN 0 AND 360);

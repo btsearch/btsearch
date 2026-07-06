@@ -92,7 +92,7 @@ export const proposedSectors = SubmissionsSchema.table(
   (t) => [
     index("proposed_sectors_submission_id_idx").on(t.submission_id),
     unique("proposed_sectors_submission_local_unique").on(t.submission_id, t.local_id),
-    check("proposed_sectors_azimuth_range", sql`${t.azimuth} BETWEEN 0 AND 359`),
+    check("proposed_sectors_azimuth_range", sql`${t.azimuth} BETWEEN 0 AND 360`),
   ],
 );
 

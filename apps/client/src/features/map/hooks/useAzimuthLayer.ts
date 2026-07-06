@@ -37,6 +37,9 @@ type LineLayerSpecification = Extract<maplibregl.LayerSpecification, { type: "li
 type LineLayerPaint = NonNullable<LineLayerSpecification["paint"]>;
 
 const AZIMUTH_ARC_SEGMENT_DEGREES = 4;
+const OMNIDIRECTIONAL_AZIMUTH = 360;
+const FULL_CIRCLE_DEGREES = 360;
+const OMNIDIRECTIONAL_RADIUS_SCALE = 0.5;
 
 function hasAzimuth<T extends { azimuth: number | null | undefined }>(sector: T): sector is T & { azimuth: number } {
   return sector.azimuth !== null && sector.azimuth !== undefined;
@@ -56,6 +59,13 @@ function buildAzimuthArcCoordinates(lat: number, lng: number, startAngle: number
   return arcCoordinates;
 }
 
+function buildOmnidirectionalCircleCoordinates(lat: number, lng: number, lineLength: number): Coordinates {
+  const coordinates = buildAzimuthArcCoordinates(lat, lng, 0, FULL_CIRCLE_DEGREES, lineLength);
+  const first = coordinates[0];
+  if (first === undefined) return coordinates;
+  return [...coordinates, first];
+}
+
 function groupColorsByAzimuth(entries: AzimuthPoint["entries"], dedupeColors: boolean): Map<number, string[]> {
   const azimuthColors = new Map<number, string[]>();
 
@@ -72,25 +82,25 @@ function groupColorsByAzimuth(entries: AzimuthPoint["entries"], dedupeColors: bo
   return azimuthColors;
 }
 
-function createPolygonFeature(coordinates: Coordinates, color: string): GeoJSON.Feature {
+function createPolygonFeature(coordinates: Coordinates, color: string, shape = "directional"): GeoJSON.Feature {
   return {
     type: "Feature",
     geometry: {
       type: "Polygon",
       coordinates: [coordinates],
     },
-    properties: { color },
+    properties: { color, shape },
   };
 }
 
-function createLineFeature(coordinates: Coordinates, azimuth: number, color: string): GeoJSON.Feature {
+function createLineFeature(coordinates: Coordinates, azimuth: number, color: string, shape = "directional"): GeoJSON.Feature {
   return {
     type: "Feature",
     geometry: {
       type: "LineString",
       coordinates,
     },
-    properties: { azimuth, color },
+    properties: { azimuth, color, shape },
   };
 }
 
@@ -103,6 +113,53 @@ function createLabelFeature(lat: number, lng: number, azimuth: number, lineLengt
   };
 }
 
+function appendOmnidirectionalFeatures(
+  fills: GeoJSON.Feature[],
+  outlines: GeoJSON.Feature[],
+  labels: GeoJSON.Feature[],
+  lat: number,
+  lng: number,
+  colors: string[],
+  lineLength: number,
+): void {
+  const omnidirectionalLength = lineLength * OMNIDIRECTIONAL_RADIUS_SCALE;
+  const outlineCoordinates = buildOmnidirectionalCircleCoordinates(lat, lng, omnidirectionalLength);
+  outlines.push(createLineFeature(outlineCoordinates, OMNIDIRECTIONAL_AZIMUTH, colors[0] ?? DEFAULT_COLOR, "omnidirectional"));
+
+  if (colors.length === 1) {
+    fills.push(createPolygonFeature(outlineCoordinates, colors[0], "omnidirectional"));
+    labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, omnidirectionalLength));
+    return;
+  }
+
+  const fillAngle = FULL_CIRCLE_DEGREES / colors.length;
+  for (let i = 0; i < colors.length; i++) {
+    const fillStartAngle = i * fillAngle;
+    const fillEndAngle = (i + 1) * fillAngle;
+    const fillArcCoordinates = buildAzimuthArcCoordinates(lat, lng, fillStartAngle, fillEndAngle, omnidirectionalLength);
+    fills.push(createPolygonFeature([[lng, lat], ...fillArcCoordinates, [lng, lat]], colors[i], "omnidirectional"));
+  }
+
+  labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, omnidirectionalLength));
+}
+
+function buildOmnidirectionalFeatures(points: AzimuthPoint[], lineLength: number): AzimuthFeatures {
+  const fills: GeoJSON.Feature[] = [];
+  const outlines: GeoJSON.Feature[] = [];
+  const labels: GeoJSON.Feature[] = [];
+
+  for (const { latitude: lat, longitude: lng, entries } of points) {
+    if (entries.length === 0) continue;
+
+    const azimuthColors = groupColorsByAzimuth(entries, true);
+    const colors = azimuthColors.get(OMNIDIRECTIONAL_AZIMUTH);
+    if (colors === undefined) continue;
+    appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors, lineLength);
+  }
+
+  return { fills, outlines, labels };
+}
+
 function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triangleHalfAngle: number): AzimuthFeatures {
   const fills: GeoJSON.Feature[] = [];
   const outlines: GeoJSON.Feature[] = [];
@@ -113,6 +170,11 @@ function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triang
 
     const azimuthColors = groupColorsByAzimuth(entries, true);
     for (const [azimuth, colors] of azimuthColors) {
+      if (azimuth === OMNIDIRECTIONAL_AZIMUTH) {
+        appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors, lineLength);
+        continue;
+      }
+
       const startAngle = azimuth - triangleHalfAngle;
       const endAngle = azimuth + triangleHalfAngle;
       const wedgeAngle = (triangleHalfAngle * 2) / colors.length;
@@ -142,6 +204,8 @@ function buildAzimuthLineFeatures(points: AzimuthPoint[], lineLength: number): G
 
     const azimuthColors = groupColorsByAzimuth(entries, false);
     for (const [azimuth, colorList] of azimuthColors) {
+      if (azimuth === OMNIDIRECTIONAL_AZIMUTH) continue;
+
       const uniqueColors = [...new Set(colorList)];
 
       if (uniqueColors.length === 1) {
@@ -210,10 +274,11 @@ type GeoJSONTriple = {
 
 function makeGeoJSONTriple(points: AzimuthPoint[], lineLength: number, triangleHalfAngle: number): GeoJSONTriple {
   if (triangleHalfAngle === 0) {
+    const omniFeatures = buildOmnidirectionalFeatures(points, lineLength);
     return {
-      fill: EMPTY_GEOJSON,
-      outline: { type: "FeatureCollection", features: buildAzimuthLineFeatures(points, lineLength) },
-      label: EMPTY_GEOJSON,
+      fill: { type: "FeatureCollection", features: omniFeatures.fills },
+      outline: { type: "FeatureCollection", features: [...buildAzimuthLineFeatures(points, lineLength), ...omniFeatures.outlines] },
+      label: { type: "FeatureCollection", features: omniFeatures.labels },
     };
   }
 
@@ -255,7 +320,12 @@ function createOutlineLayerPaint(lineMode: boolean): LineLayerPaint {
 function createLineModeOutlineLayerPaint(): LineLayerPaint {
   return {
     "line-color": ["get", "color"],
-    "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.5, 15, 3, 17, 4.5, 18, 5.5],
+    "line-width": [
+      "case",
+      ["==", ["get", "shape"], "omnidirectional"],
+      ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 2],
+      ["interpolate", ["linear"], ["zoom"], 13, 1.5, 15, 3, 17, 4.5, 18, 5.5],
+    ],
     "line-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0.4, 15, 0.7, 17, 0.9],
   };
 }

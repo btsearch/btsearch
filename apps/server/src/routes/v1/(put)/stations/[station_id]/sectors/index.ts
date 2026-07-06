@@ -13,7 +13,7 @@ import type { DbTx } from "../../../../../../types/global.ts";
 
 const sectorInputSchema = z.object({
   id: z.number().int().optional(),
-  azimuth: z.number().int().min(0).max(359),
+  azimuth: z.number().int().min(0).max(360),
 });
 const sectorSchema = createSelectSchema(stationSectors).omit({ station_id: true });
 const MAX_SECTORS = 15;
