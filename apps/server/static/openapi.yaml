@@ -2744,12 +2744,14 @@ paths:
                               required: [rat, lac, cid]
                               properties:
                                 rat: { type: string, enum: [GSM] }
+                                notes: { type: string, nullable: true }
                                 lac: { type: integer }
                                 cid: { type: integer }
                             - type: object
                               required: [rat, rnc, cid]
                               properties:
                                 rat: { type: string, enum: [UMTS] }
+                                notes: { type: string, nullable: true }
                                 rnc: { type: integer, minimum: 0, maximum: 65535 }
                                 cid: { type: integer, minimum: 0, maximum: 65535 }
                                 lac: { type: integer, minimum: 0, maximum: 65535, nullable: true }
@@ -2758,6 +2760,7 @@ paths:
                               required: [rat, enbid]
                               properties:
                                 rat: { type: string, enum: [LTE] }
+                                notes: { type: string, nullable: true }
                                 enbid: { type: integer, minimum: 0, maximum: 1048575 }
                                 clid: { type: integer, minimum: 0, maximum: 255, nullable: true }
                                 tac: { type: integer, minimum: 0, maximum: 65535, nullable: true }
@@ -5358,13 +5361,14 @@ components:
 
     UserListSummary:
       type: object
-      required: [id, uuid, name, is_public, stations, radiolines, stationCount, radiolineCount, createdBy, createdAt, updatedAt]
+      required: [id, uuid, name, is_public, notificationsEnabled, stations, radiolines, stationCount, radiolineCount, createdBy, createdAt, updatedAt]
       properties:
         id: { type: integer }
         uuid: { type: string, format: uuid }
         name: { type: string }
         description: { type: string, nullable: true }
         is_public: { type: boolean, nullable: true }
+        notificationsEnabled: { type: boolean }
         stations: { $ref: "#/components/schemas/UserListStations" }
         radiolines: { type: array, items: { type: integer }, description: Array of radioline IDs }
         stationCount: { type: integer, description: "Total count: internal stations + UKE locations" }

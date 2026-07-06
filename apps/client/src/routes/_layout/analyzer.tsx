@@ -78,12 +78,22 @@ type AnalyzerStation = {
 };
 
 type MatchedCell =
-  | { rat: "GSM"; cell_id: number; sector_id: number | null; band_id: number; lac: number; cid: number; is_confirmed: boolean | undefined }
+  | {
+      rat: "GSM";
+      cell_id: number;
+      sector_id: number | null;
+      band_id: number;
+      notes: string | null;
+      lac: number;
+      cid: number;
+      is_confirmed: boolean | undefined;
+    }
   | {
       rat: "UMTS";
       cell_id: number;
       sector_id: number | null;
       band_id: number;
+      notes: string | null;
       rnc: number;
       cid: number;
       lac: number | null;
@@ -95,6 +105,7 @@ type MatchedCell =
       cell_id: number;
       sector_id: number | null;
       band_id: number;
+      notes: string | null;
       enbid: number;
       clid: number | null;
       tac: number | null;
@@ -160,6 +171,12 @@ function isNotConfirmedCell(result: AnalyzerResult | undefined): boolean {
 
 function isNotFoundCell(result: AnalyzerResult | undefined): boolean {
   return result?.status === "not_found";
+}
+
+function getMatchedCellNote(cell: MatchedCell | undefined): string | null {
+  if (!cell || cell.rat === "NR") return null;
+  const note = cell.notes?.trim();
+  return note ? note : null;
 }
 
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
@@ -825,10 +842,12 @@ function AnalyzerPage() {
           const loc = result.station?.location;
           const locationText = loc?.city || loc?.address ? [loc.city, loc.address].filter(Boolean).join(", ") : "-";
           const regionText = loc?.region?.name;
+          const matchedNote = getMatchedCellNote(result.cell);
 
           return (
             <div className="text-emerald-700 dark:text-emerald-400 text-sm font-medium">
               {locationText}
+              {matchedNote ? <span className="font-normal"> - {matchedNote}</span> : null}
               {regionText && <span className="text-muted-foreground font-normal text-xs"> · {regionText}</span>}
             </div>
           );

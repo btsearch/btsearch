@@ -17,7 +17,7 @@ const usersSchema = createSelectSchema(users).pick({ id: true, name: true, usern
 const createdBySchema = usersSchema.pick({ name: true, username: true, image: true }).partial().extend({ uuid: z.string() });
 
 const listItemSchema = userListsSchema
-  .pick({ id: true, uuid: true, name: true, description: true, is_public: true, createdAt: true, updatedAt: true })
+  .pick({ id: true, uuid: true, name: true, description: true, is_public: true, notificationsEnabled: true, createdAt: true, updatedAt: true })
   .extend({
     stations: z.object({ internal: z.array(z.number()), uke: z.array(z.number()) }),
     radiolines: z.array(z.number()),

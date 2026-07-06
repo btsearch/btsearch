@@ -7,12 +7,15 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Sector azimuths can now use `360°` for omnidirectional picocells, rendering as full circles on the map and sector previews
 - Location picker maps now show station and UKE sector azimuths when enabled in map preferences
+- Analyzer now shows database cell notes on matched cell results
 
 ### 🩹 Fixes
 
 - Analyzer batch submission rate limiting now counts only successful requests and uses a 4 submissions per 32 hours limit for normal users
 - LTE validation now prevents T-Mobile and Orange station cells from reusing the same CLID with a different eNBID on the same station
 - SI2PEM dropdowns in station and UKE station dialogs now stay above floating dialogs after repeated focus changes
+- NTM and NetMonitor CLF exports now mark unconfirmed cells with `[!]` at the start of their description
+- User list notification settings now stay checked after lists load from the API
 
 # 2026-06-29
 

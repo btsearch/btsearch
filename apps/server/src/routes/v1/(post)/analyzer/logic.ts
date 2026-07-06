@@ -7,12 +7,22 @@ export type CellInput =
   | { rat: "NR"; mnc: number };
 
 export type MatchedCell =
-  | { rat: "GSM"; cell_id: number; sector_id: number | null; band_id: number | null; lac: number; cid: number; is_confirmed: boolean | undefined }
+  | {
+      rat: "GSM";
+      cell_id: number;
+      sector_id: number | null;
+      band_id: number | null;
+      notes: string | null;
+      lac: number;
+      cid: number;
+      is_confirmed: boolean | undefined;
+    }
   | {
       rat: "UMTS";
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       rnc: number;
       cid: number;
       lac: number | null;
@@ -24,6 +34,7 @@ export type MatchedCell =
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       enbid: number;
       clid: number | null;
       tac: number | null;
@@ -52,6 +63,7 @@ export type LookupMaps<TStation> = {
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       lac: number;
       cid: number;
       is_confirmed: boolean | undefined;
@@ -64,6 +76,7 @@ export type LookupMaps<TStation> = {
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       rnc: number;
       cid: number;
       lac: number | null;
@@ -78,6 +91,7 @@ export type LookupMaps<TStation> = {
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       rnc: number;
       cid: number;
       lac: number | null;
@@ -92,6 +106,7 @@ export type LookupMaps<TStation> = {
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      notes: string | null;
       enbid: number;
       clid: number;
       tac: number | null;
@@ -102,7 +117,15 @@ export type LookupMaps<TStation> = {
   >;
   lteEnbidMap: Map<
     string,
-    { station: TStation; cell_id: number; sector_id: number | null; band_id: number | null; enbid: number; is_confirmed: boolean | undefined }
+    {
+      station: TStation;
+      cell_id: number;
+      sector_id: number | null;
+      band_id: number | null;
+      notes: string | null;
+      enbid: number;
+      is_confirmed: boolean | undefined;
+    }
   >;
 };
 
@@ -200,6 +223,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
           cell_id: entry.cell_id,
           sector_id: entry.sector_id,
           band_id: entry.band_id,
+          notes: entry.notes,
           lac: entry.lac,
           cid: entry.cid,
           is_confirmed: entry.is_confirmed,
@@ -222,6 +246,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
             cell_id: primary.cell_id,
             sector_id: primary.sector_id,
             band_id: primary.band_id,
+            notes: primary.notes,
             rnc: primary.rnc,
             cid: primary.cid,
             lac: primary.lac,
@@ -241,6 +266,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
           cell_id: fallback.cell_id,
           sector_id: fallback.sector_id,
           band_id: fallback.band_id,
+          notes: fallback.notes,
           rnc: fallback.rnc,
           cid: fallback.cid,
           lac: fallback.lac,
@@ -267,6 +293,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
             cell_id: primary.cell_id,
             sector_id: primary.sector_id,
             band_id: primary.band_id,
+            notes: primary.notes,
             enbid: primary.enbid,
             clid: primary.clid,
             tac: primary.tac,
@@ -287,6 +314,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
           cell_id: fallback.cell_id,
           sector_id: fallback.sector_id,
           band_id: fallback.band_id,
+          notes: fallback.notes,
           enbid: fallback.enbid,
           clid: null,
           tac: null,

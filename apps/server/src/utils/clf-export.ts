@@ -109,7 +109,8 @@ function getNTMLocation(cell: CellExportData): string {
   const locationParts = [cell.city, cell.address].filter(Boolean).join(", ");
   if (locationParts) parts.push(locationParts);
   if (cell.notes) parts.push(cell.notes);
-  return withSectorPrefix(cell, parts.join(" - ") || cell.station_id).replace(/;/g, ",");
+  const description = withSectorPrefix(cell, parts.join(" - ") || cell.station_id).replace(/;/g, ",");
+  return !cell.is_confirmed ? `[!] ${description}` : description;
 }
 
 function getBandCode(
