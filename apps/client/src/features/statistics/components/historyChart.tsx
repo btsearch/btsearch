@@ -93,7 +93,7 @@ function BandHistoryCard({ band, chartType, granularity }: { band: BandChartData
       dataXKey="date"
       height="h-56"
       minWidth="min-w-0"
-      showBrush={!isDaily}
+      showBrush
       showDelta
       connectNulls
       showDots={!isDaily}
