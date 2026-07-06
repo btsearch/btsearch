@@ -198,7 +198,7 @@
     "unresolvedBandsWarning": "Some band entries could not be matched",
     "tooFewCellsWarning_one": "{{count, number}} station has fewer than 2 cell changes",
     "tooFewCellsWarning_other": "{{count, number}} stations have fewer than 2 cell changes",
-    "batchRateLimit": "Limited to 7 batch submissions per 24 hours",
+    "batchRateLimit": "Limited to 4 batch submissions per 32 hours",
     "applyDirectly": "Apply directly",
     "applySuccess": "Changes applied successfully",
     "applyDirectlyConfirmTitle": "Apply changes directly?",

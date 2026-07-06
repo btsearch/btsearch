@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { checkCellDuplicatesBatch } from "../../../../services/cellDuplicateCheck.service.js";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../services/cellDuplicateCheck.service.js";
 import { syncStationsPermitsAssociations } from "../../../../services/stationsPermitsAssociation.service.js";
 import { validateCellARFCNsForBands } from "../../../../utils/cellARFCNValidation.js";
 import { logger } from "../../../../utils/logger.js";
@@ -89,6 +89,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const { cells: cellsData, ...stationData } = req.body;
 
   validateCellDuplicates(cellsData);
+  await checkLTEClidConsistency(
+    null,
+    cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
+    [],
+    stationData.operator_id,
+  );
 
   if (stationData.operator_id && cellsData && cellsData.length > 0) {
     await checkCellDuplicatesBatch(

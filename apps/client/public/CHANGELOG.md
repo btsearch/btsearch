@@ -1,6 +1,14 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-06
+
+### 🩹 Fixes
+
+- Analyzer batch submission rate limiting now counts only successful requests and uses a 4 submissions per 32 hours limit for normal users
+- LTE validation now prevents T-Mobile and Orange station cells from reusing the same CLID with a different eNBID on the same station
+- SI2PEM dropdowns in station and UKE station dialogs now stay above floating dialogs after repeated focus changes
+
 # 2026-06-29
 
 ### 🚀 Enhancements

@@ -1,4 +1,4 @@
-import { cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
+import { cells, gsmCells, lteCells, nrCells, operators, stations, umtsCells } from "@openbts/drizzle";
 import { and, eq, isNull, ne, notInArray, or } from "drizzle-orm";
 
 import db from "../database/psql.js";
@@ -11,7 +11,7 @@ type CellIdentityDuplicateEntry = {
   excludeCellId?: number;
 };
 
-type CellIdentityDuplicateSource = {
+export type CellIdentityDuplicateSource = {
   rat?: string | null;
   details?: CellIdentityDuplicateDetails | null;
   excludeCellId?: number;
@@ -43,6 +43,8 @@ type PciDuplicateCheckSpec = PciDuplicateSpec & {
   channelColumn: typeof lteCells.earfcn | typeof nrCells.arfcn;
   label: string;
 };
+
+const LTE_SINGLE_ENBID_PER_CLID_MNCS = new Set([26002, 26003]);
 
 function withPciDuplicateCheck(rat: string, config: Omit<PciDuplicateCheckSpec, keyof PciDuplicateSpec>): PciDuplicateCheckSpec {
   const spec = getPciDuplicateSpec(rat);
@@ -218,6 +220,51 @@ function getCellIdentityDuplicateEntriesByRat(sources: CellIdentityDuplicateSour
   return entriesByRat;
 }
 
+function getLTEClidEntries(sources: CellIdentityDuplicateSource[]): CellIdentityDuplicateEntry[] {
+  return sources.flatMap((source) => {
+    if (source.rat !== "LTE" || !source.details) return [];
+    const enbid = source.details.enbid;
+    const clid = source.details.clid;
+    if (typeof enbid !== "number" || typeof clid !== "number") return [];
+    return [{ values: { enbid, clid }, excludeCellId: source.excludeCellId }];
+  });
+}
+
+function assertLTEClidPayloadConsistency(entries: CellIdentityDuplicateEntry[]): void {
+  const ENBIDByCLID = new Map<number, number>();
+
+  for (const entry of entries) {
+    const enbid = entry.values.enbid;
+    const clid = entry.values.clid;
+    if (enbid === undefined || clid === undefined) continue;
+
+    const existingENBID = ENBIDByCLID.get(clid);
+    if (existingENBID !== undefined && existingENBID !== enbid)
+      throw new ErrorResponse("BAD_REQUEST", {
+        message: `LTE CLID ${clid} cannot be used with multiple eNBIDs on the same station`,
+      });
+
+    ENBIDByCLID.set(clid, enbid);
+  }
+}
+
+async function getLTEClidConsistencyMNC(stationId: number | null, operatorId?: number | null): Promise<number | null> {
+  if (stationId !== null) {
+    const [row] = await db
+      .select({ mnc: operators.mnc })
+      .from(stations)
+      .leftJoin(operators, eq(stations.operator_id, operators.id))
+      .where(eq(stations.id, stationId))
+      .limit(1);
+    return row?.mnc ?? null;
+  }
+
+  if (operatorId === null || operatorId === undefined) return null;
+
+  const [row] = await db.select({ mnc: operators.mnc }).from(operators).where(eq(operators.id, operatorId)).limit(1);
+  return row?.mnc ?? null;
+}
+
 function getPciDuplicateEntriesByRat(sources: PciDuplicateSource[]): Map<string, PciDuplicateEntry[]> {
   const entriesByRat = new Map<string, PciDuplicateEntry[]>();
 
@@ -274,6 +321,56 @@ export async function checkCellDuplicatesBatch(
 ): Promise<void> {
   const entriesByRat = getCellIdentityDuplicateEntriesByRat(cellEntries);
   await Promise.all(CELL_IDENTITY_DUPLICATE_CHECKS.map((spec) => spec.checkEntries(operatorId, entriesByRat.get(spec.rat) ?? [], siblingExcludeIds)));
+}
+
+export async function checkLTEClidConsistency(
+  stationId: number | null,
+  sources: CellIdentityDuplicateSource[],
+  siblingExcludeIds: number[] = [],
+  operatorId?: number | null,
+): Promise<void> {
+  const entries = getLTEClidEntries(sources);
+  if (entries.length === 0) return;
+
+  const mnc = await getLTEClidConsistencyMNC(stationId, operatorId);
+  if (!LTE_SINGLE_ENBID_PER_CLID_MNCS.has(mnc ?? 0)) return;
+
+  assertLTEClidPayloadConsistency(entries);
+  if (stationId === null) return;
+
+  const conditions = entries.flatMap((entry) => {
+    const enbid = entry.values.enbid;
+    const clid = entry.values.clid;
+    if (enbid === undefined || clid === undefined) return [];
+    return [
+      and(
+        eq(lteCells.clid, clid),
+        ne(lteCells.enbid, enbid),
+        entry.excludeCellId !== undefined ? ne(lteCells.cell_id, entry.excludeCellId) : undefined,
+      ),
+    ];
+  });
+  if (conditions.length === 0) return;
+
+  const existing = await db
+    .select({ enbid: lteCells.enbid, clid: lteCells.clid })
+    .from(lteCells)
+    .innerJoin(cells, eq(cells.id, lteCells.cell_id))
+    .where(
+      and(
+        eq(cells.station_id, stationId),
+        siblingExcludeIds.length > 0 ? notInArray(lteCells.cell_id, siblingExcludeIds) : undefined,
+        or(...conditions),
+      ),
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    const duplicate = existing[0]!;
+    throw new ErrorResponse("DUPLICATE_ENTRY", {
+      message: `LTE CLID ${duplicate.clid} already belongs to eNBID ${duplicate.enbid} on this station`,
+    });
+  }
 }
 
 async function checkPciDuplicatesForSpec(

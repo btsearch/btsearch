@@ -16,7 +16,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import z from "zod";
 
 import { ErrorResponse } from "../../errors.ts";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../services/cellDuplicateCheck.service.ts";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../services/cellDuplicateCheck.service.ts";
 import type { DbTx } from "../../types/global.ts";
 import { formatARFCNBandErrorMessage } from "../cellARFCNValidation.ts";
 import {
@@ -189,8 +189,22 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   if (type === "new" && existingLocation && existingLocation.stations && existingLocation.stations.length > 0)
     throw new ErrorResponse("BAD_REQUEST", { message: "The station is already registered at this location" });
 
+  const operatorId = type === "new" ? stationData?.operator_id : targetStation?.operator_id;
+
   if (input.cells && input.cells.length > 0) {
     validateCellDuplicates(input.cells);
+    await checkLTEClidConsistency(
+      stationId,
+      input.cells
+        .filter((cell) => cell.operation !== "delete")
+        .map((cell) => ({
+          rat: cell.rat,
+          details: cell.details as Record<string, unknown> | undefined,
+          excludeCellId: cell.target_cell_id ?? undefined,
+        })),
+      input.cells.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined),
+      operatorId,
+    );
     const bandIds = [...new Set(input.cells.map((c) => c.band_id).filter((id): id is number => id !== null && id !== undefined))];
     if (bandIds.length > 0) {
       const bandRows = await db.query.bands.findMany({ where: { id: { in: bandIds } }, columns: { id: true, rat: true, value: true, duplex: true } });
@@ -233,7 +247,6 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   }
 
   const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
-  const operatorId = type === "new" ? stationData?.operator_id : targetStation?.operator_id;
   if (operatorId && input.cells && input.cells.length > 0) {
     const dupEntries = input.cells
       .filter((cell) => cell.details && cell.operation !== "delete")

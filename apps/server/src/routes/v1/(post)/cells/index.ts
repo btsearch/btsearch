@@ -9,7 +9,12 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../services/cellDuplicateCheck.service.js";
+import {
+  checkCellDuplicate,
+  checkLTEClidConsistency,
+  checkPciDuplicate,
+  getOperatorIdForStation,
+} from "../../../../services/cellDuplicateCheck.service.js";
 import { validateCellARFCNsForBands } from "../../../../utils/cellARFCNValidation.js";
 import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.js";
 import { type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../utils/ratCellPersistence.js";
@@ -54,6 +59,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
     if (req.body.details && req.body.station_id) {
       const operatorId = await getOperatorIdForStation(req.body.station_id);
       if (operatorId) await checkCellDuplicate({ rat: req.body.rat, details: req.body.details as Record<string, unknown> }, operatorId);
+      await checkLTEClidConsistency(req.body.station_id, [{ rat: req.body.rat, details: req.body.details as Record<string, unknown> }]);
     }
 
     if (req.body.details && req.body.station_id && req.body.band_id) {

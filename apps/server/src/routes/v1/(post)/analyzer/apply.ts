@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../errors.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
 import { createAuditLog } from "../../../../services/auditLog.service.ts";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
 import { validateCellARFCNsAgainstBands } from "../../../../utils/cellARFCNValidation.ts";
 import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.ts";
 import {
@@ -152,6 +152,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       validateCellARFCNsAgainstBands(item.cells, bandMap);
 
       const checks: Promise<void>[] = [];
+      const allModifiedCellIds = item.cells
+        .filter((cell) => cell.operation === "update" && cell.target_cell_id !== undefined)
+        .map((cell) => cell.target_cell_id!);
 
       if (station.operator_id) {
         const cellEntries = item.cells.map((cell) => ({
@@ -163,6 +166,22 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       }
 
       checks.push(
+        checkLTEClidConsistency(
+          station.id,
+          item.cells.map((cell) => {
+            const existingCell =
+              cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
+            const details =
+              cell.rat === "LTE" && cell.operation === "update"
+                ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
+                : (cell.details as Record<string, unknown> | undefined);
+            return { rat: cell.rat, details, excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined };
+          }),
+          allModifiedCellIds,
+        ),
+      );
+
+      checks.push(
         checkPciDuplicates(
           station.id,
           item.cells.map((cell) => ({
@@ -171,7 +190,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
             details: cell.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null } | undefined,
             excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
           })),
-          item.cells.filter((cell) => cell.operation === "update" && cell.target_cell_id !== undefined).map((cell) => cell.target_cell_id!),
+          allModifiedCellIds,
         ),
       );
 

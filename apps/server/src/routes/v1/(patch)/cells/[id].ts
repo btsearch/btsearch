@@ -9,7 +9,12 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../services/cellDuplicateCheck.service.js";
+import {
+  checkCellDuplicate,
+  checkLTEClidConsistency,
+  checkPciDuplicate,
+  getOperatorIdForStation,
+} from "../../../../services/cellDuplicateCheck.service.js";
 import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../utils/ratCellPersistence.js";
 import { lteUpdateSchema, normalRatUpdateSchemaMap, nrUpdateSchema } from "../../../../utils/ratCellSchemas.js";
@@ -62,9 +67,12 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   if (req.body.details || req.body.band_id !== undefined) {
     if (req.body.details) {
+      const lteDetails = req.body.details as z.infer<typeof lteUpdateSchema> | undefined;
+      const identityDetails =
+        cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
       const operatorId = await getOperatorIdForStation(cell.station_id);
-      if (operatorId)
-        await checkCellDuplicate({ rat: cell.rat, details: req.body.details as Record<string, unknown>, excludeCellId: id }, operatorId);
+      if (operatorId) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: id }, operatorId);
+      await checkLTEClidConsistency(cell.station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: id }]);
     }
 
     if (req.body.details && cell.rat === "NR") {

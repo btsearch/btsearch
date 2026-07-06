@@ -9,7 +9,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../../../services/auditLog.service.js";
-import { checkCellDuplicate, checkPciDuplicate } from "../../../../../../services/cellDuplicateCheck.service.js";
+import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../services/cellDuplicateCheck.service.js";
 import { validateCellARFCNsForBands } from "../../../../../../utils/cellARFCNValidation.js";
 import { queueStationCellsChangedNotification } from "../../../../../../utils/notifications/stationCellChanges.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../utils/ratCellPersistence.js";
@@ -109,8 +109,12 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   });
   if (!cell) throw new ErrorResponse("NOT_FOUND");
 
-  if (req.body.details && station.operator_id) {
-    await checkCellDuplicate({ rat: cell.rat, details: req.body.details as Record<string, unknown>, excludeCellId: cell_id }, station.operator_id);
+  if (req.body.details) {
+    const lteDetails = req.body.details as z.infer<typeof lteCellsUpdateSchema> | undefined;
+    const identityDetails =
+      cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
+    if (station.operator_id) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: cell_id }, station.operator_id);
+    await checkLTEClidConsistency(station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: cell_id }]);
   }
 
   if (req.body.details && cell.rat === "NR") {

@@ -9,7 +9,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../../../services/auditLog.service.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
 import { validateCellARFCNsForBands } from "../../../../../../utils/cellARFCNValidation.js";
 import { queueStationCellsChangedNotification } from "../../../../../../utils/notifications/stationCellChanges.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../utils/ratCellPersistence.js";
@@ -124,6 +124,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           allModifiedCellIds,
         )
       : Promise.resolve(),
+    checkLTEClidConsistency(
+      station_id,
+      effectiveCells.map((cell, index) => ({
+        rat: cell.rat,
+        details: cell.details as Record<string, unknown> | undefined,
+        excludeCellId: cellsData[index]?.cell_id,
+      })),
+      allModifiedCellIds,
+    ),
     validateCellARFCNsForBands(effectiveCells),
     checkPciDuplicates(
       station_id,

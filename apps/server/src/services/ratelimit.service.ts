@@ -14,6 +14,7 @@ export type RouteRateLimit = {
   url: string;
   max: number;
   window: number;
+  countSuccessfulOnly?: boolean;
   roles?: Partial<Record<UserRole, RateLimitTier>>;
 };
 
@@ -31,7 +32,16 @@ export interface RateLimitResult {
   limit: number;
   reset: number;
   retryAfter?: number;
+  reservation?: RateLimitReservation;
 }
+
+export interface RateLimitReservation {
+  key: string;
+}
+
+type RateLimitCheckOptions = {
+  countSuccessfulOnly?: boolean;
+};
 
 export const DEFAULT_TIER_LIMITS: Required<NonNullable<RateLimitOptions["tiers"]>> = {
   basic: { max: 60, window: 60 },
@@ -214,7 +224,7 @@ export class RateLimitService {
    * @param rateLimit Rate limit configuration
    * @returns Rate limit check result
    */
-  async check(key: string, rateLimit: RateLimitTier): Promise<RateLimitResult> {
+  async check(key: string, rateLimit: RateLimitTier, options: RateLimitCheckOptions = {}): Promise<RateLimitResult> {
     if (rateLimit.max === Number.POSITIVE_INFINITY) {
       return {
         allowed: true,
@@ -231,6 +241,8 @@ export class RateLimitService {
     const resetTime = Math.floor(Date.now() / 1000) + ttl;
 
     if (newCount > rateLimit.max) {
+      if (options.countSuccessfulOnly) await this.release({ key });
+
       return {
         allowed: false,
         remaining: 0,
@@ -240,12 +252,24 @@ export class RateLimitService {
       };
     }
 
-    return {
+    const result: RateLimitResult = {
       allowed: true,
       remaining: rateLimit.max - newCount,
       limit: rateLimit.max,
       reset: resetTime,
     };
+    if (options.countSuccessfulOnly) result.reservation = { key };
+
+    return result;
+  }
+
+  async release(reservation: RateLimitReservation): Promise<void> {
+    try {
+      const count = await this.redis.decr(reservation.key);
+      if (count <= 0) await this.redis.del(reservation.key);
+    } catch (err) {
+      logger.error("ratelimit.service.release", { err });
+    }
   }
 
   /**
@@ -263,7 +287,7 @@ export class RateLimitService {
       const key = this.generateKey(req, useRouteKey);
       if (!key) return null;
 
-      return await this.check(key, rateLimit);
+      return await this.check(key, rateLimit, { countSuccessfulOnly: routeLimit?.countSuccessfulOnly === true });
     } catch (err) {
       logger.error("ratelimit.service.processRequest", { err });
       return null;

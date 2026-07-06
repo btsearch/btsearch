@@ -17,7 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation, useRouterState } from "@tanstack/react-router";
 import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { type ComponentType, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ComponentType, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
@@ -72,6 +72,57 @@ const MOBILE_PAGE_SECTION_CHIP_CLASS =
 const flagComponents: Record<string, ComponentType<{ className?: string }>> = { US, PL };
 type FloatingTransition = typeof FLUID_TRANSITION | { duration: number };
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+type FloatingNavState = {
+  hidden: boolean;
+  expandedKey: string | null;
+  collapsedActiveKey: string | null;
+  mobileSectionKey: string | null;
+  subnavReady: boolean;
+};
+
+type FloatingNavAction =
+  | { type: "SHOW_NAV" }
+  | { type: "HIDE_NAV" }
+  | { type: "SET_SUBNAV_READY"; value: boolean }
+  | { type: "RESET_FOR_ROUTE" }
+  | { type: "CLOSE_MOBILE_SECTION" }
+  | { type: "SELECT_SECTION"; isMobile: boolean; sectionKey: string; activeSectionKey: string | null; displayedSectionKey: string | null };
+
+function createInitialFloatingNavState(): FloatingNavState {
+  return {
+    hidden: readHiddenState(),
+    expandedKey: null,
+    collapsedActiveKey: null,
+    mobileSectionKey: null,
+    subnavReady: true,
+  };
+}
+
+function floatingNavReducer(state: FloatingNavState, action: FloatingNavAction): FloatingNavState {
+  switch (action.type) {
+    case "SHOW_NAV":
+      return { ...state, hidden: false };
+    case "HIDE_NAV":
+      return { ...state, hidden: true, subnavReady: false };
+    case "SET_SUBNAV_READY":
+      return state.subnavReady === action.value ? state : { ...state, subnavReady: action.value };
+    case "RESET_FOR_ROUTE":
+      return { ...state, expandedKey: null, collapsedActiveKey: null, mobileSectionKey: null };
+    case "CLOSE_MOBILE_SECTION":
+      return state.mobileSectionKey === null ? state : { ...state, mobileSectionKey: null };
+    case "SELECT_SECTION":
+      if (action.isMobile) return { ...state, mobileSectionKey: action.sectionKey };
+
+      if (action.displayedSectionKey === action.sectionKey) {
+        return { ...state, expandedKey: null, collapsedActiveKey: action.activeSectionKey };
+      }
+
+      if (action.sectionKey === action.activeSectionKey) return { ...state, expandedKey: null, collapsedActiveKey: null };
+
+      return { ...state, expandedKey: action.sectionKey, collapsedActiveKey: null };
+  }
+}
 
 function readHiddenState() {
   if (typeof window === "undefined") return false;
@@ -778,11 +829,8 @@ export function FloatingNav() {
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { favoriteSet, lists: navLists } = useNavLists();
-  const [hidden, setHidden] = useState(readHiddenState);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const [collapsedActiveKey, setCollapsedActiveKey] = useState<string | null>(null);
-  const [mobileSectionKey, setMobileSectionKey] = useState<string | null>(null);
-  const [subnavReady, setSubnavReady] = useState(true);
+  const [navState, dispatchNav] = useReducer(floatingNavReducer, undefined, createInitialFloatingNavState);
+  const { hidden, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
   const userRole = session?.user?.role as string | undefined;
   const isLoggedIn = session?.user !== undefined && session.user !== null;
   const showAuth = isLoggedIn && settings?.submissionsEnabled === true;
@@ -790,27 +838,25 @@ export function FloatingNav() {
 
   useEffect(() => {
     if (hidden) {
-      setSubnavReady(false);
+      dispatchNav({ type: "SET_SUBNAV_READY", value: false });
       return;
     }
 
     if (reduceMotion) {
-      setSubnavReady(true);
+      dispatchNav({ type: "SET_SUBNAV_READY", value: true });
       return;
     }
 
-    const timeoutId = window.setTimeout(() => setSubnavReady(true), SUBNAV_OPEN_DELAY_MS);
+    const timeoutId = window.setTimeout(() => dispatchNav({ type: "SET_SUBNAV_READY", value: true }), SUBNAV_OPEN_DELAY_MS);
     return () => window.clearTimeout(timeoutId);
   }, [hidden, reduceMotion]);
 
   useEffect(() => {
-    setMobileSectionKey(null);
-    setExpandedKey(null);
-    setCollapsedActiveKey(null);
+    dispatchNav({ type: "RESET_FOR_ROUTE" });
   }, [location.pathname]);
 
   const sections = useMemo(() => {
-    const infoSections = translateNav(infoNavConfig, t).map((section) =>
+    const infoSections: TranslatedNavSection[] = translateNav(infoNavConfig, t).map((section) =>
       section.key === "info"
         ? {
             ...section,
@@ -819,19 +865,20 @@ export function FloatingNav() {
         : section,
     );
 
-    const translatedListSections = showLists
-      ? translateNav(listsNavConfig, t).map((section) => ({
-          ...section,
-          items: [
-            ...navLists.map((list) => ({
-              title: list.name,
-              url: `/lists/${list.uuid}`,
-              icon: favoriteSet.has(list.uuid) ? StarIcon : TaskDaily01Icon,
-              showFloatingLabel: true,
-            })),
-            ...section.items,
-          ],
-        }))
+    const translatedListSections: TranslatedNavSection[] = showLists
+      ? translateNav(listsNavConfig, t).map((section) => {
+          const listItems: TranslatedNavItem[] = navLists.map((list) => ({
+            title: list.name,
+            url: `/lists/${list.uuid}`,
+            icon: favoriteSet.has(list.uuid) ? StarIcon : TaskDaily01Icon,
+            showFloatingLabel: true,
+          }));
+
+          return {
+            ...section,
+            items: [...listItems, ...section.items],
+          };
+        })
       : [];
 
     return [
@@ -866,7 +913,7 @@ export function FloatingNav() {
                 aria-label={t("floating.show")}
                 onClick={() => {
                   writeHiddenState(false);
-                  setHidden(false);
+                  dispatchNav({ type: "SHOW_NAV" });
                 }}
                 initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -923,25 +970,13 @@ export function FloatingNav() {
                             expanded={expanded}
                             isMobile={isMobile}
                             onClick={() => {
-                              if (isMobile) {
-                                setMobileSectionKey(section.key);
-                                return;
-                              }
-
-                              if (displayedSection?.key === section.key) {
-                                setExpandedKey(null);
-                                setCollapsedActiveKey(activeSection?.key ?? null);
-                                return;
-                              }
-
-                              if (section.key === activeSection?.key) {
-                                setExpandedKey(null);
-                                setCollapsedActiveKey(null);
-                                return;
-                              }
-
-                              setCollapsedActiveKey(null);
-                              setExpandedKey(section.key);
+                              dispatchNav({
+                                type: "SELECT_SECTION",
+                                isMobile,
+                                sectionKey: section.key,
+                                activeSectionKey: activeSection?.key ?? null,
+                                displayedSectionKey: displayedSection?.key ?? null,
+                              });
                             }}
                             transition={transition}
                           />
@@ -956,9 +991,8 @@ export function FloatingNav() {
                     type="button"
                     aria-label={t("floating.hide")}
                     onClick={() => {
-                      setSubnavReady(false);
                       writeHiddenState(true);
-                      setHidden(true);
+                      dispatchNav({ type: "HIDE_NAV" });
                     }}
                     className="relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -970,7 +1004,7 @@ export function FloatingNav() {
           </AnimatePresence>
         </div>
       </LayoutGroup>
-      <MobileNavSheet section={mobileSection} onOpenChange={(open) => !open && setMobileSectionKey(null)} />
+      <MobileNavSheet section={mobileSection} onOpenChange={(open) => !open && dispatchNav({ type: "CLOSE_MOBILE_SECTION" })} />
     </>
   );
 }

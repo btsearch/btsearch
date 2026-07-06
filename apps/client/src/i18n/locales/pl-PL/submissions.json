@@ -201,7 +201,7 @@
     "tooFewCellsWarning_one": "{{count, number}} stacja ma mniej niż 2 zmiany komórek",
     "tooFewCellsWarning_few": "{{count, number}} stacje mają mniej niż 2 zmiany komórek",
     "tooFewCellsWarning_many": "{{count, number}} stacji ma mniej niż 2 zmiany komórek",
-    "batchRateLimit": "Limit: 7 paczek zgłoszeń na 24 godziny",
+    "batchRateLimit": "Limit: 4 paczki zgłoszeń na 32 godziny",
     "applyDirectly": "Wyślij bezpośrednio",
     "applySuccess": "Zmiany zostały wprowadzone",
     "applyDirectlyConfirmTitle": "Wysłać bezpośrednio do bazy?",

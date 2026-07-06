@@ -257,7 +257,7 @@ export function UkePermitDetailsDialogPanel({
                             </TooltipTrigger>
                             <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
                           </Tooltip>
-                          <DropdownMenuContent align="start" sideOffset={4} className="min-w-72">
+                          <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="min-w-72">
                             {pemReports?.map((report) => {
                               const Icon = report.source === "search" ? FileSearchIcon : GlobalIcon;
                               const label = report.source === "map" ? "generated" : "search";

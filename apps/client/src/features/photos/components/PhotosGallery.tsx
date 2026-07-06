@@ -11,7 +11,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -159,6 +159,75 @@ function getActiveFilterCount(filters: PhotosGalleryFilters) {
     filters.mainOnly,
     filters.recentOnly,
   ].filter(Boolean).length;
+}
+
+type PhotosGalleryState = {
+  filters: PhotosGalleryFilters;
+  lightboxIndex: number | null;
+  showScrollTop: boolean;
+};
+
+type PhotosGalleryAction =
+  | { type: "SET_SEARCH"; value: string }
+  | { type: "SET_OPERATOR"; value: number | null }
+  | { type: "SET_REGION"; value: string | null }
+  | { type: "SET_SORT_BY"; value: PhotosGallerySortBy }
+  | { type: "SET_ORDER"; value: PhotosGalleryOrder }
+  | { type: "SET_MAIN_ONLY"; value: boolean }
+  | { type: "SET_RECENT_ONLY"; value: boolean }
+  | { type: "TOGGLE_MAIN_ONLY" }
+  | { type: "TOGGLE_RECENT_ONLY" }
+  | { type: "TOGGLE_ORDER" }
+  | { type: "CLEAR_FILTERS" }
+  | { type: "OPEN_LIGHTBOX"; index: number }
+  | { type: "CLOSE_LIGHTBOX" }
+  | { type: "STEP_LIGHTBOX"; direction: -1 | 1; photoCount: number }
+  | { type: "SET_SHOW_SCROLL_TOP"; value: boolean };
+
+function createInitialGalleryState(): PhotosGalleryState {
+  return {
+    filters: readStoredFilters(),
+    lightboxIndex: null,
+    showScrollTop: false,
+  };
+}
+
+function photosGalleryReducer(state: PhotosGalleryState, action: PhotosGalleryAction): PhotosGalleryState {
+  switch (action.type) {
+    case "SET_SEARCH":
+      return { ...state, filters: { ...state.filters, q: action.value } };
+    case "SET_OPERATOR":
+      return { ...state, filters: { ...state.filters, operator: action.value } };
+    case "SET_REGION":
+      return { ...state, filters: { ...state.filters, region: action.value } };
+    case "SET_SORT_BY":
+      return { ...state, filters: { ...state.filters, sortBy: action.value } };
+    case "SET_ORDER":
+      return { ...state, filters: { ...state.filters, order: action.value } };
+    case "SET_MAIN_ONLY":
+      return { ...state, filters: { ...state.filters, mainOnly: action.value } };
+    case "SET_RECENT_ONLY":
+      return { ...state, filters: { ...state.filters, recentOnly: action.value } };
+    case "TOGGLE_MAIN_ONLY":
+      return { ...state, filters: { ...state.filters, mainOnly: !state.filters.mainOnly } };
+    case "TOGGLE_RECENT_ONLY":
+      return { ...state, filters: { ...state.filters, recentOnly: !state.filters.recentOnly } };
+    case "TOGGLE_ORDER":
+      return { ...state, filters: { ...state.filters, order: state.filters.order === "asc" ? "desc" : "asc" } };
+    case "CLEAR_FILTERS":
+      return { ...state, filters: DEFAULT_FILTERS };
+    case "OPEN_LIGHTBOX":
+      return { ...state, lightboxIndex: action.index };
+    case "CLOSE_LIGHTBOX":
+      return state.lightboxIndex === null ? state : { ...state, lightboxIndex: null };
+    case "STEP_LIGHTBOX": {
+      if (state.lightboxIndex === null || action.photoCount === 0) return state;
+
+      return { ...state, lightboxIndex: (state.lightboxIndex + action.direction + action.photoCount) % action.photoCount };
+    }
+    case "SET_SHOW_SCROLL_TOP":
+      return state.showScrollTop === action.value ? state : { ...state, showScrollTop: action.value };
+  }
 }
 
 type PhotosMobileFilterRailProps = {
@@ -410,17 +479,10 @@ export function PhotosGallery() {
   const navActionTarget = useNavActionTarget();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [initialFilters] = useState(readStoredFilters);
-  const [search, setSearch] = useState(initialFilters.q);
+  const [state, dispatch] = useReducer(photosGalleryReducer, undefined, createInitialGalleryState);
+  const { filters: storedFilters, lightboxIndex, showScrollTop } = state;
+  const { q: search, operator, region, sortBy, order, mainOnly, recentOnly } = storedFilters;
   const debouncedSearch = useDebouncedValue(search, 300);
-  const [operator, setOperator] = useState<number | null>(initialFilters.operator);
-  const [region, setRegion] = useState<string | null>(initialFilters.region);
-  const [sortBy, setSortBy] = useState<PhotosGallerySortBy>(initialFilters.sortBy);
-  const [order, setOrder] = useState<PhotosGalleryOrder>(initialFilters.order);
-  const [mainOnly, setMainOnly] = useState(initialFilters.mainOnly);
-  const [recentOnly, setRecentOnly] = useState(initialFilters.recentOnly);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const filters = useMemo<PhotosGalleryFilters>(
     () => ({ q: debouncedSearch, operator, region, sortBy, order, mainOnly, recentOnly }),
@@ -471,7 +533,7 @@ export function PhotosGallery() {
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
 
-    const handleScroll = () => setShowScrollTop(scrollElement.scrollTop > 520);
+    const handleScroll = () => dispatch({ type: "SET_SHOW_SCROLL_TOP", value: scrollElement.scrollTop > 520 });
     scrollElement.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
 
@@ -496,49 +558,41 @@ export function PhotosGallery() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, lightboxIndex]);
 
   useEffect(() => {
-    const storedFilters: PhotosGalleryFilters = { q: search, operator, region, sortBy, order, mainOnly, recentOnly };
     writeStoredFilters(storedFilters);
-  }, [mainOnly, operator, order, recentOnly, region, search, sortBy]);
+  }, [storedFilters]);
 
-  useEffect(() => setLightboxIndex(null), [debouncedSearch, operator, region, sortBy, order, mainOnly, recentOnly]);
+  useEffect(() => dispatch({ type: "CLOSE_LIGHTBOX" }), [debouncedSearch, operator, region, sortBy, order, mainOnly, recentOnly]);
 
-  const openPhoto = useCallback((index: number) => setLightboxIndex(index), []);
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const openPhoto = useCallback((index: number) => dispatch({ type: "OPEN_LIGHTBOX", index }), []);
+  const closeLightbox = useCallback(() => dispatch({ type: "CLOSE_LIGHTBOX" }), []);
   const openStation = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
   const retry = useCallback(() => void refetch(), [refetch]);
-  const clearFilters = useCallback(() => {
-    setSearch("");
-    setOperator(null);
-    setRegion(null);
-    setSortBy(DEFAULT_FILTERS.sortBy);
-    setOrder(DEFAULT_FILTERS.order);
-    setMainOnly(false);
-    setRecentOnly(false);
-  }, []);
+  const clearFilters = useCallback(() => dispatch({ type: "CLEAR_FILTERS" }), []);
   const handleOperatorChange = useCallback((value: string | null) => {
     if (value === null) return;
-    setOperator(value === ALL_FILTER_VALUE ? null : Number(value));
+    dispatch({ type: "SET_OPERATOR", value: value === ALL_FILTER_VALUE ? null : Number(value) });
   }, []);
   const handleRegionChange = useCallback((value: string | null) => {
     if (value === null) return;
-    setRegion(value === ALL_FILTER_VALUE ? null : value);
+    dispatch({ type: "SET_REGION", value: value === ALL_FILTER_VALUE ? null : value });
   }, []);
   const handleSortChange = useCallback((value: PhotosGallerySortBy | null) => {
     if (value === null) return;
-    setSortBy(value);
+    dispatch({ type: "SET_SORT_BY", value });
   }, []);
-  const toggleMainOnly = useCallback(() => setMainOnly((current) => !current), []);
-  const toggleRecentOnly = useCallback(() => setRecentOnly((current) => !current), []);
-  const toggleOrder = useCallback(() => setOrder((current) => (current === "asc" ? "desc" : "asc")), []);
+  const setSearch = useCallback((value: string) => dispatch({ type: "SET_SEARCH", value }), []);
+  const setOperator = useCallback((value: number | null) => dispatch({ type: "SET_OPERATOR", value }), []);
+  const setRegion = useCallback((value: string | null) => dispatch({ type: "SET_REGION", value }), []);
+  const setSortBy = useCallback((value: PhotosGallerySortBy) => dispatch({ type: "SET_SORT_BY", value }), []);
+  const setOrder = useCallback((value: PhotosGalleryOrder) => dispatch({ type: "SET_ORDER", value }), []);
+  const setMainOnly = useCallback((value: boolean) => dispatch({ type: "SET_MAIN_ONLY", value }), []);
+  const setRecentOnly = useCallback((value: boolean) => dispatch({ type: "SET_RECENT_ONLY", value }), []);
+  const toggleMainOnly = useCallback(() => dispatch({ type: "TOGGLE_MAIN_ONLY" }), []);
+  const toggleRecentOnly = useCallback(() => dispatch({ type: "TOGGLE_RECENT_ONLY" }), []);
+  const toggleOrder = useCallback(() => dispatch({ type: "TOGGLE_ORDER" }), []);
 
-  const prev = useCallback(
-    () => setLightboxIndex((index) => (index !== null && photos.length > 0 ? (index - 1 + photos.length) % photos.length : index)),
-    [photos.length],
-  );
-  const next = useCallback(
-    () => setLightboxIndex((index) => (index !== null && photos.length > 0 ? (index + 1) % photos.length : index)),
-    [photos.length],
-  );
+  const prev = useCallback(() => dispatch({ type: "STEP_LIGHTBOX", direction: -1, photoCount: photos.length }), [photos.length]);
+  const next = useCallback(() => dispatch({ type: "STEP_LIGHTBOX", direction: 1, photoCount: photos.length }), [photos.length]);
   const scrollToTop = useCallback(() => scrollRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }), [reduceMotion]);
 
   const emptyTitle = activeFilters ? t("photos.filteredEmptyTitle") : t("photos.emptyTitle");

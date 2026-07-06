@@ -11,7 +11,12 @@ import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.j
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
 import { createAuditLog } from "../../../../../services/auditLog.service.js";
-import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../../../../../services/cellDuplicateCheck.service.js";
+import {
+  checkCellDuplicatesBatch,
+  checkLTEClidConsistency,
+  checkPciDuplicates,
+  getOperatorIdForStation,
+} from "../../../../../services/cellDuplicateCheck.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import type { DbTx } from "../../../../../types/global.js";
 import {
@@ -136,12 +141,28 @@ function withCellDetails({ gsm, umts, lte, nr, ...base }: ProposedCellWithRelati
   };
 }
 
-async function validateCellConflicts(cells: ProposedCellInput[] | undefined, stationId: number | null): Promise<void> {
+async function validateCellConflicts(
+  cells: ProposedCellInput[] | undefined,
+  stationId: number | null,
+  proposedOperatorId?: number | null,
+): Promise<void> {
   if (!cells || cells.length === 0) return;
 
   validateCellDuplicates(cells);
+  const allModifiedCellIds = cells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
+  await checkLTEClidConsistency(
+    stationId,
+    cells
+      .filter((cell) => cell.operation !== "delete")
+      .map((cell) => ({
+        rat: cell.rat,
+        details: cell.details as Record<string, unknown> | undefined,
+        excludeCellId: cell.target_cell_id ?? undefined,
+      })),
+    allModifiedCellIds,
+    proposedOperatorId,
+  );
   if (stationId !== null) {
-    const allModifiedCellIds = cells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
     await checkPciDuplicates(stationId, getPciDuplicateSources(cells), allModifiedCellIds);
   }
 
@@ -265,7 +286,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before updating." });
 
   validateSectorInputs(req.body.sectors);
-  await validateCellConflicts(req.body.cells, submission.station_id);
+  const existingProposedStation =
+    submission.station_id === null && req.body.cells
+      ? await db.query.proposedStations.findFirst({ where: { submission_id: id }, columns: { operator_id: true } })
+      : null;
+  await validateCellConflicts(req.body.cells, submission.station_id, req.body.station?.operator_id ?? existingProposedStation?.operator_id);
 
   try {
     const result = await db.transaction((tx) => updateSubmissionDraft(tx, id, req.body, hasAdminPermission));

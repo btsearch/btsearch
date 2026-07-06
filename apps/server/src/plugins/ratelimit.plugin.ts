@@ -4,12 +4,16 @@ import { redis } from "../database/redis.js";
 import { ErrorResponse } from "../errors.js";
 import type { FastifyZodInstance } from "../interfaces/fastify.interface.js";
 import { QuotaService } from "../services/quota.service.js";
-import { RateLimitService } from "../services/ratelimit.service.js";
+import { type RateLimitReservation, RateLimitService } from "../services/ratelimit.service.js";
 
 declare module "fastify" {
   interface FastifyInstance {
     rateLimitService: RateLimitService;
     quotaService: QuotaService;
+  }
+
+  interface FastifyRequest {
+    successfulOnlyRateLimitReservation?: RateLimitReservation;
   }
 }
 
@@ -19,8 +23,9 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/api/v1/account/publishable-keys", max: 2, window: 604800 },
       {
         url: "/api/v1/submissions/batch",
-        max: 7,
-        window: 86400,
+        max: 4,
+        window: 115200,
+        countSuccessfulOnly: true,
         roles: { admin: { max: Number.POSITIVE_INFINITY, window: 86400 }, editor: { max: 500, window: 60 } },
       },
       { url: "/api/v1/auth/sign-in", max: 10, window: 300 },
@@ -56,6 +61,7 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       res.header("X-Retry-After", result.retryAfter?.toString() || "60");
       throw new ErrorResponse("TOO_MANY_REQUESTS");
     }
+    if (result.reservation) req.successfulOnlyRateLimitReservation = result.reservation;
 
     res.header("X-RateLimit-Limit", result.limit.toString());
     res.header("X-RateLimit-Remaining", result.remaining.toString());
@@ -72,5 +78,13 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       res.header("X-Quota-Remaining", quota.remaining.toString());
       res.header("X-Quota-Reset", quota.reset.toString());
     }
+  });
+
+  fastify.addHook("onResponse", async (req: FastifyRequest, res: FastifyReply) => {
+    const reservation = req.successfulOnlyRateLimitReservation;
+    if (!reservation) return;
+    if (res.statusCode >= 200 && res.statusCode < 400) return;
+
+    await rateLimitService.release(reservation);
   });
 };

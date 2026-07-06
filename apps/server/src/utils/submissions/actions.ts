@@ -19,7 +19,7 @@ import path from "node:path";
 
 import { ErrorResponse } from "../../errors.ts";
 import { createAuditLog } from "../../services/auditLog.service.ts";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../services/cellDuplicateCheck.service.ts";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../services/cellDuplicateCheck.service.ts";
 import { createAndDeliverNotification, notifyStationWatchers } from "../../services/notification.service.ts";
 import { syncStationsPermitsAssociations } from "../../services/stationsPermitsAssociation.service.ts";
 import type { DbTx } from "../../types/global.ts";
@@ -589,14 +589,16 @@ async function checkApprovalCellDuplicates(
   draft: ApprovalDuplicateCheckDraft,
   stationContext: ApprovalStationContext | null,
 ): Promise<void> {
-  const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
-  if (!operatorId) return;
-
   const duplicateEntries = draft.proposedCellRows
     .filter((cell) => cell.operation !== "delete" && cell.rat)
     .map((cell) => ({ rat: cell.rat!, details: getProposedCellDetails(cell), excludeCellId: cell.target_cell_id ?? undefined }))
     .filter((entry): entry is typeof entry & { details: Record<string, unknown> } => entry.details !== null);
+  const allModifiedCellIds = draft.proposedCellRows.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
+  const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
 
+  await checkLTEClidConsistency(submission.station_id ?? null, duplicateEntries, allModifiedCellIds, operatorId);
+
+  if (!operatorId) return;
   if (duplicateEntries.length > 0) await checkCellDuplicatesBatch(duplicateEntries, operatorId);
 }
 

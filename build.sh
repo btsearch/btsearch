@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-export COMMIT_SHA=$(git log --invert-grep --grep="^feat: swap \`OpenBTS\` to \`BTSearch\`" -1 --format="%h")
+export COMMIT_SHA=$(git log -1 --format="%h")
 
 if [[ "$1" == "swarm" ]]; then
   COMMIT_SHA=$COMMIT_SHA docker compose build client server discord-bot
