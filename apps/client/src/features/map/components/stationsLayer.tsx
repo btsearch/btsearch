@@ -302,7 +302,13 @@ export function StationsLayer({
       longitude: ukeLocation.longitude,
     };
 
-    showPopup([location.longitude, location.latitude], location, null, attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation), filters.source);
+    showPopup(
+      [location.longitude, location.latitude],
+      location,
+      null,
+      attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation),
+      filters.source,
+    );
     onPopupLocationChange({ locationId, source: filters.source });
   }, [map, locations, filters.source, showPopup, onPopupLocationChange, locationById]);
 
