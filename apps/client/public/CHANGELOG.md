@@ -7,13 +7,18 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Sector azimuths can now use `360°` for omnidirectional picocells, rendering as full circles on the map and sector previews
 - Location picker maps now show station and UKE sector azimuths when enabled in map preferences
+- Map measurement mode now supports mobile long-press gestures, live touch measurements and compact mobile controls
+- Mobile floating navigation can now be hidden with a downward swipe and restored with an upward swipe
 - Analyzer now shows database cell notes on matched cell results
 - Admin submissions can now be filtered by multiple operators and regions
+- Advanced map and station searches now support UARFCN, NR ARFCN and band duplex filters
 
 ### 🩹 Fixes
 
+- Carto base maps now use MapLibre-compatible style filters
 - Analyzer batch submission rate limiting now counts only successful requests and uses a 4 submissions per 32 hours limit for normal users
 - LTE validation now prevents T-Mobile and Orange station cells from reusing the same CLID with a different eNBID on the same station
+- LTE PCI duplicate validation now treats eNBID as part of the station-level duplicate key
 - Fixed UKE station `updatedAt` changing during unchanged permit refreshes; it now updates only when a permit is created or removed
 - UKE importer timestamps now keep the source file date with the import time instead of midnight UTC
 - UKE locations now return stations with their assigned permits instead of a flat permit list per location

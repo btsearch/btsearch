@@ -85,6 +85,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
 
   // Cell filters
   { key: "band:", description: "Frequency in MHz (e.g., 800, 1800, 2100)", availableOn: ["map"] },
+  { key: "duplex:", description: "Band duplex (FDD, TDD, null/false)", availableOn: ["map", "stations"] },
   { key: "rat:", description: "Standard (GSM, UMTS, LTE, NR)", availableOn: ["map"] },
   { key: "is_confirmed:", description: "Confirmation status (true, false)", availableOn: ["map", "stations"] },
   { key: "cell_notes:", description: "Cell notes (partial match)", availableOn: ["map", "stations"] },
@@ -98,6 +99,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "umts_cid:", description: "UMTS Cell ID", availableOn: ["map", "stations"] },
   { key: "cid_long:", description: "UMTS Long Cell ID", availableOn: ["map", "stations"] },
   { key: "umts_lac:", description: "UMTS Location Area Code", availableOn: ["map", "stations"] },
+  { key: "uarfcn:", description: "UMTS UARFCN value", availableOn: ["map", "stations"] },
 
   // LTE cell filters
   { key: "enbid:", description: "LTE eNodeB ID", availableOn: ["map", "stations"] },
@@ -114,6 +116,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "nr_clid:", description: "5G Cell Local ID", availableOn: ["map", "stations"] },
   { key: "nrtac:", description: "5G Tracking Area Code", availableOn: ["map", "stations"] },
   { key: "nr_pci:", description: "5G Physical Cell ID", availableOn: ["map", "stations"] },
+  { key: "arfcn:", description: "5G NR ARFCN value", availableOn: ["map", "stations"] },
   { key: "supports_nr_redcap:", description: "Supports RedCap (true, false)", availableOn: ["map", "stations"] },
 
   // Extra Identificators filters

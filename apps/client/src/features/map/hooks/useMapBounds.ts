@@ -1,12 +1,13 @@
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
 type UseMapBoundsArgs = {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
   debounceMs?: number;
 };
 
-function formatBounds(map: maplibregl.Map): string {
+function formatBounds(map: MapLibreMap): string {
   const b = map.getBounds();
   return `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
 }

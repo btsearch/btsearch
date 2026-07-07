@@ -534,10 +534,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       {isMobile ? (
         <div
           className={cn(
-            "absolute left-4 z-5 flex flex-col items-start gap-1",
+            "absolute left-4 z-5 flex flex-col items-start gap-1.5",
             showFloatingMobileMapControls ? "bottom-[calc(2.5rem+var(--floating-nav-map-offset,0rem))]" : "bottom-4",
           )}
         >
+          <MapCursorInfo activeMarker={activeMarker} onActiveMarkerClear={onActiveMarkerClear} variant="mobile" />
           {mobileStatsPanel}
         </div>
       ) : null}

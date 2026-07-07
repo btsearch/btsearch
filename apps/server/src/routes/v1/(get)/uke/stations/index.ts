@@ -1,5 +1,5 @@
 import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { type SQL, and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { type SQL, and, count, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";

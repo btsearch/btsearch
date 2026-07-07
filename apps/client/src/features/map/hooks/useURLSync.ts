@@ -1,9 +1,10 @@
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 import type { StationFilters, StationSource, StationStatus } from "@/types/station";
 
 type UseUrlSyncArgs = {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
   filters: StationFilters;
   onInitialize: (data: {
@@ -226,7 +227,7 @@ function parseUrlHash(): {
   };
 }
 
-function buildUrlHash(filters: StationFilters, map: maplibregl.Map, zoomOverride?: number): string {
+function buildUrlHash(filters: StationFilters, map: MapLibreMap, zoomOverride?: number): string {
   const tokens: string[] = [];
 
   if (filters.operators.length > 0) tokens.push(`o${filters.operators.join(",")}`);

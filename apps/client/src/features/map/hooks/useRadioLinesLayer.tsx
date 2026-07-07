@@ -1,4 +1,13 @@
-import { type GeoJSONSource, Popup } from "maplibre-gl";
+import {
+  type GeoJSONSource,
+  type LayerSpecification,
+  type MapGeoJSONFeature,
+  type MapLayerMouseEvent,
+  type Map as MapLibreMap,
+  type Point,
+  type PointLike,
+  Popup,
+} from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -18,17 +27,19 @@ import {
 import type { DuplexRadioLink, RadioLinkType } from "../utils";
 import { findDuplexLinkByRadioLineId } from "../utils";
 
+type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
+
 type UseRadioLinesLayerArgs = {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
-  linesGeoJSON: GeoJSON.FeatureCollection;
-  endpointsGeoJSON: GeoJSON.FeatureCollection;
+  linesGeoJSON: GeoJsonSourceData;
+  endpointsGeoJSON: GeoJsonSourceData;
   duplexLinks: DuplexRadioLink[];
   minZoom: number;
   onFeatureClick: (links: DuplexRadioLink[], coordinates: [number, number]) => void;
 };
 
-function createLineLayerConfig(minzoom: number): maplibregl.LayerSpecification {
+function createLineLayerConfig(minzoom: number): LayerSpecification {
   return {
     id: RADIOLINES_LINE_LAYER_ID,
     type: "line",
@@ -43,7 +54,7 @@ function createLineLayerConfig(minzoom: number): maplibregl.LayerSpecification {
   };
 }
 
-function createHitboxLayerConfig(minzoom: number): maplibregl.LayerSpecification {
+function createHitboxLayerConfig(minzoom: number): LayerSpecification {
   return {
     id: RADIOLINES_HITBOX_LAYER_ID,
     type: "line",
@@ -53,7 +64,7 @@ function createHitboxLayerConfig(minzoom: number): maplibregl.LayerSpecification
   };
 }
 
-function createEndpointLayerConfig(minzoom: number): maplibregl.LayerSpecification {
+function createEndpointLayerConfig(minzoom: number): LayerSpecification {
   return {
     id: RADIOLINES_ENDPOINT_LAYER_ID,
     type: "circle",
@@ -72,7 +83,7 @@ const HITBOX_LAYERS = [RADIOLINES_HITBOX_LAYER_ID, RADIOLINES_ENDPOINT_LAYER_ID]
 const ALL_LAYERS = [RADIOLINES_LINE_LAYER_ID, RADIOLINES_HITBOX_LAYER_ID, RADIOLINES_ENDPOINT_LAYER_ID] as const;
 
 type ActiveTooltip = {
-  popup: maplibregl.Popup;
+  popup: Popup;
   root: ReturnType<typeof createRoot>;
   cacheKey: string;
 };
@@ -116,7 +127,7 @@ type TooltipEntry = {
   ulSpeed: string | null | undefined;
 };
 
-function deduplicateByGroupId(features: maplibregl.MapGeoJSONFeature[], duplexLinks: DuplexRadioLink[]): DuplexRadioLink[] {
+function deduplicateByGroupId(features: MapGeoJSONFeature[], duplexLinks: DuplexRadioLink[]): DuplexRadioLink[] {
   const seen = new Set<string>();
   const result: DuplexRadioLink[] = [];
   for (const f of features) {
@@ -166,18 +177,18 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
       }
     };
 
-    const isNearStation = (point: maplibregl.Point): boolean => {
+    const isNearStation = (point: Point): boolean => {
       const layers = [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`].filter((id) => map.getLayer(id));
       if (!layers.length) return false;
       const t = 12;
-      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+      const bbox: [PointLike, PointLike] = [
         [point.x - t, point.y - t],
         [point.x + t, point.y + t],
       ];
       return map.queryRenderedFeatures(bbox, { layers }).length > 0;
     };
 
-    const handleClick = (e: maplibregl.MapLayerMouseEvent) => {
+    const handleClick = (e: MapLayerMouseEvent) => {
       if (isNearStation(e.point)) return;
 
       const allFeatures = map.queryRenderedFeatures(e.point, { layers: [...HITBOX_LAYERS] });
@@ -192,7 +203,7 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
       map.getCanvas().style.cursor = "pointer";
     };
 
-    const handleMouseMove = (e: maplibregl.MapLayerMouseEvent) => {
+    const handleMouseMove = (e: MapLayerMouseEvent) => {
       if (isNearStation(e.point)) {
         tooltipRef.current = destroyTooltip(tooltipRef.current);
         return;

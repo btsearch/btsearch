@@ -52,10 +52,13 @@ export async function cleanupExpiredInactiveStations(): Promise<void> {
 
     await tx.delete(stations).where(inArray(stations.id, stationIds));
 
-    for (const locationId of locationIds) {
-      const remaining = await tx.query.stations.findFirst({ where: { location_id: locationId }, columns: { id: true } });
-      if (!remaining) await deleteLocationWithPhotos(tx, locationId);
-    }
+    const remainingLocations = await tx.query.stations.findMany({
+      where: { location_id: { in: locationIds } },
+      columns: { location_id: true },
+    });
+    const remainingLocationIds = new Set(remainingLocations.map((station) => station.location_id).filter((id): id is number => id !== null));
+    const emptyLocationIds = locationIds.filter((locationId) => !remainingLocationIds.has(locationId));
+    await Promise.all(emptyLocationIds.map((locationId) => deleteLocationWithPhotos(tx, locationId)));
   });
 
   logger.info("inactive_stations_cleanup_finished", { deleted: stationIds.length, cutoff: cutoff.toISOString() });

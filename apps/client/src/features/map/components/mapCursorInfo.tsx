@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { GeoJSONSource, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
+import { type ReactNode, useCallback, useEffect, useEffectEvent, useReducer, useRef } from "react";
 
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
 import { Separator } from "@/components/ui/separator";
@@ -8,20 +11,61 @@ import { cn } from "@/lib/utils";
 
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_FC = { type: "FeatureCollection", features: [] };
+type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
 
-function safeSetData(source: maplibregl.GeoJSONSource | null, data: GeoJSON.GeoJSON) {
+function safeSetData(source: GeoJSONSource | null, data: object) {
   try {
-    void source?.setData(data);
+    void source?.setData(data as unknown as GeoJsonSourceData);
   } catch {}
 }
 
 type SavedMeasurement = {
-  marker: { lat: number; lng: number };
-  cursor: { lat: number; lng: number };
+  marker: CursorPosition;
+  cursor: CursorPosition;
 };
 
-function generateCirclePolygon(lat: number, lng: number, radiusMeters: number): GeoJSON.Feature {
+type CursorPosition = { lat: number; lng: number };
+type ActiveMarker = { latitude: number; longitude: number };
+
+type MeasurementMetrics = {
+  ref: CursorPosition;
+  dist: string;
+  bearing: number;
+  ta: ReturnType<typeof calculateTA>;
+};
+
+type MeasurementState = {
+  cursor: CursorPosition | null;
+  lastSaved: SavedMeasurement | null;
+};
+
+type MeasurementAction =
+  | { type: "cursorInitialized"; cursor: CursorPosition }
+  | { type: "cursorMoved"; cursor: CursorPosition }
+  | { type: "measurementSaved"; measurement: SavedMeasurement }
+  | { type: "savedMeasurementsCleared" };
+
+const INITIAL_MEASUREMENT_STATE: MeasurementState = {
+  cursor: null,
+  lastSaved: null,
+};
+
+function measurementReducer(state: MeasurementState, action: MeasurementAction): MeasurementState {
+  switch (action.type) {
+    case "cursorInitialized":
+      if (state.cursor) return state;
+      return { ...state, cursor: action.cursor };
+    case "cursorMoved":
+      return { ...state, cursor: action.cursor };
+    case "measurementSaved":
+      return { ...state, lastSaved: action.measurement };
+    case "savedMeasurementsCleared":
+      return { ...state, lastSaved: null };
+  }
+}
+
+function generateCirclePolygon(lat: number, lng: number, radiusMeters: number) {
   const R = 6371000;
   const numPoints = 256;
   const δ = radiusMeters / R;
@@ -38,25 +82,56 @@ function generateCirclePolygon(lat: number, lng: number, radiusMeters: number): 
 }
 
 type MapCursorInfoProps = {
-  activeMarker?: { latitude: number; longitude: number } | null;
+  activeMarker?: ActiveMarker | null;
   onActiveMarkerClear?: () => void;
   className?: string;
+  variant?: "desktop" | "mobile";
 };
 
-export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: MapCursorInfoProps) {
+type MobileMeasureButtonProps = {
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+};
+
+function MobileMeasureButton({ children, label, onClick, disabled = false }: MobileMeasureButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-8 min-w-8 flex-1 items-center justify-center border-r border-border/50 text-muted-foreground transition-colors last:border-r-0 hover:bg-muted/70 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MobileMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[8px] font-bold uppercase leading-none text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate font-mono text-[11px] font-bold leading-none tabular-nums text-foreground">{value}</div>
+    </div>
+  );
+}
+
+export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, variant = "desktop" }: MapCursorInfoProps) {
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
-  const [cursor, setCursor] = useState<{ lat: number; lng: number } | null>(null);
-  const [lastSaved, setLastSaved] = useState<SavedMeasurement | null>(null);
+  const [{ cursor, lastSaved }, dispatch] = useReducer(measurementReducer, INITIAL_MEASUREMENT_STATE);
 
   const activeMarkerRef = useRef(activeMarker);
   const circleEnabledRef = useRef(preferences.mapMeasureCircle);
   const circleVisibleRef = useRef(true);
-  const cursorRef = useRef<{ lat: number; lng: number } | null>(null);
-  const lineSourceRef = useRef<maplibregl.GeoJSONSource | null>(null);
-  const circleSourceRef = useRef<maplibregl.GeoJSONSource | null>(null);
-  const savedLineSourceRef = useRef<maplibregl.GeoJSONSource | null>(null);
-  const savedCircleSourceRef = useRef<maplibregl.GeoJSONSource | null>(null);
+  const cursorRef = useRef<CursorPosition | null>(null);
+  const lineSourceRef = useRef<GeoJSONSource | null>(null);
+  const circleSourceRef = useRef<GeoJSONSource | null>(null);
+  const savedLineSourceRef = useRef<GeoJSONSource | null>(null);
+  const savedCircleSourceRef = useRef<GeoJSONSource | null>(null);
   const savedMeasurementsRef = useRef<SavedMeasurement[]>([]);
   const sourcesPopulated = useRef(false);
   const rafRef = useRef<number | null>(null);
@@ -114,46 +189,87 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
     );
   }, []);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === " ") {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        e.preventDefault();
-        const marker = activeMarkerRef.current;
-        const cursor = cursorRef.current;
-        if (!marker || !cursor) return;
-        const measurement = { marker: { lat: marker.latitude, lng: marker.longitude }, cursor };
-        savedMeasurementsRef.current = [...savedMeasurementsRef.current, measurement];
-        updateSavedSources();
-        setLastSaved(measurement);
-        onActiveMarkerClear?.();
-      } else if (e.key?.toLowerCase() === "c") {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        if (!circleEnabledRef.current) return;
-        (document.activeElement as HTMLElement | null)?.blur();
-        circleVisibleRef.current = !circleVisibleRef.current;
-        updateSavedSources();
-        const marker = activeMarkerRef.current;
-        const cursor = cursorRef.current;
-        if (marker && cursor) {
-          if (circleVisibleRef.current) {
-            const radius = calculateDistance(marker.latitude, marker.longitude, cursor.lat, cursor.lng);
-            safeSetData(circleSourceRef.current, generateCirclePolygon(marker.latitude, marker.longitude, radius));
-          } else safeSetData(circleSourceRef.current, EMPTY_FC);
-        }
-      } else if (e.key === "Escape") {
-        savedMeasurementsRef.current = [];
-        updateSavedSources();
-        setLastSaved(null);
-      }
+  const updateLiveSources = useCallback((marker: ActiveMarker | null | undefined, nextCursor: CursorPosition | null) => {
+    if (marker && nextCursor) {
+      sourcesPopulated.current = true;
+      safeSetData(lineSourceRef.current, {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [marker.longitude, marker.latitude],
+            [nextCursor.lng, nextCursor.lat],
+          ],
+        },
+      });
+      if (circleEnabledRef.current && circleVisibleRef.current) {
+        const radius = calculateDistance(marker.latitude, marker.longitude, nextCursor.lat, nextCursor.lng);
+        safeSetData(circleSourceRef.current, generateCirclePolygon(marker.latitude, marker.longitude, radius));
+      } else safeSetData(circleSourceRef.current, EMPTY_FC);
+    } else if (sourcesPopulated.current) {
+      sourcesPopulated.current = false;
+      safeSetData(lineSourceRef.current, EMPTY_FC);
+      safeSetData(circleSourceRef.current, EMPTY_FC);
+    }
+  }, []);
+
+  const updateCursorPosition = useCallback(
+    (lat: number, lng: number) => {
+      const nextCursor = { lat, lng };
+      cursorRef.current = nextCursor;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        dispatch({ type: "cursorMoved", cursor: nextCursor });
+      });
+      updateLiveSources(activeMarkerRef.current, nextCursor);
     },
-    [updateSavedSources, onActiveMarkerClear],
+    [updateLiveSources],
   );
+
+  const saveCurrentMeasurement = useCallback(() => {
+    const marker = activeMarkerRef.current;
+    const currentCursor = cursorRef.current;
+    if (!marker || !currentCursor) return;
+    const measurement = { marker: { lat: marker.latitude, lng: marker.longitude }, cursor: currentCursor };
+    savedMeasurementsRef.current = [...savedMeasurementsRef.current, measurement];
+    updateSavedSources();
+    dispatch({ type: "measurementSaved", measurement });
+    onActiveMarkerClear?.();
+  }, [updateSavedSources, onActiveMarkerClear]);
+
+  const clearSavedMeasurements = useCallback(() => {
+    savedMeasurementsRef.current = [];
+    updateSavedSources();
+    dispatch({ type: "savedMeasurementsCleared" });
+  }, [updateSavedSources]);
+
+  const toggleCircleVisibility = useCallback(() => {
+    if (!circleEnabledRef.current) return;
+    (document.activeElement as HTMLElement | null)?.blur();
+    circleVisibleRef.current = !circleVisibleRef.current;
+    updateSavedSources();
+    updateLiveSources(activeMarkerRef.current, cursorRef.current);
+  }, [updateSavedSources, updateLiveSources]);
+
+  const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key === " ") {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      saveCurrentMeasurement();
+    } else if (e.key?.toLowerCase() === "c") {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      toggleCircleVisibility();
+    } else if (e.key === "Escape") {
+      clearSavedMeasurements();
+    }
+  });
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -165,7 +281,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
     if (!map.getSource("cursor-measure-line")) {
       map.addSource("cursor-measure-line", { type: "geojson", data: EMPTY_FC });
     }
-    lineSourceRef.current = map.getSource("cursor-measure-line") as maplibregl.GeoJSONSource;
+    lineSourceRef.current = map.getSource("cursor-measure-line") as GeoJSONSource;
 
     if (!map.getLayer("cursor-measure-line")) {
       map.addLayer({
@@ -191,7 +307,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
     if (!map.getSource("cursor-measure-circle")) {
       map.addSource("cursor-measure-circle", { type: "geojson", data: EMPTY_FC });
     }
-    circleSourceRef.current = map.getSource("cursor-measure-circle") as maplibregl.GeoJSONSource;
+    circleSourceRef.current = map.getSource("cursor-measure-circle") as GeoJSONSource;
 
     if (!map.getLayer("cursor-measure-circle-fill")) {
       map.addLayer({
@@ -226,7 +342,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
     if (!map.getSource("saved-measure-lines")) {
       map.addSource("saved-measure-lines", { type: "geojson", data: EMPTY_FC });
     }
-    savedLineSourceRef.current = map.getSource("saved-measure-lines") as maplibregl.GeoJSONSource;
+    savedLineSourceRef.current = map.getSource("saved-measure-lines") as GeoJSONSource;
     if (!map.getLayer("saved-measure-lines")) {
       map.addLayer({
         id: "saved-measure-lines",
@@ -250,7 +366,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
     if (!map.getSource("saved-measure-circles")) {
       map.addSource("saved-measure-circles", { type: "geojson", data: EMPTY_FC });
     }
-    savedCircleSourceRef.current = map.getSource("saved-measure-circles") as maplibregl.GeoJSONSource;
+    savedCircleSourceRef.current = map.getSource("saved-measure-circles") as GeoJSONSource;
     if (!map.getLayer("saved-measure-circles-fill")) {
       map.addLayer({
         id: "saved-measure-circles-fill",
@@ -281,88 +397,44 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
   useEffect(() => {
     if (!map || !isLoaded) return;
 
-    const onMouseMove = (e: maplibregl.MapMouseEvent) => {
-      const { lat, lng } = e.lngLat;
-      cursorRef.current = { lat, lng };
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        setCursor({ lat, lng });
-      });
+    const onMouseMove = (e: MapMouseEvent) => {
+      updateCursorPosition(e.lngLat.lat, e.lngLat.lng);
+    };
 
-      const marker = activeMarkerRef.current;
-      if (marker) {
-        sourcesPopulated.current = true;
-        safeSetData(lineSourceRef.current, {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [marker.longitude, marker.latitude],
-              [lng, lat],
-            ],
-          },
-        });
-        if (circleEnabledRef.current && circleVisibleRef.current) {
-          const radius = calculateDistance(marker.latitude, marker.longitude, lat, lng);
-          safeSetData(circleSourceRef.current, generateCirclePolygon(marker.latitude, marker.longitude, radius));
-        } else safeSetData(circleSourceRef.current, EMPTY_FC);
-      } else if (sourcesPopulated.current) {
-        sourcesPopulated.current = false;
-        safeSetData(lineSourceRef.current, EMPTY_FC);
-        safeSetData(circleSourceRef.current, EMPTY_FC);
-      }
+    const onTouchMove = (e: MapTouchEvent) => {
+      updateCursorPosition(e.lngLat.lat, e.lngLat.lng);
     };
 
     map.on("mousemove", onMouseMove);
+    map.on("touchmove", onTouchMove);
     queueMicrotask(() => {
       const center = map.getCenter();
-      cursorRef.current = cursorRef.current ?? { lat: center.lat, lng: center.lng };
-      setCursor((prev) => prev ?? { lat: center.lat, lng: center.lng });
+      const initialCursor = cursorRef.current ?? { lat: center.lat, lng: center.lng };
+      cursorRef.current = initialCursor;
+      dispatch({ type: "cursorInitialized", cursor: initialCursor });
     });
 
     return () => {
       map.off("mousemove", onMouseMove);
+      map.off("touchmove", onTouchMove);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
     };
-  }, [map, isLoaded]);
+  }, [map, isLoaded, updateCursorPosition]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
     const cursor = cursorRef.current;
 
-    if (markerLat !== null && markerLng !== null && cursor) {
-      sourcesPopulated.current = true;
-      safeSetData(lineSourceRef.current, {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: [
-            [markerLng, markerLat],
-            [cursor.lng, cursor.lat],
-          ],
-        },
-      });
-      if (circleEnabled && circleVisibleRef.current) {
-        const radius = calculateDistance(markerLat, markerLng, cursor.lat, cursor.lng);
-        safeSetData(circleSourceRef.current, generateCirclePolygon(markerLat, markerLng, radius));
-      } else safeSetData(circleSourceRef.current, EMPTY_FC);
-    } else {
-      sourcesPopulated.current = false;
-      safeSetData(lineSourceRef.current, EMPTY_FC);
-      safeSetData(circleSourceRef.current, EMPTY_FC);
-    }
-  }, [map, isLoaded, markerLat, markerLng, circleEnabled]);
+    updateLiveSources(markerLat !== null && markerLng !== null ? { latitude: markerLat, longitude: markerLng } : null, cursor);
+  }, [map, isLoaded, markerLat, markerLng, circleEnabled, updateLiveSources]);
 
   const metricsMarker = activeMarker ? { lat: activeMarker.latitude, lng: activeMarker.longitude } : (lastSaved?.marker ?? null);
   const metricsCursor = activeMarker ? cursor : (lastSaved?.cursor ?? null);
 
-  let metrics = null;
+  let metrics: MeasurementMetrics | null = null;
   if (metricsMarker && metricsCursor) {
     const distMeters = calculateDistance(metricsMarker.lat, metricsMarker.lng, metricsCursor.lat, metricsCursor.lng);
     const bearing = calculateBearing(metricsMarker.lat, metricsMarker.lng, metricsCursor.lat, metricsCursor.lng);
@@ -374,6 +446,40 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
       bearing: Math.round(bearing),
       ta,
     };
+  }
+
+  if (variant === "mobile") {
+    if (!activeMarker && !lastSaved) return null;
+
+    return (
+      <div className={cn("pointer-events-auto max-w-[calc(100vw-2rem)] select-none md:hidden", className)}>
+        <div className="overflow-hidden rounded-lg border bg-background/95 shadow-lg backdrop-blur-md">
+          <div className="grid min-w-56 grid-cols-2 gap-x-3 gap-y-2 px-2.5 py-2">
+            <MobileMetric label="GPS" value={cursor ? formatCoordinates(cursor.lat, cursor.lng, preferences.gpsFormat) : "0.00000, 0.00000"} />
+            <MobileMetric label="REF" value={metrics ? formatCoordinates(metrics.ref.lat, metrics.ref.lng, preferences.gpsFormat) : "-"} />
+            <MobileMetric label="Dist" value={metrics ? metrics.dist : "-"} />
+            <MobileMetric label="Azm" value={metrics ? `${metrics.bearing}°` : "-"} />
+          </div>
+          <div className="flex border-t bg-muted/30">
+            {activeMarker ? (
+              <>
+                <MobileMeasureButton label="Save measurement" onClick={saveCurrentMeasurement} disabled={!cursor}>
+                  <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
+                </MobileMeasureButton>
+                <MobileMeasureButton label="Clear measurement" onClick={() => onActiveMarkerClear?.()}>
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+                </MobileMeasureButton>
+              </>
+            ) : null}
+            {lastSaved ? (
+              <MobileMeasureButton label="Clear saved measurements" onClick={clearSavedMeasurements}>
+                <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
+              </MobileMeasureButton>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -388,7 +494,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
           </div>
         </div>
 
-        {metrics && (
+        {metrics ? (
           <div className="bg-muted/30 px-2.5 py-1.5 flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className="text-[8px] uppercase font-bold text-muted-foreground leading-none">REF</span>
@@ -438,7 +544,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className }: 
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

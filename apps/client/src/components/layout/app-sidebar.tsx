@@ -1,4 +1,4 @@
-import { AirportTowerIcon, GitBranchIcon, Login01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { GitBranchIcon, Login01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import React, { type ComponentProps, useMemo, useState } from "react";

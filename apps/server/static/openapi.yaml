@@ -2917,11 +2917,11 @@ paths:
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
         - **stations**: bts_id, mnc
-        - **cells**: band, rat, is_confirmed
+        - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed
         - **gsmCells**: lac, cid
-        - **umtsCells**: rnc, umts_cid, cid_long, umts_lac
-        - **lteCells**: enbid, ecid, lte_clid, tac, supports_iot
-        - **nrCells**: gnbid, nci, nr_clid, nrtac, supports_nr_redcap
+        - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
+        - **lteCells**: enbid, ecid, lte_clid, tac, lte_pci, earfcn, supports_iot
+        - **nrCells**: gnbid, nci, nr_clid, nrtac, nr_pci, arfcn, supports_nr_redcap
         - **locations**: region (3-letter codes), city, address
         - **extraIdentifiers**: networks_id, networks_name, mno_name
       parameters:

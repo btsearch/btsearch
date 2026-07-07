@@ -1,5 +1,7 @@
+import { AirportTowerIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstack/react-router";
-import { Fragment, type ReactNode, useEffect } from "react";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AnnouncementBanner } from "@/components/announcement-banner";
@@ -55,6 +57,7 @@ function AppLayout() {
   const { preferences } = usePreferences();
 
   const { visible: isWCO } = useWindowControlsOverlay();
+  const [logoFailed, setLogoFailed] = useState(false);
   const currentRoute = [...matches]
     .reverse()
     .find((match) => (match.staticData as RouteHandle)?.titleKey || (match.staticData as RouteHandle)?.title);

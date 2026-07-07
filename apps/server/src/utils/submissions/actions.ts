@@ -625,6 +625,7 @@ async function applyProposedSectors(
   const retainedSectorIds = new Set<number>();
   const nextSectors: Array<{ id: number; azimuth: number }> = [];
   const proposedAzimuths = new Set<number>();
+  const writeTasks: Array<() => Promise<void>> = [];
 
   for (const proposed of proposedSectorRows as ProposedSectorRow[]) {
     if (proposedAzimuths.has(proposed.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector azimuth values must be unique" });
@@ -640,21 +641,27 @@ async function applyProposedSectors(
       sectorIdByLocalId.set(proposed.local_id, matchingPrevious.id);
       nextSectors.push({ id: matchingPrevious.id, azimuth: proposed.azimuth });
       if (matchingPrevious.azimuth !== proposed.azimuth)
-        await tx
-          .update(stationSectors)
-          .set({ azimuth: proposed.azimuth })
-          .where(and(eq(stationSectors.id, matchingPrevious.id), eq(stationSectors.station_id, stationId)));
+        writeTasks.push(async () => {
+          await tx
+            .update(stationSectors)
+            .set({ azimuth: proposed.azimuth })
+            .where(and(eq(stationSectors.id, matchingPrevious.id), eq(stationSectors.station_id, stationId)));
+        });
       continue;
     }
 
-    const [insertedSector] = await tx
-      .insert(stationSectors)
-      .values({ station_id: stationId, azimuth: proposed.azimuth })
-      .returning({ id: stationSectors.id });
-    if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station sector" });
-    sectorIdByLocalId.set(proposed.local_id, insertedSector.id);
-    nextSectors.push({ id: insertedSector.id, azimuth: proposed.azimuth });
+    writeTasks.push(async () => {
+      const [insertedSector] = await tx
+        .insert(stationSectors)
+        .values({ station_id: stationId, azimuth: proposed.azimuth })
+        .returning({ id: stationSectors.id });
+      if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station sector" });
+      sectorIdByLocalId.set(proposed.local_id, insertedSector.id);
+      nextSectors.push({ id: insertedSector.id, azimuth: proposed.azimuth });
+    });
   }
+
+  await writeTasks.reduce((previous, writeTask) => previous.then(writeTask), Promise.resolve());
 
   const sectorIdsToDeleteAfterCells = previousSectors.filter((sector) => !retainedSectorIds.has(sector.id)).map((sector) => sector.id);
   return { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors, nextSectors: nextSectors.sort((a, b) => a.id - b.id) };
@@ -790,20 +797,35 @@ async function applyProposedCells(
   sectorIdByLocalId: ReadonlyMap<string, number>,
 ): Promise<CellAuditChanges> {
   const changes: CellAuditChanges = { added: [], updated: [], deleted: [] };
+  const writeTasks: Array<() => Promise<void>> = [];
 
   for (const proposed of proposedCellRows) {
     switch (proposed.operation) {
       case "add":
-        changes.added.push(await addProposedCell(tx, proposed, stationId, sectorIdByLocalId));
+        writeTasks.push(() =>
+          addProposedCell(tx, proposed, stationId, sectorIdByLocalId).then((added) => {
+            changes.added.push(added);
+          }),
+        );
         break;
       case "update":
-        changes.updated.push(await updateProposedCell(tx, proposed, targetCellsMap, sectorIdByLocalId));
+        writeTasks.push(() =>
+          updateProposedCell(tx, proposed, targetCellsMap, sectorIdByLocalId).then((updated) => {
+            changes.updated.push(updated);
+          }),
+        );
         break;
       case "delete":
-        changes.deleted.push(await deleteProposedCell(tx, proposed, targetCellsMap));
+        writeTasks.push(() =>
+          deleteProposedCell(tx, proposed, targetCellsMap).then((deleted) => {
+            changes.deleted.push(deleted);
+          }),
+        );
         break;
     }
   }
+
+  await writeTasks.reduce((previous, writeTask) => previous.then(writeTask), Promise.resolve());
 
   return changes;
 }

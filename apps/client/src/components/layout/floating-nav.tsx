@@ -17,7 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation, useRouterState } from "@tanstack/react-router";
 import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { type ComponentType, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { type ComponentType, type PointerEvent, type TouchEvent, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
@@ -62,15 +62,20 @@ import { cn } from "@/lib/utils";
 const ACTION_TARGET_ID = "floating-nav-actions";
 const HIDDEN_STORAGE_KEY = "floating-nav-hidden";
 const FLUID_TRANSITION = { type: "spring", stiffness: 520, damping: 44, mass: 0.8 } as const;
+const FLOATING_NAV_SHELL_TRANSITION = { duration: 0.12, ease: "easeOut" } as const;
 const PRIMARY_SURFACE_LAYOUT_ID = "floating-nav-primary-surface";
 const SUBNAV_SURFACE_LAYOUT_ID = "floating-nav-subnav-surface";
 const SUBNAV_OPEN_DELAY_MS = 120;
+const FLOATING_NAV_SWIPE_MIN_DISTANCE = 32;
+const FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT = 48;
 const FLOATING_ICON_CONTROL_CLASS =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 const MOBILE_PAGE_SECTION_CHIP_CLASS =
   "inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
 const flagComponents: Record<string, ComponentType<{ className?: string }>> = { US, PL };
 type FloatingTransition = typeof FLUID_TRANSITION | { duration: number };
+type FloatingShellTransition = typeof FLOATING_NAV_SHELL_TRANSITION | { duration: number };
+type FloatingSurfaceTransition = FloatingTransition | FloatingShellTransition;
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type FloatingNavState = {
@@ -80,6 +85,7 @@ type FloatingNavState = {
   mobileSectionKey: string | null;
   subnavReady: boolean;
 };
+type NavSwipeStart = { x: number; y: number; pointerId: number };
 
 type FloatingNavAction =
   | { type: "SHOW_NAV" }
@@ -377,11 +383,19 @@ function FloatingSubnavAnchor({ transition }: { transition: FloatingTransition }
   );
 }
 
-function FloatingPrimarySurface({ className, transition }: { className?: string; transition: FloatingTransition }) {
+function FloatingPrimarySurface({
+  className,
+  sharedLayout = true,
+  transition,
+}: {
+  className?: string;
+  sharedLayout?: boolean;
+  transition: FloatingSurfaceTransition;
+}) {
   return (
     <motion.span
       aria-hidden
-      layoutId={PRIMARY_SURFACE_LAYOUT_ID}
+      layoutId={sharedLayout ? PRIMARY_SURFACE_LAYOUT_ID : undefined}
       transition={transition}
       className={cn("pointer-events-none absolute inset-0 z-0 border bg-background shadow-sm", className)}
     />
@@ -826,11 +840,14 @@ export function FloatingNav() {
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion() === true;
   const transition = reduceMotion ? { duration: 0 } : FLUID_TRANSITION;
+  const shellTransition = reduceMotion ? { duration: 0 } : FLOATING_NAV_SHELL_TRANSITION;
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { favoriteSet, lists: navLists } = useNavLists();
   const [navState, dispatchNav] = useReducer(floatingNavReducer, undefined, createInitialFloatingNavState);
   const { hidden, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
+  const hiddenNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
+  const visibleNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
   const userRole = session?.user?.role as string | undefined;
   const isLoggedIn = session?.user !== undefined && session.user !== null;
   const showAuth = isLoggedIn && settings?.submissionsEnabled === true;
@@ -900,36 +917,120 @@ export function FloatingNav() {
   const showMobilePageSections = isMobile && !isNavigating && pageSections.length > 0;
   const mobileSection = sections.find((section) => section.key === mobileSectionKey) ?? null;
 
+  const showFloatingNav = () => {
+    writeHiddenState(false);
+    dispatchNav({ type: "SHOW_NAV" });
+  };
+
+  const hideFloatingNav = () => {
+    writeHiddenState(true);
+    dispatchNav({ type: "HIDE_NAV" });
+  };
+
+  const clearVisibleNavSwipe = () => {
+    visibleNavSwipeStartRef.current = null;
+  };
+
+  const clearHiddenNavSwipe = (event: PointerEvent<HTMLElement>) => {
+    const start = hiddenNavSwipeStartRef.current;
+    if (start !== null && event.currentTarget.hasPointerCapture(start.pointerId)) event.currentTarget.releasePointerCapture(start.pointerId);
+    hiddenNavSwipeStartRef.current = null;
+  };
+
+  const handleHiddenNavPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!isMobile) return;
+
+    hiddenNavSwipeStartRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleHiddenNavPointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (!isMobile) return;
+
+    const start = hiddenNavSwipeStartRef.current;
+    if (start === null || start.pointerId !== event.pointerId) return;
+
+    const upwardDistance = start.y - event.clientY;
+    const horizontalDistance = Math.abs(event.clientX - start.x);
+    if (upwardDistance < FLOATING_NAV_SWIPE_MIN_DISTANCE || horizontalDistance > FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT) return;
+
+    clearHiddenNavSwipe(event);
+    showFloatingNav();
+  };
+
+  const handleVisibleNavTouchStart = (event: TouchEvent<HTMLElement>) => {
+    if (!isMobile || event.touches.length !== 1) {
+      clearVisibleNavSwipe();
+      return;
+    }
+
+    const touch = event.touches.item(0);
+    if (touch === null) return;
+
+    visibleNavSwipeStartRef.current = { x: touch.clientX, y: touch.clientY, pointerId: touch.identifier };
+  };
+
+  const handleVisibleNavTouchMove = (event: TouchEvent<HTMLElement>) => {
+    if (!isMobile) return;
+
+    const start = visibleNavSwipeStartRef.current;
+    if (start === null) return;
+
+    const touch = Array.from(event.changedTouches).find((changedTouch) => changedTouch.identifier === start.pointerId);
+    if (touch === undefined) return;
+
+    const downwardDistance = touch.clientY - start.y;
+    const horizontalDistance = Math.abs(touch.clientX - start.x);
+    if (downwardDistance < FLOATING_NAV_SWIPE_MIN_DISTANCE || horizontalDistance > FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT) return;
+
+    event.preventDefault();
+    clearVisibleNavSwipe();
+    hideFloatingNav();
+  };
+
+  const handleVisibleNavTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    const start = visibleNavSwipeStartRef.current;
+    if (start === null) return;
+
+    const touch = Array.from(event.changedTouches).find((changedTouch) => changedTouch.identifier === start.pointerId);
+    if (touch === undefined) return;
+
+    clearVisibleNavSwipe();
+  };
+
   return (
     <>
       <LayoutGroup id="floating-nav-shell">
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center px-1 md:px-2">
           <AnimatePresence initial={false} mode="popLayout">
             {hidden ? (
-              <motion.button
+              <motion.div
                 key="floating-nav-hidden"
-                layout
-                type="button"
-                aria-label={t("floating.show")}
-                onClick={() => {
-                  writeHiddenState(false);
-                  dispatchNav({ type: "SHOW_NAV" });
-                }}
+                onPointerDown={handleHiddenNavPointerDown}
+                onPointerMove={handleHiddenNavPointerMove}
+                onPointerUp={clearHiddenNavSwipe}
+                onPointerCancel={clearHiddenNavSwipe}
                 initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
-                transition={transition}
-                className="pointer-events-auto relative flex h-5 w-28 items-center justify-center overflow-hidden rounded-t-xl text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                transition={shellTransition}
+                className="pointer-events-auto flex h-12 w-full touch-none items-end justify-center text-muted-foreground"
               >
-                <FloatingPrimarySurface transition={transition} className="rounded-t-xl border-b-0" />
-                <HugeiconsIcon icon={ArrowUp01Icon} className="relative z-10 size-3.5" />
-              </motion.button>
+                <button
+                  type="button"
+                  aria-label={t("floating.show")}
+                  onClick={showFloatingNav}
+                  className="relative flex h-5 w-28 items-center justify-center overflow-hidden rounded-t-xl outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <FloatingPrimarySurface sharedLayout={false} transition={shellTransition} className="rounded-t-xl border-b-0" />
+                  <HugeiconsIcon icon={ArrowUp01Icon} className="relative z-10 size-3.5" />
+                </button>
+              </motion.div>
             ) : (
               <motion.div
                 key="floating-nav-visible"
-                layout
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
-                transition={transition}
+                transition={shellTransition}
                 className="flex w-full flex-col items-center gap-0 md:gap-1"
                 style={{ paddingBottom: "calc(max(0.5rem, env(safe-area-inset-bottom)) + var(--floating-nav-pwa-bottom-offset, 0rem))" }}
               >
@@ -949,7 +1050,11 @@ export function FloatingNav() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={transition}
                   aria-label={t("floating.label")}
-                  className="pointer-events-auto relative isolate flex w-fit min-w-0 max-w-[calc(100vw-0.5rem)] items-center gap-0 rounded-full p-0.5 md:max-w-[calc(100vw-1rem)]"
+                  onTouchStartCapture={handleVisibleNavTouchStart}
+                  onTouchMoveCapture={handleVisibleNavTouchMove}
+                  onTouchEndCapture={handleVisibleNavTouchEnd}
+                  onTouchCancelCapture={handleVisibleNavTouchEnd}
+                  className="pointer-events-auto relative isolate flex w-fit min-w-0 max-w-[calc(100vw-0.5rem)] touch-pan-x items-center gap-0 rounded-full p-0.5 md:max-w-[calc(100vw-1rem)]"
                 >
                   <FloatingPrimarySurface transition={transition} className="rounded-full" />
                   {displayedSection ? null : <FloatingSubnavAnchor transition={transition} />}
@@ -990,10 +1095,7 @@ export function FloatingNav() {
                   <button
                     type="button"
                     aria-label={t("floating.hide")}
-                    onClick={() => {
-                      writeHiddenState(true);
-                      dispatchNav({ type: "HIDE_NAV" });
-                    }}
+                    onClick={hideFloatingNav}
                     className="relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { MapMouseEvent } from "maplibre-gl";
+import type { MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useMap } from "@/components/ui/map";
@@ -34,6 +34,8 @@ const EMPTY_UKE_LOCATIONS: UkeLocationWithPermits[] = [];
 const EMPTY_INTERNAL_LOCATIONS: LocationWithStations[] = [];
 const EMPTY_BLOCKED_LAYERS: string[] = [];
 const PLANNED_PEM_BLOCKED_LAYERS = [PLANNED_PEM_LAYER_ID];
+const MAP_TOUCH_LONG_PRESS_MS = 500;
+const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
 
 export function locationQueryKey(locationId: number, filters: StationFilters) {
   return ["location", locationId, filters] as const;
@@ -453,6 +455,18 @@ export function StationsLayer({
   useEffect(() => {
     if (!map) return;
 
+    let longPressTimer: number | null = null;
+    let longPressStartPoint: { x: number; y: number } | null = null;
+    let longPressLngLat: { lat: number; lng: number } | null = null;
+
+    const clearLongPressTimer = () => {
+      if (longPressTimer === null) return;
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressStartPoint = null;
+      longPressLngLat = null;
+    };
+
     const handleContextMenu = (e: MapMouseEvent) => {
       const features = map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`] });
       if (features.length === 0) {
@@ -464,9 +478,52 @@ export function StationsLayer({
       }
     };
 
+    const handleTouchStart = (e: MapTouchEvent) => {
+      if (!mapRightClickMeasureRef.current) return;
+      if (e.originalEvent.touches.length !== 1) return;
+
+      const features = map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`] });
+      if (features.length > 0) return;
+
+      clearLongPressTimer();
+      longPressStartPoint = { x: e.point.x, y: e.point.y };
+      longPressLngLat = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      longPressTimer = window.setTimeout(() => {
+        const lngLat = longPressLngLat;
+        clearLongPressTimer();
+        if (!lngLat) return;
+        e.preventDefault();
+        onActiveMarkerChangeRef.current({ latitude: lngLat.lat, longitude: lngLat.lng });
+      }, MAP_TOUCH_LONG_PRESS_MS);
+    };
+
+    const handleTouchMove = (e: MapTouchEvent) => {
+      if (longPressTimer === null || longPressStartPoint === null) return;
+      if (e.originalEvent.touches.length !== 1) {
+        clearLongPressTimer();
+        return;
+      }
+      const dx = e.point.x - longPressStartPoint.x;
+      const dy = e.point.y - longPressStartPoint.y;
+      if (Math.hypot(dx, dy) > MAP_TOUCH_MOVE_TOLERANCE_PX) clearLongPressTimer();
+    };
+
+    const handleTouchEnd = () => {
+      clearLongPressTimer();
+    };
+
     map.on("contextmenu", handleContextMenu);
+    map.on("touchstart", handleTouchStart);
+    map.on("touchmove", handleTouchMove);
+    map.on("touchend", handleTouchEnd);
+    map.on("touchcancel", handleTouchEnd);
     return () => {
       map.off("contextmenu", handleContextMenu);
+      map.off("touchstart", handleTouchStart);
+      map.off("touchmove", handleTouchMove);
+      map.off("touchend", handleTouchEnd);
+      map.off("touchcancel", handleTouchEnd);
+      clearLongPressTimer();
     };
   }, [map]);
 

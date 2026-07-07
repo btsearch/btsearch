@@ -103,6 +103,7 @@ export default defineConfig({
   },
   build: {
     rolldownOptions: {
+      experimental: { lazyBarrel: true },
       output: {
         entryFileNames: "assets/[name]-[hash:8].js",
         chunkFileNames: "assets/[name]-[hash:8].js",

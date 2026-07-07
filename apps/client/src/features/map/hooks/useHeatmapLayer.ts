@@ -1,10 +1,11 @@
+import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
 
 const HEATMAP_LAYER_ID = "stations-heatmap";
 
-const FADE_OPACITY = ["interpolate", ["linear"], ["zoom"], 11, 0.75, 14, 0] as unknown as maplibregl.ExpressionSpecification;
+const FADE_OPACITY = ["interpolate", ["linear"], ["zoom"], 11, 0.75, 14, 0] as unknown as ExpressionSpecification;
 const FIXED_OPACITY = 0.75;
 
 export function useHeatmapLayer({
@@ -13,7 +14,7 @@ export function useHeatmapLayer({
   enabled,
   showStations,
 }: {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
   enabled: boolean;
   showStations: boolean;
@@ -56,7 +57,7 @@ export function useHeatmapLayer({
               "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 5, 20, 10, 40, 14, 70],
               "heatmap-opacity": showStationsRef.current ? FADE_OPACITY : FIXED_OPACITY,
             },
-          } as maplibregl.LayerSpecification,
+          } as LayerSpecification,
           beforeId,
         );
       } catch {

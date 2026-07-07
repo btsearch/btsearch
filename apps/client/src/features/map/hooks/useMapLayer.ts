@@ -1,4 +1,13 @@
-import { type GeoJSONSource, Popup } from "maplibre-gl";
+import {
+  type GeoJSONFeature,
+  type GeoJSONSource,
+  type LayerSpecification,
+  type MapLayerTouchEvent,
+  type Map as MapLibreMap,
+  type MapMouseEvent,
+  type MapTouchEvent,
+  Popup,
+} from "maplibre-gl";
 import { type ReactNode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -20,10 +29,17 @@ type FeatureClickData = {
 
 type FeatureClickHandler = (data: FeatureClickData) => void;
 
+type MapFeatureCollection = {
+  type: "FeatureCollection";
+  features: GeoJSONFeature[];
+};
+
+type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
+
 type UseMapLayerArgs = {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
-  geoJSON: GeoJSON.FeatureCollection;
+  geoJSON: MapFeatureCollection;
   onFeatureClick: FeatureClickHandler;
   onFeatureContextMenu?: FeatureClickHandler;
   onFeatureMouseDown?: (locationId: number) => void;
@@ -34,7 +50,7 @@ type UseMapLayerArgs = {
 };
 
 type ActiveTooltip = {
-  popup: maplibregl.Popup;
+  popup: Popup;
   root: ReturnType<typeof createRoot>;
   activeLocationId: number;
 };
@@ -67,8 +83,10 @@ function buildTooltip(state: ActiveTooltip | null, locationId: number): ActiveTo
 const SYMBOL_LAYER_ID = `${POINT_LAYER_ID}-symbol`;
 const LAYER_IDS = [POINT_LAYER_ID, SYMBOL_LAYER_ID] as const;
 const ZABKA_IMAGE_ID = "zabka-marker";
+const TOUCH_LONG_PRESS_MS = 500;
+const TOUCH_MOVE_TOLERANCE_PX = 12;
 
-const CIRCLE_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const CIRCLE_LAYER_CONFIG: LayerSpecification = {
   id: POINT_LAYER_ID,
   type: "circle",
   source: SOURCE_ID,
@@ -81,7 +99,7 @@ const CIRCLE_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-const SYMBOL_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const SYMBOL_LAYER_CONFIG: LayerSpecification = {
   id: SYMBOL_LAYER_ID,
   type: "symbol",
   source: SOURCE_ID,
@@ -93,7 +111,7 @@ const SYMBOL_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-const MARKER_SINGLE_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const MARKER_SINGLE_LAYER_CONFIG: LayerSpecification = {
   id: POINT_LAYER_ID,
   type: "symbol",
   source: SOURCE_ID,
@@ -106,7 +124,7 @@ const MARKER_SINGLE_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-const MARKER_MULTI_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const MARKER_MULTI_LAYER_CONFIG: LayerSpecification = {
   id: SYMBOL_LAYER_ID,
   type: "symbol",
   source: SOURCE_ID,
@@ -119,7 +137,7 @@ const MARKER_MULTI_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-const ZABKA_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const ZABKA_LAYER_CONFIG: LayerSpecification = {
   id: POINT_LAYER_ID,
   type: "symbol",
   source: SOURCE_ID,
@@ -130,7 +148,7 @@ const ZABKA_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-const ZABKA_EMPTY_LAYER_CONFIG: maplibregl.LayerSpecification = {
+const ZABKA_EMPTY_LAYER_CONFIG: LayerSpecification = {
   id: SYMBOL_LAYER_ID,
   type: "symbol",
   source: SOURCE_ID,
@@ -140,7 +158,7 @@ const ZABKA_EMPTY_LAYER_CONFIG: maplibregl.LayerSpecification = {
   },
 };
 
-function syncZabkaImage(map: maplibregl.Map, addedImages: Set<string>) {
+function syncZabkaImage(map: MapLibreMap, addedImages: Set<string>) {
   if (addedImages.has(ZABKA_IMAGE_ID)) return;
   if (map.hasImage(ZABKA_IMAGE_ID)) {
     addedImages.add(ZABKA_IMAGE_ID);
@@ -168,7 +186,7 @@ function syncZabkaImage(map: maplibregl.Map, addedImages: Set<string>) {
   image.src = zabkaLogoUrl;
 }
 
-function extractFeatureClickData(feature: GeoJSON.Feature): FeatureClickData | null {
+function extractFeatureClickData(feature: GeoJSONFeature): FeatureClickData | null {
   if (feature.geometry.type !== "Point") return null;
 
   const { locationId, city, address, source } = feature.properties ?? {};
@@ -210,11 +228,37 @@ export function useMapLayer({
     if (!map || !isLoaded) return;
 
     const useHoverListeners = hasReliableHoverPointer();
+    let longPressTimer: number | null = null;
+    let longPressStartPoint: { x: number; y: number } | null = null;
+    let suppressNextClick = false;
+    let suppressClickTimer: number | null = null;
+
+    const clearLongPressTimer = () => {
+      if (longPressTimer === null) return;
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressStartPoint = null;
+    };
+
+    const clearSuppressClickTimer = () => {
+      if (suppressClickTimer === null) return;
+      window.clearTimeout(suppressClickTimer);
+      suppressClickTimer = null;
+    };
+
+    const suppressUpcomingClick = () => {
+      clearSuppressClickTimer();
+      suppressNextClick = true;
+      suppressClickTimer = window.setTimeout(() => {
+        suppressNextClick = false;
+        suppressClickTimer = null;
+      }, TOUCH_LONG_PRESS_MS * 2);
+    };
 
     const ensureLayersExist = () => {
       try {
         if (!map.getSource(SOURCE_ID)) {
-          map.addSource(SOURCE_ID, { type: "geojson", data: geoJSONRef.current });
+          map.addSource(SOURCE_ID, { type: "geojson", data: geoJSONRef.current as unknown as GeoJsonSourceData });
           addedImagesRef.current.clear();
         }
 
@@ -236,7 +280,7 @@ export function useMapLayer({
       }
     };
 
-    const handleMouseDown = (e: maplibregl.MapMouseEvent) => {
+    const handleMouseDown = (e: MapMouseEvent) => {
       const { onFeatureMouseDown } = callbackRefs.current;
       if (!onFeatureMouseDown) return;
 
@@ -245,7 +289,13 @@ export function useMapLayer({
       if (locationId) onFeatureMouseDown(locationId);
     };
 
-    const handleClick = (e: maplibregl.MapMouseEvent) => {
+    const handleClick = (e: MapMouseEvent) => {
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        clearSuppressClickTimer();
+        e.preventDefault();
+        return;
+      }
       const blockedLayers = blockedByLayersRef.current;
       if (blockedLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: blockedLayers }).length > 0) return;
       const features = map.queryRenderedFeatures(e.point, { layers: [...LAYER_IDS] });
@@ -253,7 +303,7 @@ export function useMapLayer({
       if (data) callbackRefs.current.onFeatureClick(data);
     };
 
-    const handleContextMenu = (e: maplibregl.MapMouseEvent) => {
+    const handleContextMenu = (e: MapMouseEvent) => {
       const { onFeatureContextMenu } = callbackRefs.current;
       if (!onFeatureContextMenu) return;
 
@@ -265,7 +315,42 @@ export function useMapLayer({
       }
     };
 
-    const handleMouseEnter = (e: maplibregl.MapMouseEvent) => {
+    const handleTouchStart = (e: MapLayerTouchEvent) => {
+      const { onFeatureContextMenu } = callbackRefs.current;
+      if (!onFeatureContextMenu) return;
+      if (e.originalEvent.touches.length !== 1) return;
+
+      const features = map.queryRenderedFeatures(e.point, { layers: [...LAYER_IDS] });
+      const data = features[0] && extractFeatureClickData(features[0]);
+      if (!data) return;
+
+      clearLongPressTimer();
+      longPressStartPoint = { x: e.point.x, y: e.point.y };
+      longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
+        longPressStartPoint = null;
+        suppressUpcomingClick();
+        e.preventDefault();
+        onFeatureContextMenu(data);
+      }, TOUCH_LONG_PRESS_MS);
+    };
+
+    const handleTouchMove = (e: MapTouchEvent) => {
+      if (longPressTimer === null || longPressStartPoint === null) return;
+      if (e.originalEvent.touches.length !== 1) {
+        clearLongPressTimer();
+        return;
+      }
+      const dx = e.point.x - longPressStartPoint.x;
+      const dy = e.point.y - longPressStartPoint.y;
+      if (Math.hypot(dx, dy) > TOUCH_MOVE_TOLERANCE_PX) clearLongPressTimer();
+    };
+
+    const handleTouchEnd = () => {
+      clearLongPressTimer();
+    };
+
+    const handleMouseEnter = (e: MapMouseEvent) => {
       map.getCanvas().style.cursor = "pointer";
 
       const { renderHoverTooltip } = callbackRefs.current;
@@ -284,7 +369,7 @@ export function useMapLayer({
       tooltip.popup.setLngLat(data.coordinates).addTo(map);
     };
 
-    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+    const handleMouseMove = (e: MapMouseEvent) => {
       const { renderHoverTooltip } = callbackRefs.current;
       if (!renderHoverTooltip) return;
 
@@ -321,11 +406,15 @@ export function useMapLayer({
         map.on("mousedown", layerId, handleMouseDown);
         map.on("click", layerId, handleClick);
         map.on("contextmenu", layerId, handleContextMenu);
+        map.on("touchstart", layerId, handleTouchStart);
         if (!useHoverListeners) continue;
         map.on("mouseenter", layerId, handleMouseEnter);
         map.on("mousemove", layerId, handleMouseMove);
         map.on("mouseleave", layerId, handleMouseLeave);
       }
+      map.on("touchmove", handleTouchMove);
+      map.on("touchend", handleTouchEnd);
+      map.on("touchcancel", handleTouchEnd);
     };
 
     const detachLayerListeners = () => {
@@ -333,11 +422,17 @@ export function useMapLayer({
         map.off("mousedown", layerId, handleMouseDown);
         map.off("click", layerId, handleClick);
         map.off("contextmenu", layerId, handleContextMenu);
+        map.off("touchstart", layerId, handleTouchStart);
         if (!useHoverListeners) continue;
         map.off("mouseenter", layerId, handleMouseEnter);
         map.off("mousemove", layerId, handleMouseMove);
         map.off("mouseleave", layerId, handleMouseLeave);
       }
+      map.off("touchmove", handleTouchMove);
+      map.off("touchend", handleTouchEnd);
+      map.off("touchcancel", handleTouchEnd);
+      clearLongPressTimer();
+      clearSuppressClickTimer();
       if (useHoverListeners) map.getCanvas().style.cursor = "";
       tooltipRef.current = destroyTooltip(tooltipRef.current);
     };

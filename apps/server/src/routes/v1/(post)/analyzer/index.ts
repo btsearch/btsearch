@@ -155,12 +155,11 @@ async function runLookupTasks(tasks: LookupTask[]): Promise<void> {
   let nextTaskIndex = 0;
 
   async function runNext(): Promise<void> {
-    while (nextTaskIndex < tasks.length) {
-      const task = tasks[nextTaskIndex];
-      nextTaskIndex += 1;
-      if (task === undefined) return;
-      await task();
-    }
+    const task = tasks[nextTaskIndex];
+    nextTaskIndex += 1;
+    if (task === undefined) return;
+    await task();
+    return runNext();
   }
 
   await Promise.all(Array.from({ length: Math.min(LOOKUP_CONCURRENCY, tasks.length) }, runNext));

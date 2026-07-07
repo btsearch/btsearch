@@ -24,6 +24,7 @@ type CellIdentityDuplicateCheck = {
 
 type PciDuplicateEntry = {
   bandId: number;
+  enbid?: number;
   pci: number;
   channel?: number | null;
   excludeCellId?: number;
@@ -40,6 +41,7 @@ type PciDuplicateCheckSpec = PciDuplicateSpec & {
   table: typeof lteCells | typeof nrCells;
   cellIdColumn: typeof lteCells.cell_id | typeof nrCells.cell_id;
   pciColumn: typeof lteCells.pci | typeof nrCells.pci;
+  enbidColumn?: typeof lteCells.enbid;
   channelColumn: typeof lteCells.earfcn | typeof nrCells.arfcn;
   label: string;
 };
@@ -57,6 +59,7 @@ const PCI_DUPLICATE_CHECKS: PciDuplicateCheckSpec[] = [
     table: lteCells,
     cellIdColumn: lteCells.cell_id,
     pciColumn: lteCells.pci,
+    enbidColumn: lteCells.enbid,
     channelColumn: lteCells.earfcn,
     label: "LTE",
   }),
@@ -275,12 +278,14 @@ function getPciDuplicateEntriesByRat(sources: PciDuplicateSource[]): Map<string,
     const spec = PCI_DUPLICATE_CHECKS.find((candidate) => candidate.rat === duplicateKey.rat);
     if (!spec) continue;
     const entries = entriesByRat.get(duplicateKey.rat) ?? [];
-    entries.push({
+    const entry: PciDuplicateEntry = {
       bandId: source.bandId,
       pci: duplicateKey.pci,
       channel: source.details[spec.channelField] as number | null | undefined,
       excludeCellId: source.excludeCellId,
-    });
+    };
+    if (duplicateKey.rat === "LTE" && source.details.enbid !== null && source.details.enbid !== undefined) entry.enbid = source.details.enbid;
+    entries.push(entry);
     entriesByRat.set(duplicateKey.rat, entries);
   }
 
@@ -385,6 +390,7 @@ async function checkPciDuplicatesForSpec(
     and(
       eq(cells.band_id, entry.bandId),
       eq(spec.pciColumn, entry.pci),
+      spec.enbidColumn !== undefined && entry.enbid !== undefined ? eq(spec.enbidColumn, entry.enbid) : undefined,
       entry.channel !== null && entry.channel !== undefined ? or(isNull(spec.channelColumn), eq(spec.channelColumn, entry.channel)) : undefined,
       entry.excludeCellId !== undefined ? ne(spec.cellIdColumn, entry.excludeCellId) : undefined,
     ),
@@ -405,8 +411,9 @@ async function checkPciDuplicatesForSpec(
 
   if (existing.length > 0) {
     const duplicate = existing[0]!;
+    const scope = spec.rat === "LTE" ? "same band and eNBID" : "same band";
     throw new ErrorResponse("DUPLICATE_ENTRY", {
-      message: `An ${spec.label} cell with PCI ${duplicate.pci} already exists on this band for this station`,
+      message: `An ${spec.label} cell with PCI ${duplicate.pci} already exists for this station using the ${scope}`,
     });
   }
 }

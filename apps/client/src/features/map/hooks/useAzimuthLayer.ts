@@ -1,5 +1,5 @@
 import { getOperatorColor } from "@openbts/shared/operatorUtils";
-import type { GeoJSONSource } from "maplibre-gl";
+import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 
 import type { LocationWithStations, UkeLocationWithPermits } from "@/types/station";
@@ -22,18 +22,25 @@ import {
 import { DEFAULT_COLOR } from "../geojson";
 import { destinationPoint } from "../utils";
 
-const EMPTY_GEOJSON: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+type GeoJsonGeometry =
+  | { type: "Point"; coordinates: [number, number] }
+  | { type: "LineString"; coordinates: Coordinates }
+  | { type: "Polygon"; coordinates: Coordinates[] };
+type GeoJsonFeature = { type: "Feature"; properties: Record<string, unknown>; geometry: GeoJsonGeometry };
+type GeoJsonFeatureCollection = { type: "FeatureCollection"; features: GeoJsonFeature[] };
+
+const EMPTY_GEOJSON: GeoJsonFeatureCollection = { type: "FeatureCollection", features: [] };
 
 type AzimuthPoint = { latitude: number; longitude: number; entries: { azimuth: number; color: string }[] };
 
 type AzimuthFeatures = {
-  fills: GeoJSON.Feature[];
-  outlines: GeoJSON.Feature[];
-  labels: GeoJSON.Feature[];
+  fills: GeoJsonFeature[];
+  outlines: GeoJsonFeature[];
+  labels: GeoJsonFeature[];
 };
 
 type Coordinates = [number, number][];
-type LineLayerSpecification = Extract<maplibregl.LayerSpecification, { type: "line" }>;
+type LineLayerSpecification = Extract<LayerSpecification, { type: "line" }>;
 type LineLayerPaint = NonNullable<LineLayerSpecification["paint"]>;
 
 const AZIMUTH_ARC_SEGMENT_DEGREES = 4;
@@ -82,7 +89,7 @@ function groupColorsByAzimuth(entries: AzimuthPoint["entries"], dedupeColors: bo
   return azimuthColors;
 }
 
-function createPolygonFeature(coordinates: Coordinates, color: string, shape = "directional"): GeoJSON.Feature {
+function createPolygonFeature(coordinates: Coordinates, color: string, shape = "directional"): GeoJsonFeature {
   return {
     type: "Feature",
     geometry: {
@@ -93,7 +100,7 @@ function createPolygonFeature(coordinates: Coordinates, color: string, shape = "
   };
 }
 
-function createLineFeature(coordinates: Coordinates, azimuth: number, color: string, shape = "directional"): GeoJSON.Feature {
+function createLineFeature(coordinates: Coordinates, azimuth: number, color: string, shape = "directional"): GeoJsonFeature {
   return {
     type: "Feature",
     geometry: {
@@ -104,7 +111,7 @@ function createLineFeature(coordinates: Coordinates, azimuth: number, color: str
   };
 }
 
-function createLabelFeature(lat: number, lng: number, azimuth: number, lineLength: number): GeoJSON.Feature {
+function createLabelFeature(lat: number, lng: number, azimuth: number, lineLength: number): GeoJsonFeature {
   const [labelLat, labelLng] = destinationPoint(lat, lng, azimuth, lineLength * 0.55);
   return {
     type: "Feature",
@@ -114,9 +121,9 @@ function createLabelFeature(lat: number, lng: number, azimuth: number, lineLengt
 }
 
 function appendOmnidirectionalFeatures(
-  fills: GeoJSON.Feature[],
-  outlines: GeoJSON.Feature[],
-  labels: GeoJSON.Feature[],
+  fills: GeoJsonFeature[],
+  outlines: GeoJsonFeature[],
+  labels: GeoJsonFeature[],
   lat: number,
   lng: number,
   colors: string[],
@@ -144,9 +151,9 @@ function appendOmnidirectionalFeatures(
 }
 
 function buildOmnidirectionalFeatures(points: AzimuthPoint[], lineLength: number): AzimuthFeatures {
-  const fills: GeoJSON.Feature[] = [];
-  const outlines: GeoJSON.Feature[] = [];
-  const labels: GeoJSON.Feature[] = [];
+  const fills: GeoJsonFeature[] = [];
+  const outlines: GeoJsonFeature[] = [];
+  const labels: GeoJsonFeature[] = [];
 
   for (const { latitude: lat, longitude: lng, entries } of points) {
     if (entries.length === 0) continue;
@@ -161,9 +168,9 @@ function buildOmnidirectionalFeatures(points: AzimuthPoint[], lineLength: number
 }
 
 function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triangleHalfAngle: number): AzimuthFeatures {
-  const fills: GeoJSON.Feature[] = [];
-  const outlines: GeoJSON.Feature[] = [];
-  const labels: GeoJSON.Feature[] = [];
+  const fills: GeoJsonFeature[] = [];
+  const outlines: GeoJsonFeature[] = [];
+  const labels: GeoJsonFeature[] = [];
 
   for (const { latitude: lat, longitude: lng, entries } of points) {
     if (entries.length === 0) continue;
@@ -196,8 +203,8 @@ function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triang
   return { fills, outlines, labels };
 }
 
-function buildAzimuthLineFeatures(points: AzimuthPoint[], lineLength: number): GeoJSON.Feature[] {
-  const features: GeoJSON.Feature[] = [];
+function buildAzimuthLineFeatures(points: AzimuthPoint[], lineLength: number): GeoJsonFeature[] {
+  const features: GeoJsonFeature[] = [];
 
   for (const { latitude: lat, longitude: lng, entries } of points) {
     if (entries.length === 0) continue;
@@ -269,9 +276,9 @@ function internalLocationsToAzimuthPoints(locations: LocationWithStations[]): Az
 }
 
 type GeoJSONTriple = {
-  fill: GeoJSON.FeatureCollection;
-  outline: GeoJSON.FeatureCollection;
-  label: GeoJSON.FeatureCollection;
+  fill: GeoJsonFeatureCollection;
+  outline: GeoJsonFeatureCollection;
+  label: GeoJsonFeatureCollection;
 };
 
 function makeGeoJSONTriple(points: AzimuthPoint[], lineLength: number, triangleHalfAngle: number): GeoJSONTriple {
@@ -294,7 +301,7 @@ function makeGeoJSONTriple(points: AzimuthPoint[], lineLength: number, triangleH
 
 const EMPTY_TRIPLE: GeoJSONTriple = { fill: EMPTY_GEOJSON, outline: EMPTY_GEOJSON, label: EMPTY_GEOJSON };
 
-function createFillLayerConfig(id: string, sourceId: string, minzoom: number): maplibregl.LayerSpecification {
+function createFillLayerConfig(id: string, sourceId: string, minzoom: number): LayerSpecification {
   return {
     id,
     type: "fill",
@@ -332,7 +339,7 @@ function createLineModeOutlineLayerPaint(): LineLayerPaint {
   };
 }
 
-function createOutlineLayerConfig(id: string, sourceId: string, minzoom: number, lineMode: boolean): maplibregl.LayerSpecification {
+function createOutlineLayerConfig(id: string, sourceId: string, minzoom: number, lineMode: boolean): LayerSpecification {
   return {
     id,
     type: "line",
@@ -342,7 +349,7 @@ function createOutlineLayerConfig(id: string, sourceId: string, minzoom: number,
   };
 }
 
-function createLabelLayerConfig(id: string, sourceId: string, minzoom: number): maplibregl.LayerSpecification {
+function createLabelLayerConfig(id: string, sourceId: string, minzoom: number): LayerSpecification {
   return {
     id,
     type: "symbol",
@@ -368,18 +375,18 @@ type AzimuthLayerPart = {
   sourceId: string;
   layerId: string;
   dataKey: GeoJSONTripleKey;
-  createLayerConfig: (id: string, sourceId: string, minzoom: number, lineMode: boolean) => maplibregl.LayerSpecification;
-  syncPaint?: (map: maplibregl.Map, layerId: string, lineMode: boolean) => void;
+  createLayerConfig: (id: string, sourceId: string, minzoom: number, lineMode: boolean) => LayerSpecification;
+  syncPaint?: (map: MapLibreMap, layerId: string, lineMode: boolean) => void;
 };
 
-function syncOutlineLayerPaint(map: maplibregl.Map, layerId: string, lineMode: boolean): void {
+function syncOutlineLayerPaint(map: MapLibreMap, layerId: string, lineMode: boolean): void {
   const paint = createOutlineLayerPaint(lineMode);
   map.setPaintProperty(layerId, "line-color", paint["line-color"]);
   map.setPaintProperty(layerId, "line-width", paint["line-width"]);
   map.setPaintProperty(layerId, "line-opacity", paint["line-opacity"]);
 }
 
-function syncAzimuthLayerPartStyle(map: maplibregl.Map, part: AzimuthLayerPart, minZoom: number, lineMode: boolean): void {
+function syncAzimuthLayerPartStyle(map: MapLibreMap, part: AzimuthLayerPart, minZoom: number, lineMode: boolean): void {
   if (!map.getLayer(part.layerId)) return;
   map.setLayerZoomRange(part.layerId, minZoom, 24);
   part.syncPaint?.(map, part.layerId, lineMode);
@@ -432,7 +439,7 @@ const UKE_AZIMUTH_LAYER_PARTS: AzimuthLayerPart[] = [
 const AZIMUTH_LAYER_PARTS = [...INTERNAL_AZIMUTH_LAYER_PARTS, ...UKE_AZIMUTH_LAYER_PARTS];
 
 function ensureAzimuthLayerPartsExist(
-  map: maplibregl.Map,
+  map: MapLibreMap,
   parts: AzimuthLayerPart[],
   triple: GeoJSONTriple,
   minZoom: number,
@@ -446,7 +453,7 @@ function ensureAzimuthLayerPartsExist(
   }
 }
 
-function removeAzimuthLayerParts(map: maplibregl.Map): void {
+function removeAzimuthLayerParts(map: MapLibreMap): void {
   for (const { layerId } of AZIMUTH_LAYER_PARTS) {
     try {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
@@ -460,16 +467,16 @@ function removeAzimuthLayerParts(map: maplibregl.Map): void {
   }
 }
 
-function setGeoJSONSourceData(map: maplibregl.Map, sourceId: string, data: GeoJSON.FeatureCollection): void {
+function setGeoJSONSourceData(map: MapLibreMap, sourceId: string, data: GeoJsonFeatureCollection): void {
   void (map.getSource(sourceId) as GeoJSONSource | undefined)?.setData(data);
 }
 
-function syncAzimuthLayerPartsData(map: maplibregl.Map, parts: AzimuthLayerPart[], triple: GeoJSONTriple): void {
+function syncAzimuthLayerPartsData(map: MapLibreMap, parts: AzimuthLayerPart[], triple: GeoJSONTriple): void {
   for (const part of parts) setGeoJSONSourceData(map, part.sourceId, triple[part.dataKey]);
 }
 
 type UseAzimuthLayerArgs = {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
   locations: LocationWithStations[];
   ukeLocations: UkeLocationWithPermits[];

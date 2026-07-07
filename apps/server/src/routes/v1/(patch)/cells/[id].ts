@@ -94,6 +94,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const effectiveDetails =
       cell.rat === "LTE"
         ? {
+            enbid: lteDetails?.enbid !== undefined ? lteDetails.enbid : cell.lte?.enbid,
             pci: lteDetails?.pci !== undefined ? lteDetails.pci : cell.lte?.pci,
             earfcn: lteDetails?.earfcn !== undefined ? lteDetails.earfcn : cell.lte?.earfcn,
           }

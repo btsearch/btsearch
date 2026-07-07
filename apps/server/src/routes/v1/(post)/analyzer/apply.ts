@@ -184,12 +184,20 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       checks.push(
         checkPciDuplicates(
           station.id,
-          item.cells.map((cell) => ({
-            rat: cell.rat,
-            bandId: cell.band_id,
-            details: cell.details as { pci?: number | null; earfcn?: number | null; arfcn?: number | null } | undefined,
-            excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
-          })),
+          item.cells.map((cell) => {
+            const existingCell =
+              cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
+            const details =
+              cell.rat === "LTE" && cell.operation === "update"
+                ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
+                : (cell.details as Record<string, unknown> | undefined);
+            return {
+              rat: cell.rat,
+              bandId: cell.band_id,
+              details,
+              excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
+            };
+          }),
           allModifiedCellIds,
         ),
       );

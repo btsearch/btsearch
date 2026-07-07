@@ -1,5 +1,6 @@
 export type PciDuplicateDetails = Record<string, unknown> & {
   pci?: number | null;
+  enbid?: number | null;
 };
 
 export type PciDuplicateKeySource = {
@@ -36,7 +37,11 @@ export function getPciDuplicateKey(source: PciDuplicateKeySource): PciDuplicateK
   const { pci } = source.details;
   if (pci === null || pci === undefined) return null;
 
+  const enbid = source.details.enbid;
+  if (spec.rat === "LTE" && (enbid === null || enbid === undefined)) return null;
+
   const channel = source.details[spec.channelField];
   const channelKey = typeof channel === "number" ? channel.toString() : typeof channel === "string" ? channel : "";
-  return { rat: spec.rat, pci, key: `${source.bandId}:${pci}:${channelKey}` };
+  const enbidKey = spec.rat === "LTE" ? `${enbid}:` : "";
+  return { rat: spec.rat, pci, key: `${source.bandId}:${enbidKey}${pci}:${channelKey}` };
 }

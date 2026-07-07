@@ -76,6 +76,12 @@ const ratListSchema = z
   .transform((value) => splitList(value).map((item) => item.toUpperCase()))
   .pipe(z.array(z.enum(["GSM", "UMTS", "LTE", "NR"])).min(1));
 const booleanSchema = z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true");
+const duplexListSchema = z
+  .union([z.boolean(), z.string()])
+  .transform((value) => (typeof value === "boolean" ? [String(value)] : splitList(value)).map((item) => item.toUpperCase()))
+  .pipe(z.array(z.enum(["FDD", "TDD", "NULL", "FALSE"])).min(1));
+
+type DuplexValue = "FDD" | "TDD";
 
 function parseNumbers(v: FilterValue): number[] {
   return numericListSchema.parse(String(v));
@@ -91,6 +97,14 @@ function parseRats(v: FilterValue): ("GSM" | "UMTS" | "LTE" | "NR")[] {
 
 function parseBoolean(v: FilterValue): boolean {
   return booleanSchema.parse(v);
+}
+
+function parseDuplexValues(v: FilterValue): { duplexes: DuplexValue[]; includeUnknown: boolean } {
+  const values = duplexListSchema.parse(v);
+  return {
+    duplexes: values.filter((value): value is DuplexValue => value === "FDD" || value === "TDD"),
+    includeUnknown: values.some((value) => value === "NULL" || value === "FALSE"),
+  };
 }
 
 const buildInArray =
@@ -133,6 +147,22 @@ const buildInArrayFromStringSubquery =
   <T>(column: T, buildSubquery: (values: string[]) => SQL) =>
   (value: FilterValue) =>
     inArray(column as never, buildSubquery(parseStrings(value)));
+
+const buildDuplexCondition = (value: FilterValue, refs: FilterRefs) => {
+  const { duplexes, includeUnknown } = parseDuplexValues(value);
+  const conditions: SQL[] = [];
+  if (duplexes.length > 0)
+    conditions.push(
+      sql`${refs.bands.duplex} IN (${sql.join(
+        duplexes.map((duplex) => sql`${duplex}`),
+        sql`, `,
+      )})`,
+    );
+  if (includeUnknown) conditions.push(sql`${refs.bands.duplex} IS NULL`);
+
+  const where = (conditions.length === 1 ? conditions[0] : or(...conditions)) as SQL;
+  return inArray(refs.cells.band_id, sql`(SELECT id FROM ${refs.bands} WHERE ${where})`);
+};
 
 export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   // stations
@@ -178,6 +208,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
     buildCondition: (value, refs) =>
       buildInArrayFromSubquery(refs.cells.band_id, (values) => sql`(SELECT id FROM ${refs.bands} WHERE value IN ${values})`)(value),
   },
+  duplex: {
+    table: "cells",
+    buildCondition: buildDuplexCondition,
+  },
   rat: {
     table: "cells",
     buildCondition: (value, refs) => buildInArray(refs.cells.rat, parseRats)(value),
@@ -217,6 +251,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   umts_lac: {
     table: "umtsCells",
     buildCondition: (value, refs) => buildInArray(refs.umtsCells.lac, parseNumbers)(value),
+  },
+  uarfcn: {
+    table: "umtsCells",
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.arfcn, parseNumbers)(value),
   },
 
   // lteCells
@@ -269,6 +307,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   nr_pci: {
     table: "nrCells",
     buildCondition: (value, refs) => buildInArray(refs.nrCells.pci, parseNumbers)(value),
+  },
+  arfcn: {
+    table: "nrCells",
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.arfcn, parseNumbers)(value),
   },
   supports_nr_redcap: {
     table: "nrCells",

@@ -1,4 +1,4 @@
-import { Popup } from "maplibre-gl";
+import { type GeoJSONSource, type MapLayerMouseEvent, type Map as MapLibreMap, Popup } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -14,6 +14,12 @@ import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
 const PEM_BOX_IMAGE_ID = "pem-box";
 
 type PopupState = { popup: Popup; root: ReturnType<typeof createRoot> };
+type PlannedMeasurementFeature = {
+  type: "Feature";
+  geometry: { type: "Point"; coordinates: [number, number] };
+  properties: Record<string, unknown>;
+};
+type PlannedMeasurementFeatureCollection = { type: "FeatureCollection"; features: PlannedMeasurementFeature[] };
 
 function destroyPopup(state: PopupState | null): null {
   state?.popup.remove();
@@ -35,7 +41,7 @@ function createBoxSDF(size: number, padding: number, borderWidth: number): Image
   return ctx.getImageData(0, 0, size, size);
 }
 
-async function fetchMeasurements(bounds: string, operators: number[]): Promise<GeoJSON.FeatureCollection | null> {
+async function fetchMeasurements(bounds: string, operators: number[]): Promise<PlannedMeasurementFeatureCollection | null> {
   const params = new URLSearchParams({ bounds });
   if (operators.length) params.set("operators", operators.join(","));
   const res = await fetch(`${API_BASE}/pem/planned?${params.toString()}`);
@@ -50,10 +56,10 @@ async function fetchMeasurements(bounds: string, operators: number[]): Promise<G
         station_id: f.station_id,
         color: getOperatorColor(f.operator?.mnc ?? 0),
         operator_name: f.operator?.name ?? null,
-        date_from: f.date.from,
-        date_to: f.date.to,
-        lab_name: f.lab.name,
-        lab_pca: f.lab.PCA,
+        date_from: f.date?.from ?? null,
+        date_to: f.date?.to ?? null,
+        lab_name: f.lab?.name ?? null,
+        lab_pca: f.lab?.PCA ?? null,
         city: f.location.city,
         address: f.location.address,
         status: f.status,
@@ -62,7 +68,7 @@ async function fetchMeasurements(bounds: string, operators: number[]): Promise<G
   };
 }
 
-function getBoundsString(map: maplibregl.Map): string {
+function getBoundsString(map: MapLibreMap): string {
   const b = map.getBounds();
   return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
 }
@@ -73,7 +79,7 @@ export function usePlannedMeasurementsLayer({
   enabled,
   operators = [],
 }: {
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   isLoaded: boolean;
   enabled: boolean;
   operators?: number[];
@@ -85,7 +91,7 @@ export function usePlannedMeasurementsLayer({
     if (!map || !isLoaded || !enabled) return;
     let cancelled = false;
     let requestId = 0;
-    const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const EMPTY: PlannedMeasurementFeatureCollection = { type: "FeatureCollection", features: [] };
     const selectedOperators = operatorsKey ? operatorsKey.split(",").map(Number) : [];
     const useHoverListeners = hasReliableHoverPointer();
 
@@ -122,12 +128,12 @@ export function usePlannedMeasurementsLayer({
       void fetchMeasurements(getBoundsString(map), selectedOperators).then((data) => {
         if (cancelled || currentRequestId !== requestId || !data) return;
         try {
-          void (map.getSource(PLANNED_PEM_SOURCE_ID) as maplibregl.GeoJSONSource)?.setData(data);
+          void (map.getSource(PLANNED_PEM_SOURCE_ID) as GeoJSONSource)?.setData(data);
         } catch {}
       });
     };
 
-    const handleClick = (e: maplibregl.MapLayerMouseEvent) => {
+    const handleClick = (e: MapLayerMouseEvent) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
 

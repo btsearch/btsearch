@@ -17,7 +17,7 @@ import {
   type StyleSpecification,
   setWorkerUrl,
 } from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url&worker";
 import {
   type ReactNode,
   createContext,
@@ -151,8 +151,8 @@ function useMap() {
 type MapStyleOption = string | StyleSpecification;
 
 export const CARTO_STYLE_URLS = {
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  dark: "/map-styles/carto-dark.json",
+  light: "/map-styles/carto-light.json",
 } as const;
 
 const defaultStyles = CARTO_STYLE_URLS;
@@ -1653,9 +1653,21 @@ function MapRoute({
   return null;
 }
 
-type MapClusterLayerProps<P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonProperties> = {
+type MapClusterProperties = Record<string, unknown> | null;
+type MapClusterPoint = { type: "Point"; coordinates: number[] };
+type MapClusterFeature<P extends MapClusterProperties = MapClusterProperties> = {
+  type: "Feature";
+  geometry: MapClusterPoint;
+  properties: P;
+};
+type MapClusterFeatureCollection<P extends MapClusterProperties = MapClusterProperties> = {
+  type: "FeatureCollection";
+  features: MapClusterFeature<P>[];
+};
+
+type MapClusterLayerProps<P extends MapClusterProperties = MapClusterProperties> = {
   /** GeoJSON FeatureCollection data or URL to fetch GeoJSON from */
-  data: string | GeoJSON.FeatureCollection<GeoJSON.Point, P>;
+  data: string | MapClusterFeatureCollection<P>;
   /** Maximum zoom level to cluster points on (default: 14) */
   clusterMaxZoom?: number;
   /** Radius of each cluster when clustering points in pixels (default: 50) */
@@ -1667,12 +1679,12 @@ type MapClusterLayerProps<P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonP
   /** Color for unclustered individual points (default: "#3b82f6") */
   pointColor?: string;
   /** Callback when an unclustered point is clicked */
-  onPointClick?: (feature: GeoJSON.Feature<GeoJSON.Point, P>, coordinates: [number, number]) => void;
+  onPointClick?: (feature: MapClusterFeature<P>, coordinates: [number, number]) => void;
   /** Callback when a cluster is clicked. If not provided, zooms into the cluster */
   onClusterClick?: (clusterId: number, coordinates: [number, number], pointCount: number) => void;
 };
 
-function MapClusterLayer<P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonProperties>({
+function MapClusterLayer<P extends MapClusterProperties = MapClusterProperties>({
   data,
   clusterMaxZoom = 14,
   clusterRadius = 50,
@@ -1844,7 +1856,7 @@ function MapClusterLayer<P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonPr
       const feature = features[0];
       const clusterId = feature.properties?.cluster_id as number;
       const pointCount = feature.properties?.point_count as number;
-      const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      const coordinates = (feature.geometry as MapClusterPoint).coordinates as [number, number];
 
       if (onClusterClick) {
         onClusterClick(clusterId, coordinates, pointCount);
@@ -1868,14 +1880,14 @@ function MapClusterLayer<P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonPr
       if (!onPointClick || !e.features?.length) return;
 
       const feature = e.features[0];
-      const coordinates = (feature.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+      const coordinates = (feature.geometry as MapClusterPoint).coordinates.slice() as [number, number];
 
       // Handle world copies
       while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
         coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
       }
 
-      onPointClick(feature as unknown as GeoJSON.Feature<GeoJSON.Point, P>, coordinates);
+      onPointClick(feature as unknown as MapClusterFeature<P>, coordinates);
     };
 
     // Cursor style handlers
