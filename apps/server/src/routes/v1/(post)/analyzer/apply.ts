@@ -165,21 +165,21 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         checks.push(checkCellDuplicatesBatch(cellEntries, station.operator_id));
       }
 
-      checks.push(
-        checkLTEClidConsistency(
-          station.id,
-          item.cells.map((cell) => {
-            const existingCell =
-              cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
-            const details =
-              cell.rat === "LTE" && cell.operation === "update"
-                ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
-                : (cell.details as Record<string, unknown> | undefined);
-            return { rat: cell.rat, details, excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined };
-          }),
-          allModifiedCellIds,
-        ),
-      );
+      // checks.push(
+      //   checkLTEClidConsistency(
+      //     station.id,
+      //     item.cells.map((cell) => {
+      //       const existingCell =
+      //         cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
+      //       const details =
+      //         cell.rat === "LTE" && cell.operation === "update"
+      //           ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
+      //           : (cell.details as Record<string, unknown> | undefined);
+      //       return { rat: cell.rat, details, excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined };
+      //     }),
+      //     allModifiedCellIds,
+      //   ),
+      // );
 
       checks.push(
         checkPciDuplicates(

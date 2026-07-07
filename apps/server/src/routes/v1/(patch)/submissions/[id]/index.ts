@@ -150,18 +150,18 @@ async function validateCellConflicts(
 
   validateCellDuplicates(cells);
   const allModifiedCellIds = cells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
-  await checkLTEClidConsistency(
-    stationId,
-    cells
-      .filter((cell) => cell.operation !== "delete")
-      .map((cell) => ({
-        rat: cell.rat,
-        details: cell.details as Record<string, unknown> | undefined,
-        excludeCellId: cell.target_cell_id ?? undefined,
-      })),
-    allModifiedCellIds,
-    proposedOperatorId,
-  );
+  // await checkLTEClidConsistency(
+  //   stationId,
+  //   cells
+  //     .filter((cell) => cell.operation !== "delete")
+  //     .map((cell) => ({
+  //       rat: cell.rat,
+  //       details: cell.details as Record<string, unknown> | undefined,
+  //       excludeCellId: cell.target_cell_id ?? undefined,
+  //     })),
+  //   allModifiedCellIds,
+  //   proposedOperatorId,
+  // );
   if (stationId !== null) {
     await checkPciDuplicates(stationId, getPciDuplicateSources(cells), allModifiedCellIds);
   }

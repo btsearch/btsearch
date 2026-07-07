@@ -596,7 +596,7 @@ async function checkApprovalCellDuplicates(
   const allModifiedCellIds = draft.proposedCellRows.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
   const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
 
-  await checkLTEClidConsistency(submission.station_id ?? null, duplicateEntries, allModifiedCellIds, operatorId);
+  // await checkLTEClidConsistency(submission.station_id ?? null, duplicateEntries, allModifiedCellIds, operatorId);
 
   if (!operatorId) return;
   if (duplicateEntries.length > 0) await checkCellDuplicatesBatch(duplicateEntries, operatorId);
