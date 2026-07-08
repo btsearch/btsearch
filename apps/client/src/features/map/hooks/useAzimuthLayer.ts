@@ -330,10 +330,17 @@ function createLineModeOutlineLayerPaint(): LineLayerPaint {
   return {
     "line-color": ["get", "color"],
     "line-width": [
-      "case",
-      ["==", ["get", "shape"], "omnidirectional"],
-      ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 2],
-      ["interpolate", ["linear"], ["zoom"], 13, 1.5, 15, 3, 17, 4.5, 18, 5.5],
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      13,
+      ["case", ["==", ["get", "shape"], "omnidirectional"], 1, 1.5],
+      15,
+      ["case", ["==", ["get", "shape"], "omnidirectional"], 1.4, 3],
+      17,
+      ["case", ["==", ["get", "shape"], "omnidirectional"], 1.8, 4.5],
+      18,
+      ["case", ["==", ["get", "shape"], "omnidirectional"], 2, 5.5],
     ],
     "line-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0.4, 15, 0.7, 17, 0.9],
   };
