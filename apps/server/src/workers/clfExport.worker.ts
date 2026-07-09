@@ -1,4 +1,5 @@
 import { bands, cells, gsmCells, locations, lteCells, nrCells, operators, regions, stationSectors, stations, umtsCells } from "@openbts/drizzle";
+import type { CLFDescriptionTemplates } from "@openbts/shared/clfExportTemplates";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -7,41 +8,34 @@ import { join } from "node:path";
 import { parentPort } from "node:worker_threads";
 
 import db from "../database/psql.js";
-import { type ClfFormat, type NRBandPCIs, convertToCLF } from "../utils/clf-export.js";
+import { serializeWorkerError } from "../lib/workerError.js";
+import { type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF } from "../utils/clf-export.js";
 
 if (!parentPort) throw new Error("This file must be run as a worker thread");
+const workerPort = parentPort;
 
 const CLF_TMP_DIR = join(tmpdir(), "clf-exports");
-const NETWORKS_MNC = 26034;
-const NETWORKS_CHILD_MNCS = [26002, 26003];
 
 type WorkerParams = {
   format: ClfFormat;
-  operatorMncs?: number[];
+  operatorIds?: number[];
   regionCodes?: string[];
   rat?: ("GSM" | "UMTS" | "LTE" | "NR" | "IOT")[];
   bandIds?: number[];
   since?: string;
+  templates?: CLFDescriptionTemplates;
+  displayNRSeparately?: boolean;
 };
 
-parentPort.on("message", async (params: WorkerParams) => {
+workerPort.on("message", async (params: WorkerParams) => {
   try {
-    const { format, operatorMncs, regionCodes, rat, bandIds, since } = params;
-
-    let resolvedOperatorIds: number[] | undefined;
-    if (operatorMncs && operatorMncs.length > 0) {
-      const mncs = new Set(operatorMncs);
-      if (mncs.has(NETWORKS_MNC)) for (const child of NETWORKS_CHILD_MNCS) mncs.add(child);
-
-      const matched = await db.query.operators.findMany({
-        where: { mnc: { in: [...mncs] } },
-        columns: { id: true },
-      });
-      resolvedOperatorIds = matched.map((o) => o.id);
-    }
+    const { format, operatorIds, regionCodes, rat, bandIds, since, templates, displayNRSeparately } = params;
+    const convertOptions: ConvertOptions = {};
+    if (templates !== undefined) convertOptions.templates = templates;
+    if (displayNRSeparately === true) convertOptions.displayNRSeparately = true;
 
     const stationConditions = [eq(stations.status, "published")];
-    if (resolvedOperatorIds && resolvedOperatorIds.length > 0) stationConditions.push(inArray(stations.operator_id, resolvedOperatorIds));
+    if (operatorIds && operatorIds.length > 0) stationConditions.push(inArray(stations.operator_id, operatorIds));
     if (regionCodes && regionCodes.length > 0) stationConditions.push(inArray(regions.code, regionCodes));
 
     const baseConditions = [...stationConditions];
@@ -51,7 +45,7 @@ parentPort.on("message", async (params: WorkerParams) => {
     const runGsm = !rat || rat.includes("GSM");
     const runUmts = !rat || rat.includes("UMTS");
     const runLte = !rat || rat.includes("LTE") || rat.includes("IOT");
-    const runNr = !rat || rat.includes("NR") || rat.includes("IOT");
+    const runNR = !rat || rat.includes("NR") || rat.includes("IOT");
 
     const lteConditions = [...baseConditions];
     if (rat?.includes("IOT") && !rat.includes("LTE")) lteConditions.push(eq(lteCells.supports_iot, true));
@@ -130,7 +124,7 @@ parentPort.on("message", async (params: WorkerParams) => {
           .where(and(...lteConditions))
       : null;
 
-    const nrQuery = runNr
+    const nrQuery = runNR
       ? db
           .select({
             ...commonSelect,
@@ -140,6 +134,7 @@ parentPort.on("message", async (params: WorkerParams) => {
             nr_nci: nrCells.nci,
             nr_pci: nrCells.pci,
             nr_arfcn: nrCells.arfcn,
+            nr_type: nrCells.type,
           })
           .from(cells)
           .innerJoin(nrCells, eq(nrCells.cell_id, cells.id))
@@ -151,40 +146,80 @@ parentPort.on("message", async (params: WorkerParams) => {
           .where(and(...nrConditions))
       : null;
 
-    const nrBandsQuery = db
-      .select({
-        station_id: cells.station_id,
-        band_value: bands.value,
-        band_duplex: bands.duplex,
-        nr_pci: nrCells.pci,
-        is_confirmed: cells.is_confirmed,
-      })
-      .from(cells)
-      .innerJoin(nrCells, and(eq(nrCells.cell_id, cells.id), eq(nrCells.type, "nsa")))
-      .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
-      .innerJoin(stations, eq(cells.station_id, stations.id))
+    const nrBandsQuery =
+      runLte || runNR
+        ? db
+            .select({
+              station_id: cells.station_id,
+              nr_type: nrCells.type,
+              band_value: bands.value,
+              band_duplex: bands.duplex,
+              nr_pci: nrCells.pci,
+              is_confirmed: cells.is_confirmed,
+            })
+            .from(cells)
+            .innerJoin(nrCells, eq(nrCells.cell_id, cells.id))
+            .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
+            .innerJoin(stations, eq(cells.station_id, stations.id))
+            .leftJoin(locations, eq(stations.location_id, locations.id))
+            .leftJoin(regions, eq(locations.region_id, regions.id))
+            .where(and(...stationConditions))
+        : null;
+
+    const stationSectorsQuery = db
+      .select({ id: stationSectors.id, station_id: stationSectors.station_id, azimuth: stationSectors.azimuth })
+      .from(stationSectors)
+      .innerJoin(stations, eq(stationSectors.station_id, stations.id))
       .leftJoin(locations, eq(stations.location_id, locations.id))
       .leftJoin(regions, eq(locations.region_id, regions.id))
       .where(and(...stationConditions));
 
-    const [gsmRows, umtsRows, lteRows, nrRows, nrBandRows] = await Promise.all([
+    const [gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows] = await Promise.all([
       gsmQuery ?? Promise.resolve([]),
       umtsQuery ?? Promise.resolve([]),
       lteQuery ?? Promise.resolve([]),
       nrQuery ?? Promise.resolve([]),
-      nrBandsQuery,
+      nrBandsQuery ?? Promise.resolve([]),
+      stationSectorsQuery,
     ]);
 
-    const exportedStationIds = [
-      ...new Set([...gsmRows, ...umtsRows, ...lteRows, ...nrRows].flatMap((row) => (row.station_pk ? [row.station_pk] : []))),
-    ];
-    const stationSectorRows =
-      exportedStationIds.length > 0
+    const stationLteTacMap = new Map<number, number>();
+    if (displayNRSeparately) {
+      for (const row of lteRows) {
+        if (row.lte_tac === null || row.lte_tac === undefined) continue;
+        if (!stationLteTacMap.has(row.station_pk)) stationLteTacMap.set(row.station_pk, row.lte_tac);
+      }
+    }
+
+    const missingStationIds = displayNRSeparately
+      ? [
+          ...new Set(
+            nrRows.flatMap((row) => {
+              if (row.nr_type !== "nsa") return [];
+              if (stationLteTacMap.has(row.station_pk)) return [];
+              return [row.station_pk];
+            }),
+          ),
+        ]
+      : [];
+
+    const stationLteTacRows =
+      missingStationIds.length > 0
         ? await db
-            .select({ id: stationSectors.id, station_id: stationSectors.station_id, azimuth: stationSectors.azimuth })
-            .from(stationSectors)
-            .where(inArray(stationSectors.station_id, exportedStationIds))
+            .select({
+              station_id: cells.station_id,
+              station_lte_tac: lteCells.tac,
+            })
+            .from(cells)
+            .innerJoin(lteCells, eq(lteCells.cell_id, cells.id))
+            .where(inArray(cells.station_id, missingStationIds))
         : [];
+
+    for (const row of stationLteTacRows) {
+      if (row.station_lte_tac === null || row.station_lte_tac === undefined) continue;
+      if (!stationLteTacMap.has(row.station_id)) stationLteTacMap.set(row.station_id, row.station_lte_tac);
+    }
+
     stationSectorRows.sort((a, b) => (a.station_id === b.station_id ? a.id - b.id : a.station_id - b.station_id));
 
     const sectorMetaById = new Map<number, { index: number; azimuth: number }>();
@@ -195,28 +230,65 @@ parentPort.on("message", async (params: WorkerParams) => {
       sectorMetaById.set(sector.id, { index, azimuth: sector.azimuth });
     }
 
-    const stationNsaNrBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
+    const stationNsaNRBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
+    const stationNRBandPciMap = new Map<string, Map<string, NRBandPCIs>>();
     for (const row of nrBandRows) {
       if (!row.band_value) continue;
       const key = `${row.band_value}:${row.band_duplex ?? "null"}`;
-      const bandMap = stationNsaNrBandPciMap.get(row.station_id) ?? new Map();
-      const entry = bandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
-      if (row.nr_pci !== null && row.nr_pci !== undefined) entry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
-      if (row.nr_pci === null || row.nr_pci === undefined) entry.has_missing_pci = true;
-      bandMap.set(key, entry);
-      stationNsaNrBandPciMap.set(row.station_id, bandMap);
+
+      if (row.nr_type === "nsa") {
+        const nsaBandMap = stationNsaNRBandPciMap.get(row.station_id) ?? new Map();
+        const nsaEntry = nsaBandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
+        if (row.nr_pci !== null && row.nr_pci !== undefined) nsaEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
+        if (row.nr_pci === null || row.nr_pci === undefined) nsaEntry.has_missing_pci = true;
+        nsaBandMap.set(key, nsaEntry);
+        stationNsaNRBandPciMap.set(row.station_id, nsaBandMap);
+      }
+
+      const stationNRKey = `${row.station_id}:${row.nr_type ?? ""}`;
+      const nrBandMap = stationNRBandPciMap.get(stationNRKey) ?? new Map();
+      const nrEntry = nrBandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
+      if (row.nr_pci !== null && row.nr_pci !== undefined) nrEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
+      if (row.nr_pci === null || row.nr_pci === undefined) nrEntry.has_missing_pci = true;
+      nrBandMap.set(key, nrEntry);
+      stationNRBandPciMap.set(stationNRKey, nrBandMap);
     }
 
-    const stationNrBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
-    for (const row of nrRows) {
-      if (!row.station_pk || !row.band_value) continue;
-      const key = `${row.band_value}:${row.band_duplex ?? "null"}`;
-      const bandMap = stationNrBandPciMap.get(row.station_pk) ?? new Map();
-      const entry = bandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
-      if (row.nr_pci !== null && row.nr_pci !== undefined) entry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
-      if (row.nr_pci === null || row.nr_pci === undefined) entry.has_missing_pci = true;
-      bandMap.set(key, entry);
-      stationNrBandPciMap.set(row.station_pk, bandMap);
+    function buildCommonCellFields(
+      row: {
+        notes: string | null;
+        station_sid: string;
+        extra_address: string | null;
+        sector_id: number | null;
+        operator_mnc: number | null;
+        latitude: number | null;
+        longitude: number | null;
+        city: string | null;
+        address: string | null;
+        region_code: string | null;
+        band_value: number | null;
+        band_name: string | null;
+        band_duplex: "FDD" | "TDD" | null;
+        is_confirmed: boolean | null;
+      },
+      sectorMeta: { index: number; azimuth: number } | undefined,
+    ) {
+      return {
+        band_value: row.band_value,
+        band_name: row.band_name as string,
+        band_duplex: row.band_duplex ?? null,
+        station_id: row.station_sid,
+        operator_mnc: row.operator_mnc,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        notes: row.notes,
+        city: row.city ?? null,
+        address: row.extra_address ?? row.address ?? null,
+        region_code: row.region_code ?? null,
+        is_confirmed: row.is_confirmed,
+        sector_index: sectorMeta?.index,
+        sector_azimuth: sectorMeta?.azimuth,
+      };
     }
 
     const clfLines: string[] = [];
@@ -225,26 +297,14 @@ parentPort.on("message", async (params: WorkerParams) => {
       const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
       const line = convertToCLF(
         {
+          ...buildCommonCellFields(row, sectorMeta),
           cid: row.gsm_cid ?? 0,
           lac: row.gsm_lac,
           rat: "GSM",
-          band_value: row.band_value,
-          band_name: row.band_name as string,
-          band_duplex: row.band_duplex ?? null,
-          station_id: row.station_sid,
-          operator_mnc: row.operator_mnc,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          notes: row.notes,
-          city: row.city ?? null,
-          address: row.extra_address ?? row.address ?? null,
           e_gsm: row.gsm_e_gsm ?? null,
-          region_code: row.region_code ?? null,
-          is_confirmed: row.is_confirmed,
-          sector_index: sectorMeta?.index,
-          sector_azimuth: sectorMeta?.azimuth,
         },
         format,
+        convertOptions,
       );
       if (line) clfLines.push(line);
     }
@@ -253,28 +313,16 @@ parentPort.on("message", async (params: WorkerParams) => {
       const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
       const line = convertToCLF(
         {
+          ...buildCommonCellFields(row, sectorMeta),
           cid: row.umts_cid ?? 0,
           lac: row.umts_lac,
           rnc: row.umts_rnc,
           cid_long: row.umts_cid_long,
           arfcn: row.umts_arfcn ?? null,
           rat: "UMTS",
-          band_value: row.band_value,
-          band_name: row.band_name as string,
-          band_duplex: row.band_duplex ?? null,
-          station_id: row.station_sid,
-          operator_mnc: row.operator_mnc,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          notes: row.notes,
-          city: row.city ?? null,
-          address: row.extra_address ?? row.address ?? null,
-          region_code: row.region_code ?? null,
-          is_confirmed: row.is_confirmed,
-          sector_index: sectorMeta?.index,
-          sector_azimuth: sectorMeta?.azimuth,
         },
         format,
+        convertOptions,
       );
       if (line) clfLines.push(line);
     }
@@ -283,6 +331,7 @@ parentPort.on("message", async (params: WorkerParams) => {
       const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
       const line = convertToCLF(
         {
+          ...buildCommonCellFields(row, sectorMeta),
           cid: row.lte_enbid ?? 0,
           tac: row.lte_tac,
           enbid: row.lte_enbid,
@@ -291,57 +340,36 @@ parentPort.on("message", async (params: WorkerParams) => {
           pci: row.lte_pci,
           arfcn: row.lte_earfcn,
           rat: "LTE",
-          band_value: row.band_value,
-          band_name: row.band_name as string,
-          band_duplex: row.band_duplex ?? null,
-          station_id: row.station_sid,
-          operator_mnc: row.operator_mnc,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          notes: row.notes,
-          city: row.city ?? null,
-          address: row.extra_address ?? row.address ?? null,
-          region_code: row.region_code ?? null,
-          is_confirmed: row.is_confirmed,
-          nr_band_pcis: row.station_pk ? [...(stationNsaNrBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
-          sector_index: sectorMeta?.index,
-          sector_azimuth: sectorMeta?.azimuth,
+          nr_band_pcis: row.station_pk ? [...(stationNsaNRBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
         },
         format,
+        convertOptions,
       );
       if (line) clfLines.push(line);
     }
 
     for (const row of nrRows) {
-      const nr_band_pcis = stationNrBandPciMap.get(row.station_pk) ? [...stationNrBandPciMap.get(row.station_pk)!.values()] : undefined;
+      const stationNRKey = `${row.station_pk}:${row.nr_type ?? ""}`;
+      const nrBandPciMap = stationNRBandPciMap.get(stationNRKey);
+      const nr_band_pcis = nrBandPciMap ? [...nrBandPciMap.values()] : undefined;
       const sectorMeta = row.sector_id ? sectorMetaById.get(row.sector_id) : undefined;
       const line = convertToCLF(
         {
+          ...buildCommonCellFields(row, sectorMeta),
           cid: row.nr_gnbid ?? 0,
           nrtac: row.nr_nrtac,
           gnbid: row.nr_gnbid,
           clid: row.nr_clid,
           nci: row.nr_nci,
+          nr_type: row.nr_type,
           pci: row.nr_pci,
           arfcn: row.nr_arfcn ?? null,
+          station_lte_tac: row.station_pk ? stationLteTacMap.get(row.station_pk) : undefined,
           rat: "NR",
-          band_value: row.band_value,
-          band_name: row.band_name as string,
-          band_duplex: row.band_duplex ?? null,
-          station_id: row.station_sid,
-          operator_mnc: row.operator_mnc,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          notes: row.notes,
-          city: row.city ?? null,
-          address: row.extra_address ?? row.address ?? null,
-          region_code: row.region_code ?? null,
-          is_confirmed: row.is_confirmed,
           nr_band_pcis,
-          sector_index: sectorMeta?.index,
-          sector_azimuth: sectorMeta?.azimuth,
         },
         format,
+        convertOptions,
       );
       if (line) clfLines.push(line);
     }
@@ -352,8 +380,8 @@ parentPort.on("message", async (params: WorkerParams) => {
     const tmpPath = join(CLF_TMP_DIR, `${randomUUID()}.txt`);
     await writeFile(tmpPath, clfLines.join("\n") + "\n");
 
-    parentPort!.postMessage({ success: true, tmpPath });
+    workerPort.postMessage({ success: true, tmpPath });
   } catch (e) {
-    parentPort!.postMessage({ success: false, error: e instanceof Error ? e.message : String(e) });
+    workerPort.postMessage({ success: false, error: serializeWorkerError(e) });
   }
 });

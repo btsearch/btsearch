@@ -1,4 +1,12 @@
 import { bands, cells, locations, regions, stations } from "@openbts/drizzle";
+import {
+  type CLFDescriptionTemplateParam,
+  type CLFDescriptionTemplates,
+  CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH,
+  CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT,
+  CLF_DESCRIPTION_TEMPLATE_RATS,
+  DISPLAY_NR_SEPARATELY_PARAM,
+} from "@openbts/shared/clfExportTemplates";
 import { and, eq, gte, inArray, max } from "drizzle-orm";
 import type { FastifyReply } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -14,6 +22,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
 import type { Route } from "../../../../interfaces/routes.interface.js";
+import { type SerializedWorkerError, deserializeWorkerError } from "../../../../lib/workerError.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, "../../../../workers/clfExport.worker.js");
@@ -22,6 +31,27 @@ const CACHE_TTL = 3600; // 1h
 const CLF_TMP_DIR = join(tmpdir(), "clf-exports");
 const NETWORKS_MNC = 26034;
 const NETWORKS_CHILD_MNCS = [26002, 26003];
+const templateParamSchema = z
+  .string()
+  .trim()
+  .max(CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH)
+  .optional()
+  .transform((val) => (val ? val : undefined));
+const templateParamSchemas = Object.fromEntries(
+  CLF_DESCRIPTION_TEMPLATE_RATS.map((rat) => [CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT[rat], templateParamSchema]),
+) as Record<CLFDescriptionTemplateParam, typeof templateParamSchema>;
+
+type TemplateQueryFields = Partial<Record<CLFDescriptionTemplateParam, string | undefined>>;
+
+function getEffectiveDescriptionTemplates(query: TemplateQueryFields): CLFDescriptionTemplates | undefined {
+  const templates: CLFDescriptionTemplates = {};
+  for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {
+    const template = query[CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT[rat]];
+    if (template !== undefined) templates[rat] = template;
+  }
+
+  return Object.keys(templates).length > 0 ? templates : undefined;
+}
 
 async function cleanupOldExports() {
   try {
@@ -87,34 +117,39 @@ const schemaRoute = {
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
+    ...templateParamSchemas,
+    [DISPLAY_NR_SEPARATELY_PARAM]: z
+      .string()
+      .optional()
+      .transform((val) => val === "true" || val === "1"),
   }),
 };
 
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 
+async function resolveOperatorIds(operatorMncs?: number[]): Promise<number[] | undefined> {
+  if (!operatorMncs || operatorMncs.length === 0) return undefined;
+  const mncs = new Set(operatorMncs);
+  if (mncs.has(NETWORKS_MNC)) for (const child of NETWORKS_CHILD_MNCS) mncs.add(child);
+  const matched = await db.query.operators.findMany({ where: { mnc: { in: [...mncs] } }, columns: { id: true } });
+  return matched.map((o) => o.id);
+}
+
 async function getLastModified({
-  operatorMncs,
+  operatorIds,
   regionCodes,
   rat,
   bandIds,
   since,
 }: {
-  operatorMncs?: number[];
+  operatorIds?: number[];
   regionCodes?: string[];
   rat?: ("GSM" | "UMTS" | "LTE" | "NR" | "IOT")[];
   bandIds?: number[];
   since?: string;
 }): Promise<Date | null> {
-  let resolvedOperatorIds: number[] | undefined;
-  if (operatorMncs && operatorMncs.length > 0) {
-    const mncs = new Set(operatorMncs);
-    if (mncs.has(NETWORKS_MNC)) for (const child of NETWORKS_CHILD_MNCS) mncs.add(child);
-    const matched = await db.query.operators.findMany({ where: { mnc: { in: [...mncs] } }, columns: { id: true } });
-    resolvedOperatorIds = matched.map((o) => o.id);
-  }
-
   const conditions = [eq(stations.status, "published")];
-  if (resolvedOperatorIds && resolvedOperatorIds.length > 0) conditions.push(inArray(stations.operator_id, resolvedOperatorIds));
+  if (operatorIds && operatorIds.length > 0) conditions.push(inArray(stations.operator_id, operatorIds));
   if (regionCodes && regionCodes.length > 0) conditions.push(inArray(regions.code, regionCodes));
   if (bandIds && bandIds.length > 0) conditions.push(inArray(bands.value, bandIds));
   if (since) conditions.push(gte(cells.updatedAt, new Date(since)));
@@ -140,14 +175,47 @@ async function getLastModified({
   return result?.lastModified ? new Date(result.lastModified) : null;
 }
 
+async function resolveExportMetadata(params: {
+  operatorMncs?: number[];
+  regionCodes?: string[];
+  rat?: ("GSM" | "UMTS" | "LTE" | "NR" | "IOT")[];
+  bandIds?: number[];
+  since?: string;
+}): Promise<{ operatorIds?: number[]; lastModified: Date | null }> {
+  const operatorIds = await resolveOperatorIds(params.operatorMncs);
+  const lastModified = await getLastModified({
+    operatorIds,
+    regionCodes: params.regionCodes,
+    rat: params.rat,
+    bandIds: params.bandIds,
+    since: params.since,
+  });
+  return { operatorIds, lastModified };
+}
+
 async function handler(req: FastifyRequest<ReqQuery>, res: FastifyReply) {
   const { format, operators: operatorMncs, regions: regionCodes, rat, bands: bandIds, since } = req.query;
-  const cacheKey = `clf:export:${JSON.stringify({ format, operatorMncs, regionCodes, rat, bandIds, since })}`;
+
+  const effectiveTemplates = getEffectiveDescriptionTemplates(req.query);
+  const displayNRSeparately = format === "ntm" && req.query[DISPLAY_NR_SEPARATELY_PARAM];
+  const cacheKey = `clf:export:${JSON.stringify({
+    format,
+    operatorMncs,
+    regionCodes,
+    rat,
+    bandIds,
+    since,
+    templates: effectiveTemplates,
+    displayNRSeparately,
+  })}`;
   const lastModifiedKey = `${cacheKey}:lm`;
 
-  const lastModified = await getLastModified({ operatorMncs, regionCodes, rat, bandIds, since });
+  const [{ operatorIds, lastModified }, cachedLm, cachedTmpPath] = await Promise.all([
+    resolveExportMetadata({ operatorMncs, regionCodes, rat, bandIds, since }),
+    redis.get(lastModifiedKey),
+    redis.get(cacheKey),
+  ]);
   const lastModifiedIso = lastModified?.toISOString() ?? null;
-  const [cachedLm, cachedTmpPath] = await Promise.all([redis.get(lastModifiedKey), redis.get(cacheKey)]);
 
   let tmpPath = cachedTmpPath && existsSync(cachedTmpPath) && cachedLm === lastModifiedIso ? cachedTmpPath : null;
 
@@ -156,16 +224,18 @@ async function handler(req: FastifyRequest<ReqQuery>, res: FastifyReply) {
       const worker = new Worker(WORKER_PATH, { execArgv: process.execArgv });
       worker.postMessage({
         format,
-        operatorMncs,
+        operatorIds,
         regionCodes,
         rat,
         bandIds,
         since,
+        templates: effectiveTemplates,
+        displayNRSeparately,
       });
-      worker.on("message", ({ success, tmpPath, error }: { success: boolean; tmpPath?: string; error?: string }) => {
+      worker.on("message", ({ success, tmpPath, error }: { success: boolean; tmpPath?: string; error?: SerializedWorkerError | string }) => {
         void worker.terminate();
         if (success && tmpPath !== undefined) resolve(tmpPath);
-        else reject(new Error(error ?? "CLF export worker failed"));
+        else reject(deserializeWorkerError(error));
       });
       worker.on("error", (err) => {
         void worker.terminate();

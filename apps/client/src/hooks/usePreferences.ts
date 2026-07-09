@@ -1,3 +1,4 @@
+import type { CLFDescriptionTemplates } from "@openbts/shared/clfExportTemplates";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
@@ -34,6 +35,7 @@ export interface UserPreferences {
   azimuthLineLength: number;
   azimuthSpread: number;
   cartoVariant: CartoVariant;
+  CLFDescriptionTemplates: CLFDescriptionTemplates;
 }
 
 export type CloudPreferences = {
@@ -78,6 +80,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   azimuthLineLength: 200,
   azimuthSpread: 60,
   cartoVariant: "light",
+  CLFDescriptionTemplates: {},
 };
 
 const listeners = new Set<() => void>();

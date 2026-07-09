@@ -20,6 +20,10 @@
     "./addressValidation": {
       "types": "./src/addressValidation.ts",
       "default": "./dist/src/addressValidation.js"
+    },
+    "./clfExportTemplates": {
+      "types": "./src/clfExportTemplates.ts",
+      "default": "./dist/src/clfExportTemplates.js"
     }
   },
   "scripts": {

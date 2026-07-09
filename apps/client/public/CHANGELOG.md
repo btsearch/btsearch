@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-09
+
+### 🚀 Enhancements
+
+- CLF exports now support per-RAT description templates with confirmation, sector and NR band/PCI placeholders, separate NR NSA/SA templates, updated LTE/NR default descriptions and an optional NetMonster 5G NSA mode that uses linked LTE TAC values
+
 # 2026-07-06
 
 ### 🚀 Enhancements

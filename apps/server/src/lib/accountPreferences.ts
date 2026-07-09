@@ -1,5 +1,8 @@
 import type { CloudPreferences } from "@openbts/drizzle";
+import { CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH, CLF_DESCRIPTION_TEMPLATE_RATS } from "@openbts/shared/clfExportTemplates";
 import { z } from "zod/v4";
+
+const CLFDescriptionTemplateRatSchema = z.enum(CLF_DESCRIPTION_TEMPLATE_RATS);
 
 export const userPreferencesSchema = z
   .object({
@@ -22,6 +25,7 @@ export const userPreferencesSchema = z
     azimuthLineLength: z.number().min(50).max(3000),
     azimuthSpread: z.number().min(0).max(120),
     cartoVariant: z.enum(["auto", "dark", "light"]),
+    CLFDescriptionTemplates: z.partialRecord(CLFDescriptionTemplateRatSchema, z.string().max(CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH)),
   })
   .strict()
   .partial();
