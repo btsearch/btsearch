@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { saveDraft } from "@/features/submissions/utils/analyzerDraftStore";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -352,7 +352,7 @@ function AnalyzerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [state, dispatch] = useReducer(analyzerReducer, initialState);
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const [sorting, setSorting] = useState<SortingState>([]);
   const analyzeStartRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);

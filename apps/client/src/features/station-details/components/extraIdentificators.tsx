@@ -10,6 +10,7 @@ import OrangeIcon from "./logos/orange.svg?react";
 import PlayIcon from "./logos/play.svg?react";
 import PlusIcon from "./logos/plus.svg?react";
 import TmobileIcon from "./logos/t-mobile.svg?react";
+import { StationInfoItem } from "./stationInfoItem";
 
 type ExtraIdentificatorsDisplayProps = {
   data: ExtraIdentificator;
@@ -32,33 +33,27 @@ export function ExtraIdentificatorsDisplay({ data, operatorMnc }: ExtraIdentific
   return (
     <>
       {data.networks_id ? (
-        <div className="flex items-center gap-2">
-          <NetworksIcon className="size-4 shrink-0" />
-          <span className="text-sm text-muted-foreground whitespace-nowrap">{t("labels.networksId")}:</span>
-          <span className="text-sm font-mono font-medium">{data.networks_id}</span>
+        <StationInfoItem icon={<NetworksIcon className="size-4" />} label={t("labels.networksId")}>
+          <span className="font-mono">{data.networks_id}</span>
           <CopyButton text={String(data.networks_id)} />
-        </div>
+        </StationInfoItem>
       ) : null}
       {data.networks_name && (
-        <div className="flex items-center gap-2 min-w-0">
-          <NetworksIcon className="size-4 shrink-0" />
-          <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">{t("labels.networksName")}:</span>
+        <StationInfoItem icon={<NetworksIcon className="size-4" />} label={t("labels.networksName")}>
           <Tooltip>
-            <TooltipTrigger render={<span className="text-sm font-medium truncate min-w-0" />}>{data.networks_name}</TooltipTrigger>
+            <TooltipTrigger render={<span className="min-w-0 truncate" />}>{data.networks_name}</TooltipTrigger>
             <TooltipContent>{data.networks_name}</TooltipContent>
           </Tooltip>
           <CopyButton text={data.networks_name} />
-        </div>
+        </StationInfoItem>
       )}
       {data.mno_name && (
-        <div className="flex items-center gap-2 min-w-0">
-          {MNOLogo ? <MNOLogo className="h-5 w-auto max-w-20 shrink-0" /> : null}
-          <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">{mnoLabel}:</span>
+        <StationInfoItem icon={MNOLogo ? <MNOLogo className="h-5 w-auto max-w-20" /> : <NetworksIcon className="size-4" />} label={mnoLabel}>
           <Tooltip>
-            <TooltipTrigger render={<span className="text-sm font-medium truncate min-w-0" />}>{data.mno_name}</TooltipTrigger>
+            <TooltipTrigger render={<span className="min-w-0 truncate" />}>{data.mno_name}</TooltipTrigger>
             <TooltipContent>{data.mno_name}</TooltipContent>
           </Tooltip>
-        </div>
+        </StationInfoItem>
       )}
     </>
   );

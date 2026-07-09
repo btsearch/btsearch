@@ -12,9 +12,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ReloadPrompt } from "@/components/reload-prompt";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { FloatingDialogCoordinatorProvider } from "@/features/station-details/components/floatingDialogCoordinator";
-import { StationDialogStackProvider } from "@/features/station-details/components/stationDialogStackProvider";
-import { UkePermitDialogStackProvider } from "@/features/station-details/components/ukePermitDialogStackProvider";
+import { FloatingDialogStackProvider } from "@/features/station-details/components/floatingDialogStackProvider";
 import { loadAdsenseScript } from "@/hooks/useCookieConsent";
 import { plPLAuthLocalization } from "@/i18n/authLocalization";
 import i18n from "@/i18n/config";
@@ -100,11 +98,7 @@ function AppProviders({ children }: AppProvidersProps) {
       <AdsLoader />
       <RybbitIdentify />
       <ErrorBoundary>
-        <FloatingDialogCoordinatorProvider>
-          <StationDialogStackProvider>
-            <UkePermitDialogStackProvider>{children}</UkePermitDialogStackProvider>
-          </StationDialogStackProvider>
-        </FloatingDialogCoordinatorProvider>
+        <FloatingDialogStackProvider>{children}</FloatingDialogStackProvider>
       </ErrorBoundary>
       <Toaster />
       <ReloadPrompt />

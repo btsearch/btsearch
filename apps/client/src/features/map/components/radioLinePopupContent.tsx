@@ -145,9 +145,9 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
             return (
               <div key={dir.id} className="flex items-start gap-1.5">
                 {link.directions.length > 1 && (
-                  <span className="flex items-center gap-px text-[8px] font-bold text-muted-foreground shrink-0 leading-4.5">
+                  <span className="flex -translate-y-0.5 items-center gap-px text-[8px] font-bold text-muted-foreground shrink-0 leading-4.5">
                     {isForward ? "A" : "B"}
-                    <HugeiconsIcon icon={ArrowRight02Icon} className="size-2.5" />
+                    <HugeiconsIcon icon={ArrowRight02Icon} className="size-2.5 -translate-y-px" />
                     {isForward ? "B" : "A"}
                   </span>
                 )}

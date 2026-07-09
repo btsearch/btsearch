@@ -74,6 +74,7 @@
   },
   "validation": {
     "selectStation": "Select station",
+    "pendingStationPhotoRequired": "Add at least one photo when submitting a new station without cells",
     "stationIdRequired": "Station ID is required",
     "stationIdTooShort": "Station ID must be at least 2 characters",
     "operatorRequired": "Select an operator",

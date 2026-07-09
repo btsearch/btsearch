@@ -2,9 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import ZabkaIcon from "@/features/station-details/components/logos/zabka.svg?react";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
-import { useUkePermitDialogStack } from "@/features/station-details/components/ukePermitDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { showApiError } from "@/lib/api";
@@ -116,8 +115,7 @@ function MapViewInner() {
   }, []);
 
   const [pendingRadiolineId, setPendingRadiolineId] = useState<number | null>(null);
-  const { openStationDialog } = useStationDialogStack();
-  const { openUkePermitDialog } = useUkePermitDialogStack();
+  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
 
   const handleOpenStationDetails = useCallback((id: number, source: StationSource) => openStationDialog(id, source), [openStationDialog]);
   const handleOpenUkeStationDetails = useCallback((station: UkeStation) => openUkePermitDialog(station), [openUkePermitDialog]);

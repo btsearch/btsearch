@@ -19,7 +19,6 @@ import { type Ref, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useTranslation } from "react-i18next";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RAT_ORDER } from "@/features/shared/rat";
@@ -41,6 +40,7 @@ import { ExtraIdentificatorsDisplay } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
+import { StationInfoItem } from "./stationInfoItem";
 
 type StationDetailsBodyProps = {
   stationId: number;
@@ -251,7 +251,7 @@ export function StationDetailsBody({
       <div ref={bodyContentRef}>
         {isLoading ? (
           <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
-            <div className="flex p-1 bg-muted/50 rounded-xl gap-1">
+            <div className="flex gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-inset ring-border/50">
               {[1, 2, 3].map((i) => (
                 <div key={`skeleton-tab-${i}`} className="flex-1 flex items-center justify-center gap-2 py-2 px-2 sm:px-3">
                   <Skeleton className="size-5 rounded sm:size-4" />
@@ -303,11 +303,14 @@ export function StationDetailsBody({
           </div>
         ) : station ? (
           <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
-            <div className="relative grid p-1 bg-muted/50 rounded-xl gap-1" style={{ gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` }}>
+            <div
+              className="relative grid gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-inset ring-border/50"
+              style={{ gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` }}
+            >
               {visibleTabs.length > 0 && (
                 <div
                   aria-hidden="true"
-                  className="absolute top-1 bottom-1 left-1 rounded-lg bg-background shadow-sm pointer-events-none transition-transform duration-200 ease-out motion-reduce:transition-none"
+                  className="pointer-events-none absolute top-1 bottom-1 left-1 rounded-full bg-background shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
                   style={{
                     width: `calc((100% - ${tabPillAvailableOffsetRem}rem) / ${tabCount})`,
                     transform: tabPillTransform,
@@ -320,8 +323,8 @@ export function StationDetailsBody({
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={cn(
-                    "relative min-w-0 flex items-center justify-center gap-2 py-2 px-2 sm:px-3 rounded-lg text-sm font-semibold transition-colors duration-200",
-                    displayedTab === tab.id ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                    "relative flex min-w-0 items-center justify-center gap-2 rounded-full px-2 py-2 text-sm font-medium transition-colors duration-200 sm:px-3",
+                    displayedTab === tab.id ? "text-primary" : "text-muted-foreground hover:bg-background/40 hover:text-foreground",
                   )}
                 >
                   <HugeiconsIcon icon={tab.icon} className="size-5 sm:size-4" />
@@ -342,27 +345,21 @@ export function StationDetailsBody({
                     <div className="space-y-8">
                       <section>
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("specs.basicInfo")}</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 p-4 border rounded-xl bg-muted/20">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <HugeiconsIcon icon={Location01Icon} className="size-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("common:labels.coordinates")}:</span>
-                            <span className="text-sm font-mono font-medium break-all">
+                        <div className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
+                          <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
+                            <span className="font-mono break-all">
                               {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
                             </span>
                             <CopyButton text={`${station?.location.latitude}, ${station?.location.longitude}`} />
                             {preferences.navLinksDisplay === "inline" && (
                               <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
                             )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <HugeiconsIcon icon={Globe02Icon} className="size-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm text-muted-foreground">{t("common:labels.region")}:</span>
-                            <span className="text-sm font-medium">{station.location.region?.name || "-"}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <HugeiconsIcon icon={Tag01Icon} className="size-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm text-muted-foreground">{t("common:labels.stationId")}:</span>
-                            <span className="text-sm font-mono font-medium">{station.station_id}</span>
+                          </StationInfoItem>
+                          <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
+                            <span>{station.location.region?.name || "-"}</span>
+                          </StationInfoItem>
+                          <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
+                            <span className="font-mono">{station.station_id}</span>
                             <div className="flex items-center gap-1">
                               <CopyButton text={station.station_id || ""} />
                               {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
@@ -412,49 +409,38 @@ export function StationDetailsBody({
                                 </DropdownMenu>
                               ) : null}
                             </div>
-                          </div>
+                          </StationInfoItem>
                           {station.extra_identificators && (
                             <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
                           )}
                           {elevation !== undefined && (
-                            <div className="flex items-center gap-2">
-                              <HugeiconsIcon icon={MountainIcon} className="size-4 text-muted-foreground shrink-0" />
-                              <span className="text-sm text-muted-foreground">{t("common:labels.elevation")}:</span>
-                              <span className="text-sm font-medium">{elevation} m</span>
-                            </div>
+                            <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
+                              <span>{elevation} m</span>
+                            </StationInfoItem>
                           )}
                           {(!isOnMap || (preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0)) && (
-                            <div className="sm:col-span-2 pt-3 border-t border-border/50">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {!isOnMap && (
-                                  <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <Link
-                                          to="/"
-                                          hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                          onClick={onClose}
-                                        />
-                                      }
-                                    >
-                                      <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
-                                      {t("dialog.showOnMap")}
-                                    </TooltipTrigger>
-                                    <TooltipContent>{t("dialog.showOnMap")}</TooltipContent>
-                                  </Tooltip>
-                                )}
-                                {preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0 && (
-                                  <>
-                                    {!isOnMap && <Separator orientation="vertical" className="h-5 mx-1" />}
-                                    <NavigationLinks
-                                      latitude={station.location.latitude}
-                                      longitude={station.location.longitude}
-                                      displayMode="buttons"
-                                    />
-                                  </>
-                                )}
-                              </div>
+                            <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3 sm:col-span-2">
+                              {!isOnMap && (
+                                <Tooltip>
+                                  <TooltipTrigger
+                                    render={
+                                      <Link
+                                        to="/"
+                                        hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        onClick={onClose}
+                                      />
+                                    }
+                                  >
+                                    <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
+                                    {t("dialog.showOnMap")}
+                                  </TooltipTrigger>
+                                  <TooltipContent>{t("dialog.showOnMap")}</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0 && (
+                                <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="buttons" />
+                              )}
                             </div>
                           )}
                         </div>

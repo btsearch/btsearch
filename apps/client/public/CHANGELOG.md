@@ -1,6 +1,19 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-10
+
+### 🚀 Enhancements
+
+- Station and UKE permit dialogs now use a cleaner, card-free basic information layout
+- Station and UKE permit dialogs now use cleaner, more compact headers with consistent quick-action controls; station dialogs also use rounded tab navigation
+- Radioline details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
+- On desktop, up to two radioline detail dialogs can now be opened, moved, resized and focused independently
+
+### 🩹 Fixes
+
+- New station submissions without cells now require at least one photo
+
 # 2026-07-09
 
 ### 🚀 Enhancements

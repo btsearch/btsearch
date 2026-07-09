@@ -22,9 +22,9 @@ import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stat
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/operatorUtils";
@@ -106,7 +106,7 @@ export function StationInfoForm({
   cells,
 }: StationInfoFormProps) {
   const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
 
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!networksId;

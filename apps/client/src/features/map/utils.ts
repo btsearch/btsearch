@@ -192,7 +192,7 @@ export function getLinkTypeStyle(linkType: RadioLinkType): { bg: string; text: s
   return LINK_TYPE_STYLES[linkType] ?? null;
 }
 
-function endpointPairKey(rl: RadioLine): string {
+export function endpointPairKey(rl: RadioLine): string {
   const a = `${rl.tx.latitude},${rl.tx.longitude}`;
   const b = `${rl.rx.latitude},${rl.rx.longitude}`;
   return a < b ? `${a}|${b}` : `${b}|${a}`;

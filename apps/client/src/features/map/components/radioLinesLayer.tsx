@@ -1,22 +1,21 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Popup } from "maplibre-gl";
-import { Suspense, lazy, useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { useMap } from "@/components/ui/map";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { queryClient } from "@/lib/queryClient";
 import type { RadioLine } from "@/types/station";
 
+import { fetchRadioLineGroup } from "../api";
 import { radioLinesToGeoJSON } from "../geojson";
 import { useRadioLinesLayer } from "../hooks/useRadioLinesLayer";
-import type { DuplexRadioLink } from "../utils";
-import { groupRadioLinesIntoLinks } from "../utils";
+import { type DuplexRadioLink, findDuplexLinkByRadioLineId, groupRadioLinesIntoLinks } from "../utils";
 import { RadioLineFooter, RadioLinePopupContent } from "./radioLinePopupContent";
-
-const RadioLineDetailsDialog = lazy(() =>
-  import("@/features/station-details/components/radioLineDetailsDialog").then((m) => ({ default: m.RadioLineDetailsDialog })),
-);
 
 const EMPTY_LINES: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 const EMPTY_ENDPOINTS: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -29,14 +28,32 @@ type RadioLinesLayerProps = {
 };
 
 export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAddToList, onPendingRadiolineConsumed }: RadioLinesLayerProps) {
+  const { t } = useTranslation("common");
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
-  const [selectedLink, setSelectedLink] = useState<DuplexRadioLink | null>(null);
+  const { openRadioLineDialog } = useFloatingDialogStack();
 
   const popupRef = useRef<Popup | null>(null);
   const popupRootRef = useRef<ReturnType<typeof createRoot> | null>(null);
+  const consumedPendingIdRef = useRef<number | null>(null);
 
   const duplexLinks = useMemo(() => groupRadioLinesIntoLinks(radioLines), [radioLines]);
+
+  const localPendingMatch = useMemo(() => {
+    if (pendingRadiolineId === null || pendingRadiolineId === undefined) return null;
+    return findDuplexLinkByRadioLineId(pendingRadiolineId, duplexLinks) ?? null;
+  }, [duplexLinks, pendingRadiolineId]);
+
+  const { data: pendingRadioLines, isError: isPendingRadioLinesError } = useQuery({
+    queryKey: ["radiolines", "pending", pendingRadiolineId],
+    queryFn: ({ signal }) => {
+      if (pendingRadiolineId === null || pendingRadiolineId === undefined) throw new Error("Missing pending Radioline ID");
+      return fetchRadioLineGroup(pendingRadiolineId, signal);
+    },
+    enabled: pendingRadiolineId !== null && pendingRadiolineId !== undefined && localPendingMatch === null,
+    staleTime: 1000 * 60 * 5,
+  });
+  const fetchedPendingDuplexLinks = useMemo(() => groupRadioLinesIntoLinks(pendingRadioLines ?? []), [pendingRadioLines]);
 
   const { lines, endpoints } = useMemo(() => {
     if (!radioLines.length) return { lines: EMPTY_LINES, endpoints: EMPTY_ENDPOINTS };
@@ -44,18 +61,21 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
   }, [radioLines]);
 
   const cleanupPopup = useCallback(() => {
-    popupRef.current?.remove();
-    popupRootRef.current?.unmount();
+    const popup = popupRef.current;
+    const popupRoot = popupRootRef.current;
     popupRef.current = null;
     popupRootRef.current = null;
+    popup?.remove();
+    popupRoot?.unmount();
   }, []);
+
+  useEffect(() => cleanupPopup, [cleanupPopup]);
 
   const handleOpenDetails = useCallback(
     (link: DuplexRadioLink) => {
-      setSelectedLink(link);
-      cleanupPopup();
+      if (openRadioLineDialog(link)) cleanupPopup();
     },
-    [cleanupPopup],
+    [cleanupPopup, openRadioLineDialog],
   );
 
   const handleFeatureClick = useCallback(
@@ -90,6 +110,13 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
         .addTo(map);
 
       popupRef.current = popup;
+      popup.on("close", () => {
+        if (popupRef.current !== popup) return;
+        const popupRoot = popupRootRef.current;
+        popupRef.current = null;
+        popupRootRef.current = null;
+        popupRoot?.unmount();
+      });
     },
     [map, cleanupPopup, handleOpenDetails, showAddToList],
   );
@@ -105,20 +132,31 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
   });
 
   const pendingMatch = useMemo(() => {
-    if (!pendingRadiolineId || !duplexLinks.length) return null;
-    return duplexLinks.find((link) => link.directions.some((d) => d.id === pendingRadiolineId)) ?? null;
-  }, [pendingRadiolineId, duplexLinks]);
+    if (localPendingMatch !== null) return localPendingMatch;
+    if (pendingRadiolineId === null || pendingRadiolineId === undefined || fetchedPendingDuplexLinks.length === 0) return null;
+    return findDuplexLinkByRadioLineId(pendingRadiolineId, fetchedPendingDuplexLinks) ?? null;
+  }, [fetchedPendingDuplexLinks, localPendingMatch, pendingRadiolineId]);
 
-  const displayedLink = selectedLink ?? pendingMatch;
+  useEffect(() => {
+    if (pendingRadiolineId === null || pendingRadiolineId === undefined) {
+      consumedPendingIdRef.current = null;
+      return;
+    }
+    if (consumedPendingIdRef.current === pendingRadiolineId) return;
 
-  const handleCloseDetails = useCallback(() => {
-    setSelectedLink(null);
-    onPendingRadiolineConsumed?.(null);
-  }, [onPendingRadiolineConsumed]);
+    if (pendingMatch !== null) {
+      consumedPendingIdRef.current = pendingRadiolineId;
+      openRadioLineDialog(pendingMatch);
+      onPendingRadiolineConsumed?.(null);
+      return;
+    }
 
-  return (
-    <Suspense fallback={null}>
-      {displayedLink ? <RadioLineDetailsDialog key={displayedLink.groupId} link={displayedLink} onClose={handleCloseDetails} /> : null}
-    </Suspense>
-  );
+    if (localPendingMatch === null && isPendingRadioLinesError) {
+      consumedPendingIdRef.current = pendingRadiolineId;
+      toast.error(t("placeholder.errorFetching"));
+      onPendingRadiolineConsumed?.(null);
+    }
+  }, [isPendingRadioLinesError, localPendingMatch, onPendingRadiolineConsumed, openRadioLineDialog, pendingMatch, pendingRadiolineId, t]);
+
+  return null;
 }

@@ -74,6 +74,7 @@
   },
   "validation": {
     "selectStation": "Wybierz stację",
+    "pendingStationPhotoRequired": "Dodaj co najmniej jedno zdjęcie, aby zgłosić nową stację bez komórek",
     "stationIdRequired": "ID stacji jest wymagane",
     "stationIdTooShort": "ID stacji musi mieć co najmniej 2 znaki",
     "operatorRequired": "Wybierz operatora",

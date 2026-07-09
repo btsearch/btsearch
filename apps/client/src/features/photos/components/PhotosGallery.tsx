@@ -25,7 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useIsMobile } from "@/hooks/useMobile";
 import { getOperatorColor } from "@/lib/operatorUtils";
@@ -475,7 +475,7 @@ export function PhotosGallery() {
   const { t, i18n } = useTranslation(["main", "common"]);
   const reduceMotion = useReducedMotion();
   const isMobile = useIsMobile();
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const navActionTarget = useNavActionTarget();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);

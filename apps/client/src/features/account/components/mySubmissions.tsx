@@ -24,7 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SUBMISSION_STATUS, SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { deleteSubmission } from "@/features/submissions/api";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { showApiError } from "@/lib/api";
@@ -54,7 +54,7 @@ export function MySubmissions() {
   const submissions = useMemo<SubmissionRow[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
 
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const handleStationClick = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
 
   const virtualizer = useVirtualizer({

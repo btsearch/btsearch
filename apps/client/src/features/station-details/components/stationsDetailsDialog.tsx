@@ -2,13 +2,12 @@ import { Alert02Icon, Cancel01Icon, Note01Icon, PencilEdit02Icon, Tick02Icon } f
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { type CSSProperties, type HTMLAttributes, type Ref, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
-import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -20,28 +19,16 @@ import { cn } from "@/lib/utils";
 import { fetchStation } from "../api";
 import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
+import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
+import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { WatchButton } from "./watchButton";
 
-type StationDetailsDialogProps = {
-  stationId: number | null;
-  source: "internal" | "uke";
-  onClose: () => void;
-};
-
-type StationDetailsDialogPanelProps = {
+type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
   source: "internal" | "uke";
-  onClose: () => void;
-  className?: string;
-  contentClassName?: string;
-  contentRef?: Ref<HTMLDivElement>;
-  bodyRef?: Ref<HTMLDivElement>;
-  bodyContentRef?: Ref<HTMLDivElement>;
   onContentLayoutChange?: () => void;
-  style?: CSSProperties;
-  headerDragProps?: HTMLAttributes<HTMLDivElement>;
   showPhotoPanel?: boolean;
 };
 
@@ -95,8 +82,10 @@ export function StationDetailsDialogPanel({
         )}
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
-          <div className="h-1" style={{ backgroundColor: operatorColor }} />
-          <div className="px-6 py-4 flex items-start">
+          <div
+            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+            style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+          >
             <div className="flex-1 min-w-0">
               {isLoading ? (
                 <div className="space-y-2">
@@ -104,89 +93,86 @@ export function StationDetailsDialogPanel({
                   <div className="h-4 w-32 bg-muted rounded animate-pulse" />
                 </div>
               ) : station ? (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h2 className="text-lg font-bold tracking-tight truncate" style={{ color: operatorColor }}>
-                          {station.operator.name}
-                        </h2>
-                        {leaseOperator ? (
-                          <Tooltip>
-                            <TooltipTrigger className="text-sm text-muted-foreground font-mono font-medium cursor-help underline decoration-dashed decoration-amber-500/50 underline-offset-2 shrink-0">
-                              {station.station_id}
-                            </TooltipTrigger>
-                            <TooltipContent>{t("dialog.hardwareLease", { operator: leaseOperator })}</TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <span className="text-sm text-muted-foreground font-mono font-medium shrink-0">{station.station_id}</span>
-                        )}
-                        {station.is_confirmed && (
-                          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold shrink-0">
-                            <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
-                            <span className="hidden sm:inline">{t("common:labels.confirmed")}</span>
-                          </span>
-                        )}
-                      </div>
-                      {station.status && <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} />}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{station.location.city}</p>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      {station.extra_address || station.location.address || t("dialog.btsStation")}
-                    </p>
-                    <div className="flex flex-col items-start sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 pt-0.5">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight" style={{ color: operatorColor }}>
+                      {station.operator.name}
+                    </h2>
+                    {leaseOperator ? (
                       <Tooltip>
-                        <TooltipTrigger className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                          {tCommon("labels.created")}: {formatRelativeTime(station.createdAt, tCommon)}
+                        <TooltipTrigger className="shrink-0 cursor-help font-mono text-xs font-medium text-muted-foreground underline decoration-amber-500/50 decoration-dashed underline-offset-2">
+                          {station.station_id}
                         </TooltipTrigger>
-                        <TooltipContent>{formatFullDate(station.createdAt, i18n.language)}</TooltipContent>
+                        <TooltipContent>{t("dialog.hardwareLease", { operator: leaseOperator })}</TooltipContent>
                       </Tooltip>
-                      <span className="hidden sm:inline text-xs text-muted-foreground/40">·</span>
-                      <Tooltip>
-                        {isAdmin ? (
-                          <TooltipTrigger
-                            render={
-                              <Link
-                                to={isAuditLogUser ? "/admin/audit-logs" : "/admin/submissions"}
-                                search={isAuditLogUser ? { q: String(station.id) } : { q: station.station_id, page: 0 }}
-                                className="text-xs text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 transition-colors whitespace-nowrap"
-                                onClick={onClose}
-                              />
-                            }
-                          >
-                            {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                          </TooltipTrigger>
-                        ) : (
-                          <TooltipTrigger className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                            {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                          </TooltipTrigger>
-                        )}
-                        <TooltipContent>{formatFullDate(station.updatedAt, i18n.language)}</TooltipContent>
-                      </Tooltip>
-                    </div>
+                    ) : (
+                      <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station.station_id}</span>
+                    )}
+                    {station.is_confirmed ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
+                        <span className="hidden sm:inline">{t("common:labels.confirmed")}</span>
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">{station.location.city}</p>
+                    {station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
+                  </div>
+                  <p className="text-xs leading-4 text-muted-foreground">
+                    {station.extra_address || station.location.address || t("dialog.btsStation")}
+                  </p>
+                  <div className="flex flex-col items-start pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] text-muted-foreground/80">
+                        {tCommon("labels.created")}: {formatRelativeTime(station.createdAt, tCommon)}
+                      </TooltipTrigger>
+                      <TooltipContent>{formatFullDate(station.createdAt, i18n.language)}</TooltipContent>
+                    </Tooltip>
+                    <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">·</span>
+                    <Tooltip>
+                      {isAdmin ? (
+                        <TooltipTrigger
+                          render={
+                            <Link
+                              to={isAuditLogUser ? "/admin/audit-logs" : "/admin/submissions"}
+                              search={isAuditLogUser ? { q: String(station.id) } : { q: station.station_id, page: 0 }}
+                              className="whitespace-nowrap text-[11px] text-muted-foreground/80 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+                              onClick={onClose}
+                            />
+                          }
+                        >
+                          {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
+                        </TooltipTrigger>
+                      ) : (
+                        <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] text-muted-foreground/80">
+                          {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
+                        </TooltipTrigger>
+                      )}
+                      <TooltipContent>{formatFullDate(station.updatedAt, i18n.language)}</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               ) : null}
             </div>
-            <div className="flex items-center gap-1 shrink-0 -mt-1 -mr-2">
+            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
               {station && (
                 <>
-                  <AddToListPopover stationId={station.id} size="md" />
-                  <WatchButton stationId={station.id} size="md" />
+                  <AddToListPopover stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
+                  <WatchButton stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
                     title={`${station.operator.name} - ${station.station_id}`}
                     text={`${station.operator.name} ${station.station_id} - ${station.location.city}`}
                     url={`${window.location.origin}/#map=16/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`}
                     size="md"
+                    className={stationDialogHeaderIconActionClassName}
                   />
                   {isAdmin ? (
                     <Link
                       to="/admin/stations/$id"
                       params={{ id: String(station.id) }}
                       search={{ uke: undefined }}
-                      className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-bold shadow-sm hover:bg-primary/20 transition-colors"
+                      className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                       onClick={onClose}
                     >
                       <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
@@ -197,7 +183,7 @@ export function StationDetailsDialogPanel({
                       <Link
                         to="/submission"
                         search={{ station: String(station.id) }}
-                        className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-bold shadow-sm hover:bg-primary/20 transition-colors"
+                        className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                         onClick={onClose}
                       >
                         <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
@@ -211,7 +197,7 @@ export function StationDetailsDialogPanel({
                 type="button"
                 onClick={onClose}
                 onPointerDown={(event) => event.stopPropagation()}
-                className="p-2 hover:bg-muted rounded-xl transition-colors [&_svg]:pointer-events-none"
+                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted [&_svg]:pointer-events-none"
                 aria-label={t("common:actions.close")}
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-5 shrink-0" />
@@ -266,33 +252,5 @@ export function StationDetailsDialogPanel({
         </div>
       )}
     </div>
-  );
-}
-
-export function StationDetailsDialog({ stationId, source, onClose }: StationDetailsDialogProps) {
-  const { t } = useTranslation("common");
-
-  useEscapeKey(onClose, stationId !== null);
-
-  if (stationId === null) return null;
-
-  return (
-    <>
-      <button
-        type="button"
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm cursor-default"
-        onClick={onClose}
-        onKeyDown={(e) => e.key === "Enter" && onClose()}
-        aria-label={t("actions.close")}
-      />
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto sm:items-center pointer-events-none">
-        <StationDetailsDialogPanel
-          stationId={stationId}
-          source={source}
-          onClose={onClose}
-          className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-4xl"
-        />
-      </div>
-    </>
   );
 }

@@ -65,9 +65,10 @@ type AddToListPopoverProps = {
   radiolineIds?: number[];
   ukeLocationId?: number;
   size?: "sm" | "md";
+  className?: string;
 };
 
-export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size = "sm" }: AddToListPopoverProps) {
+export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size = "sm", className }: AddToListPopoverProps) {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
@@ -122,7 +123,9 @@ export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size 
     <>
       <Popover>
         <PopoverTrigger
-          render={<button type="button" className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0")} />}
+          render={
+            <button type="button" className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0", className)} />
+          }
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           <HugeiconsIcon icon={TaskDaily01Icon} className={cn(iconSize, "text-muted-foreground")} />

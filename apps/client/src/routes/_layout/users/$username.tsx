@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { resolveAvatarUrl } from "@/lib/format";
@@ -80,7 +80,7 @@ function ProfileSkeleton() {
 function UserProfilePage() {
   const { username } = Route.useParams();
   const { t, i18n } = useTranslation("main");
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const handleStationClick = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
   const { data: session } = authClient.useSession();
 

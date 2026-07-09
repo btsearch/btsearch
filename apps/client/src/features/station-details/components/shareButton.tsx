@@ -50,7 +50,15 @@ export function ShareButton({ title, text, url, size = "sm", className }: ShareB
 
   return (
     <Tooltip>
-      <TooltipTrigger onClick={handleShare} className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer", className)}>
+      <TooltipTrigger
+        onClick={handleShare}
+        className={cn(
+          buttonPadding,
+          "hover:bg-muted rounded transition-colors cursor-pointer",
+          className,
+          copied ? "hover:[&_svg]:text-emerald-500" : undefined,
+        )}
+      >
         {copied ? (
           <HugeiconsIcon icon={Tick02Icon} className={cn(iconSize, "text-emerald-500")} />
         ) : (

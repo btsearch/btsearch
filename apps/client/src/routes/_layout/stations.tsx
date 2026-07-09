@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { StationsListLayout } from "@/features/stations/components/stationsFilterLayout";
 import { useStationsData } from "@/features/stations/hooks/useStationsData";
 import type { Station } from "@/types/station";
 
 function StationsListPage() {
-  const { openStationDialog } = useStationDialogStack();
+  const { openStationDialog } = useFloatingDialogStack();
   const data = useStationsData();
   const handleRowClick = useCallback((station: Station) => openStationDialog(station.id, "internal"), [openStationDialog]);
 

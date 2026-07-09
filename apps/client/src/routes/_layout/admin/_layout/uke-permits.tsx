@@ -10,7 +10,7 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { UnassignedPermitsDataTable } from "@/features/admin/uke-permits/components/dataTable";
 import { UnassignedPermitsResponsiveFilters } from "@/features/admin/uke-permits/components/responsiveFilters";
 import { useUnassignedPermitsData } from "@/features/admin/uke-permits/hooks/useUnassignedPermitsData";
-import { useUkePermitDialogStack } from "@/features/station-details/components/ukePermitDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import type { UkeStation } from "@/types/station";
 
@@ -19,7 +19,7 @@ const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHei
 function AdminUkePermitsPage() {
   const { t } = useTranslation("admin");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const { openUkePermitDialog } = useUkePermitDialogStack();
+  const { openUkePermitDialog } = useFloatingDialogStack();
   const navActionTarget = useNavActionTarget();
 
   const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);

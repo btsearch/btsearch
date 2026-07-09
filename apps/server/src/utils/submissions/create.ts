@@ -132,6 +132,10 @@ function validateSectorRefs(input: SingleSubmission, targetStation?: { sectors: 
 export async function validateSubmission(input: SingleSubmission): Promise<void> {
   const { station_id, type, station: stationData, location: locationData } = input;
 
+  const createsPendingStation = (type ?? "new") === "new" && (input.cells?.length ?? 0) === 0;
+  if (createsPendingStation && input.pending_photos === undefined)
+    throw new ErrorResponse("BAD_REQUEST", { message: "At least one photo is required when submitting a new station without cells" });
+
   if ((type === "update" || type === "delete") && !station_id)
     throw new ErrorResponse("INVALID_QUERY", { message: "station_id is required for update and delete submissions" });
 

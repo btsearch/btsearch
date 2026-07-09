@@ -14,9 +14,10 @@ type WatchButtonProps = {
   stationId: number;
   source?: "internal" | "uke";
   size?: "sm" | "md";
+  className?: string;
 };
 
-export function WatchButton({ stationId, source = "internal", size = "sm" }: WatchButtonProps) {
+export function WatchButton({ stationId, source = "internal", size = "sm", className }: WatchButtonProps) {
   const { t } = useTranslation("stationDetails");
   const { data: session } = authClient.useSession();
   const { watched, isLoading, isPending, setWatched } = useStationWatch(stationId, source, !!session?.user);
@@ -39,7 +40,7 @@ export function WatchButton({ stationId, source = "internal", size = "sm" }: Wat
             aria-pressed={watched}
             title={label}
             disabled={isLoading || isPending}
-            className={cn(watched ? "bg-primary/10 text-primary hover:text-primary" : "text-muted-foreground")}
+            className={cn(className, watched ? "bg-primary/10 text-primary hover:text-primary hover:[&_svg]:text-primary" : "text-muted-foreground")}
             onClick={() => setWatched(!watched)}
           />
         }

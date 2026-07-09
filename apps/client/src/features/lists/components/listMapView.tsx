@@ -13,8 +13,7 @@ import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/f
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { useMapPopup } from "@/features/map/hooks/useMapPopup";
 import { toLocationInfo } from "@/features/map/utils";
-import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
-import { useUkePermitDialogStack } from "@/features/station-details/components/ukePermitDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -69,8 +68,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const wantAzimuths = preferences.showAzimuths && filters.source === "uke";
   const { data: listData, isLoading, isError } = useListDetail(uuid, wantAzimuths);
 
-  const { openStationDialog } = useStationDialogStack();
-  const { openUkePermitDialog } = useUkePermitDialogStack();
+  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [popupLocationState, setPopupLocationState] = useState<{
     location: { locationId: number; source: StationSource } | null;

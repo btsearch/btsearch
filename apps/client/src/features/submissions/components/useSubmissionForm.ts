@@ -183,6 +183,11 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       submittedValuesRef.current = structuredClone(value);
       const activeCells = value.cells.filter((c) => value.selectedRats.includes(c.rat));
 
+      if (!isEditMode && value.mode === "new" && activeCells.length === 0 && photos.length === 0) {
+        toast.error(t("validation.pendingStationPhotoRequired"));
+        return;
+      }
+
       const errors = validateForm({
         mode: value.mode,
         selectedStation: value.selectedStation,
