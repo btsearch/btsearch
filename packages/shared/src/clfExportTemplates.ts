@@ -20,10 +20,10 @@ export const CLF_DESCRIPTION_TEMPLATE_LABELS = {
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT = {
-  GSM: "templateGsm",
-  UMTS: "templateUmts",
-  LTE: "templateLte",
-  NR_NSA: "templateNRNsa",
+  GSM: "templateGSM",
+  UMTS: "templateUMTS",
+  LTE: "templateLTE",
+  NR_NSA: "templateNRNSA",
   NR: "templateNR",
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 

@@ -424,7 +424,7 @@ paths:
           in: query
           description: Optional LTE description template, max 300 characters
           schema: { type: string, maxLength: 300 }
-        - name: templateNRNsa
+        - name: templateNRNSA
           in: query
           description: Optional NR NSA description template, max 300 characters
           schema: { type: string, maxLength: 300 }
