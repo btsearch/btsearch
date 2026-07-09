@@ -1,4 +1,12 @@
-import { AirportTowerIcon, Cancel01Icon, CheckmarkCircle02Icon, Clock01Icon, Globe02Icon, MapsLocation01Icon } from "@hugeicons/core-free-icons";
+import {
+  AirportTowerIcon,
+  Cancel01Icon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+  Globe02Icon,
+  MapsLocation01Icon,
+  SquareArrowExpand01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -16,6 +24,7 @@ import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
+import { useStationDialogStack } from "@/features/station-details/components/stationDialogStackProvider";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/operatorUtils";
@@ -97,6 +106,7 @@ export function StationInfoForm({
   cells,
 }: StationInfoFormProps) {
   const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
+  const { openStationDialog } = useStationDialogStack();
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
 
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!networksId;
@@ -178,7 +188,7 @@ export function StationInfoForm({
         <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
           <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{t("stationInfo.title")}</span>
-          {stationDbId && (
+          {stationDbId !== undefined ? (
             <Link
               to="/"
               hash={`map=16/${location.latitude}/${location.longitude}~f~S${stationDbId}`}
@@ -187,7 +197,17 @@ export function StationInfoForm({
               <HugeiconsIcon icon={MapsLocation01Icon} className="size-3" />
               {t("dialog.showOnMap", { ns: "stationDetails" })}
             </Link>
-          )}
+          ) : null}
+          {stationDbId !== undefined ? (
+            <button
+              type="button"
+              onClick={() => openStationDialog(stationDbId, "internal")}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
+            >
+              <HugeiconsIcon icon={SquareArrowExpand01Icon} className="size-3.5" />
+              {t("common:actions.view")}
+            </button>
+          ) : null}
         </div>
         <div className="px-4 py-3 space-y-4">
           <StationBasicsFields

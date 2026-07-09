@@ -6,6 +6,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🚀 Enhancements
 
 - CLF exports now support per-RAT description templates with confirmation, sector and NR band/PCI placeholders, separate NR NSA/SA templates, updated LTE/NR default descriptions and an optional NetMonster 5G NSA mode that uses linked LTE TAC values
+- Station info cards now include a **View** button on station admin pages for opening the station details dialog
 
 # 2026-07-06
 
