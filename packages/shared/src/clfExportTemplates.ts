@@ -43,6 +43,8 @@ export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
   "sector_number",
   "sector_azimuth",
   "location",
+  "city",
+  "address",
   "region",
   "station_id",
 ] as const;
@@ -78,6 +80,8 @@ const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
   sector_number: "1",
   sector_azimuth: "120°",
   location: "ul. Bazyliańska 18 - dach bloku mieszkalnego, Warszawa - Targówek",
+  city: "Warszawa - Targówek",
+  address: "ul. Bazyliańska 18 - dach bloku mieszkalnego",
   region: "MAZ",
   station_id: "WAR2257",
 } as const satisfies Record<CLFDescriptionCommonTemplatePlaceholder, string>;

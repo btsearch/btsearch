@@ -408,6 +408,8 @@ function getNRTemplateVars(cell: CellExportData): Record<string, string> {
 function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
   const common = {
     location: getLocationDescription(cell),
+    city: cell.city,
+    address: cell.address,
     sector_prefix: getSectorPrefix(cell),
     sector_tag: getSectorTag(cell),
     sector_label: getSectorLabel(cell),

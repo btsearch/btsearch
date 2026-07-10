@@ -33,6 +33,8 @@
       "sector_number": "Sector number",
       "sector_azimuth": "Sector azimuth",
       "location": "Location",
+      "city": "City",
+      "address": "Address",
       "region": "Region",
       "station_id": "Station ID",
       "gsm_band": "GSM band",

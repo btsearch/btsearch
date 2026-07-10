@@ -33,6 +33,8 @@
       "sector_number": "Numer sektora",
       "sector_azimuth": "Azymut sektora",
       "location": "Lokalizacja",
+      "city": "Miasto",
+      "address": "Adres",
       "region": "Region",
       "station_id": "ID Stacji",
       "gsm_band": "Pasmo GSM",

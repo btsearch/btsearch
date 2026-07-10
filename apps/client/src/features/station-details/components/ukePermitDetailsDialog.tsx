@@ -156,7 +156,7 @@ export function UkePermitDetailsDialogPanel({
                   to="/admin/stations/$id"
                   params={{ id: "new" }}
                   search={{ uke: station_id }}
-                  className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                  className="ml-1 mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                   onClick={onClose}
                 >
                   <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
@@ -166,7 +166,7 @@ export function UkePermitDetailsDialogPanel({
                 <Link
                   to="/submission"
                   search={{ uke: station_id }}
-                  className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                  className="ml-1 mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                   onClick={onClose}
                 >
                   <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
