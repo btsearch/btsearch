@@ -3,7 +3,9 @@ import {
   ArrowDown01Icon,
   ArrowRight01Icon,
   Cancel01Icon,
+  CheckmarkCircle02Icon,
   File02Icon,
+  FilterIcon,
   FullSignalIcon,
   LinkSquare01Icon,
   Location01Icon,
@@ -951,7 +953,7 @@ function AnalyzerPage() {
 
   const analyzerMobileFilterRail = (
     <div className="flex items-center gap-1">
-      <MobileFilterChip active={statusFilter !== "all"} icon={AlertCircleIcon} label={t("filter.status")}>
+      <MobileFilterChip active={statusFilter !== "all"} icon={CheckmarkCircle02Icon} label={t("filter.status")}>
         <MobileFilterPanelTitle>{t("filter.status")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {(["all", "found", "probable", "not_found", "unsupported"] as const).map((status) => (
@@ -973,7 +975,7 @@ function AnalyzerPage() {
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={ratFilter !== "all"} icon={Tag01Icon} label="Standard">
+      <MobileFilterChip active={ratFilter !== "all"} icon={FullSignalIcon} label="Standard">
         <MobileFilterPanelTitle>Standard</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {(["all", "GSM", "UMTS", "LTE", "NR"] as const).map((rat) => (
@@ -995,7 +997,7 @@ function AnalyzerPage() {
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={operatorFilter !== "all"} icon={FullSignalIcon} label={t("common:labels.operator")}>
+      <MobileFilterChip active={operatorFilter !== "all"} icon={FilterIcon} label={t("common:labels.operator")}>
         <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           <button
