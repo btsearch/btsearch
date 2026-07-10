@@ -10,6 +10,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Cell and permit tables in station and UKE permit dialogs now resize smoothly when expanded or collapsed
 - Radioline details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
 - On desktop, up to two radioline detail dialogs can now be opened, moved, resized and focused independently
+- Floating navigation is now the default for new mobile preference profiles
 
 ### 🩹 Fixes
 

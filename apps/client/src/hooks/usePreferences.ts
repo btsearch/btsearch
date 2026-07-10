@@ -83,6 +83,11 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   CLFDescriptionTemplates: {},
 };
 
+const MOBILE_DEFAULT_PREFERENCES: UserPreferences = {
+  ...DEFAULT_PREFERENCES,
+  navMode: "floating",
+};
+
 const listeners = new Set<() => void>();
 let cachedSnapshot: UserPreferences | null = null;
 let cachedRaw: string | null = null;
@@ -140,13 +145,18 @@ function readProfileRawWithLegacyFallback(profile: PreferenceProfile): string | 
   return legacyRaw;
 }
 
-function parsePreferences(raw: string | null): UserPreferences {
-  if (raw === null) return DEFAULT_PREFERENCES;
+function getDefaultPreferences(profile: PreferenceProfile): UserPreferences {
+  return profile === "mobile" ? MOBILE_DEFAULT_PREFERENCES : DEFAULT_PREFERENCES;
+}
+
+function parsePreferences(raw: string | null, profile: PreferenceProfile): UserPreferences {
+  const defaults = getDefaultPreferences(profile);
+  if (raw === null) return defaults;
 
   try {
-    return { ...DEFAULT_PREFERENCES, ...(JSON.parse(raw) as Partial<UserPreferences>) };
+    return { ...defaults, ...(JSON.parse(raw) as Partial<UserPreferences>) };
   } catch {
-    return DEFAULT_PREFERENCES;
+    return defaults;
   }
 }
 
@@ -189,7 +199,7 @@ function getSnapshot(): UserPreferences {
 
   cachedProfile = profile;
   cachedRaw = stored;
-  cachedSnapshot = parsePreferences(stored);
+  cachedSnapshot = parsePreferences(stored, profile);
   return cachedSnapshot;
 }
 
@@ -212,7 +222,7 @@ function subscribe(listener: () => void) {
 }
 
 function replacePreferencesForProfile(profile: PreferenceProfile, preferences: Partial<UserPreferences>) {
-  const next = { ...DEFAULT_PREFERENCES, ...preferences };
+  const next = { ...getDefaultPreferences(profile), ...preferences };
   const nextRaw = JSON.stringify(next);
   if (readStorageValue(getProfileStorageKey(profile)) === nextRaw) return;
 
@@ -307,7 +317,7 @@ export function usePreferences() {
   const enableSync = useCallback(async () => {
     if (userId === undefined) return;
 
-    const current = parsePreferences(readProfileRawWithLegacyFallback(activeProfile));
+    const current = parsePreferences(readProfileRawWithLegacyFallback(activeProfile), activeProfile);
     const updated = await patchCloudAsync({
       syncEnabled: true,
       ...(activeProfile === "desktop" ? { desktop: current } : { mobile: current }),
