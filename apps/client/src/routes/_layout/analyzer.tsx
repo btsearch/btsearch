@@ -49,6 +49,7 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { saveDraft } from "@/features/submissions/utils/analyzerDraftStore";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "@/lib/analyzer-parsers";
 import { postApiData, showApiError } from "@/lib/api";
@@ -186,7 +187,8 @@ function getMatchedCellNote(cell: MatchedCell | undefined): string | null {
 
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 76, headerHeight: 40, paginationHeight: 49 };
+const DESKTOP_TABLE_PAGINATION_CONFIG = { rowHeight: 60, headerHeight: 40, paginationHeight: 49 };
+const MOBILE_TABLE_PAGINATION_CONFIG = { rowHeight: 76, headerHeight: 40, paginationHeight: 49 };
 
 const columnHelper = createColumnHelper<AnalyzerRow>();
 
@@ -367,8 +369,11 @@ function AnalyzerPage() {
   const { data: session } = authClient.useSession();
   const stationCap = ["editor", "admin"].includes(session?.user?.role ?? "") ? 50 : 25;
 
+  const isMobile = useIsMobile();
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
-  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(
+    isMobile ? MOBILE_TABLE_PAGINATION_CONFIG : DESKTOP_TABLE_PAGINATION_CONFIG,
+  );
   const navActionTarget = useNavActionTarget();
   const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
