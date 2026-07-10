@@ -128,9 +128,8 @@ function getLteBandName(bandValue: number | null | undefined, duplex: "FDD" | "T
 
 function getLocationDescription(cell: CellExportData): string {
   const parts: string[] = [];
-  const locationParts = [cell.address, cell.city].filter(Boolean).join(", ");
+  const locationParts = [cell.city, cell.address].filter(Boolean).join(", ");
   if (locationParts) parts.push(locationParts);
-  if (cell.notes) parts.push(cell.notes);
   return (parts.join(" - ") || cell.station_id).replace(/;/g, ",");
 }
 
@@ -410,6 +409,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
     location: getLocationDescription(cell),
     city: cell.city,
     address: cell.address,
+    notes: cell.notes,
     sector_prefix: getSectorPrefix(cell),
     sector_tag: getSectorTag(cell),
     sector_label: getSectorLabel(cell),

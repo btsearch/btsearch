@@ -35,6 +35,7 @@
       "location": "Location",
       "city": "City",
       "address": "Address",
+      "notes": "Notes",
       "region": "Region",
       "station_id": "Station ID",
       "gsm_band": "GSM band",

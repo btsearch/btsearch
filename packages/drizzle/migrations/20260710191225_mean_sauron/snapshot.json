@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "c7cd729d-a371-401e-b13e-5571ce11a142",
-  "prevIds": [
-    "3d192b90-e624-4f85-a72c-dea2afc0d9bc"
-  ],
+  "prevIds": ["3d192b90-e624-4f85-a72c-dea2afc0d9bc"],
   "ddl": [
     {
       "name": "statistics",
@@ -23,88 +21,55 @@
       "entityType": "schemas"
     },
     {
-      "values": [
-        "indoor",
-        "outdoor"
-      ],
+      "values": ["indoor", "outdoor"],
       "name": "antenna_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "commercial",
-        "railway"
-      ],
+      "values": ["commercial", "railway"],
       "name": "band_variant",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "FDD",
-        "TDD"
-      ],
+      "values": ["FDD", "TDD"],
       "name": "duplex",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "nsa",
-        "sa"
-      ],
+      "values": ["nsa", "sa"],
       "name": "nr_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "permits",
-        "device_registry"
-      ],
+      "values": ["permits", "device_registry"],
       "name": "permits_source",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "published",
-        "inactive",
-        "pending"
-      ],
+      "values": ["published", "inactive", "pending"],
       "name": "station_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "zmP",
-        "P"
-      ],
+      "values": ["zmP", "P"],
       "name": "uke_permission_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "GSM",
-        "CDMA",
-        "UMTS",
-        "LTE",
-        "NR",
-        "IOT"
-      ],
+      "values": ["GSM", "CDMA", "UMTS", "LTE", "NR", "IOT"],
       "name": "rat",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "basic",
-        "pro",
-        "unlimited"
-      ],
+      "values": ["basic", "pro", "unlimited"],
       "name": "api_token_tier",
       "entityType": "enums",
       "schema": "public"
@@ -158,20 +123,13 @@
       "schema": "public"
     },
     {
-      "values": [
-        "api",
-        "import",
-        "system"
-      ],
+      "values": ["api", "import", "system"],
       "name": "audit_source",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "pending",
-        "approved"
-      ],
+      "values": ["pending", "approved"],
       "name": "comment_status",
       "entityType": "enums",
       "schema": "public"
@@ -191,51 +149,31 @@
       "schema": "public"
     },
     {
-      "values": [
-        "user",
-        "moderator",
-        "admin"
-      ],
+      "values": ["user", "moderator", "admin"],
       "name": "role",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "add",
-        "update",
-        "delete"
-      ],
+      "values": ["add", "update", "delete"],
       "name": "cell_operation",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "add",
-        "update",
-        "delete"
-      ],
+      "values": ["add", "update", "delete"],
       "name": "station_operation",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "pending",
-        "approved",
-        "rejected"
-      ],
+      "values": ["pending", "approved", "rejected"],
       "name": "submission_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "new",
-        "update",
-        "delete"
-      ],
+      "values": ["new", "update", "delete"],
       "name": "submission_type",
       "entityType": "enums",
       "schema": "public"
@@ -9661,14 +9599,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "cells_station_id_stations_id_fkey",
@@ -9678,14 +9612,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "band_id"
-      ],
+      "columns": ["band_id"],
       "schemaTo": "public",
       "tableTo": "bands",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "cells_band_id_bands_id_fkey",
@@ -9695,14 +9625,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "sector_id"
-      ],
+      "columns": ["sector_id"],
       "schemaTo": "public",
       "tableTo": "station_sectors",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "cells_sector_id_station_sectors_id_fkey",
@@ -9712,14 +9638,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "import_id"
-      ],
+      "columns": ["import_id"],
       "schemaTo": "uke",
       "tableTo": "uke_import_metadata",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "deleted_entries_import_id_uke_import_metadata_id_fkey",
@@ -9729,14 +9651,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "extra_identificators_station_id_stations_id_fkey",
@@ -9746,14 +9664,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "schemaTo": "public",
       "tableTo": "cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "gsm_cells_cell_id_cells_id_fkey",
@@ -9763,14 +9677,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "region_id"
-      ],
+      "columns": ["region_id"],
       "schemaTo": "public",
       "tableTo": "regions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "locations_region_id_regions_id_fkey",
@@ -9780,14 +9690,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "schemaTo": "public",
       "tableTo": "cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "lte_cells_cell_id_cells_id_fkey",
@@ -9797,14 +9703,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "schemaTo": "public",
       "tableTo": "cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "nr_cells_cell_id_cells_id_fkey",
@@ -9814,14 +9716,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "parent_id"
-      ],
+      "columns": ["parent_id"],
       "schemaTo": "public",
       "tableTo": "operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "operators_parent_id_operators_id_fkey",
@@ -9831,14 +9729,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "manufacturer_id"
-      ],
+      "columns": ["manufacturer_id"],
       "schemaTo": "uke",
       "tableTo": "radiolines_manufacturers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "radiolines_antenna_types_TuOPp7ql9804_fkey",
@@ -9848,14 +9742,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "manufacturer_id"
-      ],
+      "columns": ["manufacturer_id"],
       "schemaTo": "uke",
       "tableTo": "radiolines_manufacturers",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "radiolines_transmitter_types_8oEyuaF5SmFi_fkey",
@@ -9865,14 +9755,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "station_sectors_station_id_stations_id_fkey",
@@ -9882,14 +9768,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "location_id"
-      ],
+      "columns": ["location_id"],
       "schemaTo": "public",
       "tableTo": "locations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "stations_location_id_locations_id_fkey",
@@ -9899,14 +9781,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "operator_id"
-      ],
+      "columns": ["operator_id"],
       "schemaTo": "public",
       "tableTo": "operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "stations_operator_id_operators_id_fkey",
@@ -9916,14 +9794,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permit_id"
-      ],
+      "columns": ["permit_id"],
       "schemaTo": "uke",
       "tableTo": "uke_permits",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "stations_permits_permit_id_uke_permits_id_fkey",
@@ -9933,14 +9807,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "stations_permits_station_id_stations_id_fkey",
@@ -9950,14 +9820,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "operator_id"
-      ],
+      "columns": ["operator_id"],
       "schemaTo": "public",
       "tableTo": "operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "stats_snapshots_operator_id_operators_id_fkey",
@@ -9967,14 +9833,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "band_id"
-      ],
+      "columns": ["band_id"],
       "schemaTo": "public",
       "tableTo": "bands",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "stats_snapshots_band_id_bands_id_fkey",
@@ -9984,14 +9846,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "region_id"
-      ],
+      "columns": ["region_id"],
       "schemaTo": "public",
       "tableTo": "regions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_locations_region_id_regions_id_fkey",
@@ -10001,14 +9859,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permit_id"
-      ],
+      "columns": ["permit_id"],
       "schemaTo": "uke",
       "tableTo": "uke_permits",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_permit_sectors_permit_id_uke_permits_id_fkey",
@@ -10018,14 +9872,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uke_station_id"
-      ],
+      "columns": ["uke_station_id"],
       "schemaTo": "uke",
       "tableTo": "uke_stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_permits_uke_station_id_uke_stations_id_fkey",
@@ -10035,14 +9885,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "band_id"
-      ],
+      "columns": ["band_id"],
       "schemaTo": "public",
       "tableTo": "bands",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_permits_band_id_bands_id_fkey",
@@ -10052,14 +9898,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "tx_transmitter_type_id"
-      ],
+      "columns": ["tx_transmitter_type_id"],
       "schemaTo": "uke",
       "tableTo": "radiolines_transmitter_types",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "uke_radiolines_xpP9wLlwGhu5_fkey",
@@ -10069,14 +9911,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "tx_antenna_type_id"
-      ],
+      "columns": ["tx_antenna_type_id"],
       "schemaTo": "uke",
       "tableTo": "radiolines_antenna_types",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "uke_radiolines_uhDc8hacOF2B_fkey",
@@ -10086,14 +9924,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "rx_antenna_type_id"
-      ],
+      "columns": ["rx_antenna_type_id"],
       "schemaTo": "uke",
       "tableTo": "radiolines_antenna_types",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "uke_radiolines_VhBmnsa9wuqD_fkey",
@@ -10103,14 +9937,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "operator_id"
-      ],
+      "columns": ["operator_id"],
       "schemaTo": "uke",
       "tableTo": "uke_operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "uke_radiolines_operator_id_uke_operators_id_fkey",
@@ -10120,14 +9950,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "operator_id"
-      ],
+      "columns": ["operator_id"],
       "schemaTo": "public",
       "tableTo": "operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_stations_operator_id_operators_id_fkey",
@@ -10137,14 +9963,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "location_id"
-      ],
+      "columns": ["location_id"],
       "schemaTo": "uke",
       "tableTo": "uke_locations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "uke_stations_location_id_uke_locations_id_fkey",
@@ -10154,14 +9976,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "schemaTo": "public",
       "tableTo": "cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "umts_cells_cell_id_cells_id_fkey",
@@ -10171,14 +9989,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "accounts_user_id_users_id_fkey",
@@ -10188,14 +10002,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "author_id"
-      ],
+      "columns": ["author_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "attachments_author_id_users_id_fkey",
@@ -10205,14 +10015,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "invoked_by"
-      ],
+      "columns": ["invoked_by"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "audit_logs_invoked_by_users_id_fkey",
@@ -10222,14 +10028,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "location_id"
-      ],
+      "columns": ["location_id"],
       "schemaTo": "public",
       "tableTo": "locations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "location_photos_location_id_locations_id_fkey",
@@ -10239,14 +10041,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "attachment_id"
-      ],
+      "columns": ["attachment_id"],
       "schemaTo": "public",
       "tableTo": "attachments",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "location_photos_attachment_id_attachments_id_fkey",
@@ -10256,14 +10054,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uploaded_by"
-      ],
+      "columns": ["uploaded_by"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "SET NULL",
       "name": "location_photos_uploaded_by_users_id_fkey",
@@ -10273,14 +10067,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "notifications_user_id_users_id_fkey",
@@ -10290,14 +10080,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "notifications_station_id_stations_id_fkey",
@@ -10307,14 +10093,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uke_station_id"
-      ],
+      "columns": ["uke_station_id"],
       "schemaTo": "uke",
       "tableTo": "uke_stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "notifications_uke_station_id_uke_stations_id_fkey",
@@ -10324,14 +10106,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "passkeys_user_id_users_id_fkey",
@@ -10341,14 +10119,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "push_subscriptions_user_id_users_id_fkey",
@@ -10358,14 +10132,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "station_comments_station_id_stations_id_fkey",
@@ -10375,14 +10145,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "station_comments_user_id_users_id_fkey",
@@ -10392,14 +10158,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "station_photo_selections_station_id_stations_id_fkey",
@@ -10409,14 +10171,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "location_photo_id"
-      ],
+      "columns": ["location_photo_id"],
       "schemaTo": "public",
       "tableTo": "location_photos",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "station_photo_selections_DlZfTLiFS2ZA_fkey",
@@ -10426,14 +10184,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "station_watches_user_id_users_id_fkey",
@@ -10443,14 +10197,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "station_watches_station_id_stations_id_fkey",
@@ -10460,14 +10210,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "two_factors_user_id_users_id_fkey",
@@ -10477,14 +10223,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "uke_station_watches_user_id_users_id_fkey",
@@ -10494,14 +10236,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uke_station_id"
-      ],
+      "columns": ["uke_station_id"],
       "schemaTo": "uke",
       "tableTo": "uke_stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "uke_station_watches_uke_station_id_uke_stations_id_fkey",
@@ -10511,14 +10249,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by"
-      ],
+      "columns": ["created_by"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "user_lists_created_by_users_id_fkey",
@@ -10528,14 +10262,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_cells_submission_id_submissions_id_fkey",
@@ -10545,14 +10275,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "target_cell_id"
-      ],
+      "columns": ["target_cell_id"],
       "schemaTo": "public",
       "tableTo": "cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_cells_target_cell_id_cells_id_fkey",
@@ -10562,14 +10288,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_cells_station_id_stations_id_fkey",
@@ -10579,14 +10301,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "band_id"
-      ],
+      "columns": ["band_id"],
       "schemaTo": "public",
       "tableTo": "bands",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_cells_band_id_bands_id_fkey",
@@ -10596,14 +10314,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "target_sector_id"
-      ],
+      "columns": ["target_sector_id"],
       "schemaTo": "public",
       "tableTo": "station_sectors",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "proposed_cells_target_sector_id_station_sectors_id_fkey",
@@ -10613,14 +10327,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "schemaTo": "submissions",
       "tableTo": "proposed_cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_gsm_cells_proposed_cell_id_proposed_cells_id_fkey",
@@ -10630,14 +10340,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "schemaTo": "submissions",
       "tableTo": "proposed_cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_lte_cells_proposed_cell_id_proposed_cells_id_fkey",
@@ -10647,14 +10353,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_locations_submission_id_submissions_id_fkey",
@@ -10664,14 +10366,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "region_id"
-      ],
+      "columns": ["region_id"],
       "schemaTo": "public",
       "tableTo": "regions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_locations_region_id_regions_id_fkey",
@@ -10681,14 +10379,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "schemaTo": "submissions",
       "tableTo": "proposed_cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_nr_cells_proposed_cell_id_proposed_cells_id_fkey",
@@ -10698,14 +10392,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_sectors_submission_id_submissions_id_fkey",
@@ -10715,14 +10405,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "target_sector_id"
-      ],
+      "columns": ["target_sector_id"],
       "schemaTo": "public",
       "tableTo": "station_sectors",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "proposed_sectors_target_sector_id_station_sectors_id_fkey",
@@ -10732,14 +10418,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_stations_submission_id_submissions_id_fkey",
@@ -10749,14 +10431,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "target_station_id"
-      ],
+      "columns": ["target_station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "proposed_stations_target_station_id_stations_id_fkey",
@@ -10766,14 +10444,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "operator_id"
-      ],
+      "columns": ["operator_id"],
       "schemaTo": "public",
       "tableTo": "operators",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "proposed_stations_operator_id_operators_id_fkey",
@@ -10783,14 +10457,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "schemaTo": "submissions",
       "tableTo": "proposed_cells",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "proposed_umts_cells_proposed_cell_id_proposed_cells_id_fkey",
@@ -10800,14 +10470,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "submission_location_photo_selections_SehhFYcBuZac_fkey",
@@ -10817,14 +10483,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "location_photo_id"
-      ],
+      "columns": ["location_photo_id"],
       "schemaTo": "public",
       "tableTo": "location_photos",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "submission_location_photo_selections_ZpF2y9rVXtAs_fkey",
@@ -10834,14 +10496,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submission_id"
-      ],
+      "columns": ["submission_id"],
       "schemaTo": "submissions",
       "tableTo": "submissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "submission_photos_submission_id_submissions_id_fkey",
@@ -10851,14 +10509,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "station_id"
-      ],
+      "columns": ["station_id"],
       "schemaTo": "public",
       "tableTo": "stations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "submissions_station_id_stations_id_fkey",
@@ -10868,14 +10522,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "submitter_id"
-      ],
+      "columns": ["submitter_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "CASCADE",
       "name": "submissions_submitter_id_users_id_fkey",
@@ -10885,14 +10535,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "reviewer_id"
-      ],
+      "columns": ["reviewer_id"],
       "schemaTo": "auth",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "CASCADE",
       "onDelete": "SET NULL",
       "name": "submissions_reviewer_id_users_id_fkey",
@@ -10901,10 +10547,7 @@
       "table": "submissions"
     },
     {
-      "columns": [
-        "submission_id",
-        "location_photo_id"
-      ],
+      "columns": ["submission_id", "location_photo_id"],
       "nameExplicit": false,
       "name": "submission_location_photo_selections_pkey",
       "entityType": "pks",
@@ -10912,9 +10555,7 @@
       "table": "submission_location_photo_selections"
     },
     {
-      "columns": [
-        "date"
-      ],
+      "columns": ["date"],
       "nameExplicit": false,
       "name": "analyzer_usage_pkey",
       "schema": "statistics",
@@ -10922,9 +10563,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "bands_pkey",
       "schema": "public",
@@ -10932,9 +10571,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "cells_pkey",
       "schema": "public",
@@ -10942,9 +10579,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "contribution_snapshots_pkey",
       "schema": "statistics",
@@ -10952,9 +10587,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "deleted_entries_pkey",
       "schema": "public",
@@ -10962,9 +10595,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "extra_identificators_pkey",
       "schema": "public",
@@ -10972,9 +10603,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "nameExplicit": false,
       "name": "gsm_cells_pkey",
       "schema": "public",
@@ -10982,9 +10611,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "locations_pkey",
       "schema": "public",
@@ -10992,9 +10619,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "nameExplicit": false,
       "name": "lte_cells_pkey",
       "schema": "public",
@@ -11002,9 +10627,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "nameExplicit": false,
       "name": "nr_cells_pkey",
       "schema": "public",
@@ -11012,9 +10635,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "operators_pkey",
       "schema": "public",
@@ -11022,9 +10643,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "radiolines_manufacturers_pkey",
       "schema": "uke",
@@ -11032,9 +10651,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "radiolines_antenna_types_pkey",
       "schema": "uke",
@@ -11042,9 +10659,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "radiolines_transmitter_types_pkey",
       "schema": "uke",
@@ -11052,9 +10667,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "regions_pkey",
       "schema": "public",
@@ -11062,9 +10675,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "station_sectors_pkey",
       "schema": "public",
@@ -11072,9 +10683,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "stations_pkey",
       "schema": "public",
@@ -11082,9 +10691,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "stations_permits_pkey",
       "schema": "public",
@@ -11092,9 +10699,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "stats_snapshots_pkey",
       "schema": "statistics",
@@ -11102,9 +10707,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_import_metadata_pkey",
       "schema": "uke",
@@ -11112,9 +10715,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_locations_pkey",
       "schema": "uke",
@@ -11122,9 +10723,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_operators_pkey",
       "schema": "uke",
@@ -11132,9 +10731,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_permit_sectors_pkey",
       "schema": "uke",
@@ -11142,9 +10739,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_permits_pkey",
       "schema": "uke",
@@ -11152,9 +10747,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_radiolines_pkey",
       "schema": "uke",
@@ -11162,9 +10755,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_stations_pkey",
       "schema": "uke",
@@ -11172,9 +10763,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "cell_id"
-      ],
+      "columns": ["cell_id"],
       "nameExplicit": false,
       "name": "umts_cells_pkey",
       "schema": "public",
@@ -11182,9 +10771,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "accounts_pkey",
       "schema": "auth",
@@ -11192,9 +10779,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "apikeys_pkey",
       "schema": "auth",
@@ -11202,9 +10787,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "attachments_pkey",
       "schema": "public",
@@ -11212,9 +10795,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_logs_pkey",
       "schema": "public",
@@ -11222,9 +10803,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "location_photos_pkey",
       "schema": "public",
@@ -11232,9 +10811,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "notifications_pkey",
       "schema": "public",
@@ -11242,9 +10819,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "passkeys_pkey",
       "schema": "auth",
@@ -11252,9 +10827,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "push_subscriptions_pkey",
       "schema": "public",
@@ -11262,9 +10835,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "station_comments_pkey",
       "schema": "public",
@@ -11272,9 +10843,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "station_photo_selections_pkey",
       "schema": "public",
@@ -11282,9 +10851,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "station_watches_pkey",
       "schema": "public",
@@ -11292,9 +10859,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "two_factors_pkey",
       "schema": "auth",
@@ -11302,9 +10867,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "uke_station_watches_pkey",
       "schema": "uke",
@@ -11312,9 +10875,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_lists_pkey",
       "schema": "public",
@@ -11322,9 +10883,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "auth",
@@ -11332,9 +10891,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "verification_tokens_pkey",
       "schema": "auth",
@@ -11342,9 +10899,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "proposed_cells_pkey",
       "schema": "submissions",
@@ -11352,9 +10907,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "nameExplicit": false,
       "name": "proposed_gsm_cells_pkey",
       "schema": "submissions",
@@ -11362,9 +10915,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "nameExplicit": false,
       "name": "proposed_lte_cells_pkey",
       "schema": "submissions",
@@ -11372,9 +10923,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "proposed_locations_pkey",
       "schema": "submissions",
@@ -11382,9 +10931,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "nameExplicit": false,
       "name": "proposed_nr_cells_pkey",
       "schema": "submissions",
@@ -11392,9 +10939,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "proposed_sectors_pkey",
       "schema": "submissions",
@@ -11402,9 +10947,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "proposed_stations_pkey",
       "schema": "submissions",
@@ -11412,9 +10955,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "proposed_cell_id"
-      ],
+      "columns": ["proposed_cell_id"],
       "nameExplicit": false,
       "name": "proposed_umts_cells_pkey",
       "schema": "submissions",
@@ -11422,9 +10963,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "submission_photos_pkey",
       "schema": "submissions",
@@ -11432,9 +10971,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "submissions_pkey",
       "schema": "submissions",
@@ -11443,12 +10980,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "rat",
-        "value",
-        "duplex",
-        "variant"
-      ],
+      "columns": ["rat", "value", "duplex", "variant"],
       "nullsNotDistinct": true,
       "name": "bands_rat_value_unique",
       "entityType": "uniques",
@@ -11457,9 +10989,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "bands_name_unique",
       "entityType": "uniques",
@@ -11468,9 +10998,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "snapshot_date"
-      ],
+      "columns": ["snapshot_date"],
       "nullsNotDistinct": false,
       "name": "contribution_snapshots_date_unique",
       "entityType": "uniques",
@@ -11479,10 +11007,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "networks_id"
-      ],
+      "columns": ["station_id", "networks_id"],
       "nullsNotDistinct": true,
       "name": "extra_identificators_networks_id_unique",
       "entityType": "uniques",
@@ -11491,11 +11016,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "cell_id",
-        "lac",
-        "cid"
-      ],
+      "columns": ["cell_id", "lac", "cid"],
       "nullsNotDistinct": false,
       "name": "gsm_cells_lac_cid_unique",
       "entityType": "uniques",
@@ -11504,10 +11025,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "longitude",
-        "latitude"
-      ],
+      "columns": ["longitude", "latitude"],
       "nullsNotDistinct": false,
       "name": "locations_lonlat_unique",
       "entityType": "uniques",
@@ -11516,11 +11034,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "cell_id",
-        "enbid",
-        "clid"
-      ],
+      "columns": ["cell_id", "enbid", "clid"],
       "nullsNotDistinct": false,
       "name": "lte_cells_enbid_clid_unique",
       "entityType": "uniques",
@@ -11529,10 +11043,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "azimuth"
-      ],
+      "columns": ["station_id", "azimuth"],
       "nullsNotDistinct": false,
       "name": "station_sectors_station_azimuth_unique",
       "entityType": "uniques",
@@ -11541,10 +11052,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "operator_id"
-      ],
+      "columns": ["station_id", "operator_id"],
       "nullsNotDistinct": false,
       "name": "stations_station_id_operator_unique",
       "entityType": "uniques",
@@ -11553,10 +11061,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "permit_id"
-      ],
+      "columns": ["station_id", "permit_id"],
       "nullsNotDistinct": false,
       "name": "stations_permits_pair_unique",
       "entityType": "uniques",
@@ -11565,11 +11070,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "snapshot_date",
-        "operator_id",
-        "band_id"
-      ],
+      "columns": ["snapshot_date", "operator_id", "band_id"],
       "nullsNotDistinct": false,
       "name": "stats_snapshots_date_operator_band_unique",
       "entityType": "uniques",
@@ -11578,10 +11079,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "longitude",
-        "latitude"
-      ],
+      "columns": ["longitude", "latitude"],
       "nullsNotDistinct": false,
       "name": "uke_locations_lonlat_unique",
       "entityType": "uniques",
@@ -11590,13 +11088,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "permit_id",
-        "azimuth",
-        "elevation",
-        "antenna_height",
-        "antenna_type"
-      ],
+      "columns": ["permit_id", "azimuth", "elevation", "antenna_height", "antenna_type"],
       "nullsNotDistinct": false,
       "name": "uke_permit_sectors_unique",
       "entityType": "uniques",
@@ -11605,13 +11097,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "uke_station_id",
-        "band_id",
-        "decision_number",
-        "decision_type",
-        "expiry_date"
-      ],
+      "columns": ["uke_station_id", "band_id", "decision_number", "decision_type", "expiry_date"],
       "nullsNotDistinct": false,
       "name": "uke_permits_unique_permit",
       "entityType": "uniques",
@@ -11620,10 +11106,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "permit_number",
-        "physical_key"
-      ],
+      "columns": ["permit_number", "physical_key"],
       "nullsNotDistinct": false,
       "name": "uke_radiolines_natural_key",
       "entityType": "uniques",
@@ -11632,11 +11115,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "operator_id",
-        "location_id"
-      ],
+      "columns": ["station_id", "operator_id", "location_id"],
       "nullsNotDistinct": false,
       "name": "uke_stations_station_operator_location_unique",
       "entityType": "uniques",
@@ -11645,11 +11124,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "cell_id",
-        "rnc",
-        "cid"
-      ],
+      "columns": ["cell_id", "rnc", "cid"],
       "nullsNotDistinct": false,
       "name": "umts_cells_rnc_cid_unique",
       "entityType": "uniques",
@@ -11658,10 +11133,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "location_id",
-        "attachment_id"
-      ],
+      "columns": ["location_id", "attachment_id"],
       "nullsNotDistinct": false,
       "name": "location_photos_location_attachment_unique",
       "entityType": "uniques",
@@ -11670,10 +11142,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "station_id",
-        "location_photo_id"
-      ],
+      "columns": ["station_id", "location_photo_id"],
       "nullsNotDistinct": false,
       "name": "station_photo_selections_unique",
       "entityType": "uniques",
@@ -11682,10 +11151,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "user_id",
-        "station_id"
-      ],
+      "columns": ["user_id", "station_id"],
       "nullsNotDistinct": false,
       "name": "station_watches_user_station_unique",
       "entityType": "uniques",
@@ -11694,10 +11160,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "user_id",
-        "uke_station_id"
-      ],
+      "columns": ["user_id", "uke_station_id"],
       "nullsNotDistinct": false,
       "name": "uke_station_watches_user_station_unique",
       "entityType": "uniques",
@@ -11706,10 +11169,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "created_by",
-        "name"
-      ],
+      "columns": ["created_by", "name"],
       "nullsNotDistinct": false,
       "name": "user_lists_creator_name_unique",
       "entityType": "uniques",
@@ -11718,10 +11178,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "submission_id",
-        "target_cell_id"
-      ],
+      "columns": ["submission_id", "target_cell_id"],
       "nullsNotDistinct": false,
       "name": "proposed_cells_unique",
       "entityType": "uniques",
@@ -11730,10 +11187,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "submission_id",
-        "local_id"
-      ],
+      "columns": ["submission_id", "local_id"],
       "nullsNotDistinct": false,
       "name": "proposed_sectors_submission_local_unique",
       "entityType": "uniques",
@@ -11742,10 +11196,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "submission_id",
-        "station_id"
-      ],
+      "columns": ["submission_id", "station_id"],
       "nullsNotDistinct": false,
       "name": "proposed_stations_submission_station_unique",
       "entityType": "uniques",
@@ -11754,10 +11205,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "submission_id",
-        "attachment_id"
-      ],
+      "columns": ["submission_id", "attachment_id"],
       "nullsNotDistinct": false,
       "name": "submission_photos_unique",
       "entityType": "uniques",
@@ -11766,9 +11214,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "operators_name_key",
       "schema": "public",
@@ -11777,9 +11223,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "mnc"
-      ],
+      "columns": ["mnc"],
       "nullsNotDistinct": false,
       "name": "operators_mnc_key",
       "schema": "public",
@@ -11788,9 +11232,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "radiolines_manufacturers_name_key",
       "schema": "uke",
@@ -11799,9 +11241,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "radiolines_antenna_types_name_key",
       "schema": "uke",
@@ -11810,9 +11250,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "radiolines_transmitter_types_name_key",
       "schema": "uke",
@@ -11821,9 +11259,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "regions_name_key",
       "schema": "public",
@@ -11832,9 +11268,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "code"
-      ],
+      "columns": ["code"],
       "nullsNotDistinct": false,
       "name": "regions_code_key",
       "schema": "public",
@@ -11843,9 +11277,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nullsNotDistinct": false,
       "name": "uke_operators_name_key",
       "schema": "uke",
@@ -11854,9 +11286,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uuid"
-      ],
+      "columns": ["uuid"],
       "nullsNotDistinct": false,
       "name": "attachments_uuid_key",
       "schema": "public",
@@ -11865,9 +11295,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "endpoint"
-      ],
+      "columns": ["endpoint"],
       "nullsNotDistinct": false,
       "name": "push_subscriptions_endpoint_key",
       "schema": "public",
@@ -11876,9 +11304,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "uuid"
-      ],
+      "columns": ["uuid"],
       "nullsNotDistinct": false,
       "name": "user_lists_uuid_key",
       "schema": "public",
@@ -11887,9 +11313,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "username"
-      ],
+      "columns": ["username"],
       "nullsNotDistinct": false,
       "name": "users_username_key",
       "schema": "auth",
@@ -11898,9 +11322,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "email"
-      ],
+      "columns": ["email"],
       "nullsNotDistinct": false,
       "name": "users_email_key",
       "schema": "auth",
@@ -11909,9 +11331,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "value"
-      ],
+      "columns": ["value"],
       "nullsNotDistinct": false,
       "name": "verification_tokens_value_key",
       "schema": "auth",

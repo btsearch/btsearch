@@ -28,11 +28,11 @@ export const CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT = {
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_TEMPLATE_DEFAULTS = {
-  GSM: "{unconfirmed_prefix} {sector_prefix} {location} [{station_id} {gsm_band}]",
-  UMTS: "{unconfirmed_prefix} {sector_prefix} {location} [{station_id} {umts_band} {umts_rnc}:{umts_cid}]",
-  LTE: "{unconfirmed_prefix} {sector_prefix} {location} [{station_id} L{lte_band_value}:{lte_enbid}:{lte_clid} {nr_band}:{nr_pcis}]",
-  NR_NSA: "{unconfirmed_prefix} {sector_prefix} {location} [{station_id} {nr_band}:{nr_pci}]",
-  NR: "{unconfirmed_prefix} {sector_prefix} {location} [{station_id} {nr_gnbid}:{nr_clid} {nr_band}:{nr_pci}]",
+  GSM: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {gsm_band}]",
+  UMTS: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {umts_band} {umts_rnc}:{umts_cid}]",
+  LTE: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} L{lte_band_value}:{lte_enbid}:{lte_clid} {nr_band}:{nr_pcis}]",
+  NR_NSA: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {nr_band}:{nr_pci}]",
+  NR: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {nr_gnbid}:{nr_clid} {nr_band}:{nr_pci}]",
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
@@ -45,6 +45,7 @@ export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
   "location",
   "city",
   "address",
+  "notes",
   "region",
   "station_id",
 ] as const;
@@ -79,9 +80,10 @@ const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
   sector_label: "S1",
   sector_number: "1",
   sector_azimuth: "120°",
-  location: "ul. Bazyliańska 18 - dach bloku mieszkalnego, Warszawa - Targówek",
+  location: "Warszawa - Targówek, ul. Bazyliańska 18",
   city: "Warszawa - Targówek",
-  address: "ul. Bazyliańska 18 - dach bloku mieszkalnego",
+  address: "ul. Bazyliańska 18",
+  notes: "dach bloku mieszkalnego",
   region: "MAZ",
   station_id: "WAR2257",
 } as const satisfies Record<CLFDescriptionCommonTemplatePlaceholder, string>;
@@ -142,51 +144,107 @@ export const CLF_DESCRIPTION_TEMPLATE_PREVIEW_VALUES: Record<CLFDescriptionTempl
 };
 
 const TEMPLATE_VAR_RE = /\{(\w+)\}/g;
-const SEPARATOR_CLEANUP_PLACEHOLDERS = new Set(["lte_pci", "nr_pci", "nr_pcis", "nr_band"]);
-const OPTIONAL_PREFIX_PLACEHOLDERS = new Set(["unconfirmed_prefix", "sector_prefix"]);
+const BRACKET_GROUP_RE = /\[([^[\]]*)\]/g;
 
-function shouldRenderEmptyPlaceholder(key: string): boolean {
-  return !SEPARATOR_CLEANUP_PLACEHOLDERS.has(key) && !OPTIONAL_PREFIX_PLACEHOLDERS.has(key);
-}
+type CLFTemplateToken = { type: "literal"; text: string } | { type: "value"; text: string } | { type: "group"; tokens: CLFTemplateToken[] };
 
-function getNextIndexAfterOptionalPrefix(template: string, nextIndex: number): number {
-  if (template[nextIndex] === " ") return nextIndex + 1;
-  return nextIndex;
-}
+type CLFEvaluatedToken = { type: "literal"; text: string } | { type: "value"; text: string; dropped: boolean };
 
-function trimTrailingSeparator(value: string): string {
-  return value.replace(/[ :]$/, "");
-}
-
-export function renderCLFDescriptionTemplate(template: string, getValue: (key: string) => string): string {
-  let output = "";
+function tokenizeCLFSegment(content: string, getValue: (key: string) => string): CLFTemplateToken[] {
+  const tokens: CLFTemplateToken[] = [];
   let lastIndex = 0;
 
-  for (const match of template.matchAll(TEMPLATE_VAR_RE)) {
+  for (const match of content.matchAll(TEMPLATE_VAR_RE)) {
     const key = match[1];
     const index = match.index;
     if (key === undefined || index === undefined) continue;
 
-    const nextIndex = index + match[0].length;
-    output += template.slice(lastIndex, index);
-
-    const value = getValue(key);
-    if (value || shouldRenderEmptyPlaceholder(key)) {
-      output += value;
-      lastIndex = nextIndex;
-      continue;
-    }
-
-    if (OPTIONAL_PREFIX_PLACEHOLDERS.has(key) && !output.endsWith(" ")) {
-      lastIndex = getNextIndexAfterOptionalPrefix(template, nextIndex);
-      continue;
-    }
-
-    output = trimTrailingSeparator(output);
-    lastIndex = nextIndex;
+    if (index > lastIndex) tokens.push({ type: "literal", text: content.slice(lastIndex, index) });
+    tokens.push({ type: "value", text: getValue(key) });
+    lastIndex = index + match[0].length;
   }
 
-  return output + template.slice(lastIndex);
+  if (lastIndex < content.length) tokens.push({ type: "literal", text: content.slice(lastIndex) });
+  return tokens;
+}
+
+function tokenizeCLFTemplate(template: string, getValue: (key: string) => string): CLFTemplateToken[] {
+  const tokens: CLFTemplateToken[] = [];
+  let lastIndex = 0;
+
+  for (const match of template.matchAll(BRACKET_GROUP_RE)) {
+    const index = match.index;
+    const groupContent = match[1];
+    if (index === undefined || groupContent === undefined) continue;
+
+    if (index > lastIndex) tokens.push(...tokenizeCLFSegment(template.slice(lastIndex, index), getValue));
+    tokens.push({ type: "group", tokens: tokenizeCLFSegment(groupContent, getValue) });
+    lastIndex = index + match[0].length;
+  }
+
+  if (lastIndex < template.length) tokens.push(...tokenizeCLFSegment(template.slice(lastIndex), getValue));
+  return tokens;
+}
+
+function evaluateCLFTokens(tokens: CLFTemplateToken[]): CLFEvaluatedToken[] {
+  return tokens.map((token) => {
+    if (token.type === "literal") return token;
+    if (token.type === "value") return { type: "value", text: token.text, dropped: token.text === "" };
+
+    const rendered = renderCLFTokens(token.tokens);
+    return { type: "value", text: rendered ? `[${rendered}]` : "", dropped: rendered === "" };
+  });
+}
+
+function isDroppedCLFValue(token: CLFEvaluatedToken | undefined): boolean {
+  if (token === undefined) return false;
+  return token.type === "value" && token.dropped;
+}
+
+function renderCLFTokens(tokens: CLFTemplateToken[]): string {
+  const evaluated = evaluateCLFTokens(tokens);
+  const parts = evaluated.map((token) => (token.type === "value" && token.dropped ? "" : token.text));
+
+  let i = 0;
+  while (i < evaluated.length) {
+    if (!isDroppedCLFValue(evaluated[i])) {
+      i++;
+      continue;
+    }
+
+    let j = i;
+    while (true) {
+      if (isDroppedCLFValue(evaluated[j + 1])) {
+        j += 1;
+        continue;
+      }
+      if (evaluated[j + 1]?.type === "literal" && isDroppedCLFValue(evaluated[j + 2])) {
+        j += 2;
+        continue;
+      }
+      break;
+    }
+
+    for (let k = i; k <= j; k++) {
+      if (evaluated[k]?.type === "literal") parts[k] = "";
+    }
+
+    const beforeIndex = i - 1;
+    const afterIndex = j + 1;
+    if (beforeIndex >= 0) {
+      if (evaluated[beforeIndex]?.type === "literal") parts[beforeIndex] = "";
+    } else if (evaluated[afterIndex]?.type === "literal") {
+      parts[afterIndex] = "";
+    }
+
+    i = j + 1;
+  }
+
+  return parts.join("");
+}
+
+export function renderCLFDescriptionTemplate(template: string, getValue: (key: string) => string): string {
+  return renderCLFTokens(tokenizeCLFTemplate(template, getValue));
 }
 
 export function normalizeCLFDescriptionTemplates(templates: CLFDescriptionTemplates): CLFDescriptionTemplates {

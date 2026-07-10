@@ -35,6 +35,7 @@
       "location": "Lokalizacja",
       "city": "Miasto",
       "address": "Adres",
+      "notes": "Notatki",
       "region": "Region",
       "station_id": "ID Stacji",
       "gsm_band": "Pasmo GSM",

@@ -11,7 +11,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Radioline details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
 - On desktop, up to two radioline detail dialogs can now be opened, moved, resized and focused independently
 - Floating navigation is now the default for new mobile preference profiles
-- CLF description templates now support `{city}` and `{address}` placeholders, resolving to the station’s city and address
+- CLF description templates now support `{city}`, `{address}` and `{notes}` placeholders, resolving to the station’s city, address and cell notes; empty optional placeholders remove their enclosing template fragments
 
 ### 🩹 Fixes
 
