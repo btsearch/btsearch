@@ -37,7 +37,7 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
         <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 ml-auto text-muted-foreground transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
 
-      <CollapsibleContent>
+      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
         <div ref={scrollRef} className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

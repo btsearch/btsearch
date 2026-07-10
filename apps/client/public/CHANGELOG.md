@@ -7,12 +7,14 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Station and UKE permit dialogs now use a cleaner, card-free basic information layout
 - Station and UKE permit dialogs now use cleaner, more compact headers with consistent quick-action controls; station dialogs also use rounded tab navigation
+- Cell and permit tables in station and UKE permit dialogs now resize smoothly when expanded or collapsed
 - Radioline details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
 - On desktop, up to two radioline detail dialogs can now be opened, moved, resized and focused independently
 
 ### 🩹 Fixes
 
 - New station submissions without cells now require at least one photo
+- Station popups on the map no longer leave cell technology loading placeholders visible for stations without cells
 
 # 2026-07-09
 

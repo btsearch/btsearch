@@ -65,7 +65,13 @@ export async function fetchLocationWithStations(locationId: number, filters: Sta
   const result = await fetchJson<{ data: LocationWithStations }>(`${API_BASE}/locations/${locationId}${filter}`, {
     proto: LocationResponseSchema,
   });
-  return result.data;
+  return {
+    ...result.data,
+    stations: result.data.stations.map((station) => ({
+      ...station,
+      cells: station.cells ?? [],
+    })),
+  };
 }
 
 export async function fetchUkePermitsByStationId(stationId: string, operator?: number | null): Promise<UkePermit[]> {
