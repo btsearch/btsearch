@@ -248,6 +248,7 @@
       "actionsCount_one": "{{count, number}} action",
       "actionsCount_other": "{{count, number}} actions",
       "dateFrom": "From",
+      "dateRange": "Date range",
       "dateTo": "To",
       "recordId": "Record ID",
       "userId": "User ID",

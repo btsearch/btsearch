@@ -1,21 +1,37 @@
-import { AlertCircleIcon, ArrowDown01Icon, Cancel01Icon, Search01Icon, Sorting05Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  Activity01Icon,
+  AlertCircleIcon,
+  ArrowDown01Icon,
+  Calendar03Icon,
+  Cancel01Icon,
+  Note01Icon,
+  Search01Icon,
+  Sorting05Icon,
+  Tick02Icon,
+  UserIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
+import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavActionTarget } from "@/contexts/navActions";
 import { AuditLogDetailSheet } from "@/features/admin/audit-logs/components/audit-log-detail-sheet";
 import { DatePickerButton } from "@/features/admin/audit-logs/components/date-picker-button";
+import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
@@ -174,11 +190,157 @@ function ActionsFilterButton({
   );
 }
 
+type AuditLogsMobileFilterRailProps = {
+  tableFilter: string;
+  actionsFilter: string[];
+  dateFrom: string;
+  dateTo: string;
+  queryFilter: string;
+  selectedUserIds: string[];
+  getTableLabel: (table: string) => string;
+  onTableChange: (value: string) => void;
+  onActionsChange: (value: string[]) => void;
+  onDateFromChange: (value: string) => void;
+  onDateToChange: (value: string) => void;
+  onQueryChange: (value: string) => void;
+  onUsersChange: (ids: string[]) => void;
+  onClear: () => void;
+};
+
+function AuditLogsMobileFilterRail({
+  tableFilter,
+  actionsFilter,
+  dateFrom,
+  dateTo,
+  queryFilter,
+  selectedUserIds,
+  getTableLabel,
+  onTableChange,
+  onActionsChange,
+  onDateFromChange,
+  onDateToChange,
+  onQueryChange,
+  onUsersChange,
+  onClear,
+}: AuditLogsMobileFilterRailProps) {
+  const { t } = useTranslation(["admin", "common", "stationDetails"]);
+  const hasActiveFilters = Boolean(tableFilter || actionsFilter.length || dateFrom || dateTo || queryFilter || selectedUserIds.length);
+
+  return (
+    <div className="flex items-center gap-1">
+      <MobileFilterChip active={Boolean(queryFilter)} icon={Search01Icon} label={t("auditLogs.filters.recordId")}>
+        <MobileFilterPanelTitle>{t("auditLogs.filters.recordId")}</MobileFilterPanelTitle>
+        <div className="relative">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            className="h-9 w-full pl-8 pr-8"
+            placeholder={t("auditLogs.filters.recordId")}
+            value={queryFilter}
+            onChange={(event) => onQueryChange(event.currentTarget.value)}
+          />
+          {queryFilter ? (
+            <button
+              type="button"
+              onClick={() => onQueryChange("")}
+              className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("common:actions.clear")}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={Boolean(tableFilter)} icon={Note01Icon} label={t("auditLogs.columns.entity")}>
+        <MobileFilterPanelTitle>{t("auditLogs.columns.entity")}</MobileFilterPanelTitle>
+        <div className="grid max-h-64 gap-1 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => onTableChange("")}
+            className={cn("h-8 rounded-md px-2 text-left text-sm transition-colors", !tableFilter ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+          >
+            {t("auditLogs.filters.allEntities")}
+          </button>
+          {TABLE_OPTIONS.map((table) => (
+            <button
+              key={table}
+              type="button"
+              onClick={() => onTableChange(table)}
+              className={cn(
+                "h-8 rounded-md px-2 text-left text-sm transition-colors",
+                tableFilter === table ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              {getTableLabel(table)}
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={actionsFilter.length > 0} count={actionsFilter.length} icon={Activity01Icon} label={t("auditLogs.columns.action")}>
+        <MobileFilterPanelTitle>{t("auditLogs.columns.action")}</MobileFilterPanelTitle>
+        <div className="grid max-h-64 gap-1 overflow-y-auto">
+          {ACTION_GROUPS.flatMap((group) => group.actions).map((action) => {
+            const selected = actionsFilter.includes(action);
+            return (
+              <button
+                key={action}
+                type="button"
+                onClick={() => onActionsChange(selected ? actionsFilter.filter((value) => value !== action) : [...actionsFilter, action])}
+                className={cn(
+                  "flex h-8 items-center rounded-md px-2 text-left text-sm transition-colors",
+                  selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate font-mono">{action}</span>
+              </button>
+            );
+          })}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={selectedUserIds.length > 0} count={selectedUserIds.length} icon={UserIcon} label={t("auditLogs.columns.actor")}>
+        <MobileFilterPanelTitle>{t("auditLogs.columns.actor")}</MobileFilterPanelTitle>
+        <UserPicker selectedUserIds={selectedUserIds} onSelectionChange={onUsersChange} />
+      </MobileFilterChip>
+
+      <MobileFilterChip
+        active={Boolean(dateFrom || dateTo)}
+        count={Number(Boolean(dateFrom)) + Number(Boolean(dateTo))}
+        icon={Calendar03Icon}
+        label={t("auditLogs.filters.dateRange")}
+      >
+        <MobileFilterPanelTitle>{t("auditLogs.filters.dateRange")}</MobileFilterPanelTitle>
+        <div className="flex flex-col gap-2">
+          <DatePickerButton value={dateFrom} onChange={onDateFromChange} label={t("auditLogs.filters.dateFrom")} />
+          <DatePickerButton value={dateTo} onChange={onDateToChange} label={t("auditLogs.filters.dateTo")} />
+        </div>
+      </MobileFilterChip>
+
+      {hasActiveFilters ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={t("common:actions.clearAll")}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function AdminAuditLogsPage() {
   "use no memo";
   const { t, i18n } = useTranslation(["admin", "common", "stationDetails"]);
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const navActionTarget = useNavActionTarget();
+  const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const [filterState, dispatchFilter] = useReducer(auditLogsFilterReducer, search, getInitialFilterState);
   const { tableFilter, actionsFilter, dateFrom, dateTo, queryFilter, sort, selectedEntry } = filterState;
@@ -381,7 +543,7 @@ function AdminAuditLogsPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={cn("flex flex-wrap items-center gap-2", showFloatingMobileFilters && "max-md:hidden")}>
           <Select
             value={tableFilter}
             onValueChange={(v) => {
@@ -464,7 +626,7 @@ function AdminAuditLogsPage() {
 
       <div
         ref={containerRef}
-        className={cn("flex-1 min-h-0 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
+        className={cn("flex-1 min-h-0 max-md:mb-10 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
       >
         <DataTable.Root table={table}>
           <DataTable.Table>
@@ -513,6 +675,49 @@ function AdminAuditLogsPage() {
           if (!open) dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: null });
         }}
       />
+      {navActionTarget &&
+        createPortal(
+          showFloatingMobileFilters ? (
+            <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
+              <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
+                <div className="w-max">
+                  <AuditLogsMobileFilterRail
+                    tableFilter={tableFilter}
+                    actionsFilter={actionsFilter}
+                    dateFrom={dateFrom}
+                    dateTo={dateTo}
+                    queryFilter={queryFilter}
+                    selectedUserIds={selectedUserIds}
+                    getTableLabel={getTableLabel}
+                    onTableChange={(value) => {
+                      dispatchFilter({ type: "SET_TABLE_FILTER", payload: value });
+                      resetPage();
+                    }}
+                    onActionsChange={(value) => {
+                      dispatchFilter({ type: "SET_ACTIONS_FILTER", payload: value });
+                      resetPage();
+                    }}
+                    onDateFromChange={(value) => {
+                      dispatchFilter({ type: "SET_DATE_FROM", payload: value });
+                      resetPage();
+                    }}
+                    onDateToChange={(value) => {
+                      dispatchFilter({ type: "SET_DATE_TO", payload: value });
+                      resetPage();
+                    }}
+                    onQueryChange={handleQueryFilterChange}
+                    onUsersChange={(ids) => {
+                      setSelectedUserIds(ids);
+                      resetPage();
+                    }}
+                    onClear={clearAllFilters}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null,
+          navActionTarget,
+        )}
     </div>
   );
 }

@@ -461,7 +461,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
         transition={actionSlotTransition}
         style={{ transformOrigin: "bottom center" }}
         className={cn(
-          "pointer-events-auto relative isolate z-20 flex max-w-[calc(100vw-1rem)] self-center items-center overflow-hidden rounded-full border bg-background p-1 shadow-sm",
+          "pointer-events-auto relative isolate z-20 flex max-w-[calc(100vw-1rem)] self-center items-center overflow-hidden rounded-full border bg-background p-1 shadow-sm max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none",
           hasVisibleActions ? "mb-1 opacity-100" : "pointer-events-none h-0 border-transparent p-0 opacity-0 shadow-none",
         )}
         aria-label={label}
@@ -470,7 +470,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
           aria-hidden
           layout
           transition={actionSlotTransition}
-          className="pointer-events-none absolute inset-0 z-0 rounded-full bg-background"
+          className="pointer-events-none absolute inset-0 z-0 rounded-full bg-background max-md:hidden"
         />
         <motion.div
           id={ACTION_TARGET_ID}

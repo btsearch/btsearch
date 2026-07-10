@@ -101,7 +101,7 @@ function AppLayout() {
                   }
                 />
               ) : null}
-              <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto scroll-pb-32", mainClassNameRoute?.mainClassName)}>
+              <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto scroll-pb-32 max-md:pb-12", mainClassNameRoute?.mainClassName)}>
                 <AnnouncementBanner />
                 <Outlet />
               </div>

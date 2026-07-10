@@ -256,6 +256,7 @@
       "actionsCount_many": "{{count, number}} akcji",
       "actionsCount_other": "{{count, number}} akcji",
       "dateFrom": "Od",
+      "dateRange": "Zakres dat",
       "dateTo": "Do",
       "recordId": "ID rekordu",
       "userId": "ID użytkownika",

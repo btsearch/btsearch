@@ -4,6 +4,7 @@ import {
   ArrowRight01Icon,
   Cancel01Icon,
   File02Icon,
+  FullSignalIcon,
   LinkSquare01Icon,
   Location01Icon,
   Sorting05Icon,
@@ -30,20 +31,22 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { RatBadge } from "@/components/rat-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useNavActionTarget } from "@/contexts/navActions";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { saveDraft } from "@/features/submissions/utils/analyzerDraftStore";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
-import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "@/lib/analyzer-parsers";
 import { postApiData, showApiError } from "@/lib/api";
@@ -181,7 +184,7 @@ function getMatchedCellNote(cell: MatchedCell | undefined): string | null {
 
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 60, headerHeight: 40, paginationHeight: 45 };
+const TABLE_PAGINATION_CONFIG = { rowHeight: 76, headerHeight: 40, paginationHeight: 49 };
 
 const columnHelper = createColumnHelper<AnalyzerRow>();
 
@@ -362,12 +365,10 @@ function AnalyzerPage() {
   const { data: session } = authClient.useSession();
   const stationCap = ["editor", "admin"].includes(session?.user?.role ?? "") ? 50 : 25;
 
-  const isMobile = useIsMobile();
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
   const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
-
-  const MOBILE_PAGE_SIZE = 13;
-  const effectivePagination = isMobile ? { ...pagination, pageSize: MOBILE_PAGE_SIZE } : pagination;
+  const navActionTarget = useNavActionTarget();
+  const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const mergedRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -901,7 +902,7 @@ function AnalyzerPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: { pagination: effectivePagination, sorting, rowSelection: state.rowSelection },
+    state: { pagination, sorting, rowSelection: state.rowSelection },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     enableRowSelection: isRowSelectable,
@@ -948,9 +949,175 @@ function AnalyzerPage() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedCount, table]);
 
+  const analyzerMobileFilterRail = (
+    <div className="flex items-center gap-1">
+      <MobileFilterChip active={statusFilter !== "all"} icon={AlertCircleIcon} label={t("filter.status")}>
+        <MobileFilterPanelTitle>{t("filter.status")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          {(["all", "found", "probable", "not_found", "unsupported"] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_STATUS_FILTER", payload: status });
+                resetPage();
+              }}
+              className={cn(
+                "h-8 rounded-md px-2 text-left text-sm transition-colors",
+                statusFilter === status ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              {status === "all" ? t("common:status.all") : statusLabels[status]}
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={ratFilter !== "all"} icon={Tag01Icon} label="Standard">
+        <MobileFilterPanelTitle>Standard</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          {(["all", "GSM", "UMTS", "LTE", "NR"] as const).map((rat) => (
+            <button
+              key={rat}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_RAT_FILTER", payload: rat });
+                resetPage();
+              }}
+              className={cn(
+                "h-8 rounded-md px-2 text-left text-sm transition-colors",
+                ratFilter === rat ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              {rat === "all" ? t("common:status.all") : rat}
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={operatorFilter !== "all"} icon={FullSignalIcon} label={t("common:labels.operator")}>
+        <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: "SET_OPERATOR_FILTER", payload: "all" });
+              resetPage();
+            }}
+            className={cn(
+              "h-8 rounded-md px-2 text-left text-sm transition-colors",
+              operatorFilter === "all" ? "bg-primary/10 text-primary" : "hover:bg-muted",
+            )}
+          >
+            {t("common:status.all")}
+          </button>
+          {availableMncs.map((mnc) => (
+            <button
+              key={mnc}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_OPERATOR_FILTER", payload: String(mnc) });
+                resetPage();
+              }}
+              className={cn(
+                "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
+                operatorFilter === String(mnc) ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(mnc) }} />
+              <span>{MNC_NAMES[mnc] ?? mnc}</span>
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      {availableBands.length > 0 ? (
+        <MobileFilterChip active={bandFilter.length > 0} count={bandFilter.length} icon={Tag01Icon} label={t("filter.band")}>
+          <MobileFilterPanelTitle>{t("filter.band")}</MobileFilterPanelTitle>
+          <div className="grid max-h-64 gap-1 overflow-y-auto">
+            {availableBands.map(({ rat, band }) => {
+              const key = `${rat}-${band}`;
+              const selected = bandFilter.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: "SET_BAND_FILTER", payload: selected ? bandFilter.filter((value) => value !== key) : [...bandFilter, key] });
+                    resetPage();
+                  }}
+                  className={cn(
+                    "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
+                    selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                  )}
+                >
+                  <span className="font-mono">
+                    {rat} B{band}
+                  </span>
+                  {getBandMhz(band) ? <span className="text-muted-foreground">{getBandMhz(band)} MHz</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </MobileFilterChip>
+      ) : null}
+
+      <MobileFilterChip active={warningFilter !== "all"} icon={AlertCircleIcon} label={t("filter.warning")}>
+        <MobileFilterPanelTitle>{t("filter.warning")}</MobileFilterPanelTitle>
+        <div className="grid max-h-64 gap-1 overflow-y-auto">
+          {(
+            [
+              "all",
+              "any",
+              "lac_mismatch",
+              "tac_mismatch",
+              "rnc_mismatch",
+              "pci_mismatch",
+              "uarfcn_mismatch",
+              "earfcn_mismatch",
+              "not_found",
+              "pci_missing",
+              "enbid_only",
+              "not_confirmed",
+            ] as const
+          ).map((warning) => (
+            <button
+              key={warning}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_WARNING_FILTER", payload: warning });
+                resetPage();
+              }}
+              className={cn(
+                "h-8 rounded-md px-2 text-left text-sm transition-colors",
+                warningFilter === warning ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              {warning === "all" ? t("common:status.all") : warning === "any" ? t("filter.anyWarning") : warningLabels[warning]}
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      {hasActiveFilters ? (
+        <button
+          type="button"
+          onClick={() => {
+            dispatch({ type: "CLEAR_FILTERS" });
+            resetPage();
+          }}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={t("common:actions.clear")}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <RequireAuth>
-      <div className={cn("flex-1 p-4", isMobile ? "overflow-y-auto space-y-4" : "flex flex-col gap-4 min-h-0 overflow-hidden")}>
+      <div className={cn("flex-1 p-4", parsedRows ? "flex flex-col gap-4 min-h-0 overflow-hidden" : "overflow-y-auto space-y-4")}>
         <div className="flex flex-col gap-4 shrink-0">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">{t("nav:items.analyzer")}</h1>
@@ -1115,7 +1282,7 @@ function AnalyzerPage() {
           : null}
 
         {parsedRows && (
-          <div className="flex flex-wrap items-end gap-2 shrink-0">
+          <div className={cn("flex flex-wrap items-end gap-2 shrink-0", showFloatingMobileFilters && "max-md:hidden")}>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground px-0.5">{t("filter.status")}</span>
               <Select
@@ -1260,11 +1427,10 @@ function AnalyzerPage() {
         )}
 
         <div
-          ref={isMobile ? undefined : mergedRef}
+          ref={mergedRef}
           className={cn(
-            "transition-opacity",
-            !isMobile && "flex-1 min-h-0 overflow-auto",
-            isMobile && "overflow-x-auto",
+            "flex-1 min-h-0 overflow-auto transition-opacity",
+            showFloatingMobileFilters && "max-md:mb-10",
             !parsedRows && "hidden",
             isLoading && "opacity-50 pointer-events-none",
           )}
@@ -1289,6 +1455,17 @@ function AnalyzerPage() {
             </DataTable.Table>
           </DataTable.Root>
         </div>
+        {navActionTarget &&
+          createPortal(
+            showFloatingMobileFilters && parsedRows ? (
+              <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
+                <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
+                  <div className="w-max">{analyzerMobileFilterRail}</div>
+                </div>
+              </div>
+            ) : null,
+            navActionTarget,
+          )}
       </div>
     </RequireAuth>
   );

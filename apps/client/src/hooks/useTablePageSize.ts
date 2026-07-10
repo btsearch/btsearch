@@ -54,7 +54,9 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
       if (!node) return;
 
       const calculatePageSize = () => {
-        const availableHeight = node.clientHeight - headerHeight - paginationHeight;
+        const styles = window.getComputedStyle(node);
+        const verticalPadding = (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
+        const availableHeight = node.clientHeight - verticalPadding - headerHeight - paginationHeight;
         const possibleRows = Math.floor(availableHeight / rowHeight);
         const clampedRows = Math.max(minRows, Math.min(possibleRows, maxRows));
 

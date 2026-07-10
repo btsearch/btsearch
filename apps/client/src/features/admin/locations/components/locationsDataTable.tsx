@@ -76,7 +76,10 @@ export function LocationsDataTable({
     isFetchingMore && hasMore && isOnLastLoadedPage && currentPageRows < pagination.pageSize ? pagination.pageSize - currentPageRows : 0;
 
   return (
-    <div ref={containerRef} className={cn("h-full overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}>
+    <div
+      ref={containerRef}
+      className={cn("flex-1 min-h-0 max-md:mb-10 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
+    >
       <DataTable.Root table={table}>
         <DataTable.Table>
           <DataTable.Header />
