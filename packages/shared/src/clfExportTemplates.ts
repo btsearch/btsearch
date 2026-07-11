@@ -231,9 +231,10 @@ function renderCLFTokens(tokens: CLFTemplateToken[]): string {
 
     const beforeIndex = i - 1;
     const afterIndex = j + 1;
+    const afterToken = evaluated[afterIndex];
     if (beforeIndex >= 0) {
       if (evaluated[beforeIndex]?.type === "literal") parts[beforeIndex] = "";
-    } else if (evaluated[afterIndex]?.type === "literal") {
+    } else if (afterToken?.type === "literal" && /^\s+$/.test(afterToken.text)) {
       parts[afterIndex] = "";
     }
 
