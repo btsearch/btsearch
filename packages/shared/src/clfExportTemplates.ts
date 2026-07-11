@@ -1,5 +1,8 @@
 export const CLF_DESCRIPTION_TEMPLATE_RATS = ["GSM", "UMTS", "LTE", "NR_NSA", "NR"] as const;
 
+export const CLF_EXPORT_FORMATS = ["2.0", "2.1", "3.0-dec", "3.0-hex", "4.0", "ntm", "netmonitor"] as const;
+export type ClfExportFormat = (typeof CLF_EXPORT_FORMATS)[number];
+
 export type CLFDescriptionTemplateRat = (typeof CLF_DESCRIPTION_TEMPLATE_RATS)[number];
 export type CLFDescriptionTemplates = Partial<Record<CLFDescriptionTemplateRat, string>>;
 export type CLFDescriptionTemplateParam = (typeof CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT)[CLFDescriptionTemplateRat];

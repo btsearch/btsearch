@@ -412,15 +412,15 @@ paths:
           in: query
           description: Only include cells updated on or after this date (YYYY-MM-DD)
           schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$", example: "2026-01-01" }
-        - name: templateGsm
+        - name: templateGSM
           in: query
           description: Optional GSM description template, max 300 characters
           schema: { type: string, maxLength: 300 }
-        - name: templateUmts
+        - name: templateUMTS
           in: query
           description: Optional UMTS description template, max 300 characters
           schema: { type: string, maxLength: 300 }
-        - name: templateLte
+        - name: templateLTE
           in: query
           description: Optional LTE description template, max 300 characters
           schema: { type: string, maxLength: 300 }
@@ -434,7 +434,7 @@ paths:
           schema: { type: string, maxLength: 300 }
         - name: displayNRSeparately
           in: query
-          description: For NetMonster exports only, export 5G NSA cells as separate NR entries using linked LTE TAC and NCI 1 when NCI is unknown
+          description: For NetMonster exports only, export 5G NSA cells as separate NR entries using linked LTE TAC and NCI 1
           schema: { type: boolean, default: false }
       responses:
         "200":

@@ -8,6 +8,12 @@ export function useDebouncedCallback<T extends unknown[]>(fn: (...args: T) => vo
     fnRef.current = fn;
   });
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   return useCallback(
     (...args: T) => {
       if (timerRef.current !== null) clearTimeout(timerRef.current);

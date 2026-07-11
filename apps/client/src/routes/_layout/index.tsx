@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_layout/")({
   staticData: {
     titleKey: "items.mapView",
     i18nNamespace: "nav",
-    mainClassName: "overflow-hidden",
+    mainClassName: "overflow-hidden max-md:pb-0",
     breadcrumbs: [{ titleKey: "sections.stations", i18nNamespace: "nav", path: "/" }],
   },
 });

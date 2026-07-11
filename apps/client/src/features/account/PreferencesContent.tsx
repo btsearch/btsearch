@@ -12,7 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type PushPreferences, fetchPushPreferences, updatePushPreferences } from "@/features/notifications/api";
 import { usePushSubscription } from "@/features/notifications/usePushSubscription";
-import { OpenStreetMapIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
+import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { type PreferenceProfile, type UserPreferences, usePreferences } from "@/hooks/usePreferences";
 import { authClient } from "@/lib/authClient";
@@ -123,6 +123,7 @@ const GROUPS: PreferenceGroup[] = [
               { value: "apple-maps", labelKey: "preferences.navAppleMaps", icon: hugeIcon(AppleIcon) },
               { value: "waze", labelKey: "preferences.navWaze", icon: hugeIcon(WazeIcon) },
               { value: "osmand", labelKey: "preferences.navOsmAnd", icon: OsmAndIcon },
+              { value: "organic-maps", labelKey: "preferences.navOrganicMaps", icon: OrganicMapsIcon },
               { value: "openstreetmap", labelKey: "preferences.navOpenStreetMap", icon: OpenStreetMapIcon },
             ],
           },

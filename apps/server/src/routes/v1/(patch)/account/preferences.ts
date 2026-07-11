@@ -38,9 +38,11 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return res.send({ data: normalizeCloudPreferences(user.cloudPreferences) });
   }
 
+  const currentPreferences = sql`coalesce(${users.cloudPreferences}, '{}'::jsonb)`;
+
   const [updated] = await db
     .update(users)
-    .set({ cloudPreferences: sql`coalesce(${users.cloudPreferences}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb` })
+    .set({ cloudPreferences: sql`${currentPreferences} || ${JSON.stringify(patch)}::jsonb` })
     .where(eq(users.id, session.user.id))
     .returning({ cloudPreferences: users.cloudPreferences });
 

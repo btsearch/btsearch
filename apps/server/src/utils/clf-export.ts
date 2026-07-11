@@ -3,11 +3,12 @@ import {
   type CLFDescriptionTemplateValues,
   type CLFDescriptionTemplates,
   CLF_DESCRIPTION_TEMPLATE_DEFAULTS,
+  type ClfExportFormat,
   renderCLFDescriptionTemplate,
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
 
-export type ClfFormat = "2.0" | "2.1" | "3.0-dec" | "3.0-hex" | "4.0" | "ntm" | "netmonitor";
+export type ClfFormat = ClfExportFormat;
 export type DescriptionTemplates = CLFDescriptionTemplates;
 
 export interface ConvertOptions {

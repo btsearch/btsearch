@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_layout/lists/$uuid")({
   staticData: {
     titleKey: "items.sharedList",
     i18nNamespace: "nav",
-    mainClassName: "overflow-hidden",
+    mainClassName: "overflow-hidden max-md:pb-0",
     breadcrumbs: [{ titleKey: "sections.lists", i18nNamespace: "nav" }],
   },
 });

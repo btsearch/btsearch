@@ -5,6 +5,7 @@ import {
   CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH,
   CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT,
   CLF_DESCRIPTION_TEMPLATE_RATS,
+  CLF_EXPORT_FORMATS,
   DISPLAY_NR_SEPARATELY_PARAM,
 } from "@openbts/shared/clfExportTemplates";
 import { and, eq, gte, inArray, max } from "drizzle-orm";
@@ -70,7 +71,7 @@ setInterval(cleanupOldExports, CACHE_TTL * 1000);
 
 const schemaRoute = {
   querystring: z.object({
-    format: z.enum(["2.0", "2.1", "3.0-dec", "3.0-hex", "4.0", "ntm", "netmonitor"]).default("4.0"),
+    format: z.enum(CLF_EXPORT_FORMATS).default("4.0"),
     operators: z
       .string()
       .optional()

@@ -1,6 +1,18 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-12
+
+### 🚀 Enhancements
+
+- Added Organic Maps as a supported navigation app in preferences
+- CLF description templates are now saved globally to your account, so the same templates are available on desktop and mobile
+- CLF export operator, region, band and format selections now persist separately for each device profile
+
+### 🩹 Fixes
+
+- The map no longer leaves blank space below it when mobile floating navigation is enabled
+
 # 2026-07-10
 
 ### 🚀 Enhancements

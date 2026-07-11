@@ -421,6 +421,9 @@ importers:
 
   packages/drizzle:
     dependencies:
+      '@openbts/shared':
+        specifier: workspace:*
+        version: link:../shared
       dotenv:
         specifier: 17.4.2
         version: 17.4.2

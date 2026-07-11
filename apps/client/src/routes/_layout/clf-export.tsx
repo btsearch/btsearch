@@ -42,7 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { fetchBands, fetchOperators, fetchRegions } from "@/features/shared/api";
 import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
-import { usePreferences } from "@/hooks/usePreferences";
+import { type CLFExportFormat, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
@@ -84,7 +84,7 @@ type FormValues = {
   regions: string[];
   rat: string[];
   bands: number[];
-  format: "2.0" | "2.1" | "3.0-dec" | "3.0-hex" | "4.0" | "ntm" | "netmonitor";
+  format: CLFExportFormat;
   displayNRSeparately: boolean;
 };
 
@@ -99,7 +99,7 @@ const INITIAL_VALUES: FormValues = {
 
 function ClfExportPage() {
   const { t } = useTranslation("clfExport");
-  const { preferences, updatePreferences } = usePreferences();
+  const { preferences, updatePreferences, clfDescriptionTemplates, updateClfDescriptionTemplates } = usePreferences();
 
   const { data: operators = [] } = useQuery({
     queryKey: ["operators"],
@@ -128,15 +128,19 @@ function ClfExportPage() {
   const templateInputRefs = useRef<Partial<Record<CLFDescriptionTemplateRat, HTMLTextAreaElement | null>>>({});
   const [elapsed, setElapsed] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
-  const [templateDrafts, setTemplateDrafts] = useState<CLFDescriptionTemplates>(() => preferences.CLFDescriptionTemplates);
+  const [templateDrafts, setTemplateDrafts] = useState<CLFDescriptionTemplates>(() => clfDescriptionTemplates);
+  const lastSentTemplatesRef = useRef<CLFDescriptionTemplates | null>(null);
 
   const debouncedSaveTemplates = useDebouncedCallback((next: CLFDescriptionTemplates) => {
-    updatePreferences({ CLFDescriptionTemplates: next });
+    lastSentTemplatesRef.current = next;
+    updateClfDescriptionTemplates(next);
   }, 300);
 
   useEffect(() => {
-    setTemplateDrafts(preferences.CLFDescriptionTemplates);
-  }, [preferences.CLFDescriptionTemplates]);
+    const lastSent = lastSentTemplatesRef.current;
+    if (lastSent !== null && JSON.stringify(lastSent) === JSON.stringify(clfDescriptionTemplates)) return;
+    setTemplateDrafts(clfDescriptionTemplates);
+  }, [clfDescriptionTemplates]);
 
   useEffect(() => {
     return () => {
@@ -169,7 +173,7 @@ function ClfExportPage() {
   }
 
   const form = useForm({
-    defaultValues: INITIAL_VALUES,
+    defaultValues: { ...INITIAL_VALUES, ...preferences.clfExportFilters },
     onSubmit: async ({ value }) => {
       exportStartRef.current = Date.now();
       setElapsed(0);
@@ -204,6 +208,18 @@ function ClfExportPage() {
       if (exportStartRef.current) setFinalDuration(Date.now() - exportStartRef.current);
     },
   });
+
+  useEffect(() => {
+    form.reset({
+      ...INITIAL_VALUES,
+      ...preferences.clfExportFilters,
+      rat: form.state.values.rat,
+    });
+  }, [form, preferences.clfExportFilters]);
+
+  function updateClfExportFilters(update: Partial<clfExportFilters>) {
+    updatePreferences({ clfExportFilters: { ...preferences.clfExportFilters, ...update } });
+  }
 
   return (
     <main className="flex-1 overflow-y-auto p-4">
@@ -243,7 +259,11 @@ function ClfExportPage() {
                     <Combobox
                       multiple
                       value={field.state.value.map((mnc) => sortedOperators.find((op) => op.mnc === mnc)).filter(Boolean) as Operator[]}
-                      onValueChange={(values) => field.handleChange(values.map((v) => v.mnc))}
+                      onValueChange={(values) => {
+                        const operators = values.map((value) => value.mnc);
+                        field.handleChange(operators);
+                        updateClfExportFilters({ operators });
+                      }}
                       items={sortedOperators}
                     >
                       <ComboboxChips ref={operatorChipsRef} className="min-h-10 max-h-24 overflow-y-auto text-base md:text-sm">
@@ -298,7 +318,11 @@ function ClfExportPage() {
                           <Checkbox
                             id={`region-${region.code}`}
                             checked={field.state.value.includes(region.code)}
-                            onCheckedChange={() => field.handleChange(toggleValue(field.state.value, region.code))}
+                            onCheckedChange={() => {
+                              const regions = toggleValue(field.state.value, region.code);
+                              field.handleChange(regions);
+                              updateClfExportFilters({ regions });
+                            }}
                           />
                           <span className="truncate">{region.name}</span>
                         </label>
@@ -359,7 +383,11 @@ function ClfExportPage() {
                           <Checkbox
                             id={`band-${band}`}
                             checked={field.state.value.includes(band)}
-                            onCheckedChange={() => field.handleChange(toggleValue(field.state.value, band))}
+                            onCheckedChange={() => {
+                              const bands = toggleValue(field.state.value, band);
+                              field.handleChange(bands);
+                              updateClfExportFilters({ bands });
+                            }}
                           />
                           <span className="font-mono">{band === 0 ? t("stations:cells.unknownBand") : band}</span>
                         </label>
@@ -377,7 +405,11 @@ function ClfExportPage() {
                   {(field) => (
                     <RadioGroup
                       value={field.state.value}
-                      onValueChange={(value) => field.handleChange(value as FormValues["format"])}
+                      onValueChange={(value) => {
+                        const format = value as CLFExportFormat;
+                        field.handleChange(format);
+                        updateClfExportFilters({ format });
+                      }}
                       className="flex flex-wrap gap-x-4 gap-y-1"
                     >
                       {FORMAT_OPTIONS.map((format) => (
@@ -405,7 +437,11 @@ function ClfExportPage() {
                             <Checkbox
                               id="display-nr-separately"
                               checked={field.state.value}
-                              onCheckedChange={(checked) => field.handleChange(!!checked)}
+                              onCheckedChange={(checked) => {
+                                const displayNRSeparately = !!checked;
+                                field.handleChange(displayNRSeparately);
+                                updateClfExportFilters({ displayNRSeparately });
+                              }}
                               className="mt-0.5"
                             />
                             <span className="space-y-1">

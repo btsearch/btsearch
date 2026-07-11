@@ -195,6 +195,6 @@ function PEMMeasurementsPage() {
 export const Route = createFileRoute("/_layout/pem-measurements")({
   component: PEMMeasurementsPage,
   staticData: {
-    mainClassName: "overflow-hidden",
+    mainClassName: "overflow-hidden max-md:pb-0",
   },
 });

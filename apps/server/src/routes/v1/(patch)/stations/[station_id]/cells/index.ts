@@ -197,7 +197,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
     const cellsUpdated = response.map((cell) => {
       const oldFull = existingCells.find((c) => c.id === cell.id);
-      // oxlint-disable-next-line no-unused-vars: We want to remove those from the object
       const { gsm, umts, lte, nr, ...oldBase } = oldFull ?? ({} as typeof oldFull & Record<string, never>);
       const oldDetails = oldFull ? (oldFull.gsm ?? oldFull.umts ?? oldFull.lte ?? oldFull.nr ?? undefined) : undefined;
       return { old: { ...oldBase, details: oldDetails }, new: cell };

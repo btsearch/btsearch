@@ -1,19 +1,30 @@
-import type { CLFDescriptionTemplates } from "@openbts/shared/clfExportTemplates";
+import {
+  type CLFDescriptionTemplates,
+  CLF_DESCRIPTION_TEMPLATE_RATS,
+  type ClfExportFormat,
+  normalizeCLFDescriptionTemplates,
+} from "@openbts/shared/clfExportTemplates";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 
-import { useDebouncedCallback } from "./useDebouncedCallback";
-
 export type GpsFormat = "decimal" | "dms";
-export type NavigationApp = "google-maps" | "apple-maps" | "waze" | "osmand" | "openstreetmap";
+export type NavigationApp = "google-maps" | "apple-maps" | "waze" | "osmand" | "organic-maps" | "openstreetmap";
 export type NavLinksDisplay = "inline" | "buttons";
 export type MapPointStyle = "dots" | "markers";
 export type CartoVariant = "auto" | "dark" | "light";
 export type PreferenceProfile = "desktop" | "mobile";
 export type NavMode = "sidebar" | "floating";
+export type CLFExportFormat = ClfExportFormat;
+export type clfExportFilters = {
+  operators: number[];
+  regions: string[];
+  bands: number[];
+  format: CLFExportFormat;
+  displayNRSeparately: boolean;
+};
 
 export interface UserPreferences {
   navMode: NavMode;
@@ -35,13 +46,15 @@ export interface UserPreferences {
   azimuthLineLength: number;
   azimuthSpread: number;
   cartoVariant: CartoVariant;
-  CLFDescriptionTemplates: CLFDescriptionTemplates;
+  clfDescriptionTemplates: CLFDescriptionTemplates;
+  clfExportFilters: clfExportFilters;
 }
 
 export type CloudPreferences = {
   syncEnabled: boolean;
   desktop: Partial<UserPreferences> | null;
   mobile: Partial<UserPreferences> | null;
+  clfDescriptionTemplates: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
 };
 
@@ -49,12 +62,21 @@ export type CloudPreferencesPatch = {
   syncEnabled?: boolean;
   desktop?: Partial<UserPreferences> | null;
   mobile?: Partial<UserPreferences> | null;
+  clfDescriptionTemplates?: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
 };
 
 const LEGACY_STORAGE_KEY = "user-preferences";
 const DESKTOP_STORAGE_KEY = "user-preferences:desktop";
 const MOBILE_STORAGE_KEY = "user-preferences:mobile";
+const pendingCloudPatches = new Map<
+  string,
+  {
+    patch: CloudPreferencesPatch;
+    send: (patch: CloudPreferencesPatch) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }
+>();
 const PROFILE_OVERRIDE_KEY = "user-preferences:profile-override";
 const MOBILE_WIDTH = 768;
 const DEFAULT_PROFILE: PreferenceProfile = "desktop";
@@ -80,7 +102,14 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   azimuthLineLength: 200,
   azimuthSpread: 60,
   cartoVariant: "light",
-  CLFDescriptionTemplates: {},
+  clfDescriptionTemplates: {},
+  clfExportFilters: {
+    operators: [],
+    regions: [],
+    bands: [],
+    format: "4.0",
+    displayNRSeparately: false,
+  },
 };
 
 const MOBILE_DEFAULT_PREFERENCES: UserPreferences = {
@@ -96,6 +125,35 @@ let isStorageListenerActive = false;
 
 export function getCloudPreferencesQueryKey(userId: string) {
   return ["account-preferences", userId] as const;
+}
+
+function flushQueuedCloudPatch(userId: string) {
+  const pendingPatch = pendingCloudPatches.get(userId);
+  if (pendingPatch === undefined) return;
+
+  pendingCloudPatches.delete(userId);
+  pendingPatch.send(pendingPatch.patch);
+}
+
+function queueCloudPatch(userId: string, patch: CloudPreferencesPatch, send: (patch: CloudPreferencesPatch) => void) {
+  const pendingPatch = pendingCloudPatches.get(userId);
+  if (pendingPatch !== undefined) {
+    clearTimeout(pendingPatch.timer);
+    pendingPatch.patch = { ...pendingPatch.patch, ...patch };
+    pendingPatch.send = send;
+    pendingPatch.timer = setTimeout(() => flushQueuedCloudPatch(userId), 500);
+    return;
+  }
+
+  pendingCloudPatches.set(userId, {
+    patch,
+    send,
+    timer: setTimeout(() => flushQueuedCloudPatch(userId), 500),
+  });
+}
+
+function areCLFDescriptionTemplatesEqual(left: CLFDescriptionTemplates, right: CLFDescriptionTemplates) {
+  return CLF_DESCRIPTION_TEMPLATE_RATS.every((rat) => left[rat] === right[rat]);
 }
 
 function getProfileStorageKey(profile: PreferenceProfile) {
@@ -154,7 +212,18 @@ function parsePreferences(raw: string | null, profile: PreferenceProfile): UserP
   if (raw === null) return defaults;
 
   try {
-    return { ...defaults, ...(JSON.parse(raw) as Partial<UserPreferences>) };
+    const { CLFDescriptionTemplates: legacyTemplates, ...preferences } = JSON.parse(raw) as Partial<UserPreferences> & {
+      CLFDescriptionTemplates?: CLFDescriptionTemplates;
+    };
+    const next: UserPreferences = {
+      ...defaults,
+      ...preferences,
+      ...(preferences.clfDescriptionTemplates === undefined && legacyTemplates !== undefined ? { clfDescriptionTemplates: legacyTemplates } : {}),
+    };
+
+    if (legacyTemplates !== undefined) writeStorageValue(getProfileStorageKey(profile), JSON.stringify(next));
+
+    return next;
   } catch {
     return defaults;
   }
@@ -222,7 +291,8 @@ function subscribe(listener: () => void) {
 }
 
 function replacePreferencesForProfile(profile: PreferenceProfile, preferences: Partial<UserPreferences>) {
-  const next = { ...getDefaultPreferences(profile), ...preferences };
+  const current = parsePreferences(readProfileRawWithLegacyFallback(profile), profile);
+  const next = { ...current, ...preferences };
   const nextRaw = JSON.stringify(next);
   if (readStorageValue(getProfileStorageKey(profile)) === nextRaw) return;
 
@@ -251,6 +321,11 @@ function setPreferences(update: Partial<UserPreferences>): UserPreferences | nul
   cachedRaw = nextRaw;
   emitChange();
   return next;
+}
+
+function getCloudProfilePreferences(preferences: UserPreferences): Omit<UserPreferences, "clfDescriptionTemplates"> {
+  const { clfDescriptionTemplates: _templates, ...cloudPreferences } = preferences;
+  return cloudPreferences;
 }
 
 function setProfileOverride(profile: PreferenceProfile) {
@@ -295,35 +370,66 @@ export function usePreferences() {
 
   const syncEnabled = userId !== undefined && cloudPreferences?.syncEnabled === true;
   const activeCloudPreferences = syncEnabled ? (cloudPreferences?.[activeProfile] ?? null) : null;
+  const clfDescriptionTemplates = syncEnabled ? (cloudPreferences?.clfDescriptionTemplates ?? null) : null;
+
+  const queueCurrentUserCloudPatch = useCallback(
+    (patch: CloudPreferencesPatch) => {
+      if (userId === undefined) return;
+      queueCloudPatch(userId, patch, patchCloud);
+    },
+    [patchCloud, userId],
+  );
 
   useEffect(() => {
     if (activeCloudPreferences === null) return;
     replacePreferencesForProfile(activeProfile, activeCloudPreferences);
   }, [activeCloudPreferences, activeProfile]);
 
-  const debouncedPatchCloud = useDebouncedCallback((profile: PreferenceProfile, nextPreferences: UserPreferences) => {
-    patchCloud(profile === "desktop" ? { desktop: nextPreferences } : { mobile: nextPreferences });
-  }, 500);
+  useEffect(() => {
+    if (clfDescriptionTemplates === null) return;
+    setPreferences({ clfDescriptionTemplates });
+  }, [clfDescriptionTemplates]);
+
+  useEffect(() => {
+    if (userId === undefined) return undefined;
+    return () => flushQueuedCloudPatch(userId);
+  }, [userId]);
 
   const updatePreferences = useCallback(
     (update: Partial<UserPreferences>) => {
       const next = setPreferences(update);
       if (next === null || !syncEnabled) return;
-      debouncedPatchCloud(activeProfile, next);
+      const cloudPreferences = getCloudProfilePreferences(next);
+      queueCurrentUserCloudPatch(activeProfile === "desktop" ? { desktop: cloudPreferences } : { mobile: cloudPreferences });
     },
-    [activeProfile, debouncedPatchCloud, syncEnabled],
+    [activeProfile, queueCurrentUserCloudPatch, syncEnabled],
+  );
+
+  const updateClfDescriptionTemplates = useCallback(
+    (templates: CLFDescriptionTemplates) => {
+      const normalizedTemplates = normalizeCLFDescriptionTemplates(templates);
+      setPreferences({ clfDescriptionTemplates: normalizedTemplates });
+      if (!syncEnabled) return;
+      const currentTemplates = clfDescriptionTemplates ?? preferences.clfDescriptionTemplates;
+      if (areCLFDescriptionTemplatesEqual(currentTemplates, normalizedTemplates)) return;
+      queueCurrentUserCloudPatch({ clfDescriptionTemplates: normalizedTemplates });
+    },
+    [clfDescriptionTemplates, preferences.clfDescriptionTemplates, queueCurrentUserCloudPatch, syncEnabled],
   );
 
   const enableSync = useCallback(async () => {
     if (userId === undefined) return;
 
     const current = parsePreferences(readProfileRawWithLegacyFallback(activeProfile), activeProfile);
+    const { clfDescriptionTemplates: templates, ...profilePreferences } = current;
+    const hasExistingCloudTemplates = cloudPreferences?.clfDescriptionTemplates !== null && cloudPreferences?.clfDescriptionTemplates !== undefined;
     const updated = await patchCloudAsync({
       syncEnabled: true,
-      ...(activeProfile === "desktop" ? { desktop: current } : { mobile: current }),
+      ...(activeProfile === "desktop" ? { desktop: profilePreferences } : { mobile: profilePreferences }),
+      ...(hasExistingCloudTemplates ? {} : { clfDescriptionTemplates: templates }),
     });
     queryClient.setQueryData(getCloudPreferencesQueryKey(userId), updated);
-  }, [activeProfile, patchCloudAsync, queryClient, userId]);
+  }, [activeProfile, cloudPreferences, patchCloudAsync, queryClient, userId]);
 
   const disableSync = useCallback(async () => {
     if (userId === undefined) return;
@@ -335,6 +441,8 @@ export function usePreferences() {
   return {
     preferences,
     updatePreferences,
+    clfDescriptionTemplates: clfDescriptionTemplates ?? preferences.clfDescriptionTemplates,
+    updateClfDescriptionTemplates,
     cloud: {
       activeProfile,
       disableSync,

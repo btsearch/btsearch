@@ -1,3 +1,4 @@
+import type { CLFDescriptionTemplates, ClfExportFormat } from "@openbts/shared/clfExportTemplates";
 import {
   boolean,
   check,
@@ -33,7 +34,7 @@ export const CommentStatus = pgEnum("comment_status", ["pending", "approved"]);
 export type CloudUserPreferences = {
   navMode?: "sidebar" | "floating";
   gpsFormat?: "decimal" | "dms";
-  navigationApps?: ("google-maps" | "apple-maps" | "waze" | "osmand" | "openstreetmap")[];
+  navigationApps?: ("google-maps" | "apple-maps" | "waze" | "osmand" | "organic-maps" | "openstreetmap")[];
   navLinksDisplay?: "inline" | "buttons";
   radiolinesMinZoom?: number;
   mapStationsLimit?: number;
@@ -50,12 +51,20 @@ export type CloudUserPreferences = {
   azimuthLineLength?: number;
   azimuthSpread?: number;
   cartoVariant?: "auto" | "dark" | "light";
+  clfExportFilters?: {
+    operators: number[];
+    regions: string[];
+    bands: number[];
+    format: ClfExportFormat;
+    displayNRSeparately: boolean;
+  };
 };
 
 export type CloudPreferences = {
   syncEnabled: boolean;
   desktop: CloudUserPreferences | null;
   mobile: CloudUserPreferences | null;
+  clfDescriptionTemplates: CLFDescriptionTemplates | null;
   favoriteLists?: string[];
 };
 

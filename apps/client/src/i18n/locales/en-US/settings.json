@@ -20,6 +20,7 @@
     "navAppleMaps": "Apple Maps",
     "navWaze": "Waze",
     "navOsmAnd": "OsmAnd",
+    "navOrganicMaps": "Organic Maps",
     "navOpenStreetMap": "OpenStreetMap",
     "openWith": "Open with {{app}}",
     "navDisplayMode": "Navigation Buttons Style",

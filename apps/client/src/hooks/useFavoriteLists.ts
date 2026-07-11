@@ -17,6 +17,7 @@ function withFavoriteLists(current: CloudPreferences | undefined, favoriteLists:
     syncEnabled: current?.syncEnabled ?? false,
     desktop: current?.desktop ?? null,
     mobile: current?.mobile ?? null,
+    clfDescriptionTemplates: current?.clfDescriptionTemplates ?? null,
     ...current,
     favoriteLists,
   };
