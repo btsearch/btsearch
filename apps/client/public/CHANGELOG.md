@@ -5,6 +5,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
+- CLF templates for NR NSA and NR SA now support the `{duplex}` placeholder
 - Added Organic Maps as a supported navigation app in preferences
 - CLF description templates are now saved globally to your account, so the same templates are available on desktop and mobile
 - CLF export operator, region, band and format selections now persist separately for each device profile

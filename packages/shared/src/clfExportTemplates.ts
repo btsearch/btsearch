@@ -72,8 +72,8 @@ export const CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT = {
     "lte_clid",
     ...CLF_DESCRIPTION_NR_TEMPLATE_PLACEHOLDERS,
   ],
-  NR_NSA: [...CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS, "nr_arfcn", ...CLF_DESCRIPTION_NR_TEMPLATE_PLACEHOLDERS],
-  NR: [...CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS, "nr_gnbid", "nr_clid", "nr_arfcn", "nr_tac", ...CLF_DESCRIPTION_NR_TEMPLATE_PLACEHOLDERS],
+	NR_NSA: [...CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS, "nr_arfcn", "duplex", ...CLF_DESCRIPTION_NR_TEMPLATE_PLACEHOLDERS],
+	NR: [...CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS, "nr_gnbid", "nr_clid", "nr_arfcn", "nr_tac", "duplex", ...CLF_DESCRIPTION_NR_TEMPLATE_PLACEHOLDERS],
 } as const satisfies Record<CLFDescriptionTemplateRat, readonly string[]>;
 
 const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
@@ -122,8 +122,9 @@ export const CLF_DESCRIPTION_TEMPLATE_PREVIEW_VALUES: Record<CLFDescriptionTempl
     nr_pci: "42",
     nr_pcis: "42,31",
   },
-  NR_NSA: {
-    ...CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES,
+	NR_NSA: {
+		...CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES,
+		duplex: "FDD",
     nr_pci: "42",
     nr_arfcn: "428000",
     nr_tac: "",
@@ -132,8 +133,9 @@ export const CLF_DESCRIPTION_TEMPLATE_PREVIEW_VALUES: Record<CLFDescriptionTempl
     nr_band_value: "2100",
     nr_pcis: "42",
   },
-  NR: {
-    ...CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES,
+	NR: {
+		...CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES,
+		duplex: "TDD",
     nr_gnbid: "987654",
     nr_clid: "12",
     nr_pci: "42",
