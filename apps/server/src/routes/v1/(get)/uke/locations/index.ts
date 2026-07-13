@@ -112,6 +112,8 @@ const schemaRoute = {
 };
 
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
+type PermitData = z.infer<typeof stationPermitResponseSchema>;
+type SectorData = z.infer<typeof ukePermitSectorsSchema>;
 type StationData = z.infer<typeof stationResponseSchema>;
 type ResponseData = z.infer<typeof ukeLocationsSchema> & { region: z.infer<typeof regionsSchema>; stations: StationData[] };
 type ResponseBody = z.infer<typeof responseSchema>;
@@ -212,13 +214,6 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const sinceCondition = buildSinceCondition();
 
-  const buildStationFilterCondition = (locationIdCol: typeof ukeLocations.id): SQL<unknown> => {
-    const conditions: SQL<unknown>[] = [eq(ukeStations.location_id, locationIdCol)];
-    if (operatorIds.length) conditions.push(inArray(ukeStations.operator_id, operatorIds));
-    if (sinceCondition !== null) conditions.push(sinceCondition);
-    return and(...conditions)!;
-  };
-
   const buildPermitFilterCondition = (): SQL<unknown> => {
     const stationCondition = eq(ukePermits.uke_station_id, ukeStations.id);
     const conditions: SQL<unknown>[] = [stationCondition];
@@ -257,57 +252,22 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         ).as("matching_locations")
       : null;
 
-    const stationJoinCondition = buildStationFilterCondition(ukeLocations.id);
     const permitJoinCondition = buildPermitFilterCondition();
 
-    const sectorsSubquery = azimuths
-      ? sql`(SELECT COALESCE(json_agg(json_build_object(
-            'id', s.id,
-            'azimuth', s.azimuth,
-            'elevation', s.elevation,
-            'antenna_height', s.antenna_height,
-            'antenna_type', s.antenna_type
-          ) ORDER BY s.id), '[]'::json)
-          FROM ${ukePermitSectors} s WHERE s.permit_id = ${ukePermits.id})`
-      : null;
-
-    const permitObject = azimuths
-      ? sql`json_build_object(
-            'id',              ${ukePermits.id},
-            'decision_number', ${ukePermits.decision_number},
-            'decision_type',   ${ukePermits.decision_type},
-            'expiry_date',     ${ukePermits.expiry_date},
-            'source',          ${ukePermits.source},
-            'createdAt',       ${ukePermits.createdAt},
-            'updatedAt',       ${ukePermits.updatedAt},
-            'band', json_build_object(
-              'id',      ${bands.id},
-              'value',   ${bands.value},
-              'rat',     ${bands.rat},
-              'name',    ${bands.name},
-              'duplex',  ${bands.duplex},
-              'variant', ${bands.variant}
-            ),
-            'sectors', ${sectorsSubquery}
-          )`
-      : sql`json_build_object(
-            'id',              ${ukePermits.id},
-            'decision_number', ${ukePermits.decision_number},
-            'decision_type',   ${ukePermits.decision_type},
-            'expiry_date',     ${ukePermits.expiry_date},
-            'source',          ${ukePermits.source},
-            'createdAt',       ${ukePermits.createdAt},
-            'updatedAt',       ${ukePermits.updatedAt},
-            'band', json_build_object(
-              'id',      ${bands.id},
-              'value',   ${bands.value},
-              'rat',     ${bands.rat},
-              'name',    ${bands.name},
-              'duplex',  ${bands.duplex},
-              'variant', ${bands.variant}
-            )
-          )`;
-
+    const runCountQuery = async (): Promise<number> => {
+      if (matchingLocations !== null) {
+        const result = await db
+          .select({ value: count() })
+          .from(ukeLocations)
+          .innerJoin(matchingLocations, eq(matchingLocations.id, ukeLocations.id))
+          .where(locationWhereClause);
+        return result[0]?.value ?? 0;
+      }
+      const result = await db.select({ value: count() }).from(ukeLocations).where(locationWhereClause);
+      return result[0]?.value ?? 0;
+    };
+    const unfilteredCountQuery = db.select({ value: count() }).from(ukeLocations);
+    const isUnfiltered = matchingLocations === null && !locationConditions.length;
     const pageLocationsSelection = { id: ukeLocations.id, totalCount: sql<number>`count(*) over()`.as("total_count") };
     const pageLocationsCte = db
       .$with("page_locations")
@@ -330,91 +290,145 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               .offset(offset),
       );
 
-    const stationRows = db
-      .select({
-        id: ukeStations.id,
-        locationId: ukeStations.location_id,
-        station: sql<StationData>`json_build_object(
-          'id',         ${ukeStations.id},
-          'station_id', ${ukeStations.station_id},
-          'createdAt',  ${ukeStations.createdAt},
-          'updatedAt',  ${ukeStations.updatedAt},
-          'operator', CASE
-            WHEN ${operators.id} IS NULL THEN NULL
-            ELSE json_build_object(
-              'id',        ${operators.id},
-              'name',      ${operators.name},
-              'full_name', ${operators.full_name},
-              'parent_id', ${operators.parent_id},
-              'mnc',       ${operators.mnc}
-            )
-          END,
-          'permits', COALESCE(
-            json_agg(${permitObject} ORDER BY ${ukePermits.id})
-              FILTER (WHERE ${ukePermits.id} IS NOT NULL),
-            '[]'::json
-          )
-        )`.as("station"),
-      })
-      .from(pageLocationsCte)
-      .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocationsCte.id))
-      .innerJoin(ukeStations, stationJoinCondition)
-      .innerJoin(ukePermits, permitJoinCondition)
-      .leftJoin(bands, eq(bands.id, ukePermits.band_id))
-      .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
-      .groupBy(ukeStations.id, operators.id)
-      .as("station_rows");
-
-    const stationsAgg = sql<StationData[]>`
-      COALESCE(
-        json_agg(${stationRows.station} ORDER BY ${stationRows.id})
-          FILTER (WHERE ${stationRows.id} IS NOT NULL),
-        '[]'::json
-      )`;
-
-    const runFallbackCountQuery = async (): Promise<number> => {
-      if (matchingLocations !== null) {
-        const result = await db
-          .select({ count: count() })
-          .from(ukeLocations)
-          .innerJoin(matchingLocations, eq(matchingLocations.id, ukeLocations.id))
-          .where(locationWhereClause);
-        return result[0]?.count ?? 0;
-      }
-      if (!locationConditions.length) {
-        const result = await db.select({ count: count() }).from(ukeLocations);
-        return result[0]?.count ?? 0;
-      }
-      const result = await db.select({ count: count() }).from(ukeLocations).where(locationWhereClause);
-      return result[0]?.count ?? 0;
+    const locationSelection = {
+      id: ukeLocations.id,
+      city: ukeLocations.city,
+      address: ukeLocations.address,
+      longitude: ukeLocations.longitude,
+      latitude: ukeLocations.latitude,
+      createdAt: ukeLocations.createdAt,
+      updatedAt: ukeLocations.updatedAt,
+      region: { id: regions.id, name: regions.name, code: regions.code },
     };
+    const rows = isUnfiltered
+      ? await db
+          .select({
+            ...locationSelection,
+            totalCount: sql<number>`(${unfilteredCountQuery})`.mapWith(Number),
+          })
+          .from(ukeLocations)
+          .innerJoin(regions, eq(regions.id, ukeLocations.region_id))
+          .orderBy(desc(ukeLocations.id))
+          .limit(limit)
+          .offset(offset)
+      : await db
+          .with(pageLocationsCte)
+          .select({
+            ...locationSelection,
+            totalCount: sql<number>`${pageLocationsCte.totalCount}`.mapWith(Number),
+          })
+          .from(pageLocationsCte)
+          .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocationsCte.id))
+          .innerJoin(regions, eq(regions.id, ukeLocations.region_id))
+          .orderBy(desc(ukeLocations.id));
 
-    const rows = await db
-      .with(pageLocationsCte)
-      .select({
-        id: ukeLocations.id,
-        city: ukeLocations.city,
-        address: ukeLocations.address,
-        longitude: ukeLocations.longitude,
-        latitude: ukeLocations.latitude,
-        createdAt: ukeLocations.createdAt,
-        updatedAt: ukeLocations.updatedAt,
-        totalCount: sql<number>`max(${pageLocationsCte.totalCount})`.mapWith(Number),
-        region: sql<z.infer<typeof regionsSchema>>`json_build_object(
-          'id',   ${regions.id},
-          'name', ${regions.name},
-          'code', ${regions.code}
-        )`,
-        stations: stationsAgg,
-      })
-      .from(pageLocationsCte)
-      .innerJoin(ukeLocations, eq(ukeLocations.id, pageLocationsCte.id))
-      .innerJoin(regions, eq(regions.id, ukeLocations.region_id))
-      .leftJoin(stationRows, eq(stationRows.locationId, ukeLocations.id))
-      .groupBy(ukeLocations.id, regions.id)
-      .orderBy(desc(ukeLocations.id));
+    const locationIds = rows.map((row) => row.id);
+    const hydrationConditions: SQL<unknown>[] = [];
+    if (locationIds.length) hydrationConditions.push(inArray(ukeStations.location_id, locationIds));
+    if (operatorIds.length) hydrationConditions.push(inArray(ukeStations.operator_id, operatorIds));
+    if (sinceCondition !== null) hydrationConditions.push(sinceCondition);
 
-    const totalCount = rows.length > 0 ? rows[0]!.totalCount : await runFallbackCountQuery();
+    const hydrationRows = locationIds.length
+      ? await db
+          .select({
+            locationId: ukeStations.location_id,
+            station: {
+              id: ukeStations.id,
+              station_id: ukeStations.station_id,
+              createdAt: ukeStations.createdAt,
+              updatedAt: ukeStations.updatedAt,
+            },
+            operator: {
+              id: operators.id,
+              name: operators.name,
+              full_name: operators.full_name,
+              parent_id: operators.parent_id,
+              mnc: operators.mnc,
+            },
+            permit: {
+              id: ukePermits.id,
+              decision_number: ukePermits.decision_number,
+              decision_type: ukePermits.decision_type,
+              expiry_date: ukePermits.expiry_date,
+              source: ukePermits.source,
+              createdAt: ukePermits.createdAt,
+              updatedAt: ukePermits.updatedAt,
+            },
+            band: {
+              id: bands.id,
+              value: bands.value,
+              rat: bands.rat,
+              name: bands.name,
+              duplex: bands.duplex,
+              variant: bands.variant,
+            },
+          })
+          .from(ukeStations)
+          .innerJoin(ukePermits, permitJoinCondition)
+          .leftJoin(bands, eq(bands.id, ukePermits.band_id))
+          .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
+          .where(and(...hydrationConditions))
+          .orderBy(ukeStations.id, ukePermits.id)
+      : [];
+
+    const permitIds = azimuths ? hydrationRows.map((row) => row.permit.id) : [];
+    const sectorRows =
+      azimuths && permitIds.length
+        ? await db
+            .select({
+              permitId: ukePermitSectors.permit_id,
+              sector: {
+                id: ukePermitSectors.id,
+                azimuth: ukePermitSectors.azimuth,
+                elevation: ukePermitSectors.elevation,
+                antenna_height: ukePermitSectors.antenna_height,
+                antenna_type: ukePermitSectors.antenna_type,
+              },
+            })
+            .from(ukePermitSectors)
+            .where(inArray(ukePermitSectors.permit_id, permitIds))
+            .orderBy(ukePermitSectors.id)
+        : [];
+
+    const sectorsByPermit = new Map<number, SectorData[]>();
+    for (const row of sectorRows) {
+      const permitSectors = sectorsByPermit.get(row.permitId) ?? [];
+      permitSectors.push(row.sector);
+      sectorsByPermit.set(row.permitId, permitSectors);
+    }
+
+    const stationsByLocation = new Map<number, StationData[]>();
+    const stationsById = new Map<number, StationData>();
+    for (const row of hydrationRows) {
+      let station = stationsById.get(row.station.id);
+      if (!station) {
+        station = {
+          id: row.station.id,
+          station_id: row.station.station_id,
+          createdAt: row.station.createdAt.toISOString(),
+          updatedAt: row.station.updatedAt.toISOString(),
+          operator: row.operator,
+          permits: [],
+        };
+        stationsById.set(station.id, station);
+        const locationStations = stationsByLocation.get(row.locationId) ?? [];
+        locationStations.push(station);
+        stationsByLocation.set(row.locationId, locationStations);
+      }
+
+      const permit: PermitData = {
+        id: row.permit.id,
+        decision_number: row.permit.decision_number,
+        decision_type: row.permit.decision_type,
+        expiry_date: row.permit.expiry_date.toISOString(),
+        source: row.permit.source,
+        createdAt: row.permit.createdAt.toISOString(),
+        updatedAt: row.permit.updatedAt.toISOString(),
+        band: row.band,
+        ...(azimuths ? { sectors: sectorsByPermit.get(row.permit.id) ?? [] } : {}),
+      };
+      station.permits.push(permit);
+    }
 
     const data = rows.map((row) => ({
       id: row.id,
@@ -425,8 +439,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       region: row.region,
-      stations: row.stations,
+      stations: stationsByLocation.get(row.id) ?? [],
     })) as ResponseData[];
+
+    const totalCount = rows.length ? rows[0]!.totalCount : await runCountQuery();
 
     await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify({ data, totalCount }));
     return res.send({ data, totalCount });

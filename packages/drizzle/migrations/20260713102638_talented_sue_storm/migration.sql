@@ -1,0 +1,1 @@
+CREATE INDEX "uke_stations_operator_location_id_idx" ON "uke"."uke_stations" ("operator_id","location_id");

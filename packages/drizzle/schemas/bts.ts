@@ -251,6 +251,7 @@ export const ukeStations = UkeSchema.table(
     index("uke_stations_station_id_idx").on(t.station_id),
     index("uke_stations_station_id_trgm_idx").using("gin", sql`(${t.station_id}) gin_trgm_ops`),
     index("uke_stations_operator_id_idx").on(t.operator_id),
+    index("uke_stations_operator_location_id_idx").on(t.operator_id, t.location_id),
     index("uke_stations_station_operator_id_idx").on(t.station_id, t.operator_id),
     index("uke_stations_location_id_idx").on(t.location_id),
     index("uke_stations_location_operator_id_idx").on(t.location_id, t.operator_id, t.id),

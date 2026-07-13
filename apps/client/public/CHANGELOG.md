@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-13
+
+### 🚀 Enhancements
+
+- Optimized `/api/v1/uke/locations` performance for large bounded requests with operator filters
+
 # 2026-07-12
 
 ### 🚀 Enhancements
