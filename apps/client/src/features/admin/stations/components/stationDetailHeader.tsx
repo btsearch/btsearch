@@ -81,7 +81,16 @@ export function StationDetailHeader({
       {!isCreateMode && station && (
         <AlertDialog>
           <AlertDialogTrigger
-            render={<Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" />}
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                  isFloatingActionTarget && "max-md:bg-background max-md:dark:bg-background",
+                )}
+              />
+            }
           >
             <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
             {t("header.deleteStation")}
@@ -107,7 +116,10 @@ export function StationDetailHeader({
             size="sm"
             onClick={onRevert}
             disabled={!hasChanges}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className={cn(
+              "text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+              isFloatingActionTarget && "max-md:bg-background max-md:dark:bg-background",
+            )}
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
             {isCreateMode ? t("common:actions.clear") : t("common:actions.revert")}
@@ -121,7 +133,7 @@ export function StationDetailHeader({
             size="sm"
             onClick={onSave}
             disabled={isSaving || !hasChanges}
-            className={cn("shadow-sm font-medium", !isFloatingActionTarget && "min-w-25 px-4")}
+            className={cn("font-medium shadow-sm", !isFloatingActionTarget && "min-w-25 px-4", isFloatingActionTarget && "max-md:bg-primary")}
           >
             {isSaving ? <Spinner /> : <HugeiconsIcon icon={isCreateMode ? Add01Icon : Tick02Icon} className="size-3.5" />}
             <span className={cn(isFloatingActionTarget && isCreateMode && "hidden sm:inline")}>

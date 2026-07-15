@@ -244,11 +244,7 @@ function FloatingPageSectionRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={label}
         >
-          <motion.div
-            layout
-            transition={transition}
-            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
-          >
+          <motion.div layout transition={transition} className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden">
             <LayoutGroup id="floating-page-sections">
               {sections.map((section) => {
                 const active = section.id === activeId;
@@ -312,11 +308,7 @@ function DesktopSubnavRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={section.title}
         >
-          <motion.div
-            layout
-            transition={transition}
-            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
-          >
+          <motion.div layout transition={transition} className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden">
             <LayoutGroup id={`floating-subnav-${section.key}`}>
               {section.items.map((item) => (
                 <FloatingNavLink
