@@ -244,7 +244,11 @@ function FloatingPageSectionRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={label}
         >
-          <motion.div layout transition={transition} className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+          <motion.div
+            layout
+            transition={transition}
+            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
+          >
             <LayoutGroup id="floating-page-sections">
               {sections.map((section) => {
                 const active = section.id === activeId;
@@ -308,7 +312,11 @@ function DesktopSubnavRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={section.title}
         >
-          <motion.div layout transition={transition} className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
+          <motion.div
+            layout
+            transition={transition}
+            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
+          >
             <LayoutGroup id={`floating-subnav-${section.key}`}>
               {section.items.map((item) => (
                 <FloatingNavLink
@@ -344,7 +352,7 @@ function MobileFloatingPageSectionRail({ activeId, sections }: { activeId: strin
 
   return (
     <div className="pointer-events-auto relative isolate z-20 mb-1 flex max-w-[calc(100vw-1rem)] self-center overflow-hidden rounded-full border bg-background p-1 shadow-sm md:hidden">
-      <div className="min-w-0 overflow-x-auto overflow-y-hidden">
+      <div className="scrollbar-hide min-w-0 overflow-x-auto overflow-y-hidden">
         <div className="flex w-max max-w-[calc(100vw-1.5rem)] items-center gap-1">
           {sections.map((section) => {
             const active = section.id === activeId;
@@ -477,7 +485,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
           ref={targetRef}
           layout
           transition={actionSlotTransition}
-          className="relative z-10 flex max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden [&_button]:h-8! [&_button]:min-h-8! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
+          className="scrollbar-hide relative z-10 flex max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden [&_button]:h-8! [&_button]:min-h-8! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
         />
       </motion.div>
     );
@@ -487,7 +495,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
     <motion.div
       layout
       transition={actionSlotTransition}
-      className="relative z-10 flex w-fit max-w-[min(36rem,52vw)] shrink-0 items-center overflow-x-auto"
+      className="scrollbar-hide relative z-10 flex w-fit max-w-[min(36rem,52vw)] shrink-0 items-center overflow-x-auto overflow-y-hidden"
       aria-label={label}
     >
       {hasVisibleActions ? (
@@ -1001,7 +1009,7 @@ export function FloatingNav() {
   return (
     <>
       <LayoutGroup id="floating-nav-shell">
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center px-1 md:px-2">
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex select-none flex-col items-center px-1 md:px-2">
           <AnimatePresence initial={false} mode="popLayout">
             {hidden ? (
               <motion.div
@@ -1062,7 +1070,7 @@ export function FloatingNav() {
                     <motion.div
                       layout
                       transition={transition}
-                      className="relative z-10 isolate flex w-max min-w-0 max-w-full items-center gap-0.5 overflow-x-auto md:flex-1"
+                      className="scrollbar-hide relative z-10 isolate flex w-max min-w-0 max-w-full items-center gap-0.5 overflow-x-auto overflow-y-hidden md:flex-1"
                     >
                       {sections.map((section) => {
                         const active = activeSection?.key === section.key;

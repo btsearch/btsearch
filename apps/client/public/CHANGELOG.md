@@ -6,6 +6,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🩹 Fixes
 
 - Approving a submission that adds cells to a pending station now publishes the station automatically
+- Floating navigation no longer briefly shows scrollbars during layout transitions, and its text can no longer be selected accidentally
 
 # 2026-07-13
 
