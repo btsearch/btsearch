@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-15
+
+### 🩹 Fixes
+
+- Approving a submission that adds cells to a pending station now publishes the station automatically
+
 # 2026-07-13
 
 ### 🚀 Enhancements

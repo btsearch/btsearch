@@ -1209,11 +1209,36 @@ async function runApprovalTransaction({
   const targetCellsMap = new Map(targetCellsArr.map((targetCell) => [targetCell.id, targetCell] as const));
   const cellChanges = await applyProposedCells(tx, draft.proposedCellRows, stationId, targetCellsMap, sectorIdByLocalId);
 
+  let publishedPendingStation = false;
+  if (submission.type === "update" && stationId && cellChanges.added.length > 0) {
+    const [updatedStation] = await tx
+      .update(stations)
+      .set(stationStatusUpdate("published"))
+      .where(and(eq(stations.id, stationId), eq(stations.status, "pending")))
+      .returning({ id: stations.id });
+    publishedPendingStation = updatedStation !== undefined;
+
+    if (updatedStation)
+      await createAuditLog(
+        {
+          action: "stations.update",
+          table_name: "stations",
+          record_id: stationId,
+          old_values: { status: "pending" },
+          new_values: { status: "published" },
+          metadata: { submission_id: submissionId },
+        },
+        req,
+        tx,
+      );
+  }
+
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
   await createSectorAuditLog(tx, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId, req);
   await createCellAuditLogs(tx, cellChanges, stationId, submissionId, req);
 
-  if (submission.type === "update" && stationId) await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
+  if (submission.type === "update" && stationId && !publishedPendingStation)
+    await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
 
   const { attachmentUuidsToDelete, photosAdded } = await applySubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId);
 
