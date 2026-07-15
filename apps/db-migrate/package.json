@@ -6,7 +6,7 @@
   "license": "GPL-3.0",
   "type": "module",
   "scripts": {
-    "build": "tsgo",
+    "build": "tsc",
     "dev": "tsx --watch src/index.ts",
     "start": "node dist/src/index.js"
   },
@@ -26,12 +26,6 @@
     "@types/node": "25.9.3",
     "@types/papaparse": "5.5.2",
     "@types/pg": "8.20.0",
-    "tsx": "4.23.0"
-  },
-  "engines": {
-    "node": ">=18",
-    "npm": "please-use-pnpm",
-    "pnpm": ">=8",
-    "yarn": "please-use-pnpm"
+    "tsx": "4.23.1"
   }
 }

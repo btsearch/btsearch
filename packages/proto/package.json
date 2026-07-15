@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsgo"
+    "build": "tsc"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.12.1"

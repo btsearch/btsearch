@@ -11,14 +11,14 @@
   },
   "dependencies": {
     "bufferutil": "4.1.0",
-    "discord.js": "14.26.4",
+    "discord.js": "14.26.5",
     "dotenv": "17.4.2",
     "redis": "6.1.0"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
     "@types/node": "25.9.3",
-    "tsx": "4.23.0",
-    "typescript": "6.0.3"
+    "tsx": "4.23.1",
+    "typescript": "7.0.2"
   }
 }

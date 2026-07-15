@@ -1,10 +1,10 @@
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.6 --activate
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
@@ -30,13 +30,13 @@ RUN pnpm --filter @openbts/drizzle build && \
     pnpm --filter @openbts/proto build && \
     pnpm --filter @openbts/sora build
 
-FROM node:22-alpine AS production-deps
+FROM node:24-alpine AS production-deps
 
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.6 --activate
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages/drizzle/package.json ./packages/drizzle/

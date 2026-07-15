@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "build": "tsgo",
+    "build": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx migrate.ts",
     "db:migrate:kit": "drizzle-kit migrate",
@@ -29,10 +29,10 @@
     "@openbts/shared": "workspace:*",
     "dotenv": "17.4.2",
     "drizzle-orm": "1.0.0-rc.3",
-    "nanoid": "5.1.16",
+    "nanoid": "6.0.0",
     "postgres": "3.4.9",
     "redis": "6.1.0",
-    "tsx": "4.23.0"
+    "tsx": "4.23.1"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
