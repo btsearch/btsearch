@@ -118,7 +118,8 @@ export function StationDetailHeader({
             disabled={!hasChanges}
             className={cn(
               "text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
-              isFloatingActionTarget && "max-md:bg-background max-md:dark:bg-background",
+              isFloatingActionTarget &&
+                "max-md:bg-background max-md:dark:bg-background max-md:disabled:opacity-100 max-md:disabled:text-muted-foreground/50",
             )}
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
@@ -133,7 +134,11 @@ export function StationDetailHeader({
             size="sm"
             onClick={onSave}
             disabled={isSaving || !hasChanges}
-            className={cn("font-medium shadow-sm", !isFloatingActionTarget && "min-w-25 px-4", isFloatingActionTarget && "max-md:bg-primary")}
+            className={cn(
+              "font-medium shadow-sm",
+              !isFloatingActionTarget && "min-w-25 px-4",
+              isFloatingActionTarget && "max-md:bg-primary max-md:disabled:opacity-100 max-md:disabled:text-primary-foreground/50",
+            )}
           >
             {isSaving ? <Spinner /> : <HugeiconsIcon icon={isCreateMode ? Add01Icon : Tick02Icon} className="size-3.5" />}
             <span className={cn(isFloatingActionTarget && isCreateMode && "hidden sm:inline")}>

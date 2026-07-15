@@ -7,7 +7,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Approving a submission that adds cells to a pending station now publishes the station automatically
 - Floating navigation no longer briefly shows scrollbars during layout transitions, and its text can no longer be selected accidentally
-- Admin station action buttons now remain opaque while the mobile floating navigation rail stays transparent
+- Admin station action buttons now keep opaque backgrounds when disabled while the mobile floating navigation rail stays transparent
 
 # 2026-07-13
 
