@@ -131,8 +131,7 @@
     "deleted": "Zgłoszenie usunięte",
     "saved": "Zgłoszenie zapisane",
     "approved": "Zgłoszenie zatwierdzone",
-    "rejected": "Zgłoszenie odrzucone",
-    "photoUploadFailed": "Zgłoszenie utworzone, ale przesyłanie zdjęć nie powiodło się"
+    "rejected": "Zgłoszenie odrzucone"
   },
   "warnings": {
     "photosTitle": "Wskazówka dotycząca zdjęć",
@@ -149,6 +148,7 @@
     "cancelRemoval": "Anuluj usunięcie",
     "currentMain": "Aktualne główne zdjęcie",
     "hint": "Do {{max}} zdjęć, maks. {{size}} każde",
+    "uploading": "Przesyłanie zdjęć...",
     "uploaded": "Zdjęcia przesłane",
     "deleted": "Zdjęcie usunięte",
     "uploadFailed": "Nie udało się przesłać zdjęć",

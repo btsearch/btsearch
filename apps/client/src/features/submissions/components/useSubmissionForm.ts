@@ -257,14 +257,19 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       if (photos.length > 0) {
         const submissionId = isEditMode && editSubmissionId ? editSubmissionId : data.id;
         const isPhotosOnly = !!data.pending_photos;
-        void uploadSubmissionPhotos(
+        const uploadPromise = uploadSubmissionPhotos(
           submissionId,
           photos,
           photoNotes,
           photoTakenAts.map((d) => d?.toISOString() ?? null),
-        ).catch(() => {
-          toast.error(t("toast.photoUploadFailed"));
+        ).catch((error: unknown) => {
           if (isPhotosOnly) void deleteSubmission(submissionId).catch(() => undefined);
+          throw error;
+        });
+        toast.promise(uploadPromise, {
+          loading: t("photos.uploading"),
+          success: t("photos.uploaded"),
+          error: t("photos.uploadFailed"),
         });
         setPhotos([]);
         setPhotoNotes([]);

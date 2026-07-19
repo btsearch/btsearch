@@ -131,8 +131,7 @@
     "deleted": "Submission deleted",
     "saved": "Submission saved",
     "approved": "Submission approved",
-    "rejected": "Submission rejected",
-    "photoUploadFailed": "Submission created, but photo upload failed"
+    "rejected": "Submission rejected"
   },
   "warnings": {
     "photosTitle": "Note about photos",
@@ -149,6 +148,7 @@
     "cancelRemoval": "Cancel removal",
     "currentMain": "Current main photo",
     "hint": "Up to {{max}} photos, max {{size}} each",
+    "uploading": "Uploading photos...",
     "uploaded": "Photos uploaded",
     "deleted": "Photo deleted",
     "uploadFailed": "Failed to upload photos",

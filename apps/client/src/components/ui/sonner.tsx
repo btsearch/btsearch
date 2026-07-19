@@ -3,15 +3,18 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 import { useTheme } from "@/components/theme-provider";
+import { useIsMobile } from "@/hooks/useMobile";
 
 import { Spinner } from "./spinner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
+      position={isMobile ? "top-center" : "bottom-right"}
       className="toaster group"
       icons={{
         success: <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-green-600 dark:text-green-400" />,

@@ -1,6 +1,13 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-19
+
+### 🚀 Enhancements
+
+- Photo submissions now show upload progress and report whether the upload succeeded or failed
+- Toast notifications now appear at the top of the screen on mobile
+
 # 2026-07-15
 
 ### 🩹 Fixes
