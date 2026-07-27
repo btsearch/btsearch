@@ -21,7 +21,6 @@ interface AuthDialogProps {
 }
 
 const BLOCKED_REASONS = new Set(["escape-key", "close-press", "outside-press", "focus-out"]);
-const LAST_USED_KEY = "openbts:last-oauth-provider";
 
 type OAuthProvider = "google" | "github";
 
@@ -30,28 +29,13 @@ const OAUTH_PROVIDERS = [
   { id: "github" as OAuthProvider, label: "GitHub", icon: GithubIcon },
 ] as const;
 
-function getLastUsedProvider(): OAuthProvider | null {
-  try {
-    const val = localStorage.getItem(LAST_USED_KEY);
-    if (val === "google" || val === "github") return val;
-  } catch {}
-  return null;
-}
-
-function setLastUsedProvider(provider: OAuthProvider) {
-  try {
-    localStorage.setItem(LAST_USED_KEY, provider);
-  } catch {}
-}
-
 function OAuthButtons() {
   const { t } = useTranslation("auth");
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
-  const lastUsed = getLastUsedProvider();
+  const lastUsed = authClient.getLastUsedLoginMethod();
 
   async function handleOAuth(provider: OAuthProvider) {
     setLoadingProvider(provider);
-    setLastUsedProvider(provider);
 
     await authClient.signIn.social({
       provider,
@@ -89,6 +73,7 @@ function OAuthButtons() {
 function PasskeyButton({ onSuccess }: { onSuccess: () => void }) {
   const { t } = useTranslation("auth");
   const [isLoading, setIsLoading] = useState(false);
+  const lastUsed = authClient.getLastUsedLoginMethod();
 
   async function handlePasskey() {
     setIsLoading(true);
@@ -108,9 +93,14 @@ function PasskeyButton({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <Button type="button" variant="outline" size="lg" className="w-full gap-2.5 font-medium" disabled={isLoading} onClick={handlePasskey}>
+    <Button type="button" variant="outline" size="lg" className="relative w-full gap-2.5 font-medium" disabled={isLoading} onClick={handlePasskey}>
       {isLoading ? <Spinner /> : <HugeiconsIcon icon={FingerPrintIcon} className="size-4.5" />}
       <span>{t("passkey.signIn")}</span>
+      {lastUsed === "passkey" && (
+        <span className="absolute -top-2 -right-1.5 px-1.5 py-px rounded-full bg-primary text-primary-foreground text-[10px] font-semibold leading-tight tracking-wide uppercase">
+          {t("oauth.lastUsed")}
+        </span>
+      )}
     </Button>
   );
 }

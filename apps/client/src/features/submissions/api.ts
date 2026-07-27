@@ -10,8 +10,17 @@ export { fetchOperators, fetchBands, fetchRegions } from "@/features/shared/api"
 
 export type MySubmissionsResponse = { data: SubmissionRow[]; totalCount: number };
 
-export async function fetchMySubmissions(limit = 20, offset = 0): Promise<MySubmissionsResponse> {
+export type MySubmissionsFilters = {
+  status?: "pending" | "approved" | "rejected";
+  operatorMncs?: number[];
+  search?: string;
+};
+
+export async function fetchMySubmissions(limit = 20, offset = 0, filters: MySubmissionsFilters = {}): Promise<MySubmissionsResponse> {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (filters.status) params.set("status", filters.status);
+  if (filters.operatorMncs?.length) params.set("operators", filters.operatorMncs.join(","));
+  if (filters.search?.trim()) params.set("search", filters.search.trim());
   return fetchJson<MySubmissionsResponse>(`${API_BASE}/submissions?${params.toString()}`);
 }
 
@@ -216,6 +225,7 @@ export type SubmissionPhoto = {
   mime_type: string;
   note: string | null;
   taken_at: string | null;
+  is_main: boolean;
   createdAt: string;
   author: { uuid: string; username: string; name: string } | null;
 };
@@ -244,11 +254,18 @@ export async function updateSubmissionPhotoTakenAt(submissionId: string, photoId
   });
 }
 
-export async function uploadSubmissionPhotos(submissionId: string, files: File[], notes?: string[], takenAts?: (string | null)[]): Promise<void> {
+export async function uploadSubmissionPhotos(
+  submissionId: string,
+  files: File[],
+  notes?: string[],
+  takenAts?: (string | null)[],
+  mainPhotoIndex?: number | null,
+): Promise<void> {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("notes", notes?.[i] ?? "");
     formData.append("takenAts", takenAts?.[i] ?? "");
+    formData.append("isMains", String(i === mainPhotoIndex));
     formData.append("files", files[i]);
   }
   await fetchJson(`${API_BASE}/submissions/${submissionId}/photos`, {

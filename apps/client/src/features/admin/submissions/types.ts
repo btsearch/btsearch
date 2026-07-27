@@ -80,7 +80,7 @@ type SubmissionBase = {
 };
 
 export type SubmissionRow = SubmissionBase & {
-  station?: { station_id: string } | null;
+  station?: { station_id: string; operator_id: number | null } | null;
   proposedStation?: ProposedStation | null;
 };
 

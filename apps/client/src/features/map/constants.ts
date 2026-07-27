@@ -68,7 +68,7 @@ export const UKE_RAT_OPTIONS = [
 export const FILTER_KEYWORDS: FilterKeyword[] = [
   // Station filters
   { key: "bts_id:", description: "Station ID (partial match)", availableOn: ["map", "stations"] },
-  { key: "mnc:", description: "Operator MNC code", availableOn: ["map"] },
+  { key: "mnc:", description: "Operator PLMN code (e.g. 26003)", availableOn: ["map"] },
   { key: "has_photo:", description: "Has photo (true, false)", availableOn: ["map", "stations"] },
   { key: "created_after:", description: "Created after date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
   { key: "created_before:", description: "Created before date (YYYY-MM-DD)", availableOn: ["map", "stations"] },

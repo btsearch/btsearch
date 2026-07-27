@@ -62,6 +62,7 @@ export function StationDetailHeader({
   const locationLabel = station?.location ? [station.location.city, station.location.address].filter(Boolean).join(", ") : "-";
   const operatorAccentColor = selectedOperator ? getOperatorColor(selectedOperator.mnc) : "transparent";
   const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
+  const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
 
   const handleDelete = () => {
     if (!station) return;
@@ -93,7 +94,7 @@ export function StationDetailHeader({
             }
           >
             <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-            {t("header.deleteStation")}
+            <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("header.deleteStation")}</span>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -123,7 +124,9 @@ export function StationDetailHeader({
             )}
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-            {isCreateMode ? t("common:actions.clear") : t("common:actions.revert")}
+            <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>
+              {isCreateMode ? t("common:actions.clear") : t("common:actions.revert")}
+            </span>
           </Button>
         </TooltipTrigger>
         {!hasChanges && <TooltipContent>{t("common:actions.noChanges")}</TooltipContent>}
@@ -136,12 +139,12 @@ export function StationDetailHeader({
             disabled={isSaving || !hasChanges}
             className={cn(
               "font-medium shadow-sm",
-              !isFloatingActionTarget && "min-w-25 px-4",
+              !isFloatingActionTarget && "md:min-w-25 md:px-4",
               isFloatingActionTarget && "max-md:bg-primary max-md:disabled:opacity-100 max-md:disabled:text-primary-foreground/50",
             )}
           >
             {isSaving ? <Spinner /> : <HugeiconsIcon icon={isCreateMode ? Add01Icon : Tick02Icon} className="size-3.5" />}
-            <span className={cn(isFloatingActionTarget && isCreateMode && "hidden sm:inline")}>
+            <span className={cn(isFloatingActionTarget && isCreateMode && "hidden sm:inline", isHeaderActionTarget && "max-md:sr-only")}>
               {isCreateMode ? t("header.createStation") : t("common:actions.saveChanges")}
             </span>
           </Button>

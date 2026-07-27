@@ -214,7 +214,7 @@
     "fetchFailed": "Failed to fetch identifiers"
   },
   "siblingSectors": {
-    "fetchFrom": "Copy azimuths from {{brand}}",
+    "fetchFrom": "Copy from {{brand}}",
     "fetching": "Copying...",
     "notFound": "No sibling sectors found",
     "fetched": "Azimuths copied from sibling station",

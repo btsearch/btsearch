@@ -5,7 +5,7 @@ import { hash, verify } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import { type GenericEndpointContext, betterAuth } from "better-auth";
 import { fromNodeHeaders } from "better-auth/node";
-import { admin, multiSession, twoFactor, username } from "better-auth/plugins";
+import { admin, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
 import type { FastifyRequest } from "fastify";
 
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
@@ -200,6 +200,7 @@ export const auth = betterAuth({
         enabled: false,
       },
     }),
+    lastLoginMethod(),
     multiSession(),
     username({
       minUsernameLength: 3,

@@ -927,8 +927,8 @@ async function applyUploadedSubmissionPhotos(
   stationId: number,
   resolvedLocationId: number | null,
   photos: SubmissionPhotoRow[],
-): Promise<void> {
-  if (photos.length === 0) return;
+): Promise<boolean> {
+  if (photos.length === 0) return false;
 
   let stationPhotoContext: Awaited<ReturnType<typeof loadStationPhotoContext>> = null;
   let photoLocationId = resolvedLocationId;
@@ -936,7 +936,7 @@ async function applyUploadedSubmissionPhotos(
     stationPhotoContext = await loadStationPhotoContext(tx, stationId);
     photoLocationId = stationPhotoContext?.locationId ?? null;
   }
-  if (!photoLocationId) return;
+  if (!photoLocationId) return false;
 
   await tx
     .insert(locationPhotos)
@@ -952,8 +952,8 @@ async function applyUploadedSubmissionPhotos(
     )
     .onConflictDoNothing();
 
-  const locationPhotoRows = await tx
-    .select({ id: locationPhotos.id })
+  const unorderedRows = await tx
+    .select({ id: locationPhotos.id, attachment_id: locationPhotos.attachment_id })
     .from(locationPhotos)
     .where(
       and(
@@ -965,7 +965,16 @@ async function applyUploadedSubmissionPhotos(
       ),
     );
 
-  if (locationPhotoRows.length === 0) return;
+  if (unorderedRows.length === 0) return false;
+
+  const rowsByAttachment = new Map(unorderedRows.map((row) => [row.attachment_id, row.id]));
+  const locationPhotoRows = photos
+    .map((photo) => ({ id: rowsByAttachment.get(photo.attachment_id), is_main: photo.is_main }))
+    .filter((row): row is { id: number; is_main: boolean } => row.id !== undefined);
+
+  if (locationPhotoRows.length === 0) return false;
+
+  const explicitMainId = locationPhotoRows.find((row) => row.is_main)?.id ?? null;
 
   const [existingMain, loadedStationPhotoContext] = await Promise.all([
     tx.query.stationPhotoSelections.findFirst({
@@ -974,19 +983,24 @@ async function applyUploadedSubmissionPhotos(
     stationPhotoContext ? Promise.resolve(stationPhotoContext) : loadStationPhotoContext(tx, stationId),
   ]);
 
+  const resolveIsMain = (locationPhotoId: number, index: number, hasExistingMain: boolean) =>
+    explicitMainId !== null ? locationPhotoId === explicitMainId : !hasExistingMain && index === 0;
+
   await tx
     .insert(stationPhotoSelections)
     .values(
       locationPhotoRows.map((locationPhoto, index) => ({
         station_id: stationId,
         location_photo_id: locationPhoto.id,
-        is_main: !existingMain && index === 0,
+        is_main: resolveIsMain(locationPhoto.id, index, !!existingMain),
       })),
     )
     .onConflictDoNothing();
 
+  if (explicitMainId !== null) await forceMainSelection(tx, stationId, explicitMainId);
+
   const siblingMnc = getSiblingMnc(loadedStationPhotoContext?.mnc);
-  if (siblingMnc === null) return;
+  if (siblingMnc === null) return explicitMainId !== null;
 
   const [siblingStation] = await tx
     .select({ id: stations.id })
@@ -994,7 +1008,7 @@ async function applyUploadedSubmissionPhotos(
     .innerJoin(operators, eq(stations.operator_id, operators.id))
     .where(and(eq(stations.location_id, photoLocationId), eq(operators.mnc, siblingMnc)));
 
-  if (!siblingStation) return;
+  if (!siblingStation) return explicitMainId !== null;
 
   const siblingExistingMain = await tx.query.stationPhotoSelections.findFirst({
     where: { station_id: siblingStation.id, is_main: true },
@@ -1005,13 +1019,30 @@ async function applyUploadedSubmissionPhotos(
       locationPhotoRows.map((locationPhoto, index) => ({
         station_id: siblingStation.id,
         location_photo_id: locationPhoto.id,
-        is_main: !siblingExistingMain && index === 0,
+        is_main: resolveIsMain(locationPhoto.id, index, !!siblingExistingMain),
       })),
     )
     .onConflictDoNothing();
+
+  if (explicitMainId !== null) await forceMainSelection(tx, siblingStation.id, explicitMainId);
+
+  return explicitMainId !== null;
 }
 
-async function applyLocationPhotoSelections(tx: DbTx, locationPhotoSels: SubmissionLocationPhotoSelectionRow[], stationId: number): Promise<void> {
+async function forceMainSelection(tx: DbTx, stationId: number, locationPhotoId: number): Promise<void> {
+  await tx.update(stationPhotoSelections).set({ is_main: false }).where(eq(stationPhotoSelections.station_id, stationId));
+  await tx
+    .update(stationPhotoSelections)
+    .set({ is_main: true })
+    .where(and(eq(stationPhotoSelections.station_id, stationId), eq(stationPhotoSelections.location_photo_id, locationPhotoId)));
+}
+
+async function applyLocationPhotoSelections(
+  tx: DbTx,
+  locationPhotoSels: SubmissionLocationPhotoSelectionRow[],
+  stationId: number,
+  uploadedMainApplied: boolean,
+): Promise<void> {
   if (locationPhotoSels.length === 0) return;
 
   const requestedIds = locationPhotoSels.map((selection) => selection.location_photo_id);
@@ -1022,7 +1053,7 @@ async function applyLocationPhotoSelections(tx: DbTx, locationPhotoSels: Submiss
   const existingIds = new Set(existingRows.map((row) => row.location_photo_id));
   const toInsert = locationPhotoSels.filter((selection) => !existingIds.has(selection.location_photo_id));
 
-  const mainSel = locationPhotoSels.find((selection) => selection.is_main);
+  const mainSel = uploadedMainApplied ? undefined : locationPhotoSels.find((selection) => selection.is_main);
   const mainIsAlreadyAssigned = mainSel !== undefined && existingIds.has(mainSel.location_photo_id);
 
   if (toInsert.length > 0) {
@@ -1033,18 +1064,14 @@ async function applyLocationPhotoSelections(tx: DbTx, locationPhotoSels: Submiss
       toInsert.map((selection) => ({
         station_id: stationId,
         location_photo_id: selection.location_photo_id,
-        is_main: !existingMain && !mainIsAlreadyAssigned && selection.is_main,
+        is_main: !existingMain && !mainIsAlreadyAssigned && !uploadedMainApplied && selection.is_main,
       })),
     );
   }
 
   if (!mainIsAlreadyAssigned) return;
 
-  await tx.update(stationPhotoSelections).set({ is_main: false }).where(eq(stationPhotoSelections.station_id, stationId));
-  await tx
-    .update(stationPhotoSelections)
-    .set({ is_main: true })
-    .where(and(eq(stationPhotoSelections.station_id, stationId), eq(stationPhotoSelections.location_photo_id, mainSel.location_photo_id)));
+  await forceMainSelection(tx, stationId, mainSel.location_photo_id);
 }
 
 async function deleteAttachmentFiles(attachmentUuids: string[]): Promise<void> {
@@ -1107,14 +1134,14 @@ async function applySubmissionPhotos(
   if (!stationId || submission.type === "delete") return { attachmentUuidsToDelete: [], photosAdded: false };
 
   const [photos, locationPhotoSelections] = await Promise.all([
-    tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId } }),
+    tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } }),
     tx.query.submissionLocationPhotoSelections.findMany({ where: { submission_id: submissionId } }),
   ]);
   const locationPhotoAdditions = locationPhotoSelections.filter((selection) => !selection.is_removal);
   const locationPhotoRemovalIds = locationPhotoSelections.filter((selection) => selection.is_removal).map((selection) => selection.location_photo_id);
 
-  await applyUploadedSubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId, photos);
-  await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId);
+  const uploadedMainApplied = await applyUploadedSubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId, photos);
+  await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId, uploadedMainApplied);
   const attachmentUuidsToDelete = await applyLocationPhotoRemovals(tx, locationPhotoRemovalIds, stationId);
   return { attachmentUuidsToDelete, photosAdded: photos.length > 0 || locationPhotoAdditions.length > 0 };
 }

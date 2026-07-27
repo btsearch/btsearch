@@ -66,6 +66,8 @@ type SubmissionPhotosPanelProps = {
   onLocationPhotoIdsToRemoveChange: Dispatch<SetStateAction<number[]>>;
   mainLocationPhotoId: number | null;
   onMainLocationPhotoIdChange: (id: number | null) => void;
+  mainUploadPhotoIndex: number | null;
+  onMainUploadPhotoIndexChange: (index: number | null) => void;
   editSubmissionId?: string;
 };
 
@@ -91,6 +93,8 @@ export function SubmissionPhotosPanel({
   onLocationPhotoIdsToRemoveChange,
   mainLocationPhotoId,
   onMainLocationPhotoIdChange,
+  mainUploadPhotoIndex,
+  onMainUploadPhotoIndexChange,
   editSubmissionId,
 }: SubmissionPhotosPanelProps) {
   const { t, i18n } = useTranslation("submissions");
@@ -243,12 +247,24 @@ export function SubmissionPhotosPanel({
     [mainLocationPhotoId, markedForRemovalIds, onLocationPhotoIdsChange, onLocationPhotoIdsToRemoveChange, onMainLocationPhotoIdChange],
   );
 
+  const uploadedMainPhotoId = useMemo(() => submissionPhotos.find((photo) => photo.is_main)?.id ?? null, [submissionPhotos]);
+  const hasUploadMainProposal = mainUploadPhotoIndex !== null || uploadedMainPhotoId !== null;
+
   const setLocationPhotoAsMain = useCallback(
     (photo: LocationPhoto) => {
       if (assignedLocationPhotoIds.has(photo.id)) onLocationPhotoIdsChange((ids) => (ids.includes(photo.id) ? ids : [...ids, photo.id]));
+      onMainUploadPhotoIndexChange(null);
       onMainLocationPhotoIdChange(photo.id);
     },
-    [assignedLocationPhotoIds, onLocationPhotoIdsChange, onMainLocationPhotoIdChange],
+    [assignedLocationPhotoIds, onLocationPhotoIdsChange, onMainLocationPhotoIdChange, onMainUploadPhotoIndexChange],
+  );
+
+  const setLocalPhotoAsMain = useCallback(
+    (index: number) => {
+      onMainLocationPhotoIdChange(null);
+      onMainUploadPhotoIndexChange(index);
+    },
+    [onMainLocationPhotoIdChange, onMainUploadPhotoIndexChange],
   );
 
   if (!shouldRender) return null;
@@ -309,6 +325,8 @@ export function SubmissionPhotosPanel({
     onPhotosChange(photos.filter((_, i) => i !== index));
     onNotesChange(notes.filter((_, i) => i !== index));
     onTakenAtsChange(takenAts.filter((_, i) => i !== index));
+    if (mainUploadPhotoIndex === index) onMainUploadPhotoIndexChange(null);
+    else if (mainUploadPhotoIndex !== null && mainUploadPhotoIndex > index) onMainUploadPhotoIndexChange(mainUploadPhotoIndex - 1);
   }
 
   function confirmDelete() {
@@ -373,6 +391,7 @@ export function SubmissionPhotosPanel({
                   {renderLocationPhotoContent({
                     assignedLocationPhotoIds,
                     currentMainLocationPhotoId,
+                    hasUploadMainProposal,
                     isLoading: isLocationLoading,
                     locationPhotos,
                     mainLocationPhotoId,
@@ -401,6 +420,7 @@ export function SubmissionPhotosPanel({
                       <UploadPhotoCard
                         key={`submission-${photo.id}`}
                         photo={photo}
+                        isMain={photo.is_main && mainUploadPhotoIndex === null && mainLocationPhotoId === null}
                         onOpen={() => setUploadLightboxIndex(index)}
                         onEdit={() => openSubmissionPhotoEdit(photo)}
                         onDelete={() => setDeleteTarget({ type: "submission", id: photo.id })}
@@ -416,6 +436,8 @@ export function SubmissionPhotosPanel({
                         url={previewUrls[index] ?? ""}
                         localIndex={index}
                         lightboxIndex={submissionPhotos.length + index}
+                        isMain={mainUploadPhotoIndex === index}
+                        onSetAsMain={() => setLocalPhotoAsMain(index)}
                         onOpen={setUploadLightboxIndex}
                         onEdit={openLocalEdit}
                         onDelete={() => setDeleteTarget({ type: "local", index })}
@@ -500,6 +522,7 @@ function CenteredSpinner() {
 function renderLocationPhotoContent({
   assignedLocationPhotoIds,
   currentMainLocationPhotoId,
+  hasUploadMainProposal,
   isLoading,
   locationPhotos,
   mainLocationPhotoId,
@@ -513,6 +536,7 @@ function renderLocationPhotoContent({
 }: {
   assignedLocationPhotoIds: ReadonlySet<number>;
   currentMainLocationPhotoId: number | null;
+  hasUploadMainProposal: boolean;
   isLoading: boolean;
   locationPhotos: LocationPhoto[];
   mainLocationPhotoId: number | null;
@@ -542,6 +566,7 @@ function renderLocationPhotoContent({
           key={photo.id}
           assignedLocationPhotoIds={assignedLocationPhotoIds}
           currentMainLocationPhotoId={currentMainLocationPhotoId}
+          hasUploadMainProposal={hasUploadMainProposal}
           index={index}
           mainLocationPhotoId={mainLocationPhotoId}
           markedForRemovalIds={markedForRemovalIds}
@@ -560,6 +585,7 @@ function renderLocationPhotoContent({
 function LocationPhotoCard({
   assignedLocationPhotoIds,
   currentMainLocationPhotoId,
+  hasUploadMainProposal,
   index,
   mainLocationPhotoId,
   markedForRemovalIds,
@@ -572,6 +598,7 @@ function LocationPhotoCard({
 }: {
   assignedLocationPhotoIds: ReadonlySet<number>;
   currentMainLocationPhotoId: number | null;
+  hasUploadMainProposal: boolean;
   index: number;
   mainLocationPhotoId: number | null;
   markedForRemovalIds: ReadonlySet<number>;
@@ -588,7 +615,7 @@ function LocationPhotoCard({
   const isMarkedForRemoval = markedForRemovalIds.has(photo.id);
   const isVisuallySelected = isSelected || (isAssigned && !isMarkedForRemoval);
   const isMain = mainLocationPhotoId === photo.id;
-  const isCurrentMain = currentMainLocationPhotoId === photo.id && mainLocationPhotoId === null;
+  const isCurrentMain = currentMainLocationPhotoId === photo.id && mainLocationPhotoId === null && !hasUploadMainProposal;
   const isEffectiveMain = isMain || isCurrentMain;
   const showStarBadge = !isMarkedForRemoval && isEffectiveMain;
   const showSetAsMain = isVisuallySelected && !isMarkedForRemoval && !isEffectiveMain;
@@ -680,6 +707,7 @@ function EmptyUploadState({ onUploadClick }: { onUploadClick: () => void }) {
 
 function UploadPhotoCard({
   editState,
+  isMain,
   mutation,
   onDelete,
   onEdit,
@@ -688,6 +716,7 @@ function UploadPhotoCard({
   setEditState,
 }: {
   editState: { id: number; note: string; takenAt: Date | null } | null;
+  isMain: boolean;
   mutation: ReturnType<
     typeof useMutation<void, Error, { id: number; note: string; takenAt: string | null; originalNote: string; originalTakenAt: string | null }>
   >;
@@ -700,7 +729,13 @@ function UploadPhotoCard({
   const { t } = useTranslation("submissions");
   return (
     <div className="rounded-lg overflow-hidden border bg-muted">
-      <PhotoImage src={`/uploads/${photo.attachment_uuid}.webp`} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen} />
+      <PhotoImage src={`/uploads/${photo.attachment_uuid}.webp`} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen}>
+        {isMain ? (
+          <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
+            <HugeiconsIcon icon={StarIcon} className="size-3" />
+          </span>
+        ) : null}
+      </PhotoImage>
       <div className="grid grid-cols-2 divide-x border-t">
         <PhotoEditPopover
           isOpen={editState?.id === photo.id}
@@ -730,31 +765,51 @@ function UploadPhotoCard({
 function LocalPhotoCard({
   editState,
   file,
+  isMain,
   lightboxIndex,
   localIndex,
   onDelete,
   onEdit,
   onOpen,
   onSave,
+  onSetAsMain,
   setEditState,
   url,
 }: {
   editState: { index: number; note: string; takenAt: Date | null } | null;
   file: File;
+  isMain: boolean;
   lightboxIndex: number;
   localIndex: number;
   onDelete: () => void;
   onEdit: (index: number) => void;
   onOpen: (index: number) => void;
   onSave: () => void;
+  onSetAsMain: () => void;
   setEditState: (state: { index: number; note: string; takenAt: Date | null } | null) => void;
   url: string;
 }) {
   const { t } = useTranslation("submissions");
   return (
     <div className="rounded-lg overflow-hidden border bg-muted">
-      <PhotoImage src={url} alt={file.name} frameClassName="aspect-square h-auto" onOpen={() => onOpen(lightboxIndex)} />
-      <div className="grid grid-cols-2 divide-x border-t">
+      <PhotoImage src={url} alt={file.name} frameClassName="aspect-square h-auto" onOpen={() => onOpen(lightboxIndex)}>
+        {isMain ? (
+          <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
+            <HugeiconsIcon icon={StarIcon} className="size-3" />
+          </span>
+        ) : null}
+      </PhotoImage>
+      <div className={cn("divide-x border-t", isMain ? "grid grid-cols-2" : "grid grid-cols-3")}>
+        {!isMain ? (
+          <button
+            type="button"
+            className="flex items-center justify-center py-2 text-xs text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors"
+            onClick={onSetAsMain}
+            title={t("photos.setAsMain")}
+          >
+            <HugeiconsIcon icon={StarIcon} className="size-3.5" />
+          </button>
+        ) : null}
         <PhotoEditPopover
           isOpen={editState?.index === localIndex}
           note={editState?.note ?? ""}

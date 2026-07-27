@@ -578,6 +578,7 @@ function ClfExportPage() {
 export const Route = createFileRoute("/_layout/clf-export")({
   component: ClfExportPage,
   staticData: {
+    mainClassName: "overflow-hidden",
     titleKey: "items.clfExport",
     i18nNamespace: "nav",
     breadcrumbs: [{ titleKey: "sections.stations", i18nNamespace: "nav", path: "/" }],

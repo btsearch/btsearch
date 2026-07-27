@@ -1,0 +1,1 @@
+ALTER TABLE "submissions"."submission_photos" ADD COLUMN "is_main" boolean DEFAULT false NOT NULL;

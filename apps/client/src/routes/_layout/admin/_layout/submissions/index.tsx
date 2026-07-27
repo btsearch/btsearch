@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/admin/queries";
+import { StationIdentityCell } from "@/features/admin/submissions/components/stationIdentityCell";
 import { SUBMISSION_STATUS, SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionListItem } from "@/features/admin/submissions/types";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
@@ -59,23 +60,6 @@ function loadStoredNumberArray(key: string) {
   } catch {
     return [];
   }
-}
-
-function StationIdentityCell({ stationId, operator, fallback }: { stationId: string | null; operator: Operator | undefined; fallback: string }) {
-  if (!stationId && !operator) return <span className="text-muted-foreground italic text-xs">{fallback}</span>;
-
-  const operatorMnc = operator?.mnc;
-  const color = operatorMnc !== null && operatorMnc !== undefined ? getOperatorColor(operatorMnc) : "#00E1FF";
-
-  return (
-    <div className="flex items-start gap-2 min-w-0">
-      <div className="size-3 rounded-[2px] shrink-0 mt-1" style={{ backgroundColor: color }} />
-      <div className="min-w-0">
-        <div className="font-mono text-sm font-medium truncate">{stationId ?? fallback}</div>
-        <div className="text-xs text-muted-foreground truncate">{operator?.name ?? "-"}</div>
-      </div>
-    </div>
-  );
 }
 
 function SortableHeader({ label, sort, onToggle }: { label: string; sort: "asc" | "desc"; onToggle: () => void }) {
@@ -608,7 +592,11 @@ function AdminSubmissionsListPage() {
           <UserPickerPopover selectedUserIds={selectedSubmitterIds} onSelectionChange={handleSubmitterChange} />
           <div className="w-full sm:w-44">
             <Combobox multiple value={selectedOperators} onValueChange={handleOperatorChange} items={operators}>
-              <ComboboxChips ref={operatorChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+              <ComboboxChips
+                ref={operatorChipsRef}
+                className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5"
+              >
+                <HugeiconsIcon icon={FullSignalIcon} className="size-3.5 shrink-0 text-muted-foreground pointer-events-none" />
                 {visibleSelectedOperators.map((operator) => (
                   <ComboboxChip key={operator.id} className="max-w-20 shrink-0">
                     <span className="inline-flex min-w-0 items-center gap-1.5">
@@ -642,7 +630,11 @@ function AdminSubmissionsListPage() {
           </div>
           <div className="w-full sm:w-52">
             <Combobox multiple value={selectedRegions} onValueChange={handleRegionChange} items={regions}>
-              <ComboboxChips ref={regionChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+              <ComboboxChips
+                ref={regionChipsRef}
+                className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5"
+              >
+                <HugeiconsIcon icon={Location01Icon} className="size-3.5 shrink-0 text-muted-foreground pointer-events-none" />
                 {visibleSelectedRegions.map((region) => (
                   <ComboboxChip key={region.id} className="max-w-32 shrink-0">
                     <span className="truncate">{region.name}</span>
@@ -745,7 +737,7 @@ function AdminSubmissionsListPage() {
           showFloatingMobileFilters ? (
             <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
               <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-                <div className="w-max">
+                <div className="w-max mx-auto">
                   <SubmissionsMobileFilterRail
                     statusFilter={statusFilter}
                     typeFilter={typeFilter}

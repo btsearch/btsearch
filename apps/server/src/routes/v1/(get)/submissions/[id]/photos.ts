@@ -15,6 +15,7 @@ const photoSchema = z.object({
   mime_type: z.string(),
   note: z.string().nullable(),
   taken_at: z.string().nullable(),
+  is_main: z.boolean(),
   createdAt: z.string(),
   author: z.object({ uuid: z.string(), username: z.string(), name: z.string() }).nullable(),
 });
@@ -45,6 +46,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       mime_type: attachments.mime_type,
       note: submissionPhotos.note,
       taken_at: submissionPhotos.taken_at,
+      is_main: submissionPhotos.is_main,
       createdAt: submissionPhotos.createdAt,
       author_uuid: users.id,
       author_username: users.username,
@@ -63,6 +65,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       mime_type: r.mime_type,
       note: r.note,
       taken_at: r.taken_at?.toISOString() ?? null,
+      is_main: r.is_main,
       createdAt: r.createdAt.toISOString(),
       author: r.author_uuid && r.author_username ? { uuid: r.author_uuid, username: r.author_username, name: r.author_name ?? "" } : null,
     })),

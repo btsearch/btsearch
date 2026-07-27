@@ -145,7 +145,10 @@ function AppLayout() {
                       <SidebarTrigger className="-ml-1" />
                     </span>
                     <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-                    <Breadcrumb style={isWCO ? ({ WebkitAppRegion: "no-drag", appRegion: "no-drag" } as React.CSSProperties) : undefined}>
+                    <Breadcrumb
+                      className="min-w-0"
+                      style={isWCO ? ({ WebkitAppRegion: "no-drag", appRegion: "no-drag" } as React.CSSProperties) : undefined}
+                    >
                       <BreadcrumbList>
                         {!isWCO && (
                           <BreadcrumbItem className="hidden md:block">
@@ -169,8 +172,8 @@ function AppLayout() {
                         {pageTitle && (
                           <>
                             <BreadcrumbSeparator className="hidden md:block" />
-                            <BreadcrumbItem>
-                              <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+                            <BreadcrumbItem className="min-w-0">
+                              <BreadcrumbPage className="truncate">{pageTitle}</BreadcrumbPage>
                             </BreadcrumbItem>
                           </>
                         )}
@@ -178,7 +181,7 @@ function AppLayout() {
                     </Breadcrumb>
                     <div
                       id="header-actions"
-                      className="ml-auto flex items-center gap-2"
+                      className="ml-auto flex shrink-0 items-center gap-2"
                       style={
                         isWCO
                           ? ({

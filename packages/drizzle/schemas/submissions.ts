@@ -228,6 +228,7 @@ export const submissionPhotos = SubmissionsSchema.table(
     attachment_id: integer("attachment_id").notNull(),
     note: varchar("note", { length: 100 }),
     taken_at: timestamp("taken_at", { withTimezone: true }),
+    is_main: boolean("is_main").notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("submission_photos_submission_id_idx").on(t.submission_id), unique("submission_photos_unique").on(t.submission_id, t.attachment_id)],

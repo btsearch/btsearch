@@ -217,7 +217,7 @@
     "fetchFailed": "Nie udało się pobrać identyfikatorów"
   },
   "siblingSectors": {
-    "fetchFrom": "Skopiuj azymuty z {{brand}}",
+    "fetchFrom": "Skopiuj z {{brand}}",
     "fetching": "Kopiowanie...",
     "notFound": "Nie znaleziono sektorów stacji siostrzanej",
     "fetched": "Azymuty skopiowane ze stacji siostrzanej",

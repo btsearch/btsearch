@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { EmptyPanel } from "@/components/empty-panel";
+import { RAT_ORDER } from "@/features/shared/rat";
 import type { SectorDraft } from "@/types/station";
 
 import type { ProposedCellForm, RatType } from "../types";
@@ -47,7 +48,7 @@ export function CellsSection({
 
   return (
     <div className="space-y-3 pb-4">
-      {selectedRats.map((rat) => (
+      {RAT_ORDER.filter((rat) => selectedRats.includes(rat)).map((rat) => (
         <CellDetailsForm
           key={rat}
           rat={rat}

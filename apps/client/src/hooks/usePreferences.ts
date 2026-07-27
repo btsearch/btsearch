@@ -207,6 +207,14 @@ function getDefaultPreferences(profile: PreferenceProfile): UserPreferences {
   return profile === "mobile" ? MOBILE_DEFAULT_PREFERENCES : DEFAULT_PREFERENCES;
 }
 
+function mergePreferences(profile: PreferenceProfile, preferences: Partial<UserPreferences>): UserPreferences {
+  return {
+    ...getDefaultPreferences(profile),
+    ...preferences,
+    ...(profile === "mobile" ? { hideFiltersOnMapClick: false } : {}),
+  };
+}
+
 function parsePreferences(raw: string | null, profile: PreferenceProfile): UserPreferences {
   const defaults = getDefaultPreferences(profile);
   if (raw === null) return defaults;
@@ -215,11 +223,10 @@ function parsePreferences(raw: string | null, profile: PreferenceProfile): UserP
     const { CLFDescriptionTemplates: legacyTemplates, ...preferences } = JSON.parse(raw) as Partial<UserPreferences> & {
       CLFDescriptionTemplates?: CLFDescriptionTemplates;
     };
-    const next: UserPreferences = {
-      ...defaults,
+    const next = mergePreferences(profile, {
       ...preferences,
       ...(preferences.clfDescriptionTemplates === undefined && legacyTemplates !== undefined ? { clfDescriptionTemplates: legacyTemplates } : {}),
-    };
+    });
 
     if (legacyTemplates !== undefined) writeStorageValue(getProfileStorageKey(profile), JSON.stringify(next));
 
@@ -292,7 +299,7 @@ function subscribe(listener: () => void) {
 
 function replacePreferencesForProfile(profile: PreferenceProfile, preferences: Partial<UserPreferences>) {
   const current = parsePreferences(readProfileRawWithLegacyFallback(profile), profile);
-  const next = { ...current, ...preferences };
+  const next = mergePreferences(profile, { ...current, ...preferences });
   const nextRaw = JSON.stringify(next);
   if (readStorageValue(getProfileStorageKey(profile)) === nextRaw) return;
 
@@ -308,7 +315,7 @@ function replacePreferencesForProfile(profile: PreferenceProfile, preferences: P
 function setPreferences(update: Partial<UserPreferences>): UserPreferences | null {
   const profile = resolveProfile();
   const current = getSnapshot();
-  const next = { ...current, ...update };
+  const next = mergePreferences(profile, { ...current, ...update });
   const nextRaw = JSON.stringify(next);
   const stored = readProfileRawWithLegacyFallback(profile);
   const currentRaw = stored ?? JSON.stringify(current);

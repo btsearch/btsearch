@@ -149,6 +149,8 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
     setLocationPhotoIdsToRemove,
     mainLocationPhotoId,
     setMainLocationPhotoId,
+    mainUploadPhotoIndex,
+    setMainUploadPhotoIndex,
     handlers: {
       handleModeChange,
       handleActionChange,
@@ -321,6 +323,8 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
                   onLocationPhotoIdsToRemoveChange={setLocationPhotoIdsToRemove}
                   mainLocationPhotoId={mainLocationPhotoId}
                   onMainLocationPhotoIdChange={setMainLocationPhotoId}
+                  mainUploadPhotoIndex={mainUploadPhotoIndex}
+                  onMainUploadPhotoIndexChange={setMainUploadPhotoIndex}
                   editSubmissionId={editSubmissionId}
                 />
               );

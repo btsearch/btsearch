@@ -394,7 +394,7 @@ paths:
             default: "4.0"
         - name: operators
           in: query
-          description: Comma-separated MNC numbers
+          description: Comma-separated PLMN numbers
           schema: { type: string }
         - name: regions
           in: query
@@ -525,7 +525,7 @@ paths:
           schema: { type: string }
         - name: operators
           in: query
-          description: Comma-separated MNC numbers
+          description: Comma-separated PLMN numbers
           schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
         - name: bands
           in: query
@@ -1995,7 +1995,6 @@ paths:
       summary: List own submissions
       description: Returns only submissions belonging to the authenticated user
       security:
-        - ApiKeyAuth: []
         - CookieAuth: []
       parameters:
         - name: limit
@@ -2010,9 +2009,13 @@ paths:
         - name: type
           in: query
           schema: { type: string, enum: [new, update, delete] }
+        - name: operators
+          in: query
+          description: Comma-separated PLMN numbers. Matches the linked station's operator or, for new stations, the proposed station's operator
+          schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
         - name: search
           in: query
-          description: Search by submission ID prefix or station ID
+          description: Search by submission ID prefix, station ID, or proposed station ID
           schema: { type: string }
       responses:
         "200":
@@ -2076,7 +2079,6 @@ paths:
       summary: List all submissions (admin)
       description: Returns all submissions across all users. Requires `submissions:read` permission
       security:
-        - ApiKeyAuth: []
         - CookieAuth: []
       parameters:
         - name: limit
@@ -2097,7 +2099,7 @@ paths:
           schema: { type: string }
         - name: operators
           in: query
-          description: Comma-separated operator MNCs to filter by
+          description: Comma-separated operator PLMNs to filter by
           schema: { type: string, pattern: '^\d+(,\d+)*$' }
         - name: regions
           in: query
@@ -2341,7 +2343,7 @@ paths:
     post:
       tags: [Submissions]
       summary: Upload photos for a submission (multipart/form-data)
-      description: Accepts interleaved `notes` fields and `files` fields. Max 5 photos per submission, max 10 MB per file. Only the submission's owner can upload while status is pending
+      description: Accepts interleaved `notes`, `takenAts` and `isMains` fields alongside `files` fields, each corresponding to the file at the same index. Max 5 photos per submission, max 10 MB per file. Only the submission's owner can upload while status is pending
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -2364,6 +2366,12 @@ paths:
                     format: date-time,
                     nullable: true,
                     description: "Optional ISO 8601 datetime when the corresponding photo was taken",
+                  }
+                isMains:
+                  {
+                    type: string,
+                    enum: ["true", "false"],
+                    description: "Whether the corresponding photo should become the station's main photo on approval. At most one file may be marked; any previously proposed main for this submission is cleared",
                   }
                 files: { type: string, format: binary }
       responses:
@@ -2715,14 +2723,14 @@ paths:
                         required: [rat, mnc, lac, cid]
                         properties:
                           rat: { type: string, enum: [GSM] }
-                          mnc: { type: integer, description: "Combined MCC+MNC (e.g. 26002)" }
+                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
                           lac: { type: integer, minimum: 0, maximum: 65535 }
                           cid: { type: integer, minimum: 0, maximum: 65535 }
                       - type: object
                         required: [rat, mnc, lac, cid, rnc]
                         properties:
                           rat: { type: string, enum: [UMTS] }
-                          mnc: { type: integer, description: "Combined MCC+MNC (e.g. 26002)" }
+                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
                           lac: { type: integer, minimum: 0, maximum: 65535 }
                           cid: { type: integer, minimum: 0, maximum: 65535 }
                           rnc: { type: integer, minimum: 0, maximum: 65535, nullable: true }
@@ -2731,7 +2739,7 @@ paths:
                         required: [rat, mnc, tac, enbid, clid, pci]
                         properties:
                           rat: { type: string, enum: [LTE] }
-                          mnc: { type: integer, description: "Combined MCC+MNC (e.g. 26002)" }
+                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
                           tac: { type: integer, minimum: 0, maximum: 65535 }
                           enbid: { type: integer, minimum: 0, maximum: 1048575 }
                           clid: { type: integer, minimum: 0, maximum: 255 }
@@ -2741,7 +2749,7 @@ paths:
                         required: [rat, mnc]
                         properties:
                           rat: { type: string, enum: [NR] }
-                          mnc: { type: integer, description: "Combined MCC+MNC (e.g. 26002)" }
+                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
       responses:
         "200":
           description: OK
@@ -2940,7 +2948,7 @@ paths:
       description: |
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
-        - **stations**: bts_id, mnc
+        - **stations**: bts_id, mnc (plmn)
         - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
@@ -3133,7 +3141,7 @@ paths:
           schema: { type: string }
         - name: operators
           in: query
-          description: Filter by comma-separated operator MNC codes. Passing `26034` also includes Orange and T-Mobile NetWorks operators
+          description: Filter by comma-separated operator PLMN codes. Passing `26034` also includes Orange and T-Mobile NetWorks operators
           schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
         - name: bands
           in: query
@@ -3149,7 +3157,7 @@ paths:
           schema: { type: string }
         - name: operator
           in: query
-          description: Filter by operator MNC code (e.g. 26003)
+          description: Filter by operator PLMN code (e.g. 26003)
           schema: { type: integer }
       responses:
         "200":
@@ -3241,7 +3249,7 @@ paths:
           schema: { type: string, pattern: "^(?:cdma|umts|gsm|gsm-r|lte|nr|iot)(?:,(?:cdma|umts|gsm|gsm-r|lte|nr|iot))*$" }
         - name: operators
           in: query
-          description: Filter by comma-separated operator MNC codes. Passing `26034` also includes Orange and T-Mobile NetWorks operators
+          description: Filter by comma-separated operator PLMN codes. Passing `26034` also includes Orange and T-Mobile NetWorks operators
           schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
         - name: bands
           in: query
@@ -3464,7 +3472,6 @@ paths:
       summary: List user lists
       description: Returns lists owned by the authenticated user. Admins with `user_lists:read` permission can pass `all=true` to see all lists across all users
       security:
-        - ApiKeyAuth: []
         - CookieAuth: []
       parameters:
         - name: limit
@@ -3635,7 +3642,7 @@ paths:
           schema: { type: string, enum: [PLANNED, COMPLETED, CANCELED], default: PLANNED }
         - name: operators
           in: query
-          description: Comma-separated MNC numbers to filter by (e.g. 26002,26003)
+          description: Comma-separated PLMN numbers to filter by (e.g. 26002,26003)
           schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
         - name: station_id
           in: query
@@ -3691,7 +3698,7 @@ paths:
         - name: operator
           in: query
           required: true
-          description: Operator MNC (e.g. 26002 for T-Mobile). Used to map to the SI2PEM legal entity name
+          description: Operator PLMN (e.g. 26002 for T-Mobile). Used to map to the SI2PEM legal entity name
           schema: { type: integer }
       responses:
         "200":
@@ -3787,7 +3794,9 @@ paths:
     get:
       tags: [KMZ]
       summary: Download a generated KMZ file
-      description: Streams the KMZ file matching the given date, type, source, and optional region as `application/vnd.google-earth.kmz`
+      description: >-
+        Streams the KMZ file matching the given date, type, source, and optional region as `application/vnd.google-earth.kmz`.
+        Set `new=true` to get that day's new-entries export (`<type>_new_<day>.kmz`) instead of the combined one
       parameters:
         - name: date
           in: query
@@ -3803,8 +3812,14 @@ paths:
           schema: { type: string, enum: [all, permits, device_registry] }
         - name: region
           in: query
-          description: Three-letter region code
-          schema: { type: string, pattern: "^[A-Z]{3}$" }
+          description: >-
+            Three-letter region code, or `UNKNOWN` for the export covering entries whose region could not be resolved
+          schema: { type: string, pattern: "^([A-Z]{3}|UNKNOWN)$" }
+        - name: new
+          in: query
+          description: >-
+            Serve the new-entries export for that day (`<type>_new_<day>.kmz`) rather than the combined file
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: The KMZ file
@@ -4178,13 +4193,14 @@ components:
         createdAt: { type: string, format: date-time }
     SubmissionPhoto:
       type: object
-      required: [id, attachment_uuid, mime_type, note, taken_at, createdAt, author]
+      required: [id, attachment_uuid, mime_type, note, taken_at, is_main, createdAt, author]
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
         mime_type: { type: string }
         note: { type: string, maxLength: 100, nullable: true }
         taken_at: { type: string, format: date-time, nullable: true }
+        is_main: { type: boolean, description: "Whether this photo is proposed as the station's main photo once the submission is approved" }
         createdAt: { type: string, format: date-time }
         author: { $ref: "#/components/schemas/PhotoAuthor" }
 

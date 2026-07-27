@@ -27,7 +27,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { KMZ_SOURCES, KMZ_TYPES, type KmzFile, type KmzSource, type KmzType, downloadKmzFile } from "@/features/kmz/api";
+import {
+  KMZ_SOURCES,
+  KMZ_TYPES,
+  type KmzFile,
+  type KmzSource,
+  type KmzType,
+  downloadKmzFile,
+  isNewKmzFile,
+  isUnknownRegionKmzFile,
+} from "@/features/kmz/api";
 import { useKmzDates, useKmzList } from "@/features/kmz/hooks";
 import { regionsQueryOptions } from "@/features/shared/queries";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -376,8 +385,8 @@ function KmzListPage() {
   }
 
   function getRegionLabel(file: KmzFile) {
-    if (file.filename.includes("_new")) return t(`file.new_${file.type}`);
-    if (file.filename.includes("_UNKNOWN")) return t("region.unknownRegion");
+    if (isNewKmzFile(file)) return t(`file.new_${file.type}`);
+    if (isUnknownRegionKmzFile(file)) return t("region.unknownRegion");
     return file.region?.name ?? t("region.allRegions");
   }
 

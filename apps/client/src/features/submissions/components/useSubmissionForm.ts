@@ -116,12 +116,14 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
   const [locationPhotoIds, setLocationPhotoIds] = useState<number[]>([]);
   const [locationPhotoIdsToRemove, setLocationPhotoIdsToRemove] = useState<number[]>([]);
   const [mainLocationPhotoId, setMainLocationPhotoId] = useState<number | null>(null);
+  const [mainUploadPhotoIndex, setMainUploadPhotoIndex] = useState<number | null>(null);
   const submittedValuesRef = useRef<FormValues | null>(null);
 
   const clearLocationPhotoDraft = useCallback(() => {
     setLocationPhotoIds([]);
     setLocationPhotoIdsToRemove([]);
     setMainLocationPhotoId(null);
+    setMainUploadPhotoIndex(null);
   }, []);
 
   const isEditMode = !!editSubmissionId;
@@ -262,6 +264,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           photos,
           photoNotes,
           photoTakenAts.map((d) => d?.toISOString() ?? null),
+          mainUploadPhotoIndex,
         ).catch((error: unknown) => {
           if (isPhotosOnly) void deleteSubmission(submissionId).catch(() => undefined);
           throw error;
@@ -274,6 +277,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         setPhotos([]);
         setPhotoNotes([]);
         setPhotoTakenAts([]);
+        setMainUploadPhotoIndex(null);
       }
       toast.success(t(isEditMode ? "toast.updated" : "toast.submitted"));
       clearLocationPhotoDraft();
@@ -727,6 +731,8 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     setLocationPhotoIdsToRemove,
     mainLocationPhotoId,
     setMainLocationPhotoId,
+    mainUploadPhotoIndex,
+    setMainUploadPhotoIndex,
     handlers: {
       handleModeChange,
       handleActionChange,

@@ -442,7 +442,7 @@ function AccountSettingsPage() {
   if (isPending)
     return (
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-8">
+        <div className="p-6 space-y-8 max-md:pb-16">
           <div className="border-b pb-4">
             <Skeleton className="h-8 w-48 rounded" />
           </div>
@@ -485,7 +485,7 @@ function AccountSettingsPage() {
           </button>
         ))}
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 max-md:pb-16">
         {tab === "account" && user && (
           <div key="account" className="animate-in fade-in slide-in-from-bottom-1 duration-150 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <section className="space-y-4">
@@ -557,5 +557,6 @@ export const Route = createFileRoute("/_layout/settings")({
     titleKey: "page.shortTitle",
     i18nNamespace: "settings",
     breadcrumbs: [{ titleKey: "account.title", i18nNamespace: "settings" }],
+    mainClassName: "overflow-hidden max-md:pb-0",
   },
 });

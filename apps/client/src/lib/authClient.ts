@@ -1,6 +1,6 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
 import { passkeyClient } from "@better-auth/passkey/client";
-import { adminClient, multiSessionClient, twoFactorClient, usernameClient } from "better-auth/client/plugins";
+import { adminClient, lastLoginMethodClient, multiSessionClient, twoFactorClient, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 import { API_BASE } from "@/lib/api";
@@ -11,6 +11,7 @@ export const authClient = createAuthClient({
   plugins: [
     adminClient(),
     apiKeyClient(),
+    lastLoginMethodClient(),
     multiSessionClient(),
     twoFactorClient({
       onTwoFactorRedirect() {

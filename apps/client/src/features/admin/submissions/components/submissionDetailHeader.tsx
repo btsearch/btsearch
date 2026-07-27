@@ -1,8 +1,9 @@
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,8 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
   const { t } = useTranslation(["submissions", "common"]);
   const { ref: headerRef, scrolled } = useScrolled();
   const navActionTarget = useNavActionTarget();
+  const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
+  const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
 
   const actionBar = (
     <div className="flex items-center gap-1">
@@ -49,11 +52,15 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
                   variant="outline"
                   size="sm"
                   disabled={isProcessing}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className={cn(
+                    "text-destructive hover:text-destructive hover:bg-destructive/10",
+                    isFloatingActionTarget && "max-md:bg-background max-md:dark:bg-background",
+                  )}
                 />
               }
             >
-              {t("header.reject")}
+              {isHeaderActionTarget ? <HugeiconsIcon icon={Cancel01Icon} className="size-3.5 md:hidden" /> : null}
+              <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("header.reject")}</span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -74,7 +81,8 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
                 <Button variant="default" size="sm" disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" />
               }
             >
-              {t("header.approve")}
+              {isHeaderActionTarget ? <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 md:hidden" /> : null}
+              <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("header.approve")}</span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -90,7 +98,14 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
             </AlertDialogContent>
           </AlertDialog>
           <Button size="sm" onClick={onSave} disabled={isProcessing} className="shadow-sm font-medium">
-            {isProcessing ? <Spinner /> : t("common:actions.saveChanges")}
+            {isProcessing ? (
+              <Spinner />
+            ) : (
+              <>
+                {isHeaderActionTarget ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5 md:hidden" /> : null}
+                <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("common:actions.saveChanges")}</span>
+              </>
+            )}
           </Button>
         </>
       )}

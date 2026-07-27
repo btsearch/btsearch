@@ -1,6 +1,27 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-07-27
+
+### 🚀 Enhancements
+
+- New photos can now be selected as the station's main photo directly while adding new photos
+- My Submissions can now be filtered by status and operator and searched by station ID, with filter pills in the mobile floating navigation
+- My Submissions rows now show each station's operator with its color, matching the admin submissions list
+- Operator and region filter dropdowns on submissions pages now show an icon, which no longer shifts once a selection is made
+- Mobile filter pills are now centered when they fit on screen instead of leaving empty space on the right
+
+### 🩹 Fixes
+
+- Map filters now stay open when tapping the map on mobile, and the related setting is only shown for desktop preferences
+- The login dialog now marks only the actual last-used sign-in method
+- Cell tables on the submission form now consistently follow the NR, LTE, UMTS and GSM order
+- Downloading the new stations KMZ export now returns that file instead of the full export; the same applies to the unknown region export
+- Approve, reject and save buttons on admin submission and station detail pages no longer overflow the screen on mobile when floating navigation is disabled
+- The reject button on admin submission details now keeps a solid background in the mobile floating navigation rail
+- Floating navigation now overlays the page content on the settings page on mobile instead of leaving an empty band below it
+- Previous values in submission location changes now wrap instead of being cut off, so long addresses are fully visible
+
 # 2026-07-19
 
 ### 🚀 Enhancements

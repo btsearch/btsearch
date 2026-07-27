@@ -15,6 +15,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 import { createAuditLog } from "../../../../../services/auditLog.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
+import { clearOtherMainPhotos } from "../../../../../utils/submissions/photos.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_PHOTOS_PER_SUBMISSION = 5;
@@ -88,6 +89,8 @@ async function handler(
   const insertedRows: { id: number; attachment_uuid: string; mime_type: string; createdAt: Date }[] = [];
   const notes: string[] = [];
   const takenAts: (string | null)[] = [];
+  const isMains: boolean[] = [];
+  let mainFileIndex: number | null = null;
 
   try {
     for await (const part of req.parts({ limits: { fileSize: MAX_FILE_SIZE_BYTES } })) {
@@ -95,6 +98,7 @@ async function handler(
       if (anyPart.type === "field") {
         if (anyPart.fieldname === "notes") notes.push(anyPart.value ?? "");
         if (anyPart.fieldname === "takenAts") takenAts.push(anyPart.value || null);
+        if (anyPart.fieldname === "isMains") isMains.push(anyPart.value === "true");
         continue;
       }
       if (anyPart.type !== "file" || !anyPart.file) continue;
@@ -156,11 +160,19 @@ async function handler(
       } else if (exifDate) {
         taken_at = exifDate;
       }
-      const [photoRow] = await db.insert(submissionPhotos).values({ submission_id: id, attachment_id: newAttachment.id, note, taken_at }).returning();
+      const is_main: boolean = mainFileIndex === null && (isMains[fileIndex] ?? false);
+      const [photoRow] = await db
+        .insert(submissionPhotos)
+        .values({ submission_id: id, attachment_id: newAttachment.id, note, taken_at, is_main })
+        .returning();
       if (!photoRow) throw new ErrorResponse("FAILED_TO_CREATE");
+      if (is_main) mainFileIndex = fileIndex;
 
       insertedRows.push({ id: photoRow.id, attachment_uuid: fileUuid, mime_type: "image/webp", createdAt: photoRow.createdAt });
     }
+
+    const mainPhotoId = mainFileIndex !== null ? (insertedRows[mainFileIndex]?.id ?? null) : null;
+    if (mainPhotoId !== null) await clearOtherMainPhotos(id, mainPhotoId);
   } catch (error) {
     await Promise.all(
       savedPaths.map(async (p) => {

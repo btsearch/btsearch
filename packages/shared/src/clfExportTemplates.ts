@@ -34,8 +34,8 @@ export const CLF_DESCRIPTION_TEMPLATE_DEFAULTS = {
   GSM: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {gsm_band}]",
   UMTS: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {umts_band} {umts_rnc}:{umts_cid}]",
   LTE: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} L{lte_band_value}:{lte_enbid}:{lte_clid} {nr_band}:{nr_pcis}]",
-  NR_NSA: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {nr_band}:{nr_pci}]",
-  NR: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} {nr_gnbid}:{nr_clid} {nr_band}:{nr_pci}]",
+  NR_NSA: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} NR{nr_band_value}:{nr_pci}]",
+  NR: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} [{station_id} NR{nr_band_value}:{nr_gnbid}:{nr_clid}]",
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [

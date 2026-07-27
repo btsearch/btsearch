@@ -66,7 +66,7 @@ type SliderPref = {
 
 type PreferenceItem = RadioPref | CheckboxGroupPref | CheckboxPref | SliderPref;
 
-type PreferenceCard = { items: PreferenceItem[]; noteKey?: string };
+type PreferenceCard = { items: PreferenceItem[]; noteKey?: string; desktopOnly?: boolean };
 
 type PreferenceGroup = {
   titleKey: string;
@@ -74,6 +74,10 @@ type PreferenceGroup = {
 };
 
 type CloudPreferencesControls = ReturnType<typeof usePreferences>["cloud"];
+
+function getVisiblePreferenceCards(group: PreferenceGroup, profile: PreferenceProfile): PreferenceCard[] {
+  return group.cards.filter((card) => profile === "desktop" || card.desktopOnly !== true);
+}
 
 function isPreferenceProfile(value: string): value is PreferenceProfile {
   return value === "desktop" || value === "mobile";
@@ -218,6 +222,7 @@ const GROUPS: PreferenceGroup[] = [
         ],
       },
       {
+        desktopOnly: true,
         items: [
           {
             type: "checkbox",
@@ -640,7 +645,7 @@ export function PreferencesContent() {
         <section key={group.titleKey} className="space-y-4">
           <h2 className="text-lg font-semibold">{t(group.titleKey)}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {group.cards.map((card) => (
+            {getVisiblePreferenceCards(group, cloud.activeProfile).map((card) => (
               <div key={card.items.map((i) => i.key).join("-")} className="rounded-xl border bg-card p-4 space-y-4">
                 {card.items.map((item, idx) => (
                   <div key={item.key} className="space-y-3">
