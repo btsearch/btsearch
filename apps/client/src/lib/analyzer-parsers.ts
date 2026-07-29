@@ -97,6 +97,7 @@ function parseNetMonitorLine(line: string): ParsedRow | null {
   const lac = Number.parseInt(parts[3], 10);
   const cid = Number.parseInt(parts[4], 10);
   const psc = Number.parseInt(parts[5], 10);
+  const arfcn = Number.parseInt(parts[6], 10);
   const description = parts[10] ?? "";
 
   switch (rat) {
@@ -114,7 +115,7 @@ function parseNetMonitorLine(line: string): ParsedRow | null {
       if (Number.isNaN(lac) || Number.isNaN(cid) || Number.isNaN(psc)) return null;
       const enbid = Math.floor(cid / 256);
       const clid = cid % 256;
-      return { rat: "LTE", mnc, tac: lac, enbid, clid, pci: psc, description, rawLine: line };
+      return { rat: "LTE", mnc, tac: lac, enbid, clid, pci: psc, earfcn: arfcn, description, rawLine: line };
     }
     case "NR": {
       return { rat: "NR", mnc, description, rawLine: line };
