@@ -7,6 +7,10 @@ export default {
     title: "Zgłoszenie zatwierdzone",
     body: "Twoje zgłoszenie zostało zatwierdzone",
   },
+  submissionApprovalsGrouped: {
+    title: "Zatwierdzono zgłoszenia",
+    body: "{count} zgłoszeń zostało zatwierdzonych",
+  },
   submissionRejected: {
     title: "Zgłoszenie odrzucone",
     body: "Twoje zgłoszenie zostało odrzucone",

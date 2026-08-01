@@ -1,5 +1,5 @@
 import { notifications, operators, pushSubscriptions, stations, ukeStations, users } from "@openbts/drizzle";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import webpush from "web-push";
 
 import db from "../database/psql.js";
@@ -22,6 +22,7 @@ const STATION_NOTIFICATION_TYPES: StationNotificationType[] = [
   "station_comment_approved",
   "station_uke_permit_added",
 ];
+const SUBMISSION_APPROVAL_PUSH_WINDOW_MS = 10 * 60 * 1000;
 
 const NOTIFICATION_TYPE_KEY: Record<
   NotificationType,
@@ -51,8 +52,8 @@ export interface CreateNotificationParams {
   actionUrl?: string;
 }
 
-export async function createAndDeliverNotification(params: CreateNotificationParams): Promise<void> {
-  const { userId, type, submissionId, stationId, metadata, actionUrl } = params;
+async function prepareNotification(params: CreateNotificationParams) {
+  const { userId, type, stationId, metadata } = params;
 
   const [user, stationOperatorName] = await Promise.all([
     db.query.users.findFirst({ where: { id: userId }, columns: { locale: true } }),
@@ -68,6 +69,17 @@ export async function createAndDeliverNotification(params: CreateNotificationPar
         }
       : metadata;
 
+  return { title, body: strings.body, locale: user?.locale, metadata: enrichedMetadata };
+}
+
+async function insertNotification(
+  params: CreateNotificationParams,
+  title: string,
+  metadata: Record<string, unknown> | undefined,
+  pushQueuedAt: Date | null = null,
+): Promise<string | undefined> {
+  const { userId, type, submissionId, stationId, actionUrl } = params;
+
   const [inserted] = await db
     .insert(notifications)
     .values({
@@ -76,19 +88,34 @@ export async function createAndDeliverNotification(params: CreateNotificationPar
       title,
       submissionId: submissionId ?? null,
       stationId: stationId ?? null,
-      metadata: enrichedMetadata ?? null,
+      metadata: metadata ?? null,
       actionUrl: actionUrl ?? null,
+      pushQueuedAt,
     })
     .returning({ id: notifications.id });
+
+  return inserted?.id;
+}
+
+export async function createAndDeliverNotification(params: CreateNotificationParams): Promise<void> {
+  const { userId, type, actionUrl } = params;
+  const prepared = await prepareNotification(params);
+  const notificationId = await insertNotification(params, prepared.title, prepared.metadata);
 
   const allSubs = await db.query.pushSubscriptions.findMany({ where: { userId } });
   const pushSubs =
     type === "submission_approved" || type === "submission_rejected" ? allSubs.filter((s) => s.preferences.submissionUpdates !== false) : allSubs;
 
-  const body = buildPushBody(strings.body, enrichedMetadata, user?.locale);
-  const payload = JSON.stringify({ title, body, actionUrl, notificationId: inserted?.id });
+  const body = buildPushBody(prepared.body, prepared.metadata, prepared.locale);
+  const payload = JSON.stringify({ title: prepared.title, body, actionUrl, notificationId });
 
   await deliverPush(pushSubs, payload);
+}
+
+export async function createQueuedSubmissionApprovalNotification(params: Omit<CreateNotificationParams, "type">): Promise<void> {
+  const approvalParams: CreateNotificationParams = { ...params, type: "submission_approved" };
+  const prepared = await prepareNotification(approvalParams);
+  await insertNotification(approvalParams, prepared.title, prepared.metadata, new Date());
 }
 
 async function deliverPush(subs: { endpoint: string; p256dh: string; auth: string }[], payload: string): Promise<boolean> {
@@ -297,6 +324,89 @@ export async function deliverQueuedStationWatchNotifications(limit = 100): Promi
   }
 
   return queued.length;
+}
+
+export async function deliverQueuedSubmissionApprovalNotifications(limit = 100): Promise<number> {
+  const cutoff = new Date(Date.now() - SUBMISSION_APPROVAL_PUSH_WINDOW_MS);
+  const eligibleUsers = await db
+    .select({ userId: notifications.userId })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.type, "submission_approved"),
+        isNull(notifications.readAt),
+        isNull(notifications.pushSentAt),
+        lte(notifications.pushQueuedAt, cutoff),
+      ),
+    )
+    .groupBy(notifications.userId)
+    .orderBy(asc(sql`min(${notifications.pushQueuedAt})`))
+    .limit(limit);
+  if (eligibleUsers.length === 0) return 0;
+
+  const userIds = eligibleUsers.map(({ userId }) => userId);
+  const queued = await db
+    .select({
+      id: notifications.id,
+      userId: notifications.userId,
+      metadata: notifications.metadata,
+      actionUrl: notifications.actionUrl,
+      locale: users.locale,
+    })
+    .from(notifications)
+    .innerJoin(users, eq(notifications.userId, users.id))
+    .where(
+      and(
+        inArray(notifications.userId, userIds),
+        eq(notifications.type, "submission_approved"),
+        isNull(notifications.readAt),
+        sql`${notifications.pushQueuedAt} IS NOT NULL`,
+        isNull(notifications.pushSentAt),
+      ),
+    )
+    .orderBy(asc(notifications.pushQueuedAt));
+
+  type QueuedApproval = (typeof queued)[number];
+  const queuedByUser = new Map<string, [QueuedApproval, ...QueuedApproval[]]>();
+  for (const notification of queued) {
+    const existing = queuedByUser.get(notification.userId);
+    if (existing) existing.push(notification);
+    else queuedByUser.set(notification.userId, [notification]);
+  }
+  if (queuedByUser.size === 0) return 0;
+
+  const allSubs = await db.query.pushSubscriptions.findMany({ where: { userId: { in: [...queuedByUser.keys()] } } });
+  const subsByUser = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>();
+  for (const sub of allSubs) {
+    if (sub.preferences.submissionUpdates === false) continue;
+    const existing = subsByUser.get(sub.userId) ?? [];
+    existing.push({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth });
+    subsByUser.set(sub.userId, existing);
+  }
+
+  const results = await Promise.allSettled(
+    [...queuedByUser.entries()].map(async ([userId, userNotifications]) => {
+      const first = userNotifications[0];
+      const count = userNotifications.length;
+      const strings = t(count > 1 ? "submissionApprovalsGrouped" : "submissionApproved", first.locale);
+      const body =
+        count > 1 ? strings.body.replace("{count}", count.toString()) : buildPushBody(strings.body, first.metadata ?? undefined, first.locale);
+      const payload = JSON.stringify({
+        title: strings.title,
+        body,
+        actionUrl: first.actionUrl,
+        ...(count === 1 ? { notificationId: first.id } : {}),
+      });
+      const delivered = await deliverPush(subsByUser.get(userId) ?? [], payload);
+      return { ids: userNotifications.map(({ id }) => id), delivered };
+    }),
+  );
+
+  const sentIds = results.flatMap((result) => (result.status === "fulfilled" && result.value.delivered ? result.value.ids : []));
+  if (sentIds.length > 0)
+    await db.update(notifications).set({ pushSentAt: new Date(), updatedAt: new Date() }).where(inArray(notifications.id, sentIds));
+
+  return queuedByUser.size;
 }
 
 export async function notifyUkeUpdate(): Promise<void> {

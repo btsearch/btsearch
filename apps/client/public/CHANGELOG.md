@@ -1,6 +1,16 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-01
+
+### 🚀 Enhancements
+
+- Submission approvals are now grouped into one push notification per 10-minute window instead of sending a separate push for every approval
+
+### 🩹 Fixes
+
+- LTE eNBID and CLID duplicate checks now ignore cells from pending and inactive stations, allowing those identities to be reused on published stations
+
 # 2026-07-27
 
 ### 🚀 Enhancements

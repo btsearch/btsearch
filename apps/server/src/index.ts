@@ -7,7 +7,7 @@ import { port } from "./config.js";
 import redis from "./database/redis.js";
 import { takeContributionSnapshot } from "./services/contributionSnapshot.service.ts";
 import { cleanupExpiredInactiveStations } from "./services/inactiveStationCleanup.service.js";
-import { deliverQueuedStationWatchNotifications } from "./services/notification.service.js";
+import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./services/notification.service.js";
 import { cleanupOrphanedSubmissions } from "./services/submissionCleanup.service.js";
 import { startImportJob } from "./services/ukeImportJob.service.js";
 import { installProcessErrorHandlers, logger } from "./utils/logger.js";
@@ -57,7 +57,7 @@ async function runAsScheduler() {
   scheduleUkeImport();
   scheduleSubmissionCleanup();
   scheduleInactiveStationCleanup();
-  scheduleStationWatchNotifications();
+  scheduleNotificationDigests();
   scheduleContributionSnapshot();
 }
 
@@ -143,7 +143,7 @@ function scheduleInactiveStationCleanup() {
   }, 60 * 1000);
 }
 
-function scheduleStationWatchNotifications() {
+function scheduleNotificationDigests() {
   setTimeout(async function run() {
     const isLeader = await renewSchedulerLock().catch(() => false);
     if (isLeader) {
@@ -152,6 +152,14 @@ function scheduleStationWatchNotifications() {
         return 0;
       });
       if (delivered > 0) logger.info("station_watch_notifications_delivered", { count: delivered });
+
+      const approvalBatches = await deliverQueuedSubmissionApprovalNotifications().catch((e) => {
+        logger.error("Failed to deliver grouped submission approval notifications", {
+          error: e instanceof Error ? e.message : String(e),
+        });
+        return 0;
+      });
+      if (approvalBatches > 0) logger.info("submission_approval_notification_batches_delivered", { count: approvalBatches });
     }
     setTimeout(run, NOTIFICATION_DIGEST_INTERVAL_MS);
   }, NOTIFICATION_DIGEST_INTERVAL_MS);

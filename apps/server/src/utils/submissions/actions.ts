@@ -20,7 +20,11 @@ import path from "node:path";
 import { ErrorResponse } from "../../errors.ts";
 import { createAuditLog } from "../../services/auditLog.service.ts";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../services/cellDuplicateCheck.service.ts";
-import { createAndDeliverNotification, notifyStationWatchers } from "../../services/notification.service.ts";
+import {
+  createAndDeliverNotification,
+  createQueuedSubmissionApprovalNotification,
+  notifyStationWatchers,
+} from "../../services/notification.service.ts";
 import { syncStationsPermitsAssociations } from "../../services/stationsPermitsAssociation.service.ts";
 import type { DbTx } from "../../types/global.ts";
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.ts";
@@ -1341,9 +1345,8 @@ export async function approveSubmissionAction({
       : Promise.resolve(null),
   ]);
 
-  void createAndDeliverNotification({
+  void createQueuedSubmissionApprovalNotification({
     userId: submission.submitter_id,
-    type: "submission_approved",
     submissionId: submissionId,
     stationId: transactionResult.resolvedStationId ?? undefined,
     metadata: {

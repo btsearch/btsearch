@@ -182,6 +182,7 @@ const CELL_IDENTITY_DUPLICATE_CHECKS: CellIdentityDuplicateCheck[] = [
         .where(
           and(
             eq(stations.operator_id, operatorId),
+            eq(stations.status, "published"),
             siblingExcludeIds.length > 0 ? notInArray(lteCells.cell_id, siblingExcludeIds) : undefined,
             or(...conditions),
           ),
@@ -361,9 +362,11 @@ export async function checkLTEClidConsistency(
     .select({ enbid: lteCells.enbid, clid: lteCells.clid })
     .from(lteCells)
     .innerJoin(cells, eq(cells.id, lteCells.cell_id))
+    .innerJoin(stations, eq(stations.id, cells.station_id))
     .where(
       and(
         eq(cells.station_id, stationId),
+        eq(stations.status, "published"),
         siblingExcludeIds.length > 0 ? notInArray(lteCells.cell_id, siblingExcludeIds) : undefined,
         or(...conditions),
       ),

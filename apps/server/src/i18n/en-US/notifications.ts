@@ -7,6 +7,10 @@ export default {
     title: "Submission approved",
     body: "Your submission has been approved",
   },
+  submissionApprovalsGrouped: {
+    title: "Submissions approved",
+    body: "{count} submissions were approved",
+  },
   submissionRejected: {
     title: "Submission rejected",
     body: "Your submission has been rejected",
