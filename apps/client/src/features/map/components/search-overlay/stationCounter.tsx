@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components/ui/spinner.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import i18n from "@/i18n/config.js";
 import { formatFullDate, formatRelativeTime } from "@/lib/format.js";
@@ -16,8 +15,6 @@ type StationCounterProps = {
   radioLineCount: number;
   radioLineTotalCount: number;
   isRadioLinesFetching: boolean;
-  isLoading: boolean;
-  isFetching: boolean;
   showStations: boolean;
   zoom?: number;
   source: StationSource;
@@ -30,8 +27,6 @@ export function StationCounter({
   radioLineCount,
   radioLineTotalCount,
   isRadioLinesFetching,
-  isLoading,
-  isFetching,
   showStations,
   zoom,
   source,
@@ -62,13 +57,6 @@ export function StationCounter({
             className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreLocations && "cursor-help")}
             disabled={!hasMoreLocations}
           >
-            {isLoading || isFetching ? (
-              <Spinner className="size-3 text-muted-foreground" />
-            ) : hasMoreLocations ? (
-              <div className="size-1.5 rounded-full shrink-0 bg-amber-500 animate-pulse" />
-            ) : (
-              <div className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
-            )}
             <div className="flex items-baseline gap-1">
               <span className={cn("text-sm font-bold tabular-nums leading-none tracking-tight", hasMoreLocations && "text-amber-500")}>
                 {locationCount.toLocaleString(i18n.language)}
@@ -87,13 +75,6 @@ export function StationCounter({
             className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreRadioLines && "cursor-help")}
             disabled={!hasMoreRadioLines}
           >
-            {isRadioLinesFetching ? (
-              <Spinner className="size-3 text-muted-foreground" />
-            ) : hasMoreRadioLines ? (
-              <div className="size-1.5 rounded-full shrink-0 bg-amber-500 animate-pulse" />
-            ) : (
-              <div className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
-            )}
             <div className="flex items-baseline gap-1">
               <span className={cn("text-sm font-bold tabular-nums leading-none tracking-tight", hasMoreRadioLines && "text-amber-500")}>
                 {radioLineCount.toLocaleString(i18n.language)}

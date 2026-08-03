@@ -246,7 +246,7 @@ const CellRow = memo(function CellRow({
   const deletedCellClass = isDeleted ? "opacity-50" : "";
   const selectedSectorIndex = sectors.findIndex((sector) => sector._localId === cell._sectorLocalId);
   const selectedSector = selectedSectorIndex >= 0 ? sectors[selectedSectorIndex] : undefined;
-  const selectedSectorLabel = selectedSector ? `S${selectedSectorIndex + 1}` : "-";
+  const selectedSectorLabel = selectedSector ? `A${selectedSectorIndex + 1}` : "-";
 
   return (
     <tr className={cn("border-b last:border-0 hover:bg-muted/20", isDeleted && "bg-muted/10", isCloned && "bg-sky-500/5")}>
@@ -325,7 +325,7 @@ const CellRow = memo(function CellRow({
               <SelectItem value="_none">-</SelectItem>
               {sectors.map((sector, index) => (
                 <SelectItem key={sector._localId} value={sector._localId}>
-                  S{index + 1}
+                  A{index + 1}
                   {typeof sector.azimuth === "number" ? ` (${sector.azimuth}°)` : ""}
                 </SelectItem>
               ))}

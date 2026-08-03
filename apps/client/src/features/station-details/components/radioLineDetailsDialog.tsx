@@ -41,6 +41,7 @@ import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/l
 import { cn } from "@/lib/utils";
 
 import { CopyButton } from "./copyButton";
+import { DialogOperatorName } from "./dialogOperatorName";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { ShareButton } from "./shareButton";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
@@ -149,9 +150,7 @@ export function RadioLineDetailsDialogPanel({
             <div className="min-w-0 flex-1">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight" style={{ color: operatorColor }}>
-                    {operatorName}
-                  </h2>
+                  <DialogOperatorName name={operatorName} mnc={mnc} />
                   {linkTypeStyle ? <span className={cn("shrink-0 text-xs font-semibold", linkTypeStyle.text)}>{link.linkType}</span> : null}
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

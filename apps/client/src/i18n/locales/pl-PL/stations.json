@@ -13,13 +13,13 @@
   },
   "status": {
     "published": "Aktywna",
-    "pending": "W budowie",
+    "pending": "Oczekująca",
     "inactive": "Nieaktywna"
   },
   "statusTooltip": {
     "published": "Stacja jest uruchomiona",
-    "pending": "Stacja jest w trakcie budowy lub w trakcie przygotowania do włączenia",
-    "inactive": "Stacja została wyłączona na czas nieokreślony lub zlikwidowana",
+    "pending": "Stacja jest w trakcie budowy, przygotowania do włączenia lub oczekuje na wpisanie komórek do bazy",
+    "inactive": "Stacja została wyłączona na czas nieokreślony, zlikwidowana lub zastąpiona inną stacją",
     "changedAt": "Status zmieniony: {{date}}"
   },
   "cells": {
@@ -31,7 +31,7 @@
     "fillEarfcn": "Wstaw EARFCN",
     "addRemainingCells": "Dodaj brakujące komórki",
     "confirmCells": "Potwierdź komórki",
-    "syncSectorsByPci": "Wpisz sektory po PCI",
+    "syncSectorsByPci": "Wpisz azymuty po PCI",
     "noRats": "Brak komórek. Wybierz technologię radiową powyżej, aby dodać komórki.",
     "pendingReadOnly": "Nie można modyfikować komórek, gdy stacja ma status oczekujący. Zmień status na opublikowany, aby edytować komórki.",
     "noStationCells": "Nie znaleziono komórek dla tej stacji",
@@ -71,7 +71,7 @@
     "stationIdRquired": "Identyfikator stacji jest wymagany",
     "operatorRequired": "Operator jest wymagany",
     "locationRequired": "Lokalizacja jest wymagana",
-    "sectorAzimuthsRequired": "Uzupełnij azymuty sektorów (0-360)",
+    "sectorAzimuthsRequired": "Uzupełnij azymuty (0-360)",
     "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
     "cellsSaved": "Komórki zostały zapisane",
     "saved": "Stacja została zapisana",

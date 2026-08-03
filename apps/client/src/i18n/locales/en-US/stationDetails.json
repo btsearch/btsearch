@@ -1,7 +1,7 @@
 {
   "tabs": {
     "specs": "Specification",
-    "sectors": "Sectors",
+    "sectors": "Azimuths",
     "permits": "UKE Permits",
     "comments": "Comments",
     "photos": "Photos"
@@ -9,30 +9,30 @@
   "watchStation": "Watch station",
   "unwatchStation": "Stop watching",
   "specs": {
-    "basicInfo": "Basic Information",
     "cellDetails": "Cell Details",
     "internalNotes": "Internal Notes",
     "newCellTooltip": "This cell was added in the last 30 days",
     "updatedCellTooltip": "This cell was updated in the last 30 days",
-    "si2pemLink": "Click to see all PEM reports from SI2PEM"
+    "si2pemLink": "Click to see all PEM reports from SI2PEM",
+    "pemReports": "PEM Reports"
   },
   "sectors": {
-    "title": "Sectors",
+    "title": "Azimuths",
     "noAssignedCells": "No assigned cells",
-    "suggestedCount": "Suggested sector count:",
+    "suggestedCount": "Suggested azimuth count:",
     "azimuth": "Azimuth",
-    "empty": "No sectors",
-    "add": "Add sector"
+    "empty": "No azimuths",
+    "add": "Add azimuth"
   },
   "permits": {
     "permitsCount_one": "{{count, number}} permit",
     "permitsCount_few": "{{count, number}} permits",
     "permitsCount_many": "{{count, number}} permits",
     "permitsCount_other": "{{count, number}} permits",
-    "sectorsCount_one": "{{count, number}} sector",
-    "sectorsCount_few": "{{count, number}} sectors",
-    "sectorsCount_many": "{{count, number}} sectors",
-    "sectorsCount_other": "{{count, number}} sectors",
+    "sectorsCount_one": "{{count, number}} azimuth",
+    "sectorsCount_few": "{{count, number}} azimuths",
+    "sectorsCount_many": "{{count, number}} azimuths",
+    "sectorsCount_other": "{{count, number}} azimuths",
     "permit": "permit",
     "permits": "permits",
     "neverExpires": "Indefinite",
@@ -46,9 +46,8 @@
     "decisionTypeP": "Permit",
     "decisionTypeZmP": "Permit Change",
     "newPermitTooltip": "This permit was added in the last 30 days",
-    "sectors": "Sectors",
+    "sectors": "Azimuths",
     "sectorsAzimuth": "Azimuth",
-    "sectorsElevation": "Elevation",
     "sectorsAntennaHeight": "Antenna Height",
     "antennaType": {
       "indoor": "Indoor",

@@ -114,7 +114,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     },
   });
   if (!submission) throw new ErrorResponse("NOT_FOUND");
-  if (!hasAdminPermission && submission.submitter_id !== session.user.id) throw new ErrorResponse("FORBIDDEN");
+  if (!hasAdminPermission && submission.submitter_id !== session.user.id) throw new ErrorResponse("NOT_FOUND");
 
   const [rawSectors, rawCells] = await Promise.all([
     db.query.proposedSectors.findMany({ where: { submission_id: id }, orderBy: { id: "asc" } }),

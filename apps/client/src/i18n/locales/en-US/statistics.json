@@ -34,12 +34,12 @@
   },
   "completeness": {
     "stationTitle": "Station documentation coverage",
-    "stationDescription": "Published stations with sector and external identifier data.",
+    "stationDescription": "Published stations with azimuth and external identifier data.",
     "pciTitle": "PCI documentation coverage",
     "pciDescription": "LTE and NR cells split by documented and missing PCI.",
     "stations": "Stations",
-    "withSectors": "With sectors",
-    "withoutSectors": "Without sectors",
+    "withSectors": "With azimuths",
+    "withoutSectors": "Without azimuths",
     "withExtraIds": "With extra IDs",
     "withoutExtraIds": "Without extra IDs",
     "documented": "Documented",
@@ -48,8 +48,8 @@
   },
   "contributions": {
     "title": "Contribution history",
-    "description": "Differences for sectors, extra identifiers, and cells with PCI.",
-    "addedSectors": "Added sectors",
+    "description": "Differences for azimuths, extra identifiers, and cells with PCI.",
+    "addedSectors": "Added azimuths",
     "addedExtraIds": "Added extra IDs",
     "addedCellsWithPCI": "Added cells with PCI"
   },

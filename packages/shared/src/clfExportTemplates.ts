@@ -86,9 +86,9 @@ export const CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT = {
 
 const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
   unconfirmed_prefix: "[!]",
-  sector_prefix: "[S1: 120°]",
-  sector_tag: "S1: 120°",
-  sector_label: "S1",
+  sector_prefix: "[A1: 120°]",
+  sector_tag: "A1: 120°",
+  sector_label: "A1",
   sector_number: "1",
   sector_azimuth: "120°",
   location: "Warszawa - Targówek, ul. Bazyliańska 18",

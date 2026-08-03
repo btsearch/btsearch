@@ -1,12 +1,11 @@
 import {
   Add01Icon,
   Cancel01Icon,
-  FileSearchIcon,
-  GlobalIcon,
   Globe02Icon,
   Location01Icon,
   MapsLocation01Icon,
   MountainIcon,
+  Radar01Icon,
   Tag01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -14,12 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
-import { formatDayMonthYear, formatFullDate, formatRelativeTime } from "@/lib/format";
+import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
@@ -27,10 +25,12 @@ import type { UkeStation } from "@/types/station";
 
 import { fetchElevation, fetchPemReports, fetchUkeStation } from "../api";
 import { CopyButton } from "./copyButton";
+import { DialogOperatorName } from "./dialogOperatorName";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
+import { Si2pemReportsMenu } from "./si2pemReportsMenu";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
 import { WatchButton } from "./watchButton";
@@ -108,9 +108,7 @@ export function UkePermitDetailsDialogPanel({
             <div className="flex-1 min-w-0">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight" style={{ color: operatorColor }}>
-                    {operator?.name ?? t("main:unknownOperator")}
-                  </h2>
+                  <DialogOperatorName name={operator?.name ?? t("main:unknownOperator")} mnc={operator?.mnc} />
                   <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station_id}</span>
                 </div>
                 {stationLocation && (
@@ -189,8 +187,6 @@ export function UkePermitDetailsDialogPanel({
         <div ref={bodyRef} className="flex-1 overflow-y-auto custom-scrollbar">
           <div ref={bodyContentRef}>
             <div className="px-6 py-5">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">{t("specs.basicInfo")}</h3>
-
               <div className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
                 {stationLocation && (
                   <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
@@ -212,56 +208,14 @@ export function UkePermitDetailsDialogPanel({
 
                 <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
                   <span className="font-mono">{station_id}</span>
-                  <div className="flex items-center gap-1">
-                    <CopyButton text={station_id} />
-                    {station_id && pemReports && pemReports.length > 0 ? (
-                      <DropdownMenu>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <DropdownMenuTrigger className="inline-flex items-center justify-center h-5.5 w-auto px-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0" />
-                            }
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="block h-3.5 bg-[#2e2e5a] dark:bg-[#9898ce]"
-                              style={{
-                                aspectRatio: "2435/521",
-                                maskImage: "url(/si2pem.svg)",
-                                WebkitMaskImage: "url(/si2pem.svg)",
-                                maskSize: "contain",
-                                WebkitMaskSize: "contain",
-                                maskRepeat: "no-repeat",
-                                WebkitMaskRepeat: "no-repeat",
-                              }}
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
-                        </Tooltip>
-                        <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="min-w-72">
-                          {pemReports?.map((report) => {
-                            const Icon = report.source === "search" ? FileSearchIcon : GlobalIcon;
-                            const label = report.source === "map" ? "generated" : "search";
-                            return (
-                              <DropdownMenuItem
-                                key={`${report.station_id}_${report.date}`}
-                                render={<a target="_blank" href={report.details.document_url} />}
-                              >
-                                <HugeiconsIcon icon={Icon} className="size-4 text-muted-foreground shrink-0" />
-                                <div className="flex-1 justify-between">
-                                  <span className="text-sm block">{report.details.lab_name}</span>
-                                  <span className="text-[11px] text-muted-foreground">
-                                    {formatDayMonthYear(report.date)} | {tCommon(`labels.${label}`)}
-                                  </span>
-                                </div>
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : null}
-                  </div>
+                  <CopyButton text={station_id} />
                 </StationInfoItem>
+
+                {station_id && pemReports && pemReports.length > 0 ? (
+                  <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
+                    <Si2pemReportsMenu reports={pemReports} />
+                  </StationInfoItem>
+                ) : null}
 
                 {elevation !== undefined && (
                   <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>

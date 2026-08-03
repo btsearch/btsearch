@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { fetchStation } from "../api";
 import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
+import { DialogOperatorName } from "./dialogOperatorName";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
@@ -95,9 +96,7 @@ export function StationDetailsDialogPanel({
               ) : station ? (
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight" style={{ color: operatorColor }}>
-                      {station.operator.name}
-                    </h2>
+                    <DialogOperatorName name={station.operator.name} mnc={station.operator.mnc} />
                     {leaseOperator ? (
                       <Tooltip>
                         <TooltipTrigger className="shrink-0 cursor-help font-mono text-xs font-medium text-muted-foreground underline decoration-amber-500/50 decoration-dashed underline-offset-2">

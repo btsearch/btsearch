@@ -4,7 +4,7 @@ export type TabId = "specs" | "sectors" | "permits" | "comments" | "photos";
 
 export const TAB_OPTIONS = [
   { id: "specs", label: "Specifications", icon: SignalFull02Icon },
-  { id: "sectors", label: "Sectors", icon: CompassIcon },
+  { id: "sectors", label: "Azimuths", icon: CompassIcon },
   { id: "permits", label: "UKE Permits", icon: Note01Icon },
   { id: "comments", label: "Comments", icon: Message01Icon },
   { id: "photos", label: "Photos", icon: Image01Icon },

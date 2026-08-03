@@ -44,7 +44,9 @@
     "showOnMap": "Show on map"
   },
   "labels": {
-    "generated": "Generated",
+    "pemSourceGenerated": "Generated",
+    "pemSourceSearch": "Search",
+    "latest": "Latest",
     "id": "ID",
     "stationId": "Station ID",
     "operator": "Operator",

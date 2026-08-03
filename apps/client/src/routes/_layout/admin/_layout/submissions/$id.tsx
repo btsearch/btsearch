@@ -498,7 +498,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     const map = new Map<number, string>();
     (currentStation?.sectors ?? []).forEach((sector, index) => {
       const displayIndex = draftIndexById.get(sector.id) ?? index;
-      map.set(sector.id, `S${displayIndex + 1} (${sector.azimuth}°)`);
+      map.set(sector.id, `A${displayIndex + 1} (${sector.azimuth}°)`);
     });
     return map;
   }, [currentStation, sectors]);

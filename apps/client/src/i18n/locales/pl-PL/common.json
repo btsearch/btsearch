@@ -44,7 +44,9 @@
     "showOnMap": "Pokaż na mapie"
   },
   "labels": {
-    "generated": "Wygenerowany",
+    "pemSourceGenerated": "Wygenerowany",
+    "pemSourceSearch": "Wyszukiwarka",
+    "latest": "Najnowszy",
     "id": "ID",
     "stationId": "ID Stacji",
     "operator": "Operator",

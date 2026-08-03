@@ -149,7 +149,7 @@ function getSectorNumber(cell: CellExportData): string {
 
 function getSectorLabel(cell: CellExportData): string {
   const sectorNumber = getSectorNumber(cell);
-  return sectorNumber ? `S${sectorNumber}` : "";
+  return sectorNumber ? `A${sectorNumber}` : "";
 }
 
 function getSectorAzimuth(cell: CellExportData): string {

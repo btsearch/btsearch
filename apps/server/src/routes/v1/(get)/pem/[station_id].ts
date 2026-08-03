@@ -7,7 +7,7 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const WMS_URL = "https://si2pem.gov.pl/geoserver/public/wms";
-const INSTALLATIONS_URL = "https://si2pem.gov.pl/api/installations/";
+const INSTALLATIONS_URL = "https://si2pem.gov.pl/api/all_installation_info/";
 const CACHE_TTL = 86400; // 24h
 
 const MNC_TO_ENTITY: Record<number, string> = {
@@ -103,20 +103,29 @@ async function fetchInstallations(stationId: string, entityName: string): Promis
   const params = new URLSearchParams({
     base_station: stationId,
     entity: entityName,
+    venue_city: "",
+    street: "",
+    voivodeship: "",
+    county: "",
     page: "1",
     page_size: "25",
   });
 
-  const res = await fetch(`${INSTALLATIONS_URL}?${params.toString()}`, {
-    headers: {
-      Origin: "https://si2pem.gov.pl",
-      Accept: "application/json",
-    },
-  });
+  let json: InstallationsResponse;
+  try {
+    const res = await fetch(`${INSTALLATIONS_URL}?${params.toString()}`, {
+      headers: {
+        Origin: "https://si2pem.gov.pl",
+        Accept: "application/json",
+      },
+    });
 
-  if (!res.ok) return null;
+    if (!res.ok) return null;
+    json = (await res.json()) as InstallationsResponse;
+  } catch {
+    return null;
+  }
 
-  const json = (await res.json()) as InstallationsResponse;
   if (!json.count || !json.results?.length) return null;
 
   const withReports = json.results.filter((r) => r.report_file !== null && r.report_file !== "" && r.base_station?.identity_name === stationId);
@@ -229,7 +238,7 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<P
   const { lat, lng, operator: mnc } = req.query;
 
   const entityName = MNC_TO_ENTITY[mnc];
-  const cacheKey = `pem:${station_id}:${lat}:${lng}:${mnc}`;
+  const cacheKey = `pem:v2:${station_id}:${lat}:${lng}:${mnc}`;
 
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached) as { data: PemReport[] });

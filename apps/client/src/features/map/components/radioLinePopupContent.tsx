@@ -106,12 +106,12 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
       <button type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer" onClick={() => onOpenDetails(link)}>
         <div className="flex items-center gap-1.5 min-w-0">
           <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
-          <span className="font-medium text-xs truncate">{normalizeOperatorName(operatorName)}</span>
-          {permitNumber && <span className="text-[9px] text-muted-foreground font-mono shrink-0">{permitNumber}</span>}
+          <span className="font-medium text-[13px] truncate">{normalizeOperatorName(operatorName)}</span>
+          {permitNumber && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{permitNumber}</span>}
         </div>
 
         <div className="flex items-center gap-2 mt-1.5 pl-3.5">
-          <div className="flex items-center text-[10px] font-mono whitespace-nowrap">
+          <div className="flex items-center text-[11px] font-mono whitespace-nowrap">
             <span className="text-muted-foreground">{formatDistance(distance)}</span>
             {linkTypeStyle ? (
               <>
@@ -126,7 +126,7 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
               </>
             ) : null}
           </div>
-          {link.isExpired && <span className="text-[9px] font-bold uppercase text-destructive">{t("common:status.expired")}</span>}
+          {link.isExpired && <span className="text-[10px] font-bold uppercase text-destructive">{t("common:status.expired")}</span>}
         </div>
 
         <div className="mt-2 pl-3.5 space-y-1.5">
@@ -137,23 +137,23 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
               dir.link.ch_width && dir.link.modulation_type ? calculateRadiolineSpeed(dir.link.ch_width, dir.link.modulation_type) : null;
             const dirSpeedBadge = (() => {
               if (dirCalcSpeed !== null && dirCalcSpeed !== undefined)
-                return <span className="text-[9px] font-mono font-semibold text-emerald-600">{formatSpeed(dirCalcSpeed)}</span>;
+                return <span className="text-[10px] font-mono font-semibold text-emerald-600">{formatSpeed(dirCalcSpeed)}</span>;
               if (dir.link.bandwidth)
-                return <span className="text-[9px] font-mono font-medium text-muted-foreground">{formatBandwidth(dir.link.bandwidth)}</span>;
+                return <span className="text-[10px] font-mono font-medium text-muted-foreground">{formatBandwidth(dir.link.bandwidth)}</span>;
               return null;
             })();
             return (
               <div key={dir.id} className="flex items-start gap-1.5">
                 {link.directions.length > 1 && (
-                  <span className="flex -translate-y-0.5 items-center gap-px text-[8px] font-bold text-muted-foreground shrink-0 leading-4.5">
+                  <span className="flex -translate-y-0.5 items-center gap-px text-[9px] font-bold text-muted-foreground shrink-0 leading-4.5">
                     {isForward ? "A" : "B"}
                     <HugeiconsIcon icon={ArrowRight02Icon} className="size-2.5 -translate-y-px" />
                     {isForward ? "B" : "A"}
                   </span>
                 )}
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                  <span className="text-[9px] font-mono font-semibold text-foreground/80">{formatFrequency(dir.link.freq)}</span>
-                  {dir.link.polarization && <span className="text-[9px] font-bold text-muted-foreground">{dir.link.polarization}</span>}
+                  <span className="text-[10px] font-mono font-semibold text-foreground/80">{formatFrequency(dir.link.freq)}</span>
+                  {dir.link.polarization && <span className="text-[10px] font-bold text-muted-foreground">{dir.link.polarization}</span>}
                   {dirSpeedBadge}
                   {dirExpired && <span className="size-1.5 rounded-full bg-destructive shrink-0 mt-1" title={t("common:status.expired")} />}
                 </div>

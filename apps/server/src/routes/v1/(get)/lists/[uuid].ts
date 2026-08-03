@@ -165,7 +165,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     if (!req.userSession) throw new ErrorResponse("UNAUTHORIZED");
     const userId = req.userSession.user.id;
     const isAdmin = await verifyPermissions(userId, { user_lists: ["read"] });
-    if (!isAdmin && userId !== list.created_by) throw new ErrorResponse("FORBIDDEN");
+    if (!isAdmin && userId !== list.created_by) throw new ErrorResponse("NOT_FOUND");
   }
 
   const stationsObj = (list.stations as { internal: number[]; uke: number[] }) ?? { internal: [], uke: [] };

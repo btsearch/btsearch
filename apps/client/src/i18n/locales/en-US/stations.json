@@ -13,13 +13,13 @@
   },
   "status": {
     "published": "Active",
-    "pending": "In Progress",
+    "pending": "Awaiting",
     "inactive": "Inactive"
   },
   "statusTooltip": {
     "published": "The station is active",
-    "pending": "The station is under construction or being prepared for activation",
-    "inactive": "The station has been disabled indefinitely or decommissioned",
+    "pending": "The station is under construction, being prepared for activation or is awaiting for cells in our database",
+    "inactive": "The station has been disabled indefinitely, was decommissioned or replaced with another station",
     "changedAt": "Status changed: {{date}}"
   },
   "cells": {
@@ -32,7 +32,7 @@
     "fillEarfcn": "Fill EARFCN",
     "addRemainingCells": "Add remaining cells",
     "confirmCells": "Confirm cells",
-    "syncSectorsByPci": "Sync sectors by PCI",
+    "syncSectorsByPci": "Sync azimuths by PCI",
     "noRats": "No cells yet. Select a radio technology above to add cells.",
     "pendingReadOnly": "Cells cannot be modified while this station has pending status. Change the status to published to edit cells.",
     "noStationCells": "No cells found for this station",
@@ -64,7 +64,7 @@
     "stationIdRquired": "Station ID is required",
     "operatorRequired": "Operator is required",
     "locationRequired": "Location is required",
-    "sectorAzimuthsRequired": "Fill in sector azimuths (0-360)",
+    "sectorAzimuthsRequired": "Fill in azimuths (0-360)",
     "addressOwnWordForbidden": "Use the real address instead of variants of \"własna\", e.g. \"wieża T-Mobile\"",
     "cellsSaved": "Cells have been saved",
     "saved": "Station has been saved",

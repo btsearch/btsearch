@@ -67,7 +67,7 @@ export const UKE_RAT_OPTIONS = [
 
 export const FILTER_KEYWORDS: FilterKeyword[] = [
   // Station filters
-  { key: "bts_id:", description: "Station ID (partial match)", availableOn: ["map", "stations"] },
+  { key: "bts_id:", description: "Station ID", availableOn: ["map", "stations"] },
   { key: "mnc:", description: "Operator PLMN code (e.g. 26003)", availableOn: ["map"] },
   { key: "has_photo:", description: "Has photo (true, false)", availableOn: ["map", "stations"] },
   { key: "created_after:", description: "Created after date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
@@ -79,8 +79,8 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "gps:", description: "GPS coordinates (lat,lng)", availableOn: ["map", "stations"] },
 
   // Location filters
-  { key: "city:", description: "City name (partial match)", availableOn: ["map", "stations"] },
-  { key: "address:", description: "Address (partial match)", availableOn: ["map", "stations"] },
+  { key: "city:", description: "City name", availableOn: ["map", "stations"] },
+  { key: "address:", description: "Address", availableOn: ["map", "stations"] },
   { key: "region:", description: "Region code (e.g., MAZ, SL, WP)", availableOn: ["map"] },
 
   // Cell filters
@@ -88,7 +88,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "duplex:", description: "Band duplex (FDD, TDD, null/false)", availableOn: ["map", "stations"] },
   { key: "rat:", description: "Standard (GSM, UMTS, LTE, NR)", availableOn: ["map"] },
   { key: "is_confirmed:", description: "Confirmation status (true, false)", availableOn: ["map", "stations"] },
-  { key: "cell_notes:", description: "Cell notes (partial match)", availableOn: ["map", "stations"] },
+  { key: "cell_notes:", description: "Cell notes", availableOn: ["map", "stations"] },
 
   // GSM cell filters
   { key: "lac:", description: "GSM Location Area Code", availableOn: ["map", "stations"] },

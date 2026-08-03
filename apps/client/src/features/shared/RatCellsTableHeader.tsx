@@ -26,7 +26,7 @@ export function getRatCellsTableHeaders(rat: string, t: TFunction, options?: { s
 export function RatCellsTableHeader({ rat, t, showSectors, showConfirmed }: RatCellsTableHeaderProps) {
   const headers = getRatCellsTableHeaders(rat, t, { showConfirmed });
   const sectorHeaderIndex = getRatSectorColumnIndex(rat);
-  const displayedHeaders = showSectors ? [...headers.slice(0, sectorHeaderIndex), "S", ...headers.slice(sectorHeaderIndex)] : headers;
+  const displayedHeaders = showSectors ? [...headers.slice(0, sectorHeaderIndex), "AZ", ...headers.slice(sectorHeaderIndex)] : headers;
 
   return (
     <thead>

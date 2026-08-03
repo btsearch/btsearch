@@ -1,6 +1,4 @@
 import {
-  FileSearchIcon,
-  GlobalIcon,
   Globe02Icon,
   Image01Icon,
   InformationCircleIcon,
@@ -9,6 +7,7 @@ import {
   Message01Icon,
   MountainIcon,
   Note01Icon,
+  Radar01Icon,
   SignalFull02Icon,
   Tag01Icon,
 } from "@hugeicons/core-free-icons";
@@ -18,14 +17,12 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { type Ref, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RAT_ORDER } from "@/features/shared/rat";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData } from "@/lib/api";
-import { formatDayMonthYear } from "@/lib/format";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { cn } from "@/lib/utils";
 import type { Sector, Station, StationComment } from "@/types/station";
@@ -40,6 +37,7 @@ import { ExtraIdentificatorsDisplay } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
+import { Si2pemReportsMenu } from "./si2pemReportsMenu";
 import { StationInfoItem } from "./stationInfoItem";
 
 type StationDetailsBodyProps = {
@@ -179,7 +177,7 @@ export function StationDetailsBody({
   const isOnMap = location.pathname === "/" || location.pathname.startsWith("/lists/");
   const cellGroups = useMemo(() => (station ? groupCellsByRat(station.cells ?? []) : {}), [station]);
   const sectorInfoById = useMemo(
-    () => new Map((station?.sectors ?? []).map((sector, index) => [sector.id, { label: `S${index + 1}`, azimuth: sector.azimuth }])),
+    () => new Map((station?.sectors ?? []).map((sector, index) => [sector.id, { label: `A${index + 1}`, azimuth: sector.azimuth }])),
     [station?.sectors],
   );
 
@@ -344,7 +342,6 @@ export function StationDetailsBody({
                   {displayedTab === "specs" && (
                     <div className="space-y-8">
                       <section>
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("specs.basicInfo")}</h3>
                         <div className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
                           <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
                             <span className="font-mono break-all">
@@ -360,56 +357,13 @@ export function StationDetailsBody({
                           </StationInfoItem>
                           <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
                             <span className="font-mono">{station.station_id}</span>
-                            <div className="flex items-center gap-1">
-                              <CopyButton text={station.station_id || ""} />
-                              {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
-                                <DropdownMenu>
-                                  <Tooltip>
-                                    <TooltipTrigger
-                                      render={
-                                        <DropdownMenuTrigger className="inline-flex items-center justify-center h-5.5 w-auto px-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0" />
-                                      }
-                                    >
-                                      <span
-                                        aria-hidden="true"
-                                        className="block h-3.5 bg-[#2e2e5a] dark:bg-[#9898ce]"
-                                        style={{
-                                          aspectRatio: "2435/521",
-                                          maskImage: "url(/si2pem.svg)",
-                                          WebkitMaskImage: "url(/si2pem.svg)",
-                                          maskSize: "contain",
-                                          WebkitMaskSize: "contain",
-                                          maskRepeat: "no-repeat",
-                                          WebkitMaskRepeat: "no-repeat",
-                                        }}
-                                      />
-                                    </TooltipTrigger>
-                                    <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
-                                  </Tooltip>
-                                  <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="min-w-72">
-                                    {pemReports?.map((report) => {
-                                      const Icon = report.source === "search" ? FileSearchIcon : GlobalIcon;
-                                      const label = report.source === "map" ? "generated" : "search";
-                                      return (
-                                        <DropdownMenuItem
-                                          key={`${report.station_id}_${report.date}`}
-                                          render={<a target="_blank" href={report.details.document_url} />}
-                                        >
-                                          <HugeiconsIcon icon={Icon} className="size-4 text-muted-foreground shrink-0" />
-                                          <div className="flex-1 justify-between">
-                                            <span className="text-sm block">{report.details.lab_name}</span>
-                                            <span className="text-[11px] text-muted-foreground">
-                                              {formatDayMonthYear(report.date)} | {t(`common:labels.${label}`)}
-                                            </span>
-                                          </div>
-                                        </DropdownMenuItem>
-                                      );
-                                    })}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              ) : null}
-                            </div>
+                            <CopyButton text={station.station_id || ""} />
                           </StationInfoItem>
+                          {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
+                            <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
+                              <Si2pemReportsMenu reports={pemReports} />
+                            </StationInfoItem>
+                          ) : null}
                           {station.extra_identificators && (
                             <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
                           )}
@@ -471,7 +425,7 @@ export function StationDetailsBody({
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {(station.sectors ?? []).map((sector, index) => (
                             <span key={sector.id} className="text-xs font-medium text-muted-foreground tabular-nums">
-                              S{index + 1}: {sector.azimuth}°
+                              A{index + 1}: {sector.azimuth}°
                             </span>
                           ))}
                         </div>

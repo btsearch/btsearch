@@ -37,7 +37,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   const submission = await db.query.submissions.findFirst({ where: { id }, columns: { id: true, submitter_id: true } });
   if (!submission) throw new ErrorResponse("NOT_FOUND");
-  if (!hasAdminPermission && submission.submitter_id !== session.user.id) throw new ErrorResponse("FORBIDDEN");
+  if (!hasAdminPermission && submission.submitter_id !== session.user.id) throw new ErrorResponse("NOT_FOUND");
 
   const rows = await db
     .select({

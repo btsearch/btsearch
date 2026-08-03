@@ -62,7 +62,7 @@ async function deleteUnusedSectors(tx: DbTx, deletedIds: number[]): Promise<void
 
   const [assignedResult] = await tx.select({ value: count() }).from(cells).where(inArray(cells.sector_id, deletedIds));
   if (Number(assignedResult?.value ?? 0) > 0)
-    throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete sectors that are already assigned to cells" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete azimuths that are already assigned to cells" });
 
   await tx.delete(stationSectors).where(inArray(stationSectors.id, deletedIds));
 }
@@ -80,7 +80,7 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
   });
 
   if (sectors.length > MAX_SECTORS)
-    throw new ErrorResponse("BAD_REQUEST", { message: `Too many sectors for the station. Maximum allowed is ${MAX_SECTORS}` });
+    throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the station. Maximum allowed is ${MAX_SECTORS}` });
 
   const result = await db.transaction(async (tx) => {
     const previousById = new Map(previousSectors.map((sector) => [sector.id, sector]));

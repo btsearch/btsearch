@@ -34,12 +34,12 @@
   },
   "completeness": {
     "stationTitle": "Kompletność dokumentacji stacji",
-    "stationDescription": "Opublikowane stacje z sektorami i dodatkowymi identyfikatorami.",
+    "stationDescription": "Opublikowane stacje z azymutami i dodatkowymi identyfikatorami.",
     "pciTitle": "Kompletność PCI",
     "pciDescription": "Komórki LTE i NR z udokumentowanym lub brakującym PCI.",
     "stations": "Stacje",
-    "withSectors": "Z sektorami",
-    "withoutSectors": "Bez sektorów",
+    "withSectors": "Z azymutami",
+    "withoutSectors": "Bez azymutów",
     "withExtraIds": "Z dodatkowymi ID",
     "withoutExtraIds": "Bez dodatkowych ID",
     "documented": "Udokumentowane",
@@ -48,8 +48,8 @@
   },
   "contributions": {
     "title": "Historia kontrybucji",
-    "description": "Różnice dla sektorów, dodatkowych identyfikatorów i komórek z PCI.",
-    "addedSectors": "Dodane sektory",
+    "description": "Różnice dla azymutów, dodatkowych identyfikatorów i komórek z PCI.",
+    "addedSectors": "Dodane azymuty",
     "addedExtraIds": "Dodane dodatkowe ID",
     "addedCellsWithPCI": "Dodane komórki z PCI"
   },

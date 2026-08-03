@@ -179,9 +179,9 @@ function validateSectorInputs(sectors: RequestBody["sectors"]): void {
   const localIds = new Set<string>();
   const azimuths = new Set<number>();
   for (const sector of sectors) {
-    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector local_id values must be unique" });
+    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
     localIds.add(sector.local_id);
-    if (azimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector azimuth values must be unique" });
+    if (azimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
     azimuths.add(sector.azimuth);
   }
 }

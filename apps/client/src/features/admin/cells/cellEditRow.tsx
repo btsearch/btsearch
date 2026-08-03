@@ -59,7 +59,7 @@ export const CellEditRow = memo(function CellEditRow({
   );
   const selectedSectorIndex = sectors?.findIndex((sector) => sector._localId === localCell._sectorLocalId) ?? -1;
   const selectedSector = selectedSectorIndex >= 0 ? sectors?.[selectedSectorIndex] : undefined;
-  const selectedSectorLabel = selectedSector ? `S${selectedSectorIndex + 1}` : "-";
+  const selectedSectorLabel = selectedSector ? `A${selectedSectorIndex + 1}` : "-";
 
   const handleBandValueChange = (value: number | null) => {
     const newBandId = findPreferredBandId(value, undefined, duplex);
@@ -164,7 +164,7 @@ export const CellEditRow = memo(function CellEditRow({
               <SelectItem value="_none">-</SelectItem>
               {sectors.map((sector, index) => (
                 <SelectItem key={sector._localId} value={sector._localId}>
-                  S{index + 1}
+                  A{index + 1}
                   {typeof sector.azimuth === "number" ? ` (${sector.azimuth}°)` : ""}
                 </SelectItem>
               ))}

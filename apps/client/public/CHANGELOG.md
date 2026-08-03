@@ -1,6 +1,23 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-04
+
+### 🚀 Enhancements
+
+- Keyboard shortcut hints in the map filter panel are now hidden on mobile
+- Copy buttons in station, UKE permit and radioline dialogs now appear only when hovering over the value they copy; on touch devices they stay always visible
+- Radioline popup text on the map is now slightly larger for better readability
+- Station, UKE permit and radioline dialog headers now show the operator's logo next to the name, and the name uses the standard text color for WCAG AA contrast in both themes
+- Sectors are now called azimuths everywhere: `S1` labels became `A1`, the cell table sector column is now `AZ`, and CLF/NTM export descriptions now emit `[A1: 120°]`
+- SI2PEM reports moved out of the station ID row into their own "PEM Reports" row in station and UKE permit dialogs, showing the SI2PEM logo with a report count; the report list is now grouped by year, sorted newest first with a "latest" tag, and marks entries as external links
+- Station and UKE permit dialogs no longer show the redundant "Basic Information" heading above the specs section
+
+### 🩹 Fixes
+
+- Map popups, the search overlay and map controls now use the app font instead of the MapLibre default
+- Search-sourced SI2PEM reports show up again; SI2PEM removed their old installations API, so report search now uses their new `all_installation_info` endpoint
+
 # 2026-08-01
 
 ### 🚀 Enhancements

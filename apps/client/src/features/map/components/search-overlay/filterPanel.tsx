@@ -48,7 +48,7 @@ const OPERATOR_KEYBINDS: Record<number, string> = { 26001: "1", 26002: "2", 2600
 
 function KbdHint({ children }: { children: ReactNode }) {
   return (
-    <kbd className="ml-auto shrink-0 inline-flex items-center px-1 py-0.5 rounded bg-muted font-mono text-[10px] border border-border text-foreground leading-none">
+    <kbd className="ml-auto shrink-0 hidden md:inline-flex items-center px-1 py-0.5 rounded bg-muted font-mono text-[10px] border border-border text-foreground leading-none">
       {children}
     </kbd>
   );
@@ -582,7 +582,7 @@ export function FilterPanel({
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("common:labels.standard")}</h4>
-              <span className="inline-flex items-center gap-px">
+              <span className="hidden md:inline-flex items-center gap-px">
                 <kbd className="inline-flex items-center px-1 py-0.5 rounded bg-muted font-mono text-[10px] border border-border text-foreground leading-none">
                   Shift
                 </kbd>

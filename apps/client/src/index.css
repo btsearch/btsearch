@@ -215,6 +215,10 @@
   }
 
   /* MapLibre popup styling */
+  .maplibregl-map {
+    font-family: var(--font-sans) !important;
+  }
+
   .maplibregl-popup {
     z-index: 100 !important;
   }

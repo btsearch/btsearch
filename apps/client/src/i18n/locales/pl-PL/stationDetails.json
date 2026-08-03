@@ -1,7 +1,7 @@
 {
   "tabs": {
     "specs": "Specyfikacja",
-    "sectors": "Sektory",
+    "sectors": "Azymuty",
     "permits": "Pozwolenia UKE",
     "comments": "Komentarze",
     "photos": "Zdjęcia"
@@ -9,30 +9,30 @@
   "watchStation": "Obserwuj stację",
   "unwatchStation": "Przestań obserwować",
   "specs": {
-    "basicInfo": "Podstawowe informacje",
     "cellDetails": "Szczegóły komórek",
     "internalNotes": "Notatki wewnętrzne",
     "newCellTooltip": "Ta komórka została dodana w ciągu ostatnich 30 dni",
     "updatedCellTooltip": "Ta komórka została zaktualizowana w ciągu ostatnich 30 dni",
-    "si2pemLink": "Kliknij aby zobaczyć raporty PEM z SI2PEM"
+    "si2pemLink": "Kliknij, aby zobaczyć raporty PEM z SI2PEM",
+    "pemReports": "Raporty PEM"
   },
   "sectors": {
-    "title": "Sektory",
+    "title": "Azymuty",
     "noAssignedCells": "Brak przypisanych komórek",
-    "suggestedCount": "Sugerowana liczba sektorów:",
+    "suggestedCount": "Sugerowana liczba azymutów:",
     "azimuth": "Azymut",
-    "empty": "Brak sektorów",
-    "add": "Dodaj sektor"
+    "empty": "Brak azymutów",
+    "add": "Dodaj azymut"
   },
   "permits": {
     "permitsCount_one": "{{count, number}} pozwolenie",
     "permitsCount_few": "{{count, number}} pozwolenia",
     "permitsCount_many": "{{count, number}} pozwoleń",
     "permitsCount_other": "{{count, number}} pozwoleń",
-    "sectorsCount_one": "{{count, number}} sektor",
-    "sectorsCount_few": "{{count, number}} sektory",
-    "sectorsCount_many": "{{count, number}} sektorów",
-    "sectorsCount_other": "{{count, number}} sektorów",
+    "sectorsCount_one": "{{count, number}} azymut",
+    "sectorsCount_few": "{{count, number}} azymuty",
+    "sectorsCount_many": "{{count, number}} azymutów",
+    "sectorsCount_other": "{{count, number}} azymutów",
     "permit": "pozwolenie",
     "permits": "pozwoleń",
     "neverExpires": "Bezterminowe",
@@ -46,9 +46,8 @@
     "decisionTypeP": "Pozwolenie",
     "decisionTypeZmP": "Zmiana Pozwolenia",
     "newPermitTooltip": "To pozwolenie zostało dodane w ciągu ostatnich 30 dni",
-    "sectors": "Sektory",
+    "sectors": "Azymuty",
     "sectorsAzimuth": "Azymut",
-    "sectorsElevation": "Elewacja",
     "sectorsAntennaHeight": "Wysokość anteny",
     "antennaType": {
       "indoor": "Wewnętrzna",

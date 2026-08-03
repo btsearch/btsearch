@@ -106,26 +106,26 @@ function validateSectorRefs(input: SingleSubmission, targetStation?: { sectors: 
   const sectorLocalIds = new Set<string>();
   const sectorAzimuths = new Set<number>();
   for (const sector of sectorsInput) {
-    if (sectorLocalIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector local_id values must be unique" });
+    if (sectorLocalIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
     sectorLocalIds.add(sector.local_id);
-    if (sectorAzimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector azimuth values must be unique" });
+    if (sectorAzimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
     sectorAzimuths.add(sector.azimuth);
   }
 
   const targetSectorIds = new Set(targetStation?.sectors.map((sector) => sector.id) ?? []);
   for (const sector of sectorsInput) {
     if (sector.target_sector_id !== null && sector.target_sector_id !== undefined && !targetSectorIds.has(sector.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more target sectors do not belong to the target station" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more target azimuths do not belong to the target station" });
   }
 
   if (sectorsInput.length > MAX_SECTORS)
-    throw new ErrorResponse("BAD_REQUEST", { message: `Too many sectors for the submission. Maximum allowed is ${MAX_SECTORS}` });
+    throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the submission. Maximum allowed is ${MAX_SECTORS}` });
 
   for (const cell of input.cells ?? []) {
     if (cell.target_sector_id !== null && cell.target_sector_id !== undefined && !targetSectorIds.has(cell.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell sector assignments do not belong to the target station" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments do not belong to the target station" });
     if (cell.sector_local_id && !sectorLocalIds.has(cell.sector_local_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell sector assignments reference a missing proposed sector" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments reference a missing proposed azimuth" });
   }
 }
 

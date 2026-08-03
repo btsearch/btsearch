@@ -52,7 +52,7 @@ const SectorRow = memo(function SectorRow({
   return (
     <div className="flex items-center gap-2 py-1.5">
       {!readOnly ? <HugeiconsIcon icon={DragDropVerticalIcon} className="size-4 text-muted-foreground/50 cursor-grab shrink-0" /> : null}
-      <span className="w-7 text-sm font-medium tabular-nums">S{index + 1}</span>
+      <span className="w-7 text-sm font-medium tabular-nums">A{index + 1}</span>
       <div className="space-y-1">
         <Input
           type="number"

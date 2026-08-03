@@ -219,7 +219,7 @@
   "siblingSectors": {
     "fetchFrom": "Skopiuj z {{brand}}",
     "fetching": "Kopiowanie...",
-    "notFound": "Nie znaleziono sektorów stacji siostrzanej",
+    "notFound": "Nie znaleziono azymutów stacji siostrzanej",
     "fetched": "Azymuty skopiowane ze stacji siostrzanej",
     "fetchFailed": "Nie udało się skopiować azymutów"
   },

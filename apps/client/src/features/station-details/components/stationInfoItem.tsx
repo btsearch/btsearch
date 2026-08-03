@@ -15,7 +15,7 @@ export function StationInfoItem({ icon, label, children, className }: StationInf
       <span className="mt-0.5 flex shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
       <div className="min-w-0">
         <span className="block text-xs leading-4 text-muted-foreground">{label}</span>
-        <div className="mt-0.5 flex min-h-5 min-w-0 flex-wrap items-center gap-1.5 text-sm font-medium">{children}</div>
+        <div className="group/copy mt-0.5 flex min-h-5 min-w-0 flex-wrap items-center gap-1.5 text-sm font-medium">{children}</div>
       </div>
     </div>
   );

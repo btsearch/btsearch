@@ -216,7 +216,7 @@
   "siblingSectors": {
     "fetchFrom": "Copy from {{brand}}",
     "fetching": "Copying...",
-    "notFound": "No sibling sectors found",
+    "notFound": "No sibling azimuths found",
     "fetched": "Azimuths copied from sibling station",
     "fetchFailed": "Failed to copy azimuths"
   },

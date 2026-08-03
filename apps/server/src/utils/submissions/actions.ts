@@ -632,7 +632,7 @@ async function applyProposedSectors(
   const writeTasks: Array<() => Promise<void>> = [];
 
   for (const proposed of proposedSectorRows as ProposedSectorRow[]) {
-    if (proposedAzimuths.has(proposed.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Sector azimuth values must be unique" });
+    if (proposedAzimuths.has(proposed.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
     proposedAzimuths.add(proposed.azimuth);
 
     const matchingPrevious =
@@ -659,7 +659,7 @@ async function applyProposedSectors(
         .insert(stationSectors)
         .values({ station_id: stationId, azimuth: proposed.azimuth })
         .returning({ id: stationSectors.id });
-      if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station sector" });
+      if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station azimuth" });
       sectorIdByLocalId.set(proposed.local_id, insertedSector.id);
       nextSectors.push({ id: insertedSector.id, azimuth: proposed.azimuth });
     });
@@ -839,7 +839,7 @@ async function deleteUnretainedSectors(tx: DbTx, stationId: number | null, secto
 
   const [assignedResult] = await tx.select({ value: count() }).from(cells).where(inArray(cells.sector_id, sectorIdsToDelete));
   if (Number(assignedResult?.value ?? 0) > 0)
-    throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete sectors that are still assigned to cells" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete azimuths that are still assigned to cells" });
   await tx.delete(stationSectors).where(inArray(stationSectors.id, sectorIdsToDelete));
 }
 
