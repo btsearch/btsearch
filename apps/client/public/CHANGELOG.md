@@ -24,6 +24,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The floating navigation no longer gets stuck invisible when it is reopened before the hide animation finishes
 - The floating navigation section rails no longer flicker when switching between pages
 - The floating navigation no longer has excessive bottom spacing on phones when installed as an app; map controls follow the corrected position
+- Comment previews in the admin comments table now stay on one line in Safari
 
 # 2026-08-01
 

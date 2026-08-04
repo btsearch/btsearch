@@ -1,12 +1,14 @@
-import { AlertCircleIcon, Delete02Icon, Globe02Icon, ListViewIcon, LockIcon, Search01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, Cancel01Icon, Delete02Icon, Globe02Icon, ListViewIcon, LockIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
+import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
+import { useNavActionTarget } from "@/contexts/navActions";
 import { type UserListSummary, deleteList, fetchUserLists } from "@/features/lists/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTablePagination } from "@/hooks/useTablePageSize";
@@ -34,11 +38,59 @@ const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHei
 
 const columnHelper = createColumnHelper<UserListSummary>();
 
+function ListsMobileFilterRail({ search, onSearchChange }: { search: string; onSearchChange: (value: string) => void }) {
+  const { t } = useTranslation("common");
+  const hasSearch = search.trim().length > 0;
+
+  return (
+    <div className="flex items-center gap-1">
+      <MobileFilterChip active={hasSearch} icon={Search01Icon} label={t("labels.search")}>
+        <MobileFilterPanelTitle>{t("labels.search")}</MobileFilterPanelTitle>
+        <div className="relative">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            value={search}
+            onChange={(event) => onSearchChange(event.currentTarget.value)}
+            placeholder={t("placeholder.search")}
+            className="h-9 w-full rounded-md border bg-background py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {hasSearch ? (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("actions.clear")}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </MobileFilterChip>
+
+      {hasSearch ? (
+        <button
+          type="button"
+          onClick={() => onSearchChange("")}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+          {t("actions.clearAll")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function AdminListsPage() {
   "use no memo";
   const { t, i18n } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const navActionTarget = useNavActionTarget();
+  const hasFloatingRail = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
 
@@ -182,7 +234,7 @@ function AdminListsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("admin:breadcrumbs.lists")}</h1>
           </div>
-          <div className="relative w-full md:max-w-xs">
+          <div className={cn("relative w-full md:max-w-xs", hasFloatingRail && "max-md:hidden")}>
             <HugeiconsIcon
               icon={Search01Icon}
               className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
@@ -235,6 +287,25 @@ function AdminListsPage() {
           </DataTable.Root>
         </div>
       </div>
+
+      {hasFloatingRail && navActionTarget
+        ? createPortal(
+            <div className="flex items-center max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 md:hidden">
+              <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
+                <div className="mx-auto w-max">
+                  <ListsMobileFilterRail
+                    search={search}
+                    onSearchChange={(value) => {
+                      setSearch(value);
+                      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                    }}
+                  />
+                </div>
+              </div>
+            </div>,
+            navActionTarget,
+          )
+        : null}
 
       <AlertDialog open={!!listToDelete} onOpenChange={(open) => !open && setListToDelete(null)}>
         <AlertDialogContent>

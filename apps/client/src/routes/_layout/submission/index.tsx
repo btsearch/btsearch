@@ -18,7 +18,7 @@ function SubmissionsPage() {
 
   return (
     <RequireAuth>
-      <main className="flex-1 overflow-y-auto p-4">
+      <main className="flex-1 overflow-y-auto p-4 max-md:pb-16">
         <SubmissionForm
           preloadStationId={stationId ? Number.parseInt(stationId, 10) : undefined}
           editSubmissionId={editId ?? undefined}
@@ -40,5 +40,6 @@ export const Route = createFileRoute("/_layout/submission/")({
     titleKey: "items.submitStation",
     i18nNamespace: "nav",
     breadcrumbs: [{ titleKey: "sections.contribute", i18nNamespace: "nav" }],
+    mainClassName: "overflow-hidden max-md:pb-0",
   },
 });

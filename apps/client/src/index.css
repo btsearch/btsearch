@@ -55,7 +55,7 @@
   --chart-5: oklch(0.55 0.17 22);
   --radius: 0.625rem;
   --floating-nav-pwa-bottom-offset: 0rem;
-  --floating-nav-bottom-padding: max(0.5rem, env(safe-area-inset-bottom), var(--floating-nav-pwa-bottom-offset, 0rem));
+  --floating-nav-bottom-padding: max(0.5rem, calc(env(safe-area-inset-bottom, 0rem) + 0.25rem), var(--floating-nav-pwa-bottom-offset, 0rem));
   --sidebar: #f4f7f9;
   --sidebar: oklch(0.975 0.004 225);
   --sidebar-foreground: #04080b;
