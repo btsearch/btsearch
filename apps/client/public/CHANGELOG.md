@@ -23,6 +23,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The "Add to list" button no longer shows in station and radioline dialog headers when user lists are disabled in site settings or the user is not signed in
 - The floating navigation no longer gets stuck invisible when it is reopened before the hide animation finishes
 - The floating navigation section rails no longer flicker when switching between pages
+- The floating navigation no longer has excessive bottom spacing on phones when installed as an app; map controls follow the corrected position
 
 # 2026-08-01
 

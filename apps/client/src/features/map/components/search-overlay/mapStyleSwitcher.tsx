@@ -126,7 +126,7 @@ export function MapStyleSwitcher({ position = "default" }: MapStyleSwitcherProps
         className={cn(
           "flex p-1.5 rounded-lg bg-background border shadow-lg",
           isNav
-            ? "fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-2 z-[60] flex-col-reverse gap-1"
+            ? "fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-2 z-60 flex-col-reverse gap-1"
             : isSearch
               ? "absolute top-full right-0 mt-1 flex-col gap-1"
               : isMobile

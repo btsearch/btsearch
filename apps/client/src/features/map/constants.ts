@@ -12,7 +12,7 @@ export const POLAND_BOUNDS: [[number, number], [number, number]] = [
   [14.0, 48.9],
   [24.2, 55.8],
 ];
-export const FLOATING_NAV_MAP_OFFSET_CLASS = "[--floating-nav-map-offset:calc(1.25rem+var(--floating-nav-pwa-bottom-offset,0rem))]";
+export const FLOATING_NAV_MAP_OFFSET_CLASS = "[--floating-nav-map-offset:calc(0.75rem+var(--floating-nav-bottom-padding,0.5rem))]";
 
 export const PICKER_SOURCE_ID = "picker-locations-source";
 export const PICKER_CIRCLE_LAYER_ID = "picker-locations-circle";

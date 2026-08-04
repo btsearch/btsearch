@@ -1032,7 +1032,7 @@ export function FloatingNav() {
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
                 transition={shellTransition}
                 className="flex w-full flex-col items-center gap-0 md:gap-1"
-                style={{ paddingBottom: "calc(max(0.5rem, env(safe-area-inset-bottom)) + var(--floating-nav-pwa-bottom-offset, 0rem))" }}
+                style={{ paddingBottom: "var(--floating-nav-bottom-padding, 0.5rem)" }}
               >
                 {isMobile ? <FloatingActionSlot label={t("floating.actions")} placement="rail" transition={transition} /> : null}
                 <MobileFloatingPageSectionRail activeId={activePageSectionId} sections={showMobilePageSections ? pageSections : []} />
