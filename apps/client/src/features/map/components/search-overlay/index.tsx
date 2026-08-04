@@ -44,8 +44,6 @@ type MapSearchOverlayProps = {
   radioLineCount?: number;
   radioLineTotalCount?: number;
   isRadioLinesFetching?: boolean;
-  isLoading: boolean;
-  isFetching?: boolean;
   filters: StationFilters;
   zoom?: number;
   activeMarker?: { latitude: number; longitude: number } | null;
@@ -70,8 +68,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   radioLineCount = 0,
   radioLineTotalCount = 0,
   isRadioLinesFetching = false,
-  isLoading,
-  isFetching = false,
   filters,
   zoom,
   activeMarker,
@@ -352,8 +348,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       radioLineCount={radioLineCount}
       radioLineTotalCount={radioLineTotalCount}
       isRadioLinesFetching={isRadioLinesFetching}
-      isLoading={isLoading}
-      isFetching={isFetching}
       showStations={filters.showStations}
       searchMode={searchMode as "bounds" | "search"}
       zoom={zoom}

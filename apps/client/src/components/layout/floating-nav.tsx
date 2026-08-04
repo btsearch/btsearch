@@ -14,7 +14,7 @@ import {
   UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Link, useLocation, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { type ComponentType, type PointerEvent, type TouchEvent, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -76,7 +76,6 @@ const flagComponents: Record<string, ComponentType<{ className?: string }>> = { 
 type FloatingTransition = typeof FLUID_TRANSITION | { duration: number };
 type FloatingShellTransition = typeof FLOATING_NAV_SHELL_TRANSITION | { duration: number };
 type FloatingSurfaceTransition = FloatingTransition | FloatingShellTransition;
-const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type FloatingNavState = {
   hidden: boolean;
@@ -407,9 +406,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
   const [hasVisibleActions, setHasVisibleActions] = useState(false);
   const actionSlotTransition: FloatingTransition = hasVisibleActions ? transition : { duration: 0 };
 
-  useIsomorphicLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-
+  useLayoutEffect(() => {
     const target = targetRef.current;
     if (!target) return;
 
@@ -834,7 +831,6 @@ function FloatingCategoryButton({
 export function FloatingNav() {
   const { t } = useTranslation("nav");
   const location = useLocation();
-  const isNavigating = useRouterState({ select: (s) => s.isLoading });
   const pageSections = usePageSectionsList();
   const activePageSectionId = usePageSectionsActiveId();
   const isMobile = useIsMobile();
@@ -868,7 +864,7 @@ export function FloatingNav() {
     return () => window.clearTimeout(timeoutId);
   }, [hidden, reduceMotion]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     dispatchNav({ type: "RESET_FOR_ROUTE" });
   }, [location.pathname]);
 
@@ -913,8 +909,8 @@ export function FloatingNav() {
   const showDesktopSubnav = !isMobile && displayedSubnavSection !== null && displayedSubnavSection.items.length > 0;
   const displayedActiveItemUrl = displayedSubnavSection ? getActiveNavItemUrl([displayedSubnavSection], location.pathname) : null;
   const displayedActiveItem = displayedSubnavSection?.items.find((item) => !item.href && item.url === displayedActiveItemUrl) ?? null;
-  const showDesktopPageSections = !isMobile && !isNavigating && displayedActiveItem !== null && pageSections.length > 0;
-  const showMobilePageSections = isMobile && !isNavigating && pageSections.length > 0;
+  const showDesktopPageSections = !isMobile && displayedActiveItem !== null && pageSections.length > 0;
+  const showMobilePageSections = isMobile && pageSections.length > 0;
   const mobileSection = sections.find((section) => section.key === mobileSectionKey) ?? null;
 
   const showFloatingNav = () => {
@@ -1029,6 +1025,8 @@ export function FloatingNav() {
             ) : (
               <motion.div
                 key="floating-nav-visible"
+                initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
                 transition={shellTransition}
                 className="flex w-full flex-col items-center gap-0 md:gap-1"

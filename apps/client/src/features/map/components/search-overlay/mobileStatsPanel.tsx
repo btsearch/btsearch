@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components/ui/spinner.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import i18n from "@/i18n/config.js";
 import { cn } from "@/lib/utils.js";
@@ -12,8 +11,6 @@ type MobileStatsPanelProps = {
   radioLineCount: number;
   radioLineTotalCount: number;
   isRadioLinesFetching: boolean;
-  isLoading: boolean;
-  isFetching: boolean;
   showStations: boolean;
   searchMode: "bounds" | "search";
   zoom?: number;
@@ -27,8 +24,6 @@ export function MobileStatsPanel({
   radioLineCount,
   radioLineTotalCount,
   isRadioLinesFetching,
-  isLoading,
-  isFetching,
   showStations,
   searchMode,
   zoom,
@@ -54,13 +49,9 @@ export function MobileStatsPanel({
             <div className="flex items-center gap-1">
               {showStations && (
                 <>
-                  {isLoading || isFetching ? (
-                    <Spinner className="size-3 text-muted-foreground" />
-                  ) : hasMoreLocations ? (
-                    <div className="size-1.5 rounded-full shrink-0 bg-amber-500 animate-pulse" />
-                  ) : (
+                  {searchMode ? (
                     <div className={cn("size-1.5 rounded-full shrink-0", searchMode === "search" ? "bg-primary" : "bg-emerald-500")} />
-                  )}
+                  ) : null}
                   <span className={cn("text-xs font-bold leading-none", hasMoreLocations && "text-amber-500")}>
                     {locationCount.toLocaleString(i18n.language)}
                   </span>
@@ -72,11 +63,6 @@ export function MobileStatsPanel({
               {showRadioLines && (
                 <>
                   {showStations && <span className="text-[8px] text-muted-foreground leading-none">·</span>}
-                  {isRadioLinesFetching ? (
-                    <Spinner className="size-2.5 text-muted-foreground" />
-                  ) : hasMoreRadioLines ? (
-                    <div className="size-1.5 rounded-full shrink-0 bg-amber-500 animate-pulse" />
-                  ) : null}
                   <span className={cn("text-xs font-bold leading-none", hasMoreRadioLines && "text-amber-500")}>
                     {radioLineCount.toLocaleString(i18n.language)}
                   </span>
