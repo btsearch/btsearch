@@ -1,12 +1,9 @@
 import {
   Globe02Icon,
-  Image01Icon,
   InformationCircleIcon,
   Location01Icon,
   MapsLocation01Icon,
-  Message01Icon,
   MountainIcon,
-  Note01Icon,
   Radar01Icon,
   SignalFull02Icon,
   Tag01Icon,
@@ -436,9 +433,6 @@ export function StationDetailsBody({
                   {displayedTab === "permits" && (
                     <div>
                       <section>
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <HugeiconsIcon icon={Note01Icon} className="size-4" /> {t("tabs.permits")}
-                        </h3>
                         <PermitsList stationId={stationId} />
                       </section>
                     </div>
@@ -447,9 +441,6 @@ export function StationDetailsBody({
                   {displayedTab === "comments" && (
                     <div>
                       <section>
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-6 flex items-center gap-2">
-                          <HugeiconsIcon icon={Message01Icon} className="size-4" /> {t("comments.title")}
-                        </h3>
                         <CommentsList stationId={stationId} isAdmin={isAdmin} />
                       </section>
                     </div>
@@ -458,9 +449,6 @@ export function StationDetailsBody({
                   {displayedTab === "photos" && (
                     <div>
                       <section>
-                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <HugeiconsIcon icon={Image01Icon} className="size-4" /> {t("photos.title")}
-                        </h3>
                         <PhotoGallery stationId={stationId} isAdmin={isAdmin} />
                       </section>
                     </div>
@@ -469,9 +457,6 @@ export function StationDetailsBody({
               ) : (
                 <div>
                   <section>
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <HugeiconsIcon icon={Note01Icon} className="size-4" /> {t("tabs.permits")}
-                    </h3>
                     <PermitsList stationId={stationId} isUkeSource />
                   </section>
                 </div>

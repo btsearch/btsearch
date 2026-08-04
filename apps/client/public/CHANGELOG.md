@@ -8,15 +8,19 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Keyboard shortcut hints in the map filter panel are now hidden on mobile
 - Copy buttons in station, UKE permit and radioline dialogs now appear only when hovering over the value they copy; on touch devices they stay always visible
 - Radioline popup text on the map is now slightly larger for better readability
+- The address in station map popups is now slightly larger for better readability
 - Station, UKE permit and radioline dialog headers now show the operator's logo next to the name, and the name uses the standard text color for WCAG AA contrast in both themes
 - Sectors are now called azimuths everywhere: `S1` labels became `A1`, the cell table sector column is now `AZ`, and CLF/NTM export descriptions now emit `[A1: 120°]`
 - SI2PEM reports moved out of the station ID row into their own "PEM Reports" row in station and UKE permit dialogs, showing the SI2PEM logo with a report count; the report list is now grouped by year, sorted newest first with a "latest" tag, and marks entries as external links
 - Station and UKE permit dialogs no longer show the redundant "Basic Information" heading above the specs section
+- The "Add to list" icon button now shows a tooltip in dialog headers and map popups
+- Expired radiolines now show a red warning icon instead of the "EXPIRED" text in the map popup and next to the link type in the radioline dialog header; the per-direction expired dots were removed
 
 ### 🩹 Fixes
 
 - Map popups, the search overlay and map controls now use the app font instead of the MapLibre default
 - Search-sourced SI2PEM reports show up again; SI2PEM removed their old installations API, so report search now uses their new `all_installation_info` endpoint
+- The "Add to list" button no longer shows in station and radioline dialog headers when user lists are disabled in site settings or the user is not signed in
 
 # 2026-08-01
 

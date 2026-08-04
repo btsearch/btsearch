@@ -1,10 +1,9 @@
-import { ArrowRight02Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, ArrowRight02Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePreferences } from "@/hooks/usePreferences";
-import { isPermitExpired } from "@/lib/dateUtils";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
@@ -126,12 +125,15 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
               </>
             ) : null}
           </div>
-          {link.isExpired && <span className="text-[10px] font-bold uppercase text-destructive">{t("common:status.expired")}</span>}
+          {link.isExpired && (
+            <span title={t("common:status.expired")} className="shrink-0">
+              <HugeiconsIcon icon={Alert02Icon} className="size-3.5 text-destructive" />
+            </span>
+          )}
         </div>
 
         <div className="mt-2 pl-3.5 space-y-1.5">
           {link.directions.map((dir) => {
-            const dirExpired = isPermitExpired(dir.permit.expiry_date);
             const isForward = dir.tx.latitude === link.a.latitude && dir.tx.longitude === link.a.longitude;
             const dirCalcSpeed =
               dir.link.ch_width && dir.link.modulation_type ? calculateRadiolineSpeed(dir.link.ch_width, dir.link.modulation_type) : null;
@@ -155,7 +157,6 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
                   <span className="text-[10px] font-mono font-semibold text-foreground/80">{formatFrequency(dir.link.freq)}</span>
                   {dir.link.polarization && <span className="text-[10px] font-bold text-muted-foreground">{dir.link.polarization}</span>}
                   {dirSpeedBadge}
-                  {dirExpired && <span className="size-1.5 rounded-full bg-destructive shrink-0 mt-1" title={t("common:status.expired")} />}
                 </div>
               </div>
             );

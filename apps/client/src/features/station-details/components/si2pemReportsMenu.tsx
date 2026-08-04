@@ -66,7 +66,7 @@ export function Si2pemReportsMenu({ reports }: { reports: PemReport[] }) {
         </TooltipTrigger>
         <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="min-w-84 max-h-80 overflow-y-auto">
+      <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="w-auto max-w-96 max-h-80 overflow-y-auto">
         {reportsByYear.map(([year, items], groupIndex) => (
           <DropdownMenuGroup key={year}>
             <DropdownMenuLabel className="py-1 text-xs font-medium text-muted-foreground">{year}</DropdownMenuLabel>
@@ -78,7 +78,9 @@ export function Si2pemReportsMenu({ reports }: { reports: PemReport[] }) {
                 <div className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="whitespace-nowrap text-sm font-medium">{dateLabel}</span>
-                    <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">{t(`common:labels.${sourceLabel}`)}</span>
+                    <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
+                      {t(`common:labels.${sourceLabel}`)}
+                    </span>
                     {groupIndex === 0 && index === 0 ? (
                       <span className="shrink-0 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
                         {t("common:labels.latest")}

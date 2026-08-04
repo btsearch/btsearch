@@ -27,6 +27,7 @@ import { useMapLayer } from "../hooks/useMapLayer";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useUrlSync } from "../hooks/useURLSync";
 import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } from "../utils";
+import type { StationHoverEntry } from "./stationHoverTooltipContent";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 
 const EMPTY_GEOJSON = { type: "FeatureCollection" as const, features: [] };
@@ -375,7 +376,7 @@ export function StationsLayer({
 
       const isUke = data.source === "uke";
 
-      let entries: Array<{ name: string; color: string; stationId: string }>;
+      let entries: StationHoverEntry[];
       if (isUke) {
         const ukeLocation = locationById.get(data.locationId) as UkeLocationWithPermits | undefined;
         if (!ukeLocation?.stations?.length) return null;

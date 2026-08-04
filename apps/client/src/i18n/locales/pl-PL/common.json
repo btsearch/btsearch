@@ -126,7 +126,7 @@
     "active": "Aktywne",
     "published": "Opublikowane",
     "inactive": "Nieaktywne",
-    "expired": "Wygasło",
+    "expired": "Nieważne",
     "never": "Nigdy"
   },
   "submissionType": {

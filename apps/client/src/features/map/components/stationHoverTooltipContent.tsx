@@ -40,7 +40,7 @@ export const StationHoverTooltipContent = memo(function StationHoverTooltipConte
             <div className="flex items-center gap-1.5">
               <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: station.color }} />
               <span className="font-medium text-xs">{station.name}</span>
-              <span className="text-[10px] text-foreground/70">{station.stationId}</span>
+              <span className="text-[11px] text-foreground/70">{station.stationId}</span>
             </div>
           </div>
         ))}

@@ -141,8 +141,8 @@ export function UkePermitDetailsDialogPanel({
                 <>
                   <WatchButton stationId={ukeStation.id} source="uke" size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
-                    title={`${operator?.name ?? "UKE"} - ${station_id}`}
-                    text={`${operator?.name ?? "UKE"} ${station_id} - ${stationLocation.city}`}
+                    title={`${station_id} (${operator?.name ?? "UKE"})`}
+                    text={`UKE: ${station_id} (${operator?.name ?? "UKE"}) - ${stationLocation.city} ${stationLocation.address}`}
                     url={`${window.location.origin}/#map=16/${stationLocation.latitude}/${stationLocation.longitude}~fu~S${station_id}`}
                     size="md"
                     className={stationDialogHeaderIconActionClassName}

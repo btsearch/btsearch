@@ -1,5 +1,6 @@
 import {
   Activity01Icon,
+  Alert02Icon,
   ArrowRight02Icon,
   Building02Icon,
   Calendar03Icon,
@@ -152,6 +153,7 @@ export function RadioLineDetailsDialogPanel({
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <DialogOperatorName name={operatorName} mnc={mnc} />
                   {linkTypeStyle ? <span className={cn("shrink-0 text-xs font-semibold", linkTypeStyle.text)}>{link.linkType}</span> : null}
+                  {link.isExpired ? <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0 text-destructive" /> : null}
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">{formatDistance(distance)}</span>
@@ -179,7 +181,7 @@ export function RadioLineDetailsDialogPanel({
                 className={stationDialogHeaderIconActionClassName}
               />
               <ShareButton
-                title={`${operatorName} - ${formatFrequency(radioLine.link.freq)}`}
+                title={`${operatorName} - ${formatDistance(distance)} - ${formatFrequency(radioLine.link.freq)}`}
                 text={`${operatorName} ${formatDistance(distance)} - ${formatFrequency(radioLine.link.freq)}`}
                 url={buildRadiolineShareUrl(link)}
                 size="md"
@@ -213,35 +215,35 @@ export function RadioLineDetailsDialogPanel({
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("radiolines.linkParams")}</h3>
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
                 <StationInfoItem icon={<HugeiconsIcon icon={Radio01Icon} className="size-4" />} label={t("radiolines.frequency")}>
-                  <span className="min-w-0 break-words font-mono">{`${radioLine.link.freq} MHz (${formatFrequency(radioLine.link.freq)})`}</span>
+                  <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.link.freq} MHz (${formatFrequency(radioLine.link.freq)})`}</span>
                 </StationInfoItem>
                 {radioLine.link.ch_num !== null && radioLine.link.ch_num !== undefined ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={HashtagIcon} className="size-4" />} label={t("radiolines.chNum")}>
-                    <span className="min-w-0 break-words font-mono">{radioLine.link.ch_num}</span>
+                    <span className="min-w-0 wrap-break-word font-mono">{radioLine.link.ch_num}</span>
                   </StationInfoItem>
                 ) : null}
                 {radioLine.link.ch_width !== null && radioLine.link.ch_width !== undefined ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={HorizontalResizeIcon} className="size-4" />} label={t("radiolines.channelWidth")}>
-                    <span className="min-w-0 break-words font-mono">{`${radioLine.link.ch_width} MHz`}</span>
+                    <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.link.ch_width} MHz`}</span>
                   </StationInfoItem>
                 ) : null}
                 {radioLine.link.polarization ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={Rotate01Icon} className="size-4" />} label={t("radiolines.polarization")}>
-                    <span className="min-w-0 break-words">{radioLine.link.polarization}</span>
+                    <span className="min-w-0 wrap-break-word">{radioLine.link.polarization}</span>
                   </StationInfoItem>
                 ) : null}
                 {radioLine.link.modulation_type ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={Activity01Icon} className="size-4" />} label={t("radiolines.modulation")}>
-                    <span className="min-w-0 break-words">{radioLine.link.modulation_type}</span>
+                    <span className="min-w-0 wrap-break-word">{radioLine.link.modulation_type}</span>
                   </StationInfoItem>
                 ) : null}
                 {dirSpeed !== null && dirSpeed !== undefined ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={DashboardSpeed01Icon} className="size-4" />} label={t("radiolines.dataRate")}>
-                    <span className="min-w-0 break-words font-mono">{formatSpeed(dirSpeed)}</span>
+                    <span className="min-w-0 wrap-break-word font-mono">{formatSpeed(dirSpeed)}</span>
                   </StationInfoItem>
                 ) : radioLine.link.bandwidth !== null && radioLine.link.bandwidth !== undefined ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={DashboardSpeed01Icon} className="size-4" />} label={t("radiolines.bandwidth")}>
-                    <span className="min-w-0 break-words">{formatBandwidth(radioLine.link.bandwidth)}</span>
+                    <span className="min-w-0 wrap-break-word">{formatBandwidth(radioLine.link.bandwidth)}</span>
                   </StationInfoItem>
                 ) : null}
               </div>
@@ -259,36 +261,36 @@ export function RadioLineDetailsDialogPanel({
                       <CopyButton text={`${radioLine.tx.latitude}, ${radioLine.tx.longitude}`} />
                     </StationInfoItem>
                     <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.height")}>
-                      <span className="min-w-0 break-words">{`${radioLine.tx.height} m`}</span>
+                      <span className="min-w-0 wrap-break-word">{`${radioLine.tx.height} m`}</span>
                     </StationInfoItem>
                     {radioLine.tx.antenna?.type?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Satellite01Icon} className="size-4" />} label={t("radiolines.antennaType")}>
-                        <span className="min-w-0 break-words">{radioLine.tx.antenna.type.name}</span>
+                        <span className="min-w-0 wrap-break-word">{radioLine.tx.antenna.type.name}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.antenna?.gain && (
                       <StationInfoItem icon={<HugeiconsIcon icon={SignalFull02Icon} className="size-4" />} label={t("radiolines.antennaGain")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.tx.antenna.gain} dBi`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.tx.antenna.gain} dBi`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.antenna?.height && (
                       <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.antennaHeight")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.tx.antenna.height} m`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.tx.antenna.height} m`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.eirp && (
                       <StationInfoItem icon={<HugeiconsIcon icon={FlashIcon} className="size-4" />} label={t("radiolines.eirp")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.tx.eirp} dBW`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.tx.eirp} dBW`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.transmitter?.type?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Satellite01Icon} className="size-4" />} label={t("radiolines.transmitterType")}>
-                        <span className="min-w-0 break-words">{radioLine.tx.transmitter.type.name}</span>
+                        <span className="min-w-0 wrap-break-word">{radioLine.tx.transmitter.type.name}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.transmitter?.type?.manufacturer?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Building02Icon} className="size-4" />} label={t("radiolines.manufacturer")}>
-                        <span className="min-w-0 break-words">{radioLine.tx.transmitter.type.manufacturer.name}</span>
+                        <span className="min-w-0 wrap-break-word">{radioLine.tx.transmitter.type.manufacturer.name}</span>
                       </StationInfoItem>
                     )}
                   </div>
@@ -304,31 +306,31 @@ export function RadioLineDetailsDialogPanel({
                       <CopyButton text={`${radioLine.rx.latitude}, ${radioLine.rx.longitude}`} />
                     </StationInfoItem>
                     <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.height")}>
-                      <span className="min-w-0 break-words">{`${radioLine.rx.height} m`}</span>
+                      <span className="min-w-0 wrap-break-word">{`${radioLine.rx.height} m`}</span>
                     </StationInfoItem>
                     {radioLine.rx.type?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Satellite01Icon} className="size-4" />} label={t("radiolines.receiverType")}>
-                        <span className="min-w-0 break-words">{radioLine.rx.type.name}</span>
+                        <span className="min-w-0 wrap-break-word">{radioLine.rx.type.name}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.rx.gain !== null && (
                       <StationInfoItem icon={<HugeiconsIcon icon={SignalFull02Icon} className="size-4" />} label={t("radiolines.antennaGain")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.rx.gain} dBi`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.gain} dBi`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.rx.height_antenna !== null && (
                       <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.antennaHeight")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.rx.height_antenna} m`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.height_antenna} m`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.rx.noise_figure !== null && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Activity01Icon} className="size-4" />} label={t("radiolines.noiseFigure")}>
-                        <span className="min-w-0 break-words font-mono">{`${radioLine.rx.noise_figure} dB`}</span>
+                        <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.noise_figure} dB`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.rx.type?.manufacturer?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Building02Icon} className="size-4" />} label={t("radiolines.manufacturer")}>
-                        <span className="min-w-0 break-words">{radioLine.rx.type.manufacturer.name}</span>
+                        <span className="min-w-0 ShareButton">{radioLine.rx.type.manufacturer.name}</span>
                       </StationInfoItem>
                     )}
                   </div>
@@ -348,7 +350,7 @@ export function RadioLineDetailsDialogPanel({
               </div>
               <div className="overflow-hidden rounded-xl border">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[32rem] text-sm sm:min-w-0">
+                  <table className="w-full min-w-lg text-sm sm:min-w-0">
                     <thead>
                       <tr className="border-b border-border/70 bg-muted/20">
                         <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:px-4">

@@ -160,8 +160,8 @@ export function StationDetailsDialogPanel({
                   <AddToListPopover stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
                   <WatchButton stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
-                    title={`${station.operator.name} - ${station.station_id}`}
-                    text={`${station.operator.name} ${station.station_id} - ${station.location.city}`}
+                    title={`${station.station_id} (${station.operator.name})`}
+                    text={`${station.station_id} (${station.operator.name}) - ${station.location.city} ${station.location.address}`}
                     url={`${window.location.origin}/#map=16/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`}
                     size="md"
                     className={stationDialogHeaderIconActionClassName}

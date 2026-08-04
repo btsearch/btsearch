@@ -106,9 +106,9 @@ function PopupStationList({
             <div className="flex items-center gap-1.5">
               <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
               <span className="font-medium text-xs">{operatorName}</span>
-              <span className="text-[10px] text-foreground/70">{stationId}</span>
+              <span className="text-[11px] text-foreground/70">{stationId}</span>
               {station.extra_identificators?.networks_id && (
-                <span className="text-[10px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
+                <span className="text-[11px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
               )}
             </div>
             {showTechBadges ? (
@@ -277,7 +277,7 @@ export const PopupContent = memo(function PopupContent({
       <div className="px-3 py-2 border-b border-border/50">
         <h3 className="font-medium text-sm leading-tight pr-4">
           {location.city}
-          {location.region && <span className="font-normal text-[10px] text-muted-foreground ml-1">· {location.region}</span>}
+          {location.region && <span className="font-normal text-[11px] text-muted-foreground ml-1">· {location.region}</span>}
         </h3>
         {location.address && <p className="text-[11px] text-muted-foreground">{location.address}</p>}
       </div>

@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { UserListSummary } from "@/features/lists/api";
 import { updateList } from "@/features/lists/api";
 import { useUserLists } from "@/features/lists/hooks/useUserLists";
+import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +70,16 @@ type AddToListPopoverProps = {
   className?: string;
 };
 
-export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size = "sm", className }: AddToListPopoverProps) {
+export function AddToListPopover(props: AddToListPopoverProps) {
+  const { data: session } = authClient.useSession();
+  const { data: settings } = useSettings();
+
+  if (!session?.user || !settings?.enableUserLists) return null;
+
+  return <AddToListPopoverInner {...props} />;
+}
+
+function AddToListPopoverInner({ stationId, radiolineIds, ukeLocationId, size = "sm", className }: AddToListPopoverProps) {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
@@ -115,6 +126,7 @@ export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size 
     () => data?.pages.flatMap((p) => p.data).filter((l) => l.createdBy.uuid === session?.user?.id) ?? [],
     [data, session?.user?.id],
   );
+
   const icon = stationId || ukeLocationId ? AirportTowerIcon : SignalFull02Icon;
   const iconSize = size === "sm" ? "size-3" : "size-4";
   const buttonPadding = size === "sm" ? "p-0.5" : "p-1.5";
@@ -122,14 +134,24 @@ export function AddToListPopover({ stationId, radiolineIds, ukeLocationId, size 
   return (
     <>
       <Popover>
-        <PopoverTrigger
-          render={
-            <button type="button" className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0", className)} />
-          }
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          <HugeiconsIcon icon={TaskDaily01Icon} className={cn(iconSize, "text-muted-foreground")} />
-        </PopoverTrigger>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0", className)}
+                  />
+                }
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              />
+            }
+          >
+            <HugeiconsIcon icon={TaskDaily01Icon} className={cn(iconSize, "text-muted-foreground")} />
+          </TooltipTrigger>
+          <TooltipContent>{t("lists:addToList")}</TooltipContent>
+        </Tooltip>
 
         <PopoverContent align="end" className="w-60 p-0 gap-0 overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 bg-muted/30">
