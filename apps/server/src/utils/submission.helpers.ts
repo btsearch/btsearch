@@ -3,6 +3,7 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../errors.js";
+import type { DbTx } from "../types/global.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "./cellIdentityDuplicateSpecs.js";
 import { type PciDuplicateDetails, getPciDuplicateKey } from "./pciDuplicateSpecs.js";
 
@@ -61,6 +62,90 @@ export function makeDetailsRatRefine(schemaMap: Record<string, z.ZodType>) {
 export function computeGnbidLength(gnbid: number | null | undefined): number | undefined {
   if (gnbid === null || gnbid === undefined) return undefined;
   return Number(gnbid).toString(2).length;
+}
+
+type ProposedStationDiffInput = {
+  station_id?: string | null;
+  operator_id?: number | null;
+  notes?: string | null;
+  networks_id?: number | null;
+  networks_name?: string | null;
+  mno_name?: string | null;
+};
+type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
+type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
+
+export function normalizeText(value: string | null | undefined): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+export function stationUpdateDiffers(
+  stationData: ProposedStationDiffInput,
+  currentStation: CurrentStationForDiff,
+  currentExtraIdentifier: CurrentExtraIdentifierForDiff,
+): boolean {
+  if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id) return true;
+  if (stationData.operator_id !== undefined && stationData.operator_id !== currentStation.operator_id) return true;
+  const proposedNotes = normalizeText(stationData.notes);
+  if (proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes)) return true;
+  if (stationData.networks_id !== undefined && (stationData.networks_id ?? null) !== (currentExtraIdentifier?.networks_id ?? null)) return true;
+  if (stationData.networks_name !== undefined && normalizeText(stationData.networks_name) !== normalizeText(currentExtraIdentifier?.networks_name))
+    return true;
+  if (stationData.mno_name !== undefined && normalizeText(stationData.mno_name) !== normalizeText(currentExtraIdentifier?.mno_name)) return true;
+  return false;
+}
+
+type ProposedLocationDiffInput = {
+  region_id?: number | null;
+  city?: string | null;
+  address?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
+};
+type CurrentLocationForDiff = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
+
+export function locationUpdateDiffers(locationData: ProposedLocationDiffInput, currentLocation: CurrentLocationForDiff): boolean {
+  if (locationData.latitude !== undefined && locationData.latitude !== currentLocation.latitude) return true;
+  if (locationData.longitude !== undefined && locationData.longitude !== currentLocation.longitude) return true;
+  if (locationData.region_id !== undefined && locationData.region_id !== currentLocation.region_id) return true;
+  if (locationData.city !== undefined && normalizeText(locationData.city) !== normalizeText(currentLocation.city)) return true;
+  if (locationData.address !== undefined && normalizeText(locationData.address) !== normalizeText(currentLocation.address)) return true;
+  return false;
+}
+
+export async function stripUnchangedProposalData<S extends ProposedStationDiffInput, L extends ProposedLocationDiffInput>(
+  tx: DbTx,
+  targetStationId: number,
+  stationData: S | undefined,
+  locationData: L | undefined,
+): Promise<{ stationData: S | undefined; locationData: L | undefined }> {
+  if (!stationData && !locationData) return { stationData, locationData };
+
+  const [targetStation, targetExtraIdentifier] = await Promise.all([
+    tx.query.stations.findFirst({ where: { id: targetStationId }, with: { location: true } }),
+    tx.query.extraIdentificators.findFirst({ where: { station_id: targetStationId } }),
+  ]);
+  if (!targetStation) return { stationData, locationData };
+
+  let resolvedStation: S | undefined = stationData;
+  if (stationData) {
+    if (stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null)) {
+      const proposedNotes = normalizeText(stationData.notes);
+      resolvedStation = {
+        ...stationData,
+        station_id:
+          stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== targetStation.station_id
+            ? stationData.station_id
+            : null,
+        notes: proposedNotes !== null && proposedNotes !== normalizeText(targetStation.notes) ? proposedNotes : null,
+      };
+    } else resolvedStation = undefined;
+  }
+
+  let resolvedLocation: L | undefined = locationData;
+  if (locationData && targetStation.location && !locationUpdateDiffers(locationData, targetStation.location)) resolvedLocation = undefined;
+
+  return { stationData: resolvedStation, locationData: resolvedLocation };
 }
 
 export function isNonEmpty(value: unknown): boolean {

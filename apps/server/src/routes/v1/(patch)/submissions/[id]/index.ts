@@ -26,8 +26,10 @@ import {
   isNonEmpty,
   lteInsertSchema,
   makeDetailsRatRefine,
+  normalizeText,
   nrInsertSchemaBase,
   proposedCellsSelectSchema,
+  stripUnchangedProposalData,
   umtsInsertSchema,
   validateCellDuplicates,
 } from "../../../../../utils/submission.helpers.js";
@@ -190,7 +192,9 @@ async function replaceProposedStation(tx: DbTx, submissionId: string, station: R
   if (!station) return;
 
   await tx.delete(proposedStations).where(eq(proposedStations.submission_id, submissionId));
-  await tx.insert(proposedStations).values({ ...station, submission_id: submissionId } as typeof proposedStations.$inferInsert);
+  await tx
+    .insert(proposedStations)
+    .values({ ...station, notes: normalizeText(station.notes), submission_id: submissionId } as typeof proposedStations.$inferInsert);
 }
 
 async function replaceProposedLocation(tx: DbTx, submissionId: string, location: RequestBody["location"]): Promise<void> {
@@ -237,12 +241,28 @@ async function replaceProposedCells(
   );
 }
 
-async function updateSubmissionDraft(tx: DbTx, submissionId: string, body: RequestBody, hasAdminPermission: boolean): Promise<ResponseData> {
+async function updateSubmissionDraft(
+  tx: DbTx,
+  submission: ExistingSubmission,
+  body: RequestBody,
+  hasAdminPermission: boolean,
+): Promise<ResponseData> {
+  const submissionId = submission.id;
   await tx.update(submissions).set(buildSubmissionUpdate(body)).where(eq(submissions.id, submissionId));
 
+  let stationBody = body.station;
+  let locationBody = body.location;
+  if (submission.type === "update" && submission.station_id !== null && (stationBody || locationBody)) {
+    const resolved = await stripUnchangedProposalData(tx, submission.station_id, stationBody, locationBody);
+    if (stationBody && !resolved.stationData) await tx.delete(proposedStations).where(eq(proposedStations.submission_id, submissionId));
+    if (locationBody && !resolved.locationData) await tx.delete(proposedLocations).where(eq(proposedLocations.submission_id, submissionId));
+    stationBody = resolved.stationData;
+    locationBody = resolved.locationData;
+  }
+
   await Promise.all([
-    replaceProposedStation(tx, submissionId, body.station),
-    replaceProposedLocation(tx, submissionId, body.location),
+    replaceProposedStation(tx, submissionId, stationBody),
+    replaceProposedLocation(tx, submissionId, locationBody),
     replaceProposedSectors(tx, submissionId, body.sectors),
     replaceProposedCells(tx, submissionId, body.cells, hasAdminPermission),
   ]);
@@ -293,7 +313,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   await validateCellConflicts(req.body.cells, submission.station_id, req.body.station?.operator_id ?? existingProposedStation?.operator_id);
 
   try {
-    const result = await db.transaction((tx) => updateSubmissionDraft(tx, id, req.body, hasAdminPermission));
+    const result = await db.transaction((tx) => updateSubmissionDraft(tx, submission, req.body, hasAdminPermission));
 
     await createAuditLog(
       {

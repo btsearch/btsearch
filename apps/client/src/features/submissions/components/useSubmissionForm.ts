@@ -1,4 +1,4 @@
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +23,7 @@ import {
 } from "../api";
 import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, StationAction, SubmissionMode } from "../types";
 import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
-import { type OriginalState, hasFormChanges } from "../utils/equality";
+import { type OriginalState, hasFormChanges, isEqualLocation, isEqualStation } from "../utils/equality";
 import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
 
 export type FormValues = {
@@ -63,7 +63,7 @@ const INITIAL_VALUES: FormValues = {
 function buildOriginalState(values: FormValues): OriginalState {
   return {
     action: values.action,
-    station: values.mode === "new" ? structuredClone(values.newStation) : undefined,
+    station: structuredClone(values.newStation),
     location: structuredClone(values.location),
     sectors: structuredClone(values.sectors),
     cells: structuredClone(values.cells),
@@ -170,8 +170,9 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       if (locationPhotoIdsToRemove.length > 0) return true;
       if (hasFormChanges({ mode, action, newStation, location, sectors, cells, submitterNote }, originalState)) return true;
       if (mode === "existing") {
+        if (originalState.station && !isEqualStation(newStation, originalState.station)) return true;
         if (networksId !== (originalState.networksId ?? null)) return true;
-        if (networksId !== null && networksName !== (originalState.networksName ?? "")) return true;
+        if (networksName !== (originalState.networksName ?? "")) return true;
         if (mnoName !== (originalState.mnoName ?? "")) return true;
       }
       return false;
@@ -216,24 +217,32 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
 
       const submissionType = isDeleteMode ? "delete" : isNewStation ? "new" : "update";
 
-      const hadExtraIds = (originalState.networksId !== null && originalState.networksId !== undefined) || !!originalState.mnoName;
+      const extraIdsChanged =
+        value.networksId !== (originalState.networksId ?? null) ||
+        value.networksName !== (originalState.networksName ?? "") ||
+        value.mnoName !== (originalState.mnoName ?? "");
+      const stationInfoChanged =
+        originalState.station !== null && originalState.station !== undefined && !isEqualStation(value.newStation, originalState.station);
       const existingStation =
-        !isNewStation && !isDeleteMode && (value.networksId !== null || value.networksName || value.mnoName || hadExtraIds)
+        !isNewStation && !isDeleteMode && (extraIdsChanged || stationInfoChanged)
           ? {
-              station_id: value.selectedStation!.station_id,
-              operator_id: value.selectedStation!.operator?.id ?? value.selectedStation!.operator_id,
+              station_id: value.newStation.station_id?.trim() || undefined,
+              operator_id: value.newStation.operator_id ?? value.selectedStation!.operator?.id ?? value.selectedStation!.operator_id,
+              notes: value.newStation.notes?.trim() || undefined,
               networks_id: value.networksId,
               networks_name: value.networksName || null,
               mno_name: value.mnoName || null,
             }
           : undefined;
 
+      const locationChanged = isNewStation || isEditMode || !originalState.location || !isEqualLocation(value.location, originalState.location);
+
       await mutation.mutateAsync({
         station_id: isNewStation ? null : (value.selectedStation?.id ?? null),
         type: submissionType,
         submitter_note: value.submitterNote || undefined,
         station: isNewStation ? value.newStation : existingStation,
-        location: hasLocation && !isDeleteMode ? value.location : undefined,
+        location: hasLocation && !isDeleteMode && locationChanged ? value.location : undefined,
         sectors: !isDeleteMode ? sectors : undefined,
         cells: isDeleteMode ? [] : cells,
         pending_photos: photos.length > 0 ? photos.length : undefined,
@@ -306,7 +315,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       form.setFieldValue("networksId", null);
       form.setFieldValue("networksName", "");
       form.setFieldValue("mnoName", "");
-      if (newMode === "existing") form.setFieldValue("newStation", INITIAL_VALUES.newStation);
+      form.setFieldValue("newStation", INITIAL_VALUES.newStation);
       form.setFieldValue("selectedStation", null);
       form.setFieldValue("cells", []);
       form.setFieldValue("originalCells", []);
@@ -351,6 +360,13 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         form.setFieldValue("networksName", networksName);
         form.setFieldValue("mnoName", mnoName);
 
+        const stationInfo = {
+          station_id: station.station_id,
+          operator_id: station.operator?.id ?? station.operator_id,
+          notes: station.notes ?? "",
+        };
+        form.setFieldValue("newStation", stationInfo);
+
         if (station.location) {
           const location = {
             latitude: station.location.latitude,
@@ -362,6 +378,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           form.setFieldValue("location", location);
           setOriginalState({
             action: "update",
+            station: structuredClone(stationInfo),
             location,
             sectors: structuredClone(sectors),
             cells: structuredClone(cells),
@@ -370,7 +387,15 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
             mnoName,
           });
         } else {
-          setOriginalState({ action: "update", sectors: structuredClone(sectors), cells: structuredClone(cells), networksId, networksName, mnoName });
+          setOriginalState({
+            action: "update",
+            station: structuredClone(stationInfo),
+            sectors: structuredClone(sectors),
+            cells: structuredClone(cells),
+            networksId,
+            networksName,
+            mnoName,
+          });
         }
       } else {
         form.setFieldValue("cells", []);
@@ -382,6 +407,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         form.setFieldValue("networksId", null);
         form.setFieldValue("networksName", "");
         form.setFieldValue("mnoName", "");
+        form.setFieldValue("newStation", INITIAL_VALUES.newStation);
         setOriginalState({});
       }
     },
@@ -628,8 +654,16 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
             form.setFieldValue("location", effectiveLocation);
           }
 
+          const stationInfo = {
+            station_id: submission.proposedStation?.station_id ?? station.station_id,
+            operator_id: submission.proposedStation?.operator_id ?? station.operator?.id ?? station.operator_id,
+            notes: submission.proposedStation?.notes ?? station.notes ?? "",
+          };
+          form.setFieldValue("newStation", stationInfo);
+
           setOriginalState({
             action: submission.type === "delete" ? "delete" : "update",
+            station: structuredClone(stationInfo),
             location: effectiveLocation,
             sectors: structuredClone(proposedSectors.length > 0 ? proposedSectors : originalSectors),
             cells: structuredClone(mergedCells),
@@ -676,37 +710,38 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     };
   }, [editSubmission, form]);
 
+  const errorValues = form.useStore((s) => (showErrors ? s.values : null));
+
   const cellErrors = useMemo(() => {
-    if (!showErrors) return undefined;
-    const currentCells = form.state.values.cells;
-    const errors = validateCells(currentCells, allBands, form.state.values.originalCells);
+    if (!errorValues) return undefined;
+    const errors = validateCells(errorValues.cells, allBands, errorValues.originalCells);
     return Object.keys(errors).length > 0 ? errors : undefined;
-  }, [showErrors, form.state.values.cells, form.state.values.originalCells, allBands]);
+  }, [errorValues, allBands]);
 
   const formErrors = useMemo((): FormErrors => {
-    if (!showErrors) return {};
-    const values = form.state.values;
+    if (!errorValues) return {};
     return validateForm({
-      mode: values.mode,
-      selectedStation: values.selectedStation,
-      newStation: values.newStation,
-      location: values.location,
+      mode: errorValues.mode,
+      selectedStation: errorValues.selectedStation,
+      newStation: errorValues.newStation,
+      location: errorValues.location,
       cells: [],
     });
-  }, [showErrors, form.state.values]);
+  }, [errorValues]);
 
-  const formValues = useStore(form.store, (s) => s.values);
-  const isDirty = computeHasChanges(
-    formValues.mode,
-    formValues.action,
-    formValues.newStation,
-    formValues.location,
-    formValues.cells,
-    formValues.sectors,
-    formValues.submitterNote,
-    formValues.networksId,
-    formValues.networksName,
-    formValues.mnoName,
+  const isDirty = form.useStore((s) =>
+    computeHasChanges(
+      s.values.mode,
+      s.values.action,
+      s.values.newStation,
+      s.values.location,
+      s.values.cells,
+      s.values.sectors,
+      s.values.submitterNote,
+      s.values.networksId,
+      s.values.networksName,
+      s.values.mnoName,
+    ),
   );
   useBeforeUnloadGuard(isDirty);
 

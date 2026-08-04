@@ -244,23 +244,27 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             mode: s.values.mode,
             action: s.values.action,
             selectedStation: s.values.selectedStation,
+            newStation: s.values.newStation,
             networksId: s.values.networksId,
             networksName: s.values.networksName,
             mnoName: s.values.mnoName,
           })}
         >
-          {({ mode, action, selectedStation, networksId, networksName, mnoName }) => {
+          {({ mode, action, selectedStation, newStation, networksId, networksName, mnoName }) => {
             if (mode !== "existing" || !selectedStation || action === "delete") return null;
             return (
-              <ExtraIdentificatorsSection
-                selectedStation={selectedStation}
-                networksId={networksId}
-                networksName={networksName}
-                mnoName={mnoName}
-                onNetworksIdChange={handleNetworksIdChange}
-                onNetworksNameChange={handleNetworksNameChange}
-                onMnoNameChange={handleMnoNameChange}
-              />
+              <>
+                <NewStationForm station={newStation} onStationChange={handleNewStationChange} hideExtraIdentifiers />
+                <ExtraIdentificatorsSection
+                  selectedStation={selectedStation}
+                  networksId={networksId}
+                  networksName={networksName}
+                  mnoName={mnoName}
+                  onNetworksIdChange={handleNetworksIdChange}
+                  onNetworksNameChange={handleNetworksNameChange}
+                  onMnoNameChange={handleMnoNameChange}
+                />
+              </>
             );
           }}
         </form.Subscribe>

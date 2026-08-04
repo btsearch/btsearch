@@ -12,7 +12,7 @@ import {
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import { logger } from "better-auth";
-import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -37,7 +37,9 @@ import {
   isNormalRat,
   updateRATCellDetailsReturning,
 } from "../ratCellPersistence.ts";
+import { migrateStationPhotosToLocation } from "../stationPhotos.helpers.ts";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stationStatus.ts";
+import { normalizeText } from "../submission.helpers.ts";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
@@ -113,51 +115,6 @@ async function upsertLocation(
     tx,
   );
   return newLocation.id;
-}
-
-async function migrateStationPhotos(tx: DbTx, stationId: number, newLocationId: number): Promise<void> {
-  const selections = await tx.query.stationPhotoSelections.findMany({
-    where: { station_id: stationId },
-    with: { locationPhoto: { columns: { id: true, attachment_id: true } } },
-  });
-
-  const stationPhotoIds = selections.map((s) => s.location_photo_id);
-  if (stationPhotoIds.length === 0) return;
-
-  const attachmentIds = selections.map((s) => s.locationPhoto.attachment_id);
-
-  const conflicting = await tx
-    .select({ id: locationPhotos.id, attachment_id: locationPhotos.attachment_id })
-    .from(locationPhotos)
-    .where(and(eq(locationPhotos.location_id, newLocationId), inArray(locationPhotos.attachment_id, attachmentIds)));
-
-  if (conflicting.length > 0) {
-    const attachmentToNewPhotoId = new Map(conflicting.map((r) => [r.attachment_id, r.id]));
-    const conflictingAttachmentIds = conflicting.map((r) => r.attachment_id);
-
-    await Promise.all(
-      selections
-        .filter((sel) => attachmentToNewPhotoId.has(sel.locationPhoto.attachment_id))
-        .map((sel) => {
-          const newPhotoId = attachmentToNewPhotoId.get(sel.locationPhoto.attachment_id)!;
-          return Promise.all([
-            tx
-              .insert(stationPhotoSelections)
-              .values({ station_id: stationId, location_photo_id: newPhotoId, is_main: sel.is_main })
-              .onConflictDoNothing(),
-            tx
-              .delete(stationPhotoSelections)
-              .where(and(eq(stationPhotoSelections.station_id, stationId), eq(stationPhotoSelections.location_photo_id, sel.location_photo_id))),
-          ]);
-        }),
-    );
-
-    await tx
-      .delete(locationPhotos)
-      .where(and(inArray(locationPhotos.id, stationPhotoIds), inArray(locationPhotos.attachment_id, conflictingAttachmentIds)));
-  }
-
-  await tx.update(locationPhotos).set({ location_id: newLocationId }).where(inArray(locationPhotos.id, stationPhotoIds));
 }
 
 type ProposedSectorRow = {
@@ -347,18 +304,7 @@ async function applyNewSubmission(
   return { stationId, resolvedLocationId: locationId };
 }
 
-async function deleteOrphanedLocationIfNeeded(
-  tx: DbTx,
-  stationId: number,
-  currentLocation: LocationRow,
-  nextLocationId: number,
-  submissionId: string,
-  req: FastifyRequest,
-): Promise<void> {
-  const [orphanedResult] = await tx.select({ orphaned: count() }).from(stations).where(eq(stations.location_id, currentLocation.id));
-  if (Number(orphanedResult?.orphaned ?? 0) !== 0) return;
-
-  await migrateStationPhotos(tx, stationId, nextLocationId);
+async function deleteEmptiedLocation(tx: DbTx, currentLocation: LocationRow, submissionId: string, req: FastifyRequest): Promise<void> {
   await tx.delete(locations).where(eq(locations.id, currentLocation.id));
   await createAuditLog(
     {
@@ -420,38 +366,7 @@ async function updateLocationMetadata(
   );
 }
 
-async function createReplacementLocation(
-  tx: DbTx,
-  proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
-  submissionId: string,
-  req: FastifyRequest,
-): Promise<number> {
-  const [newLoc] = await tx
-    .insert(locations)
-    .values({
-      longitude: proposedLocation.longitude,
-      latitude: proposedLocation.latitude,
-      region_id: proposedLocation.region_id,
-      city: proposedLocation.city,
-      address: proposedLocation.address,
-    })
-    .returning();
-  if (!newLoc) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create location" });
-
-  await createAuditLog(
-    {
-      action: "locations.create",
-      table_name: "locations",
-      record_id: newLoc.id,
-      new_values: newLoc,
-      metadata: { submission_id: submissionId },
-    },
-    req,
-    tx,
-  );
-
-  return newLoc.id;
-}
+type UpdatedLocationResult = { locationId: number; migratedPhotoIds: Map<number, number> };
 
 async function applyUpdatedLocation(
   tx: DbTx,
@@ -459,7 +374,7 @@ async function applyUpdatedLocation(
   stationId: number,
   submissionId: string,
   req: FastifyRequest,
-): Promise<number | null> {
+): Promise<UpdatedLocationResult> {
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
     with: { location: true },
@@ -471,24 +386,93 @@ async function applyUpdatedLocation(
 
   if (coordsUnchanged) {
     await updateLocationMetadata(tx, currentLocation, proposedLocation, submissionId, req);
-    return currentLocation.id;
+    return { locationId: currentLocation.id, migratedPhotoIds: new Map() };
   }
 
   const locationAtNewCoords = await tx.query.locations.findFirst({
     where: { AND: [{ longitude: proposedLocation.longitude }, { latitude: proposedLocation.latitude }] },
   });
 
-  if (currentLocation && !locationAtNewCoords) {
-    const newLocationId = await createReplacementLocation(tx, proposedLocation, submissionId, req);
-    await updateStationLocation(tx, stationId, newLocationId, submissionId, req);
-    await deleteOrphanedLocationIfNeeded(tx, stationId, currentLocation, newLocationId, submissionId, req);
-    return newLocationId;
+  const locationId = await upsertLocation(tx, proposedLocation, req, submissionId, locationAtNewCoords ?? null);
+  await updateStationLocation(tx, stationId, locationId, submissionId, req);
+  if (!currentLocation) return { locationId, migratedPhotoIds: new Map() };
+
+  const [remainingResult] = await tx.select({ remaining: count() }).from(stations).where(eq(stations.location_id, currentLocation.id));
+  const oldLocationOrphaned = Number(remainingResult?.remaining ?? 0) === 0;
+
+  const migratedPhotoIds = await migrateStationPhotosToLocation(tx, stationId, currentLocation.id, locationId, oldLocationOrphaned);
+  if (oldLocationOrphaned) await deleteEmptiedLocation(tx, currentLocation, submissionId, req);
+
+  return { locationId, migratedPhotoIds };
+}
+
+async function applyStationIdentityUpdate(
+  tx: DbTx,
+  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
+  stationId: number,
+  submissionId: string,
+  req: FastifyRequest,
+): Promise<void> {
+  const currentStation = await tx.query.stations.findFirst({
+    where: { id: stationId },
+    columns: { station_id: true, operator_id: true, notes: true },
+  });
+  if (!currentStation) return;
+
+  const proposedNotes = normalizeText(proposedStation.notes);
+  const nextStationStringId =
+    proposedStation.station_id !== null && proposedStation.station_id !== currentStation.station_id ? proposedStation.station_id : undefined;
+  const nextOperatorId =
+    proposedStation.operator_id !== null && proposedStation.operator_id !== currentStation.operator_id ? proposedStation.operator_id : undefined;
+  const nextNotes = proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes) ? proposedNotes : undefined;
+
+  if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined) return;
+
+  if (nextStationStringId !== undefined || nextOperatorId !== undefined) {
+    const candidateStationStringId = nextStationStringId ?? currentStation.station_id;
+    const candidateOperatorId = nextOperatorId ?? currentStation.operator_id;
+    if (candidateOperatorId !== null) {
+      const [duplicate] = await tx
+        .select({ id: stations.id })
+        .from(stations)
+        .where(and(eq(stations.station_id, candidateStationStringId), eq(stations.operator_id, candidateOperatorId), ne(stations.id, stationId)))
+        .limit(1);
+      if (duplicate) throw new ErrorResponse("BAD_REQUEST", { message: "A station with the proposed station ID and operator already exists" });
+    }
   }
 
-  const locationId = await upsertLocation(tx, proposedLocation, req, submissionId, locationAtNewCoords);
-  await updateStationLocation(tx, stationId, locationId, submissionId, req);
-  if (currentLocation) await deleteOrphanedLocationIfNeeded(tx, stationId, currentLocation, locationId, submissionId, req);
-  return locationId;
+  const oldValues: Record<string, unknown> = {};
+  const newValues: Record<string, unknown> = {};
+  const updateValues: Partial<typeof stations.$inferInsert> = { updatedAt: new Date() };
+  if (nextStationStringId !== undefined) {
+    updateValues.station_id = nextStationStringId;
+    oldValues.station_id = currentStation.station_id;
+    newValues.station_id = nextStationStringId;
+  }
+  if (nextOperatorId !== undefined) {
+    updateValues.operator_id = nextOperatorId;
+    oldValues.operator_id = currentStation.operator_id;
+    newValues.operator_id = nextOperatorId;
+  }
+  if (nextNotes !== undefined) {
+    updateValues.notes = nextNotes;
+    oldValues.notes = currentStation.notes;
+    newValues.notes = nextNotes;
+  }
+
+  await tx.update(stations).set(updateValues).where(eq(stations.id, stationId));
+  await createAuditLog(
+    {
+      action: "stations.update",
+      table_name: "stations",
+      record_id: stationId,
+      old_values: oldValues,
+      new_values: newValues,
+      metadata: { submission_id: submissionId },
+    },
+    req,
+    tx,
+  );
 }
 
 async function applyExtraIdentifierUpdate(
@@ -498,12 +482,29 @@ async function applyExtraIdentifierUpdate(
   submissionId: string,
   req: FastifyRequest,
 ): Promise<void> {
-  if (!proposedStation.networks_id && !proposedStation.mno_name) return;
-
   const existingIdentifier = await tx.query.extraIdentificators.findFirst({ where: { station_id: stationId } });
   const proposedNetworksId = proposedStation.networks_id ?? null;
-  const proposedNetworksName = proposedStation.networks_name ?? null;
-  const proposedMnoName = proposedStation.mno_name ?? null;
+  const proposedNetworksName = normalizeText(proposedStation.networks_name);
+  const proposedMnoName = normalizeText(proposedStation.mno_name);
+
+  if (proposedNetworksId === null && proposedNetworksName === null && proposedMnoName === null) {
+    if (!existingIdentifier) return;
+    await tx.delete(extraIdentificators).where(eq(extraIdentificators.id, existingIdentifier.id));
+    await createAuditLog(
+      {
+        action: "stations.update",
+        table_name: "extra_identificators",
+        record_id: stationId,
+        old_values: existingIdentifier,
+        new_values: null,
+        metadata: { submission_id: submissionId },
+      },
+      req,
+      tx,
+    );
+    return;
+  }
+
   const hasIdentifierChanges =
     !existingIdentifier ||
     existingIdentifier.networks_id !== proposedNetworksId ||
@@ -1041,23 +1042,71 @@ async function forceMainSelection(tx: DbTx, stationId: number, locationPhotoId: 
     .where(and(eq(stationPhotoSelections.station_id, stationId), eq(stationPhotoSelections.location_photo_id, locationPhotoId)));
 }
 
+async function resolvePhotoSelectionsToLocation(
+  tx: DbTx,
+  locationPhotoSels: SubmissionLocationPhotoSelectionRow[],
+  stationLocationId: number,
+): Promise<SubmissionLocationPhotoSelectionRow[]> {
+  const requestedIds = locationPhotoSels.map((selection) => selection.location_photo_id);
+  const photoRows = await tx.select().from(locationPhotos).where(inArray(locationPhotos.id, requestedIds));
+  const photoById = new Map(photoRows.map((row) => [row.id, row]));
+
+  const resolvedSels: SubmissionLocationPhotoSelectionRow[] = [];
+  const resolvedIds = new Set<number>();
+  for (const selection of locationPhotoSels) {
+    const photo = photoById.get(selection.location_photo_id);
+    if (!photo) continue;
+
+    let targetId: number | undefined = photo.location_id === stationLocationId ? photo.id : undefined;
+    if (targetId === undefined) {
+      const [existingCopy] = await tx
+        .select({ id: locationPhotos.id })
+        .from(locationPhotos)
+        .where(and(eq(locationPhotos.location_id, stationLocationId), eq(locationPhotos.attachment_id, photo.attachment_id)));
+      targetId = existingCopy?.id;
+    }
+    if (targetId === undefined) {
+      const [copy] = await tx
+        .insert(locationPhotos)
+        .values({
+          location_id: stationLocationId,
+          attachment_id: photo.attachment_id,
+          submission_id: photo.submission_id,
+          uploaded_by: photo.uploaded_by,
+          note: photo.note,
+          taken_at: photo.taken_at,
+        })
+        .returning({ id: locationPhotos.id });
+      targetId = copy?.id;
+    }
+    if (targetId === undefined || resolvedIds.has(targetId)) continue;
+    resolvedIds.add(targetId);
+    resolvedSels.push({ ...selection, location_photo_id: targetId });
+  }
+  return resolvedSels;
+}
+
 async function applyLocationPhotoSelections(
   tx: DbTx,
   locationPhotoSels: SubmissionLocationPhotoSelectionRow[],
   stationId: number,
+  stationLocationId: number | null,
   uploadedMainApplied: boolean,
 ): Promise<void> {
-  if (locationPhotoSels.length === 0) return;
+  if (locationPhotoSels.length === 0 || stationLocationId === null) return;
 
-  const requestedIds = locationPhotoSels.map((selection) => selection.location_photo_id);
+  const resolvedSels = await resolvePhotoSelectionsToLocation(tx, locationPhotoSels, stationLocationId);
+  if (resolvedSels.length === 0) return;
+
+  const resolvedPhotoIds = resolvedSels.map((selection) => selection.location_photo_id);
   const existingRows = await tx
     .select({ location_photo_id: stationPhotoSelections.location_photo_id })
     .from(stationPhotoSelections)
-    .where(and(eq(stationPhotoSelections.station_id, stationId), inArray(stationPhotoSelections.location_photo_id, requestedIds)));
+    .where(and(eq(stationPhotoSelections.station_id, stationId), inArray(stationPhotoSelections.location_photo_id, resolvedPhotoIds)));
   const existingIds = new Set(existingRows.map((row) => row.location_photo_id));
-  const toInsert = locationPhotoSels.filter((selection) => !existingIds.has(selection.location_photo_id));
+  const toInsert = resolvedSels.filter((selection) => !existingIds.has(selection.location_photo_id));
 
-  const mainSel = uploadedMainApplied ? undefined : locationPhotoSels.find((selection) => selection.is_main);
+  const mainSel = uploadedMainApplied ? undefined : resolvedSels.find((selection) => selection.is_main);
   const mainIsAlreadyAssigned = mainSel !== undefined && existingIds.has(mainSel.location_photo_id);
 
   if (toInsert.length > 0) {
@@ -1083,7 +1132,12 @@ async function deleteAttachmentFiles(attachmentUuids: string[]): Promise<void> {
   await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
 }
 
-async function applyLocationPhotoRemovals(tx: DbTx, removalPhotoIds: number[], stationId: number): Promise<string[]> {
+async function applyLocationPhotoRemovals(
+  tx: DbTx,
+  removalPhotoIds: number[],
+  stationId: number,
+  stationLocationId: number | null,
+): Promise<string[]> {
   if (removalPhotoIds.length === 0) return [];
 
   const [wasMain] = await tx
@@ -1111,20 +1165,31 @@ async function applyLocationPhotoRemovals(tx: DbTx, removalPhotoIds: number[], s
     if (first) await tx.update(stationPhotoSelections).set({ is_main: true }).where(eq(stationPhotoSelections.id, first.id));
   }
 
+  if (stationLocationId === null) return [];
+
   const orphanedPhotos = await tx
     .select({ id: locationPhotos.id, attachmentId: locationPhotos.attachment_id })
     .from(locationPhotos)
     .leftJoin(stationPhotoSelections, eq(stationPhotoSelections.location_photo_id, locationPhotos.id))
-    .where(and(inArray(locationPhotos.id, removalPhotoIds), isNull(stationPhotoSelections.id)));
+    .where(and(inArray(locationPhotos.id, removalPhotoIds), eq(locationPhotos.location_id, stationLocationId), isNull(stationPhotoSelections.id)));
 
   if (orphanedPhotos.length === 0) return [];
 
   const orphanIds = orphanedPhotos.map((photo) => photo.id);
   const orphanAttachmentIds = orphanedPhotos.map((photo) => photo.attachmentId);
-  const attachmentRows = await tx.select({ uuid: attachments.uuid }).from(attachments).where(inArray(attachments.id, orphanAttachmentIds));
 
   await tx.delete(locationPhotos).where(inArray(locationPhotos.id, orphanIds));
-  await tx.delete(attachments).where(inArray(attachments.id, orphanAttachmentIds));
+
+  const stillReferenced = await tx
+    .select({ attachment_id: locationPhotos.attachment_id })
+    .from(locationPhotos)
+    .where(inArray(locationPhotos.attachment_id, orphanAttachmentIds));
+  const stillReferencedIds = new Set(stillReferenced.map((row) => row.attachment_id));
+  const deletableAttachmentIds = orphanAttachmentIds.filter((attachmentId) => !stillReferencedIds.has(attachmentId));
+  if (deletableAttachmentIds.length === 0) return [];
+
+  const attachmentRows = await tx.select({ uuid: attachments.uuid }).from(attachments).where(inArray(attachments.id, deletableAttachmentIds));
+  await tx.delete(attachments).where(inArray(attachments.id, deletableAttachmentIds));
   return attachmentRows.map(({ uuid }) => uuid);
 }
 
@@ -1134,19 +1199,27 @@ async function applySubmissionPhotos(
   submissionId: string,
   stationId: number | null,
   resolvedLocationId: number | null,
+  migratedPhotoIds: Map<number, number>,
+  locationPhotoSelections: SubmissionLocationPhotoSelectionRow[],
 ): Promise<{ attachmentUuidsToDelete: string[]; photosAdded: boolean }> {
   if (!stationId || submission.type === "delete") return { attachmentUuidsToDelete: [], photosAdded: false };
 
-  const [photos, locationPhotoSelections] = await Promise.all([
-    tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } }),
-    tx.query.submissionLocationPhotoSelections.findMany({ where: { submission_id: submissionId } }),
-  ]);
-  const locationPhotoAdditions = locationPhotoSelections.filter((selection) => !selection.is_removal);
-  const locationPhotoRemovalIds = locationPhotoSelections.filter((selection) => selection.is_removal).map((selection) => selection.location_photo_id);
+  const photos = await tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } });
+  const remapPhotoId = (locationPhotoId: number) => migratedPhotoIds.get(locationPhotoId) ?? locationPhotoId;
+  const locationPhotoAdditions = locationPhotoSelections
+    .filter((selection) => !selection.is_removal)
+    .map((selection) => ({ ...selection, location_photo_id: remapPhotoId(selection.location_photo_id) }));
+  const locationPhotoRemovalIds = locationPhotoSelections
+    .filter((selection) => selection.is_removal)
+    .map((selection) => remapPhotoId(selection.location_photo_id));
+
+  const stationRow =
+    resolvedLocationId !== null ? null : await tx.query.stations.findFirst({ where: { id: stationId }, columns: { location_id: true } });
+  const stationLocationId = resolvedLocationId ?? stationRow?.location_id ?? null;
 
   const uploadedMainApplied = await applyUploadedSubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId, photos);
-  await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId, uploadedMainApplied);
-  const attachmentUuidsToDelete = await applyLocationPhotoRemovals(tx, locationPhotoRemovalIds, stationId);
+  await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId, stationLocationId, uploadedMainApplied);
+  const attachmentUuidsToDelete = await applyLocationPhotoRemovals(tx, locationPhotoRemovalIds, stationId, stationLocationId);
   return { attachmentUuidsToDelete, photosAdded: photos.length > 0 || locationPhotoAdditions.length > 0 };
 }
 
@@ -1181,6 +1254,7 @@ function getApprovedStationStringId(
 ): string | null {
   if (submission.type === "new" && proposedStation) return proposedStation.station_id ?? null;
   if (!stationId) return null;
+  if (submission.type === "update" && proposedStation?.station_id) return proposedStation.station_id;
   return stationContext?.stationStringId ?? null;
 }
 
@@ -1221,11 +1295,22 @@ async function runApprovalTransaction({
     resolvedLocationId = result.resolvedLocationId;
   }
 
-  if (submission.type === "update" && draft.proposedLocation && stationId)
-    resolvedLocationId = await applyUpdatedLocation(tx, draft.proposedLocation, stationId, submissionId, req);
+  const submissionPhotoSelectionRows =
+    stationId && submission.type !== "delete"
+      ? await tx.query.submissionLocationPhotoSelections.findMany({ where: { submission_id: submissionId } })
+      : [];
 
-  if (submission.type === "update" && draft.proposedStation && stationId)
+  let migratedPhotoIds = new Map<number, number>();
+  if (submission.type === "update" && draft.proposedLocation && stationId) {
+    const locationResult = await applyUpdatedLocation(tx, draft.proposedLocation, stationId, submissionId, req);
+    resolvedLocationId = locationResult.locationId;
+    migratedPhotoIds = locationResult.migratedPhotoIds;
+  }
+
+  if (submission.type === "update" && draft.proposedStation && stationId) {
+    await applyStationIdentityUpdate(tx, draft.proposedStation, stationId, submissionId, req);
     await applyExtraIdentifierUpdate(tx, draft.proposedStation, stationId, submissionId, req);
+  }
 
   if (submission.type === "delete") await applyDeletedSubmission(tx, stationId, submissionId, req);
 
@@ -1271,7 +1356,15 @@ async function runApprovalTransaction({
   if (submission.type === "update" && stationId && !publishedPendingStation)
     await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
 
-  const { attachmentUuidsToDelete, photosAdded } = await applySubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId);
+  const { attachmentUuidsToDelete, photosAdded } = await applySubmissionPhotos(
+    tx,
+    submission,
+    submissionId,
+    stationId,
+    resolvedLocationId,
+    migratedPhotoIds,
+    submissionPhotoSelectionRows,
+  );
 
   const updated = await finalizeApprovedSubmission(tx, submission, submissionId, reviewerId, reviewerNotes);
   const stationStringId = getApprovedStationStringId(submission, draft.proposedStation, stationId, stationContext);

@@ -52,7 +52,7 @@ export type ProposedCellForm = {
 };
 
 export type ProposedStationForm = {
-  station_id: string;
+  station_id?: string;
   operator_id: number | null;
   notes?: string;
   networks_id?: number | null;

@@ -23,9 +23,13 @@ import {
   gsmInsertSchema,
   insertProposedCellDetails,
   isNonEmpty,
+  locationUpdateDiffers,
   lteInsertSchema,
   makeDetailsRatRefine,
+  normalizeText,
   nrInsertSchemaBase,
+  stationUpdateDiffers,
+  stripUnchangedProposalData,
   umtsInsertSchema,
   validateCellDuplicates,
 } from "../submission.helpers.ts";
@@ -142,7 +146,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   const stationId = station_id !== undefined ? Number(station_id) : null;
   if (stationId !== null && Number.isNaN(stationId)) throw new ErrorResponse("INVALID_QUERY");
 
-  const [targetStation, duplicateStation, existingLocation] = await Promise.all([
+  const [targetStation, duplicateStation, existingLocation, targetExtraIdentifier] = await Promise.all([
     stationId !== null
       ? db.query.stations.findFirst({
           where: { id: stationId },
@@ -177,6 +181,8 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
           },
         })
       : null,
+
+    type === "update" && stationId !== null ? db.query.extraIdentificators.findFirst({ where: { station_id: stationId } }) : null,
   ]);
 
   if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
@@ -274,23 +280,10 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   }
 
   if (type === "update" && targetStation) {
-    const hasStationChanges =
-      stationData &&
-      (stationData.station_id !== targetStation.station_id ||
-        stationData.operator_id !== targetStation.operator_id ||
-        (stationData.notes ?? null) !== (targetStation.notes ?? null) ||
-        stationData.networks_id !== undefined ||
-        stationData.mno_name !== undefined);
+    const hasStationChanges = !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null);
 
     const currentLocation = targetStation.location;
-    const hasLocationChanges =
-      locationData &&
-      currentLocation &&
-      (locationData.latitude !== currentLocation.latitude ||
-        locationData.longitude !== currentLocation.longitude ||
-        locationData.region_id !== currentLocation.region_id ||
-        (locationData.city ?? null) !== (currentLocation.city ?? null) ||
-        (locationData.address ?? null) !== (currentLocation.address ?? null));
+    const hasLocationChanges = !!locationData && (!currentLocation || locationUpdateDiffers(locationData, currentLocation));
 
     const hasCellChanges = input.cells && input.cells.length > 0;
     const hasSectorChanges = input.sectors && input.sectors.length > 0;
@@ -317,6 +310,14 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
   if (!hasMeaningfulChanges(input))
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before submitting." });
 
+  let stationDataToStore = stationData;
+  let locationDataToStore = locationData;
+  if (type === "update" && station_id !== undefined && station_id !== null) {
+    const resolved = await stripUnchangedProposalData(tx, Number(station_id), stationData, locationData);
+    stationDataToStore = resolved.stationData;
+    locationDataToStore = resolved.locationData;
+  }
+
   const [submission] = await tx
     .insert(submissions)
     .values({
@@ -329,15 +330,15 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
     .returning();
   if (!submission) throw new ErrorResponse("FAILED_TO_CREATE");
 
-  if (stationData)
+  if (stationDataToStore)
     await tx.insert(proposedStations).values({
-      ...stationData,
-      notes: typeof stationData.notes === "string" && stationData.notes.trim() !== "" ? stationData.notes : null,
+      ...stationDataToStore,
+      notes: normalizeText(stationDataToStore.notes),
       submission_id: submission.id,
       is_confirmed: false,
     });
 
-  if (locationData) await tx.insert(proposedLocations).values({ ...locationData, submission_id: submission.id });
+  if (locationDataToStore) await tx.insert(proposedLocations).values({ ...locationDataToStore, submission_id: submission.id });
 
   if (sectors && sectors.length > 0) await tx.insert(proposedSectors).values(sectors.map((sector) => ({ ...sector, submission_id: submission.id })));
 
@@ -399,5 +400,5 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
     /* eslint-enable no-await-in-loop */
   }
 
-  return { ...submission, proposedStation: stationData, proposedLocation: locationData, sectors, cells: proposedCellsInput };
+  return { ...submission, proposedStation: stationDataToStore, proposedLocation: locationDataToStore, sectors, cells: proposedCellsInput };
 }

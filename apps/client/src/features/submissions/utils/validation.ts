@@ -73,8 +73,9 @@ export function validateForm(ctx: ValidationContext): FormErrors {
 function validateStation(station: ProposedStationForm): StationErrors {
   const errors: StationErrors = {};
 
-  if (!station.station_id.trim()) errors.station_id = "validation.stationIdRequired";
-  else if (station.station_id.length < 2) errors.station_id = "validation.stationIdTooShort";
+  const stationId = station.station_id ?? "";
+  if (!stationId.trim()) errors.station_id = "validation.stationIdRequired";
+  else if (stationId.length < 2) errors.station_id = "validation.stationIdTooShort";
 
   if (station.operator_id === null) errors.operator_id = "validation.operatorRequired";
 

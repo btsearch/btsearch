@@ -1,5 +1,5 @@
-import { locationPhotos, locations, stationPhotoSelections, stations } from "@openbts/drizzle";
-import { and, eq, inArray } from "drizzle-orm";
+import { locations, stations } from "@openbts/drizzle";
+import { eq } from "drizzle-orm";
 import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -9,6 +9,8 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { deleteLocationWithPhotos } from "../../../../utils/location.helpers.js";
+import { migrateStationPhotosToLocation } from "../../../../utils/stationPhotos.helpers.js";
 import { assertStationStatusTransition, stationStatusUpdate } from "../../../../utils/stationStatus.js";
 
 const stationsUpdateSchema = createUpdateSchema(stations)
@@ -78,80 +80,42 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const newLocationId = updated.location_id;
     if (oldLocationId !== null && oldLocationId !== newLocationId) {
       try {
-        if (newLocationId !== null) {
-          const selections = await db.query.stationPhotoSelections.findMany({
-            where: { station_id: station_id },
-            with: { locationPhoto: { columns: { id: true, attachment_id: true } } },
-          });
+        await db.transaction(async (tx) => {
+          const remainingStations = await tx.$count(stations, eq(stations.location_id, oldLocationId));
+          const oldLocationOrphaned = remainingStations === 0;
 
-          const stationPhotoIds = selections.map((s) => s.location_photo_id);
+          if (newLocationId !== null) await migrateStationPhotosToLocation(tx, station_id, oldLocationId, newLocationId, oldLocationOrphaned);
 
-          if (stationPhotoIds.length > 0) {
-            const attachmentIds = selections.map((s) => s.locationPhoto.attachment_id);
-
-            const conflicting = await db
-              .select({ id: locationPhotos.id, attachment_id: locationPhotos.attachment_id })
-              .from(locationPhotos)
-              .where(and(eq(locationPhotos.location_id, newLocationId), inArray(locationPhotos.attachment_id, attachmentIds)));
-
-            if (conflicting.length > 0) {
-              const attachmentToNewPhotoId = new Map(conflicting.map((r) => [r.attachment_id, r.id]));
-              const conflictingAttachmentIds = conflicting.map((r) => r.attachment_id);
-
-              await Promise.all(
-                selections
-                  .filter((sel) => attachmentToNewPhotoId.has(sel.locationPhoto.attachment_id))
-                  .map((sel) => {
-                    const newPhotoId = attachmentToNewPhotoId.get(sel.locationPhoto.attachment_id)!;
-                    return Promise.all([
-                      db
-                        .insert(stationPhotoSelections)
-                        .values({ station_id: station_id, location_photo_id: newPhotoId, is_main: sel.is_main })
-                        .onConflictDoNothing(),
-                      db
-                        .delete(stationPhotoSelections)
-                        .where(
-                          and(eq(stationPhotoSelections.station_id, station_id), eq(stationPhotoSelections.location_photo_id, sel.location_photo_id)),
-                        ),
-                    ]);
-                  }),
-              );
-
-              await db
-                .delete(locationPhotos)
-                .where(and(inArray(locationPhotos.id, stationPhotoIds), inArray(locationPhotos.attachment_id, conflictingAttachmentIds)));
-            }
-
-            await db.update(locationPhotos).set({ location_id: newLocationId }).where(inArray(locationPhotos.id, stationPhotoIds));
+          if (oldLocationOrphaned) {
+            const oldLocation = await tx.query.locations.findFirst({
+              where: { id: oldLocationId },
+              with: { region: { columns: { id: true, name: true, code: true } } },
+            });
+            if (newLocationId === null) await deleteLocationWithPhotos(tx, oldLocationId);
+            else await tx.delete(locations).where(eq(locations.id, oldLocationId));
+            await createAuditLog(
+              {
+                action: "locations.delete",
+                table_name: "locations",
+                record_id: oldLocationId,
+                old_values: oldLocation ?? { id: oldLocationId },
+                new_values: null,
+                metadata: { station_id: station_id, reason: "stations.update" },
+              },
+              req,
+              tx,
+            );
           }
-        }
-
-        const count = await db.$count(stations, eq(stations.location_id, oldLocationId));
-        if (count === 0) {
-          const oldLocation = await db.query.locations.findFirst({
-            where: { id: oldLocationId },
-            with: { region: { columns: { id: true, name: true, code: true } } },
-          });
-          await db.delete(locations).where(eq(locations.id, oldLocationId));
-          await createAuditLog(
-            {
-              action: "locations.delete",
-              table_name: "locations",
-              record_id: oldLocationId,
-              old_values: oldLocation ?? { id: oldLocationId },
-              new_values: null,
-              metadata: { station_id: station_id, reason: "stations.update" },
-            },
-            req,
-          );
-        }
-      } catch {}
+        });
+      } catch (error) {
+        throw new ErrorResponse("INTERNAL_SERVER_ERROR", { message: "Failed to migrate station photos after location change", cause: error });
+      }
     }
 
     return res.send({ data: updated });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_UPDATE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   }
 }
 

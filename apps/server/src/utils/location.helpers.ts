@@ -1,4 +1,4 @@
-import { attachments, locations } from "@openbts/drizzle";
+import { attachments, locationPhotos, locations } from "@openbts/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,7 +18,22 @@ export async function deleteLocationWithPhotos(executor: Database | Transaction,
   await executor.delete(locations).where(eq(locations.id, locationId));
 
   const attachmentIds = photos.map((p) => p.attachment.id);
-  if (attachmentIds.length > 0) await executor.delete(attachments).where(inArray(attachments.id, attachmentIds));
+  if (attachmentIds.length === 0) return;
 
-  await Promise.all(photos.map((p) => fs.unlink(path.join(UPLOAD_DIR, `${p.attachment.uuid}.webp`)).catch(() => {})));
+  const stillReferenced = await executor
+    .select({ attachment_id: locationPhotos.attachment_id })
+    .from(locationPhotos)
+    .where(inArray(locationPhotos.attachment_id, attachmentIds));
+  const stillReferencedIds = new Set(stillReferenced.map((row) => row.attachment_id));
+  const deletablePhotos = photos.filter((p) => !stillReferencedIds.has(p.attachment.id));
+  if (deletablePhotos.length === 0) return;
+
+  await executor.delete(attachments).where(
+    inArray(
+      attachments.id,
+      deletablePhotos.map((p) => p.attachment.id),
+    ),
+  );
+
+  await Promise.all(deletablePhotos.map((p) => fs.unlink(path.join(UPLOAD_DIR, `${p.attachment.uuid}.webp`)).catch(() => {})));
 }

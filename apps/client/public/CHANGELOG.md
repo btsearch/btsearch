@@ -18,6 +18,11 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🩹 Fixes
 
+- Approving a submission that changes a station's ID, operator or notes now actually applies those changes to the station; previously they were silently ignored
+- Submissions no longer store a snapshot of the station and location when those were not actually changed, so a submission that only edits cells can no longer appear to propose reverting a later station or location edit made by someone else
+- Photos now follow a station when it moves to another location: shared photos stay with the stations left behind and get copied to the new location, exclusive photos move along, and stations no longer keep ghost photos from their previous location
+- Photos are no longer lost when the last station leaves a location — all of the location's photos move to the station's new location before the old one is removed
+- Approving a submission that both moves a station and keeps existing photos now assigns those photos at the new location instead of leaving broken references
 - Map popups, the search overlay and map controls now use the app font instead of the MapLibre default
 - Search-sourced SI2PEM reports show up again; SI2PEM removed their old installations API, so report search now uses their new `all_installation_info` endpoint
 - The "Add to list" button no longer shows in station and radioline dialog headers when user lists are disabled in site settings or the user is not signed in

@@ -18,9 +18,10 @@ type NewStationFormProps = {
   station: ProposedStationForm;
   errors?: StationErrors;
   onStationChange: (station: ProposedStationForm) => void;
+  hideExtraIdentifiers?: boolean;
 };
 
-export function NewStationForm({ station, errors, onStationChange }: NewStationFormProps) {
+export function NewStationForm({ station, errors, onStationChange, hideExtraIdentifiers }: NewStationFormProps) {
   const { t } = useTranslation("submissions");
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
@@ -28,7 +29,7 @@ export function NewStationForm({ station, errors, onStationChange }: NewStationF
   const selectedOperator = operators.find((o) => o.id === station.operator_id);
   const showExtraIdFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : false;
   const showMnoNameOnly = selectedOperator ? MNO_NAME_ONLY_MNCS.includes(selectedOperator.mnc) : false;
-  const showSection = showExtraIdFields || showMnoNameOnly;
+  const showSection = !hideExtraIdentifiers && (showExtraIdFields || showMnoNameOnly);
 
   return (
     <>
@@ -47,7 +48,7 @@ export function NewStationForm({ station, errors, onStationChange }: NewStationF
               <Input
                 id="station_id"
                 placeholder="WWW12345"
-                value={station.station_id}
+                value={station.station_id ?? ""}
                 maxLength={16}
                 onChange={(e) => onStationChange({ ...station, station_id: e.target.value })}
                 className={cn("h-8 font-mono text-sm", errors?.station_id && "border-destructive")}

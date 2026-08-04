@@ -452,7 +452,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     return {
       station_id: proposed.station_id !== null && proposed.station_id !== cur.station_id,
       operator_id: proposed.operator_id !== null && proposed.operator_id !== cur.operator_id,
-      notes: (proposed.notes ?? null) !== (cur.notes ?? null),
+      notes: proposed.notes !== null && proposed.notes !== (cur.notes ?? null),
     };
   }, [submission]);
 
