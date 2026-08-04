@@ -79,6 +79,8 @@ type FloatingSurfaceTransition = FloatingTransition | FloatingShellTransition;
 
 type FloatingNavState = {
   hidden: boolean;
+  showCount: number;
+  pathname: string;
   expandedKey: string | null;
   collapsedActiveKey: string | null;
   mobileSectionKey: string | null;
@@ -90,13 +92,15 @@ type FloatingNavAction =
   | { type: "SHOW_NAV" }
   | { type: "HIDE_NAV" }
   | { type: "SET_SUBNAV_READY"; value: boolean }
-  | { type: "RESET_FOR_ROUTE" }
+  | { type: "RESET_FOR_ROUTE"; pathname: string }
   | { type: "CLOSE_MOBILE_SECTION" }
   | { type: "SELECT_SECTION"; isMobile: boolean; sectionKey: string; activeSectionKey: string | null; displayedSectionKey: string | null };
 
-function createInitialFloatingNavState(): FloatingNavState {
+function createInitialFloatingNavState(pathname: string): FloatingNavState {
   return {
     hidden: readHiddenState(),
+    showCount: 0,
+    pathname,
     expandedKey: null,
     collapsedActiveKey: null,
     mobileSectionKey: null,
@@ -107,13 +111,13 @@ function createInitialFloatingNavState(): FloatingNavState {
 function floatingNavReducer(state: FloatingNavState, action: FloatingNavAction): FloatingNavState {
   switch (action.type) {
     case "SHOW_NAV":
-      return { ...state, hidden: false };
+      return { ...state, hidden: false, showCount: state.showCount + 1 };
     case "HIDE_NAV":
       return { ...state, hidden: true, subnavReady: false };
     case "SET_SUBNAV_READY":
       return state.subnavReady === action.value ? state : { ...state, subnavReady: action.value };
     case "RESET_FOR_ROUTE":
-      return { ...state, expandedKey: null, collapsedActiveKey: null, mobileSectionKey: null };
+      return { ...state, pathname: action.pathname, expandedKey: null, collapsedActiveKey: null, mobileSectionKey: null };
     case "CLOSE_MOBILE_SECTION":
       return state.mobileSectionKey === null ? state : { ...state, mobileSectionKey: null };
     case "SELECT_SECTION":
@@ -840,8 +844,8 @@ export function FloatingNav() {
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { favoriteSet, lists: navLists } = useNavLists();
-  const [navState, dispatchNav] = useReducer(floatingNavReducer, undefined, createInitialFloatingNavState);
-  const { hidden, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
+  const [navState, dispatchNav] = useReducer(floatingNavReducer, location.pathname, createInitialFloatingNavState);
+  const { hidden, showCount, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
   const hiddenNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
   const visibleNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
   const userRole = session?.user?.role as string | undefined;
@@ -864,9 +868,7 @@ export function FloatingNav() {
     return () => window.clearTimeout(timeoutId);
   }, [hidden, reduceMotion]);
 
-  useLayoutEffect(() => {
-    dispatchNav({ type: "RESET_FOR_ROUTE" });
-  }, [location.pathname]);
+  if (navState.pathname !== location.pathname) dispatchNav({ type: "RESET_FOR_ROUTE", pathname: location.pathname });
 
   const sections = useMemo(() => {
     const infoSections: TranslatedNavSection[] = translateNav(infoNavConfig, t).map((section) =>
@@ -1024,7 +1026,7 @@ export function FloatingNav() {
               </motion.div>
             ) : (
               <motion.div
-                key="floating-nav-visible"
+                key={`floating-nav-visible-${showCount}`}
                 initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}

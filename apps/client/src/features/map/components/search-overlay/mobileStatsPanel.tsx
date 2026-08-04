@@ -86,6 +86,7 @@ export function MobileStatsPanel({
               <span className="text-[7px] uppercase font-bold text-blue-600 dark:text-blue-400 border-b border-blue-500/20 leading-none">
                 Z{zoom?.toFixed(1) || "-"}
               </span>
+              {searchMode === "bounds" ? <span className="text-[7px] uppercase font-bold bg-emerald-500 leading-none">SEARCH</span> : null}
             </div>
           </div>
         </TooltipTrigger>
