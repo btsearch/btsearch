@@ -111,8 +111,8 @@ export function createCommentsColumns({
         const preview = content.replace(/\s+/g, " ").trim();
         return (
           <Tooltip>
-            <TooltipTrigger className="text-left max-w-full whitespace-normal">
-              <p className="text-sm line-clamp-2">{preview}</p>
+            <TooltipTrigger className="text-left max-w-full overflow-hidden whitespace-normal">
+              <p className="text-sm line-clamp-2 max-h-10">{preview}</p>
             </TooltipTrigger>
             {(content.length > 100 || content.includes("\n")) && (
               <TooltipContent side="bottom" className="max-w-sm">
