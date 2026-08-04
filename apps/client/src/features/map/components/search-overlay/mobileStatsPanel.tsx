@@ -49,9 +49,6 @@ export function MobileStatsPanel({
             <div className="flex items-center gap-1">
               {showStations && (
                 <>
-                  {searchMode ? (
-                    <div className={cn("size-1.5 rounded-full shrink-0", searchMode === "search" ? "bg-primary" : "bg-emerald-500")} />
-                  ) : null}
                   <span className={cn("text-xs font-bold leading-none", hasMoreLocations && "text-amber-500")}>
                     {locationCount.toLocaleString(i18n.language)}
                   </span>
