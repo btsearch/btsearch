@@ -1,4 +1,4 @@
-import { useForm } from "@tanstack/react-form";
+import { useForm, useSelector } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -710,7 +710,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     };
   }, [editSubmission, form]);
 
-  const errorValues = form.useStore((s) => (showErrors ? s.values : null));
+  const errorValues = useSelector(form.store, (s) => (showErrors ? s.values : null));
 
   const cellErrors = useMemo(() => {
     if (!errorValues) return undefined;
@@ -729,7 +729,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     });
   }, [errorValues]);
 
-  const isDirty = form.useStore((s) =>
+  const isDirty = useSelector(form.store, (s) =>
     computeHasChanges(
       s.values.mode,
       s.values.action,
