@@ -300,7 +300,9 @@ export function useMapLayer({
       if (blockedLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: blockedLayers }).length > 0) return;
       const features = map.queryRenderedFeatures(e.point, { layers: [...LAYER_IDS] });
       const data = features[0] && extractFeatureClickData(features[0]);
-      if (data) callbackRefs.current.onFeatureClick(data);
+      if (!data) return;
+      callbackRefs.current.onFeatureClick(data);
+      tooltipRef.current = destroyTooltip(tooltipRef.current);
     };
 
     const handleContextMenu = (e: MapMouseEvent) => {

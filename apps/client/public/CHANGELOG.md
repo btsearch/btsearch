@@ -19,6 +19,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Clicking a UKE location marker after searching for it now shows the full permit list instead of keeping the single search result
 - Searching for a station on the UKE map no longer opens a broken duplicate popup when the matching UKE location is not loaded yet
 - List map popups no longer go blank when opening a searched station that is not part of the list
+- The location hover tooltip now disappears as soon as its popup opens, instead of lingering until the cursor leaves the marker
 
 # 2026-08-04
 
