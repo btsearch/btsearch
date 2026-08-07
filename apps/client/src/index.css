@@ -224,6 +224,10 @@
     z-index: 100 !important;
   }
 
+  .maplibregl-popup.station-map-popup {
+    z-index: 30 !important;
+  }
+
   .maplibregl-popup-content {
     background: var(--popover) !important;
     color: var(--popover-foreground) !important;

@@ -16,7 +16,7 @@ import { and, eq, inArray, lt } from "drizzle-orm/sql/expressions/conditions";
 import { getLastImportedFileNames, recordImportMetadata } from "./import-check.ts";
 import { findCreatedPermitStationIds } from "./permit-activity.ts";
 import { scrapePermitDeviceLinks } from "./scrape.ts";
-import { cleanupOrphanedUkeStations, getUkeStationKey, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.ts";
+import { getUkeStationKey, loadInternalStationIdByPermit, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.ts";
 import { upsertBands, upsertRegions, upsertUkeLocations } from "./upserts.ts";
 import { findVoivodeshipByTeryt } from "./voivodeship-lookup.ts";
 
@@ -654,13 +654,14 @@ export async function importDeviceRegistry(): Promise<boolean> {
 
     if (stale.length > 0) {
       const affectedStationIds = stale.map((row) => row.uke_station_id);
+      const internalStationIdByPermit = await loadInternalStationIdByPermit(stale.map((row) => row.id));
       for (const group of chunk(stale, BATCH_SIZE)) {
         await db.insert(deletedEntries).values(
           group.map((row) => ({
             source_table: "uke_permits",
             source_id: row.id,
             source_type: "device_registry",
-            data: row,
+            data: { ...row, internal_station_id: internalStationIdByPermit.get(row.id) ?? null },
             import_id: importMetadataId,
           })),
         );
@@ -675,8 +676,6 @@ export async function importDeviceRegistry(): Promise<boolean> {
       staleCount += stale.length;
     }
   }
-  const orphanedStations = await cleanupOrphanedUkeStations();
-  if (orphanedStations > 0) logger.log(`Deleted ${orphanedStations} orphaned UKE stations`);
   logger.log(`Deleted ${staleCount} stale device registry permits`);
 
   logger.log("Import completed successfully");

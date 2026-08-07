@@ -155,8 +155,9 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
     removed,
     updated,
     permits_added,
-    permits_updated,
+    permits_deleted,
     uke_stations_added,
+    uke_station_deleted,
     count,
   } = metadata ?? {};
   if (typeof submitter_name === "string") lines.push(`${labels.submittedBy} ${submitter_name}`);
@@ -170,8 +171,9 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
   if (typeof removed === "number" && removed > 0) lines.push(`${labels.cellsRemoved}: ${removed}`);
   if (typeof updated === "number" && updated > 0) lines.push(`${labels.cellsUpdated}: ${updated}`);
   if (typeof permits_added === "number" && permits_added > 0) lines.push(`${labels.permitsAdded}: ${permits_added}`);
-  if (typeof permits_updated === "number" && permits_updated > 0) lines.push(`${labels.permitsUpdated}: ${permits_updated}`);
+  if (typeof permits_deleted === "number" && permits_deleted > 0) lines.push(`${labels.permitsDeleted}: ${permits_deleted}`);
   if (typeof uke_stations_added === "number" && uke_stations_added > 0) lines.push(`${labels.ukeStationsAdded}: ${uke_stations_added}`);
+  if (uke_station_deleted === true) lines.push(labels.ukeStationDeleted);
   if (typeof count === "number" && count > 1) lines.push(`${labels.count}: ${count}`);
   return lines.join("\n");
 }
@@ -205,6 +207,7 @@ async function notifyWatchers(params: {
   type: StationNotificationType;
   metadata?: Record<string, unknown>;
   actionUrl?: string;
+  detached?: boolean;
 }): Promise<void> {
   const localeRows = await db.select({ id: users.id, locale: users.locale }).from(users).where(inArray(users.id, params.watcherIds));
   const localeByUser = new Map(localeRows.map((u) => [u.id, u.locale]));
@@ -216,6 +219,7 @@ async function notifyWatchers(params: {
         userId,
         stationId: params.stationId,
         ukeStationId: params.ukeStationId,
+        detached: params.detached,
         type: params.type,
         title: strings.title,
         metadata: {
@@ -247,13 +251,20 @@ export async function notifyUkeStationWatchers(params: {
   type: StationNotificationType;
   metadata?: Record<string, unknown>;
   actionUrl?: string;
+  stationDeleted?: boolean;
 }): Promise<void> {
   const [watcherIds, stationOperatorName] = await Promise.all([
     getUkeStationWatchers(params.ukeStationId),
     getUkeStationOperatorName(params.ukeStationId),
   ]);
   if (watcherIds.length === 0) return;
-  await notifyWatchers({ ...params, watcherIds, stationOperatorName });
+  await notifyWatchers({
+    ...params,
+    ukeStationId: params.stationDeleted ? undefined : params.ukeStationId,
+    detached: params.stationDeleted,
+    watcherIds,
+    stationOperatorName,
+  });
 }
 
 export async function deliverQueuedStationWatchNotifications(limit = 100): Promise<number> {

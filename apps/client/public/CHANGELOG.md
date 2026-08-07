@@ -3,9 +3,22 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 # 2026-08-07
 
+### 🚀 Enhancements
+
+- Multiple location popups can now stay open on the map at the same time
+- Pressing Escape now closes the map popup you are focused on
+- Technology bands in station and UKE map popups now use compact inline groups instead of pills
+
 ### 🩹 Fixes
 
+- Station map popups now stay behind open station detail dialogs
 - Location picker maps now show azimuths only for the station being edited
+- UKE station and list followers are now notified only about added or deleted permits, not routine import refreshes
+- Followers are now notified when a station loses all of its UKE permits and disappears from UKE data, instead of the notification being silently skipped
+- Stations linked to UKE permits now also notify their followers about deleted permits, not only added ones
+- Clicking a UKE location marker after searching for it now shows the full permit list instead of keeping the single search result
+- Searching for a station on the UKE map no longer opens a broken duplicate popup when the matching UKE location is not loaded yet
+- List map popups no longer go blank when opening a searched station that is not part of the list
 
 # 2026-08-04
 

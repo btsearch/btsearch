@@ -1,7 +1,7 @@
-import { deletedEntries, stations, stationsPermits, ukeLocations, ukePermits, ukeRadiolines, ukeStations } from "@openbts/drizzle";
+import { deletedEntries, locations, stations, stationsPermits, ukeLocations, ukePermits, ukeRadiolines, ukeStations } from "@openbts/drizzle";
 import { associateStationsWithPermits } from "@openbts/uke-importer/stations";
 import { cleanupDownloads } from "@openbts/uke-importer/utils";
-import { and, count, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
@@ -9,7 +9,7 @@ import { Worker } from "node:worker_threads";
 import { db } from "../database/psql.js";
 import redis from "../database/redis.js";
 import { logger } from "../utils/logger.js";
-import { buildUkeStationActionUrl } from "../utils/notifications/actionUrls.js";
+import { buildInternalStationActionUrl, buildMapLocationActionUrl, buildUkeStationActionUrl } from "../utils/notifications/actionUrls.js";
 import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from "./notification.service.js";
 import { cleanupOrphanedUkeLocations, cleanupOrphanedUkeStations, pruneStationsPermits } from "./stationsPermitsAssociation.service.js";
 import { getSnapshotDelta, takeStatsSnapshot } from "./statsSnapshot.service.js";
@@ -138,96 +138,125 @@ function getNewAssociations(
   return insertedAssociations.filter((association) => previousAssociationKeys === null || !previousAssociationKeys.has(associationKey(association)));
 }
 
+type InternalStationChangeSummary = {
+  stationStringId: string;
+  permitsAdded: Set<number>;
+  permitsDeleted: Set<number>;
+  ukeStationsAdded: Set<number>;
+  actionStation?: { id: number; location: { latitude: number; longitude: number } };
+};
+
 async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, newAssociations: PermitStationAssociation[]): Promise<void> {
   const since = getImportChangeSince(startedAt);
   const sinceTime = since.getTime();
   const newAssociationPermitIds = new Set(newAssociations.map((association) => association.permitId));
   const newAssociationPermitIdList = [...newAssociationPermitIds];
-  const dateCondition = or(
-    gte(ukePermits.createdAt, since),
-    and(gte(ukePermits.updatedAt, since), lt(ukePermits.createdAt, since)),
-    gte(ukeStations.createdAt, since),
-  );
+  const dateCondition = or(gte(ukePermits.createdAt, since), gte(ukeStations.createdAt, since));
   const whereCondition =
     newAssociationPermitIdList.length > 0 ? or(dateCondition, inArray(ukePermits.id, newAssociationPermitIdList)) : dateCondition;
 
-  const rows = await db
-    .select({
-      stationId: stations.id,
-      stationStringId: stations.station_id,
-      permitId: ukePermits.id,
-      permitCreatedAt: ukePermits.createdAt,
-      permitUpdatedAt: ukePermits.updatedAt,
-      ukeStationId: ukeStations.id,
-      ukeStationCreatedAt: ukeStations.createdAt,
-      ukeLatitude: ukeLocations.latitude,
-      ukeLongitude: ukeLocations.longitude,
-    })
-    .from(stationsPermits)
-    .innerJoin(stations, eq(stationsPermits.station_id, stations.id))
-    .innerJoin(ukePermits, eq(stationsPermits.permit_id, ukePermits.id))
-    .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
-    .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
-    .where(whereCondition);
+  const [rows, deletedPermitRows] = await Promise.all([
+    db
+      .select({
+        stationId: stations.id,
+        stationStringId: stations.station_id,
+        permitId: ukePermits.id,
+        permitCreatedAt: ukePermits.createdAt,
+        ukeStationId: ukeStations.id,
+        ukeStationCreatedAt: ukeStations.createdAt,
+        ukeLatitude: ukeLocations.latitude,
+        ukeLongitude: ukeLocations.longitude,
+      })
+      .from(stationsPermits)
+      .innerJoin(stations, eq(stationsPermits.station_id, stations.id))
+      .innerJoin(ukePermits, eq(stationsPermits.permit_id, ukePermits.id))
+      .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
+      .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
+      .where(whereCondition),
+    db
+      .select({
+        permitId: deletedEntries.source_id,
+        internalStationId: sql<number | null>`(${deletedEntries.data}->>'internal_station_id')::integer`,
+      })
+      .from(deletedEntries)
+      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, new Date(startedAt)))),
+  ]);
 
-  const byStation = new Map<
-    number,
-    {
-      stationStringId: string;
-      permitsAdded: Set<number>;
-      permitsUpdated: Set<number>;
-      ukeStationsAdded: Set<number>;
-      actionStation?: { id: number; location: { latitude: number; longitude: number } };
-    }
-  >();
+  const byStation = new Map<number, InternalStationChangeSummary>();
+  const getSummary = (stationId: number, stationStringId: string): InternalStationChangeSummary => {
+    const existing = byStation.get(stationId);
+    if (existing) return existing;
+
+    const summary: InternalStationChangeSummary = {
+      stationStringId,
+      permitsAdded: new Set<number>(),
+      permitsDeleted: new Set<number>(),
+      ukeStationsAdded: new Set<number>(),
+    };
+    byStation.set(stationId, summary);
+    return summary;
+  };
 
   for (const row of rows) {
-    const summary =
-      byStation.get(row.stationId) ??
-      ({
-        stationStringId: row.stationStringId,
-        permitsAdded: new Set<number>(),
-        permitsUpdated: new Set<number>(),
-        ukeStationsAdded: new Set<number>(),
-      } satisfies {
-        stationStringId: string;
-        permitsAdded: Set<number>;
-        permitsUpdated: Set<number>;
-        ukeStationsAdded: Set<number>;
-        actionStation?: { id: number; location: { latitude: number; longitude: number } };
-      });
+    const summary = getSummary(row.stationId, row.stationStringId);
 
     const permitCreatedInImport = row.permitCreatedAt.getTime() >= sinceTime;
-    const permitUpdatedInImport = row.permitUpdatedAt.getTime() >= sinceTime && row.permitCreatedAt.getTime() < sinceTime;
     const ukeStationCreatedInImport = row.ukeStationCreatedAt.getTime() >= sinceTime;
 
     if (permitCreatedInImport || newAssociationPermitIds.has(row.permitId)) summary.permitsAdded.add(row.permitId);
-    if (permitUpdatedInImport) summary.permitsUpdated.add(row.permitId);
     if (ukeStationCreatedInImport) summary.ukeStationsAdded.add(row.ukeStationId);
     if (!summary.actionStation)
       summary.actionStation = { id: row.ukeStationId, location: { latitude: row.ukeLatitude, longitude: row.ukeLongitude } };
+  }
 
-    byStation.set(row.stationId, summary);
+  const deletedInternalStationIds = new Set(
+    deletedPermitRows.map((row) => row.internalStationId).filter((stationId): stationId is number => stationId !== null),
+  );
+  const deletedStationRows = deletedInternalStationIds.size
+    ? await db
+        .select({ id: stations.id, stationStringId: stations.station_id, latitude: locations.latitude, longitude: locations.longitude })
+        .from(stations)
+        .leftJoin(locations, eq(stations.location_id, locations.id))
+        .where(inArray(stations.id, [...deletedInternalStationIds]))
+    : [];
+  const deletedStationById = new Map(deletedStationRows.map((row) => [row.id, row]));
+
+  for (const row of deletedPermitRows) {
+    if (row.internalStationId === null) continue;
+    const station = deletedStationById.get(row.internalStationId);
+    if (!station) continue;
+    getSummary(row.internalStationId, station.stationStringId).permitsDeleted.add(row.permitId);
   }
 
   await Promise.allSettled(
     [...byStation].map(([stationId, summary]) => {
       const permitsAdded = summary.permitsAdded.size;
-      const permitsUpdated = summary.permitsUpdated.size;
+      const permitsDeleted = summary.permitsDeleted.size;
       const ukeStationsAdded = summary.ukeStationsAdded.size;
-      const count = permitsAdded + permitsUpdated + ukeStationsAdded;
+      const count = permitsAdded + permitsDeleted + ukeStationsAdded;
       if (count === 0) return Promise.resolve();
+
+      const deletedStation = deletedStationById.get(stationId);
+      const actionUrl = summary.actionStation
+        ? buildUkeStationActionUrl(summary.actionStation)
+        : deletedStation && deletedStation.latitude !== null && deletedStation.longitude !== null
+          ? buildInternalStationActionUrl({
+              id: stationId,
+              location: { latitude: deletedStation.latitude, longitude: deletedStation.longitude },
+            })
+          : undefined;
+
       return notifyStationWatchers({
         stationId,
         stationStringId: summary.stationStringId,
         type: "station_uke_permit_added",
         metadata: {
           permits_added: permitsAdded,
-          permits_updated: permitsUpdated,
+          permits_deleted: permitsDeleted,
           uke_stations_added: ukeStationsAdded,
           count,
         },
-        actionUrl: summary.actionStation ? buildUkeStationActionUrl(summary.actionStation) : undefined,
+        actionUrl,
       });
     }),
   );
@@ -236,85 +265,103 @@ async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, n
 async function notifyUkeStationWatchersAboutUkeChanges(startedAt: string): Promise<void> {
   const since = getImportChangeSince(startedAt);
   const sinceTime = since.getTime();
-  const dateCondition = or(
-    gte(ukePermits.createdAt, since),
-    and(gte(ukePermits.updatedAt, since), lt(ukePermits.createdAt, since)),
-    gte(ukeStations.createdAt, since),
-  );
+  const dateCondition = or(gte(ukePermits.createdAt, since), gte(ukeStations.createdAt, since));
+  const deletedUkeStationId = sql<number>`(${deletedEntries.data}->>'uke_station_id')::integer`;
 
-  const rows = await db
-    .select({
-      ukeStationId: ukeStations.id,
-      stationStringId: ukeStations.station_id,
-      permitId: ukePermits.id,
-      permitCreatedAt: ukePermits.createdAt,
-      permitUpdatedAt: ukePermits.updatedAt,
-      ukeStationCreatedAt: ukeStations.createdAt,
-      ukeLatitude: ukeLocations.latitude,
-      ukeLongitude: ukeLocations.longitude,
-    })
-    .from(ukePermits)
-    .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
-    .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
-    .where(dateCondition);
+  const [rows, deletedPermitRows] = await Promise.all([
+    db
+      .select({
+        ukeStationId: ukeStations.id,
+        stationStringId: ukeStations.station_id,
+        permitId: ukePermits.id,
+        permitCreatedAt: ukePermits.createdAt,
+        ukeStationCreatedAt: ukeStations.createdAt,
+        ukeLatitude: ukeLocations.latitude,
+        ukeLongitude: ukeLocations.longitude,
+      })
+      .from(ukePermits)
+      .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
+      .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
+      .where(dateCondition),
+    db
+      .select({
+        ukeStationId: ukeStations.id,
+        stationStringId: ukeStations.station_id,
+        permitId: deletedEntries.source_id,
+        ukeLatitude: ukeLocations.latitude,
+        ukeLongitude: ukeLocations.longitude,
+        hasLivePermits: sql<boolean>`EXISTS (SELECT 1 FROM ${ukePermits} WHERE ${ukePermits.uke_station_id} = ${ukeStations.id})`,
+      })
+      .from(deletedEntries)
+      .innerJoin(ukeStations, eq(ukeStations.id, deletedUkeStationId))
+      .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
+      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, new Date(startedAt)))),
+  ]);
 
-  const byStation = new Map<
-    number,
-    {
-      stationStringId: string;
-      permitsAdded: Set<number>;
-      permitsUpdated: Set<number>;
-      ukeStationsAdded: Set<number>;
-      actionStation: { id: number; location: { latitude: number; longitude: number } };
-    }
-  >();
+  type UkeStationChangeSummary = {
+    stationStringId: string;
+    permitsAdded: Set<number>;
+    permitsDeleted: Set<number>;
+    ukeStationsAdded: Set<number>;
+    stationDeleted: boolean;
+    actionStation: { id: number; location: { latitude: number; longitude: number } };
+  };
+
+  const byStation = new Map<number, UkeStationChangeSummary>();
+  const getSummary = (row: { ukeStationId: number; stationStringId: string; ukeLatitude: number; ukeLongitude: number }): UkeStationChangeSummary => {
+    const existing = byStation.get(row.ukeStationId);
+    if (existing) return existing;
+
+    const summary: UkeStationChangeSummary = {
+      stationStringId: row.stationStringId,
+      permitsAdded: new Set<number>(),
+      permitsDeleted: new Set<number>(),
+      ukeStationsAdded: new Set<number>(),
+      stationDeleted: false,
+      actionStation: { id: row.ukeStationId, location: { latitude: row.ukeLatitude, longitude: row.ukeLongitude } },
+    };
+    byStation.set(row.ukeStationId, summary);
+    return summary;
+  };
 
   for (const row of rows) {
-    const summary =
-      byStation.get(row.ukeStationId) ??
-      ({
-        stationStringId: row.stationStringId,
-        permitsAdded: new Set<number>(),
-        permitsUpdated: new Set<number>(),
-        ukeStationsAdded: new Set<number>(),
-        actionStation: { id: row.ukeStationId, location: { latitude: row.ukeLatitude, longitude: row.ukeLongitude } },
-      } satisfies {
-        stationStringId: string;
-        permitsAdded: Set<number>;
-        permitsUpdated: Set<number>;
-        ukeStationsAdded: Set<number>;
-        actionStation: { id: number; location: { latitude: number; longitude: number } };
-      });
+    const summary = getSummary(row);
 
     const permitCreatedInImport = row.permitCreatedAt.getTime() >= sinceTime;
-    const permitUpdatedInImport = row.permitUpdatedAt.getTime() >= sinceTime && row.permitCreatedAt.getTime() < sinceTime;
     const ukeStationCreatedInImport = row.ukeStationCreatedAt.getTime() >= sinceTime;
 
     if (permitCreatedInImport) summary.permitsAdded.add(row.permitId);
-    if (permitUpdatedInImport) summary.permitsUpdated.add(row.permitId);
     if (ukeStationCreatedInImport) summary.ukeStationsAdded.add(row.ukeStationId);
+  }
 
-    byStation.set(row.ukeStationId, summary);
+  for (const row of deletedPermitRows) {
+    const summary = getSummary(row);
+    summary.permitsDeleted.add(row.permitId);
+    if (!row.hasLivePermits) summary.stationDeleted = true;
   }
 
   await Promise.allSettled(
     [...byStation].map(([ukeStationId, summary]) => {
       const permitsAdded = summary.permitsAdded.size;
-      const permitsUpdated = summary.permitsUpdated.size;
+      const permitsDeleted = summary.permitsDeleted.size;
       const ukeStationsAdded = summary.ukeStationsAdded.size;
-      const count = permitsAdded + permitsUpdated + ukeStationsAdded;
+      const count = permitsAdded + permitsDeleted + ukeStationsAdded;
       if (count === 0) return Promise.resolve();
       return notifyUkeStationWatchers({
         ukeStationId,
         stationStringId: summary.stationStringId,
         type: "station_uke_permit_added",
+        stationDeleted: summary.stationDeleted,
         metadata: {
           permits_added: permitsAdded,
-          permits_updated: permitsUpdated,
+          permits_deleted: permitsDeleted,
           uke_stations_added: ukeStationsAdded,
+          ...(summary.stationDeleted ? { uke_station_deleted: true } : {}),
           count,
         },
-        actionUrl: buildUkeStationActionUrl(summary.actionStation),
+        actionUrl: summary.stationDeleted
+          ? buildMapLocationActionUrl(summary.actionStation.location)
+          : buildUkeStationActionUrl(summary.actionStation),
       });
     }),
   );
@@ -489,6 +536,11 @@ async function runJob(
       markRunning(job, "cleanup_orphaned_uke_entities");
       await saveJob(job);
       try {
+        if (job.startedAt) {
+          await notifyUkeStationWatchersAboutUkeChanges(job.startedAt).catch((e) =>
+            logger.error("Failed to send UKE station watch notifications", { error: e instanceof Error ? e.message : String(e) }),
+          );
+        }
         await cleanupOrphanedUkeStations();
         await cleanupOrphanedUkeLocations();
         markSuccess(job, "cleanup_orphaned_uke_entities");
@@ -520,9 +572,6 @@ async function runJob(
         if (job.startedAt) {
           void notifyInternalStationWatchersAboutUkeChanges(job.startedAt, newAssociations).catch((e) =>
             logger.error("Failed to send internal station UKE change notifications", { error: e instanceof Error ? e.message : String(e) }),
-          );
-          void notifyUkeStationWatchersAboutUkeChanges(job.startedAt).catch((e) =>
-            logger.error("Failed to send UKE station watch notifications", { error: e instanceof Error ? e.message : String(e) }),
           );
         }
         markSuccess(job, "associate");

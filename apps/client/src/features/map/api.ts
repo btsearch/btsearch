@@ -30,6 +30,10 @@ function buildFilterParams(filters: StationFilters): URLSearchParams {
   return params;
 }
 
+export function locationQueryKey(locationId: number, filters: StationFilters) {
+  return ["location", locationId, buildFilterParams(filters).toString()] as const;
+}
+
 export async function fetchLocations(
   bounds: string,
   filters: StationFilters,

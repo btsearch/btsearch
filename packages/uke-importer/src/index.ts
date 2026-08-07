@@ -3,6 +3,7 @@ import { sql } from "@openbts/drizzle/db";
 import { importDeviceRegistry } from "./device-registry.ts";
 import { importRadiolines } from "./radiolines.js";
 import { associateStationsWithPermits, importPermits } from "./stations.js";
+import { cleanupOrphanedUkeStations } from "./uke-stations.js";
 import { cleanupDownloads } from "./utils.js";
 
 async function main(): Promise<void> {
@@ -12,6 +13,8 @@ async function main(): Promise<void> {
     await importPermits();
     await importRadiolines();
     await importDeviceRegistry();
+    const orphanedStations = await cleanupOrphanedUkeStations();
+    if (orphanedStations > 0) console.log(`Deleted ${orphanedStations} orphaned UKE stations`);
     await associateStationsWithPermits();
     const dateEnd = new Date();
     console.log(`UKE Importer finished at ${dateEnd.toISOString()}`);

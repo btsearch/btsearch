@@ -1,6 +1,6 @@
-import { ukePermits, ukeStations } from "@openbts/drizzle";
+import { stationsPermits, ukePermits, ukeStations } from "@openbts/drizzle";
 import { db } from "@openbts/drizzle/db";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 /* eslint-disable no-await-in-loop */
 
 import { BATCH_SIZE } from "./config.js";
@@ -72,6 +72,22 @@ export async function refreshUkeStationActivity(stationIds: Iterable<number>): P
       WHERE ${ukeStations.id} = permit_activity.uke_station_id
     `);
   }
+}
+
+export async function loadInternalStationIdByPermit(permitIds: number[]): Promise<Map<number, number>> {
+  const byPermit = new Map<number, number>();
+  for (const group of chunk(permitIds, BATCH_SIZE)) {
+    if (!group.length) continue;
+    const rows = await db
+      .select({ permitId: stationsPermits.permit_id, stationId: stationsPermits.station_id })
+      .from(stationsPermits)
+      .where(inArray(stationsPermits.permit_id, group));
+    for (const row of rows) {
+      if (row.permitId === null || row.stationId === null) continue;
+      byPermit.set(row.permitId, row.stationId);
+    }
+  }
+  return byPermit;
 }
 
 export async function cleanupOrphanedUkeStations(): Promise<number> {

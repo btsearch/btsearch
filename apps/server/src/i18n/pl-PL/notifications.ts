@@ -44,8 +44,9 @@ export default {
     cellsRemoved: "Usunięte komórki",
     cellsUpdated: "Zmienione komórki",
     permitsAdded: "Dodane pozwolenia UKE",
-    permitsUpdated: "Zmienione pozwolenia UKE",
+    permitsDeleted: "Usunięte pozwolenia UKE",
     ukeStationsAdded: "Dodane stacje UKE",
+    ukeStationDeleted: "Stacja usunięta z danych UKE",
     count: "Liczba",
   },
 } as const;

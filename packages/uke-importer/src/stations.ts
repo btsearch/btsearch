@@ -24,7 +24,7 @@ import { getLastImportedFileNames, recordImportMetadata } from "./import-check.j
 import { findCreatedPermitStationIds } from "./permit-activity.js";
 import { scrapeXlsxLinks } from "./scrape.js";
 import type { RawUkeData } from "./types.js";
-import { cleanupOrphanedUkeStations, getUkeStationKey, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.js";
+import { getUkeStationKey, loadInternalStationIdByPermit, refreshUkeStationActivity, resolveUkeStationIds } from "./uke-stations.js";
 import { upsertBands, getOperators, upsertRegions, upsertUkeLocations } from "./upserts.js";
 
 function parseBandFromLabel(
@@ -251,13 +251,14 @@ export async function importPermits(): Promise<boolean> {
 
     if (stale.length > 0) {
       const affectedStationIds = stale.map((row) => row.uke_station_id);
+      const internalStationIdByPermit = await loadInternalStationIdByPermit(stale.map((row) => row.id));
       for (const group of chunk(stale, BATCH_SIZE)) {
         await db.insert(deletedEntries).values(
           group.map((row) => ({
             source_table: "uke_permits",
             source_id: row.id,
             source_type: "permits",
-            data: row,
+            data: { ...row, internal_station_id: internalStationIdByPermit.get(row.id) ?? null },
             import_id: importMetadataId,
           })),
         );
@@ -267,8 +268,6 @@ export async function importPermits(): Promise<boolean> {
       staleCount += stale.length;
     }
   }
-  const orphanedStations = await cleanupOrphanedUkeStations();
-  if (orphanedStations > 0) logger.log(`Deleted ${orphanedStations} orphaned UKE stations`);
   logger.log(`Deleted ${staleCount} stale station permits`);
 
   logger.log("Import completed successfully");

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
 import { type JSX, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
@@ -6,13 +5,11 @@ import { type JSX, Suspense, lazy, useCallback, useEffect, useMemo, useState } f
 import { Map as LibreMap, MapControls, useMap } from "@/components/ui/map";
 import { useListDetail } from "@/features/lists/hooks/useListDetail";
 import type { LocationsResponse } from "@/features/map/api";
-import { fetchLocationWithStations } from "@/features/map/api";
 import { MapSearchOverlay } from "@/features/map/components/search-overlay";
-import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, locationQueryKey, saveMapFilters } from "@/features/map/components/stationsLayer";
+import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "@/features/map/components/stationsLayer";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/features/map/constants";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
-import { useMapPopup } from "@/features/map/hooks/useMapPopup";
-import { toLocationInfo } from "@/features/map/utils";
+import { type MapPopupLocation, useMapPopup } from "@/features/map/hooks/useMapPopup";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
@@ -70,15 +67,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [popupLocationState, setPopupLocationState] = useState<{
-    location: { locationId: number; source: StationSource } | null;
-    tempLocations: LocationWithStations[];
-  }>({ location: null, tempLocations: [] });
-  const activePopupLocation = popupLocationState.location;
-  const setPopupLocation = useCallback(
-    (location: { locationId: number; source: StationSource } | null) => setPopupLocationState((prev) => ({ ...prev, location })),
-    [],
-  );
+  const [tempLocations, setTempLocations] = useState<LocationWithStations[]>([]);
 
   const locationsResponse = useMemo<LocationsResponse | undefined>(() => {
     if (!listData) return undefined;
@@ -101,13 +90,13 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       }
       locationMap.get(locId)!.stations.push(station as unknown as StationWithoutCells);
     }
-    for (const tempLoc of popupLocationState.tempLocations) {
+    for (const tempLoc of tempLocations) {
       if (!locationMap.has(tempLoc.id)) {
         locationMap.set(tempLoc.id, tempLoc);
       }
     }
     return { data: Array.from(locationMap.values()), totalCount: listData.stations.length };
-  }, [listData, popupLocationState.tempLocations]);
+  }, [listData, tempLocations]);
 
   const ukeLocations = listData?.ukeLocations;
   const ukeLocationsResponse = useMemo<LocationsResponse | undefined>(() => {
@@ -116,6 +105,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   }, [ukeLocations]);
 
   const listStations = listData?.stations;
+  const listStationIds = useMemo(() => new Set(listStations?.map((station) => station.id) ?? []), [listStations]);
   const listRadiolines = listData?.radiolines;
   useEffect(() => {
     if (!map || !isLoaded || !listStations) return;
@@ -135,21 +125,37 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const handleOpenStationDetails = useCallback((id: number, source: StationSource) => openStationDialog(id, source), [openStationDialog]);
   const handleOpenUkeStationDetails = useCallback((station: UkeStation) => openUkePermitDialog(station), [openUkePermitDialog]);
-  const handlePopupClose = useCallback(() => {
-    setPopupLocationState({ location: null, tempLocations: [] });
+  const handlePopupClose = useCallback((closedLocation: MapPopupLocation) => {
+    if (closedLocation.source !== "internal") return;
+    setTempLocations((locations) => locations.filter((location) => location.id !== closedLocation.locationId));
   }, []);
+
+  const filterListStations = useCallback(
+    (stations: StationWithoutCells[]) => {
+      const listStations = stations.filter((station) => listStationIds.has(station.id));
+      return listStations.length > 0 ? listStations : stations;
+    },
+    [listStationIds],
+  );
 
   const {
     showPopup,
-    updatePopupStations,
+    openLocations,
+    closePopups,
     cleanup: cleanupPopup,
   } = useMapPopup({
     map,
     showAddToList,
+    detailsFilters: DEFAULT_FILTERS,
+    filterStations: filterListStations,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,
     onClose: handlePopupClose,
   });
+
+  useEffect(() => {
+    closePopups((location) => location.source !== filters.source);
+  }, [filters.source, closePopups]);
 
   const handleActiveMarkerClear = useCallback(() => setActiveMarker(null), []);
 
@@ -195,7 +201,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
           createdAt: station.location?.createdAt ?? new Date().toISOString(),
           stations: [station as unknown as StationWithoutCells],
         };
-        setPopupLocationState((prev) => ({ ...prev, tempLocations: [...prev.tempLocations.filter((l) => l.id !== locationId), tempLoc] }));
+        setTempLocations((locations) => [...locations.filter((location) => location.id !== locationId), tempLoc]);
       }
 
       const locationInfo = {
@@ -210,36 +216,12 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.5 });
       void map.once("moveend", () => {
         showPopup([lng, lat], locationInfo, [station as unknown as StationWithoutCells], null, "internal");
-        setPopupLocation({ locationId, source: "internal" });
       });
     },
-    [map, listData, showPopup, setPopupLocation],
+    [map, listData, showPopup],
   );
 
-  const { data: popupLocationData } = useQuery({
-    queryKey: locationQueryKey(activePopupLocation?.locationId ?? 0, DEFAULT_FILTERS),
-    queryFn: () => fetchLocationWithStations(activePopupLocation?.locationId ?? 0, DEFAULT_FILTERS),
-    enabled: !!activePopupLocation && activePopupLocation.source === "internal",
-    staleTime: 1000 * 60 * 2,
-  });
-
-  useEffect(() => {
-    if (!popupLocationData || !activePopupLocation) return;
-    if (popupLocationData.id !== activePopupLocation.locationId) return;
-    const listStationIds = new Set(listData?.stations.map((s) => s.id) ?? []);
-    const filteredStations = (popupLocationData.stations as StationWithoutCells[]).filter((s) => listStationIds.has(s.id));
-    updatePopupStations(toLocationInfo(popupLocationData), filteredStations, activePopupLocation.source);
-  }, [popupLocationData, activePopupLocation, updatePopupStations, listData]);
-
-  const popupActions = useMemo(
-    () => ({
-      show: showPopup,
-      updateStations: updatePopupStations,
-      cleanup: cleanupPopup,
-      setLocation: setPopupLocation,
-    }),
-    [showPopup, updatePopupStations, cleanupPopup, setPopupLocation],
-  );
+  const popupActions = useMemo(() => ({ show: showPopup, cleanup: cleanupPopup }), [showPopup, cleanupPopup]);
 
   const stationActions = useMemo(
     () => ({
@@ -287,6 +269,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         onActiveMarkerChange={setActiveMarker}
         stationActions={stationActions}
         popupActions={popupActions}
+        activePopupLocations={openLocations}
       />
 
       {filters.showRadiolines && (listData?.radiolines.length ?? 0) > 0 ? (

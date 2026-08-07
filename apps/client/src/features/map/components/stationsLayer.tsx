@@ -18,12 +18,13 @@ import type {
 } from "@/types/station";
 
 import type { LocationsResponse } from "../api";
-import { fetchLocationWithStations } from "../api";
+import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
 import { locationsToGeoJSON, ukeLocationsToGeoJSON } from "../geojson";
 import { useAzimuthLayer } from "../hooks/useAzimuthLayer";
 import { useHeatmapLayer } from "../hooks/useHeatmapLayer";
 import { useMapLayer } from "../hooks/useMapLayer";
+import type { MapPopupLocation } from "../hooks/useMapPopup";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useUrlSync } from "../hooks/useURLSync";
 import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } from "../utils";
@@ -37,10 +38,6 @@ const EMPTY_BLOCKED_LAYERS: string[] = [];
 const PLANNED_PEM_BLOCKED_LAYERS = [PLANNED_PEM_LAYER_ID];
 const MAP_TOUCH_LONG_PRESS_MS = 500;
 const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
-
-export function locationQueryKey(locationId: number, filters: StationFilters) {
-  return ["location", locationId, filters] as const;
-}
 
 export const DEFAULT_FILTERS: StationFilters = {
   operators: [],
@@ -99,13 +96,9 @@ type ShowPopupFn = (
   source: StationSource,
 ) => void;
 
-type UpdatePopupStationsFn = (location: LocationInfo, stations: StationWithoutCells[], source: StationSource) => void;
-
 type PopupActions = {
   show: ShowPopupFn;
-  updateStations: UpdatePopupStationsFn;
   cleanup: () => void;
-  setLocation: (popup: { locationId: number; source: StationSource }) => void;
 };
 
 type StationActions = {
@@ -122,7 +115,7 @@ type StationsLayerProps = {
   stationActions: StationActions;
   popupActions: PopupActions;
   onRadiolineIdFromUrl?: (id: number) => void;
-  activePopupLocationId?: number | null;
+  activePopupLocations?: MapPopupLocation[];
   useZabkaMarkers?: boolean;
 };
 
@@ -135,7 +128,7 @@ export function StationsLayer({
   stationActions,
   popupActions,
   onRadiolineIdFromUrl,
-  activePopupLocationId,
+  activePopupLocations,
   useZabkaMarkers = false,
 }: StationsLayerProps) {
   const { map, isLoaded } = useMap();
@@ -145,7 +138,7 @@ export function StationsLayer({
   const pendingLocationId = useRef<number | null>(null);
   const pendingUkeLocationId = useRef<number | null>(null);
 
-  const { show: showPopup, cleanup: cleanupPopup, setLocation: onPopupLocationChange } = popupActions;
+  const { show: showPopup, cleanup: cleanupPopup } = popupActions;
   const { openDetails: onOpenStationDetails, openUkeDetails: onOpenUkeStationDetails } = stationActions;
 
   const handleUrlInitialize = useCallback(
@@ -227,7 +220,6 @@ export function StationsLayer({
           .then((locationData) => {
             const location = toLocationInfo(locationData);
             showPopup([location.longitude, location.latitude], location, locationData.stations as StationWithoutCells[], null, activeFilters.source);
-            onPopupLocationChange({ locationId, source: activeFilters.source });
           })
           .catch((error) => {
             console.error("Failed to fetch shared location:", error);
@@ -238,17 +230,7 @@ export function StationsLayer({
           });
       }
     },
-    [
-      queryClient,
-      map,
-      filters,
-      showPopup,
-      onFiltersChange,
-      onOpenStationDetails,
-      onOpenUkeStationDetails,
-      onRadiolineIdFromUrl,
-      onPopupLocationChange,
-    ],
+    [queryClient, map, filters, showPopup, onFiltersChange, onOpenStationDetails, onOpenUkeStationDetails, onRadiolineIdFromUrl],
   );
 
   useUrlSync({
@@ -312,8 +294,7 @@ export function StationsLayer({
       attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation),
       filters.source,
     );
-    onPopupLocationChange({ locationId, source: filters.source });
-  }, [map, locations, filters.source, showPopup, onPopupLocationChange, locationById]);
+  }, [map, locations, filters.source, showPopup, locationById]);
 
   const handleFeatureMouseDown = useCallback(
     (locationId: number) => {
@@ -341,7 +322,6 @@ export function StationsLayer({
           attachUkeLocationToStations(ukeLocation?.stations ?? [], ukeLocation),
           source as StationSource,
         );
-        onPopupLocationChange({ locationId, source: source as StationSource });
         return;
       }
 
@@ -356,9 +336,8 @@ export function StationsLayer({
       };
 
       showPopup(coordinates, location, locationData?.stations ?? null, null, source as StationSource);
-      onPopupLocationChange({ locationId, source: source as StationSource });
     },
-    [locationById, showPopup, onPopupLocationChange],
+    [locationById, showPopup],
   );
 
   const handleFeatureContextMenu = useCallback(
@@ -372,7 +351,7 @@ export function StationsLayer({
 
   const renderHoverTooltip = useCallback(
     (data: { locationId: number; city?: string; address?: string; source: string }) => {
-      if (data.locationId === activePopupLocationId) return null;
+      if (activePopupLocations?.some((location) => location.locationId === data.locationId && location.source === data.source)) return null;
 
       const isUke = data.source === "uke";
 
@@ -403,7 +382,7 @@ export function StationsLayer({
 
       return <StationHoverTooltipContent city={data.city} address={data.address} region={region} stations={entries} />;
     },
-    [locationById, activePopupLocationId],
+    [locationById, activePopupLocations],
   );
 
   useMapLayer({

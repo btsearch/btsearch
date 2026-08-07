@@ -44,8 +44,9 @@ export default {
     cellsRemoved: "Cells removed",
     cellsUpdated: "Cells updated",
     permitsAdded: "UKE permits added",
-    permitsUpdated: "UKE permits updated",
+    permitsDeleted: "UKE permits deleted",
     ukeStationsAdded: "UKE stations added",
+    ukeStationDeleted: "Station removed from UKE data",
     count: "Count",
   },
 } as const;

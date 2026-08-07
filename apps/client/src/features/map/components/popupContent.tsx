@@ -27,6 +27,45 @@ type PopupStationListProps = {
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
 };
 
+const TECHNOLOGY_BAND_PATTERN = /^(.+?)(\d+)$/;
+
+function groupTechnologyBands(bands: readonly string[]): Map<string, string[]> {
+  const technologies = new Map<string, string[]>();
+
+  for (const band of bands) {
+    const match = band.match(TECHNOLOGY_BAND_PATTERN);
+    const technology = match?.[1] ?? band;
+    const value = match?.[2];
+    const values = technologies.get(technology) ?? [];
+    if (value !== undefined) values.push(value);
+    technologies.set(technology, values);
+  }
+
+  return technologies;
+}
+
+function TechnologySummary({ bands, detail }: { bands: readonly string[]; detail?: string }) {
+  const technologies = groupTechnologyBands(bands);
+  if (technologies.size === 0 && detail === undefined) return null;
+
+  return (
+    <div className="mt-1 pl-3.5 text-[10px] leading-4 text-muted-foreground">
+      {[...technologies].map(([technology, values], index) => (
+        <span key={technology}>
+          {index > 0 ? <span className="mx-1 text-muted-foreground/40">/</span> : null}
+          <span className="font-bold text-foreground/70">{technology}</span> <span className="font-mono font-medium">{values.join(" ")}</span>
+        </span>
+      ))}
+      {detail !== undefined ? (
+        <>
+          {technologies.size > 0 ? <span className="mx-1 text-muted-foreground/40">/</span> : null}
+          <span>{detail}</span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function PopupStationList({
   isLoading,
   isEmpty,
@@ -56,6 +95,7 @@ function PopupStationList({
       const operatorName = station.operator?.name || t("unknownOperator");
       const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
       const bands = getPermitBands(station.permits);
+      const permitCount = `${station.permits.length} ${station.permits.length === 1 ? t("stationDetails:permits.permit") : t("stationDetails:permits.permits")}`;
 
       return (
         <button
@@ -69,19 +109,7 @@ function PopupStationList({
             <span className="font-medium text-xs">{operatorName}</span>
             <span className="text-[10px] text-foreground/70 font-mono">{station.station_id}</span>
           </div>
-          <div className="flex flex-wrap gap-1 mt-1 pl-3.5">
-            {bands.map((band) => (
-              <span
-                key={band}
-                className="px-1 py-px rounded-md bg-muted text-[8px] font-semibold uppercase tracking-wider text-muted-foreground border border-border/50"
-              >
-                {band}
-              </span>
-            ))}
-            <span className="px-1 py-px rounded-md bg-muted text-[8px] font-mono font-medium text-muted-foreground border border-border/50">
-              {station.permits.length} {station.permits.length === 1 ? t("stationDetails:permits.permit") : t("stationDetails:permits.permits")}
-            </span>
-          </div>
+          <TechnologySummary bands={bands} detail={permitCount} />
         </button>
       );
     });
@@ -93,8 +121,10 @@ function PopupStationList({
       const stationId = station.station_id;
       const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
       const hasCells = station.cells !== undefined;
-      const showTechBadges = station.status !== "pending";
+      const showTechnologySummary = station.status !== "pending";
       const bands = hasCells && station.cells?.length ? getStationBands(station.cells) : [];
+      let technologySummary = null;
+      if (showTechnologySummary) technologySummary = hasCells ? <TechnologySummary bands={bands} /> : <TechnologySummarySkeleton />;
 
       return (
         <div key={station.id} className="relative border-b border-border/30 last:border-0">
@@ -111,24 +141,7 @@ function PopupStationList({
                 <span className="text-[11px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
               )}
             </div>
-            {showTechBadges ? (
-              hasCells ? (
-                bands.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 mt-1 pl-3.5">
-                    {bands.map((band) => (
-                      <span
-                        key={band}
-                        className="px-1 py-px rounded-md bg-muted text-[8px] font-semibold uppercase tracking-wider text-muted-foreground border border-border/50"
-                      >
-                        {band}
-                      </span>
-                    ))}
-                  </div>
-                ) : null
-              ) : (
-                <TechBadgesSkeleton />
-              )
-            ) : null}
+            {technologySummary}
           </button>
           {showAddToList && (
             <div className="absolute top-2 right-2">
@@ -162,19 +175,16 @@ function StationSkeleton() {
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-2.5 w-12" />
       </div>
-      <div className="flex gap-1 mt-1.5 pl-3.5">
-        <Skeleton className="h-4 w-8 rounded-md" />
-        <Skeleton className="h-4 w-10 rounded-md" />
-      </div>
+      <TechnologySummarySkeleton />
     </div>
   );
 }
 
-function TechBadgesSkeleton() {
+function TechnologySummarySkeleton() {
   return (
-    <div className="flex gap-1 mt-1 pl-3.5">
-      <Skeleton className="h-4 w-8 rounded-md" />
-      <Skeleton className="h-4 w-10 rounded-md" />
+    <div className="mt-1.5 flex gap-2 pl-3.5">
+      <Skeleton className="h-2.5 w-8 rounded-sm" />
+      <Skeleton className="h-2.5 w-24 rounded-sm" />
     </div>
   );
 }

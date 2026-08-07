@@ -10,3 +10,7 @@ export function buildUkeStationActionUrl(station: { id: number; location?: { lat
   if (!station.location) return undefined;
   return `/#map=16.00/${station.location.latitude}/${station.location.longitude}~fu~S${station.id}`;
 }
+
+export function buildMapLocationActionUrl(location: { latitude: number; longitude: number }): string {
+  return `/#map=16.00/${location.latitude}/${location.longitude}`;
+}

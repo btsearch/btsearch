@@ -10,6 +10,7 @@ interface CoalesceStationNotificationParams {
   userId: string;
   stationId?: number;
   ukeStationId?: number;
+  detached?: boolean;
   type: StationNotificationType;
   title: string;
   metadata?: StationNotificationMetadata;
@@ -42,11 +43,15 @@ function mergeMetadata(
   }
 
   if (type === "station_uke_permit_added") {
+    // legacy key
+    const legacyPermitsUpdated = numericMetadataValue(current ?? {}, "permits_updated");
+    delete merged.permits_updated;
     merged.permits_added = numericMetadataValue(current ?? {}, "permits_added") + numericMetadataValue(incoming ?? {}, "permits_added");
-    merged.permits_updated = numericMetadataValue(current ?? {}, "permits_updated") + numericMetadataValue(incoming ?? {}, "permits_updated");
+    merged.permits_deleted = numericMetadataValue(current ?? {}, "permits_deleted") + numericMetadataValue(incoming ?? {}, "permits_deleted");
     merged.uke_stations_added =
       numericMetadataValue(current ?? {}, "uke_stations_added") + numericMetadataValue(incoming ?? {}, "uke_stations_added");
-    merged.count = numericMetadataValue(current ?? {}, "count") + Math.max(1, numericMetadataValue(incoming ?? {}, "count"));
+    merged.count =
+      Math.max(0, numericMetadataValue(current ?? {}, "count") - legacyPermitsUpdated) + Math.max(1, numericMetadataValue(incoming ?? {}, "count"));
     return merged;
   }
 
@@ -58,11 +63,31 @@ export async function coalesceOrCreateStationNotification({
   userId,
   stationId,
   ukeStationId,
+  detached,
   type,
   title,
   metadata,
   actionUrl,
 }: CoalesceStationNotificationParams): Promise<CoalesceStationNotificationResult> {
+  if (detached) {
+    const [inserted] = await db
+      .insert(notifications)
+      .values({
+        userId,
+        stationId: null,
+        ukeStationId: null,
+        type,
+        title,
+        metadata: metadata ?? null,
+        actionUrl: actionUrl ?? null,
+        pushQueuedAt: new Date(),
+      })
+      .returning({ id: notifications.id });
+
+    if (!inserted) throw new Error("Failed to create station notification");
+    return { id: inserted.id, isNew: true };
+  }
+
   const targetCondition =
     stationId !== undefined
       ? eq(notifications.stationId, stationId)

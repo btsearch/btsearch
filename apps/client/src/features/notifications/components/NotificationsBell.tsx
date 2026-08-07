@@ -26,13 +26,14 @@ type NotificationMetadata = {
   added?: number;
   count?: number;
   permits_added?: number;
-  permits_updated?: number;
+  permits_deleted?: number;
   reviewer_name?: string;
   reviewer_note?: string;
   station_id?: string;
   station_operator_name?: string;
   submitter_name?: string;
   uke_stations_added?: number;
+  uke_station_deleted?: boolean;
   removed?: number;
   updated?: number;
 };
@@ -76,8 +77,9 @@ function NotificationItem({ notification, onRead }: { notification: Notification
   const cellsRemoved = metadata?.removed;
   const cellsUpdated = metadata?.updated;
   const permitsAdded = metadata?.permits_added;
-  const permitsUpdated = metadata?.permits_updated;
+  const permitsDeleted = metadata?.permits_deleted;
   const ukeStationsAdded = metadata?.uke_stations_added;
+  const ukeStationDeleted = metadata?.uke_station_deleted;
   const count = metadata?.count;
   const updatedAt = notification.updatedAt ?? notification.createdAt;
 
@@ -110,12 +112,13 @@ function NotificationItem({ notification, onRead }: { notification: Notification
         {permitsAdded !== undefined && permitsAdded > 0 ? (
           <p className="text-xs text-muted-foreground truncate">{t("permitsAdded", { count: permitsAdded })}</p>
         ) : null}
-        {permitsUpdated !== undefined && permitsUpdated > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("permitsUpdated", { count: permitsUpdated })}</p>
+        {permitsDeleted !== undefined && permitsDeleted > 0 ? (
+          <p className="text-xs text-muted-foreground truncate">{t("permitsDeleted", { count: permitsDeleted })}</p>
         ) : null}
         {ukeStationsAdded !== undefined && ukeStationsAdded > 0 ? (
           <p className="text-xs text-muted-foreground truncate">{t("ukeStationsAdded", { count: ukeStationsAdded })}</p>
         ) : null}
+        {ukeStationDeleted === true ? <p className="text-xs text-muted-foreground truncate">{t("ukeStationDeleted")}</p> : null}
         {count !== undefined && count > 1 ? <p className="text-xs text-muted-foreground truncate">{t("eventCount", { count })}</p> : null}
         <p className="text-xs text-muted-foreground">{formatRelativeTime(updatedAt, tCommon)}</p>
       </div>

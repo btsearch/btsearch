@@ -6,19 +6,18 @@ import { useFloatingDialogStack } from "@/features/station-details/components/fl
 import ZabkaIcon from "@/features/station-details/components/logos/zabka.svg?react";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
-import type { LocationInfo, Station, StationFilters, StationSource, StationWithoutCells, UkeLocationWithPermits, UkeStation } from "@/types/station";
+import type { LocationInfo, Station, StationFilters, StationSource, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
-import { fetchLocationWithStations, fetchLocations, fetchRadioLines } from "../api";
+import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
 import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
 import { useWakeLock } from "../hooks/useWakeLock";
 import type { UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
-import { attachUkeLocationToStations, toLocationInfo } from "../utils";
+import { attachUkeLocationToStations } from "../utils";
 import { MapSearchOverlay } from "./search-overlay";
-import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, locationQueryKey, saveMapFilters } from "./stationsLayer";
+import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "./stationsLayer";
 
 const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
 
@@ -55,7 +54,6 @@ function MapViewInner() {
   const showAddToList = !!session?.user && !!runtimeSettings?.enableUserLists;
   const [filters, setFiltersState] = useState<StationFilters>(() => loadMapFilters() ?? DEFAULT_FILTERS);
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [activePopupLocation, setActivePopupLocation] = useState<{ locationId: number; source: StationSource } | null>(null);
   const [mapQuery, setMapQuery] = useState<string | undefined>(undefined);
   const [useZabkaMarkers, setUseZabkaMarkers] = useState(false);
 
@@ -69,10 +67,6 @@ function MapViewInner() {
       saveMapFilters(next);
       return next;
     });
-  }, []);
-
-  const handlePopupClose = useCallback(() => {
-    setActivePopupLocation(null);
   }, []);
 
   useEffect(() => {
@@ -122,15 +116,20 @@ function MapViewInner() {
 
   const {
     showPopup,
-    updatePopupStations,
+    openLocations,
+    closePopups,
     cleanup: cleanupPopup,
   } = useMapPopup({
     map,
     showAddToList,
+    detailsFilters: filters,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,
-    onClose: handlePopupClose,
   });
+
+  useEffect(() => {
+    closePopups((location) => location.source !== filters.source);
+  }, [filters.source, closePopups]);
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const effectiveMapQuery = filters.source === "internal" ? mapQuery : undefined;
@@ -177,23 +176,6 @@ function MapViewInner() {
   const radioLineCount = radioLines.length;
   const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
 
-  const { data: popupLocationData } = useQuery({
-    queryKey: locationQueryKey(activePopupLocation?.locationId ?? 0, filters),
-    queryFn: () => fetchLocationWithStations(activePopupLocation?.locationId ?? 0, filters),
-    enabled: !!activePopupLocation && activePopupLocation.source !== "uke",
-    staleTime: 1000 * 60 * 2,
-    throwOnError: (error) => {
-      showApiError(error);
-      return false;
-    },
-  });
-
-  useEffect(() => {
-    if (!popupLocationData || !activePopupLocation || activePopupLocation.source === "uke") return;
-    if (popupLocationData.id !== activePopupLocation.locationId) return;
-    updatePopupStations(toLocationInfo(popupLocationData), popupLocationData.stations as StationWithoutCells[], activePopupLocation.source);
-  }, [popupLocationData, activePopupLocation, updatePopupStations]);
-
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const handleLocationSelect = useCallback(
@@ -229,23 +211,22 @@ function MapViewInner() {
       if (currentFilters.source === "uke") {
         const ukeLocations = locationsRef.current as unknown as UkeLocationWithPermits[];
         const ukeLocation = ukeLocations.find((loc) => loc.latitude.toFixed(6) === lat.toFixed(6) && loc.longitude.toFixed(6) === lng.toFixed(6));
+        if (!ukeLocation) return;
 
         const location: LocationInfo = {
-          id: ukeLocation?.id ?? station.id,
-          city: ukeLocation?.city ?? station.location?.city,
-          address: ukeLocation?.address ?? station.location?.address,
-          region: ukeLocation?.region?.name ?? station.location?.region?.name,
+          id: ukeLocation.id,
+          city: ukeLocation.city ?? station.location?.city,
+          address: ukeLocation.address ?? station.location?.address,
+          region: ukeLocation.region?.name ?? station.location?.region?.name,
           latitude: lat,
           longitude: lng,
         };
-        showPopup([lng, lat], location, null, attachUkeLocationToStations(ukeLocation?.stations ?? [], ukeLocation), currentFilters.source);
-        setActivePopupLocation({ locationId: ukeLocation?.id ?? station.id, source: currentFilters.source });
+        showPopup([lng, lat], location, null, attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation), currentFilters.source);
         return;
       }
 
-      const locationId = station.location?.id;
       const location: LocationInfo = {
-        id: locationId,
+        id: station.location?.id,
         city: station.location?.city,
         address: station.location?.address,
         region: station.location?.region?.name,
@@ -253,7 +234,6 @@ function MapViewInner() {
         longitude: lng,
       };
       showPopup([lng, lat], location, null, null, currentFilters.source);
-      setActivePopupLocation({ locationId, source: currentFilters.source });
     },
     [map, showPopup],
   );
@@ -278,7 +258,6 @@ function MapViewInner() {
         longitude: lng,
       };
       showPopup([lng, lat], location, null, [station], "uke");
-      setActivePopupLocation({ locationId: station.location.id, source: "uke" });
     },
     [map, showPopup],
   );
@@ -291,15 +270,7 @@ function MapViewInner() {
     [handleLocationSelect],
   );
 
-  const popupActions = useMemo(
-    () => ({
-      show: showPopup,
-      updateStations: updatePopupStations,
-      cleanup: cleanupPopup,
-      setLocation: setActivePopupLocation,
-    }),
-    [showPopup, updatePopupStations, cleanupPopup],
-  );
+  const popupActions = useMemo(() => ({ show: showPopup, cleanup: cleanupPopup }), [showPopup, cleanupPopup]);
 
   const stationActions = useMemo(
     () => ({
@@ -357,7 +328,7 @@ function MapViewInner() {
         stationActions={stationActions}
         popupActions={popupActions}
         onRadiolineIdFromUrl={setPendingRadiolineId}
-        activePopupLocationId={activePopupLocation?.locationId}
+        activePopupLocations={openLocations}
         useZabkaMarkers={useZabkaMarkers}
       />
       {filters.showRadiolines || !!pendingRadiolineId ? (
