@@ -51,7 +51,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   try {
     const { status: nextStatus, ...stationPatch } = req.body;
-    if (nextStatus !== undefined) assertStationStatusTransition(station.status, nextStatus);
+    // if (nextStatus !== undefined) assertStationStatusTransition(station.status, nextStatus);
     const now = new Date();
     const statusPatch = nextStatus !== undefined && nextStatus !== station.status ? stationStatusUpdate(nextStatus, now) : {};
     const [updated] = await db

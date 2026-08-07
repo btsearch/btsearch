@@ -28,7 +28,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   if (!station) throw new ErrorResponse("NOT_FOUND");
   if (station.status === "inactive") return res.status(204).send();
 
-  assertStationStatusTransition(station.status, "inactive");
+  // assertStationStatusTransition(station.status, "inactive");
 
   try {
     await db.transaction(async (tx) => {

@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-07
+
+### 🩹 Fixes
+
+- Location picker maps now show azimuths only for the station being edited
+
 # 2026-08-04
 
 ### 🚀 Enhancements

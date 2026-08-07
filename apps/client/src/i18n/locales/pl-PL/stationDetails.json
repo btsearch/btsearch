@@ -57,12 +57,12 @@
     }
   },
   "dialog": {
-    "hardwareLease": "Dzierżawa sprzętu od {{operator}} (wirtualna stacja)",
+    "hardwareLease": "Dzierżawa sprzętu od {{operator}} (RAN sharing)",
     "btsStation": "Stacja bazowa",
     "showOnMap": "Pokaż na mapie",
     "createStation": "Utwórz stację",
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",
-    "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych."
+    "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych"
   },
   "comments": {
     "title": "Komentarze społeczności",
@@ -75,7 +75,7 @@
     "addImages": "Dodaj obrazy",
     "postComment": "Opublikuj komentarz",
     "deleteConfirm": "Usuń komentarz",
-    "deleteDescription": "Czy na pewno chcesz usunąć ten komentarz? Tej operacji nie można cofnąć.",
+    "deleteDescription": "Czy na pewno chcesz usunąć ten komentarz? Tej operacji nie można cofnąć",
     "deleted": "Komentarz usunięty",
     "pendingApproval": "Twój komentarz został przesłany i oczekuje na zatwierdzenie przed opublikowaniem"
   },

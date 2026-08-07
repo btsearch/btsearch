@@ -155,7 +155,7 @@ export default class App {
       return res.status(statusCode).send(errorResponse);
     });
     this.fastify.setNotFoundHandler((_req, res) => {
-      return res.status(404).send({ errors: [{ code: "NOT_FOUND", message: "The requested resource was not found." }] });
+      return res.status(404).send({ errors: [{ code: "NOT_FOUND", message: "The requested resource was not found" }] });
     });
   }
 

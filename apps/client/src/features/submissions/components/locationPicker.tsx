@@ -117,6 +117,7 @@ function computeNearby(coords: { lat: number; lng: number }, locations: Location
 
 type LocationPickerProps = {
   location: ProposedLocationForm;
+  azimuthStationId?: number;
   errors?: LocationErrors;
   onLocationChange: (patch: Partial<ProposedLocationForm>) => void;
   onExistingLocationSelect?: (location: LocationWithStations) => void;
@@ -128,6 +129,7 @@ type LocationPickerProps = {
 
 export function LocationPicker({
   location,
+  azimuthStationId,
   errors,
   onLocationChange,
   onExistingLocationSelect: onExistingLocationSelectProp,
@@ -212,6 +214,7 @@ export function LocationPicker({
         <MapGL center={initialView.center} zoom={initialView.zoom}>
           <PickerMapInner
             location={location}
+            azimuthStationId={azimuthStationId}
             onCoordinatesSet={handleMapCoordinatesSet}
             onExistingLocationSelect={handleExistingLocationSelect}
             showUkeLocations={showUkeLocations}
@@ -351,6 +354,7 @@ function CurrentLocationMarker() {
 
 type PickerMapInnerProps = {
   location: ProposedLocationForm;
+  azimuthStationId?: number;
   onCoordinatesSet: (lat: number, lon: number) => void;
   onExistingLocationSelect: (loc: LocationWithStations) => void;
   showUkeLocations: boolean;
@@ -360,6 +364,7 @@ type PickerMapInnerProps = {
 
 function PickerMapInner({
   location,
+  azimuthStationId,
   onCoordinatesSet,
   onExistingLocationSelect,
   showUkeLocations,
@@ -370,7 +375,7 @@ function PickerMapInner({
   const { bounds, zoom } = useMapBounds({ map, isLoaded, debounceMs: 500 });
   const { preferences } = usePreferences();
   const { nearbyPanel, ukeStationPanel, dispatchPanel } = useLocationPickerState();
-  const azimuthEnabled = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
+  const azimuthEnabled = azimuthStationId !== undefined && preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
 
   const lastInternalCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const userHasInteractedRef = useRef(false);
@@ -393,12 +398,20 @@ function PickerMapInner({
 
   const geoJSON = useMemo(() => locationsToPickerGeoJSON(viewportLocations), [viewportLocations]);
   const ukeGeoJSON = useMemo(() => ukeLocationsToPickerGeoJSON(viewportUkeLocations), [viewportUkeLocations]);
+  const azimuthLocations = useMemo(
+    () =>
+      viewportLocations.flatMap((location) => {
+        const azimuthStation = location.stations.find((station) => station.id === azimuthStationId);
+        return azimuthStation ? [{ ...location, stations: [azimuthStation] }] : [];
+      }),
+    [azimuthStationId, viewportLocations],
+  );
 
   usePickerMapLayers({ map, isLoaded, geoJSON, ukeGeoJSON, showUkeLocations });
   useAzimuthLayer({
     map,
     isLoaded,
-    locations: viewportLocations,
+    locations: azimuthLocations,
     ukeLocations: showUkeLocations ? viewportUkeLocations : [],
     enabled: azimuthEnabled,
     minZoom: preferences.azimuthsMinZoom,

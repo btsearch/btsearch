@@ -222,6 +222,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             return (
               <LocationPicker
                 location={location}
+                azimuthStationId={mode === "existing" ? selectedStation?.id : undefined}
                 errors={formErrors.location}
                 onLocationChange={handleLocationChange}
                 onUkeStationSelect={mode === "new" ? handleUkeStationSelect : undefined}

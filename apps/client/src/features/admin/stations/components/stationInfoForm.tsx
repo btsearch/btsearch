@@ -317,6 +317,7 @@ export function StationInfoForm({
 
       <LocationPicker
         location={location}
+        azimuthStationId={stationDbId}
         onLocationChange={onLocationChange}
         onExistingLocationSelect={onExistingLocationSelect}
         onUkeStationSelect={onUkeStationSelect}

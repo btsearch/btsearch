@@ -287,6 +287,7 @@ export function SubmissionStationForm({
         <div className={cn(isFormDisabled && "pointer-events-none opacity-60")}>
           <LocationPicker
             location={locationForm}
+            azimuthStationId={currentStationId}
             onLocationChange={(patch) => !isFormDisabled && onLocationFormChange(patch)}
             locationDiffs={locationDiffs}
             currentLocation={currentStation?.location ?? null}
