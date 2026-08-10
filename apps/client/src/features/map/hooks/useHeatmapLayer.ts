@@ -5,7 +5,8 @@ import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
 
 const HEATMAP_LAYER_ID = "stations-heatmap";
 
-const FADE_OPACITY = ["interpolate", ["linear"], ["zoom"], 11, 0.75, 14, 0] as unknown as ExpressionSpecification;
+const FADE_MAX_ZOOM = 14;
+const FADE_OPACITY = ["interpolate", ["linear"], ["zoom"], 11, 0.75, FADE_MAX_ZOOM, 0] as unknown as ExpressionSpecification;
 const FIXED_OPACITY = 0.75;
 
 export function useHeatmapLayer({
@@ -34,6 +35,7 @@ export function useHeatmapLayer({
             id: HEATMAP_LAYER_ID,
             type: "heatmap",
             source: SOURCE_ID,
+            maxzoom: showStationsRef.current ? 14 : 24,
             paint: {
               "heatmap-weight": ["interpolate", ["linear"], ["get", "stationCount"], 0, 0, 6, 1],
               "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 5, 1, 13, 3],
@@ -79,5 +81,6 @@ export function useHeatmapLayer({
   useEffect(() => {
     if (!map || !isLoaded || !enabled || !map.getLayer(HEATMAP_LAYER_ID)) return;
     map.setPaintProperty(HEATMAP_LAYER_ID, "heatmap-opacity", showStations ? FADE_OPACITY : FIXED_OPACITY);
+    map.setLayerZoomRange(HEATMAP_LAYER_ID, 0, showStations ? 14 : 24);
   }, [map, isLoaded, enabled, showStations]);
 }

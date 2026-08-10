@@ -9,7 +9,10 @@ type UseMapBoundsArgs = {
 
 function formatBounds(map: MapLibreMap): string {
   const b = map.getBounds();
-  return `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  const span = Math.max(b.getNorth() - b.getSouth(), 1e-7);
+  const step = 2 ** Math.floor(Math.log2(span / 64));
+  const snap = (value: number, up: boolean) => (up ? Math.ceil(value / step) : Math.floor(value / step)) * step;
+  return `${snap(b.getSouth(), false)},${snap(b.getWest(), false)},${snap(b.getNorth(), true)},${snap(b.getEast(), true)}`;
 }
 
 export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsArgs) {

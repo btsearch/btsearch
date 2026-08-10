@@ -10,6 +10,9 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🩹 Fixes
 
 - The map no longer goes permanently blank on mobile devices when the browser reclaims graphics memory
+- The map now uses much less graphics memory on phones with high-resolution screens, making blank-map interruptions far less frequent
+- The station heatmap no longer keeps rendering invisibly at close zoom levels, saving battery and graphics memory
+- Map data loaded while panning is now cached more efficiently, so long browsing sessions no longer slowly build up memory use
 - Hover tooltips are no longer enabled on phones and tablets that have a mouse or stylus paired, which could leave stale hover handlers on the map
 
 # 2026-08-07

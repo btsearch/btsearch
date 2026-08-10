@@ -148,6 +148,7 @@ function MapViewInner() {
       }),
     enabled: isLoaded && !!bounds && !isMoving,
     staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60,
     placeholderData: (prev) => prev,
   });
 
@@ -170,6 +171,7 @@ function MapViewInner() {
       }),
     enabled: filters.showRadiolines && !!bounds && !isMoving && zoom >= preferences.radiolinesMinZoom,
     staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60,
     placeholderData: (prev) => prev,
   });
 

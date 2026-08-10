@@ -385,7 +385,9 @@ function checkWebGL2Support(): boolean {
   if (typeof document === "undefined") return true;
   try {
     const canvas = document.createElement("canvas");
-    return !!canvas.getContext("webgl2");
+    const gl = canvas.getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return !!gl;
   } catch {
     return false;
   }
@@ -480,6 +482,8 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       container: containerRef.current,
       style: initialStyle,
       renderWorldCopies: false,
+      pixelRatio: Math.min(window.devicePixelRatio, 2),
+      maxTileCacheZoomLevels: 2,
       attributionControl: {
         compact: true,
       },
