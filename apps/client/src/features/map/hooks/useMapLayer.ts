@@ -8,7 +8,7 @@ import {
   type MapTouchEvent,
   Popup,
 } from "maplibre-gl";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { onBeforeStyleChange } from "@/components/ui/map";
@@ -465,16 +465,22 @@ export function useMapLayer({
     };
   }, [map, isLoaded, pointStyle, useZabkaMarkers]);
 
+  const lastAppliedDataRef = useRef<{ source: GeoJSONSource; signature: string } | null>(null);
+  const geoJSONSignature = useMemo(() => JSON.stringify(geoJSON), [geoJSON]);
+
   useEffect(() => {
     if (!map || !isLoaded) return;
 
     const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
 
+    if (lastAppliedDataRef.current?.source === source && lastAppliedDataRef.current.signature === geoJSONSignature) return;
+    lastAppliedDataRef.current = { source, signature: geoJSONSignature };
+
     if (useZabkaMarkers) syncZabkaImage(map, addedImagesRef.current);
     else if (pointStyle === "markers") syncMarkerImages(map, geoJSON.features, addedImagesRef.current);
     else syncPieImages(map, geoJSON.features, addedImagesRef.current);
 
     void source.setData(geoJSON);
-  }, [map, isLoaded, geoJSON, pointStyle, useZabkaMarkers]);
+  }, [map, isLoaded, geoJSON, geoJSONSignature, pointStyle, useZabkaMarkers]);
 }

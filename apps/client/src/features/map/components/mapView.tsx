@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
@@ -178,6 +178,19 @@ function MapViewInner() {
   const radioLines = radioLinesResponse?.data ?? [];
   const radioLineCount = radioLines.length;
   const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
+
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!bounds) return;
+    queryClient.removeQueries({
+      predicate: (query) =>
+        (query.queryKey[0] === "locations" || query.queryKey[0] === "radiolines") &&
+        typeof query.queryKey[1] === "string" &&
+        query.queryKey[1].includes(",") &&
+        query.queryKey[1] !== bounds &&
+        query.getObserversCount() === 0,
+    });
+  }, [bounds, queryClient]);
 
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
