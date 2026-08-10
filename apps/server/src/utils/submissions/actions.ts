@@ -690,7 +690,7 @@ async function checkProposedPciDuplicates(stationId: number | null, proposedCell
   );
 }
 
-function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): RATInsertDetails | null {
+function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): ProposedCellRow["gsm" | "umts" | "lte" | "nr"] | null {
   switch (rat) {
     case "GSM":
       return proposed.gsm ?? null;

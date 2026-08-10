@@ -26,8 +26,8 @@ export type GSMInsertDetails = z.infer<typeof gsmInsertSchema>;
 export type UMTSInsertDetails = z.infer<typeof umtsInsertSchema>;
 export type LTEInsertDetails = z.infer<typeof lteInsertSchema>;
 export type NRInsertDetails = z.infer<typeof nrInsertSchema>;
-export type RATInsertDetails = GSMInsertDetails;
-export type RATUpdateDetails = GSMUpdateDetails;
+export type RATInsertDetails = GSMInsertDetails | UMTSInsertDetails | LTEInsertDetails | NRInsertDetails;
+export type RATUpdateDetails = GSMUpdateDetails | UMTSUpdateDetails | LTEUpdateDetails | NRUpdateDetails;
 export type RATCellDetailsRow =
   | typeof gsmCells.$inferSelect
   | typeof umtsCells.$inferSelect

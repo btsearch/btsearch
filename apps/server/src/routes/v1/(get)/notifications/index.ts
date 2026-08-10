@@ -93,7 +93,7 @@ async function enrichNotificationMetadata(rows: NotificationRow[]): Promise<Noti
         : row.ukeStationId !== null
           ? operatorNames.get(`uke:${row.ukeStationId as number}`)
           : undefined;
-    const actionUrl = row.type === "new_submission" && row.submissionId !== null ? `/admin/submissions/${row.submissionId as number}` : row.actionUrl;
+    const actionUrl = row.type === "new_submission" && row.submissionId !== null ? `/admin/submissions/${row.submissionId as string}` : row.actionUrl;
     if (operatorName === undefined && actionUrl === row.actionUrl) return row;
     return {
       ...row,
