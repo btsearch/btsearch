@@ -8,6 +8,9 @@ import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav"
 import { Button } from "@/components/ui/button";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { AutocompleteDropdown } from "@/features/map/components/search-overlay/autocompleteDropdown";
+import { FILTER_KEYWORDS } from "@/features/map/constants";
+import { getAutocompleteMatches, replaceLastSearchToken } from "@/features/map/searchAutocomplete";
 import { ResponsiveFilters } from "@/features/stations/components/responsiveFilters";
 import { StationsDataTable } from "@/features/stations/components/stationsDataTable";
 import type { useStationsData } from "@/features/stations/hooks/useStationsData";
@@ -22,6 +25,8 @@ const RAT_OPTIONS = [
   { value: "GSM", label: "GSM", gen: "2G" },
   { value: "iot", label: "IoT", gen: "NB" },
 ] as const;
+
+const STATIONS_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((keyword) => keyword.availableOn.includes("stations"));
 
 interface StationsListLayoutProps {
   data: ReturnType<typeof useStationsData>;
@@ -71,6 +76,13 @@ function StationsMobileFilterRail({
   const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length;
   const hasSearch = searchQuery.trim().length > 0;
   const hasActiveFilters = activeFilterCount > 0 || hasSearch;
+  const [showSearchAutocomplete, setShowSearchAutocomplete] = useState(false);
+  const searchAutocompleteOptions = useMemo(() => getAutocompleteMatches(searchQuery, STATIONS_FILTER_KEYWORDS), [searchQuery]);
+
+  const handleAutocompleteSelect = (keyword: string) => {
+    onSearchQueryChange(replaceLastSearchToken(searchQuery, keyword));
+    setShowSearchAutocomplete(false);
+  };
 
   const handleClearFilters = () => {
     onFiltersChange({
@@ -89,11 +101,20 @@ function StationsMobileFilterRail({
     });
     onRegionsChange([]);
     onSearchQueryChange("");
+    setShowSearchAutocomplete(false);
   };
 
   return (
     <div className="flex items-center gap-1">
-      <MobileFilterChip active={hasSearch} icon={Search02Icon} label={t("common:labels.search")}>
+      <MobileFilterChip
+        active={hasSearch}
+        icon={Search02Icon}
+        label={t("common:labels.search")}
+        contentClassName="overflow-visible"
+        onOpenChange={(open) => {
+          if (!open) setShowSearchAutocomplete(false);
+        }}
+      >
         <MobileFilterPanelTitle>{t("common:labels.search")}</MobileFilterPanelTitle>
         <div className="relative">
           <HugeiconsIcon
@@ -102,19 +123,35 @@ function StationsMobileFilterRail({
           />
           <input
             value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
+            onChange={(event) => {
+              onSearchQueryChange(event.currentTarget.value);
+              setShowSearchAutocomplete(true);
+            }}
+            onFocus={() => setShowSearchAutocomplete(true)}
+            onBlur={(event) => {
+              const nextTarget = event.relatedTarget as Node | null;
+              if (!event.currentTarget.parentElement?.contains(nextTarget)) setShowSearchAutocomplete(false);
+            }}
             placeholder={t("common:placeholder.search")}
             className="h-9 w-full rounded-md border bg-background py-2 pl-8 pr-8 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
           {hasSearch ? (
             <button
               type="button"
-              onClick={() => onSearchQueryChange("")}
+              onClick={() => {
+                onSearchQueryChange("");
+                setShowSearchAutocomplete(false);
+              }}
               className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label={t("common:actions.clear")}
             >
               <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
             </button>
+          ) : null}
+          {showSearchAutocomplete && searchAutocompleteOptions.length > 0 ? (
+            <div className="absolute bottom-full left-0 z-10 mb-2 w-full [&>div]:mt-0">
+              <AutocompleteDropdown options={searchAutocompleteOptions} onSelect={handleAutocompleteSelect} />
+            </div>
           ) : null}
         </div>
       </MobileFilterChip>

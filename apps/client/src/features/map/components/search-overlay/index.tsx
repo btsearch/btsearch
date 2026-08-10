@@ -363,35 +363,43 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
           (showFilters || showResults || showAutocomplete) && "z-20",
         )}
       >
-        <SearchInput
-          containerRef={containerRef}
-          inputRef={inputRef}
-          inputValue={inputValue}
-          parsedFilters={parsedFilters}
-          focusedChipIndex={focusedChipIndex}
-          isSearching={isSearching}
-          query={query}
-          isFocused={isFocused}
-          mobileExpanded={mobileExpanded}
-          onInputChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onInputFocus={handleInputFocus}
-          onInputClick={handleInputClick}
-          onRemoveFilter={removeFilter}
-          onClearSearch={clearSearch}
-          onContainerBlur={handleContainerBlur}
-          onMobileExpand={handleMobileExpand}
-          onMobileCollapse={handleMobileCollapse}
-          affectMap={affectMap}
-          showAffectMap={filters.source !== "uke"}
-          onAffectMapChange={handleAffectMapChange}
-          filterSlot={
-            <>
-              <div className="h-6 w-px bg-border shrink-0" />
-              <FilterButton showFilters={showFilters} activeFilterCount={activeFilterCount} onClick={handleToggleFilters} />
-            </>
-          }
-        />
+        <div className="relative">
+          <SearchInput
+            containerRef={containerRef}
+            inputRef={inputRef}
+            inputValue={inputValue}
+            parsedFilters={parsedFilters}
+            focusedChipIndex={focusedChipIndex}
+            isSearching={isSearching}
+            query={query}
+            isFocused={isFocused}
+            mobileExpanded={mobileExpanded}
+            onInputChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onInputFocus={handleInputFocus}
+            onInputClick={handleInputClick}
+            onRemoveFilter={removeFilter}
+            onClearSearch={clearSearch}
+            onContainerBlur={handleContainerBlur}
+            onMobileExpand={handleMobileExpand}
+            onMobileCollapse={handleMobileCollapse}
+            affectMap={affectMap}
+            showAffectMap={filters.source !== "uke"}
+            onAffectMapChange={handleAffectMapChange}
+            filterSlot={
+              <>
+                <div className="h-6 w-px bg-border shrink-0" />
+                <FilterButton showFilters={showFilters} activeFilterCount={activeFilterCount} onClick={handleToggleFilters} />
+              </>
+            }
+          />
+
+          {showAutocomplete && (
+            <div className="max-md:absolute max-md:inset-x-0 max-md:top-full max-md:z-10">
+              <AutocompleteDropdown options={autocompleteOptions} onSelect={applyAutocomplete} />
+            </div>
+          )}
+        </div>
 
         {isMobile ? (
           <div className="mt-2 flex justify-end md:hidden">
@@ -400,8 +408,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             </div>
           </div>
         ) : null}
-
-        {showAutocomplete && <AutocompleteDropdown options={autocompleteOptions} onSelect={applyAutocomplete} />}
 
         {showResults && (
           <SearchResults

@@ -7,18 +7,22 @@ import { cn } from "@/lib/utils";
 export function MobileFilterChip({
   active,
   children,
+  contentClassName,
   count = 0,
   icon,
   label,
+  onOpenChange,
 }: {
   active: boolean;
   children: ReactNode;
+  contentClassName?: string;
   count?: number;
   icon: IconSvgElement;
   label: string;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Popover>
+    <Popover onOpenChange={onOpenChange}>
       <PopoverTrigger
         render={
           <button
@@ -43,7 +47,12 @@ export function MobileFilterChip({
           </span>
         ) : null}
       </PopoverTrigger>
-      <PopoverContent side="top" align="center" sideOffset={8} className="max-h-[62svh] w-[min(20rem,calc(100vw-1rem))] overflow-y-auto">
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        className={cn("max-h-[62svh] w-[min(20rem,calc(100vw-1rem))] overflow-y-auto", contentClassName)}
+      >
         {children}
       </PopoverContent>
     </Popover>

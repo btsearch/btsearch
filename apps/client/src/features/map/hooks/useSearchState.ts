@@ -2,6 +2,7 @@ import { type ChangeEvent, type FocusEvent, type KeyboardEvent, useCallback, use
 
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
+import { getAutocompleteMatches, replaceLastSearchToken } from "../searchAutocomplete";
 import type { FilterKeyword, ParsedFilter } from "../types";
 
 type OverlayType = "autocomplete" | "results" | null;
@@ -25,20 +26,6 @@ function computeOverlay(input: string, hasMatches: boolean, affectMap: boolean):
 
 function hasUnclosedQuote(input: string): boolean {
   return /\w+:\s*"[^"]*$/.test(input) || /\w+:\s*'[^']*$/.test(input);
-}
-
-function getLastWord(input: string): string {
-  const words = input.split(/\s/);
-  return words[words.length - 1] || "";
-}
-
-function getAutocompleteMatches(input: string, keywords: FilterKeyword[]): FilterKeyword[] {
-  if (input === "") return keywords;
-
-  const lastWord = getLastWord(input);
-  if (lastWord.length === 0 || lastWord.includes(":")) return [];
-
-  return keywords.filter((kw) => kw.key.toLowerCase().startsWith(lastWord.toLowerCase()));
 }
 
 function getUrlHashQueryParam(key: string): string | null {
@@ -117,9 +104,7 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
   }
 
   function applyAutocomplete(keyword: string) {
-    const words = inputValue.split(/\s/);
-    words[words.length - 1] = keyword;
-    setInputValue(words.join(" "));
+    setInputValue(replaceLastSearchToken(inputValue, keyword));
     setActiveOverlay("results");
     inputRef.current?.focus();
   }

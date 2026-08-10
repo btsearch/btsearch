@@ -14,6 +14,9 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The station heatmap no longer keeps rendering invisibly at close zoom levels, saving battery and graphics memory
 - Map data loaded while panning is now cached more efficiently, so long browsing sessions no longer slowly build up memory use
 - Hover tooltips are no longer enabled on phones and tablets that have a mouse or stylus paired, which could leave stale hover handlers on the map
+- Mobile map autocomplete suggestions now open directly below the search field instead of below the map style button
+- The floating mobile filter rail on the stations page once again shows search autocomplete suggestions
+- Text fields on touch devices no longer trigger Safari's automatic page zoom when focused
 
 # 2026-08-07
 
