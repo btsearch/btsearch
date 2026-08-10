@@ -122,6 +122,7 @@ function MapViewInner() {
   } = useMapPopup({
     map,
     showAddToList,
+    allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     detailsFilters: filters,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,

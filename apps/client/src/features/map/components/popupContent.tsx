@@ -29,6 +29,10 @@ type PopupStationListProps = {
 
 const TECHNOLOGY_BAND_PATTERN = /^(.+?)(\d+)$/;
 
+function getPopupOperatorGradient(color: string): string {
+  return `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)`;
+}
+
 function groupTechnologyBands(bands: readonly string[]): Map<string, string[]> {
   const technologies = new Map<string, string[]>();
 
@@ -49,7 +53,7 @@ function TechnologySummary({ bands, detail }: { bands: readonly string[]; detail
   if (technologies.size === 0 && detail === undefined) return null;
 
   return (
-    <div className="mt-1 pl-3.5 text-[10px] leading-4 text-muted-foreground">
+    <div className="mt-1 pl-3.5 text-[11px] leading-4 text-muted-foreground">
       {[...technologies].map(([technology, values], index) => (
         <span key={technology}>
           {index > 0 ? <span className="mx-1 text-muted-foreground/40">/</span> : null}
@@ -101,11 +105,12 @@ function PopupStationList({
         <button
           type="button"
           key={station.station_id}
-          className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/30 last:border-0"
+          className="w-full cursor-pointer border-b border-border/30 px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted/50"
           onClick={() => onOpenUkeStationDetails(station)}
+          style={{ backgroundImage: getPopupOperatorGradient(color) }}
         >
           <div className="flex items-center gap-1.5">
-            <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
+            <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
             <span className="font-medium text-xs">{operatorName}</span>
             <span className="text-[10px] text-foreground/70 font-mono">{station.station_id}</span>
           </div>
@@ -130,11 +135,12 @@ function PopupStationList({
         <div key={station.id} className="relative border-b border-border/30 last:border-0">
           <button
             type="button"
-            className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer"
+            className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
             onClick={() => onOpenStationDetails(station.id)}
+            style={{ backgroundImage: getPopupOperatorGradient(color) }}
           >
             <div className="flex items-center gap-1.5">
-              <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
+              <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
               <span className="font-medium text-xs">{operatorName}</span>
               <span className="text-[11px] text-foreground/70">{stationId}</span>
               {station.extra_identificators?.networks_id && (
@@ -183,8 +189,8 @@ function StationSkeleton() {
 function TechnologySummarySkeleton() {
   return (
     <div className="mt-1.5 flex gap-2 pl-3.5">
-      <Skeleton className="h-2.5 w-8 rounded-sm" />
-      <Skeleton className="h-2.5 w-24 rounded-sm" />
+      <Skeleton className="h-[11px] w-8 rounded-sm" />
+      <Skeleton className="h-[11px] w-24 rounded-sm" />
     </div>
   );
 }

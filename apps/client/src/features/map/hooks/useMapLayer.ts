@@ -447,13 +447,11 @@ export function useMapLayer({
     const addedImages = addedImagesRef.current;
 
     return () => {
-      const isMapValid = map.getStyle() !== undefined;
+      map.off("styledata", ensureLayersExist);
+      unsubscribe();
+      detachLayerListeners();
 
-      if (isMapValid) {
-        map.off("styledata", ensureLayersExist);
-        unsubscribe();
-        detachLayerListeners();
-
+      if (map.getStyle() !== undefined) {
         try {
           for (const layerId of LAYER_IDS) {
             if (map.getLayer(layerId)) map.removeLayer(layerId);

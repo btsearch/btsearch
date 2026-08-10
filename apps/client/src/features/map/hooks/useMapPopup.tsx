@@ -14,6 +14,7 @@ import { toLocationInfo } from "../utils";
 type UseMapPopupArgs = {
   map: MaplibreMap | null;
   showAddToList?: boolean;
+  allowMultipleMapPopups: boolean;
   detailsFilters: StationFilters;
   filterStations?: (stations: StationWithoutCells[]) => StationWithoutCells[];
   onOpenStationDetails: (id: number, source: StationSource) => boolean | void;
@@ -103,6 +104,7 @@ type UseMapPopupReturn = {
 export function useMapPopup({
   map,
   showAddToList,
+  allowMultipleMapPopups,
   detailsFilters,
   filterStations,
   onOpenStationDetails,
@@ -155,6 +157,13 @@ export function useMapPopup({
 
       const popupLocation = { locationId: location.id, source };
       const popupKey = getMapPopupKey(popupLocation);
+      if (!allowMultipleMapPopups) {
+        for (const [key, entry] of popupEntriesRef.current) {
+          if (key === popupKey) continue;
+          entry.popup.remove();
+        }
+      }
+
       const existingEntry = popupEntriesRef.current.get(popupKey);
       if (existingEntry) {
         Object.assign(existingEntry, { location, stations, ukeStations, source });
@@ -197,7 +206,7 @@ export function useMapPopup({
 
       popup.addTo(map);
     },
-    [map, renderEntry, onClose],
+    [map, allowMultipleMapPopups, renderEntry, onClose],
   );
 
   const closePopups = useCallback((shouldClose: (location: MapPopupLocation) => boolean) => {

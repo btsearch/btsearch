@@ -35,6 +35,7 @@ export interface UserPreferences {
   mapStationsLimit: number;
   mapRadiolinesLimit: number;
   showMapHoverTooltip: boolean;
+  allowMultipleMapPopups: boolean;
   mapPointStyle: MapPointStyle;
   mapRightClickMeasure: boolean;
   mapMeasureCircle: boolean;
@@ -91,6 +92,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   mapStationsLimit: 1000,
   mapRadiolinesLimit: 500,
   showMapHoverTooltip: false,
+  allowMultipleMapPopups: true,
   mapPointStyle: "dots",
   mapRightClickMeasure: false,
   mapMeasureCircle: false,
@@ -115,6 +117,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 const MOBILE_DEFAULT_PREFERENCES: UserPreferences = {
   ...DEFAULT_PREFERENCES,
   navMode: "floating",
+  allowMultipleMapPopups: false,
 };
 
 const listeners = new Set<() => void>();

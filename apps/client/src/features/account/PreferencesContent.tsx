@@ -222,6 +222,17 @@ const GROUPS: PreferenceGroup[] = [
         ],
       },
       {
+        items: [
+          {
+            type: "checkbox",
+            key: "allowMultipleMapPopups",
+            labelKey: "preferences.allowMultipleMapPopups",
+            hintKey: "preferences.allowMultipleMapPopupsHint",
+            itemLabelKey: "preferences.allowMultipleMapPopupsLabel",
+          },
+        ],
+      },
+      {
         desktopOnly: true,
         items: [
           {

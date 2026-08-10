@@ -413,6 +413,8 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const internalUpdateRef = useRef(false);
+  const [mapGeneration, setMapGeneration] = useState(0);
+  const restoreViewportRef = useRef<MapViewport | null>(null);
   const resolvedTheme = useResolvedTheme(themeProp);
   const { preferences } = usePreferences();
 
@@ -471,6 +473,9 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
     const initialStyle = effectiveThemeRef.current === "dark" ? initStyles.dark : initStyles.light;
     currentStyleRef.current = initialStyle;
 
+    const restoredViewport = restoreViewportRef.current;
+    restoreViewportRef.current = null;
+
     const map = new MaplibreMap({
       container: containerRef.current,
       style: initialStyle,
@@ -480,6 +485,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       },
       ...propsRef.current,
       ...viewport,
+      ...restoredViewport,
     });
 
     // MapLibre sets _style = null mid setStyle(). Return undefined from style accessors
@@ -548,21 +554,57 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       onViewportChangeRef.current?.(getViewport(map));
     };
 
+    let contextLost = false;
+    let contextRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const recreateMapIfStillLost = () => {
+      if (!contextLost) return;
+      if (document.visibilityState === "hidden") return;
+      restoreViewportRef.current = getViewport(map);
+      setMapGeneration((generation) => generation + 1);
+    };
+
+    const handleContextLost = () => {
+      contextLost = true;
+      dispatchMap({ type: "SET_STYLE_LOADED", value: false });
+      if (contextRestoreTimer) clearTimeout(contextRestoreTimer);
+      contextRestoreTimer = setTimeout(recreateMapIfStillLost, 3000);
+    };
+
+    const handleContextRestored = () => {
+      contextLost = false;
+      if (contextRestoreTimer) {
+        clearTimeout(contextRestoreTimer);
+        contextRestoreTimer = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") recreateMapIfStillLost();
+    };
+
     map.on("load", loadHandler);
     map.on("styledata", styleDataHandler);
     map.on("move", handleMove);
+    map.on("webglcontextlost", handleContextLost);
+    map.on("webglcontextrestored", handleContextRestored);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     dispatchMap({ type: "INIT", map });
 
     return () => {
       clearStyleTimeout();
+      if (contextRestoreTimer) clearTimeout(contextRestoreTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       map.off("load", loadHandler);
       map.off("styledata", styleDataHandler);
       map.off("move", handleMove);
+      map.off("webglcontextlost", handleContextLost);
+      map.off("webglcontextrestored", handleContextRestored);
       map.remove();
       dispatchMap({ type: "TEARDOWN" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projection, clearStyleTimeout]);
+  }, [projection, clearStyleTimeout, mapGeneration]);
 
   useEffect(() => {
     if (!mapInstance || !isControlled || !viewport) return;

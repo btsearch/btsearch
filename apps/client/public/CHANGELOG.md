@@ -1,6 +1,17 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-10
+
+### 🚀 Enhancements
+
+- Map popup behavior can now be configured to keep existing location popups open or close them when opening another
+
+### 🩹 Fixes
+
+- The map no longer goes permanently blank on mobile devices when the browser reclaims graphics memory
+- Hover tooltips are no longer enabled on phones and tablets that have a mouse or stylus paired, which could leave stale hover handlers on the map
+
 # 2026-08-07
 
 ### 🚀 Enhancements
@@ -8,6 +19,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Multiple location popups can now stay open on the map at the same time
 - Pressing Escape now closes the map popup you are focused on
 - Technology bands in station and UKE map popups now use compact inline groups instead of pills
+- Station rows in map popups now use subtle operator-colored backgrounds alongside their color markers
 
 ### 🩹 Fixes
 

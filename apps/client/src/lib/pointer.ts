@@ -1,3 +1,3 @@
 export function hasReliableHoverPointer() {
-  return window.matchMedia("(any-hover: hover) and (any-pointer: fine)").matches;
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
