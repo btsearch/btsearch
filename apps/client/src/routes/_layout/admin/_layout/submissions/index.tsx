@@ -12,7 +12,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -46,12 +46,13 @@ import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { formatShortDate, resolveAvatarUrl } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 
 const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
 
-const columnHelper = createColumnHelper<SubmissionListItem>();
+const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListItem>();
 
 function loadStoredNumberArray(key: string) {
   try {
@@ -435,105 +436,108 @@ function AdminSubmissionsListPage() {
   const total = data?.totalCount ?? 0;
 
   const columns = useMemo(
-    () => [
-      columnHelper.accessor("id", {
-        header: t("common:labels.id"),
-        size: 80,
-        cell: ({ getValue }) => {
-          const id = getValue();
-          const lastPart = id.slice(-8);
-          return <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors">{lastPart}</span>;
-        },
-      }),
-      columnHelper.accessor("type", {
-        header: t("common:labels.type"),
-        size: 100,
-        cell: ({ getValue }) => {
-          const type = getValue();
-          const typeCfg = SUBMISSION_TYPE[type];
-          return (
-            <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase border", typeCfg.badgeClass)}>
-              <span className={cn("size-1.5 rounded-[1px]", typeCfg.dotClass)} />
-              {t(`common:submissionType.${type}`)}
-            </span>
-          );
-        },
-      }),
-      columnHelper.accessor("status", {
-        header: t("common:labels.status"),
-        size: 120,
-        cell: ({ getValue }) => {
-          const status = getValue();
-          const statusCfg = SUBMISSION_STATUS[status];
-          return (
-            <div className={cn("flex items-center gap-1.5 w-fit px-2 py-1 rounded-md", statusCfg.bgClass)}>
-              <HugeiconsIcon icon={statusCfg.icon} className={cn("size-3.5", statusCfg.iconClass)} />
-              <span className="text-xs font-medium capitalize">{t(`common:status.${status}`)}</span>
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor("station", {
-        header: t("common:labels.station"),
-        cell: ({ getValue, row }) => {
-          const station = getValue();
-          const proposedStation = row.original.proposedStation;
-          const fallback = t("common:labels.newStation");
-          if (station)
-            return <StationIdentityCell stationId={station.station_id} operator={getOperatorById(station.operator_id)} fallback={fallback} />;
-          return (
-            <StationIdentityCell
-              stationId={proposedStation?.station_id ?? null}
-              operator={getOperatorById(proposedStation?.operator_id)}
-              fallback={fallback}
-            />
-          );
-        },
-      }),
-      columnHelper.accessor("submitter", {
-        header: t("detail.submitter"),
-        cell: ({ getValue }) => {
-          const submitter = getValue();
-          return (
-            <div className="flex items-center gap-2 min-w-0">
-              <Avatar className="size-6 shrink-0">
-                <AvatarImage src={resolveAvatarUrl(submitter.image)} />
-                <AvatarFallback className="text-[10px]">{submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{submitter.name}</div>
-                {submitter.username && <div className="truncate text-xs text-muted-foreground">@{submitter.username}</div>}
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("id", {
+          header: t("common:labels.id"),
+          size: 80,
+          cell: ({ getValue }) => {
+            const id = getValue();
+            const lastPart = id.slice(-8);
+            return <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors">{lastPart}</span>;
+          },
+        }),
+        columnHelper.accessor("type", {
+          header: t("common:labels.type"),
+          size: 100,
+          cell: ({ getValue }) => {
+            const type = getValue();
+            const typeCfg = SUBMISSION_TYPE[type];
+            return (
+              <span
+                className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase border", typeCfg.badgeClass)}
+              >
+                <span className={cn("size-1.5 rounded-[1px]", typeCfg.dotClass)} />
+                {t(`common:submissionType.${type}`)}
+              </span>
+            );
+          },
+        }),
+        columnHelper.accessor("status", {
+          header: t("common:labels.status"),
+          size: 120,
+          cell: ({ getValue }) => {
+            const status = getValue();
+            const statusCfg = SUBMISSION_STATUS[status];
+            return (
+              <div className={cn("flex items-center gap-1.5 w-fit px-2 py-1 rounded-md", statusCfg.bgClass)}>
+                <HugeiconsIcon icon={statusCfg.icon} className={cn("size-3.5", statusCfg.iconClass)} />
+                <span className="text-xs font-medium capitalize">{t(`common:status.${status}`)}</span>
               </div>
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor("cells", {
-        header: t("table.cells"),
-        size: 120,
-        cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue().length}</span>,
-      }),
-      columnHelper.accessor("createdAt", {
-        header: () => <SortableHeader label={t("common:labels.submitted")} sort={sortOrder} onToggle={handleSortToggle} />,
-        size: 120,
-        cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
-      }),
-      columnHelper.accessor("reviewed_at", {
-        header: t("common:labels.reviewed"),
-        size: 120,
-        cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
-      }),
-    ],
+            );
+          },
+        }),
+        columnHelper.accessor("station", {
+          header: t("common:labels.station"),
+          cell: ({ getValue, row }) => {
+            const station = getValue();
+            const proposedStation = row.original.proposedStation;
+            const fallback = t("common:labels.newStation");
+            if (station)
+              return <StationIdentityCell stationId={station.station_id} operator={getOperatorById(station.operator_id)} fallback={fallback} />;
+            return (
+              <StationIdentityCell
+                stationId={proposedStation?.station_id ?? null}
+                operator={getOperatorById(proposedStation?.operator_id)}
+                fallback={fallback}
+              />
+            );
+          },
+        }),
+        columnHelper.accessor("submitter", {
+          header: t("detail.submitter"),
+          cell: ({ getValue }) => {
+            const submitter = getValue();
+            return (
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar className="size-6 shrink-0">
+                  <AvatarImage src={resolveAvatarUrl(submitter.image)} />
+                  <AvatarFallback className="text-[10px]">{submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{submitter.name}</div>
+                  {submitter.username && <div className="truncate text-xs text-muted-foreground">@{submitter.username}</div>}
+                </div>
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor("cells", {
+          header: t("table.cells"),
+          size: 120,
+          cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue().length}</span>,
+        }),
+        columnHelper.accessor("createdAt", {
+          header: () => <SortableHeader label={t("common:labels.submitted")} sort={sortOrder} onToggle={handleSortToggle} />,
+          size: 120,
+          cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
+        }),
+        columnHelper.accessor("reviewed_at", {
+          header: t("common:labels.reviewed"),
+          size: 120,
+          cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
+        }),
+      ]),
     [t, i18n.language, sortOrder, handleSortToggle, getOperatorById],
   );
 
   const handleRowClick = useCallback((submission: SubmissionListItem) => navigate({ to: `/admin/submissions/${submission.id}` }), [navigate]);
   const getRowHref = useCallback((submission: SubmissionListItem) => `/admin/submissions/${submission.id}`, []);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: submissions,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
     state: { pagination },

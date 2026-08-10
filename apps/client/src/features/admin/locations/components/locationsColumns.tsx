@@ -6,6 +6,7 @@ import type { TFunction } from "i18next";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { LocationSortBy, LocationSortDirection, LocationWithStations } from "@/types/station";
 
@@ -44,7 +45,14 @@ type CreateColumnsOptions = {
   onSort: (column: LocationSortBy) => void;
 };
 
-export function createLocationsColumns({ t, tCommon, locale, sort, sortBy, onSort }: CreateColumnsOptions): ColumnDef<LocationWithStations>[] {
+export function createLocationsColumns({
+  t,
+  tCommon,
+  locale,
+  sort,
+  sortBy,
+  onSort,
+}: CreateColumnsOptions): ColumnDef<AppTableFeatures, LocationWithStations>[] {
   return [
     {
       accessorKey: "id",

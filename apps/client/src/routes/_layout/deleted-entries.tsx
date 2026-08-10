@@ -2,7 +2,7 @@ import { AlertCircleIcon, Cancel01Icon, Search01Icon, Sorting05Icon } from "@hug
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -16,6 +16,7 @@ import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/d
 import type { DeletedEntry } from "@/features/deleted-entries/types";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 
 function formatDeletedDate(dateString: string, locale: string): string {
   return new Date(dateString).toLocaleDateString(locale, {
@@ -44,7 +45,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 
 const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
 
-const columnHelper = createColumnHelper<DeletedEntry>();
+const columnHelper = createColumnHelper<AppTableFeatures, DeletedEntry>();
 
 type FilterState = {
   sourceTable: string;
@@ -145,104 +146,105 @@ function DeletedEntriesPage() {
   const total = data?.totalCount ?? 0;
 
   const columns = useMemo(
-    () => [
-      columnHelper.accessor("deleted_at", {
-        header: () => (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
-            onClick={() => {
-              dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
-              resetPage();
-            }}
-          >
-            {t("deletedEntries.columns.deletedAt")}
-            <HugeiconsIcon
-              icon={Sorting05Icon}
-              className="size-3.5 text-foreground"
-              style={sort === "asc" ? { transform: "scaleY(-1)" } : undefined}
-            />
-          </button>
-        ),
-        size: 160,
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatDeletedDate(getValue(), i18n.language)}</span>
-        ),
-      }),
-      columnHelper.display({
-        id: "createdAt",
-        header: t("deletedEntries.columns.createdAt"),
-        size: 160,
-        cell: ({ row }) => {
-          const createdAt = row.original.data.createdAt as string | undefined;
-          return createdAt ? (
-            <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatDeletedDate(createdAt, i18n.language)}</span>
-          ) : (
-            <span className="text-muted-foreground text-xs">-</span>
-          );
-        },
-      }),
-      columnHelper.accessor("source_table", {
-        header: t("deletedEntries.columns.sourceTable"),
-        size: 140,
-        cell: ({ getValue }) => <span className="text-xs font-medium">{SOURCE_TABLE_LABELS[getValue()] ?? getValue()}</span>,
-      }),
-      columnHelper.accessor("source_type", {
-        header: t("deletedEntries.columns.sourceType"),
-        size: 140,
-        cell: ({ getValue }) => <UKESourceBadge source={getValue()} />,
-      }),
-      columnHelper.accessor("source_id", {
-        header: t("deletedEntries.columns.sourceId"),
-        size: 100,
-        cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">#{getValue()}</span>,
-      }),
-      columnHelper.accessor("data", {
-        header: t("deletedEntries.columns.identifier"),
-        size: 200,
-        cell: ({ getValue, row }) => {
-          const rowData = getValue();
-          const isPermits = row.original.source_table === "uke_permits";
-          const label = isPermits ? ((rowData.station_id as string) ?? (rowData.decision_number as string)) : (rowData.permit_number as string);
-          const decisionNumber = isPermits ? (rowData.decision_number as string | undefined) : undefined;
-          return (
-            <div className="flex flex-col gap-0.5 max-w-48">
-              {label ? (
-                <span className="text-xs truncate" title={String(label)}>
-                  {String(label)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-xs">-</span>
-              )}
-              {decisionNumber && label !== decisionNumber && (
-                <span className="text-[10px] text-muted-foreground truncate" title={decisionNumber}>
-                  {decisionNumber}
-                </span>
-              )}
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor("import_id", {
-        header: t("deletedEntries.columns.importId"),
-        size: 100,
-        cell: ({ getValue }) => {
-          const importId = getValue();
-          return importId !== null ? (
-            <span className="text-xs font-mono text-muted-foreground">#{importId}</span>
-          ) : (
-            <span className="text-muted-foreground text-xs">-</span>
-          );
-        },
-      }),
-    ],
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("deleted_at", {
+          header: () => (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
+              onClick={() => {
+                dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
+                resetPage();
+              }}
+            >
+              {t("deletedEntries.columns.deletedAt")}
+              <HugeiconsIcon
+                icon={Sorting05Icon}
+                className="size-3.5 text-foreground"
+                style={sort === "asc" ? { transform: "scaleY(-1)" } : undefined}
+              />
+            </button>
+          ),
+          size: 160,
+          cell: ({ getValue }) => (
+            <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatDeletedDate(getValue(), i18n.language)}</span>
+          ),
+        }),
+        columnHelper.display({
+          id: "createdAt",
+          header: t("deletedEntries.columns.createdAt"),
+          size: 160,
+          cell: ({ row }) => {
+            const createdAt = row.original.data.createdAt as string | undefined;
+            return createdAt ? (
+              <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatDeletedDate(createdAt, i18n.language)}</span>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            );
+          },
+        }),
+        columnHelper.accessor("source_table", {
+          header: t("deletedEntries.columns.sourceTable"),
+          size: 140,
+          cell: ({ getValue }) => <span className="text-xs font-medium">{SOURCE_TABLE_LABELS[getValue()] ?? getValue()}</span>,
+        }),
+        columnHelper.accessor("source_type", {
+          header: t("deletedEntries.columns.sourceType"),
+          size: 140,
+          cell: ({ getValue }) => <UKESourceBadge source={getValue()} />,
+        }),
+        columnHelper.accessor("source_id", {
+          header: t("deletedEntries.columns.sourceId"),
+          size: 100,
+          cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">#{getValue()}</span>,
+        }),
+        columnHelper.accessor("data", {
+          header: t("deletedEntries.columns.identifier"),
+          size: 200,
+          cell: ({ getValue, row }) => {
+            const rowData = getValue();
+            const isPermits = row.original.source_table === "uke_permits";
+            const label = isPermits ? ((rowData.station_id as string) ?? (rowData.decision_number as string)) : (rowData.permit_number as string);
+            const decisionNumber = isPermits ? (rowData.decision_number as string | undefined) : undefined;
+            return (
+              <div className="flex flex-col gap-0.5 max-w-48">
+                {label ? (
+                  <span className="text-xs truncate" title={String(label)}>
+                    {String(label)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-xs">-</span>
+                )}
+                {decisionNumber && label !== decisionNumber && (
+                  <span className="text-[10px] text-muted-foreground truncate" title={decisionNumber}>
+                    {decisionNumber}
+                  </span>
+                )}
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor("import_id", {
+          header: t("deletedEntries.columns.importId"),
+          size: 100,
+          cell: ({ getValue }) => {
+            const importId = getValue();
+            return importId !== null ? (
+              <span className="text-xs font-mono text-muted-foreground">#{importId}</span>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            );
+          },
+        }),
+      ]),
     [t, sort, i18n.language, resetPage],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: entries,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
     state: { pagination },

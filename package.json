@@ -11,11 +11,11 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "tsx": "4.23.5"
+    "tsx": "4.23.11"
   },
   "devDependencies": {
-    "oxfmt": "0.61.0",
-    "oxlint": "1.76.0",
+    "oxfmt": "0.62.0",
+    "oxlint": "1.77.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2"
   },

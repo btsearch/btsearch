@@ -37,15 +37,15 @@
   "dependencies": {
     "@openbts/drizzle": "workspace:*",
     "@openbts/shared": "workspace:*",
-    "@turf/boolean-point-in-polygon": "7.3.5",
-    "@turf/helpers": "7.3.5",
+    "@turf/boolean-point-in-polygon": "7.4.0",
+    "@turf/helpers": "7.4.0",
     "cheerio": "1.2.0",
     "dotenv": "17.4.2",
     "drizzle-orm": "1.0.0-rc.3",
     "fflate": "0.8.3",
     "geojson-rbush": "~3.2.0",
     "postgres": "3.4.9",
-    "tsx": "4.23.5",
+    "tsx": "4.23.11",
     "xlsx": "0.18.5"
   },
   "devDependencies": {

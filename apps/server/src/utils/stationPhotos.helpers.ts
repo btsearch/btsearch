@@ -61,6 +61,7 @@ export async function migrateStationPhotosToLocation(
     migratedPhotoIds.set(selection.location_photo_id, targetPhotoId);
   };
 
+  /* eslint-disable no-await-in-loop */
   for (const selection of movableSelections) {
     const photo = selection.locationPhoto;
     const existingTargetId = targetPhotoIdByAttachment.get(photo.attachment_id);
@@ -92,6 +93,7 @@ export async function migrateStationPhotosToLocation(
     photoIdsToMove.push(photo.id);
     targetPhotoIdByAttachment.set(photo.attachment_id, photo.id);
   }
+  /* eslint-enable no-await-in-loop */
 
   for (const photo of unselectedOldPhotos) {
     const existingTargetId = targetPhotoIdByAttachment.get(photo.attachment_id);

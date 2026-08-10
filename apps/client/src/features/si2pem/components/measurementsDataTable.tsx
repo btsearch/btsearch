@@ -1,7 +1,7 @@
 import { MapsIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getOperatorColor } from "@openbts/shared/operatorUtils";
-import { type ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { type ColumnDef, useTable } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useMemo } from "react";
 
@@ -10,6 +10,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import type { PaginationState } from "@/hooks/useTablePageSize";
 import { formatShortDate } from "@/lib/format";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 
 import type { PlannedPEMStation } from "../api";
 
@@ -45,8 +46,8 @@ export function MeasurementsDataTable({
   tCommon,
   locale,
 }: Props) {
-  const columns = useMemo<ColumnDef<PlannedPEMStation>[]>(() => {
-    const measurementDateColumns: ColumnDef<PlannedPEMStation>[] =
+  const columns = useMemo<ColumnDef<AppTableFeatures, PlannedPEMStation>[]>(() => {
+    const measurementDateColumns: ColumnDef<AppTableFeatures, PlannedPEMStation>[] =
       status === "INACTIVE"
         ? [
             {
@@ -173,10 +174,10 @@ export function MeasurementsDataTable({
     ];
   }, [t, tCommon, locale, status]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(totalItems / pagination.pageSize),
     state: { pagination },

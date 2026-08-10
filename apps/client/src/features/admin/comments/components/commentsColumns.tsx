@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 
 import type { AdminComment } from "../types";
 
@@ -37,7 +38,7 @@ export function createCommentsColumns({
   onDelete,
   onApprove,
   onOpenLightbox,
-}: CreateColumnsOptions): ColumnDef<AdminComment>[] {
+}: CreateColumnsOptions): ColumnDef<AppTableFeatures, AdminComment>[] {
   const sortIcon = (col: "createdAt" | "id") => (
     <HugeiconsIcon
       icon={Sorting05Icon}

@@ -6,6 +6,7 @@ import type { TFunction } from "i18next";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPermitBands } from "@/features/map/utils";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 import type { UkeStation } from "@/types/station";
 
 type CreateColumnsOptions = {
@@ -13,7 +14,7 @@ type CreateColumnsOptions = {
   tCommon: TFunction;
 };
 
-export function createUnassignedPermitsColumns({ t, tCommon }: CreateColumnsOptions): ColumnDef<UkeStation>[] {
+export function createUnassignedPermitsColumns({ t, tCommon }: CreateColumnsOptions): ColumnDef<AppTableFeatures, UkeStation>[] {
   return [
     {
       accessorKey: "station_id",

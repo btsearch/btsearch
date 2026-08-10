@@ -199,15 +199,13 @@ export function SubmissionPhotosPanel({
 
   const uploadLightboxItems: UploadLightboxItem[] = [
     ...submissionPhotos.map((photo): UploadLightboxItem => ({ type: "submission", photo })),
-    ...photos.map(
-      (file, index): UploadLightboxItem => ({
-        type: "local",
-        url: previewUrls[index] ?? "",
-        name: file.name,
-        note: notes[index] ?? "",
-        takenAt: takenAts[index] ?? null,
-      }),
-    ),
+    ...photos.map((file, index): UploadLightboxItem => ({
+      type: "local",
+      url: previewUrls[index] ?? "",
+      name: file.name,
+      note: notes[index] ?? "",
+      takenAt: takenAts[index] ?? null,
+    })),
   ];
 
   const activeUploadLightbox = uploadLightboxIndex !== null ? (uploadLightboxItems[uploadLightboxIndex] ?? null) : null;

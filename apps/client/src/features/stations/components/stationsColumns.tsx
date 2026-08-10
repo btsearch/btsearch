@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { RAT_ORDER } from "@/features/map/constants";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy, StationSortDirection } from "@/types/station";
 
@@ -55,8 +56,15 @@ type CreateColumnsOptions = {
   onSort: (column: StationSortBy) => void;
 };
 
-export function createStationsColumns({ t, locale, isSearchActive = false, sort, sortBy, onSort }: CreateColumnsOptions): ColumnDef<Station>[] {
-  const columns: ColumnDef<Station>[] = [
+export function createStationsColumns({
+  t,
+  locale,
+  isSearchActive = false,
+  sort,
+  sortBy,
+  onSort,
+}: CreateColumnsOptions): ColumnDef<AppTableFeatures, Station>[] {
+  const columns: ColumnDef<AppTableFeatures, Station>[] = [
     {
       accessorKey: "station_id",
       header: () => <SortableHeader label={t("labels.stationId")} column="station_id" sort={sort} sortBy={sortBy} onSort={onSort} />,
@@ -133,7 +141,7 @@ export function createStationsColumns({ t, locale, isSearchActive = false, sort,
               );
             },
           },
-        ] as ColumnDef<Station>[])),
+        ] as ColumnDef<AppTableFeatures, Station>[])),
     {
       id: "location",
       header: t("labels.location"),

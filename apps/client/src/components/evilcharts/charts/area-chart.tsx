@@ -25,7 +25,6 @@ import {
   axisValueToPercentFormatter,
   generateEasedGradientStops,
   getColorsCount,
-  getLoadingData,
   useLoadingData,
 } from "@/components/evilcharts/ui/chart";
 import { ChartDot, type DotVariant } from "@/components/evilcharts/ui/dot";

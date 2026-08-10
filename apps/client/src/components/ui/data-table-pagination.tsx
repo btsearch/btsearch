@@ -1,28 +1,29 @@
 import { ArrowLeft01Icon, ArrowLeftDoubleIcon, ArrowRight01Icon, ArrowRightDoubleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Table } from "@tanstack/react-table";
+import type { ReactTable, RowData } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import i18n from "@/i18n/config";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 
-interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+interface DataTablePaginationProps<TData extends RowData> {
+  table: ReactTable<AppTableFeatures, TData>;
   pageSizeOptions?: number[];
   totalItems?: number;
   showRowsPerPage?: boolean;
 }
 
-export function DataTablePagination<TData>({
+export function DataTablePagination<TData extends RowData>({
   table,
   pageSizeOptions = [10, 20, 30, 50, 100],
   totalItems,
   showRowsPerPage = true,
 }: DataTablePaginationProps<TData>) {
   const { t } = useTranslation("common");
-  const pageIndex = table.getState().pagination.pageIndex;
-  const pageSize = table.getState().pagination.pageSize;
+  const pageIndex = table.state.pagination.pageIndex;
+  const pageSize = table.state.pagination.pageSize;
   const pageCount = table.getPageCount();
 
   const startRow = pageIndex * pageSize + 1;

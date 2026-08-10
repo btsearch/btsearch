@@ -392,7 +392,7 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
       } catch (error) {
         if (error instanceof ErrorResponse) throw error;
         throw new ErrorResponse("FAILED_TO_CREATE", {
-          message: `Failed to create proposed ${String(cell.rat ?? "unknown")} cell: ${error instanceof Error ? error.message : "Unknown error"}`,
+          message: `Failed to create proposed ${typeof cell.rat === "string" ? cell.rat : "unknown"} cell: ${error instanceof Error ? error.message : "Unknown error"}`,
           cause: error,
         });
       }

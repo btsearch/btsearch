@@ -210,7 +210,7 @@ export function useMapPopup({
   );
 
   const closePopups = useCallback((shouldClose: (location: MapPopupLocation) => boolean) => {
-    for (const entry of [...popupEntriesRef.current.values()]) {
+    for (const entry of popupEntriesRef.current.values()) {
       if (shouldClose({ locationId: entry.location.id, source: entry.source })) entry.popup.remove();
     }
   }, []);

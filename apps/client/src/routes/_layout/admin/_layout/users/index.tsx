@@ -2,7 +2,7 @@ import { Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -17,61 +17,63 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { resolveAvatarUrl } from "@/lib/format";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 36, paginationHeight: 40 };
 const EMPTY_USERS: AdminUser[] = [];
 
-const columnHelper = createColumnHelper<AdminUser>();
+const columnHelper = createColumnHelper<AppTableFeatures, AdminUser>();
 
 function useColumns() {
   const { t } = useTranslation("admin");
   return useMemo(
-    () => [
-      columnHelper.accessor("name", {
-        header: t("users.table.name"),
-        size: 250,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <Avatar size="sm">
-              {row.original.image && <AvatarImage src={resolveAvatarUrl(row.original.image)} />}
-              <AvatarFallback>{row.original.name?.charAt(0)?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="truncate font-medium">{row.original.name}</div>
-              {row.original.username && <div className="truncate text-xs text-muted-foreground">@{row.original.username}</div>}
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("name", {
+          header: t("users.table.name"),
+          size: 250,
+          cell: ({ row }) => (
+            <div className="flex items-center gap-3">
+              <Avatar size="sm">
+                {row.original.image && <AvatarImage src={resolveAvatarUrl(row.original.image)} />}
+                <AvatarFallback>{row.original.name?.charAt(0)?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="truncate font-medium">{row.original.name}</div>
+                {row.original.username && <div className="truncate text-xs text-muted-foreground">@{row.original.username}</div>}
+              </div>
             </div>
-          </div>
-        ),
-      }),
-      columnHelper.accessor("email", {
-        header: t("users.table.email"),
-        size: 250,
-        cell: ({ getValue }) => <span className="truncate">{getValue()}</span>,
-      }),
-      columnHelper.accessor("role", {
-        header: t("users.table.role"),
-        size: 120,
-        cell: ({ getValue }) => {
-          const role = getValue() ?? "user";
-          return <Badge variant={role === "admin" ? "default" : "secondary"}>{role}</Badge>;
-        },
-      }),
-      columnHelper.accessor("banned", {
-        header: t("users.table.status"),
-        size: 120,
-        cell: ({ getValue }) => {
-          const banned = getValue();
-          if (banned) return <Badge variant="destructive">Banned</Badge>;
-          return <Badge variant="secondary">Active</Badge>;
-        },
-      }),
-      columnHelper.accessor("createdAt", {
-        header: t("users.table.created"),
-        size: 150,
-        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
-      }),
-    ],
+          ),
+        }),
+        columnHelper.accessor("email", {
+          header: t("users.table.email"),
+          size: 250,
+          cell: ({ getValue }) => <span className="truncate">{getValue()}</span>,
+        }),
+        columnHelper.accessor("role", {
+          header: t("users.table.role"),
+          size: 120,
+          cell: ({ getValue }) => {
+            const role = getValue() ?? "user";
+            return <Badge variant={role === "admin" ? "default" : "secondary"}>{role}</Badge>;
+          },
+        }),
+        columnHelper.accessor("banned", {
+          header: t("users.table.status"),
+          size: 120,
+          cell: ({ getValue }) => {
+            const banned = getValue();
+            if (banned) return <Badge variant="destructive">Banned</Badge>;
+            return <Badge variant="secondary">Active</Badge>;
+          },
+        }),
+        columnHelper.accessor("createdAt", {
+          header: t("users.table.created"),
+          size: 150,
+          cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
+        }),
+      ]),
     [t],
   );
 }
@@ -111,10 +113,10 @@ function AdminUsersPage() {
   const users = (data?.data as AdminUser[]) ?? EMPTY_USERS;
   const total = data?.total ?? 0;
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: users,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
     state: { pagination },

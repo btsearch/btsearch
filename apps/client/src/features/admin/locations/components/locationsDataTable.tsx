@@ -1,10 +1,11 @@
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useTablePagination } from "@/hooks/useTablePageSize";
+import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { LocationSortBy, LocationSortDirection, LocationWithStations } from "@/types/station";
 
@@ -50,11 +51,10 @@ export function LocationsDataTable({
     [t, tCommon, i18n.language, sort, sortBy, onSort],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     state: { pagination },
     onPaginationChange: setPagination,
     autoResetPageIndex: false,

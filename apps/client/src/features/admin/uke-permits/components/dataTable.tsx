@@ -1,9 +1,10 @@
-import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { type Dispatch, type Ref, type SetStateAction, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { appTableFeatures } from "@/lib/tableFeatures";
 import type { UkeStation } from "@/types/station";
 
 import { createUnassignedPermitsColumns } from "./columns";
@@ -41,10 +42,10 @@ export function UnassignedPermitsDataTable({
 
   const columns = useMemo(() => createUnassignedPermitsColumns({ t, tCommon }), [t, tCommon]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(totalItems / pagination.pageSize),
     state: { pagination },

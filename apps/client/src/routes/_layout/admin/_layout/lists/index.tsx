@@ -2,7 +2,7 @@ import { AlertCircleIcon, Cancel01Icon, Delete02Icon, Globe02Icon, ListViewIcon,
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -32,11 +32,12 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { resolveAvatarUrl } from "@/lib/format";
 import { formatShortDate } from "@/lib/format";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
 
-const columnHelper = createColumnHelper<UserListSummary>();
+const columnHelper = createColumnHelper<AppTableFeatures, UserListSummary>();
 
 function ListsMobileFilterRail({ search, onSearchChange }: { search: string; onSearchChange: (value: string) => void }) {
   const { t } = useTranslation("common");
@@ -132,95 +133,96 @@ function AdminListsPage() {
   const handleDeleteClick = useCallback((list: UserListSummary) => setListToDelete(list), []);
 
   const columns = useMemo(
-    () => [
-      columnHelper.accessor("name", {
-        header: t("admin:lists.table.name"),
-        size: 240,
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.name}</div>
-            {row.original.description && <div className="truncate text-xs text-muted-foreground">{row.original.description}</div>}
-          </div>
-        ),
-      }),
-      columnHelper.accessor("createdBy", {
-        header: t("admin:lists.table.createdBy"),
-        size: 180,
-        cell: ({ getValue }) => {
-          const by = getValue();
-          if (!by?.name) return <span className="text-muted-foreground italic text-xs">-</span>;
-          return (
-            <div className="flex items-center gap-2 min-w-0">
-              <Avatar className="size-6 shrink-0">
-                <AvatarImage src={resolveAvatarUrl(by.image)} />
-                <AvatarFallback className="text-[10px]">{by.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{by.name}</div>
-                {by.username && <div className="truncate text-xs text-muted-foreground">@{by.username}</div>}
-              </div>
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("name", {
+          header: t("admin:lists.table.name"),
+          size: 240,
+          cell: ({ row }) => (
+            <div className="min-w-0">
+              <div className="truncate font-medium">{row.original.name}</div>
+              {row.original.description && <div className="truncate text-xs text-muted-foreground">{row.original.description}</div>}
             </div>
-          );
-        },
-      }),
-      columnHelper.accessor("is_public", {
-        header: t("admin:lists.table.visibility"),
-        size: 110,
-        cell: ({ getValue }) =>
-          getValue() ? (
-            <Badge variant="secondary" className="gap-1">
-              <HugeiconsIcon icon={Globe02Icon} className="size-3" />
-              {t("admin:lists.table.public")}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="gap-1">
-              <HugeiconsIcon icon={LockIcon} className="size-3" />
-              {t("admin:lists.table.private")}
-            </Badge>
           ),
-      }),
-      columnHelper.accessor("stationCount", {
-        header: t("admin:lists.table.stations"),
-        size: 100,
-        cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
-      }),
-      columnHelper.accessor("radiolineCount", {
-        header: t("admin:lists.table.radiolines"),
-        size: 110,
-        cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
-      }),
-      columnHelper.accessor("createdAt", {
-        header: t("common:labels.created"),
-        size: 130,
-        cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
-      }),
-      columnHelper.display({
-        id: "actions",
-        size: 56,
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteClick(row.original);
-            }}
-          >
-            <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-          </Button>
-        ),
-      }),
-    ],
+        }),
+        columnHelper.accessor("createdBy", {
+          header: t("admin:lists.table.createdBy"),
+          size: 180,
+          cell: ({ getValue }) => {
+            const by = getValue();
+            if (!by?.name) return <span className="text-muted-foreground italic text-xs">-</span>;
+            return (
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar className="size-6 shrink-0">
+                  <AvatarImage src={resolveAvatarUrl(by.image)} />
+                  <AvatarFallback className="text-[10px]">{by.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{by.name}</div>
+                  {by.username && <div className="truncate text-xs text-muted-foreground">@{by.username}</div>}
+                </div>
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor("is_public", {
+          header: t("admin:lists.table.visibility"),
+          size: 110,
+          cell: ({ getValue }) =>
+            getValue() ? (
+              <Badge variant="secondary" className="gap-1">
+                <HugeiconsIcon icon={Globe02Icon} className="size-3" />
+                {t("admin:lists.table.public")}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="gap-1">
+                <HugeiconsIcon icon={LockIcon} className="size-3" />
+                {t("admin:lists.table.private")}
+              </Badge>
+            ),
+        }),
+        columnHelper.accessor("stationCount", {
+          header: t("admin:lists.table.stations"),
+          size: 100,
+          cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
+        }),
+        columnHelper.accessor("radiolineCount", {
+          header: t("admin:lists.table.radiolines"),
+          size: 110,
+          cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
+        }),
+        columnHelper.accessor("createdAt", {
+          header: t("common:labels.created"),
+          size: 130,
+          cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums text-xs">{formatShortDate(getValue(), i18n.language)}</span>,
+        }),
+        columnHelper.display({
+          id: "actions",
+          size: 56,
+          cell: ({ row }) => (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(row.original);
+              }}
+            >
+              <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+            </Button>
+          ),
+        }),
+      ]),
     [t, i18n.language, handleDeleteClick],
   );
 
   const handleRowClick = useCallback((list: UserListSummary) => navigate({ to: `/lists/${list.uuid}` }), [navigate]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: lists,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(totalCount / pagination.pageSize),
     state: { pagination },

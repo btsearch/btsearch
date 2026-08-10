@@ -16,17 +16,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
-import {
-  type Row,
-  type RowSelectionState,
-  type SortingState,
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { type Row, type RowSelectionState, type SortingState, createColumnHelper, flexRender, useTable } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -57,6 +47,7 @@ import { authClient } from "@/lib/authClient";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/band-utils";
 import { formatDuration } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 
@@ -190,7 +181,7 @@ const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 const DESKTOP_TABLE_PAGINATION_CONFIG = { rowHeight: 60, headerHeight: 40, paginationHeight: 49 };
 const MOBILE_TABLE_PAGINATION_CONFIG = { rowHeight: 76, headerHeight: 40, paginationHeight: 49 };
 
-const columnHelper = createColumnHelper<AnalyzerRow>();
+const columnHelper = createColumnHelper<AppTableFeatures, AnalyzerRow>();
 
 function rowBg(result?: AnalyzerResult): string {
   if (!result) return "hover:bg-muted/50";
@@ -200,7 +191,7 @@ function rowBg(result?: AnalyzerResult): string {
   return "hover:bg-muted/50";
 }
 
-function isRowSelectable(row: Row<AnalyzerRow>): boolean {
+function isRowSelectable(row: Row<AppTableFeatures, AnalyzerRow>): boolean {
   const rawRow = row.original;
   if (!rawRow.result) return false;
   const { status, warnings, cell } = rawRow.result as AnalyzerResult;
@@ -604,311 +595,310 @@ function AnalyzerPage() {
   }, [parsedRows, results, statusFilter, ratFilter, warningFilter, operatorFilter, bandFilter]);
 
   const columns = useMemo(
-    () => [
-      columnHelper.display({
-        id: "select",
-        header: ({ table }) => {
-          const allSelected = table.getIsAllPageRowsSelected();
-          const checked = allSelected || table.getIsSomePageRowsSelected();
-          return <Checkbox checked={checked} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} />;
-        },
-        size: 40,
-        cell: ({ row }) => (
-          <Checkbox checked={row.getIsSelected()} disabled={!row.getCanSelect()} onCheckedChange={(value) => row.toggleSelected(!!value)} />
-        ),
-      }),
-      columnHelper.display({
-        id: "num",
-        header: "#",
-        size: 40,
-        cell: ({ row }) => <span className="text-muted-foreground text-xs tabular-nums">{row.original.index + 1}</span>,
-      }),
-      columnHelper.accessor((r) => r.parsedRow.rat, {
-        id: "rat",
-        header: "Standard",
-        size: 80,
-        cell: ({ getValue }) => <RatBadge rat={getValue()} showTechName />,
-      }),
-      columnHelper.accessor((r) => r, {
-        id: "band",
-        header: t("common:labels.band"),
-        size: 90,
-        cell: ({ getValue }) => {
-          const { parsedRow: row, result } = getValue();
-          let band: number | null = null;
-          if (row.rat === "LTE" && row.earfcn !== undefined) band = getBandFromEARFCN(row.earfcn);
-          else if (row.rat === "UMTS" && row.uarfcn !== undefined) band = getBandFromUARFCN(row.uarfcn);
-          const isNotConfirmed = isNotConfirmedCell(result);
-          if (band === null && !isNotConfirmed) return <span className="text-muted-foreground text-xs">-</span>;
-          const mhz = band !== null ? getBandMhz(band) : null;
-          return (
-            <div className="flex items-center gap-1">
-              {band !== null && (
-                <span className="text-xs font-mono">
-                  {mhz && <span className="font-semibold">{mhz}</span>}
-                  <span className="opacity-75">
-                    {mhz ? " " : ""}(b{band})
-                  </span>
-                </span>
-              )}
-              {isNotConfirmed && (
-                <Tooltip>
-                  <TooltipTrigger>
-                    <span className="inline-flex items-center justify-center size-5 rounded-md bg-destructive/10 text-destructive cursor-help">
-                      <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
+    () =>
+      columnHelper.columns([
+        columnHelper.display({
+          id: "select",
+          header: ({ table }) => {
+            const allSelected = table.getIsAllPageRowsSelected();
+            const checked = allSelected || table.getIsSomePageRowsSelected();
+            return <Checkbox checked={checked} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} />;
+          },
+          size: 40,
+          cell: ({ row }) => (
+            <Checkbox checked={row.getIsSelected()} disabled={!row.getCanSelect()} onCheckedChange={(value) => row.toggleSelected(!!value)} />
+          ),
+        }),
+        columnHelper.display({
+          id: "num",
+          header: "#",
+          size: 40,
+          cell: ({ row }) => <span className="text-muted-foreground text-xs tabular-nums">{row.original.index + 1}</span>,
+        }),
+        columnHelper.accessor((r) => r.parsedRow.rat, {
+          id: "rat",
+          header: "Standard",
+          size: 80,
+          cell: ({ getValue }) => <RatBadge rat={getValue()} showTechName />,
+        }),
+        columnHelper.accessor((r) => r, {
+          id: "band",
+          header: t("common:labels.band"),
+          size: 90,
+          cell: ({ getValue }) => {
+            const { parsedRow: row, result } = getValue();
+            let band: number | null = null;
+            if (row.rat === "LTE" && row.earfcn !== undefined) band = getBandFromEARFCN(row.earfcn);
+            else if (row.rat === "UMTS" && row.uarfcn !== undefined) band = getBandFromUARFCN(row.uarfcn);
+            const isNotConfirmed = isNotConfirmedCell(result);
+            if (band === null && !isNotConfirmed) return <span className="text-muted-foreground text-xs">-</span>;
+            const mhz = band !== null ? getBandMhz(band) : null;
+            return (
+              <div className="flex items-center gap-1">
+                {band !== null && (
+                  <span className="text-xs font-mono">
+                    {mhz && <span className="font-semibold">{mhz}</span>}
+                    <span className="opacity-75">
+                      {mhz ? " " : ""}(b{band})
                     </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{t("stations:cells.cellNotConfirmed")}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor((r) => r.parsedRow, {
-        id: "operator",
-        header: t("common:labels.operator"),
-        size: 140,
-        cell: ({ getValue }) => {
-          const row = getValue();
-          const name = MNC_NAMES[row.mnc];
-          const color = getOperatorColor(row.mnc);
-          return (
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-medium leading-tight">{name ?? row.mnc}</span>
-                {name && <span className="font-mono text-[10px] text-muted-foreground leading-tight">({row.mnc})</span>}
-              </div>
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor((r) => r.parsedRow, {
-        id: "identifiers",
-        header: ({ column }) => {
-          const sorted = column.getIsSorted();
-          return (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
-              onClick={column.getToggleSortingHandler()}
-            >
-              {t("table.identifiers")}
-              <HugeiconsIcon
-                icon={Sorting05Icon}
-                className={cn("size-3.5 transition-colors", sorted ? "text-foreground" : "text-muted-foreground/40")}
-                style={sorted === "asc" ? SORT_ASC_STYLE : undefined}
-              />
-            </button>
-          );
-        },
-        size: 180,
-        sortingFn: (rowA, rowB) => {
-          const a = rowA.original.parsedRow;
-          const b = rowB.original.parsedRow;
-          if (a.rat === "LTE" && b.rat === "LTE") return a.enbid - b.enbid;
-          if (a.rat === "GSM" && b.rat === "GSM") {
-            const lacDiff = a.lac - b.lac;
-            return lacDiff !== 0 ? lacDiff : a.cid - b.cid;
-          }
-          if (a.rat === "UMTS" && b.rat === "UMTS") {
-            const lacDiff = a.lac - b.lac;
-            return lacDiff !== 0 ? lacDiff : (a.rnc ?? 0) - (b.rnc ?? 0);
-          }
-          return 0;
-        },
-        cell: ({ getValue, row }) => {
-          const cell = getValue();
-          const warnings = row.original.result?.warnings ?? [];
-
-          const matched = row.original.result?.cell;
-
-          const ids: { label: string; value: number | null; dbValue?: number | null; warn?: boolean; missing?: boolean }[] = (() => {
-            switch (cell.rat) {
-              case "GSM":
-                return [
-                  { label: "LAC", value: cell.lac, dbValue: matched?.rat === "GSM" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
-                  { label: "CID", value: cell.cid },
-                ];
-              case "UMTS":
-                return [
-                  { label: "RNC", value: cell.rnc, dbValue: matched?.rat === "UMTS" ? matched.rnc : null, warn: warnings.includes("rnc_mismatch") },
-                  { label: "LAC", value: cell.lac, dbValue: matched?.rat === "UMTS" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
-                  { label: "CID", value: cell.cid },
-                  ...(cell.uarfcn !== undefined
-                    ? [
-                        {
-                          label: "UARFCN",
-                          value: cell.uarfcn,
-                          dbValue: matched?.rat === "UMTS" ? matched.arfcn : null,
-                          warn: warnings.includes("uarfcn_mismatch"),
-                        },
-                      ]
-                    : []),
-                ];
-              case "LTE":
-                return [
-                  { label: "eNBID", value: cell.enbid },
-                  { label: "CLID", value: cell.clid },
-                  { label: "TAC", value: cell.tac, dbValue: matched?.rat === "LTE" ? matched.tac : null, warn: warnings.includes("tac_mismatch") },
-                  {
-                    label: "PCI",
-                    value: cell.pci,
-                    dbValue: matched?.rat === "LTE" ? matched.pci : null,
-                    warn: warnings.includes("pci_mismatch"),
-                    missing: warnings.includes("pci_missing"),
-                  },
-                  ...(cell.earfcn !== undefined
-                    ? [
-                        {
-                          label: "EARFCN",
-                          value: cell.earfcn,
-                          dbValue: matched?.rat === "LTE" ? matched.earfcn : null,
-                          warn: warnings.includes("earfcn_mismatch"),
-                        },
-                      ]
-                    : []),
-                ];
-              case "NR":
-                return cell.arfcn !== undefined ? [{ label: "ARFCN", value: cell.arfcn }] : [];
-            }
-          })();
-
-          const extraWarnings = warnings.filter((w) => !MISMATCH_WARNINGS.has(w));
-
-          if (ids.length === 0 && extraWarnings.length === 0) return <span className="text-muted-foreground text-xs">-</span>;
-
-          return (
-            <div className="flex flex-wrap items-center gap-1">
-              {ids.map(({ label, value, dbValue, warn, missing }) => {
-                let stateClass = "bg-muted px-1.5 py-0.5 text-muted-foreground";
-                if (warn) stateClass = "bg-destructive/10 text-destructive px-1.5 py-0.5";
-                else if (missing) stateClass = "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200 px-1.5 py-0.5";
-                return (
-                  <span key={label} className={cn("inline-flex items-center rounded-md text-[11px] font-medium", stateClass)}>
-                    <span className="mr-0.5 opacity-60">{label}</span>
-                    {warn && dbValue !== null && dbValue !== undefined && (
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <span className="inline-flex items-center">
-                            <span className="font-mono font-semibold underline decoration-dotted">{dbValue}</span>
-                            <HugeiconsIcon icon={ArrowRight01Icon} className="mx-0.5 size-3 opacity-50" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("warning.dbValue")}</TooltipContent>
-                      </Tooltip>
-                    )}
-                    {missing ? (
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <span className="font-mono font-semibold underline decoration-dotted cursor-help">{value}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("warning.pciMissingFromDb")}</TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <span className="font-mono font-semibold">{value}</span>
-                    )}
                   </span>
-                );
-              })}
-              {extraWarnings.map((w) => (
-                <span
-                  key={w}
-                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                >
-                  <HugeiconsIcon icon={AlertCircleIcon} className="size-3 shrink-0" />
-                  {t(WARNING_I18N_KEY[w] ?? w)}
-                </span>
-              ))}
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor((r) => r.parsedRow.description, {
-        id: "description",
-        header: t("table.description"),
-        size: 260,
-        cell: ({ getValue }) => (
-          <span className="text-xs text-muted-foreground line-clamp-2" title={getValue()}>
-            {getValue() || "-"}
-          </span>
-        ),
-      }),
-      columnHelper.accessor((r) => r.result, {
-        id: "location",
-        header: t("table.location"),
-        size: 240,
-        cell: ({ getValue }) => {
-          const result = getValue();
-          if (!result) return <span className="text-muted-foreground text-xs">-</span>;
-          if (result.status === "unsupported") return <span className="text-muted-foreground text-xs italic">{t("status.unsupported")}</span>;
-          if (result.status === "not_found") return <span className="text-destructive font-semibold text-sm">{t("status.notFound")}</span>;
-
-          const loc = result.station?.location;
-          const locationText = loc?.city || loc?.address ? [loc.city, loc.address].filter(Boolean).join(", ") : "-";
-          const regionText = loc?.region?.name;
-          const matchedNote = getMatchedCellNote(result.cell);
-
-          return (
-            <div className="text-emerald-700 dark:text-emerald-400 text-sm font-medium">
-              {locationText}
-              {matchedNote ? <span className="font-normal"> - {matchedNote}</span> : null}
-              {regionText && <span className="text-muted-foreground font-normal text-xs"> · {regionText}</span>}
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor((r) => r.result, {
-        id: "station",
-        header: t("common:labels.station"),
-        size: 160,
-        cell: ({ getValue }) => {
-          const result = getValue();
-          const station = result?.station;
-          if (!station) return <span className="text-muted-foreground text-xs">-</span>;
-          return (
-            <div className="flex items-center gap-1.5 flex-nowrap">
+                )}
+                {isNotConfirmed && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <span className="inline-flex items-center justify-center size-5 rounded-md bg-destructive/10 text-destructive cursor-help">
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t("stations:cells.cellNotConfirmed")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor((r) => r.parsedRow, {
+          id: "operator",
+          header: t("common:labels.operator"),
+          size: 140,
+          cell: ({ getValue }) => {
+            const row = getValue();
+            const name = MNC_NAMES[row.mnc];
+            const color = getOperatorColor(row.mnc);
+            return (
+              <div className="flex items-center gap-1.5">
+                <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-medium leading-tight">{name ?? row.mnc}</span>
+                  {name && <span className="font-mono text-[10px] text-muted-foreground leading-tight">({row.mnc})</span>}
+                </div>
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor((r) => r.parsedRow, {
+          id: "identifiers",
+          header: ({ column }) => {
+            const sorted = column.getIsSorted();
+            return (
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                onClick={() => openStationDialog(station.id, "internal")}
+                className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
+                onClick={column.getToggleSortingHandler()}
               >
-                <HugeiconsIcon icon={Tag01Icon} className="size-3 shrink-0" />
-                <span className="font-mono">{station.station_id}</span>
+                {t("table.identifiers")}
+                <HugeiconsIcon
+                  icon={Sorting05Icon}
+                  className={cn("size-3.5 transition-colors", sorted ? "text-foreground" : "text-muted-foreground/40")}
+                  style={sorted === "asc" ? SORT_ASC_STYLE : undefined}
+                />
               </button>
-              {station.location && (
-                <Link
-                  to="/"
-                  hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
-                  target="_blank"
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            );
+          },
+          size: 180,
+          sortFn: (rowA, rowB) => {
+            const a = rowA.original.parsedRow;
+            const b = rowB.original.parsedRow;
+            if (a.rat === "LTE" && b.rat === "LTE") return a.enbid - b.enbid;
+            if (a.rat === "GSM" && b.rat === "GSM") {
+              const lacDiff = a.lac - b.lac;
+              return lacDiff !== 0 ? lacDiff : a.cid - b.cid;
+            }
+            if (a.rat === "UMTS" && b.rat === "UMTS") {
+              const lacDiff = a.lac - b.lac;
+              return lacDiff !== 0 ? lacDiff : (a.rnc ?? 0) - (b.rnc ?? 0);
+            }
+            return 0;
+          },
+          cell: ({ getValue, row }) => {
+            const cell = getValue();
+            const warnings = row.original.result?.warnings ?? [];
+
+            const matched = row.original.result?.cell;
+
+            const ids: { label: string; value: number | null; dbValue?: number | null; warn?: boolean; missing?: boolean }[] = (() => {
+              switch (cell.rat) {
+                case "GSM":
+                  return [
+                    { label: "LAC", value: cell.lac, dbValue: matched?.rat === "GSM" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
+                    { label: "CID", value: cell.cid },
+                  ];
+                case "UMTS":
+                  return [
+                    { label: "RNC", value: cell.rnc, dbValue: matched?.rat === "UMTS" ? matched.rnc : null, warn: warnings.includes("rnc_mismatch") },
+                    { label: "LAC", value: cell.lac, dbValue: matched?.rat === "UMTS" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
+                    { label: "CID", value: cell.cid },
+                    ...(cell.uarfcn !== undefined
+                      ? [
+                          {
+                            label: "UARFCN",
+                            value: cell.uarfcn,
+                            dbValue: matched?.rat === "UMTS" ? matched.arfcn : null,
+                            warn: warnings.includes("uarfcn_mismatch"),
+                          },
+                        ]
+                      : []),
+                  ];
+                case "LTE":
+                  return [
+                    { label: "eNBID", value: cell.enbid },
+                    { label: "CLID", value: cell.clid },
+                    { label: "TAC", value: cell.tac, dbValue: matched?.rat === "LTE" ? matched.tac : null, warn: warnings.includes("tac_mismatch") },
+                    {
+                      label: "PCI",
+                      value: cell.pci,
+                      dbValue: matched?.rat === "LTE" ? matched.pci : null,
+                      warn: warnings.includes("pci_mismatch"),
+                      missing: warnings.includes("pci_missing"),
+                    },
+                    ...(cell.earfcn !== undefined
+                      ? [
+                          {
+                            label: "EARFCN",
+                            value: cell.earfcn,
+                            dbValue: matched?.rat === "LTE" ? matched.earfcn : null,
+                            warn: warnings.includes("earfcn_mismatch"),
+                          },
+                        ]
+                      : []),
+                  ];
+                case "NR":
+                  return cell.arfcn !== undefined ? [{ label: "ARFCN", value: cell.arfcn }] : [];
+              }
+            })();
+
+            const extraWarnings = warnings.filter((w) => !MISMATCH_WARNINGS.has(w));
+
+            if (ids.length === 0 && extraWarnings.length === 0) return <span className="text-muted-foreground text-xs">-</span>;
+
+            return (
+              <div className="flex flex-wrap items-center gap-1">
+                {ids.map(({ label, value, dbValue, warn, missing }) => {
+                  let stateClass = "bg-muted px-1.5 py-0.5 text-muted-foreground";
+                  if (warn) stateClass = "bg-destructive/10 text-destructive px-1.5 py-0.5";
+                  else if (missing) stateClass = "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200 px-1.5 py-0.5";
+                  return (
+                    <span key={label} className={cn("inline-flex items-center rounded-md text-[11px] font-medium", stateClass)}>
+                      <span className="mr-0.5 opacity-60">{label}</span>
+                      {warn && dbValue !== null && dbValue !== undefined && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="inline-flex items-center">
+                              <span className="font-mono font-semibold underline decoration-dotted">{dbValue}</span>
+                              <HugeiconsIcon icon={ArrowRight01Icon} className="mx-0.5 size-3 opacity-50" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("warning.dbValue")}</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {missing ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="font-mono font-semibold underline decoration-dotted cursor-help">{value}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("warning.pciMissingFromDb")}</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="font-mono font-semibold">{value}</span>
+                      )}
+                    </span>
+                  );
+                })}
+                {extraWarnings.map((w) => (
+                  <span
+                    key={w}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                  >
+                    <HugeiconsIcon icon={AlertCircleIcon} className="size-3 shrink-0" />
+                    {t(WARNING_I18N_KEY[w] ?? w)}
+                  </span>
+                ))}
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor((r) => r.parsedRow.description, {
+          id: "description",
+          header: t("table.description"),
+          size: 260,
+          cell: ({ getValue }) => (
+            <span className="text-xs text-muted-foreground line-clamp-2" title={getValue()}>
+              {getValue() || "-"}
+            </span>
+          ),
+        }),
+        columnHelper.accessor((r) => r.result, {
+          id: "location",
+          header: t("table.location"),
+          size: 240,
+          cell: ({ getValue }) => {
+            const result = getValue();
+            if (!result) return <span className="text-muted-foreground text-xs">-</span>;
+            if (result.status === "unsupported") return <span className="text-muted-foreground text-xs italic">{t("status.unsupported")}</span>;
+            if (result.status === "not_found") return <span className="text-destructive font-semibold text-sm">{t("status.notFound")}</span>;
+
+            const loc = result.station?.location;
+            const locationText = loc?.city || loc?.address ? [loc.city, loc.address].filter(Boolean).join(", ") : "-";
+            const regionText = loc?.region?.name;
+            const matchedNote = getMatchedCellNote(result.cell);
+
+            return (
+              <div className="text-emerald-700 dark:text-emerald-400 text-sm font-medium">
+                {locationText}
+                {matchedNote ? <span className="font-normal"> - {matchedNote}</span> : null}
+                {regionText && <span className="text-muted-foreground font-normal text-xs"> · {regionText}</span>}
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor((r) => r.result, {
+          id: "station",
+          header: t("common:labels.station"),
+          size: 160,
+          cell: ({ getValue }) => {
+            const result = getValue();
+            const station = result?.station;
+            if (!station) return <span className="text-muted-foreground text-xs">-</span>;
+            return (
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  onClick={() => openStationDialog(station.id, "internal")}
                 >
-                  <HugeiconsIcon icon={Location01Icon} className="size-3 shrink-0" />
-                  <span className="font-mono">{station.location.id}</span>
-                </Link>
-              )}
-              {result?.status === "probable" && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                  {t("status.probable")}
-                </span>
-              )}
-            </div>
-          );
-        },
-      }),
-    ],
+                  <HugeiconsIcon icon={Tag01Icon} className="size-3 shrink-0" />
+                  <span className="font-mono">{station.station_id}</span>
+                </button>
+                {station.location && (
+                  <Link
+                    to="/"
+                    hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <HugeiconsIcon icon={Location01Icon} className="size-3 shrink-0" />
+                    <span className="font-mono">{station.location.id}</span>
+                  </Link>
+                )}
+                {result?.status === "probable" && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    {t("status.probable")}
+                  </span>
+                )}
+              </div>
+            );
+          },
+        }),
+      ]),
     [openStationDialog, t],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: tableData,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     state: { pagination, sorting, rowSelection: state.rowSelection },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,

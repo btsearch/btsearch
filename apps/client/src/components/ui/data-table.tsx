@@ -1,27 +1,28 @@
-import { type HeaderGroup, type Header as HeaderType, type Row, type Table as TableInstance, flexRender } from "@tanstack/react-table";
+import { type HeaderGroup, type Header as HeaderType, type Row, type RowData, type Table as TableInstance, flexRender } from "@tanstack/react-table";
 import { type ReactNode, createContext, memo, useContext, useMemo } from "react";
 
+import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 // Context for sharing table instance
-const DataTableContext = createContext<TableInstance<unknown> | null>(null);
+const DataTableContext = createContext<TableInstance<AppTableFeatures, RowData> | null>(null);
 
-function useDataTable<T>() {
-  const table = useContext(DataTableContext) as TableInstance<T> | null;
+function useDataTable<T extends RowData>() {
+  const table = useContext(DataTableContext) as unknown as TableInstance<AppTableFeatures, T> | null;
   if (!table) throw new Error("DataTable components must be used within DataTable.Root");
   return table;
 }
 
 // Root component
-interface RootProps<T> {
-  table: TableInstance<T>;
+interface RootProps<T extends RowData> {
+  table: TableInstance<AppTableFeatures, T>;
   children: ReactNode;
   className?: string;
 }
 
-function Root<T>({ table, children, className }: RootProps<T>) {
+function Root<T extends RowData>({ table, children, className }: RootProps<T>) {
   return (
-    <DataTableContext.Provider value={table as TableInstance<unknown>}>
+    <DataTableContext.Provider value={table as TableInstance<AppTableFeatures, RowData>}>
       <div className={cn("inline-block min-w-full rounded-lg border bg-card overflow-hidden", className)}>{children}</div>
     </DataTableContext.Provider>
   );
@@ -37,9 +38,9 @@ function Header({ className }: { className?: string }) {
   const table = useDataTable();
   return (
     <thead className={cn("sticky top-0 z-10 bg-card [&_tr]:border-b", className)}>
-      {table.getHeaderGroups().map((headerGroup: HeaderGroup<unknown>) => (
+      {table.getHeaderGroups().map((headerGroup: HeaderGroup<AppTableFeatures, RowData>) => (
         <tr key={headerGroup.id} className="border-b transition-colors hover:bg-transparent">
-          {headerGroup.headers.map((header: HeaderType<unknown, unknown>) => (
+          {headerGroup.headers.map((header: HeaderType<AppTableFeatures, RowData, unknown>) => (
             <th
               key={header.id}
               className="text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap"
@@ -55,14 +56,14 @@ function Header({ className }: { className?: string }) {
 }
 
 // Memoized row component
-interface TableRowProps<T> {
-  row: Row<T>;
+interface TableRowProps<T extends RowData> {
+  row: Row<AppTableFeatures, T>;
   onClick?: (row: T) => void;
   getRowHref?: (row: T) => string;
   className?: string;
 }
 
-const TableRowInner = <T,>({ row, onClick, getRowHref, className }: TableRowProps<T>) => (
+const TableRowInner = <T extends RowData>({ row, onClick, getRowHref, className }: TableRowProps<T>) => (
   <tr
     data-state={row.getIsSelected() && "selected"}
     className={cn("h-16 border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", onClick && "cursor-pointer", className)}
@@ -85,7 +86,7 @@ const TableRowInner = <T,>({ row, onClick, getRowHref, className }: TableRowProp
 const TableRow = memo(TableRowInner) as typeof TableRowInner;
 
 // Body with rows
-interface BodyProps<T> {
+interface BodyProps<T extends RowData> {
   onRowClick?: (row: T) => void;
   getRowHref?: (row: T) => string;
   rowClassName?: string;
@@ -93,13 +94,13 @@ interface BodyProps<T> {
   skeletonColumns?: number;
 }
 
-function Body<T>({ onRowClick, getRowHref, rowClassName, skeletonRows, skeletonColumns }: BodyProps<T>) {
+function Body<T extends RowData>({ onRowClick, getRowHref, rowClassName, skeletonRows, skeletonColumns }: BodyProps<T>) {
   const table = useDataTable<T>();
   const rows = table.getRowModel().rows;
 
   return (
     <tbody className="[&_tr:last-child]:border-0">
-      {rows.map((row: Row<T>) => (
+      {rows.map((row: Row<AppTableFeatures, T>) => (
         <TableRow key={row.id} row={row} onClick={onRowClick} getRowHref={getRowHref} className={rowClassName} />
       ))}
       {skeletonRows !== null && skeletonRows !== undefined && skeletonRows > 0 && skeletonColumns !== null && skeletonColumns !== undefined && (

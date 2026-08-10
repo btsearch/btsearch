@@ -29,10 +29,10 @@
     "@openbts/shared": "workspace:*",
     "dotenv": "17.4.2",
     "drizzle-orm": "1.0.0-rc.3",
-    "nanoid": "6.0.0",
+    "nanoid": "6.0.1",
     "postgres": "3.4.9",
     "redis": "6.2.0",
-    "tsx": "4.23.5"
+    "tsx": "4.23.11"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",

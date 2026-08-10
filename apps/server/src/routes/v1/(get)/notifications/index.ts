@@ -89,11 +89,11 @@ async function enrichNotificationMetadata(rows: NotificationRow[]): Promise<Noti
   return rows.map((row) => {
     const operatorName =
       row.stationId !== null
-        ? operatorNames.get(`internal:${row.stationId}`)
+        ? operatorNames.get(`internal:${row.stationId as number}`)
         : row.ukeStationId !== null
-          ? operatorNames.get(`uke:${row.ukeStationId}`)
+          ? operatorNames.get(`uke:${row.ukeStationId as number}`)
           : undefined;
-    const actionUrl = row.type === "new_submission" && row.submissionId !== null ? `/admin/submissions/${row.submissionId}` : row.actionUrl;
+    const actionUrl = row.type === "new_submission" && row.submissionId !== null ? `/admin/submissions/${row.submissionId as number}` : row.actionUrl;
     if (operatorName === undefined && actionUrl === row.actionUrl) return row;
     return {
       ...row,

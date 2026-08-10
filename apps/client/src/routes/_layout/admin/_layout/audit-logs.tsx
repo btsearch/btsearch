@@ -13,7 +13,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createColumnHelper, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -36,6 +36,7 @@ import { UserPickerPopover } from "@/features/admin/users/components/UserPickerP
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { resolveAvatarUrl } from "@/lib/format";
+import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
 import { ACTION_GROUPS, type AuditLogEntry, TABLE_LABELS, TABLE_OPTIONS, getActionStyle } from "../../../../features/admin/audit-logs/constants";
@@ -53,7 +54,7 @@ function formatAuditDate(dateString: string, locale: string): string {
   });
 }
 
-const columnHelper = createColumnHelper<AuditLogEntry>();
+const columnHelper = createColumnHelper<AppTableFeatures, AuditLogEntry>();
 
 type AuditLogsFilterState = {
   tableFilter: string;
@@ -419,114 +420,115 @@ function AdminAuditLogsPage() {
   );
 
   const columns = useMemo(
-    () => [
-      columnHelper.accessor("createdAt", {
-        header: () => (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
-            onClick={() => {
-              dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
-              resetPage();
-            }}
-          >
-            {t("auditLogs.columns.timestamp")}
-            <HugeiconsIcon
-              icon={Sorting05Icon}
-              className="size-3.5 text-foreground"
-              style={sort === "asc" ? { transform: "scaleY(-1)" } : undefined}
-            />
-          </button>
-        ),
-        size: 160,
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatAuditDate(getValue(), i18n.language)}</span>
-        ),
-      }),
-      columnHelper.accessor("user", {
-        header: t("auditLogs.columns.actor"),
-        size: 180,
-        cell: ({ getValue }) => {
-          const user = getValue();
-          if (!user) {
-            return <span className="text-muted-foreground italic text-xs">{t("auditLogs.actor.system")}</span>;
-          }
-          return (
-            <div className="flex items-center gap-2">
-              <Avatar className="size-6">
-                <AvatarImage src={resolveAvatarUrl(user.image)} />
-                <AvatarFallback className="text-[9px]">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col min-w-0">
-                <span className="truncate max-w-28 text-xs font-medium">{user.name}</span>
-                {user.username && <span className="truncate max-w-28 text-[10px] text-muted-foreground">@{user.username}</span>}
-              </div>
-            </div>
-          );
-        },
-      }),
-      columnHelper.accessor("action", {
-        header: t("auditLogs.columns.action"),
-        size: 200,
-        cell: ({ getValue }) => {
-          const action = getValue();
-          const style = getActionStyle(action);
-          return (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border",
-                style.badgeClass,
-              )}
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("createdAt", {
+          header: () => (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
+              onClick={() => {
+                dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
+                resetPage();
+              }}
             >
-              <span className={cn("size-1.5 rounded-[1px]", style.dotClass)} />
-              {action}
-            </span>
-          );
-        },
-      }),
-      columnHelper.accessor("table_name", {
-        header: t("auditLogs.columns.entity"),
-        size: 120,
-        cell: ({ getValue }) => <span className="text-xs font-medium">{getTableLabel(getValue())}</span>,
-      }),
-      columnHelper.accessor("record_id", {
-        header: t("auditLogs.columns.record"),
-        size: 100,
-        cell: ({ getValue, row }) => {
-          const recordId = getValue();
-          const fallbackId =
-            (row.original.old_values as Record<string, unknown> | null)?.id ??
-            (row.original.new_values as Record<string, unknown> | null)?.id ??
-            null;
-          const displayId = recordId ?? fallbackId;
-          const shortId =
-            displayId !== null
-              ? String(displayId as string | number)
-                  .split("-")
-                  .pop()
-              : null;
-          return shortId !== null ? (
-            <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded" title={String(displayId as string | number)}>
-              #{shortId}
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-xs">-</span>
-          );
-        },
-      }),
-      columnHelper.accessor("source", {
-        header: t("auditLogs.columns.source"),
-        size: 80,
-        cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue() ?? "-"}</span>,
-      }),
-    ],
+              {t("auditLogs.columns.timestamp")}
+              <HugeiconsIcon
+                icon={Sorting05Icon}
+                className="size-3.5 text-foreground"
+                style={sort === "asc" ? { transform: "scaleY(-1)" } : undefined}
+              />
+            </button>
+          ),
+          size: 160,
+          cell: ({ getValue }) => (
+            <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatAuditDate(getValue(), i18n.language)}</span>
+          ),
+        }),
+        columnHelper.accessor("user", {
+          header: t("auditLogs.columns.actor"),
+          size: 180,
+          cell: ({ getValue }) => {
+            const user = getValue();
+            if (!user) {
+              return <span className="text-muted-foreground italic text-xs">{t("auditLogs.actor.system")}</span>;
+            }
+            return (
+              <div className="flex items-center gap-2">
+                <Avatar className="size-6">
+                  <AvatarImage src={resolveAvatarUrl(user.image)} />
+                  <AvatarFallback className="text-[9px]">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="truncate max-w-28 text-xs font-medium">{user.name}</span>
+                  {user.username && <span className="truncate max-w-28 text-[10px] text-muted-foreground">@{user.username}</span>}
+                </div>
+              </div>
+            );
+          },
+        }),
+        columnHelper.accessor("action", {
+          header: t("auditLogs.columns.action"),
+          size: 200,
+          cell: ({ getValue }) => {
+            const action = getValue();
+            const style = getActionStyle(action);
+            return (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border",
+                  style.badgeClass,
+                )}
+              >
+                <span className={cn("size-1.5 rounded-[1px]", style.dotClass)} />
+                {action}
+              </span>
+            );
+          },
+        }),
+        columnHelper.accessor("table_name", {
+          header: t("auditLogs.columns.entity"),
+          size: 120,
+          cell: ({ getValue }) => <span className="text-xs font-medium">{getTableLabel(getValue())}</span>,
+        }),
+        columnHelper.accessor("record_id", {
+          header: t("auditLogs.columns.record"),
+          size: 100,
+          cell: ({ getValue, row }) => {
+            const recordId = getValue();
+            const fallbackId =
+              (row.original.old_values as Record<string, unknown> | null)?.id ??
+              (row.original.new_values as Record<string, unknown> | null)?.id ??
+              null;
+            const displayId = recordId ?? fallbackId;
+            const shortId =
+              displayId !== null
+                ? String(displayId as string | number)
+                    .split("-")
+                    .pop()
+                : null;
+            return shortId !== null ? (
+              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded" title={String(displayId as string | number)}>
+                #{shortId}
+              </span>
+            ) : (
+              <span className="text-muted-foreground text-xs">-</span>
+            );
+          },
+        }),
+        columnHelper.accessor("source", {
+          header: t("auditLogs.columns.source"),
+          size: 80,
+          cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue() ?? "-"}</span>,
+        }),
+      ]),
     [t, sort, i18n.language, resetPage, getTableLabel],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: logs,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
     state: { pagination },

@@ -125,7 +125,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   for (const item of items) {
     for (const cell of item.cells) {
       if (cell.rat !== "LTE") continue;
-      const details = cell.details as Partial<LTEInsertDetails & LTEUpdateDetails> | undefined;
+      const details = cell.details as Partial<LTEInsertDetails> | undefined;
       if (details?.tac !== null && details?.tac !== undefined) addStationTac(submittedTacByStationId, item.station_id, details.tac);
     }
   }

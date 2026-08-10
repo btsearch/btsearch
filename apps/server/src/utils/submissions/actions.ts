@@ -690,7 +690,7 @@ async function checkProposedPciDuplicates(stationId: number | null, proposedCell
   );
 }
 
-function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): RATInsertDetails | RATUpdateDetails | null {
+function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): RATInsertDetails | null {
   switch (rat) {
     case "GSM":
       return proposed.gsm ?? null;
@@ -1053,6 +1053,7 @@ async function resolvePhotoSelectionsToLocation(
 
   const resolvedSels: SubmissionLocationPhotoSelectionRow[] = [];
   const resolvedIds = new Set<number>();
+  /* eslint-disable no-await-in-loop */
   for (const selection of locationPhotoSels) {
     const photo = photoById.get(selection.location_photo_id);
     if (!photo) continue;
@@ -1083,6 +1084,7 @@ async function resolvePhotoSelectionsToLocation(
     resolvedIds.add(targetId);
     resolvedSels.push({ ...selection, location_photo_id: targetId });
   }
+  /* eslint-enable no-await-in-loop */
   return resolvedSels;
 }
 

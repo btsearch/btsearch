@@ -201,15 +201,13 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
 
   const lightboxItems: LightboxItem[] = [
     ...existingPhotos.map((p): LightboxItem => ({ type: "existing", photo: p })),
-    ...photos.map(
-      (_, idx): LightboxItem => ({
-        type: "local",
-        url: previewUrls[idx] ?? "",
-        name: photos[idx].name,
-        note: notes[idx] ?? "",
-        takenAt: takenAts[idx] ?? null,
-      }),
-    ),
+    ...photos.map((_, idx): LightboxItem => ({
+      type: "local",
+      url: previewUrls[idx] ?? "",
+      name: photos[idx].name,
+      note: notes[idx] ?? "",
+      takenAt: takenAts[idx] ?? null,
+    })),
   ];
 
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);

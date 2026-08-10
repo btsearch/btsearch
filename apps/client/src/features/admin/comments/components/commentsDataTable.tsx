@@ -1,9 +1,10 @@
-import { type PaginationState, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { type PaginationState, useTable } from "@tanstack/react-table";
 import { type Ref, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { appTableFeatures } from "@/lib/tableFeatures";
 
 import type { AdminComment } from "../types";
 import { createCommentsColumns } from "./commentsColumns";
@@ -50,10 +51,10 @@ export function CommentsDataTable({
     [t, tCommon, i18n.language, sortBy, sort, onSort, onEdit, onDelete, onApprove, onOpenLightbox],
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     rowCount: total,
     state: { pagination },
