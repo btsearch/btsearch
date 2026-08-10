@@ -38,7 +38,7 @@ export async function fetchLocations(
   bounds: string,
   filters: StationFilters,
   limit = 1000,
-  options?: { azimuths?: boolean; q?: string },
+  options?: { azimuths?: boolean; q?: string; signal?: AbortSignal },
 ): Promise<LocationsResponse> {
   if (filters.source === "uke") {
     const params = buildFilterParams(filters);
@@ -46,6 +46,7 @@ export async function fetchLocations(
     params.set("bounds", bounds);
     if (options?.azimuths) params.set("azimuths", "true");
     const result = await fetchJson<UkeLocationsResponse>(`${API_BASE}/uke/locations?${decodeURIComponent(params.toString())}`, {
+      signal: options?.signal,
       // proto: UKELocationsResponseSchema,
     });
     return { data: result.data as unknown as LocationWithStations[], totalCount: result.totalCount };
@@ -59,6 +60,7 @@ export async function fetchLocations(
 
   const result = await fetchJson<LocationsResponse>(`${API_BASE}/locations?${decodeURIComponent(params.toString())}`, {
     proto: LocationsResponseSchema,
+    signal: options?.signal,
   });
   return { data: result.data ?? [], totalCount: result.totalCount ?? 0 };
 }

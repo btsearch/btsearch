@@ -134,6 +134,7 @@ function MapViewInner() {
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const effectiveMapQuery = filters.source === "internal" ? mapQuery : undefined;
+  const queryClient = useQueryClient();
 
   const {
     data: locationsResponse,
@@ -141,10 +142,11 @@ function MapViewInner() {
     isFetching,
   } = useQuery({
     queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, effectiveMapQuery],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchLocations(bounds, filters, preferences.mapStationsLimit, {
         azimuths: wantAzimuths,
         q: effectiveMapQuery,
+        signal,
       }),
     enabled: isLoaded && !!bounds && !isMoving,
     staleTime: 1000 * 60 * 2,
@@ -179,7 +181,13 @@ function MapViewInner() {
   const radioLineCount = radioLines.length;
   const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
 
-  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!isMoving || !bounds) return;
+    void queryClient.cancelQueries({
+      predicate: (query) => (query.queryKey[0] === "locations" || query.queryKey[0] === "radiolines") && query.queryKey[1] === bounds,
+    });
+  }, [bounds, isMoving, queryClient]);
+
   useEffect(() => {
     if (!bounds) return;
     queryClient.removeQueries({

@@ -21,21 +21,19 @@ export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsAr
   const [isMoving, setIsMoving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceMsRef = useRef(debounceMs);
-  const initializedRef = useRef(false);
   debounceMsRef.current = debounceMs;
 
   useEffect(() => {
-    if (!map || initializedRef.current) return;
+    if (!map || !isLoaded) {
+      setIsMoving(false);
+      return;
+    }
 
     try {
-      initializedRef.current = true;
+      setIsMoving(false);
       setZoom(map.getZoom());
       setBounds(formatBounds(map));
     } catch {}
-  }, [map]);
-
-  useEffect(() => {
-    if (!map || !isLoaded) return;
 
     const updateBounds = () => {
       setZoom(map.getZoom());

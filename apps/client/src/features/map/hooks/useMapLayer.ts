@@ -8,7 +8,7 @@ import {
   type MapTouchEvent,
   Popup,
 } from "maplibre-gl";
-import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { onBeforeStyleChange } from "@/components/ui/map";
@@ -221,6 +221,7 @@ export function useMapLayer({
 
   const geoJSONRef = useRef(geoJSON);
   geoJSONRef.current = geoJSON;
+  const lastAppliedDataRef = useRef<{ source: GeoJSONSource; data: MapFeatureCollection } | null>(null);
 
   const addedImagesRef = useRef(new Set<string>());
 
@@ -258,7 +259,10 @@ export function useMapLayer({
     const ensureLayersExist = () => {
       try {
         if (!map.getSource(SOURCE_ID)) {
-          map.addSource(SOURCE_ID, { type: "geojson", data: geoJSONRef.current as unknown as GeoJsonSourceData });
+          const initialData = geoJSONRef.current;
+          map.addSource(SOURCE_ID, { type: "geojson", data: initialData as unknown as GeoJsonSourceData });
+          const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+          if (source) lastAppliedDataRef.current = { source, data: initialData };
           addedImagesRef.current.clear();
         }
 
@@ -465,22 +469,19 @@ export function useMapLayer({
     };
   }, [map, isLoaded, pointStyle, useZabkaMarkers]);
 
-  const lastAppliedDataRef = useRef<{ source: GeoJSONSource; signature: string } | null>(null);
-  const geoJSONSignature = useMemo(() => JSON.stringify(geoJSON), [geoJSON]);
-
   useEffect(() => {
     if (!map || !isLoaded) return;
 
     const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
 
-    if (lastAppliedDataRef.current?.source === source && lastAppliedDataRef.current.signature === geoJSONSignature) return;
-    lastAppliedDataRef.current = { source, signature: geoJSONSignature };
+    if (lastAppliedDataRef.current?.source === source && lastAppliedDataRef.current.data === geoJSON) return;
+    lastAppliedDataRef.current = { source, data: geoJSON };
 
     if (useZabkaMarkers) syncZabkaImage(map, addedImagesRef.current);
     else if (pointStyle === "markers") syncMarkerImages(map, geoJSON.features, addedImagesRef.current);
     else syncPieImages(map, geoJSON.features, addedImagesRef.current);
 
     void source.setData(geoJSON);
-  }, [map, isLoaded, geoJSON, geoJSONSignature, pointStyle, useZabkaMarkers]);
+  }, [map, isLoaded, geoJSON, pointStyle, useZabkaMarkers]);
 }

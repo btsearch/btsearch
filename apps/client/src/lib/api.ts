@@ -74,7 +74,8 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
   let response: Response;
   try {
     response = await fetch(url, { credentials: "include", ...fetchOptions });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
     throw new BackendUnavailableError(0);
   }
 

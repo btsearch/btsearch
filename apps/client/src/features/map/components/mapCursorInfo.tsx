@@ -43,6 +43,7 @@ type MeasurementState = {
 type MeasurementAction =
   | { type: "cursorInitialized"; cursor: CursorPosition }
   | { type: "cursorMoved"; cursor: CursorPosition }
+  | { type: "cursorCleared" }
   | { type: "measurementSaved"; measurement: SavedMeasurement }
   | { type: "savedMeasurementsCleared" };
 
@@ -58,6 +59,9 @@ function measurementReducer(state: MeasurementState, action: MeasurementAction):
       return { ...state, cursor: action.cursor };
     case "cursorMoved":
       return { ...state, cursor: action.cursor };
+    case "cursorCleared":
+      if (state.cursor === null) return state;
+      return { ...state, cursor: null };
     case "measurementSaved":
       return { ...state, lastSaved: action.measurement };
     case "savedMeasurementsCleared":
@@ -123,6 +127,8 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
   const [{ cursor, lastSaved }, dispatch] = useReducer(measurementReducer, INITIAL_MEASUREMENT_STATE);
+  const shouldRenderMeasurements = variant === "desktop" || Boolean(activeMarker) || lastSaved !== null;
+  const shouldTrackCursor = variant === "desktop" || Boolean(activeMarker);
 
   const activeMarkerRef = useRef(activeMarker);
   const circleEnabledRef = useRef(preferences.mapMeasureCircle);
@@ -155,6 +161,11 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
     circleEnabledRef.current = preferences.mapMeasureCircle;
     if (preferences.mapMeasureCircle) circleVisibleRef.current = true;
   }, [preferences.mapMeasureCircle]);
+  useEffect(() => {
+    if (variant !== "mobile" || shouldTrackCursor) return;
+    cursorRef.current = null;
+    dispatch({ type: "cursorCleared" });
+  }, [variant, shouldTrackCursor]);
 
   const markerLat = activeMarker?.latitude ?? null;
   const markerLng = activeMarker?.longitude ?? null;
@@ -267,17 +278,18 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
   });
 
   useEffect(() => {
+    if (variant === "mobile") return;
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || !shouldRenderMeasurements) return;
     return onBeforeStyleChange(map, clearSourceRefs);
-  }, [map, clearSourceRefs]);
+  }, [map, shouldRenderMeasurements, clearSourceRefs]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldRenderMeasurements) return;
     try {
       if (!map.getSource("cursor-measure-line")) {
         map.addSource("cursor-measure-line", { type: "geojson", data: EMPTY_FC });
@@ -303,10 +315,10 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
         if (map.getSource("cursor-measure-line")) map.removeSource("cursor-measure-line");
       } catch {}
     };
-  }, [map, isLoaded, clearSourceRefs]);
+  }, [map, isLoaded, shouldRenderMeasurements, clearSourceRefs]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldRenderMeasurements) return;
 
     try {
       if (!map.getSource("cursor-measure-circle")) {
@@ -343,10 +355,10 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
         if (map.getSource("cursor-measure-circle")) map.removeSource("cursor-measure-circle");
       } catch {}
     };
-  }, [map, isLoaded, clearSourceRefs]);
+  }, [map, isLoaded, shouldRenderMeasurements, clearSourceRefs]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldRenderMeasurements) return;
     try {
       if (!map.getSource("saved-measure-lines")) {
         map.addSource("saved-measure-lines", { type: "geojson", data: EMPTY_FC });
@@ -371,10 +383,10 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
         if (map.getSource("saved-measure-lines")) map.removeSource("saved-measure-lines");
       } catch {}
     };
-  }, [map, isLoaded, clearSourceRefs, updateSavedSources]);
+  }, [map, isLoaded, shouldRenderMeasurements, clearSourceRefs, updateSavedSources]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldRenderMeasurements) return;
     try {
       if (!map.getSource("saved-measure-circles")) {
         map.addSource("saved-measure-circles", { type: "geojson", data: EMPTY_FC });
@@ -408,10 +420,10 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
         if (map.getSource("saved-measure-circles")) map.removeSource("saved-measure-circles");
       } catch {}
     };
-  }, [map, isLoaded, clearSourceRefs, updateSavedSources]);
+  }, [map, isLoaded, shouldRenderMeasurements, clearSourceRefs, updateSavedSources]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldTrackCursor) return;
 
     const onMouseMove = (e: MapMouseEvent) => {
       updateCursorPosition(e.lngLat.lat, e.lngLat.lng);
@@ -428,6 +440,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
       const initialCursor = cursorRef.current ?? { lat: center.lat, lng: center.lng };
       cursorRef.current = initialCursor;
       dispatch({ type: "cursorInitialized", cursor: initialCursor });
+      updateLiveSources(activeMarkerRef.current, initialCursor);
     });
 
     return () => {
@@ -438,14 +451,14 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
         rafRef.current = null;
       }
     };
-  }, [map, isLoaded, updateCursorPosition]);
+  }, [map, isLoaded, shouldTrackCursor, updateCursorPosition, updateLiveSources]);
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !shouldRenderMeasurements) return;
     const cursor = cursorRef.current;
 
     updateLiveSources(markerLat !== null && markerLng !== null ? { latitude: markerLat, longitude: markerLng } : null, cursor);
-  }, [map, isLoaded, markerLat, markerLng, circleEnabled, updateLiveSources]);
+  }, [map, isLoaded, shouldRenderMeasurements, markerLat, markerLng, circleEnabled, updateLiveSources]);
 
   const metricsMarker = activeMarker ? { lat: activeMarker.latitude, lng: activeMarker.longitude } : (lastSaved?.marker ?? null);
   const metricsCursor = activeMarker ? cursor : (lastSaved?.cursor ?? null);
@@ -471,7 +484,10 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
       <div className={cn("pointer-events-auto max-w-[calc(100vw-2rem)] select-none md:hidden", className)}>
         <div className="overflow-hidden rounded-lg border bg-background/95 shadow-lg backdrop-blur-md">
           <div className="grid min-w-56 grid-cols-2 gap-x-3 gap-y-2 px-2.5 py-2">
-            <MobileMetric label="GPS" value={cursor ? formatCoordinates(cursor.lat, cursor.lng, preferences.gpsFormat) : "0.00000, 0.00000"} />
+            <MobileMetric
+              label="GPS"
+              value={metricsCursor ? formatCoordinates(metricsCursor.lat, metricsCursor.lng, preferences.gpsFormat) : "0.00000, 0.00000"}
+            />
             <MobileMetric label="REF" value={metrics ? formatCoordinates(metrics.ref.lat, metrics.ref.lng, preferences.gpsFormat) : "-"} />
             <MobileMetric label="Dist" value={metrics ? metrics.dist : "-"} />
             <MobileMetric label="Azm" value={metrics ? `${metrics.bearing}°` : "-"} />
