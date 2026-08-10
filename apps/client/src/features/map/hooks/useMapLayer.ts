@@ -451,14 +451,14 @@ export function useMapLayer({
       unsubscribe();
       detachLayerListeners();
 
-      if (map.getStyle() !== undefined) {
-        try {
+      try {
+        if (map.getStyle() !== undefined) {
           for (const layerId of LAYER_IDS) {
             if (map.getLayer(layerId)) map.removeLayer(layerId);
           }
           if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
-        } catch {}
-      }
+        }
+      } catch {}
 
       addedImages.clear();
       tooltipRef.current = destroyTooltip(tooltipRef.current);

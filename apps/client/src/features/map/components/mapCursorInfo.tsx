@@ -278,119 +278,135 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
 
   useEffect(() => {
     if (!map || !isLoaded) return;
-    if (!map.getSource("cursor-measure-line")) {
-      map.addSource("cursor-measure-line", { type: "geojson", data: EMPTY_FC });
-    }
-    lineSourceRef.current = map.getSource("cursor-measure-line") as GeoJSONSource;
+    try {
+      if (!map.getSource("cursor-measure-line")) {
+        map.addSource("cursor-measure-line", { type: "geojson", data: EMPTY_FC });
+      }
+      lineSourceRef.current = map.getSource("cursor-measure-line") as GeoJSONSource;
 
-    if (!map.getLayer("cursor-measure-line")) {
-      map.addLayer({
-        id: "cursor-measure-line",
-        type: "line",
-        source: "cursor-measure-line",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f59f0b", "line-width": 2, "line-dasharray": [2, 1] },
-      });
-    }
+      if (!map.getLayer("cursor-measure-line")) {
+        map.addLayer({
+          id: "cursor-measure-line",
+          type: "line",
+          source: "cursor-measure-line",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#f59f0b", "line-width": 2, "line-dasharray": [2, 1] },
+        });
+      }
+    } catch {}
 
     return () => {
       clearSourceRefs();
-      if (map.getStyle() === undefined) return;
-      if (map.getLayer("cursor-measure-line")) map.removeLayer("cursor-measure-line");
-      if (map.getSource("cursor-measure-line")) map.removeSource("cursor-measure-line");
+      try {
+        if (map.getStyle() === undefined) return;
+        if (map.getLayer("cursor-measure-line")) map.removeLayer("cursor-measure-line");
+        if (map.getSource("cursor-measure-line")) map.removeSource("cursor-measure-line");
+      } catch {}
     };
   }, [map, isLoaded, clearSourceRefs]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
 
-    if (!map.getSource("cursor-measure-circle")) {
-      map.addSource("cursor-measure-circle", { type: "geojson", data: EMPTY_FC });
-    }
-    circleSourceRef.current = map.getSource("cursor-measure-circle") as GeoJSONSource;
+    try {
+      if (!map.getSource("cursor-measure-circle")) {
+        map.addSource("cursor-measure-circle", { type: "geojson", data: EMPTY_FC });
+      }
+      circleSourceRef.current = map.getSource("cursor-measure-circle") as GeoJSONSource;
 
-    if (!map.getLayer("cursor-measure-circle-fill")) {
-      map.addLayer({
-        id: "cursor-measure-circle-fill",
-        type: "fill",
-        source: "cursor-measure-circle",
-        paint: { "fill-color": "#f59f0b", "fill-opacity": 0.08 },
-      });
-    }
+      if (!map.getLayer("cursor-measure-circle-fill")) {
+        map.addLayer({
+          id: "cursor-measure-circle-fill",
+          type: "fill",
+          source: "cursor-measure-circle",
+          paint: { "fill-color": "#f59f0b", "fill-opacity": 0.08 },
+        });
+      }
 
-    if (!map.getLayer("cursor-measure-circle-line")) {
-      map.addLayer({
-        id: "cursor-measure-circle-line",
-        type: "line",
-        source: "cursor-measure-circle",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f59f0b", "line-width": 2 },
-      });
-    }
+      if (!map.getLayer("cursor-measure-circle-line")) {
+        map.addLayer({
+          id: "cursor-measure-circle-line",
+          type: "line",
+          source: "cursor-measure-circle",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#f59f0b", "line-width": 2 },
+        });
+      }
+    } catch {}
 
     return () => {
       clearSourceRefs();
-      if (map.getStyle() === undefined) return;
-      if (map.getLayer("cursor-measure-circle-line")) map.removeLayer("cursor-measure-circle-line");
-      if (map.getLayer("cursor-measure-circle-fill")) map.removeLayer("cursor-measure-circle-fill");
-      if (map.getSource("cursor-measure-circle")) map.removeSource("cursor-measure-circle");
+      try {
+        if (map.getStyle() === undefined) return;
+        if (map.getLayer("cursor-measure-circle-line")) map.removeLayer("cursor-measure-circle-line");
+        if (map.getLayer("cursor-measure-circle-fill")) map.removeLayer("cursor-measure-circle-fill");
+        if (map.getSource("cursor-measure-circle")) map.removeSource("cursor-measure-circle");
+      } catch {}
     };
   }, [map, isLoaded, clearSourceRefs]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
-    if (!map.getSource("saved-measure-lines")) {
-      map.addSource("saved-measure-lines", { type: "geojson", data: EMPTY_FC });
-    }
-    savedLineSourceRef.current = map.getSource("saved-measure-lines") as GeoJSONSource;
-    if (!map.getLayer("saved-measure-lines")) {
-      map.addLayer({
-        id: "saved-measure-lines",
-        type: "line",
-        source: "saved-measure-lines",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f59f0b", "line-width": 2 },
-      });
-    }
-    updateSavedSources();
+    try {
+      if (!map.getSource("saved-measure-lines")) {
+        map.addSource("saved-measure-lines", { type: "geojson", data: EMPTY_FC });
+      }
+      savedLineSourceRef.current = map.getSource("saved-measure-lines") as GeoJSONSource;
+      if (!map.getLayer("saved-measure-lines")) {
+        map.addLayer({
+          id: "saved-measure-lines",
+          type: "line",
+          source: "saved-measure-lines",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#f59f0b", "line-width": 2 },
+        });
+      }
+      updateSavedSources();
+    } catch {}
     return () => {
       clearSourceRefs();
-      if (map.getStyle() === undefined) return;
-      if (map.getLayer("saved-measure-lines")) map.removeLayer("saved-measure-lines");
-      if (map.getSource("saved-measure-lines")) map.removeSource("saved-measure-lines");
+      try {
+        if (map.getStyle() === undefined) return;
+        if (map.getLayer("saved-measure-lines")) map.removeLayer("saved-measure-lines");
+        if (map.getSource("saved-measure-lines")) map.removeSource("saved-measure-lines");
+      } catch {}
     };
   }, [map, isLoaded, clearSourceRefs, updateSavedSources]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
-    if (!map.getSource("saved-measure-circles")) {
-      map.addSource("saved-measure-circles", { type: "geojson", data: EMPTY_FC });
-    }
-    savedCircleSourceRef.current = map.getSource("saved-measure-circles") as GeoJSONSource;
-    if (!map.getLayer("saved-measure-circles-fill")) {
-      map.addLayer({
-        id: "saved-measure-circles-fill",
-        type: "fill",
-        source: "saved-measure-circles",
-        paint: { "fill-color": "#f59f0b", "fill-opacity": 0.12 },
-      });
-    }
-    if (!map.getLayer("saved-measure-circles-line")) {
-      map.addLayer({
-        id: "saved-measure-circles-line",
-        type: "line",
-        source: "saved-measure-circles",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f59f0b", "line-width": 2 },
-      });
-    }
-    updateSavedSources();
+    try {
+      if (!map.getSource("saved-measure-circles")) {
+        map.addSource("saved-measure-circles", { type: "geojson", data: EMPTY_FC });
+      }
+      savedCircleSourceRef.current = map.getSource("saved-measure-circles") as GeoJSONSource;
+      if (!map.getLayer("saved-measure-circles-fill")) {
+        map.addLayer({
+          id: "saved-measure-circles-fill",
+          type: "fill",
+          source: "saved-measure-circles",
+          paint: { "fill-color": "#f59f0b", "fill-opacity": 0.12 },
+        });
+      }
+      if (!map.getLayer("saved-measure-circles-line")) {
+        map.addLayer({
+          id: "saved-measure-circles-line",
+          type: "line",
+          source: "saved-measure-circles",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#f59f0b", "line-width": 2 },
+        });
+      }
+      updateSavedSources();
+    } catch {}
     return () => {
       clearSourceRefs();
-      if (map.getStyle() === undefined) return;
-      if (map.getLayer("saved-measure-circles-line")) map.removeLayer("saved-measure-circles-line");
-      if (map.getLayer("saved-measure-circles-fill")) map.removeLayer("saved-measure-circles-fill");
-      if (map.getSource("saved-measure-circles")) map.removeSource("saved-measure-circles");
+      try {
+        if (map.getStyle() === undefined) return;
+        if (map.getLayer("saved-measure-circles-line")) map.removeLayer("saved-measure-circles-line");
+        if (map.getLayer("saved-measure-circles-fill")) map.removeLayer("saved-measure-circles-fill");
+        if (map.getSource("saved-measure-circles")) map.removeSource("saved-measure-circles");
+      } catch {}
     };
   }, [map, isLoaded, clearSourceRefs, updateSavedSources]);
 

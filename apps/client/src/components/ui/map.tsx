@@ -570,6 +570,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
 
     const handleContextLost = () => {
       contextLost = true;
+      clearStyleTimeout();
       dispatchMap({ type: "SET_STYLE_LOADED", value: false });
       if (contextRestoreTimer) clearTimeout(contextRestoreTimer);
       contextRestoreTimer = setTimeout(recreateMapIfStillLost, 3000);
