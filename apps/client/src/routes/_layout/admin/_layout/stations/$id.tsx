@@ -737,6 +737,7 @@ export const Route = createFileRoute("/_layout/admin/_layout/stations/$id")({
     uke: typeof search.uke === "string" || typeof search.uke === "number" ? String(search.uke) : undefined,
   }),
   staticData: {
+    mainClassName: "overflow-hidden max-md:pb-0",
     titleKey: "breadcrumbs.editStation",
     i18nNamespace: "admin",
     breadcrumbs: [

@@ -18,7 +18,8 @@
     },
     "formatInfo": "Detailed information about formats:",
     "export": "Export",
-    "exporting": "Exporting..."
+    "exporting": "Exporting...",
+    "copyApiUrl": "Copy API URL"
   },
   "templates": {
     "title": "Metadata creator",
@@ -66,5 +67,7 @@
     }
   },
   "exportSuccess": "CLF file exported successfully!",
-  "exportError": "Failed to export CLF file. Please try again"
+  "exportError": "Failed to export CLF file. Please try again",
+  "copySuccess": "API URL copied",
+  "copyError": "Failed to copy API URL. Please try again"
 }

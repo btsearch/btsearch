@@ -1,4 +1,4 @@
-import { Add01Icon, Download04Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Copy01Icon, Download04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   type CLFDescriptionTemplatePlaceholder,
@@ -87,6 +87,25 @@ type FormValues = {
   format: CLFExportFormat;
   displayNRSeparately: boolean;
 };
+
+function buildExportUrl(values: FormValues, templateDrafts: CLFDescriptionTemplates) {
+  const params = new URLSearchParams();
+  params.set("format", values.format);
+  if (values.operators.length > 0) params.set("operators", values.operators.join(","));
+  if (values.regions.length > 0) params.set("regions", values.regions.join(","));
+  if (values.rat.length > 0) params.set("rat", values.rat.join(","));
+  if (values.bands.length > 0) params.set("bands", values.bands.join(","));
+
+  const templates = normalizeCLFDescriptionTemplates(templateDrafts);
+  for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {
+    const template = templates[rat];
+    if (template) params.set(CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT[rat], template);
+  }
+
+  if (values.format === "ntm" && values.displayNRSeparately) params.set(DISPLAY_NR_SEPARATELY_PARAM, "true");
+
+  return `${API_BASE}/cells/export?${params.toString()}`;
+}
 
 const INITIAL_VALUES: FormValues = {
   operators: [],
@@ -182,21 +201,7 @@ function ClfExportPage() {
         if (exportStartRef.current) setElapsed(Date.now() - exportStartRef.current);
       }, 500);
 
-      const params = new URLSearchParams();
-      params.set("format", value.format);
-      if (value.operators.length > 0) params.set("operators", value.operators.join(","));
-      if (value.regions.length > 0) params.set("regions", value.regions.join(","));
-      if (value.rat.length > 0) params.set("rat", value.rat.join(","));
-      if (value.bands.length > 0) params.set("bands", value.bands.join(","));
-      const templates = normalizeCLFDescriptionTemplates(templateDrafts);
-      for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {
-        const template = templates[rat];
-        if (template) params.set(CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT[rat], template);
-      }
-      if (value.format === "ntm" && value.displayNRSeparately) params.set(DISPLAY_NR_SEPARATELY_PARAM, "true");
-
-      const url = `${API_BASE}/cells/export?${params.toString()}`;
-      const success = await downloadExport(url, value.format);
+      const success = await downloadExport(buildExportUrl(value, templateDrafts), value.format);
       if (success) {
         toast.success(t("exportSuccess"));
       } else {
@@ -219,6 +224,15 @@ function ClfExportPage() {
 
   function updateClfExportFilters(update: Partial<clfExportFilters>) {
     updatePreferences({ clfExportFilters: { ...preferences.clfExportFilters, ...update } });
+  }
+
+  async function copyExportUrl() {
+    try {
+      await navigator.clipboard.writeText(buildExportUrl(form.state.values, templateDrafts));
+      toast.success(t("copySuccess"));
+    } catch {
+      toast.error(t("copyError"));
+    }
   }
 
   return (
@@ -494,7 +508,7 @@ function ClfExportPage() {
 
               <form.Subscribe selector={(s) => ({ isSubmitting: s.isSubmitting })}>
                 {({ isSubmitting }) => (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button type="submit" disabled={isSubmitting} size="lg" className="flex-1 md:flex-none">
                       {isSubmitting ? (
                         <>
@@ -507,6 +521,10 @@ function ClfExportPage() {
                           {t("form.export")}
                         </>
                       )}
+                    </Button>
+                    <Button type="button" variant="outline" size="lg" className="flex-1 md:flex-none" onClick={() => void copyExportUrl()}>
+                      <HugeiconsIcon icon={Copy01Icon} className="size-4" data-icon="inline-start" />
+                      {t("form.copyApiUrl")}
                     </Button>
                     {isSubmitting ? <span className="opacity-70 text-sm tabular-nums shrink-0">{formatDuration(elapsed)}</span> : null}
                     {finalDuration !== null && !isSubmitting ? (

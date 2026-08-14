@@ -657,6 +657,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
 export const Route = createFileRoute("/_layout/admin/_layout/submissions/$id")({
   component: SubmissionDetailPage,
   staticData: {
+    mainClassName: "overflow-hidden max-md:pb-0",
     titleKey: "detail.title",
     i18nNamespace: "submissions",
     breadcrumbs: [

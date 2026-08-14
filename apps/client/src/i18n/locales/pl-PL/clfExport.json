@@ -18,7 +18,8 @@
     },
     "formatInfo": "Szczegółowe informacje dotyczące formatów:",
     "export": "Eksportuj",
-    "exporting": "Eksportowanie..."
+    "exporting": "Eksportowanie...",
+    "copyApiUrl": "Kopiuj adres API"
   },
   "templates": {
     "title": "Kreator metadanych",
@@ -66,5 +67,7 @@
     }
   },
   "exportSuccess": "Plik CLF wyeksportowany pomyślnie!",
-  "exportError": "Nie udało się wyeksportować pliku CLF. Spróbuj ponownie"
+  "exportError": "Nie udało się wyeksportować pliku CLF. Spróbuj ponownie",
+  "copySuccess": "Skopiowano adres API",
+  "copyError": "Nie udało się skopiować adresu API. Spróbuj ponownie"
 }
