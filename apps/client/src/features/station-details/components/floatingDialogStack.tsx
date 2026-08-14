@@ -17,6 +17,7 @@ const UkePermitDetailsDialogPanel = lazy(() =>
 const RadioLineDetailsDialogPanel = lazy(() =>
   import("./radioLineDetailsDialog").then((module) => ({ default: module.RadioLineDetailsDialogPanel })),
 );
+const SI2PEMAntennaDialogPanel = lazy(() => import("./si2pemAntennaDialog").then((module) => ({ default: module.SI2PEMAntennaDialogPanel })));
 
 type FloatingDialogStackProps = {
   dialogs: FloatingDialogItem[];
@@ -53,6 +54,19 @@ function renderMobileDialog(dialog: FloatingDialogItem, onClose: () => void): Re
           link={dialog.link}
           onClose={onClose}
           className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-3xl"
+          contentClassName="border border-border/70"
+        />
+      );
+    case "si2pem-report":
+      return (
+        <SI2PEMAntennaDialogPanel
+          report={dialog.report}
+          latitude={dialog.latitude}
+          longitude={dialog.longitude}
+          operatorName={dialog.operatorName}
+          operatorMnc={dialog.operatorMnc}
+          onClose={onClose}
+          className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-5xl"
           contentClassName="border border-border/70"
         />
       );
@@ -95,6 +109,23 @@ function renderDesktopDialog(dialog: FloatingDialogItem, frame: FloatingStationD
       return (
         <RadioLineDetailsDialogPanel
           link={dialog.link}
+          onClose={onClose}
+          contentRef={frame.contentRef}
+          bodyRef={frame.bodyRef}
+          bodyContentRef={frame.bodyContentRef}
+          className="h-full"
+          contentClassName="h-full max-h-none border border-border/70"
+          headerDragProps={frame.headerDragProps}
+        />
+      );
+    case "si2pem-report":
+      return (
+        <SI2PEMAntennaDialogPanel
+          report={dialog.report}
+          latitude={dialog.latitude}
+          longitude={dialog.longitude}
+          operatorName={dialog.operatorName}
+          operatorMnc={dialog.operatorMnc}
           onClose={onClose}
           contentRef={frame.contentRef}
           bodyRef={frame.bodyRef}

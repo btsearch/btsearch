@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { EmptyPanel } from "@/components/empty-panel";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
+import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
@@ -70,9 +71,10 @@ function SubmissionSectorsPanelFields({
   const siblingBrand = operatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
   const SiblingLogo = operatorMnc === 26002 ? OrangeIcon : TMobileIcon;
   const canFetchSiblingSectors = mode === "existing" && operatorMnc !== undefined && EXTRA_IDENTIFICATORS_MNCS.includes(operatorMnc);
-  const ukeStationId = mode === "existing" ? selectedStation?.station_id : newStation.station_id;
+  const stationId = mode === "existing" ? selectedStation?.station_id : newStation.station_id;
   const ukeOperatorMnc = mode === "existing" ? operatorMnc : (mncById.get(newStation.operator_id ?? -1) ?? null);
-  const trimmedUkeStationId = ukeStationId?.trim() ?? "";
+  const trimmedStationId = stationId?.trim() ?? "";
+  const { latitude, longitude } = location;
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
 
@@ -83,9 +85,14 @@ function SubmissionSectorsPanelFields({
   }, [selectedStationId]);
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
-    if (!trimmedUkeStationId || !ukeOperatorMnc) return [];
-    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedUkeStationId, ukeOperatorMnc));
-  }, [trimmedUkeStationId, ukeOperatorMnc]);
+    if (!trimmedStationId || !ukeOperatorMnc) return [];
+    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, ukeOperatorMnc));
+  }, [trimmedStationId, ukeOperatorMnc]);
+
+  const fetchSI2PEMAzimuthSectors = useCallback(async () => {
+    if (!trimmedStationId || latitude === null || longitude === null) return [];
+    return fetchSI2PEMAzimuths(trimmedStationId, latitude, longitude);
+  }, [latitude, longitude, trimmedStationId]);
 
   const siblingSectors = useMemo(
     () =>
@@ -99,14 +106,15 @@ function SubmissionSectorsPanelFields({
     [canFetchSiblingSectors, fetchSiblingAzimuthSectors, selectedStationId, siblingBrand, siblingSectorsIcon],
   );
 
-  const ukeSectors = useMemo(
+  const azimuthSources = useMemo(
     () =>
-      trimmedUkeStationId && ukeOperatorMnc
+      trimmedStationId
         ? {
-            onFetch: fetchUkeAzimuthSectors,
+            ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+            ...(ukeOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
           }
         : undefined,
-    [fetchUkeAzimuthSectors, trimmedUkeStationId, ukeOperatorMnc],
+    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, trimmedStationId, ukeOperatorMnc],
   );
 
   if (mode === "existing" && action === "delete") return null;
@@ -120,7 +128,7 @@ function SubmissionSectorsPanelFields({
       derivedSectorCount={derivedSectorCount}
       assignedSectorLocalIds={assignedSectorLocalIds}
       siblingSectors={siblingSectors}
-      ukeSectors={ukeSectors}
+      azimuthSources={azimuthSources}
     />
   );
 }

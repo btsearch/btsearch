@@ -223,6 +223,20 @@
     "fetched": "Azymuty skopiowane ze stacji siostrzanej",
     "fetchFailed": "Nie udało się skopiować azymutów"
   },
+  "azimuthFetch": {
+    "fetch": "Pobierz azymuty",
+    "fetching": "Pobieranie...",
+    "si2pem": {
+      "notFound": "W najnowszym wygenerowanym raporcie laboratoryjnym SI2PEM nie znaleziono azymutów",
+      "fetched": "Pobrano azymuty z najnowszego wygenerowanego raportu laboratoryjnego SI2PEM",
+      "fetchFailed": "Nie udało się pobrać azymutów z najnowszego wygenerowanego raportu laboratoryjnego SI2PEM"
+    },
+    "uke": {
+      "notFound": "Nie znaleziono azymutów UKE dla tej stacji i operatora",
+      "fetched": "Pobrano azymuty z UKE",
+      "fetchFailed": "Nie udało się pobrać azymutów z UKE"
+    }
+  },
   "ukeSectors": {
     "fetch": "Importuj z UKE",
     "fetching": "Importowanie...",

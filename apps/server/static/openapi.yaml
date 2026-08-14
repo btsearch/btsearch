@@ -3669,6 +3669,87 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /pem/{station_id}/azimuths:
+    get:
+      tags: [PEM]
+      summary: Get station azimuths from the latest SI2PEM laboratory report
+      parameters:
+        - name: station_id
+          in: path
+          required: true
+          description: Station identifier string (e.g. "KSC0601")
+          schema: { type: string, minLength: 1 }
+        - name: lat
+          in: query
+          required: true
+          description: Station latitude used to center the SI2PEM report search bounding box
+          schema: { type: number, format: double, minimum: -90, maximum: 90 }
+        - name: lng
+          in: query
+          required: true
+          description: Station longitude used to center the SI2PEM report search bounding box
+          schema: { type: number, format: double, minimum: -180, maximum: 180 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [azimuth]
+                      properties:
+                        azimuth: { type: integer, minimum: 0, maximum: 360 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /pem/{station_id}/antennas:
+    get:
+      tags: [PEM]
+      summary: Read antenna data from a selected SI2PEM laboratory report
+      parameters:
+        - name: station_id
+          in: path
+          required: true
+          description: Station identifier string (e.g. "KSC0601")
+          schema: { type: string, minLength: 1 }
+        - name: lat
+          in: query
+          required: true
+          description: Station latitude used to center the SI2PEM report search bounding box
+          schema: { type: number, format: double, minimum: -90, maximum: 90 }
+        - name: lng
+          in: query
+          required: true
+          description: Station longitude used to center the SI2PEM report search bounding box
+          schema: { type: number, format: double, minimum: -180, maximum: 180 }
+        - name: report_url
+          in: query
+          required: true
+          description: URL of the generated SI2PEM laboratory report selected by the user
+          schema: { type: string, format: uri }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SI2PEMAntenna" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /pem/{station_id}:
     get:
       tags: [PEM]
@@ -4016,12 +4097,15 @@ components:
 
     PemReport:
       type: object
-      required: [station_id, source, date, type, details]
+      required: [station_id, source, date, type, antenna_data_available, details]
       properties:
         station_id: { type: string }
         source: { type: string, enum: [map, search] }
         date: { type: string, format: date-time }
         type: { type: string, enum: [planned_measurement, map_measurement, search_measurement] }
+        antenna_data_available:
+          type: boolean
+          description: Whether this generated laboratory report can be parsed for antenna data
         details:
           oneOf:
             - type: object
@@ -4041,6 +4125,34 @@ components:
                 document_url: { type: string, format: uri }
                 installation_document: { type: string, format: uri }
                 lab_name: { type: string }
+
+    SI2PEMAntenna:
+      type: object
+      required: [label, technology, frequencyMHz, tiltRange, measuredTilt, rowNumber, pageNumber, antenna, eirp, bandIndex]
+      properties:
+        label: { type: string, nullable: true }
+        technology: { type: string, nullable: true }
+        frequencyMHz: { type: number, format: double }
+        tiltRange:
+          type: object
+          nullable: true
+          required: [minimum, maximum]
+          properties:
+            minimum: { type: number, format: double }
+            maximum: { type: number, format: double }
+        measuredTilt: { type: number, format: double, nullable: true }
+        rowNumber: { type: integer, nullable: true }
+        pageNumber: { type: integer, minimum: 0 }
+        antenna:
+          type: object
+          required: [model, manufacturer, mountedHeight, azimuth]
+          properties:
+            model: { type: string, nullable: true }
+            manufacturer: { type: string, nullable: true }
+            mountedHeight: { type: number, format: double }
+            azimuth: { type: number, format: double, nullable: true }
+        eirp: { type: number, format: double, nullable: true }
+        bandIndex: { type: integer, minimum: 0 }
 
     KmzFile:
       type: object

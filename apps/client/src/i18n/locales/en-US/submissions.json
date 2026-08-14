@@ -220,6 +220,20 @@
     "fetched": "Azimuths copied from sibling station",
     "fetchFailed": "Failed to copy azimuths"
   },
+  "azimuthFetch": {
+    "fetch": "Fetch azimuths",
+    "fetching": "Fetching...",
+    "si2pem": {
+      "notFound": "No azimuths found in the latest generated SI2PEM laboratory report",
+      "fetched": "Azimuths fetched from the latest generated SI2PEM laboratory report",
+      "fetchFailed": "Failed to fetch azimuths from the latest generated SI2PEM laboratory report"
+    },
+    "uke": {
+      "notFound": "No UKE azimuths found for this station and operator",
+      "fetched": "Azimuths fetched from UKE",
+      "fetchFailed": "Failed to fetch azimuths from UKE"
+    }
+  },
   "ukeSectors": {
     "fetch": "Import from UKE",
     "fetching": "Importing...",

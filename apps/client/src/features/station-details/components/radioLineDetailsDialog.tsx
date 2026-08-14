@@ -47,6 +47,7 @@ import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { ShareButton } from "./shareButton";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
+import { UKELogo } from "./ukeLogo";
 
 type RadioLineDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   link: DuplexRadioLink;
@@ -342,8 +343,9 @@ export function RadioLineDetailsDialogPanel({
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("stationDetails:permits.permit")}</h3>
                 <Tooltip>
-                  <TooltipTrigger className="cursor-help text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 transition-colors hover:text-muted-foreground">
-                    UKE
+                  <TooltipTrigger className="cursor-help opacity-60 transition-opacity hover:opacity-100">
+                    <UKELogo className="h-3" />
+                    <span className="sr-only">UKE</span>
                   </TooltipTrigger>
                   <TooltipContent>{t("stationDetails:permits.sourceUke")}</TooltipContent>
                 </Tooltip>

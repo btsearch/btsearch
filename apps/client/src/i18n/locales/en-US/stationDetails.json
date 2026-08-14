@@ -24,6 +24,24 @@
     "empty": "No azimuths",
     "add": "Add azimuth"
   },
+  "si2pemAntennaData": {
+    "action": "Antennas",
+    "title": "Station antennas",
+    "openReport": "Open report",
+    "errorTitle": "Antenna data could not be read",
+    "errorDescription": "The selected SI2PEM report could not be downloaded or its antenna table could not be parsed. Try again or open the source report.",
+    "emptyTitle": "No antenna data",
+    "emptyDescription": "This report does not contain antenna rows that can be displayed.",
+    "antennaNumber": "Antenna {{number}}",
+    "unknownModel": "Unknown antenna model",
+    "fields": {
+      "height": "Height",
+      "azimuth": "Azimuth",
+      "eirp": "EIRP",
+      "tiltRange": "Tilt range",
+      "measuredTilt": "Measured tilt"
+    }
+  },
   "permits": {
     "permitsCount_one": "{{count, number}} permit",
     "permitsCount_few": "{{count, number}} permits",

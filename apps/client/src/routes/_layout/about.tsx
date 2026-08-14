@@ -19,6 +19,7 @@ import OrangeIcon from "@/features/station-details/components/logos/orange.svg?r
 import PlayIcon from "@/features/station-details/components/logos/play.svg?react";
 import PlusIcon from "@/features/station-details/components/logos/plus.svg?react";
 import TmobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
+import { SI2PEMLogo } from "@/features/station-details/components/si2pemLogo";
 import { APP_NAME } from "@/lib/api";
 
 const markdownClasses =
@@ -164,19 +165,7 @@ function AboutPage() {
             <TmobileIcon aria-label="T-Mobile" className="size-6 shrink-0" />
             <PlusIcon aria-label="Plus" className="size-6 shrink-0" />
             <PlayIcon aria-label="Play" className="h-6 w-auto max-w-20 shrink-0" />
-            <span
-              aria-label="SI2PEM"
-              className="block h-5 shrink-0 bg-[#2e2e5a] dark:bg-[#9898ce]"
-              style={{
-                aspectRatio: "2435/521",
-                maskImage: "url(/si2pem.svg)",
-                WebkitMaskImage: "url(/si2pem.svg)",
-                maskSize: "contain",
-                WebkitMaskSize: "contain",
-                maskRepeat: "no-repeat",
-                WebkitMaskRepeat: "no-repeat",
-              }}
-            />
+            <SI2PEMLogo label="SI2PEM" className="h-5 shrink-0" />
           </div>
           <p className="text-sm text-muted-foreground">
             Przedstawione logo i nazwy operatorów oraz serwisu SI2PEM są własnością ich prawnych właścicieli. Wykorzystanie w serwisie {APP_NAME} ma

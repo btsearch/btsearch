@@ -7,5 +7,10 @@ export const fetchBands = () => fetchApiData<Band[]>("bands");
 
 export const fetchRegions = () => fetchApiData<Region[]>("regions");
 
+export const fetchSI2PEMAzimuths = (stationId: string, latitude: number, longitude: number) => {
+  const params = new URLSearchParams({ lat: String(latitude), lng: String(longitude) });
+  return fetchApiData<Array<{ azimuth: number }>>(`pem/${encodeURIComponent(stationId)}/azimuths?${params.toString()}`);
+};
+
 export type UkeOperator = { id: number; name: string; full_name: string };
 export const fetchUkeRadioLineOperators = () => fetchApiData<UkeOperator[]>("uke/radiolines/operators");

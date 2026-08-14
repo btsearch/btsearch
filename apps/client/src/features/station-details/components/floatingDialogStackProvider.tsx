@@ -5,11 +5,13 @@ import type { StationSource, UkeStation } from "@/types/station";
 
 import { FloatingDialogStack } from "./floatingDialogStack";
 import { useFloatingDialogStackState } from "./floatingDialogStackState";
+import type { SI2PEMReportDialogPayload } from "./floatingDialogStackTypes";
 
 type FloatingDialogStackContextValue = {
   openStationDialog: (id: number, source: StationSource) => boolean;
   openUkePermitDialog: (station: UkeStation) => boolean;
   openRadioLineDialog: (link: DuplexRadioLink) => boolean;
+  openSI2PEMReportDialog: (payload: SI2PEMReportDialogPayload) => boolean;
 };
 
 const FloatingDialogStackContext = createContext<FloatingDialogStackContextValue | null>(null);
@@ -21,8 +23,9 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
       openStationDialog: stack.openStationDialog,
       openUkePermitDialog: stack.openUkePermitDialog,
       openRadioLineDialog: stack.openRadioLineDialog,
+      openSI2PEMReportDialog: stack.openSI2PEMReportDialog,
     }),
-    [stack.openRadioLineDialog, stack.openStationDialog, stack.openUkePermitDialog],
+    [stack.openRadioLineDialog, stack.openSI2PEMReportDialog, stack.openStationDialog, stack.openUkePermitDialog],
   );
 
   return (

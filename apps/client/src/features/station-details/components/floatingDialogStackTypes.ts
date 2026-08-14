@@ -3,6 +3,7 @@ import type { CSSProperties, HTMLAttributes, Ref } from "react";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { StationSource, UkeStation } from "@/types/station";
 
+import type { PemReport } from "../api";
 import type { StationDialogRect } from "./stationDialogGeometry";
 
 export function assertNever(value: never): never {
@@ -20,7 +21,15 @@ export type FloatingDialogPanelFrameProps = {
   headerDragProps?: HTMLAttributes<HTMLDivElement>;
 };
 
-export type FloatingDialogKind = "station" | "uke-permit" | "radioline";
+export type FloatingDialogKind = "station" | "uke-permit" | "radioline" | "si2pem-report";
+
+export type SI2PEMReportDialogPayload = {
+  report: PemReport;
+  latitude: number;
+  longitude: number;
+  operatorName: string;
+  operatorMnc?: number | null;
+};
 
 type FloatingDialogItemBase = {
   key: string;
@@ -44,9 +53,16 @@ export type RadioLineFloatingDialogItem = FloatingDialogItemBase & {
   link: DuplexRadioLink;
 };
 
-export type FloatingDialogItem = StationFloatingDialogItem | UkePermitFloatingDialogItem | RadioLineFloatingDialogItem;
+export type SI2PEMReportFloatingDialogItem = FloatingDialogItemBase & SI2PEMReportDialogPayload & { kind: "si2pem-report" };
+
+export type FloatingDialogItem =
+  | StationFloatingDialogItem
+  | UkePermitFloatingDialogItem
+  | RadioLineFloatingDialogItem
+  | SI2PEMReportFloatingDialogItem;
 
 export type FloatingDialogOpenRequest =
   | { kind: "station"; id: number; source: StationSource }
   | { kind: "uke-permit"; station: UkeStation }
-  | { kind: "radioline"; link: DuplexRadioLink };
+  | { kind: "radioline"; link: DuplexRadioLink }
+  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload);

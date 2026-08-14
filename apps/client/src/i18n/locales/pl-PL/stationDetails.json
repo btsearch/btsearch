@@ -24,6 +24,24 @@
     "empty": "Brak azymutów",
     "add": "Dodaj azymut"
   },
+  "si2pemAntennaData": {
+    "action": "Anteny",
+    "title": "Anteny na stacji",
+    "openReport": "Otwórz raport",
+    "errorTitle": "Nie udało się odczytać danych anten",
+    "errorDescription": "Nie udało się pobrać wybranego raportu SI2PEM albo odczytać z niego tabeli anten. Spróbuj ponownie lub otwórz raport źródłowy.",
+    "emptyTitle": "Brak danych anten",
+    "emptyDescription": "Ten raport nie zawiera wierszy anten, które można wyświetlić.",
+    "antennaNumber": "Antena {{number}}",
+    "unknownModel": "Nieznany model anteny",
+    "fields": {
+      "height": "Wysokość",
+      "azimuth": "Azymut",
+      "eirp": "EIRP",
+      "tiltRange": "Zakres tiltu",
+      "measuredTilt": "Zmierzony tilt"
+    }
+  },
   "permits": {
     "permitsCount_one": "{{count, number}} pozwolenie",
     "permitsCount_few": "{{count, number}} pozwolenia",

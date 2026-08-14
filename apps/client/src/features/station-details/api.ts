@@ -26,11 +26,42 @@ export type PemReport = {
   source: "map" | "search";
   date: string;
   type: "planned_measurement" | "map_measurement" | "search_measurement";
+  antenna_data_available: boolean;
   details: PemReportDetails;
 };
 
 export const fetchPemReports = (stationId: string, lat: number, lng: number, operator: number) =>
   fetchApiData<PemReport[]>(`pem/${stationId}?lat=${lat}&lng=${lng}&operator=${operator}`);
+
+export type SI2PEMAntenna = {
+  label: string | null;
+  technology: string | null;
+  frequencyMHz: number;
+  tiltRange: { minimum: number; maximum: number } | null;
+  measuredTilt: number | null;
+  rowNumber: number | null;
+  pageNumber: number;
+  antenna: {
+    model: string | null;
+    manufacturer: string | null;
+    mountedHeight: number;
+    azimuth: number | null;
+  };
+  eirp: number | null;
+  bandIndex: number;
+};
+
+export type FetchSI2PEMAntennasRequest = {
+  stationId: string;
+  latitude: number;
+  longitude: number;
+  reportUrl: string;
+};
+
+export const fetchSI2PEMAntennas = ({ stationId, latitude, longitude, reportUrl }: FetchSI2PEMAntennasRequest) => {
+  const params = new URLSearchParams({ lat: String(latitude), lng: String(longitude), report_url: reportUrl });
+  return fetchApiData<SI2PEMAntenna[]>(`pem/${encodeURIComponent(stationId)}/antennas?${params.toString()}`);
+};
 
 export type StationPhoto = {
   id: number; // locationPhotos.id

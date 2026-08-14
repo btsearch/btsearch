@@ -1,6 +1,5 @@
-import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -15,16 +14,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { PemReport } from "../api";
-
-const SI2PEM_LOGO_STYLE: CSSProperties = {
-  aspectRatio: "2435/521",
-  maskImage: "url(/si2pem.svg)",
-  WebkitMaskImage: "url(/si2pem.svg)",
-  maskSize: "contain",
-  WebkitMaskSize: "contain",
-  maskRepeat: "no-repeat",
-  WebkitMaskRepeat: "no-repeat",
-};
+import { useFloatingDialogStack } from "./floatingDialogStackProvider";
+import { SI2PEMLogo } from "./si2pemLogo";
 
 type ReportItem = {
   report: PemReport;
@@ -32,8 +23,17 @@ type ReportItem = {
   sourceLabel: "pemSourceGenerated" | "pemSourceSearch";
 };
 
-export function Si2pemReportsMenu({ reports }: { reports: PemReport[] }) {
+type SI2PEMReportsMenuProps = {
+  reports: PemReport[];
+  latitude: number;
+  longitude: number;
+  operatorName: string;
+  operatorMnc?: number | null;
+};
+
+export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, operatorMnc }: SI2PEMReportsMenuProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
+  const { openSI2PEMReportDialog } = useFloatingDialogStack();
 
   const reportsByYear = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
@@ -61,7 +61,7 @@ export function Si2pemReportsMenu({ reports }: { reports: PemReport[] }) {
             <DropdownMenuTrigger className="inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 hover:bg-muted rounded transition-colors cursor-pointer" />
           }
         >
-          <span aria-hidden="true" className="block h-3.5 bg-[#2e2e5a] dark:bg-[#9898ce]" style={SI2PEM_LOGO_STYLE} />
+          <SI2PEMLogo className="h-3.5" />
           <span className="text-xs text-muted-foreground tabular-nums">{reports.length}</span>
         </TooltipTrigger>
         <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
@@ -70,28 +70,37 @@ export function Si2pemReportsMenu({ reports }: { reports: PemReport[] }) {
         {reportsByYear.map(([year, items], groupIndex) => (
           <DropdownMenuGroup key={year}>
             <DropdownMenuLabel className="py-1 text-xs font-medium text-muted-foreground">{year}</DropdownMenuLabel>
-            {items.map(({ report, dateLabel, sourceLabel }, index) => (
-              <DropdownMenuItem
-                key={`${report.station_id}_${report.date}_${report.source}`}
-                render={<a target="_blank" href={report.details.document_url} />}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="whitespace-nowrap text-sm font-medium">{dateLabel}</span>
-                    <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
-                      {t(`common:labels.${sourceLabel}`)}
-                    </span>
-                    {groupIndex === 0 && index === 0 ? (
-                      <span className="shrink-0 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
-                        {t("common:labels.latest")}
+            {items.map(({ report, dateLabel, sourceLabel }, index) => {
+              const showAntennaData = report.source === "map" && report.antenna_data_available;
+              const openAntennaDialog = () => {
+                openSI2PEMReportDialog({ report, latitude, longitude, operatorName, operatorMnc });
+              };
+
+              return (
+                <DropdownMenuItem
+                  key={`${report.station_id}_${report.date}_${report.source}`}
+                  render={showAntennaData ? undefined : <a target="_blank" href={report.details.document_url} />}
+                  onClick={showAntennaData ? openAntennaDialog : undefined}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="whitespace-nowrap text-sm font-medium">{dateLabel}</span>
+                      <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
+                        {t(`common:labels.${sourceLabel}`)}
                       </span>
-                    ) : null}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">{report.details.lab_name}</span>
-                </div>
-                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
-              </DropdownMenuItem>
-            ))}
+                      {groupIndex === 0 && index === 0 ? (
+                        <span className="shrink-0 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
+                          {t("common:labels.latest")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="block truncate text-[11px] text-muted-foreground">{report.details.lab_name}</span>
+                  </div>
+                  {showAntennaData ? <span className="sr-only">{t("si2pemAntennaData.action")}</span> : null}
+                  <HugeiconsIcon icon={showAntennaData ? ArrowRight01Icon : ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuGroup>
         ))}
       </DropdownMenuContent>

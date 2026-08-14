@@ -6,7 +6,7 @@ import type { DuplexRadioLink } from "@/features/map/utils";
 import type { StationSource, UkeStation } from "@/types/station";
 
 import { assertNever } from "./floatingDialogStackTypes";
-import type { FloatingDialogItem, FloatingDialogOpenRequest } from "./floatingDialogStackTypes";
+import type { FloatingDialogItem, FloatingDialogOpenRequest, SI2PEMReportDialogPayload } from "./floatingDialogStackTypes";
 import { type StationDialogRect, areStationDialogRectsEqual, createInitialStationDialogRect } from "./stationDialogGeometry";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
@@ -54,6 +54,31 @@ function resolveDialogRequest(request: FloatingDialogOpenRequest): ResolvedDialo
         matchesPayload: (dialog) => dialog.kind === "radioline" && dialog.link === request.link,
         create: (rect, zIndex) => ({ kind: "radioline", key, link: request.link, rect, zIndex }),
         update: (dialog, zIndex) => (dialog.kind === "radioline" ? { ...dialog, link: request.link, zIndex } : dialog),
+      };
+    }
+    case "si2pem-report": {
+      const key = `si2pem-report:${request.report.details.document_url}`;
+      return {
+        key,
+        matchesPayload: (dialog) =>
+          dialog.kind === "si2pem-report" &&
+          dialog.report === request.report &&
+          dialog.latitude === request.latitude &&
+          dialog.longitude === request.longitude &&
+          dialog.operatorName === request.operatorName &&
+          dialog.operatorMnc === request.operatorMnc,
+        create: (rect, zIndex) => ({
+          kind: "si2pem-report",
+          key,
+          report: request.report,
+          latitude: request.latitude,
+          longitude: request.longitude,
+          operatorName: request.operatorName,
+          operatorMnc: request.operatorMnc,
+          rect,
+          zIndex,
+        }),
+        update: (dialog, zIndex) => (dialog.kind === "si2pem-report" ? { ...dialog, ...request, zIndex } : dialog),
       };
     }
     default:
@@ -127,6 +152,8 @@ export function useFloatingDialogStackState() {
 
   const openRadioLineDialog = useCallback((link: DuplexRadioLink) => openDialog({ kind: "radioline", link }), [openDialog]);
 
+  const openSI2PEMReportDialog = useCallback((payload: SI2PEMReportDialogPayload) => openDialog({ kind: "si2pem-report", ...payload }), [openDialog]);
+
   const closeDialog = useCallback(
     (key: string) => {
       setDialogsSynced((current) => current.filter((dialog) => dialog.key !== key));
@@ -165,6 +192,7 @@ export function useFloatingDialogStackState() {
     openStationDialog,
     openUkePermitDialog,
     openRadioLineDialog,
+    openSI2PEMReportDialog,
     closeDialog,
     focusDialog,
     updateDialogRect,

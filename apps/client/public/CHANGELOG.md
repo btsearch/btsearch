@@ -1,6 +1,20 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-14
+
+### 🚀 Enhancements
+
+- Submission forms and existing admin station editors can now fetch azimuths from UKE or the latest SI2PEM laboratory report
+- Generated SI2PEM laboratory reports in station and UKE permit dialogs now open their antenna data in a movable, resizable window
+- The official UKE logo now marks permit data sources in station and radio line dialogs, and both UKE and SI2PEM logos appear in the azimuth fetch menu
+
+# 2026-08-13
+
+### 🩹 Fixes
+
+- The site and map now reclaim the full screen after closing the on-screen keyboard or an expanded ad on mobile devices
+
 # 2026-08-10
 
 ### 🚀 Enhancements

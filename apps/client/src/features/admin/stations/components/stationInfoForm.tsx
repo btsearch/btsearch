@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stations/api";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
+import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
@@ -115,6 +116,8 @@ export function StationInfoForm({
 
   const siblingBrand = selectedOperator?.mnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
   const SiblingLogo = selectedOperator?.mnc === 26002 ? OrangeIcon : TMobileIcon;
+  const trimmedStationId = stationId.trim();
+  const { latitude, longitude } = location;
 
   const { derivedSectorCount, assignedSectorLocalIds } = useMemo(() => deriveSectorPanelState(cells), [cells]);
   const selectedStatusOption = status ? STATION_STATUS_OPTIONS.find((option) => option.status === status) : undefined;
@@ -128,11 +131,15 @@ export function StationInfoForm({
   }, [stationDbId]);
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
-    const trimmedStationId = stationId.trim();
     const mnc = selectedOperator?.mnc;
     if (!trimmedStationId || !mnc) return [];
     return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, mnc));
-  }, [selectedOperator?.mnc, stationId]);
+  }, [selectedOperator?.mnc, trimmedStationId]);
+
+  const fetchSI2PEMAzimuthSectors = useCallback(async () => {
+    if (!trimmedStationId || latitude === null || longitude === null) return [];
+    return fetchSI2PEMAzimuths(trimmedStationId, latitude, longitude);
+  }, [latitude, longitude, trimmedStationId]);
 
   const siblingSectors = useMemo(
     () =>
@@ -148,12 +155,23 @@ export function StationInfoForm({
 
   const ukeSectors = useMemo(
     () =>
-      stationId.trim() && selectedOperator?.mnc
+      trimmedStationId && selectedOperator?.mnc
         ? {
             onFetch: fetchUkeAzimuthSectors,
           }
         : undefined,
-    [fetchUkeAzimuthSectors, selectedOperator?.mnc, stationId],
+    [fetchUkeAzimuthSectors, selectedOperator?.mnc, trimmedStationId],
+  );
+
+  const azimuthSources = useMemo(
+    () =>
+      stationDbId && trimmedStationId
+        ? {
+            ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+            ...(selectedOperator?.mnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+          }
+        : undefined,
+    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, selectedOperator?.mnc, stationDbId, trimmedStationId],
   );
 
   const handleFetchSibling = useCallback(async () => {
@@ -331,7 +349,8 @@ export function StationInfoForm({
         derivedSectorCount={derivedSectorCount}
         assignedSectorLocalIds={assignedSectorLocalIds}
         siblingSectors={siblingSectors}
-        ukeSectors={ukeSectors}
+        ukeSectors={stationDbId ? undefined : ukeSectors}
+        azimuthSources={azimuthSources}
       />
     </div>
   );

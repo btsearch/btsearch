@@ -127,7 +127,7 @@ function SidebarProvider({
             ...style,
           } as React.CSSProperties
         }
-        className={cn("group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-svh min-h-0 w-full overflow-hidden", className)}
+        className={cn("group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-dvh min-h-0 w-full overflow-hidden", className)}
         {...props}
       >
         {children}
@@ -207,7 +207,7 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:-left-(--sidebar-width)"
             : "right-0 group-data-[collapsible=offcanvas]:-right-(--sidebar-width)",

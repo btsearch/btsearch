@@ -34,7 +34,7 @@ import { ExtraIdentificatorsDisplay } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
-import { Si2pemReportsMenu } from "./si2pemReportsMenu";
+import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
 import { StationInfoItem } from "./stationInfoItem";
 
 type StationDetailsBodyProps = {
@@ -358,7 +358,13 @@ export function StationDetailsBody({
                           </StationInfoItem>
                           {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
                             <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
-                              <Si2pemReportsMenu reports={pemReports} />
+                              <SI2PEMReportsMenu
+                                reports={pemReports}
+                                latitude={station.location.latitude}
+                                longitude={station.location.longitude}
+                                operatorName={station.operator.name}
+                                operatorMnc={station.operator.mnc}
+                              />
                             </StationInfoItem>
                           ) : null}
                           {station.extra_identificators && (

@@ -6,7 +6,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { SI2PEMLogo } from "@/features/station-details/components/si2pemLogo";
+import { UKELogo } from "@/features/station-details/components/ukeLogo";
 import { cn } from "@/lib/utils";
 import type { SectorDraft } from "@/types/station";
 
@@ -284,7 +287,17 @@ type SectorsPanelProps = SectorsEditorProps & {
   ukeSectors?: {
     onFetch: () => Promise<Array<{ azimuth: number }>>;
   };
+  azimuthSources?: {
+    si2pem?: {
+      onFetch: () => Promise<Array<{ azimuth: number }>>;
+    };
+    uke?: {
+      onFetch: () => Promise<Array<{ azimuth: number }>>;
+    };
+  };
 };
+
+type AzimuthSource = "si2pem" | "uke";
 
 function applyFetchedAzimuths(sectors: SectorDraft[], fetchedSectors: Array<{ azimuth: number }>): SectorDraft[] {
   const copyCount = Math.min(fetchedSectors.length, MAX_SECTORS);
@@ -321,6 +334,7 @@ export function SectorsPanel({
   derivedSectorCount,
   siblingSectors,
   ukeSectors,
+  azimuthSources,
   onChange,
   readOnly,
   ...editorProps
@@ -328,8 +342,10 @@ export function SectorsPanel({
   const { t } = useTranslation(["stationDetails", "submissions"]);
   const [isFetchingSiblingSectors, setIsFetchingSiblingSectors] = useState(false);
   const [isFetchingUkeSectors, setIsFetchingUkeSectors] = useState(false);
+  const [fetchingAzimuthSource, setFetchingAzimuthSource] = useState<AzimuthSource | null>(null);
   const [isOpen, setIsOpen] = useState(() => defaultOpen ?? false);
   const mountedEmptyRef = useRef(sectors.length === 0);
+  const hasAzimuthSources = azimuthSources?.si2pem !== undefined || azimuthSources?.uke !== undefined;
 
   const handleSectorsChange = useCallback(
     (nextSectors: SectorDraft[]) => {
@@ -375,6 +391,40 @@ export function SectorsPanel({
     }
   }, [handleSectorsChange, readOnly, sectors, t, ukeSectors]);
 
+  const handleFetchAzimuths = useCallback(
+    async (source: AzimuthSource) => {
+      const sourceConfig = azimuthSources?.[source];
+      if (!sourceConfig || readOnly) return;
+      setFetchingAzimuthSource(source);
+      const messages =
+        source === "si2pem"
+          ? {
+              notFound: t("azimuthFetch.si2pem.notFound", { ns: "submissions" }),
+              fetched: t("azimuthFetch.si2pem.fetched", { ns: "submissions" }),
+              fetchFailed: t("azimuthFetch.si2pem.fetchFailed", { ns: "submissions" }),
+            }
+          : {
+              notFound: t("azimuthFetch.uke.notFound", { ns: "submissions" }),
+              fetched: t("azimuthFetch.uke.fetched", { ns: "submissions" }),
+              fetchFailed: t("azimuthFetch.uke.fetchFailed", { ns: "submissions" }),
+            };
+      try {
+        const fetchedSectors = await sourceConfig.onFetch();
+        if (fetchedSectors.length === 0) {
+          toast.info(messages.notFound);
+          return;
+        }
+        handleSectorsChange(applyFetchedAzimuths(sectors, fetchedSectors));
+        toast.success(messages.fetched);
+      } catch {
+        toast.error(messages.fetchFailed);
+      } finally {
+        setFetchingAzimuthSource(null);
+      }
+    },
+    [azimuthSources, handleSectorsChange, readOnly, sectors, t],
+  );
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className={cn("border rounded-xl overflow-hidden", className)}>
@@ -387,6 +437,34 @@ export function SectorsPanel({
             <span className="font-semibold text-sm">{t("tabs.sectors")}</span>
           </CollapsibleTrigger>
           <div className="flex items-center gap-2">
+            {!readOnly && hasAzimuthSources ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button type="button" variant="outline" size="sm" disabled={fetchingAzimuthSource !== null} className="h-7 gap-1.5 text-xs" />
+                  }
+                >
+                  {fetchingAzimuthSource !== null
+                    ? t("azimuthFetch.fetching", { ns: "submissions" })
+                    : t("azimuthFetch.fetch", { ns: "submissions" })}
+                  <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {azimuthSources?.si2pem ? (
+                    <DropdownMenuItem onClick={() => void handleFetchAzimuths("si2pem")}>
+                      <SI2PEMLogo className="h-3" />
+                      SI2PEM
+                    </DropdownMenuItem>
+                  ) : null}
+                  {azimuthSources?.uke ? (
+                    <DropdownMenuItem onClick={() => void handleFetchAzimuths("uke")}>
+                      <UKELogo className="size-auto h-3.5 w-7" />
+                      UKE
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {!readOnly && ukeSectors ? (
               <Button
                 type="button"

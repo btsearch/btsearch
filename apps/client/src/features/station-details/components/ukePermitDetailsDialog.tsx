@@ -30,9 +30,10 @@ import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
-import { Si2pemReportsMenu } from "./si2pemReportsMenu";
+import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
+import { UKELogo } from "./ukeLogo";
 import { WatchButton } from "./watchButton";
 
 type UkePermitDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
@@ -211,9 +212,15 @@ export function UkePermitDetailsDialogPanel({
                   <CopyButton text={station_id} />
                 </StationInfoItem>
 
-                {station_id && pemReports && pemReports.length > 0 ? (
+                {station_id && stationLocation && pemReports && pemReports.length > 0 ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
-                    <Si2pemReportsMenu reports={pemReports} />
+                    <SI2PEMReportsMenu
+                      reports={pemReports}
+                      latitude={stationLocation.latitude}
+                      longitude={stationLocation.longitude}
+                      operatorName={operator?.name ?? t("main:unknownOperator")}
+                      operatorMnc={operator?.mnc}
+                    />
                   </StationInfoItem>
                 ) : null}
 
@@ -255,8 +262,9 @@ export function UkePermitDetailsDialogPanel({
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t("tabs.permits")}</h3>
                 <Tooltip>
-                  <TooltipTrigger className="text-[10px] font-semibold text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-help tracking-widest uppercase">
-                    UKE
+                  <TooltipTrigger className="cursor-help opacity-60 transition-opacity hover:opacity-100">
+                    <UKELogo className="h-3" />
+                    <span className="sr-only">UKE</span>
                   </TooltipTrigger>
                   <TooltipContent>{t("permits.sourceUke")}</TooltipContent>
                 </Tooltip>

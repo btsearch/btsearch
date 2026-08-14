@@ -3,13 +3,20 @@ import db from "@openbts/drizzle/db";
 import { eq, inArray } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
+import {
+  SI2PEMClient,
+  type SI2PEMExtendedBaseStationProperties,
+  SI2PEM_ERROR_CODES,
+  SI2PEM_WFS_FEATURE_TYPES,
+  isSI2PEMError,
+  si2pemDateToISO,
+} from "si2pem-reader";
 import z from "zod";
 
 import redis from "../../../../database/redis.ts";
 import { ErrorResponse } from "../../../../errors.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
-import type { InactiveStationFeatureCollection, PlannedResponse, WmsFeatureCollection } from "./planned.types.ts";
 
 export const MNC_TO_ENTITY: Record<number, string> = {
   26001: "Towerlink Poland Sp. z o.o.",
@@ -110,28 +117,19 @@ const schemaRoute = {
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type ResBody = z.infer<(typeof schemaRoute.response)["200"]>;
 
-const SI2PEM_WFS_URL = "https://si2pem.gov.pl/geoserver/public/wfs";
 const MAP_CACHE_TTL = 3600;
+const si2pem = new SI2PEMClient();
 
 type ParsedWmsFeature = Omit<PEMItem, "id" | "region" | "operator"> & { operatorName: string };
 
-function parseAPIDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const match = /^(\d{2})\.(\d{2})\.(\d{4})(?: (\d{2}):(\d{2}):(\d{2}))?$/.exec(value);
-  if (!match) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
-    return null;
-  }
-
-  const [, day, month, year, hour = "0", minute = "0", second = "0"] = match;
-  return new Date(`${month}.${day}.${year} ${hour}:${minute}:${second} UTC+2`).toISOString();
-}
-
-function parsePEMDate(date: string): string {
-  const [, d, m, y] = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/) as [string, string, string, string];
-  return new Date(`${m}.${d}.${y} 02:00:00 UTC+2`).toISOString();
-}
+type InactiveStationProperties = SI2PEMExtendedBaseStationProperties & {
+  identity_names?: string | null;
+  bs_identity_name?: string | null;
+  name?: string | null;
+  location_in_city?: string | null;
+  installation_operator_name?: string | null;
+  operator?: string | null;
+};
 
 async function fetchOperatorsMap(mncs: number[]) {
   const rows = mncs.length ? await db.select().from(operators).where(inArray(operators.mnc, mncs)) : [];
@@ -146,22 +144,17 @@ async function withCache<T>(key: string, ttl: number, fn: () => Promise<T>): Pro
   return result;
 }
 
-async function handleBoundsMode(bbox: string, mncs: number[] | undefined): Promise<ResBody> {
-  const wfsParams = new URLSearchParams({
-    REQUEST: "GetFeature",
-    SERVICE: "WFS",
-    VERSION: "2.0.0",
-    TYPENAMES: "public:planned_measures",
-    FORMAT: "image/png",
-    BBOX: `${bbox},EPSG:4326`,
-    outputFormat: "application/json",
-  });
-  const wfsRes = await fetch(`${SI2PEM_WFS_URL}?${wfsParams.toString()}`, {
-    headers: { Accept: "application/json", Origin: "https://si2pem.gov.pl" },
-  });
-  if (!wfsRes.ok) throw new ErrorResponse("NOT_FOUND");
-
-  const json = (await wfsRes.json()) as WmsFeatureCollection;
+async function handleBoundsMode(bbox: [number, number, number, number], mncs: number[] | undefined): Promise<ResBody> {
+  let json;
+  try {
+    json = await si2pem.getFeatures({
+      typeName: SI2PEM_WFS_FEATURE_TYPES.plannedMeasures,
+      bbox,
+    });
+  } catch (error) {
+    if (isSI2PEMError(error) && error.code === SI2PEM_ERROR_CODES.httpError && error.statusCode !== null) throw new ErrorResponse("NOT_FOUND");
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR");
+  }
   if (!json.features?.length) throw new ErrorResponse("NOT_FOUND");
 
   const seen = new Set<string>();
@@ -176,13 +169,15 @@ async function handleBoundsMode(bbox: string, mncs: number[] | undefined): Promi
       laboratory_name,
       laboratory_pca,
     } = feature.properties;
+    const from = si2pemDateToISO(date_from);
+    const to = si2pemDateToISO(date_to);
+    if (!feature.geometry || !station_id || !from || !to || seen.has(station_id)) return [];
     const [lng, lat] = feature.geometry.coordinates;
-    if (!station_id || seen.has(station_id)) return [];
     seen.add(station_id);
     return [
       {
         station_id,
-        date: { from: new Date(`${date_from} 02:00:00 UTC+2`).toISOString(), to: new Date(`${date_to} 02:00:00 UTC+2`).toISOString() },
+        date: { from, to },
         lab: { PCA: laboratory_pca, name: laboratory_name },
         location: { latitude: lat, longitude: lng, city, address },
         operatorName: installation_operator_name,
@@ -225,27 +220,26 @@ async function handleInactiveStationsMode(
   ]
     .filter(Boolean)
     .join(" ");
-  const wfsParams = new URLSearchParams({
-    REQUEST: "GetFeature",
-    SERVICE: "WFS",
-    VERSION: "2.0.0",
-    TYPENAMES: "public:extend_base_stations",
-    CQL_FILTER: cqlFilter,
-    outputFormat: "application/json",
-  });
-  const upstream = await fetch(`${SI2PEM_WFS_URL}?${wfsParams.toString()}`, {
-    headers: { Accept: "application/json", Origin: "https://si2pem.gov.pl" },
-  });
-  if (!upstream.ok) throw new ErrorResponse("INTERNAL_SERVER_ERROR");
-
-  const json = (await upstream.json()) as InactiveStationFeatureCollection;
+  let json;
+  try {
+    json = await si2pem.getFeatures(
+      {
+        typeName: SI2PEM_WFS_FEATURE_TYPES.extendedBaseStations,
+        cqlFilter,
+      },
+      { maxJsonBytes: 64 * 1024 * 1024 },
+    );
+  } catch {
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR");
+  }
   const seen = new Set<string>();
   const parsed: ParsedWmsFeature[] = (json.features ?? []).flatMap((feature) => {
+    const properties: InactiveStationProperties = feature.properties;
     const {
       identity_name,
       identity_names,
       bs_identity_name,
-      city = "",
+      city,
       location_in_city,
       address,
       installation_operator_name,
@@ -254,16 +248,16 @@ async function handleInactiveStationsMode(
       disabling_date,
       is_old,
       is_active,
-    } = feature.properties;
+    } = properties;
     const station_id = identity_name ?? identity_names ?? bs_identity_name ?? null;
+    if (!feature.geometry || !station_id || seen.has(station_id) || !is_old || is_active) return [];
     const [lng, lat] = feature.geometry.coordinates;
-    if (!station_id || seen.has(station_id) || !is_old || is_active) return [];
     seen.add(station_id);
     return [
       {
         station_id,
         date: null,
-        disabled_date: parseAPIDate(disabling_date),
+        disabled_date: si2pemDateToISO(disabling_date),
         lab: null,
         location: { latitude: lat, longitude: lng, city: city ?? "", address: location_in_city ?? address ?? "" },
         operatorName: installation_operator_name ?? operator_name ?? operator ?? "",
@@ -294,7 +288,6 @@ async function handleInactiveStationsMode(
   return { totalCount: sorted.length, data };
 }
 
-const PLANNED_MEASUREMENTS_URL = "https://si2pem.gov.pl/api/planned_measurements";
 const PLANNED_CACHE_TTL = 3600;
 const PUBLISHED_CACHE_TTL = 86400;
 
@@ -313,15 +306,19 @@ async function handlePaginationMode(
 ): Promise<ResBody> {
   const entityName = operatorName ?? (mncs?.length === 1 ? (MNC_TO_ENTITY[mncs[0]!] ?? "") : "");
 
-  const params = new URLSearchParams({ page: String(page), page_size: String(limit), operator: entityName, status });
-  if (baseStation) params.set("base_station", baseStation);
-  if (regionName) params.set("voivodeship", regionName.toLowerCase());
-  const upstream = await fetch(`${PLANNED_MEASUREMENTS_URL}/?${params.toString()}`, {
-    headers: { Origin: "https://si2pem.gov.pl", Accept: "application/json" },
-  });
-  if (!upstream.ok) throw new ErrorResponse("INTERNAL_SERVER_ERROR");
-
-  const json = (await upstream.json()) as PlannedResponse;
+  let json;
+  try {
+    json = await si2pem.listPlannedMeasurements({
+      page,
+      pageSize: limit,
+      operator: entityName,
+      status,
+      baseStation,
+      voivodeship: regionName?.toLowerCase(),
+    });
+  } catch {
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR");
+  }
 
   const results =
     mncs && mncs.length > 1 ? json.results.filter((r) => mncs.includes(ENTITY_TO_MNC[r.base_station.operator ?? ""] ?? 0)) : json.results;
@@ -339,6 +336,8 @@ async function handlePaginationMode(
   const data: PEMItem[] = results.map((result) => {
     const mnc = ENTITY_TO_MNC[result.base_station.operator];
     const region = capitalize(result.base_station.voivodeship);
+    const from = si2pemDateToISO(result.date_from);
+    const to = si2pemDateToISO(result.date_to);
 
     return {
       id: result.id,
@@ -352,10 +351,7 @@ async function handlePaginationMode(
       region: regionsMap.get(region) ?? null,
       operator: operatorsMap.get(mnc ?? 0) ?? null,
       lab: result.lab,
-      date: {
-        from: parsePEMDate(result.date_from),
-        to: parsePEMDate(result.date_to),
-      },
+      date: from && to ? { from, to } : null,
       status: result.status,
     };
   });
@@ -369,9 +365,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const regionRow = region !== undefined ? (await db.select().from(regions).where(eq(regions.id, region)).limit(1))[0] : undefined;
 
   if (bounds) {
-    const [west, south, east, north] = bounds;
-    const bbox = `${west},${south},${east},${north}`;
-    return res.send(await withCache(`pem:map:${bbox}:${mncs?.join(",") ?? ""}`, MAP_CACHE_TTL, () => handleBoundsMode(bbox, mncs)));
+    const bbox = bounds.join(",");
+    return res.send(await withCache(`pem:map:${bbox}:${mncs?.join(",") ?? ""}`, MAP_CACHE_TTL, () => handleBoundsMode(bounds, mncs)));
   }
 
   if (status === "INACTIVE") {

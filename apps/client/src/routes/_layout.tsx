@@ -88,7 +88,7 @@ function AppLayout() {
       <AuthGuard>
         <NavActionsProvider targetId={preferences.navMode === "floating" ? FLOATING_NAV_ACTION_TARGET_ID : "header-actions"}>
           {preferences.navMode === "floating" ? (
-            <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-background">
+            <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
               {isWCO ? (
                 <div
                   className="shrink-0"
@@ -111,7 +111,7 @@ function AppLayout() {
             <SidebarProvider>
               <MobileSidebarAutoClose />
               <AppSidebar />
-              <SidebarInset className="max-h-svh min-h-0 overflow-hidden">
+              <SidebarInset className="max-h-dvh min-h-0 overflow-hidden">
                 <header
                   className={cn("flex shrink-0 items-center gap-2 border-b bg-background", !isWCO && "h-12")}
                   style={
