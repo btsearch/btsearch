@@ -9,6 +9,11 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Generated SI2PEM laboratory reports in station and UKE permit dialogs now open their antenna data in a movable, resizable window
 - The official UKE logo now marks permit data sources in station and radio line dialogs, and both UKE and SI2PEM logos appear in the azimuth fetch menu
 
+### 🩹 Fixes
+
+- Pages and the map no longer leave an empty unusable band after the on-screen keyboard is closed on mobile
+- When an expanded ad pushes the page down on mobile, the map and pages now shrink to the remaining space so all buttons stay visible
+
 # 2026-08-13
 
 ### 🩹 Fixes
