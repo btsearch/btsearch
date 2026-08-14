@@ -17,4 +17,4 @@ resolutionMode: "highest"
 minimumReleaseAge: 1440
 minimumReleaseAgeIgnoreMissingTime: true
 minimumReleaseAgeExclude:
-  - si2pem-reader@0.3.1
+  - si2pem-reader@0.3.3
