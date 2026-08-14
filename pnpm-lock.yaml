@@ -388,8 +388,8 @@ importers:
         specifier: 0.35.3
         version: 0.35.3(@types/node@25.9.3)
       si2pem-reader:
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.3.1
+        version: 0.3.1
       web-push:
         specifier: 3.6.7
         version: 3.6.7
@@ -7900,8 +7900,8 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  si2pem-reader@0.3.0:
-    resolution: {integrity: sha512-+iLJOPECuU4+jT0NgQA3GsnuNjMPptRrUKXmQA1+ciXqtZHtvBV7rvD2Y8XKs4lavcHHZRpXAJ00CGBTuO6NAA==}
+  si2pem-reader@0.3.1:
+    resolution: {integrity: sha512-Wy52CI1LYfJzeZpfzKjyaaNgz8oY3VKZ4hWX7DDq5e8l9MJuBPrKb52U9x+M2z4Y6/fyzpybDmaLTWvFgb+uvQ==}
     engines: {node: '>=22'}
 
   side-channel-list@1.0.1:
@@ -15929,7 +15929,7 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  si2pem-reader@0.3.0:
+  si2pem-reader@0.3.1:
     dependencies:
       unpdf: 1.8.0
     transitivePeerDependencies:
