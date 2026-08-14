@@ -13,6 +13,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - The SI2PEM antenna data window now opens narrower and taller, better matching the report layout
 - Pages and the map no longer leave an empty unusable band after the on-screen keyboard is closed on mobile
+- Closing the on-screen keyboard no longer leaves a small unused band at the bottom of the page when the floating navigation bar is enabled
 - When an expanded ad pushes the page down on mobile, the map and pages now shrink to the remaining space so all buttons stay visible
 
 # 2026-08-13
