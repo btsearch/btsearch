@@ -139,7 +139,8 @@ export function useFloatingDialogStackState() {
         return false;
       }
 
-      const dialog = resolved.create(createInitialStationDialogRect(familyCount), getNextZIndex());
+      const initialSize = request.kind === "si2pem-report" ? { width: 730, height: 800 } : undefined;
+      const dialog = resolved.create(createInitialStationDialogRect(familyCount, initialSize), getNextZIndex());
       setDialogsSynced((previous) => [...previous, dialog]);
       return true;
     },

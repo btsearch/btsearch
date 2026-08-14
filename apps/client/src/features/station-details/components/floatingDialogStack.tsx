@@ -174,6 +174,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange }:
           <FloatingStationDialogFrame
             rect={dialog.rect}
             zIndex={dialog.zIndex}
+            fitHeightToContent={dialog.kind !== "si2pem-report"}
             onFocus={() => onFocus(dialog.key)}
             onRectChange={(rect) => onRectChange(dialog.key, rect)}
           >

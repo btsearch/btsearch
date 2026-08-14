@@ -34,6 +34,7 @@ export type FloatingStationDialogRenderProps = {
 type FloatingStationDialogFrameProps = {
   rect: StationDialogRect;
   zIndex: number;
+  fitHeightToContent?: boolean;
   onFocus: () => void;
   onRectChange: (rect: StationDialogRect) => void;
   children: (props: FloatingStationDialogRenderProps) => ReactNode;
@@ -54,7 +55,14 @@ function isInteractiveTarget(target: EventTarget | null) {
   return target.closest("button,a,input,textarea,select,[role='button']") !== null;
 }
 
-export function FloatingStationDialogFrame({ rect, zIndex, onFocus, onRectChange, children }: FloatingStationDialogFrameProps) {
+export function FloatingStationDialogFrame({
+  rect,
+  zIndex,
+  fitHeightToContent = true,
+  onFocus,
+  onRectChange,
+  children,
+}: FloatingStationDialogFrameProps) {
   const { t } = useTranslation("common");
   const panelRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -88,7 +96,7 @@ export function FloatingStationDialogFrame({ rect, zIndex, onFocus, onRectChange
   );
 
   const fitDialogToContent = useCallback(() => {
-    if (userResizedHeightRef.current || interactionRef.current !== null) return;
+    if (!fitHeightToContent || userResizedHeightRef.current || interactionRef.current !== null) return;
 
     const content = contentRef.current;
     const body = bodyRef.current;
@@ -107,9 +115,11 @@ export function FloatingStationDialogFrame({ rect, zIndex, onFocus, onRectChange
     dialogRectRef.current = nextRect;
     applyStationDialogRect(panelRef.current, nextRect);
     onRectChangeRef.current(nextRect);
-  }, []);
+  }, [fitHeightToContent]);
 
   useLayoutEffect(() => {
+    if (!fitHeightToContent) return;
+
     const bodyContent = bodyContentRef.current;
     if (bodyContent === null) return;
 
@@ -131,7 +141,7 @@ export function FloatingStationDialogFrame({ rect, zIndex, onFocus, onRectChange
       resizeObserver.disconnect();
       if (frameId !== null) cancelAnimationFrame(frameId);
     };
-  }, [fitDialogToContent]);
+  }, [fitDialogToContent, fitHeightToContent]);
 
   const beginInteraction = useCallback(
     (event: ReactPointerEvent<HTMLElement>, mode: StationDialogInteractionMode) => {

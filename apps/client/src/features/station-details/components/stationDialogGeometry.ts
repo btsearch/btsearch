@@ -45,10 +45,16 @@ export function clampStationDialogRect(rect: StationDialogRect): StationDialogRe
   return { x, y, width, height };
 }
 
-export function createInitialStationDialogRect(index: number): StationDialogRect {
+export function createInitialStationDialogRect(
+  index: number,
+  initialSize: Pick<StationDialogRect, "width" | "height"> = {
+    width: DEFAULT_DIALOG_WIDTH,
+    height: DEFAULT_DIALOG_HEIGHT,
+  },
+): StationDialogRect {
   const bounds = getViewportBounds();
-  const width = Math.min(DEFAULT_DIALOG_WIDTH, bounds.width - DIALOG_MARGIN * 2);
-  const height = Math.min(DEFAULT_DIALOG_HEIGHT, bounds.height - DIALOG_MARGIN * 2);
+  const width = Math.min(initialSize.width, bounds.width - DIALOG_MARGIN * 2);
+  const height = Math.min(initialSize.height, bounds.height - DIALOG_MARGIN * 2);
 
   return clampStationDialogRect({
     x: (bounds.width - width) / 2 + index * DIALOG_OFFSET,
