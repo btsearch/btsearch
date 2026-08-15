@@ -5,7 +5,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- Map dots for locations with a single station now show the station status through their outline color: yellow for pending, red for inactive, white for published
+- Map dots and multi-operator pie markers now show the station status through their outline color when all stations at a location share it: yellow for pending, red for inactive, white for published
 - The CLF export page now has a "Copy API URL" text next to the Export button that copies the export link with the currently selected filters
 - The "New" photo badge in the station dialog now matches the photo gallery page and is translated
 - Photos with a note no longer show a note icon on the photo gallery page

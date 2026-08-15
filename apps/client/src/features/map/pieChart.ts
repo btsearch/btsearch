@@ -5,7 +5,7 @@ const PIE_FILL_RADIUS = 13;
 const PIE_STROKE_RADIUS = 15;
 const PIE_STROKE_WIDTH = 4;
 
-export function createPieChartImage(segments: { value: number; color: string }[]): ImageData | null {
+export function createPieChartImage(segments: { value: number; color: string }[], strokeColor = "#fff"): ImageData | null {
   const canvas = document.createElement("canvas");
   canvas.width = PIE_IMAGE_SIZE;
   canvas.height = PIE_IMAGE_SIZE;
@@ -30,7 +30,7 @@ export function createPieChartImage(segments: { value: number; color: string }[]
 
   ctx.beginPath();
   ctx.arc(center, center, PIE_STROKE_RADIUS, 0, Math.PI * 2);
-  ctx.strokeStyle = "#fff";
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = PIE_STROKE_WIDTH;
   ctx.stroke();
 
@@ -159,8 +159,10 @@ export function syncPieImages(map: maplibregl.Map, features: GeoJSON.Feature[], 
       continue;
     }
 
+    const status = feature.properties?.status;
+    const strokeColor = status === "pending" ? "#eab308" : status === "inactive" ? "#ef4444" : "#fff";
     const segments = createOperatorSegments(operators, feature.properties?.hasNullOperator);
-    const imageData = createPieChartImage(segments);
+    const imageData = createPieChartImage(segments, strokeColor);
 
     if (imageData) {
       map.addImage(pieImageId, imageData);

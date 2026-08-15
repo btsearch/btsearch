@@ -47,6 +47,8 @@ export function locationsToGeoJSON(locations: LocationWithStations[], source: St
     if (!location.stations?.length) continue;
 
     const { operators, hasNullOperator, isMultiOperator, pieImageId, color } = getOperatorData(location.stations.map((s) => s.operator?.mnc));
+    const status = new Set(location.stations.map((s) => s.status)).size === 1 ? location.stations[0].status : undefined;
+    const hasStatusOutline = status === "pending" || status === "inactive";
 
     features.push(
       createPointFeature(location.longitude, location.latitude, {
@@ -60,8 +62,8 @@ export function locationsToGeoJSON(locations: LocationWithStations[], source: St
         hasNullOperator,
         color,
         isMultiOperator,
-        pieImageId,
-        status: location.stations.length === 1 ? location.stations[0].status : undefined,
+        pieImageId: pieImageId && hasStatusOutline ? `${pieImageId}-${status}` : pieImageId,
+        status,
       }),
     );
   }
