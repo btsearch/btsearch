@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { Lightbox } from "@/components/lightbox";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,12 +26,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useIsMobile } from "@/hooks/useMobile";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
-import type { Operator, Region } from "@/types/station";
+import type { Operator, Region, StationStatus } from "@/types/station";
 
 import type { GalleryPhoto, PhotosGalleryFilters, PhotosGalleryOrder, PhotosGallerySortBy } from "../api";
 import { usePhotosGallery } from "../hooks";
@@ -55,15 +58,19 @@ function ClearFiltersButton({ count, onClick, className }: { count: number; onCl
 type StationPhotoGroup = {
   stationId: number;
   stationIdentifier: string;
+  status: GalleryPhoto["station"]["status"];
   operator: GalleryPhoto["station"]["operator"];
   location: GalleryPhoto["location"];
   items: { photo: GalleryPhoto; index: number }[];
 };
 
+const STATUS_FILTER_VALUES: StationStatus[] = ["published", "pending"];
+
 const DEFAULT_FILTERS: PhotosGalleryFilters = {
   q: "",
   operator: null,
   region: null,
+  statuses: [],
   sortBy: "uploaded",
   order: "desc",
   mainOnly: false,
@@ -75,6 +82,7 @@ type PersistedFilters = {
   q?: unknown;
   operator?: unknown;
   region?: unknown;
+  statuses?: unknown;
   sortBy?: unknown;
   order?: unknown;
   mainOnly?: unknown;
@@ -93,6 +101,10 @@ function isOrder(value: unknown): value is PhotosGalleryOrder {
   return value === "asc" || value === "desc";
 }
 
+function isStatusFilterValue(value: unknown): value is StationStatus {
+  return value === "published" || value === "pending";
+}
+
 function readStoredFilters(): PhotosGalleryFilters {
   if (typeof window === "undefined") return DEFAULT_FILTERS;
 
@@ -108,6 +120,7 @@ function readStoredFilters(): PhotosGalleryFilters {
       q: typeof parsed.q === "string" ? parsed.q : DEFAULT_FILTERS.q,
       operator: typeof parsed.operator === "number" ? parsed.operator : DEFAULT_FILTERS.operator,
       region: typeof parsed.region === "string" ? parsed.region : DEFAULT_FILTERS.region,
+      statuses: Array.isArray(parsed.statuses) ? parsed.statuses.filter(isStatusFilterValue) : DEFAULT_FILTERS.statuses,
       sortBy: isSortBy(parsed.sortBy) ? parsed.sortBy : DEFAULT_FILTERS.sortBy,
       order: isOrder(parsed.order) ? parsed.order : DEFAULT_FILTERS.order,
       mainOnly: typeof parsed.mainOnly === "boolean" ? parsed.mainOnly : DEFAULT_FILTERS.mainOnly,
@@ -140,6 +153,7 @@ function groupPhotosByStation(photos: GalleryPhoto[]): StationPhotoGroup[] {
     groups.set(photo.station.id, {
       stationId: photo.station.id,
       stationIdentifier: photo.station.station_id,
+      status: photo.station.status,
       operator: photo.station.operator,
       location: photo.location,
       items: [{ photo, index }],
@@ -154,6 +168,7 @@ function getActiveFilterCount(filters: PhotosGalleryFilters) {
     filters.q.trim().length > 0,
     filters.operator !== null,
     filters.region !== null,
+    filters.statuses.length > 0,
     filters.sortBy !== DEFAULT_FILTERS.sortBy,
     filters.order !== DEFAULT_FILTERS.order,
     filters.mainOnly,
@@ -171,6 +186,7 @@ type PhotosGalleryAction =
   | { type: "SET_SEARCH"; value: string }
   | { type: "SET_OPERATOR"; value: number | null }
   | { type: "SET_REGION"; value: string | null }
+  | { type: "TOGGLE_STATUS"; value: StationStatus }
   | { type: "SET_SORT_BY"; value: PhotosGallerySortBy }
   | { type: "SET_ORDER"; value: PhotosGalleryOrder }
   | { type: "SET_MAIN_ONLY"; value: boolean }
@@ -200,6 +216,12 @@ function photosGalleryReducer(state: PhotosGalleryState, action: PhotosGalleryAc
       return { ...state, filters: { ...state.filters, operator: action.value } };
     case "SET_REGION":
       return { ...state, filters: { ...state.filters, region: action.value } };
+    case "TOGGLE_STATUS": {
+      const statuses = state.filters.statuses.includes(action.value)
+        ? state.filters.statuses.filter((status) => status !== action.value)
+        : [...state.filters.statuses, action.value];
+      return { ...state, filters: { ...state.filters, statuses } };
+    }
     case "SET_SORT_BY":
       return { ...state, filters: { ...state.filters, sortBy: action.value } };
     case "SET_ORDER":
@@ -251,6 +273,7 @@ type PhotosMobileFilterRailProps = {
   onRegionChange: (regionCode: string | null) => void;
   onSearchChange: (value: string) => void;
   onSortByChange: (sortBy: PhotosGallerySortBy) => void;
+  onStatusToggle: (status: StationStatus) => void;
 };
 
 function PhotosMobileFilterRail({
@@ -274,6 +297,7 @@ function PhotosMobileFilterRail({
   onRegionChange,
   onSearchChange,
   onSortByChange,
+  onStatusToggle,
 }: PhotosMobileFilterRailProps) {
   const { t } = useTranslation(["main", "common"]);
   const hasSearch = search.trim().length > 0;
@@ -384,6 +408,28 @@ function PhotosMobileFilterRail({
         </div>
       </MobileFilterChip>
 
+      <MobileFilterChip active={filters.statuses.length > 0} count={filters.statuses.length} icon={FilterIcon} label={t("common:labels.status")}>
+        <MobileFilterPanelTitle>{t("common:labels.status")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          {STATUS_FILTER_VALUES.map((value) => {
+            const selected = filters.statuses.includes(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onStatusToggle(value)}
+                className={cn(
+                  "flex h-8 items-center rounded-md px-2 text-left text-sm transition-colors",
+                  selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate">{t(`stations:status.${value}`)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </MobileFilterChip>
+
       <MobileFilterChip active={sortActive} count={sortActive ? 1 : 0} icon={ArrowDown01Icon} label={t("photos.sortLabel")}>
         <MobileFilterPanelTitle>{t("photos.sortLabel")}</MobileFilterPanelTitle>
         <div className="grid gap-3">
@@ -481,12 +527,12 @@ export function PhotosGallery() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [state, dispatch] = useReducer(photosGalleryReducer, undefined, createInitialGalleryState);
   const { filters: storedFilters, lightboxIndex, showScrollTop } = state;
-  const { q: search, operator, region, sortBy, order, mainOnly, recentOnly } = storedFilters;
+  const { q: search, operator, region, statuses, sortBy, order, mainOnly, recentOnly } = storedFilters;
   const debouncedSearch = useDebouncedValue(search, 300);
 
   const filters = useMemo<PhotosGalleryFilters>(
-    () => ({ q: debouncedSearch, operator, region, sortBy, order, mainOnly, recentOnly }),
-    [debouncedSearch, mainOnly, operator, order, recentOnly, region, sortBy],
+    () => ({ q: debouncedSearch, operator, region, statuses, sortBy, order, mainOnly, recentOnly }),
+    [debouncedSearch, mainOnly, operator, order, recentOnly, region, statuses, sortBy],
   );
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
@@ -505,6 +551,14 @@ export function PhotosGallery() {
       station: t("photos.sort.station"),
       uploaded: t("photos.sort.uploaded"),
       taken: t("photos.sort.taken"),
+    }),
+    [t],
+  );
+  const statusLabels = useMemo<Record<StationStatus, string>>(
+    () => ({
+      published: t("stations:status.published"),
+      pending: t("stations:status.pending"),
+      inactive: t("stations:status.inactive"),
     }),
     [t],
   );
@@ -561,7 +615,7 @@ export function PhotosGallery() {
     writeStoredFilters(storedFilters);
   }, [storedFilters]);
 
-  useEffect(() => dispatch({ type: "CLOSE_LIGHTBOX" }), [debouncedSearch, operator, region, sortBy, order, mainOnly, recentOnly]);
+  useEffect(() => dispatch({ type: "CLOSE_LIGHTBOX" }), [debouncedSearch, operator, region, statuses, sortBy, order, mainOnly, recentOnly]);
 
   const openPhoto = useCallback((index: number) => dispatch({ type: "OPEN_LIGHTBOX", index }), []);
   const closeLightbox = useCallback(() => dispatch({ type: "CLOSE_LIGHTBOX" }), []);
@@ -583,6 +637,7 @@ export function PhotosGallery() {
   const setSearch = useCallback((value: string) => dispatch({ type: "SET_SEARCH", value }), []);
   const setOperator = useCallback((value: number | null) => dispatch({ type: "SET_OPERATOR", value }), []);
   const setRegion = useCallback((value: string | null) => dispatch({ type: "SET_REGION", value }), []);
+  const toggleStatus = useCallback((value: StationStatus) => dispatch({ type: "TOGGLE_STATUS", value }), []);
   const setSortBy = useCallback((value: PhotosGallerySortBy) => dispatch({ type: "SET_SORT_BY", value }), []);
   const setOrder = useCallback((value: PhotosGalleryOrder) => dispatch({ type: "SET_ORDER", value }), []);
   const setMainOnly = useCallback((value: boolean) => dispatch({ type: "SET_MAIN_ONLY", value }), []);
@@ -627,13 +682,9 @@ export function PhotosGallery() {
               className="group/header flex min-w-0 cursor-pointer items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => openStation(group.stationId)}
             >
-              <span className="truncate text-sm font-semibold tabular-nums">{group.stationIdentifier}</span>
-              {group.operator ? (
-                <span className="inline-flex max-w-44 items-center gap-1.5 truncate rounded-md border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  <span className="size-2 rounded-[2px]" style={{ backgroundColor: getOperatorColor(group.operator.mnc ?? 0) }} />
-                  <span className="truncate">{group.operator.name}</span>
-                </span>
-              ) : null}
+              {group.operator ? <DialogOperatorName name={group.operator.name} mnc={group.operator.mnc} compact /> : null}
+              <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums">{group.stationIdentifier}</span>
+              {group.status !== "published" ? <StationStatusBadge status={group.status} /> : null}
               <span className="hidden max-w-80 truncate text-xs text-muted-foreground sm:inline">{group.location.label}</span>
             </button>
             <div className="h-px min-w-6 flex-1 bg-border" />
@@ -665,87 +716,128 @@ export function PhotosGallery() {
 
           <div
             className={cn(
-              "mb-5 flex flex-col gap-2 border-b pb-4 lg:flex-row lg:items-center lg:justify-between",
+              "mb-5 flex flex-col gap-2 border-b pb-4 lg:flex-row lg:items-end lg:justify-between",
               showFloatingMobileFilters && "max-md:hidden",
             )}
           >
-            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <div className="relative min-w-0 flex-1 sm:max-w-96">
-                <HugeiconsIcon
-                  icon={Search01Icon}
-                  className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={t("photos.searchPlaceholder")}
-                  className="h-8 pl-8 pr-8"
-                />
-                {search.length > 0 ? (
-                  <button
-                    type="button"
-                    className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={t("common:actions.clear")}
-                    onClick={() => setSearch("")}
-                  >
-                    <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-                  </button>
-                ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-96">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.search")}</span>
+                <div className="relative">
+                  <HugeiconsIcon
+                    icon={Search01Icon}
+                    className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder={t("photos.searchPlaceholder")}
+                    className="h-8 pl-8 pr-8"
+                  />
+                  {search.length > 0 ? (
+                    <button
+                      type="button"
+                      className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={t("common:actions.clear")}
+                      onClick={() => setSearch("")}
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
-              <Select value={operator === null ? ALL_FILTER_VALUE : String(operator)} onValueChange={handleOperatorChange}>
-                <SelectTrigger className="h-8 w-full sm:w-48">
-                  <SelectValue>
-                    <span className="flex items-center gap-2">
-                      {selectedOperator ? (
-                        <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(selectedOperator.mnc ?? 0) }} />
-                      ) : null}
-                      <span className="truncate">{selectedOperator?.name ?? t("common:labels.allOperators")}</span>
-                    </span>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>{t("common:labels.allOperators")}</SelectItem>
-                  {operators.map((item) => (
-                    <SelectItem key={item.id} value={String(item.id)}>
+              <div className="flex w-full flex-col gap-1 sm:w-48">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.operator")}</span>
+                <Select value={operator === null ? ALL_FILTER_VALUE : String(operator)} onValueChange={handleOperatorChange}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue>
                       <span className="flex items-center gap-2">
-                        <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(item.mnc ?? 0) }} />
-                        {item.name}
+                        {selectedOperator ? (
+                          <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(selectedOperator.mnc ?? 0) }} />
+                        ) : null}
+                        <span className="truncate">{selectedOperator?.name ?? t("common:labels.allOperators")}</span>
                       </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>{t("common:labels.allOperators")}</SelectItem>
+                    {operators.map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        <span className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(item.mnc ?? 0) }} />
+                          {item.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
-                <SelectTrigger className="h-8 w-full sm:w-48">
-                  <SelectValue>{selectedRegion?.name ?? t("photos.allRegions")}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>{t("photos.allRegions")}</SelectItem>
-                  {regions.map((item) => (
-                    <SelectItem key={item.id} value={item.code}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex w-full flex-col gap-1 sm:w-48">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
+                <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue>{selectedRegion?.name ?? t("photos.allRegions")}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>{t("photos.allRegions")}</SelectItem>
+                    {regions.map((item) => (
+                      <SelectItem key={item.id} value={item.code}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Select value={sortBy} onValueChange={handleSortChange}>
-                <SelectTrigger className="h-8 w-full sm:w-40">
-                  <SelectValue>{sortLabels[sortBy]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="station">{sortLabels.station}</SelectItem>
-                  <SelectItem value="uploaded">{sortLabels.uploaded}</SelectItem>
-                  <SelectItem value="taken">{sortLabels.taken}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex w-full flex-col gap-1 sm:w-44">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.status")}</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button type="button" variant="outline" size="sm" className="h-8 w-full justify-between font-normal" />}
+                  >
+                    <span className="truncate">
+                      {statuses.length === 0 ? t("photos.allStatuses") : statuses.map((value) => statusLabels[value]).join(", ")}
+                    </span>
+                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4 shrink-0 opacity-50" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {STATUS_FILTER_VALUES.map((value) => (
+                      <DropdownMenuCheckboxItem
+                        key={value}
+                        checked={statuses.includes(value)}
+                        closeOnClick={false}
+                        onCheckedChange={() => toggleStatus(value)}
+                      >
+                        {statusLabels[value]}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-              <Button type="button" variant="outline" size="sm" className="h-8 gap-2" onClick={toggleOrder}>
-                <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
-                {order === "asc" ? t("photos.order.asc") : t("photos.order.desc")}
-              </Button>
+              <div className="flex w-full flex-col gap-1 sm:w-40">
+                <span className="text-xs font-medium text-muted-foreground">{t("photos.sortLabel")}</span>
+                <Select value={sortBy} onValueChange={handleSortChange}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue>{sortLabels[sortBy]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="station">{sortLabels.station}</SelectItem>
+                    <SelectItem value="uploaded">{sortLabels.uploaded}</SelectItem>
+                    <SelectItem value="taken">{sortLabels.taken}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex w-full flex-col gap-1 sm:w-auto">
+                <span className="text-xs font-medium text-muted-foreground">{t("photos.orderLabel")}</span>
+                <Button type="button" variant="outline" size="sm" className="h-8 w-full gap-2 sm:w-auto" onClick={toggleOrder}>
+                  <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
+                  {order === "asc" ? t("photos.order.asc") : t("photos.order.desc")}
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -825,6 +917,7 @@ export function PhotosGallery() {
                   onRegionChange={setRegion}
                   onSearchChange={setSearch}
                   onSortByChange={setSortBy}
+                  onStatusToggle={toggleStatus}
                 />
               </div>
             </div>

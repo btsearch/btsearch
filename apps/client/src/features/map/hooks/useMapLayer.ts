@@ -95,7 +95,7 @@ const CIRCLE_LAYER_CONFIG: LayerSpecification = {
     "circle-color": ["get", "color"],
     "circle-radius": 7,
     "circle-stroke-width": 2,
-    "circle-stroke-color": "#fff",
+    "circle-stroke-color": ["match", ["get", "status"], "pending", "#eab308", "inactive", "#ef4444", "#fff"],
   },
 };
 

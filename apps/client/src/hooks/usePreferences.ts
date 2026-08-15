@@ -36,6 +36,7 @@ export interface UserPreferences {
   mapRadiolinesLimit: number;
   showMapHoverTooltip: boolean;
   allowMultipleMapPopups: boolean;
+  closeMapPopupsOnMapClick: boolean;
   mapPointStyle: MapPointStyle;
   mapRightClickMeasure: boolean;
   mapMeasureCircle: boolean;
@@ -93,6 +94,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   mapRadiolinesLimit: 500,
   showMapHoverTooltip: false,
   allowMultipleMapPopups: true,
+  closeMapPopupsOnMapClick: false,
   mapPointStyle: "dots",
   mapRightClickMeasure: false,
   mapMeasureCircle: false,

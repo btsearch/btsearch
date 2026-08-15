@@ -545,74 +545,92 @@ function AdminAuditLogsPage() {
           </div>
         </div>
 
-        <div className={cn("flex flex-wrap items-center gap-2", showFloatingMobileFilters && "max-md:hidden")}>
-          <Select
-            value={tableFilter}
-            onValueChange={(v) => {
-              dispatchFilter({ type: "SET_TABLE_FILTER", payload: v === "__all__" ? "" : (v as string) });
-              resetPage();
-            }}
-          >
-            <SelectTrigger className="min-w-35">
-              <SelectValue placeholder={t("auditLogs.filters.allEntities")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{t("auditLogs.filters.allEntities")}</SelectItem>
-              {TABLE_OPTIONS.map((table) => (
-                <SelectItem key={table} value={table}>
-                  {getTableLabel(table)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className={cn("flex flex-wrap items-end gap-2", showFloatingMobileFilters && "max-md:hidden")}>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.entity")}</span>
+            <Select
+              value={tableFilter === "" ? "__all__" : tableFilter}
+              onValueChange={(v) => {
+                dispatchFilter({ type: "SET_TABLE_FILTER", payload: v === "__all__" ? "" : (v as string) });
+                resetPage();
+              }}
+            >
+              <SelectTrigger className="min-w-35">
+                <SelectValue>{tableFilter === "" ? t("auditLogs.filters.allEntities") : getTableLabel(tableFilter)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{t("auditLogs.filters.allEntities")}</SelectItem>
+                {TABLE_OPTIONS.map((table) => (
+                  <SelectItem key={table} value={table}>
+                    {getTableLabel(table)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <ActionsFilterButton
-            t={t}
-            value={actionsFilter}
-            onChange={(v) => {
-              dispatchFilter({ type: "SET_ACTIONS_FILTER", payload: v });
-              resetPage();
-            }}
-          />
-
-          <div className="relative">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
-            />
-            <Input
-              className="h-8 pl-7 w-40"
-              placeholder={t("auditLogs.filters.recordId")}
-              value={queryFilter}
-              onChange={(e) => handleQueryFilterChange(e.target.value)}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.action")}</span>
+            <ActionsFilterButton
+              t={t}
+              value={actionsFilter}
+              onChange={(v) => {
+                dispatchFilter({ type: "SET_ACTIONS_FILTER", payload: v });
+                resetPage();
+              }}
             />
           </div>
 
-          <UserPickerPopover
-            selectedUserIds={selectedUserIds}
-            onSelectionChange={(ids) => {
-              setSelectedUserIds(ids);
-              resetPage();
-            }}
-          />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.filters.recordId")}</span>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={Search01Icon}
+                className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
+              />
+              <Input
+                className="h-8 pl-7 w-40"
+                placeholder={t("auditLogs.filters.recordId")}
+                value={queryFilter}
+                onChange={(e) => handleQueryFilterChange(e.target.value)}
+              />
+            </div>
+          </div>
 
-          <DatePickerButton
-            value={dateFrom}
-            onChange={(v) => {
-              dispatchFilter({ type: "SET_DATE_FROM", payload: v });
-              resetPage();
-            }}
-            label={t("auditLogs.filters.dateFrom")}
-          />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.actor")}</span>
+            <UserPickerPopover
+              selectedUserIds={selectedUserIds}
+              onSelectionChange={(ids) => {
+                setSelectedUserIds(ids);
+                resetPage();
+              }}
+            />
+          </div>
 
-          <DatePickerButton
-            value={dateTo}
-            onChange={(v) => {
-              dispatchFilter({ type: "SET_DATE_TO", payload: v });
-              resetPage();
-            }}
-            label={t("auditLogs.filters.dateTo")}
-          />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.filters.dateFrom")}</span>
+            <DatePickerButton
+              value={dateFrom}
+              onChange={(v) => {
+                dispatchFilter({ type: "SET_DATE_FROM", payload: v });
+                resetPage();
+              }}
+              label={t("auditLogs.filters.dateFrom")}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.filters.dateTo")}</span>
+            <DatePickerButton
+              value={dateTo}
+              onChange={(v) => {
+                dispatchFilter({ type: "SET_DATE_TO", payload: v });
+                resetPage();
+              }}
+              label={t("auditLogs.filters.dateTo")}
+            />
+          </div>
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground">

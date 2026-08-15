@@ -1,4 +1,4 @@
-import { Add01Icon, Copy01Icon, Download04Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Copy01Icon, Download04Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   type CLFDescriptionTemplatePlaceholder,
@@ -148,6 +148,7 @@ function ClfExportPage() {
   const [elapsed, setElapsed] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
   const [templateDrafts, setTemplateDrafts] = useState<CLFDescriptionTemplates>(() => clfDescriptionTemplates);
+  const [copiedApiUrl, setCopiedApiUrl] = useState(false);
   const lastSentTemplatesRef = useRef<CLFDescriptionTemplates | null>(null);
 
   const debouncedSaveTemplates = useDebouncedCallback((next: CLFDescriptionTemplates) => {
@@ -201,7 +202,8 @@ function ClfExportPage() {
         if (exportStartRef.current) setElapsed(Date.now() - exportStartRef.current);
       }, 500);
 
-      const success = await downloadExport(buildExportUrl(value, templateDrafts), value.format);
+      const url = buildExportUrl(value, templateDrafts);
+      const success = await downloadExport(url, value.format);
       if (success) {
         toast.success(t("exportSuccess"));
       } else {
@@ -226,13 +228,10 @@ function ClfExportPage() {
     updatePreferences({ clfExportFilters: { ...preferences.clfExportFilters, ...update } });
   }
 
-  async function copyExportUrl() {
-    try {
-      await navigator.clipboard.writeText(buildExportUrl(form.state.values, templateDrafts));
-      toast.success(t("copySuccess"));
-    } catch {
-      toast.error(t("copyError"));
-    }
+  function copyApiUrl() {
+    void navigator.clipboard.writeText(buildExportUrl(form.state.values, templateDrafts));
+    setCopiedApiUrl(true);
+    setTimeout(() => setCopiedApiUrl(false), 2000);
   }
 
   return (
@@ -522,14 +521,18 @@ function ClfExportPage() {
                         </>
                       )}
                     </Button>
-                    <Button type="button" variant="outline" size="lg" className="flex-1 md:flex-none" onClick={() => void copyExportUrl()}>
-                      <HugeiconsIcon icon={Copy01Icon} className="size-4" data-icon="inline-start" />
-                      {t("form.copyApiUrl")}
-                    </Button>
                     {isSubmitting ? <span className="opacity-70 text-sm tabular-nums shrink-0">{formatDuration(elapsed)}</span> : null}
                     {finalDuration !== null && !isSubmitting ? (
                       <span className="text-sm text-muted-foreground tabular-nums shrink-0">{formatDuration(finalDuration)}</span>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={copyApiUrl}
+                      className="flex shrink-0 cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <HugeiconsIcon icon={copiedApiUrl ? Tick02Icon : Copy01Icon} className="size-3.5" />
+                      {copiedApiUrl ? t("common:actions.copied") : t("form.copyApiUrl")}
+                    </button>
                   </div>
                 )}
               </form.Subscribe>

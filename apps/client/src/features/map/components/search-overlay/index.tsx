@@ -4,9 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav.js";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet.js";
-import { useNavActionTarget } from "@/contexts/navActions.js";
 import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
 import { useIsMobile } from "@/hooks/useMobile.js";
 import { usePreferences } from "@/hooks/usePreferences.js";
@@ -90,7 +88,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const filterPanelRef = useRef<HTMLFieldSetElement>(null);
   const isMobile = useIsMobile();
-  const navActionTarget = useNavActionTarget();
 
   const { preferences, updatePreferences } = usePreferences();
   const [affectMap, setAffectMap] = useState<boolean>(() => {
@@ -340,7 +337,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   ]);
 
   const handleSourceChange = useCallback((source: StationSource) => onFiltersChange({ ...filters, source }), [filters, onFiltersChange]);
-  const showFloatingMobileMapControls = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
+  const showFloatingMobileMapControls = isMobile && preferences.navMode === "floating";
   const mobileStatsPanel = (
     <MobileStatsPanel
       locationCount={locationCount}

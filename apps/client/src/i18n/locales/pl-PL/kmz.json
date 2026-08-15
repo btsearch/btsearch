@@ -19,6 +19,7 @@
     "allRegions": "Wszystkie województwa"
   },
   "sortLabel": "Sortuj",
+  "orderLabel": "Kolejność",
   "sort": {
     "region": "Województwo",
     "size": "Rozmiar pliku"

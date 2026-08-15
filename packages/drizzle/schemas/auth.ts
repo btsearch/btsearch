@@ -41,6 +41,7 @@ export type CloudUserPreferences = {
   mapRadiolinesLimit?: number;
   showMapHoverTooltip?: boolean;
   allowMultipleMapPopups?: boolean;
+  closeMapPopupsOnMapClick?: boolean;
   mapPointStyle?: "dots" | "markers";
   mapRightClickMeasure?: boolean;
   mapMeasureCircle?: boolean;

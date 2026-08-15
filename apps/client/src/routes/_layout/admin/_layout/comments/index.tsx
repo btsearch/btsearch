@@ -291,7 +291,7 @@ function AdminCommentsPage() {
               }}
             >
               <SelectTrigger className="w-36">
-                <SelectValue />
+                <SelectValue>{statusFilter === "all" ? t("comments.filters.allStatuses") : t(`comments.filters.${statusFilter}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="min-w-40">
                 <SelectItem value="all">{t("comments.filters.allStatuses")}</SelectItem>
@@ -300,24 +300,30 @@ function AdminCommentsPage() {
               </SelectContent>
             </Select>
           </div>
-          <UserPickerPopover
-            selectedUserIds={selectedAuthorIds}
-            onSelectionChange={(ids) => {
-              setSelectedAuthorIds(ids);
-              setPagination((p) => ({ ...p, pageIndex: 0 }));
-            }}
-          />
-          <div className="relative max-w-sm">
-            <HugeiconsIcon icon={Search01Icon} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder={t("common:placeholder.search")}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">{t("comments.table.author")}</label>
+            <UserPickerPopover
+              selectedUserIds={selectedAuthorIds}
+              onSelectionChange={(ids) => {
+                setSelectedAuthorIds(ids);
                 setPagination((p) => ({ ...p, pageIndex: 0 }));
               }}
-              className="pl-8"
             />
+          </div>
+          <div className="flex max-w-sm flex-1 flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">{tCommon("labels.search")}</label>
+            <div className="relative">
+              <HugeiconsIcon icon={Search01Icon} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder={t("common:placeholder.search")}
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPagination((p) => ({ ...p, pageIndex: 0 }));
+                }}
+                className="pl-8"
+              />
+            </div>
           </div>
         </div>
         <CommentsDataTable

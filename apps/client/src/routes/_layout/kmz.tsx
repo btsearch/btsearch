@@ -447,77 +447,93 @@ function KmzListPage() {
           <p className="shrink-0 text-sm font-medium text-muted-foreground">{t("list.count", { count: files.length })}</p>
         </header>
 
-        <div className="flex flex-col gap-2 border-b pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className={cn(showFloatingMobileFilters && "max-md:hidden")}>
+        <div className="flex flex-col gap-2 border-b pb-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className={cn("flex flex-col gap-1", showFloatingMobileFilters && "max-md:hidden")}>
+              <span className="text-xs font-medium text-muted-foreground">{t("type.label")}</span>
               <KmzTypeSwitcher type={type} onChange={handleTypeChange} />
             </div>
 
             <div
               className={cn(
-                "flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:border-l sm:border-border sm:pl-3",
+                "flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:border-l sm:border-border sm:pl-3",
                 showFloatingMobileFilters && "max-md:hidden",
               )}
             >
               {type === "stations" ? (
-                <Select value={source} onValueChange={(value) => value && handleSourceChange(value as KmzSource)}>
-                  <SelectTrigger className="h-8 w-full sm:w-44">
-                    <SelectValue>{t(`source.${source}`)}</SelectValue>
+                <div className="flex w-full flex-col gap-1 sm:w-44">
+                  <span className="text-xs font-medium text-muted-foreground">{t("source.label")}</span>
+                  <Select value={source} onValueChange={(value) => value && handleSourceChange(value as KmzSource)}>
+                    <SelectTrigger className="h-8 w-full">
+                      <SelectValue>{t(`source.${source}`)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {KMZ_SOURCES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {t(`source.${value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              <div className="flex w-full flex-col gap-1 sm:w-40">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.date")}</span>
+                <Select value={date ?? ""} onValueChange={(value) => value && setDate(value)}>
+                  <SelectTrigger className="h-8 w-full" disabled={availableDates.length === 0}>
+                    <SelectValue>{date ? formatDayMonthYear(date) : t("list.noDates")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {KMZ_SOURCES.map((value) => (
+                    {availableDates.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {t(`source.${value}`)}
+                        {formatDayMonthYear(value)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : null}
+              </div>
 
-              <Select value={date ?? ""} onValueChange={(value) => value && setDate(value)}>
-                <SelectTrigger className="h-8 w-full sm:w-40" disabled={availableDates.length === 0}>
-                  <SelectValue>{date ? formatDayMonthYear(date) : t("list.noDates")}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDates.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {formatDayMonthYear(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex w-full flex-col gap-1 sm:w-48">
+                <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
+                <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue>{selectedRegion?.name ?? t("region.allRegions")}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>{t("region.allRegions")}</SelectItem>
+                    {regions.map((item) => (
+                      <SelectItem key={item.id} value={item.code}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
-                <SelectTrigger className="h-8 w-full sm:w-48">
-                  <SelectValue>{selectedRegion?.name ?? t("region.allRegions")}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>{t("region.allRegions")}</SelectItem>
-                  {regions.map((item) => (
-                    <SelectItem key={item.id} value={item.code}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex w-full flex-col gap-1 sm:w-36">
+                <span className="text-xs font-medium text-muted-foreground">{t("sortLabel")}</span>
+                <Select value={sortBy} onValueChange={handleSortChange}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue>{sortLabels[sortBy]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {KMZ_SORT_OPTIONS.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {sortLabels[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Select value={sortBy} onValueChange={handleSortChange}>
-                <SelectTrigger className="h-8 w-full sm:w-36">
-                  <SelectValue>{sortLabels[sortBy]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {KMZ_SORT_OPTIONS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {sortLabels[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button type="button" variant="outline" size="sm" className="h-8 gap-2" onClick={toggleOrder}>
-                <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
-                {order === "asc" ? t("order.asc") : t("order.desc")}
-              </Button>
+              <div className="flex w-full flex-col gap-1 sm:w-auto">
+                <span className="text-xs font-medium text-muted-foreground">{t("orderLabel")}</span>
+                <Button type="button" variant="outline" size="sm" className="h-8 w-full gap-2 sm:w-auto" onClick={toggleOrder}>
+                  <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
+                  {order === "asc" ? t("order.asc") : t("order.desc")}
+                </Button>
+              </div>
             </div>
           </div>
 

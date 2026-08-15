@@ -19,6 +19,7 @@
     "allRegions": "All regions"
   },
   "sortLabel": "Sort",
+  "orderLabel": "Order",
   "sort": {
     "region": "Region",
     "size": "File size"

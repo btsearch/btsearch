@@ -23,9 +23,8 @@ export function UserPickerPopover({ selectedUserIds, onSelectionChange }: UserPi
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          "h-8 rounded-lg border bg-transparent px-2.5 text-sm transition-colors flex items-center gap-2 min-w-36",
+          "h-8 rounded-lg border bg-transparent px-2.5 text-sm text-foreground transition-colors flex items-center gap-2 min-w-36",
           "border-input dark:bg-input/30 dark:hover:bg-input/50 hover:bg-muted",
-          selectedUserIds.length > 0 ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <HugeiconsIcon icon={UserIcon} className="size-3.5 shrink-0" />

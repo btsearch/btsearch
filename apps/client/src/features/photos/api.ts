@@ -1,4 +1,5 @@
 import { API_BASE, fetchJson } from "@/lib/api";
+import type { StationStatus } from "@/types/station";
 
 export type GalleryPhoto = {
   id: number;
@@ -13,6 +14,7 @@ export type GalleryPhoto = {
   station: {
     id: number;
     station_id: string;
+    status: StationStatus;
     operator: { id: number; name: string; mnc: number | null } | null;
   };
   location: {
@@ -37,6 +39,7 @@ export type PhotosGalleryFilters = {
   q: string;
   operator: number | null;
   region: string | null;
+  statuses: StationStatus[];
   sortBy: PhotosGallerySortBy;
   order: PhotosGalleryOrder;
   mainOnly: boolean;
@@ -55,6 +58,7 @@ export function fetchPhotosGallery(limit: number, page: number, filters: PhotosG
   if (query.length > 0) params.set("q", query);
   if (filters.operator !== null) params.set("operator", String(filters.operator));
   if (filters.region !== null) params.set("region", filters.region);
+  if (filters.statuses.length > 0) params.set("status", filters.statuses.join(","));
   if (filters.mainOnly) params.set("mainOnly", "true");
   if (filters.recentOnly) params.set("recentDays", "7");
 

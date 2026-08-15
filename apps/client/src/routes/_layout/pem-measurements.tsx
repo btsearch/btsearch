@@ -77,8 +77,8 @@ function PEMMeasurementsPage() {
     resetPage();
   };
 
-  const handleRegionChange = (value: string) => {
-    setRegionFilter(value === "__all__" ? null : Number(value));
+  const handleRegionChange = (value: string | null) => {
+    setRegionFilter(!value || value === "__all__" ? null : Number(value));
     resetPage();
   };
 
@@ -89,86 +89,100 @@ function PEMMeasurementsPage() {
         <p className="text-sm text-muted-foreground mt-0.5">{t("page.description")}</p>
       </div>
 
-      <div className="px-6 py-2.5 border-b shrink-0 flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
-        <ButtonGroup>
-          {(["PLANNED", "COMPLETED", "CANCELED", "INACTIVE"] as const).map((value) => (
-            <Button key={value} size="sm" variant={tab === value ? "default" : "outline"} onClick={() => handleTabChange(value)}>
-              {t(`tabs.${value.toLowerCase() as "planned" | "completed" | "canceled" | "inactive"}`)}
-            </Button>
-          ))}
-        </ButtonGroup>
+      <div className="px-6 py-2.5 border-b shrink-0 flex flex-col sm:flex-row sm:items-end gap-2 mt-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">{tCommon("labels.status")}</span>
+          <ButtonGroup>
+            {(["PLANNED", "COMPLETED", "CANCELED", "INACTIVE"] as const).map((value) => (
+              <Button key={value} size="sm" variant={tab === value ? "default" : "outline"} onClick={() => handleTabChange(value)}>
+                {t(`tabs.${value.toLowerCase() as "planned" | "completed" | "canceled" | "inactive"}`)}
+              </Button>
+            ))}
+          </ButtonGroup>
+        </div>
 
         <div className="hidden sm:block flex-1" />
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 sm:w-48">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
-            />
-            <Input
-              value={stationIdInput}
-              onChange={handleStationIdChange}
-              placeholder={t("filters.stationIdPlaceholder")}
-              className="h-8 w-full pl-8 pr-7 bg-transparent placeholder:text-muted-foreground/60"
-            />
-            {stationIdInput && (
-              <button
-                type="button"
-                onClick={() => {
-                  setStationIdInput("");
-                  resetPage();
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-              </button>
-            )}
+        <div className="flex items-end gap-2">
+          <div className="flex flex-1 flex-col gap-1 sm:w-48 sm:flex-none">
+            <span className="text-xs font-medium text-muted-foreground">{tCommon("labels.search")}</span>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={Search01Icon}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
+              />
+              <Input
+                value={stationIdInput}
+                onChange={handleStationIdChange}
+                placeholder={t("filters.stationIdPlaceholder")}
+                className="h-8 w-full pl-8 pr-7 bg-transparent placeholder:text-muted-foreground/60"
+              />
+              {stationIdInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStationIdInput("");
+                    resetPage();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
-          <Select value={operatorFilter || "__all__"} onValueChange={handleOperatorChange}>
-            <SelectTrigger className="h-8 w-40 sm:w-48 text-sm shrink-0">
-              <SelectValue>
-                {selectedOperatorObj ? (
-                  <div className="flex items-center gap-2">
-                    <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(selectedOperatorObj.mnc) }} />
-                    <span className="truncate">{selectedOperatorObj.name}</span>
-                  </div>
-                ) : (
-                  tCommon("labels.allOperators")
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{tCommon("labels.allOperators")}</SelectItem>
-              {pemOperators.map((op) => (
-                <SelectItem key={op.id} value={PEM_MNC_TO_ENTITY[op.mnc] ?? op.name}>
-                  <div className="flex items-center gap-2">
-                    <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
-                    {op.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex w-40 shrink-0 flex-col gap-1 sm:w-48">
+            <span className="text-xs font-medium text-muted-foreground">{tCommon("labels.operator")}</span>
+            <Select value={operatorFilter || "__all__"} onValueChange={handleOperatorChange}>
+              <SelectTrigger className="h-8 w-full text-sm">
+                <SelectValue>
+                  {selectedOperatorObj ? (
+                    <div className="flex items-center gap-2">
+                      <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(selectedOperatorObj.mnc) }} />
+                      <span className="truncate">{selectedOperatorObj.name}</span>
+                    </div>
+                  ) : (
+                    tCommon("labels.allOperators")
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{tCommon("labels.allOperators")}</SelectItem>
+                {pemOperators.map((op) => (
+                  <SelectItem key={op.id} value={PEM_MNC_TO_ENTITY[op.mnc] ?? op.name}>
+                    <div className="flex items-center gap-2">
+                      <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
+                      {op.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={regionFilter !== null ? String(regionFilter) : "__all__"} onValueChange={handleRegionChange}>
-            <SelectTrigger className="h-8 w-40 sm:w-52 text-sm shrink-0">
-              <SelectValue>
-                <span className="truncate">
-                  {regionFilter !== null ? (allRegions.find((r) => r.id === regionFilter)?.name ?? t("filters.allRegions")) : t("filters.allRegions")}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{t("filters.allRegions")}</SelectItem>
-              {allRegions.map((r) => (
-                <SelectItem key={r.id} value={String(r.id)}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex w-40 shrink-0 flex-col gap-1 sm:w-52">
+            <span className="text-xs font-medium text-muted-foreground">{tCommon("labels.region")}</span>
+            <Select value={regionFilter !== null ? String(regionFilter) : "__all__"} onValueChange={handleRegionChange}>
+              <SelectTrigger className="h-8 w-full text-sm">
+                <SelectValue>
+                  <span className="truncate">
+                    {regionFilter !== null
+                      ? (allRegions.find((r) => r.id === regionFilter)?.name ?? t("filters.allRegions"))
+                      : t("filters.allRegions")}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{t("filters.allRegions")}</SelectItem>
+                {allRegions.map((r) => (
+                  <SelectItem key={r.id} value={String(r.id)}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

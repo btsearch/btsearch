@@ -52,6 +52,7 @@
     "operator": "Operator",
     "allOperators": "Wszyscy operatorzy",
     "region": "Województwo",
+    "allRegions": "Wszystkie województwa",
     "filters": "Filtry",
     "latitude": "Szerokość geograficzna",
     "longitude": "Długość geograficzna",

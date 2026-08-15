@@ -1,6 +1,29 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-15
+
+### 🚀 Enhancements
+
+- Map dots for locations with a single station now show the station status through their outline color: yellow for pending, red for inactive, white for published
+- The CLF export page now has a "Copy API URL" text next to the Export button that copies the export link with the currently selected filters
+- The "New" photo badge in the station dialog now matches the photo gallery page and is translated
+- Photos with a note no longer show a note icon on the photo gallery page
+- Station headers on the photo gallery page now show the operator logo and name before the station ID, matching the station dialog
+- The photo gallery now also includes photos of pending stations, marked with the same status badge as in the station dialog
+- The photo gallery can now be filtered by station status, with multiple statuses selectable at once
+- Filter controls on the photo gallery page now have labels describing what each one does
+- Filter controls on the KMZ, PEM measurements, deleted entries, admin submissions, admin comments and admin audit logs pages now have labels describing what each one does
+- A new map preference closes open location popups when you click anywhere else on the map
+
+### 🩹 Fixes
+
+- The status dropdown on the admin comments page now shows translated labels instead of raw values
+- Filter dropdowns on the deleted entries and admin audit logs pages no longer show their default "All" option in gray placeholder styling
+- The map source switcher on mobile no longer becomes untappable after hiding the floating navigation bar
+- The floating navigation bar now shows the preferences button when you are not logged in
+- The floating navigation bar no longer covers the last rows on the admin station and submission detail pages
+
 # 2026-08-14
 
 ### 🚀 Enhancements

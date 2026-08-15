@@ -1,5 +1,5 @@
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { type Map as MaplibreMap, Popup } from "maplibre-gl";
+import { type MapMouseEvent, type Map as MaplibreMap, Popup } from "maplibre-gl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
@@ -9,12 +9,14 @@ import type { LocationInfo, StationFilters, StationSource, StationWithoutCells, 
 
 import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PopupContent } from "../components/popupContent";
+import { POINT_LAYER_ID } from "../constants";
 import { toLocationInfo } from "../utils";
 
 type UseMapPopupArgs = {
   map: MaplibreMap | null;
   showAddToList?: boolean;
   allowMultipleMapPopups: boolean;
+  closeMapPopupsOnMapClick: boolean;
   detailsFilters: StationFilters;
   filterStations?: (stations: StationWithoutCells[]) => StationWithoutCells[];
   onOpenStationDetails: (id: number, source: StationSource) => boolean | void;
@@ -105,6 +107,7 @@ export function useMapPopup({
   map,
   showAddToList,
   allowMultipleMapPopups,
+  closeMapPopupsOnMapClick,
   detailsFilters,
   filterStations,
   onOpenStationDetails,
@@ -214,6 +217,22 @@ export function useMapPopup({
       if (shouldClose({ locationId: entry.location.id, source: entry.source })) entry.popup.remove();
     }
   }, []);
+
+  useEffect(() => {
+    if (!map || !closeMapPopupsOnMapClick) return;
+
+    const handleMapClick = (event: MapMouseEvent) => {
+      if (popupEntriesRef.current.size === 0) return;
+      const layers = [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`].filter((id) => map.getLayer(id));
+      if (layers.length > 0 && map.queryRenderedFeatures(event.point, { layers }).length > 0) return;
+      closePopups(() => true);
+    };
+
+    map.on("click", handleMapClick);
+    return () => {
+      map.off("click", handleMapClick);
+    };
+  }, [map, closeMapPopupsOnMapClick, closePopups]);
 
   const cleanup = useCallback(() => {
     const entries = [...popupEntriesRef.current.values()];

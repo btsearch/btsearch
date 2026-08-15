@@ -576,7 +576,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onSave={handleSave}
       />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto max-md:pb-10 md:pb-16">
         {isDeleteSubmission && (
           <div className="mx-3 mt-3 rounded-xl border-2 border-red-500/30 bg-red-50 dark:bg-red-950/30 px-4 py-3 flex items-start gap-3">
             <div className="shrink-0 size-10 rounded-full bg-red-500/15 flex items-center justify-center">

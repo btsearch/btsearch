@@ -94,7 +94,9 @@
     "retry": "Retry",
     "searchPlaceholder": "Search station, city, address, region, note...",
     "allRegions": "All regions",
+    "allStatuses": "All statuses",
     "sortLabel": "Sort",
+    "orderLabel": "Order",
     "sort": {
       "station": "Station ID",
       "uploaded": "Uploaded",

@@ -757,6 +757,16 @@ function FloatingAccountCluster() {
         </>
       ) : (
         <>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link to="/settings" search={{ tab: "preferences" }} className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("items.preferences")} />
+              }
+            >
+              <HugeiconsIcon icon={Settings02Icon} className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>{t("items.preferences")}</TooltipContent>
+          </Tooltip>
           <FloatingThemeControl />
           <FloatingLanguageControl />
           <Button variant="outline" size="sm" className="h-8 rounded-full px-2.5" onClick={() => setAuthDialogOpen(true)}>
@@ -1012,7 +1022,7 @@ export function FloatingNav() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
                 transition={shellTransition}
-                className="pointer-events-auto flex h-12 w-full touch-none items-end justify-center text-muted-foreground"
+                className="pointer-events-auto flex h-12 w-40 touch-none items-end justify-center text-muted-foreground"
               >
                 <button
                   type="button"

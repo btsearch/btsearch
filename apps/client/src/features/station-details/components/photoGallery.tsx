@@ -5,15 +5,11 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Lightbox } from "@/components/lightbox";
+import { isRecentPhoto } from "@/components/photoGridPrimitives";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-function isNew(createdAt: string) {
-  return Date.now() - new Date(createdAt).getTime() < SEVEN_DAYS_MS;
-}
 
 type Props = { stationId: number; isAdmin: boolean };
 
@@ -110,11 +106,18 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
                 if (e.key === "Enter" || e.key === " ") setLightboxIndex(idx);
               }}
             />
-            {photo.is_main ? (
-              <span className="absolute top-1.5 left-1.5 bg-black/60 text-yellow-400 rounded-full p-1">
-                <HugeiconsIcon icon={StarIcon} className="size-3" />
-              </span>
-            ) : null}
+            <span className="pointer-events-none absolute top-1.5 left-1.5 flex items-center gap-1.5">
+              {photo.is_main ? (
+                <span className="bg-black/60 text-yellow-400 rounded-full p-1">
+                  <HugeiconsIcon icon={StarIcon} className="size-3" />
+                </span>
+              ) : null}
+              {isRecentPhoto(photo.createdAt) ? (
+                <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-medium text-white" title={t("main:photos.recent")}>
+                  {t("main:photos.recent")}
+                </span>
+              ) : null}
+            </span>
             {photo.note ? (
               <span
                 className={cn(
@@ -124,11 +127,6 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
                 title={photo.note}
               >
                 <HugeiconsIcon icon={Note02Icon} className="size-3" />
-              </span>
-            ) : null}
-            {isNew(photo.createdAt) ? (
-              <span className="absolute bottom-1.5 left-1.5 bg-amber-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none group-hover:opacity-0 transition-opacity">
-                NEW
               </span>
             ) : null}
             <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 px-2 py-1.5 rounded-b-lg bg-linear-to-t from-black/70 to-transparent text-white text-[11px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

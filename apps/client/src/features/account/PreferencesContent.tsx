@@ -230,6 +230,13 @@ const GROUPS: PreferenceGroup[] = [
             hintKey: "preferences.allowMultipleMapPopupsHint",
             itemLabelKey: "preferences.allowMultipleMapPopupsLabel",
           },
+          {
+            type: "checkbox",
+            key: "closeMapPopupsOnMapClick",
+            labelKey: "preferences.closeMapPopupsOnMapClick",
+            hintKey: "preferences.closeMapPopupsOnMapClickHint",
+            itemLabelKey: "preferences.closeMapPopupsOnMapClickLabel",
+          },
         ],
       },
       {

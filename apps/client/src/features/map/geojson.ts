@@ -61,6 +61,7 @@ export function locationsToGeoJSON(locations: LocationWithStations[], source: St
         color,
         isMultiOperator,
         pieImageId,
+        status: location.stations.length === 1 ? location.stations[0].status : undefined,
       }),
     );
   }

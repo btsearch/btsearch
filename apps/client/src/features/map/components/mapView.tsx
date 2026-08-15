@@ -123,6 +123,7 @@ function MapViewInner() {
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
+    closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
     detailsFilters: filters,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,

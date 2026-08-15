@@ -147,6 +147,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
+    closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
     detailsFilters: DEFAULT_FILTERS,
     filterStations: filterListStations,
     onOpenStationDetails: handleOpenStationDetails,

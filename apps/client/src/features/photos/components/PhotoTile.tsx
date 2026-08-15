@@ -1,4 +1,4 @@
-import { Camera01Icon, Image01Icon, Note02Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { Camera01Icon, Image01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
@@ -75,11 +75,6 @@ export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
           {recent ? (
             <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-medium text-white" title={labels.recent}>
               {labels.recent}
-            </span>
-          ) : null}
-          {photo.note ? (
-            <span className="rounded-full bg-black/70 p-1 text-white/85" title={photo.note}>
-              <HugeiconsIcon icon={Note02Icon} className="size-3.5" />
             </span>
           ) : null}
         </span>

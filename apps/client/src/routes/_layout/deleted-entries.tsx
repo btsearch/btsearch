@@ -261,80 +261,95 @@ function DeletedEntriesPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={sourceTable}
-            onValueChange={(v) => {
-              dispatchFilter({ type: "SET_SOURCE_TABLE", payload: v === "__all__" ? "" : (v as string) });
-              resetPage();
-            }}
-          >
-            <SelectTrigger className="min-w-35">
-              <SelectValue placeholder={t("deletedEntries.filters.allTables")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{t("deletedEntries.filters.allTables")}</SelectItem>
-              {SOURCE_TABLE_OPTIONS.map((table) => (
-                <SelectItem key={table} value={table}>
-                  {SOURCE_TABLE_LABELS[table]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={sourceType}
-            onValueChange={(v) => {
-              dispatchFilter({ type: "SET_SOURCE_TYPE", payload: v === "__all__" ? "" : (v as string) });
-              resetPage();
-            }}
-          >
-            <SelectTrigger className="min-w-40">
-              <SelectValue placeholder={t("deletedEntries.filters.allSources")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{t("deletedEntries.filters.allSources")}</SelectItem>
-              {SOURCE_TYPE_OPTIONS.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {SOURCE_TYPE_LABELS[type]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <DatePickerButton
-            value={dateFrom}
-            onChange={(v) => {
-              dispatchFilter({ type: "SET_DATE_FROM", payload: v });
-              resetPage();
-            }}
-            label={t("deletedEntries.filters.dateFrom")}
-          />
-
-          <DatePickerButton
-            value={dateTo}
-            onChange={(v) => {
-              dispatchFilter({ type: "SET_DATE_TO", payload: v });
-              resetPage();
-            }}
-            label={t("deletedEntries.filters.dateTo")}
-          />
-
-          <div className="relative">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                dispatchFilter({ type: "SET_SEARCH", payload: e.target.value });
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("deletedEntries.columns.sourceTable")}</span>
+            <Select
+              value={sourceTable === "" ? "__all__" : sourceTable}
+              onValueChange={(v) => {
+                dispatchFilter({ type: "SET_SOURCE_TABLE", payload: v === "__all__" ? "" : (v as string) });
                 resetPage();
               }}
-              placeholder={t("deletedEntries.filters.searchPlaceholder")}
-              className="h-8 rounded-lg border border-input bg-transparent pl-8 pr-2.5 text-sm transition-colors dark:bg-input/30 dark:hover:bg-input/50 hover:bg-muted min-w-48"
+            >
+              <SelectTrigger className="min-w-35">
+                <SelectValue>{sourceTable === "" ? t("deletedEntries.filters.allTables") : SOURCE_TABLE_LABELS[sourceTable]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{t("deletedEntries.filters.allTables")}</SelectItem>
+                {SOURCE_TABLE_OPTIONS.map((table) => (
+                  <SelectItem key={table} value={table}>
+                    {SOURCE_TABLE_LABELS[table]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("deletedEntries.columns.sourceType")}</span>
+            <Select
+              value={sourceType === "" ? "__all__" : sourceType}
+              onValueChange={(v) => {
+                dispatchFilter({ type: "SET_SOURCE_TYPE", payload: v === "__all__" ? "" : (v as string) });
+                resetPage();
+              }}
+            >
+              <SelectTrigger className="min-w-40">
+                <SelectValue>{sourceType === "" ? t("deletedEntries.filters.allSources") : SOURCE_TYPE_LABELS[sourceType]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">{t("deletedEntries.filters.allSources")}</SelectItem>
+                {SOURCE_TYPE_OPTIONS.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {SOURCE_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("deletedEntries.filters.dateFrom")}</span>
+            <DatePickerButton
+              value={dateFrom}
+              onChange={(v) => {
+                dispatchFilter({ type: "SET_DATE_FROM", payload: v });
+                resetPage();
+              }}
+              label={t("deletedEntries.filters.dateFrom")}
             />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("deletedEntries.filters.dateTo")}</span>
+            <DatePickerButton
+              value={dateTo}
+              onChange={(v) => {
+                dispatchFilter({ type: "SET_DATE_TO", payload: v });
+                resetPage();
+              }}
+              label={t("deletedEntries.filters.dateTo")}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.search")}</span>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={Search01Icon}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  dispatchFilter({ type: "SET_SEARCH", payload: e.target.value });
+                  resetPage();
+                }}
+                placeholder={t("deletedEntries.filters.searchPlaceholder")}
+                className="h-8 rounded-lg border border-input bg-transparent pl-8 pr-2.5 text-sm transition-colors dark:bg-input/30 dark:hover:bg-input/50 hover:bg-muted min-w-48"
+              />
+            </div>
           </div>
 
           {hasActiveFilters && (

@@ -592,9 +592,13 @@ function AdminSubmissionsListPage() {
           </div>
         </div>
 
-        <div className={cn("flex flex-wrap items-center gap-2", showFloatingMobileFilters && "max-md:hidden")}>
-          <UserPickerPopover selectedUserIds={selectedSubmitterIds} onSelectionChange={handleSubmitterChange} />
-          <div className="w-full sm:w-44">
+        <div className={cn("flex flex-wrap items-end gap-2", showFloatingMobileFilters && "max-md:hidden")}>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("detail.submitter")}</span>
+            <UserPickerPopover selectedUserIds={selectedSubmitterIds} onSelectionChange={handleSubmitterChange} />
+          </div>
+          <div className="flex w-full flex-col gap-1 sm:w-44">
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.operator")}</span>
             <Combobox multiple value={selectedOperators} onValueChange={handleOperatorChange} items={operators}>
               <ComboboxChips
                 ref={operatorChipsRef}
@@ -616,7 +620,7 @@ function AdminSubmissionsListPage() {
                 ) : null}
                 <ComboboxChipsInput
                   className={selectedOperatorMncs.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-                  placeholder={selectedOperatorMncs.length === 0 ? t("common:labels.operator") : ""}
+                  placeholder={selectedOperatorMncs.length === 0 ? t("common:labels.allOperators") : ""}
                 />
               </ComboboxChips>
               <ComboboxContent anchor={operatorChipsRef}>
@@ -632,7 +636,8 @@ function AdminSubmissionsListPage() {
               </ComboboxContent>
             </Combobox>
           </div>
-          <div className="w-full sm:w-52">
+          <div className="flex w-full flex-col gap-1 sm:w-52">
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
             <Combobox multiple value={selectedRegions} onValueChange={handleRegionChange} items={regions}>
               <ComboboxChips
                 ref={regionChipsRef}
@@ -651,7 +656,7 @@ function AdminSubmissionsListPage() {
                 ) : null}
                 <ComboboxChipsInput
                   className={selectedRegionIds.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-                  placeholder={selectedRegionIds.length === 0 ? t("common:labels.region") : ""}
+                  placeholder={selectedRegionIds.length === 0 ? t("common:labels.allRegions") : ""}
                 />
               </ComboboxChips>
               <ComboboxContent anchor={regionChipsRef}>
@@ -666,26 +671,29 @@ function AdminSubmissionsListPage() {
               </ComboboxContent>
             </Combobox>
           </div>
-          <div className="relative w-full sm:w-auto">
-            <HugeiconsIcon
-              icon={Search01Icon}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
-            />
-            <Input
-              className="h-8 pl-8 pr-8 w-full sm:w-72"
-              placeholder={t("table.searchPlaceholder")}
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-            />
-            {searchInput ? (
-              <button
-                type="button"
-                onClick={() => handleSearchChange("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-              </button>
-            ) : null}
+          <div className="flex w-full flex-col gap-1 sm:w-72">
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.search")}</span>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={Search01Icon}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
+              />
+              <Input
+                className="h-8 pl-8 pr-8 w-full"
+                placeholder={t("table.searchPlaceholder")}
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+              {searchInput ? (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

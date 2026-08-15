@@ -246,7 +246,7 @@ function MySubmissionsDesktopFilters({
             ) : null}
             <ComboboxChipsInput
               className={selectedOperators.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-              placeholder={selectedOperators.length === 0 ? t("common:labels.operator") : ""}
+              placeholder={selectedOperators.length === 0 ? t("common:labels.allOperators") : ""}
             />
           </ComboboxChips>
           <ComboboxContent anchor={operatorChipsRef}>

@@ -25,6 +25,7 @@ export const userPreferencesSchema = z
     mapRadiolinesLimit: z.number().min(10).max(1000),
     showMapHoverTooltip: z.boolean(),
     allowMultipleMapPopups: z.boolean(),
+    closeMapPopupsOnMapClick: z.boolean(),
     mapPointStyle: z.enum(["dots", "markers"]),
     mapRightClickMeasure: z.boolean(),
     mapMeasureCircle: z.boolean(),

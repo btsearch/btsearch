@@ -1,5 +1,5 @@
 import { attachments, locationPhotos, locations, operators, regions, stationPhotoSelections, stations, users } from "@openbts/drizzle";
-import { and, asc, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -24,6 +24,7 @@ const photoItemSchema = z.object({
   station: z.object({
     id: z.number(),
     station_id: z.string(),
+    status: z.enum(["published", "inactive", "pending"]),
     operator: operatorSchema,
   }),
   location: z.object({
@@ -36,6 +37,9 @@ const photoItemSchema = z.object({
   }),
 });
 
+const ALLOWED_PHOTO_STATUSES = ["published", "pending"] as const;
+type PhotoStationStatus = (typeof ALLOWED_PHOTO_STATUSES)[number];
+
 const schemaRoute = {
   querystring: z.object({
     limit: z.coerce.number().int().min(1).max(100).optional().default(50),
@@ -43,6 +47,7 @@ const schemaRoute = {
     q: z.string().trim().optional(),
     operator: z.coerce.number().int().optional(),
     region: z.string().trim().length(3).optional(),
+    status: z.string().trim().optional(),
     mainOnly: z.coerce.boolean().optional().default(false),
     recentDays: z.coerce.number().int().min(1).max(365).optional(),
     sortBy: z.enum(["uploaded", "taken", "station"]).optional().default("uploaded"),
@@ -79,9 +84,12 @@ function getOrderBy(sortBy: ReqQuery["Querystring"]["sortBy"], order: ReqQuery["
 }
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const { limit, page, q, operator, region, mainOnly, recentDays, sortBy, order } = req.query;
+  const { limit, page, q, operator, region, status, mainOnly, recentDays, sortBy, order } = req.query;
   const offset = (page - 1) * limit;
-  const filters: SQL[] = [eq(stations.status, "published")];
+  const requestedStatuses = (status?.split(",") ?? []).filter((value): value is PhotoStationStatus =>
+    (ALLOWED_PHOTO_STATUSES as readonly string[]).includes(value),
+  );
+  const filters: SQL[] = [inArray(stations.status, requestedStatuses.length > 0 ? requestedStatuses : [...ALLOWED_PHOTO_STATUSES])];
 
   if (q) {
     const query = `%${q}%`;
@@ -132,6 +140,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         author_name: users.name,
         station_id: stations.id,
         station_identifier: stations.station_id,
+        station_status: stations.status,
         operator_id: operators.id,
         operator_name: operators.name,
         operator_mnc: operators.mnc,
@@ -172,6 +181,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     station: {
       id: row.station_id,
       station_id: row.station_identifier,
+      status: row.station_status,
       operator:
         row.operator_id !== null && row.operator_name !== null ? { id: row.operator_id, name: row.operator_name, mnc: row.operator_mnc } : null,
     },

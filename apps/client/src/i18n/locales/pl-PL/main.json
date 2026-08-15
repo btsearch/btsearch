@@ -98,7 +98,9 @@
     "retry": "Spróbuj ponownie",
     "searchPlaceholder": "Szukaj stacji, miasta, adresu, województwa, notatki...",
     "allRegions": "Wszystkie województwa",
+    "allStatuses": "Wszystkie statusy",
     "sortLabel": "Sortowanie",
+    "orderLabel": "Kolejność",
     "sort": {
       "station": "ID stacji",
       "uploaded": "Dodano",

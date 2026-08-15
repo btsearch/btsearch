@@ -52,6 +52,7 @@
     "operator": "Operator",
     "allOperators": "All operators",
     "region": "Region",
+    "allRegions": "All regions",
     "filters": "Filters",
     "latitude": "Latitude",
     "longitude": "Longitude",

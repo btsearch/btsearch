@@ -617,7 +617,7 @@ function StationDetailForm({
   );
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col max-md:overflow-y-auto md:overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col max-md:overflow-y-auto max-md:pb-10 md:overflow-hidden">
       <StationDetailHeader
         station={station}
         stationId={stationId}
@@ -651,7 +651,7 @@ function StationDetailForm({
         </div>
       )}
 
-      <div className="max-md:shrink-0 md:min-h-0 md:flex-1 md:overflow-y-auto">
+      <div className="max-md:shrink-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:pb-16">
         <div className="flex flex-wrap gap-3 p-3">
           <div className="flex-[2_0_420px] min-w-0 max-md:flex-[1_1_auto] space-y-2">
             <StationInfoForm
