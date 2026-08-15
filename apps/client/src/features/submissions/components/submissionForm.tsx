@@ -91,7 +91,7 @@ function SubmissionSectorsPanelFields({
 
   const fetchSI2PEMAzimuthSectors = useCallback(async () => {
     if (!trimmedStationId || latitude === null || longitude === null) return [];
-    return fetchSI2PEMAzimuths(trimmedStationId, latitude, longitude);
+    return (await fetchSI2PEMAzimuths(trimmedStationId, latitude, longitude)).map((azimuth) => ({ azimuth }));
   }, [latitude, longitude, trimmedStationId]);
 
   const siblingSectors = useMemo(

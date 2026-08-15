@@ -23,6 +23,11 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The map source switcher on mobile no longer becomes untappable after hiding the floating navigation bar
 - The floating navigation bar now shows the preferences button when you are not logged in
 - The floating navigation bar no longer covers the last rows on the admin station and submission detail pages
+- Bumped `si2pem-reader` version to fix reports sorting
+
+### 🏡 Chore
+
+- The SI2PEM azimuths API endpoint now returns a plain list of azimuth numbers instead of objects
 
 # 2026-08-14
 

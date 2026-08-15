@@ -1,6 +1,6 @@
 {
   "name": "@openbts/sora",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "description": "Sora - Core backend service",
   "license": "GPL-3.0",
@@ -44,7 +44,7 @@
     "redis": "6.2.0",
     "resend": "6.18.1",
     "sharp": "0.35.3",
-    "si2pem-reader": "0.3.3",
+    "si2pem-reader": "0.3.4",
     "web-push": "3.6.7",
     "zod": "4.4.3"
   },

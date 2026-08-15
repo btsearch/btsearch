@@ -3,8 +3,8 @@ info:
   title: BTSearch API
   description: |
     API for BTSearch Backend
-    Last updated: 2026-07-27
-  version: 1.1.1
+    Last updated: 2026-08-15
+  version: 1.1.2
 
 servers:
   - url: https://btsearch.pl/api/v1
@@ -3700,11 +3700,7 @@ paths:
                 properties:
                   data:
                     type: array
-                    items:
-                      type: object
-                      required: [azimuth]
-                      properties:
-                        azimuth: { type: integer, minimum: 0, maximum: 360 }
+                    items: { type: integer, minimum: 0, maximum: 360 }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }

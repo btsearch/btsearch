@@ -8,9 +8,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 
 const si2pem = new SI2PEMClient();
 
-const azimuthSchema = z.object({
-  azimuth: z.number().int().min(0).max(360),
-});
+const azimuthSchema = z.number().int().min(0).max(360);
 
 const schemaRoute = {
   params: z.object({
@@ -49,7 +47,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       const roundedAzimuth = Math.round(azimuth);
       if (seen.has(roundedAzimuth)) continue;
       seen.add(roundedAzimuth);
-      data.push({ azimuth: roundedAzimuth });
+      data.push(roundedAzimuth);
     }
 
     return res.send({ data });
