@@ -15,6 +15,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Filter controls on the photo gallery page now have labels describing what each one does
 - Filter controls on the KMZ, PEM measurements, deleted entries, admin submissions, admin comments and admin audit logs pages now have labels describing what each one does
 - A new map preference closes open location popups when you click anywhere else on the map
+- Map attributions now credit BTSearch on every basemap
+- The sectors panel on the admin submission detail page now offers the same "Fetch azimuths" dropdown with SI2PEM and UKE sources as the submission form and admin station pages
 
 ### 🩹 Fixes
 

@@ -486,6 +486,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       maxTileCacheZoomLevels: 2,
       attributionControl: {
         compact: true,
+        customAttribution: '&copy; <a href="https://btsearch.pl">BTSearch</a>',
       },
       ...propsRef.current,
       ...viewport,

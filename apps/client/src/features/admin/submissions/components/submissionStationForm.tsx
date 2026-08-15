@@ -11,6 +11,7 @@ import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stat
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
+import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
@@ -125,14 +126,21 @@ export function SubmissionStationForm({
     [currentStationId, fetchSiblingAzimuthSectors, showExtraIdsFields, siblingBrand, siblingSectorsIcon],
   );
 
-  const ukeSectors = useMemo(
+  const fetchSI2PEMAzimuthSectors = useCallback(async () => {
+    const trimmedStationId = stationForm.station_id.trim();
+    if (!trimmedStationId || locationForm.latitude === null || locationForm.longitude === null) return [];
+    return (await fetchSI2PEMAzimuths(trimmedStationId, locationForm.latitude, locationForm.longitude)).map((azimuth) => ({ azimuth }));
+  }, [locationForm.latitude, locationForm.longitude, stationForm.station_id]);
+
+  const azimuthSources = useMemo(
     () =>
-      stationForm.station_id.trim() && selectedOperator?.mnc
+      stationForm.station_id.trim()
         ? {
-            onFetch: fetchUkeAzimuthSectors,
+            ...(locationForm.latitude !== null && locationForm.longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+            ...(selectedOperator?.mnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
           }
         : undefined,
-    [fetchUkeAzimuthSectors, selectedOperator?.mnc, stationForm.station_id],
+    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, locationForm.latitude, locationForm.longitude, selectedOperator?.mnc, stationForm.station_id],
   );
 
   const handleFetchSibling = useCallback(async () => {
@@ -307,7 +315,7 @@ export function SubmissionStationForm({
           renderPreviousAzimuth={renderPreviousAzimuth}
           readOnly={isFormDisabled}
           siblingSectors={siblingSectors}
-          ukeSectors={ukeSectors}
+          azimuthSources={azimuthSources}
         />
       ) : null}
     </>
