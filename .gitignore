@@ -24,4 +24,5 @@ docker/pgbouncer/userlist.txt
 logs/
 
 .agents
+.claude
 Caddyfile*
