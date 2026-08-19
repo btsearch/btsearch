@@ -59,11 +59,6 @@ export function NewStationForm({ station, errors, onStationChange, hideExtraIden
                 onBlur={() => setStationIdFocused(false)}
                 className={cn("h-8 font-mono text-sm", errors?.station_id && "border-destructive")}
               />
-              {errors?.station_id ? (
-                <p className="text-xs text-destructive">{t(errors.station_id)}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t("stationInfo.stationIdHint")}</p>
-              )}
               {checkExisting ? (
                 <DuplicateStationNotice
                   stationId={station.station_id ?? ""}
@@ -72,6 +67,11 @@ export function NewStationForm({ station, errors, onStationChange, hideExtraIden
                   inputFocused={stationIdFocused}
                 />
               ) : null}
+              {errors?.station_id ? (
+                <p className="text-xs text-destructive">{t(errors.station_id)}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t("stationInfo.stationIdHint")}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

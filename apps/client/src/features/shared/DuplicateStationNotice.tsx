@@ -9,11 +9,8 @@ import { type SearchStation, searchStations } from "@/features/submissions/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const EMPTY_RESULTS: SearchStation[] = [];
-
 const FOCUS_RING_CLASS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1";
-
 const EDIT_LINK_CLASS = `mt-1 inline-flex items-center gap-0.5 rounded-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80 ${FOCUS_RING_CLASS}`;
-
 const EDIT_LINK_ICON = <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3 shrink-0" aria-hidden />;
 
 type DuplicateStationNoticeProps = {
@@ -46,7 +43,7 @@ export function DuplicateStationNotice({ stationId, mnc, editTarget, inputFocuse
         <div className="absolute inset-x-0 top-1 z-20 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
           <div className="absolute -top-1 left-4 size-2 rotate-45 border-l border-t border-(--chart-2)/40 bg-popover" />
           <div className="flex items-start gap-1.5 rounded-md border border-(--chart-2)/40 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-lg">
-            <HugeiconsIcon icon={AlertCircleIcon} className="mt-px size-3.5 shrink-0 text-(--chart-2)" aria-hidden />
+            <HugeiconsIcon icon={AlertCircleIcon} className="mt-px size-3.5 shrink-0 text-chart-2" aria-hidden />
             <div className="min-w-0 flex-1">
               <p>
                 <Trans
@@ -57,7 +54,7 @@ export function DuplicateStationNotice({ stationId, mnc, editTarget, inputFocuse
                 />
               </p>
               {editTarget === "admin" ? (
-                <Link to="/admin/stations/$id" params={{ id: String(match.id) }} className={EDIT_LINK_CLASS}>
+                <Link to="/admin/stations/$id" params={{ id: String(match.id) }} search={{ uke: undefined }} className={EDIT_LINK_CLASS}>
                   {t("duplicateStation.edit")}
                   {EDIT_LINK_ICON}
                 </Link>
