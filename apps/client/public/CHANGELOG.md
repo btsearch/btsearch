@@ -1,6 +1,16 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-19
+
+### 🚀 Enhancements
+
+- Typing a station ID and operator that already exist in the database when creating a station now shows a warning under the station ID field with a link to edit the existing station
+
+### 🩹 Fixes
+
+- Station search now also finds inactive stations instead of silently hiding them, so the duplicate-station warning detects stations of every status
+
 # 2026-08-15
 
 ### 🚀 Enhancements

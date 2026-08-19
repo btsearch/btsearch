@@ -14,6 +14,8 @@ type StationBasicsFieldsProps = {
   operators: Operator[];
   disabled?: boolean;
   onStationIdChange: (value: string) => void;
+  onStationIdFocus?: () => void;
+  onStationIdBlur?: () => void;
   onOperatorIdChange: (value: number | null) => void;
   onNotesChange: (value: string) => void;
   stationIdMeta?: ReactNode;
@@ -30,6 +32,8 @@ export function StationBasicsFields({
   operators,
   disabled,
   onStationIdChange,
+  onStationIdFocus,
+  onStationIdBlur,
   onOperatorIdChange,
   onNotesChange,
   stationIdMeta,
@@ -45,7 +49,14 @@ export function StationBasicsFields({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t("labels.stationId")}</Label>
-          <Input value={stationId} onChange={(e) => onStationIdChange(e.target.value)} maxLength={16} disabled={disabled} />
+          <Input
+            value={stationId}
+            onChange={(e) => onStationIdChange(e.target.value)}
+            onFocus={onStationIdFocus}
+            onBlur={onStationIdBlur}
+            maxLength={16}
+            disabled={disabled}
+          />
           {stationIdMeta}
         </div>
         <div className="flex flex-wrap items-start gap-3">

@@ -169,6 +169,10 @@
     "required": "To pole jest wymagane",
     "invalid": "Nieprawidłowa wartość"
   },
+  "duplicateStation": {
+    "exists": "Stacja <mono>{{stationId}}</mono> już istnieje w bazie",
+    "edit": "Edytuj istniejącą stację"
+  },
   "error": {
     "title": "Coś poszło nie tak",
     "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie lub odśwież stronę",

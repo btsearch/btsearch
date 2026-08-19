@@ -1,5 +1,5 @@
 import { cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, operators, regions, stations, umtsCells } from "@openbts/drizzle";
-import { type SQL, and, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { type SQL, and, eq, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -169,9 +169,7 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
   const fuzzyPromise = db
     .select({ id: stations.id })
     .from(stations)
-    .where(
-      and(ne(stations.status, "inactive"), sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`),
-    )
+    .where(sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`)
     .orderBy(sql`similarity(${stations.station_id}, ${searchQuery}) DESC`)
     .limit(limit)
     .then((rows) => rows.map((r) => r.id))
@@ -183,7 +181,7 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
         .select({ id: stations.id })
         .from(stations)
         .innerJoin(locations, eq(stations.location_id, locations.id))
-        .where(and(ne(stations.status, "inactive"), or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`)))
+        .where(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`))
         .limit(limit)
         .then((rows) => rows.map((r) => r.id));
 
@@ -194,9 +192,6 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
 const fetchStations = async (where?: SQL, limit?: number) => {
   if (!where) {
     return db.query.stations.findMany({
-      where: {
-        status: { ne: "inactive" },
-      },
       ...stationQueryConfig,
       ...(limit && { limit }),
     });
@@ -205,7 +200,7 @@ const fetchStations = async (where?: SQL, limit?: number) => {
   const matchingIds = await db
     .select({ id: stations.id })
     .from(stations)
-    .where(and(ne(stations.status, "inactive"), where))
+    .where(where)
     .limit(limit || 100);
 
   if (matchingIds.length === 0) return [];
@@ -307,9 +302,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const fuzzyIds = await db
     .select({ id: stations.id })
     .from(stations)
-    .where(
-      and(ne(stations.status, "inactive"), sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`),
-    )
+    .where(sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`)
     .orderBy(sql`similarity(${stations.station_id}, ${searchQuery}) DESC`)
     .limit(limit)
     .catch(() => []);
@@ -329,7 +322,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       .select({ id: stations.id })
       .from(stations)
       .innerJoin(locations, eq(stations.location_id, locations.id))
-      .where(and(ne(stations.status, "inactive"), or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`)))
+      .where(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`))
       .orderBy(
         sql`(CASE WHEN ${locations.address} ILIKE ${searchQuery} THEN 3 WHEN ${locations.address} ILIKE ${`${searchQuery}%`} THEN 2 WHEN ${locations.address} ILIKE ${`%${searchQuery}%`} THEN 1 ELSE 0 END) DESC`,
         sql`GREATEST(word_similarity(${searchQuery}, ${locations.city}), word_similarity(${searchQuery}, ${locations.address})) DESC`,

@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stations/api";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
+import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
@@ -109,6 +110,7 @@ export function StationInfoForm({
   const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
   const { openStationDialog } = useFloatingDialogStack();
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
+  const [stationIdFocused, setStationIdFocused] = useState(false);
 
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!networksId;
   const showMnoNameOnly = selectedOperator ? MNO_NAME_ONLY_MNCS.includes(selectedOperator.mnc) : !networksId && !!mnoName;
@@ -236,8 +238,15 @@ export function StationInfoForm({
             notes={notes}
             operators={operators}
             onStationIdChange={onStationIdChange}
+            onStationIdFocus={() => setStationIdFocused(true)}
+            onStationIdBlur={() => setStationIdFocused(false)}
             onOperatorIdChange={onOperatorIdChange}
             onNotesChange={onNotesChange}
+            stationIdMeta={
+              stationDbId === undefined ? (
+                <DuplicateStationNotice stationId={stationId} mnc={selectedOperator?.mnc} editTarget="admin" inputFocused={stationIdFocused} />
+              ) : undefined
+            }
             operatorAccessory={
               status && onStatusChange ? (
                 <div className="space-y-2">

@@ -244,7 +244,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             if (mode !== "new") return null;
             if (!hasCompleteLocation(location)) return null;
 
-            return <NewStationForm station={newStation} errors={formErrors.station} onStationChange={handleNewStationChange} />;
+            return <NewStationForm station={newStation} errors={formErrors.station} onStationChange={handleNewStationChange} checkExisting />;
           }}
         </form.Subscribe>
 

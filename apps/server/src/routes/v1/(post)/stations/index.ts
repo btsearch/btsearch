@@ -1,6 +1,8 @@
 import { bands, cells, gsmCells, locations, lteCells, nrCells, operators, stations, umtsCells } from "@openbts/drizzle";
+import { DrizzleQueryError } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
+import postgres from "postgres";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
@@ -28,6 +30,7 @@ const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
 const locationSchema = createSelectSchema(locations).omit({ point: true });
 const operatorSchema = createSelectSchema(operators);
+const STATION_IDENTITY_CONSTRAINT = "stations_station_id_operator_unique";
 const baseCellsInsertSchema = createInsertSchema(cells).omit({ createdAt: true, updatedAt: true }).strict();
 const gsmInsertSchema = createInsertSchema(gsmCells)
   .omit(INSERT_OMIT)
@@ -85,6 +88,11 @@ const schemaRoute = {
   },
 };
 
+function isStationIdentityUniqueViolation(error: unknown): boolean {
+  const cause = error instanceof DrizzleQueryError ? error.cause : error;
+  return cause instanceof postgres.PostgresError && cause.code === "23505" && cause.constraint_name === STATION_IDENTITY_CONSTRAINT;
+}
+
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { cells: cellsData, ...stationData } = req.body;
 
@@ -119,10 +127,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         })
         .returning();
 
-      if (!newStation) {
-        tx.rollback();
-        throw new ErrorResponse("FAILED_TO_CREATE");
-      }
+      if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE");
 
       if (cellsData.length > 0) {
         const createdCells = await tx
@@ -199,7 +204,11 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return res.send({ data: station });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_CREATE"), { cause: error });
+    if (isStationIdentityUniqueViolation(error))
+      throw new ErrorResponse("DUPLICATE_ENTRY", {
+        message: `A station with station ID ${stationData.station_id} already exists for this operator`,
+      });
+    throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
   }
 }
 

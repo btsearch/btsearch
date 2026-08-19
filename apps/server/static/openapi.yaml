@@ -584,6 +584,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -2946,7 +2947,7 @@ paths:
       tags: [Search]
       summary: Search stations by query string or filters
       description: |
-        Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string.
+        Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
         - **stations**: bts_id, mnc (plmn)
         - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed

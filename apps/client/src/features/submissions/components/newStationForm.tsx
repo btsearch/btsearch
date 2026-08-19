@@ -1,12 +1,14 @@
 import { Building02Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { OperatorSelect } from "@/components/operator-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
@@ -19,10 +21,12 @@ type NewStationFormProps = {
   errors?: StationErrors;
   onStationChange: (station: ProposedStationForm) => void;
   hideExtraIdentifiers?: boolean;
+  checkExisting?: boolean;
 };
 
-export function NewStationForm({ station, errors, onStationChange, hideExtraIdentifiers }: NewStationFormProps) {
+export function NewStationForm({ station, errors, onStationChange, hideExtraIdentifiers, checkExisting }: NewStationFormProps) {
   const { t } = useTranslation("submissions");
+  const [stationIdFocused, setStationIdFocused] = useState(false);
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
 
@@ -51,6 +55,8 @@ export function NewStationForm({ station, errors, onStationChange, hideExtraIden
                 value={station.station_id ?? ""}
                 maxLength={16}
                 onChange={(e) => onStationChange({ ...station, station_id: e.target.value })}
+                onFocus={() => setStationIdFocused(true)}
+                onBlur={() => setStationIdFocused(false)}
                 className={cn("h-8 font-mono text-sm", errors?.station_id && "border-destructive")}
               />
               {errors?.station_id ? (
@@ -58,6 +64,14 @@ export function NewStationForm({ station, errors, onStationChange, hideExtraIden
               ) : (
                 <p className="text-xs text-muted-foreground">{t("stationInfo.stationIdHint")}</p>
               )}
+              {checkExisting ? (
+                <DuplicateStationNotice
+                  stationId={station.station_id ?? ""}
+                  mnc={selectedOperator?.mnc}
+                  editTarget="submission"
+                  inputFocused={stationIdFocused}
+                />
+              ) : null}
             </div>
 
             <div className="space-y-1.5">

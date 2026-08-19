@@ -180,6 +180,10 @@
     "required": "This field is required",
     "invalid": "Invalid value"
   },
+  "duplicateStation": {
+    "exists": "Station <mono>{{stationId}}</mono> already exists in the database",
+    "edit": "Edit the existing station"
+  },
   "error": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. Please try again or refresh the page",
