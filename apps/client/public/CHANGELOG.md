@@ -11,6 +11,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🩹 Fixes
 
 - Station search now also finds inactive stations instead of silently hiding them, so the duplicate-station warning detects stations of every status
+- Exact station ID matches now appear first in station search results
 
 # 2026-08-15
 

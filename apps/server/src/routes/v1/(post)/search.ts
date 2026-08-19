@@ -191,7 +191,7 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
   return [...new Set([...exactIds, ...fuzzyIds, ...thirdIds])];
 };
 
-const fetchStations = async (where?: SQL, limit?: number) => {
+const fetchStations = async (where?: SQL, limit?: number, exactStationId?: string) => {
   if (!where) {
     return db.query.stations.findMany({
       ...stationQueryConfig,
@@ -199,19 +199,26 @@ const fetchStations = async (where?: SQL, limit?: number) => {
     });
   }
 
-  const matchingIds = await db
-    .select({ id: stations.id })
-    .from(stations)
-    .where(where)
-    .limit(limit || 100);
+  const exactMatchOrder = exactStationId
+    ? sql<number>`CASE WHEN ${stations.station_id} = ${exactStationId.toUpperCase()} THEN 0 ELSE 1 END`
+    : undefined;
+  const matchingIdsQuery = db.select({ id: stations.id }).from(stations).where(where);
+  const matchingIds = exactMatchOrder
+    ? await matchingIdsQuery.orderBy(exactMatchOrder).limit(limit || 100)
+    : await matchingIdsQuery.limit(limit || 100);
 
   if (matchingIds.length === 0) return [];
 
-  return db.query.stations.findMany({
+  const matchingStations = await db.query.stations.findMany({
     where: {
       id: { in: matchingIds.map((r) => r.id) },
     },
     ...stationQueryConfig,
+  });
+  const stationsById = new Map(matchingStations.map((station) => [station.id, station]));
+  return matchingIds.flatMap(({ id }) => {
+    const station = stationsById.get(id);
+    return station ? [station] : [];
   });
 };
 
@@ -291,7 +298,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       stationConditions.push(inArray(stations.id, queryMatchIds));
     }
 
-    const filteredStations = await fetchStations(combineConditions(stationConditions), limit);
+    const filteredStations = await fetchStations(combineConditions(stationConditions), limit, sortBy === "relevance" ? remainingQuery : undefined);
     return res.send({ data: sortStations(filteredStations.map(withCellDetails), sortBy, sort) });
   }
 
