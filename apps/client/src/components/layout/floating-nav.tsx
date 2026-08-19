@@ -465,6 +465,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
           "pointer-events-auto relative isolate z-20 flex max-w-[calc(100vw-1rem)] self-center items-center overflow-hidden rounded-full border bg-background p-1 shadow-sm max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none",
           hasVisibleActions ? "mb-1 opacity-100" : "pointer-events-none h-0 border-transparent p-0 opacity-0 shadow-none",
         )}
+        role="group"
         aria-label={label}
       >
         <motion.span
@@ -738,7 +739,7 @@ function FloatingAccountCluster() {
                           href={`https://github.com/btsearch/btsearch/commit/${gitCommit}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-mono text-chart-1 hover:underline"
+                          className="font-mono text-primary hover:underline"
                         >
                           {gitCommit}
                         </a>
@@ -769,7 +770,13 @@ function FloatingAccountCluster() {
           </Tooltip>
           <FloatingThemeControl />
           <FloatingLanguageControl />
-          <Button variant="outline" size="sm" className="h-8 rounded-full px-2.5" onClick={() => setAuthDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full px-2.5"
+            aria-label={t("user.login")}
+            onClick={() => setAuthDialogOpen(true)}
+          >
             <HugeiconsIcon icon={Login01Icon} className="size-4" />
             <span className="hidden sm:inline">{t("user.login")}</span>
           </Button>

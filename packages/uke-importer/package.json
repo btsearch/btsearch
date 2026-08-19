@@ -45,12 +45,12 @@
     "fflate": "0.8.3",
     "geojson-rbush": "~3.2.0",
     "postgres": "3.4.9",
-    "tsx": "4.23.11",
+    "tsx": "4.23.12",
     "xlsx": "0.18.5"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
     "@types/geojson": "7946.0.16",
-    "@types/node": "25.9.3"
+    "@types/node": "26.2.0"
   }
 }

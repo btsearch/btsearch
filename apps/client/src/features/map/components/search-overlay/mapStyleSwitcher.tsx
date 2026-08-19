@@ -11,8 +11,8 @@ import { type CartoVariant, usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
 
 const CARTO_THUMBNAILS: Record<"dark" | "light", string> = {
-  dark: "https://a.basemaps.cartocdn.com/dark_all/13/4400/2686.png",
-  light: "https://a.basemaps.cartocdn.com/light_all/13/4400/2686.png",
+  dark: "/assets/map-thumbs/carto-dark.jpg",
+  light: "/assets/map-thumbs/carto-light.jpg",
 };
 
 const CARTO_VARIANT_LABELS: Record<CartoVariant, string> = {
@@ -28,23 +28,23 @@ const MAP_STYLE_OPTIONS: Record<MapStyle, { label: string; thumbnail: string }> 
   },
   osm: {
     label: "OpenStreetMap",
-    thumbnail: "https://tile.openstreetmap.org/13/4400/2686.png",
+    thumbnail: "/assets/map-thumbs/openstreetmap.jpg",
   },
   openfreemap: {
     label: "OpenFreeMap",
-    thumbnail: "https://a.basemaps.cartocdn.com/light_all/13/4400/2686.png",
+    thumbnail: "/assets/map-thumbs/carto-light.jpg",
   },
   satellite: {
     label: "Google Satellite",
-    thumbnail: "https://mt1.google.com/vt/lyrs=s&x=4400&y=2686&z=13",
+    thumbnail: "/assets/map-thumbs/google-satellite.jpg",
   },
   esriSatellite: {
     label: "Esri Satellite",
-    thumbnail: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/13/2686/4400",
+    thumbnail: "/assets/map-thumbs/esri-satellite.jpg",
   },
   opentopomap: {
     label: "OpenTopoMap",
-    thumbnail: "https://a.tile.opentopomap.org/13/4400/2686.png",
+    thumbnail: "/assets/map-thumbs/opentopomap.jpg",
   },
 };
 
@@ -106,7 +106,14 @@ export function MapStyleSwitcher({ position = "default" }: MapStyleSwitcherProps
           isNav ? "size-7 rounded-full" : "h-8 w-8 rounded-md",
         )}
       >
-        <img src={activeThumbnail} alt={MAP_STYLE_OPTIONS[mapStyle].label} className="w-full h-full object-cover" />
+        <img
+          src={activeThumbnail}
+          alt={MAP_STYLE_OPTIONS[mapStyle].label}
+          width={96}
+          height={96}
+          decoding="async"
+          className="w-full h-full object-cover"
+        />
       </div>
       {!isMobile && (
         <div className="flex flex-col">
@@ -156,7 +163,7 @@ export function MapStyleSwitcher({ position = "default" }: MapStyleSwitcherProps
                     isSelected ? "border-primary" : "border-transparent group-hover:border-muted-foreground/50",
                   )}
                 >
-                  <img src={thumbnail} alt={style.label} className="w-full h-full object-cover" />
+                  <img src={thumbnail} alt={style.label} width={96} height={96} decoding="async" className="w-full h-full object-cover" />
                 </div>
                 <span className={cn("font-medium", isMobile ? "text-xs" : "text-[10px]", isSelected ? "text-foreground" : "text-muted-foreground")}>
                   {style.label}

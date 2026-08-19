@@ -28,6 +28,8 @@ const MIN_HEIGHTS: Record<AdFormat, string> = {
   vertical: "600px",
 };
 
+const AD_PRELOAD_MARGIN = "200px 0px";
+
 function pushAd() {
   try {
     (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -37,8 +39,9 @@ function pushAd() {
 }
 
 export function GoogleAd({ adSlot, adFormat = "auto", className }: GoogleAdProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const shouldRenderAd = !!AD_CLIENT && !PRIVILEGED_ROLES.has(session?.user?.role as string);
+  const containerRef = useRef<HTMLDivElement>(null);
   const pushed = useRef(false);
 
   useEffect(() => {
@@ -46,15 +49,40 @@ export function GoogleAd({ adSlot, adFormat = "auto", className }: GoogleAdProps
       pushed.current = false;
       return;
     }
+    if (isPending) return;
     if (pushed.current) return;
-    pushed.current = true;
-    pushAd();
-  }, [shouldRenderAd]);
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const initializeAd = () => {
+      if (pushed.current) return;
+      pushed.current = true;
+      pushAd();
+    };
+
+    if (!("IntersectionObserver" in window)) {
+      initializeAd();
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        observer.disconnect();
+        initializeAd();
+      },
+      { rootMargin: AD_PRELOAD_MARGIN },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isPending, shouldRenderAd]);
 
   if (!shouldRenderAd) return null;
 
   return (
-    <div className={cn("w-full", className)}>
+    <div ref={containerRef} className={cn("w-full", className)}>
       <ins
         className="adsbygoogle"
         style={{ display: "block", minHeight: MIN_HEIGHTS[adFormat] }}

@@ -120,8 +120,10 @@ export function FloatingStationDialogFrame({
   useLayoutEffect(() => {
     if (!fitHeightToContent) return;
 
+    const content = contentRef.current;
+    const body = bodyRef.current;
     const bodyContent = bodyContentRef.current;
-    if (bodyContent === null) return;
+    if (content === null || body === null || bodyContent === null) return;
 
     let frameId: number | null = null;
     const scheduleFit = () => {
@@ -135,6 +137,8 @@ export function FloatingStationDialogFrame({
     fitDialogToContent();
 
     const resizeObserver = new ResizeObserver(scheduleFit);
+    resizeObserver.observe(content);
+    resizeObserver.observe(body);
     resizeObserver.observe(bodyContent);
 
     return () => {

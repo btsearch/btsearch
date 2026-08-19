@@ -1,14 +1,4 @@
 import {
-  ChangeEmailCard,
-  DeleteAccountCard,
-  PasskeysCard,
-  ProvidersCard,
-  SessionsCard,
-  TwoFactorCard,
-  UpdateNameCard,
-  UpdateUsernameCard,
-} from "@daveyplate/better-auth-ui";
-import {
   Alert01Icon,
   Alert02Icon,
   CheckmarkCircle02Icon,
@@ -30,6 +20,13 @@ import { toast } from "sonner";
 import { ApiKeysCard } from "@/components/account/apikeysCard";
 import { AvatarCard } from "@/components/account/avatarCard";
 import { PasswordCard } from "@/components/account/passwordCard";
+import { DeleteAccount } from "@/components/auth/delete-user/delete-account";
+import { Passkeys } from "@/components/auth/passkey/passkeys";
+import { ChangeEmail } from "@/components/auth/settings/account/change-email";
+import { UserProfile } from "@/components/auth/settings/account/user-profile";
+import { ActiveSessions } from "@/components/auth/settings/security/active-sessions";
+import { LinkedAccounts } from "@/components/auth/settings/security/linked-accounts";
+import { TwoFactorSettings } from "@/components/auth/two-factor/two-factor-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -492,11 +489,10 @@ function AccountSettingsPage() {
               <SectionHeader icon={UserIcon} title={t("account.title")} description={t("account.description")} />
               <div className="space-y-3">
                 <AvatarCard />
-                <UpdateNameCard />
-                <ChangeEmailCard />
+                <UserProfile />
+                <ChangeEmail />
                 <EmailVerificationCard email={user.email} emailVerified={user.emailVerified} />
-                <UpdateUsernameCard />
-                <ProvidersCard />
+                <LinkedAccounts />
               </div>
             </section>
           </div>
@@ -515,15 +511,15 @@ function AccountSettingsPage() {
                 <SectionHeader icon={SecurityLockIcon} title={t("security.title")} description={t("security.description")} />
                 <div className="space-y-3">
                   <PasswordSection userId={user.id} />
-                  <TwoFactorCard />
-                  <PasskeysCard />
+                  <TwoFactorSettings />
+                  <Passkeys />
                 </div>
               </section>
             </div>
 
             <section className="space-y-4">
               <SectionHeader icon={ComputerIcon} title={t("sessions.title")} description={t("sessions.description")} />
-              <SessionsCard />
+              <ActiveSessions />
             </section>
 
             <section className="space-y-4">
@@ -533,7 +529,7 @@ function AccountSettingsPage() {
 
             <section className="space-y-4 border-t border-destructive/20 pt-8 pb-6">
               <SectionHeader icon={Alert02Icon} title={t("dangerZone.title")} description={t("dangerZone.description")} />
-              <DeleteAccountCard />
+              <DeleteAccount />
             </section>
           </div>
         )}

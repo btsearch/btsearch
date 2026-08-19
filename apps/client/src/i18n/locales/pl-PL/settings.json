@@ -304,52 +304,6 @@
     }
   },
   "twoFactor": {
-    "steps": {
-      "scan": "Skanuj",
-      "verify": "Weryfikuj",
-      "done": "Gotowe"
-    },
-    "titles": {
-      "enableTwoFactor": "Włącz uwierzytelnianie dwuskładnikowe",
-      "scanQrCode": "Zeskanuj kod QR",
-      "verifyYourApp": "Zweryfikuj aplikację",
-      "allSet": "Gotowe!"
-    },
-    "stepProgress": "Krok {{current}} z {{total}} - {{label}}",
-    "backToSettings": "Powrót do ustawień",
-    "init": {
-      "heading": "Potwierdź swoją tożsamość",
-      "description": "Wprowadź aktualne hasło, aby rozpocząć konfigurację.",
-      "passwordLabel": "Aktualne hasło",
-      "passwordPlaceholder": "Wprowadź hasło",
-      "submitting": "Włączanie...",
-      "continue": "Kontynuuj",
-      "errorEnable": "Nie udało się włączyć uwierzytelniania dwuskładnikowego.",
-      "errorNoUri": "Nie otrzymano URI TOTP. Spróbuj ponownie."
-    },
-    "scan": {
-      "hint": "Otwórz aplikację uwierzytelniającą i zeskanuj",
-      "manualSetup": "Ręczna konfiguracja",
-      "secretKey": "Klucz tajny",
-      "issuer": "Wydawca",
-      "period": "Okres",
-      "digits": "Ilość cyfr",
-      "backupCodesTitle": "Zapisz kody zapasowe",
-      "backupCodesDescription": "Wygenerowano 8 jednorazowych kodów zapasowych. Przechowuj je w bezpiecznym miejscu. Będziesz ich potrzebować, jeśli stracisz dostęp do aplikacji uwierzytelniającej.",
-      "continue": "Kod został zeskanowany",
-      "securityNote": "Twój klucz tajny jest zaszyfrowany i nigdy nie jest udostępniany. Ten kod QR jest wyświetlany tylko raz."
-    },
-    "verify": {
-      "heading": "Zweryfikuj aplikację",
-      "description": "Wprowadź 6-cyfrowy kod z aplikacji uwierzytelniającej, aby potwierdzić konfigurację.",
-      "errorInvalid": "Nieprawidłowy kod. Spróbuj ponownie.",
-      "submitting": "Weryfikacja...",
-      "submit": "Zweryfikuj i zakończ"
-    },
-    "success": {
-      "heading": "Uwierzytelnianie dwuskładnikowe jest aktywne",
-      "description": "Twoje konto jest teraz chronione dodatkową warstwą zabezpieczeń. Będziesz potrzebować aplikacji uwierzytelniającej przy każdym logowaniu.",
-      "enabled": "Uwierzytelnianie dwuskładnikowe włączone"
-    }
+    "setupRequired": "Twoje konto wymaga uwierzytelniania dwuskładnikowego. Skonfiguruj je w ustawieniach bezpieczeństwa."
   }
 }

@@ -5,13 +5,22 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
+- The site now loads faster: fonts and map tile servers are connected to earlier, map style thumbnails are much smaller, and ads load only after the page has finished loading
 - Typing a station ID and operator that already exist in the database when creating a station now shows a warning under the station ID field with a link to edit the existing station
 - The stations tables now combine standards with bands, show each station's status directly under its ID, and can be filtered by status
 
 ### 🩹 Fixes
 
+- The commit link in the sidebar and navigation menu now has better color contrast for readability
+- Pages render more smoothly: user preferences are no longer re-read from the browser on every UI update
 - Station search now also finds inactive stations instead of silently hiding them, so the duplicate-station warning detects stations of every status
 - Exact station ID matches now appear first in station search results
+- Movable station, UKE permit and radioline dialogs on desktop now fit their height to their content instead of opening at nearly full-screen height
+
+### 🏡 Chore
+
+- The account and security settings cards now use a new, lighter auth UI library, making every page load smaller and faster
+- Two-factor authentication is now set up directly from the security settings card instead of a separate setup page
 
 # 2026-08-15
 

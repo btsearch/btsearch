@@ -1,11 +1,12 @@
-import { AuthUIProvider } from "@daveyplate/better-auth-ui";
+import type { AuthClient } from "@better-auth-ui/core";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Outlet, Link as RouterLink, createRootRoute, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { I18nextProvider } from "react-i18next";
 
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { BackendStatusProvider } from "@/components/backend-status";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -14,8 +15,20 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { FloatingDialogStackProvider } from "@/features/station-details/components/floatingDialogStackProvider";
 import { loadAdsenseScript } from "@/hooks/useCookieConsent";
-import { plPLAuthLocalization } from "@/i18n/authLocalization";
+import {
+  plPLAuthLocalization,
+  plPLDeleteUserLocalization,
+  plPLMultiSessionLocalization,
+  plPLPasskeyLocalization,
+  plPLTwoFactorLocalization,
+  plPLUsernameLocalization,
+} from "@/i18n/authLocalization";
 import i18n from "@/i18n/config";
+import { deleteUserPlugin } from "@/lib/auth/delete-user-plugin";
+import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
+import { usernamePlugin } from "@/lib/auth/username-plugin";
 import { authClient } from "@/lib/authClient";
 import { queryClient } from "@/lib/queryClient";
 import "@/index.css";
@@ -32,7 +45,7 @@ declare global {
   }
 }
 
-type AuthLinkProps = { href: string; className?: string; children: ReactNode };
+type AuthLinkProps = { href: string; className?: string; children?: ReactNode };
 type AppProvidersProps = { children: ReactNode };
 
 const ADS_PRIVILEGED_ROLES = new Set(["admin", "editor"]);
@@ -43,7 +56,43 @@ function AdsLoader() {
 
   useEffect(() => {
     if (isPending || isPrivileged) return;
-    loadAdsenseScript();
+
+    let cancelled = false;
+    let firstFrame: number | null = null;
+    let secondFrame: number | null = null;
+    let graceTimer: number | null = null;
+    let idleCallback: number | null = null;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const load = () => {
+      if (!cancelled) loadAdsenseScript();
+    };
+    const scheduleIdleLoad = () => {
+      if (cancelled) return;
+      if ("requestIdleCallback" in window) idleCallback = window.requestIdleCallback(load, { timeout: 4000 });
+      else fallbackTimer = setTimeout(load, 1500);
+    };
+    const scheduleGracePeriod = () => {
+      if (!cancelled) graceTimer = window.setTimeout(scheduleIdleLoad, 3000);
+    };
+    const scheduleAfterPaint = () => {
+      firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(scheduleGracePeriod);
+      });
+    };
+
+    if (document.readyState === "complete") scheduleAfterPaint();
+    else window.addEventListener("load", scheduleAfterPaint, { once: true });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", scheduleAfterPaint);
+      if (firstFrame !== null) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame !== null) window.cancelAnimationFrame(secondFrame);
+      if (graceTimer !== null) window.clearTimeout(graceTimer);
+      if (idleCallback !== null) window.cancelIdleCallback(idleCallback);
+      if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+    };
   }, [isPrivileged, isPending]);
 
   return null;
@@ -76,24 +125,29 @@ function AuthLink({ href, ...props }: AuthLinkProps) {
 function AppProviders({ children }: AppProvidersProps) {
   const navigate = useNavigate();
   const { i18n: i18nInstance } = useTranslation();
-  const localization = i18nInstance.language === "pl-PL" ? plPLAuthLocalization : undefined;
+  const isPolish = i18nInstance.language === "pl-PL";
+
+  const plugins = useMemo(
+    () => [
+      twoFactorPlugin(isPolish ? { localization: plPLTwoFactorLocalization } : {}),
+      passkeyPlugin(isPolish ? { localization: plPLPasskeyLocalization } : {}),
+      multiSessionPlugin(isPolish ? { localization: plPLMultiSessionLocalization } : {}),
+      deleteUserPlugin(isPolish ? { localization: plPLDeleteUserLocalization } : {}),
+      usernamePlugin(isPolish ? { localization: plPLUsernameLocalization } : {}),
+    ],
+    [isPolish],
+  );
 
   return (
-    <AuthUIProvider
-      authClient={authClient}
-      navigate={(path) => navigate({ to: path })}
-      replace={(path) => navigate({ to: path, replace: true })}
-      basePath="/account"
+    <AuthProvider
+      authClient={authClient as unknown as AuthClient}
+      queryClient={queryClient}
+      navigate={navigate}
+      basePaths={{ auth: "/account" }}
       Link={AuthLink}
-      onSessionChange={() => queryClient.invalidateQueries()}
-      social={{
-        providers: ["github", "google"],
-      }}
-      passkey
-      multiSession
-      deleteUser={true}
-      twoFactor={["totp"]}
-      localization={localization}
+      socialProviders={["github", "google"]}
+      plugins={plugins}
+      localization={isPolish ? plPLAuthLocalization : undefined}
     >
       <AdsLoader />
       <RybbitIdentify />
@@ -103,7 +157,7 @@ function AppProviders({ children }: AppProvidersProps) {
       <Toaster />
       <ReloadPrompt />
       <CookieConsentBanner />
-    </AuthUIProvider>
+    </AuthProvider>
   );
 }
 
@@ -128,29 +182,14 @@ export const Route = createRootRoute({
   component: RootComponent,
   head: () => {
     const adClient = import.meta.env.VITE_ADSENSE_CLIENT as string | undefined;
-    const rybbitSiteId = import.meta.env.VITE_RYBBIT_SITE_ID as string | undefined;
-    const gitCommit = import.meta.env.VITE_GIT_COMMIT as string | undefined;
     return {
-      scripts: [
-        ...(rybbitSiteId
-          ? [
-              {
-                src: "https://statistics.btsearch.pl/api/script.js",
-                "data-site-id": rybbitSiteId,
-                "data-skip-patterns": ["/admin/**"],
-                ...(gitCommit ? { "data-tag": gitCommit } : {}),
-                defer: true,
-              },
-            ]
-          : []),
-        ...(adClient
-          ? [
-              {
-                children: `(function(){window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;window.__adsenseClient=${JSON.stringify(adClient)};var c=null;try{c=localStorage.getItem('openbts:cookie-consent');}catch(e){}var granted=c==='accepted'?'granted':'denied';gtag('consent','default',{ad_storage:granted,ad_user_data:granted,ad_personalization:granted,analytics_storage:granted});window.googlefc=window.googlefc||{};window.googlefc.controlledMessagingFunction=function(m){m.proceed(false);};})();`,
-              },
-            ]
-          : []),
-      ],
+      scripts: adClient
+        ? [
+            {
+              children: `(function(){window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}window.gtag=gtag;window.__adsenseClient=${JSON.stringify(adClient)};var c=null;try{c=localStorage.getItem('openbts:cookie-consent');}catch(e){}var granted=c==='accepted'?'granted':'denied';gtag('consent','default',{ad_storage:granted,ad_user_data:granted,ad_personalization:granted,analytics_storage:granted});window.googlefc=window.googlefc||{};window.googlefc.controlledMessagingFunction=function(m){m.proceed(false);};})();`,
+            },
+          ]
+        : [],
     };
   },
 });

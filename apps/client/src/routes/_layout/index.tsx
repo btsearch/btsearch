@@ -1,11 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
 
-import MapView from "@/features/map/components/mapView";
+import { LoadingIcon } from "@/components/ui/loading-icon";
+
+const MapView = lazy(() => import("@/features/map/components/mapView"));
+
+const mapFallback = (
+  <div className="flex h-full w-full items-center justify-center bg-muted/20" role="status" aria-label="Loading">
+    <LoadingIcon className="size-6 text-muted-foreground" />
+  </div>
+);
 
 function Page() {
   return (
     <div className="h-full min-h-0 flex-1">
-      <MapView />
+      <Suspense fallback={mapFallback}>
+        <MapView />
+      </Suspense>
     </div>
   );
 }

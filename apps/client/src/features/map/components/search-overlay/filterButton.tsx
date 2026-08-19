@@ -23,6 +23,7 @@ export function FilterButton({ showFilters, activeFilterCount, onClick }: Filter
       onClick={onClick}
       onMouseDown={handleMouseDown}
       type="button"
+      aria-label={t("labels.filters")}
       className={cn(
         "flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all font-medium text-sm shrink-0 whitespace-nowrap",
         showFilters || activeFilterCount > 0 ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted hover:bg-muted/80 text-foreground",

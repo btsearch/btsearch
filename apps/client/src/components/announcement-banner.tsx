@@ -1,7 +1,8 @@
 import { Alert02Icon, AlertCircleIcon, ArrowDown01Icon, Cancel01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { Announcement } from "@/hooks/useSettings";
 import { useSettings } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,17 @@ function MessageWithLinks({ text, linkClassName }: { text: string; linkClassName
 }
 
 const DISMISSED_KEY = "openbts:dismissed-announcement";
+const CACHED_KEY = "openbts:cached-announcement";
+
+function readCachedAnnouncement(): Announcement | undefined {
+  try {
+    const raw = localStorage.getItem(CACHED_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as Announcement;
+    if (typeof parsed?.message === "string" && parsed.enabled) return parsed;
+  } catch {}
+  return undefined;
+}
 
 const typeConfig = {
   info: {
@@ -47,6 +59,7 @@ const typeConfig = {
 
 export function AnnouncementBanner() {
   const { data: settings } = useSettings();
+  const [cachedAnnouncement] = useState(readCachedAnnouncement);
   const [dismissed, setDismissed] = useState(() => {
     let value: string | null = null;
     try {
@@ -62,12 +75,20 @@ export function AnnouncementBanner() {
     observerRef.current?.disconnect();
     if (!el) return;
     const check = () => setIsTruncated(el.scrollWidth > el.clientWidth);
-    check();
     observerRef.current = new ResizeObserver(check);
     observerRef.current.observe(el);
   }, []);
 
-  const announcement = settings?.announcement;
+  const announcement = settings === undefined ? cachedAnnouncement : settings?.announcement;
+
+  useEffect(() => {
+    if (settings === undefined) return;
+    try {
+      const current = settings?.announcement;
+      if (current?.enabled && current.message) localStorage.setItem(CACHED_KEY, JSON.stringify(current));
+      else localStorage.removeItem(CACHED_KEY);
+    } catch {}
+  }, [settings]);
 
   const handleDismiss = useCallback(() => {
     if (!announcement?.message) return;
@@ -93,7 +114,7 @@ export function AnnouncementBanner() {
           <button
             type="button"
             onClick={() => setExpanded((e) => !e)}
-            className={cn("rounded-full p-0.5 transition-colors", config.dismissClassName)}
+            className={cn("inline-flex size-6 items-center justify-center rounded-full transition-colors", config.dismissClassName)}
             aria-label={expanded ? "Collapse announcement" : "Expand announcement"}
           >
             <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
@@ -103,7 +124,7 @@ export function AnnouncementBanner() {
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss announcement"
-          className={cn("rounded-full p-0.5 transition-colors", config.dismissClassName)}
+          className={cn("inline-flex size-6 items-center justify-center rounded-full transition-colors", config.dismissClassName)}
         >
           <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
         </button>

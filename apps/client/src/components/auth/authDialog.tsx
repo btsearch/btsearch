@@ -13,6 +13,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/authClient";
+import { queryClient } from "@/lib/queryClient";
 
 interface AuthDialogProps {
   open: boolean;
@@ -502,6 +503,7 @@ export function AuthDialog({ open, onOpenChange, forced = false }: AuthDialogPro
   function handleSuccess() {
     onOpenChange(false);
     setView("signIn");
+    queryClient.invalidateQueries();
   }
 
   return (

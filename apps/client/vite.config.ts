@@ -92,7 +92,7 @@ export default defineConfig({
         },
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,mjs,css,html,woff2,png,svg}"],
+        globPatterns: ["**/*.{js,mjs,css,html,woff2,png,jpg,svg}"],
         globIgnores: ["sw.js"],
       },
       pwaAssets: { disabled: false, config: true },
@@ -132,11 +132,13 @@ export default defineConfig({
               name: "ui-vendor",
               test: /node_modules[\\/](@base-ui|@hugeicons|@floating-ui)/,
               priority: 15,
+              entriesAware: true,
             },
             {
               name: "tanstack-vendor",
               test: /node_modules[\\/]@tanstack[\\/](react-query|react-table|react-form|react-virtual|query-core|table-core|form-core|virtual-core)/,
               priority: 13,
+              entriesAware: true,
             },
             {
               name: "auth-vendor",

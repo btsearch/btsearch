@@ -304,52 +304,6 @@
     }
   },
   "twoFactor": {
-    "steps": {
-      "scan": "Scan",
-      "verify": "Verify",
-      "done": "Done"
-    },
-    "titles": {
-      "enableTwoFactor": "Enable Two-Factor Auth",
-      "scanQrCode": "Scan QR Code",
-      "verifyYourApp": "Verify Your App",
-      "allSet": "All Set!"
-    },
-    "stepProgress": "Step {{current}} of {{total}} - {{label}}",
-    "backToSettings": "Back to Settings",
-    "init": {
-      "heading": "Confirm your identity",
-      "description": "Enter your current password to begin setup.",
-      "passwordLabel": "Current Password",
-      "passwordPlaceholder": "Enter your password",
-      "submitting": "Enabling...",
-      "continue": "Continue",
-      "errorEnable": "Failed to enable two-factor authentication.",
-      "errorNoUri": "No TOTP URI returned. Please try again."
-    },
-    "scan": {
-      "hint": "Open your authenticator app and scan",
-      "manualSetup": "Manual setup",
-      "secretKey": "Secret Key",
-      "issuer": "Issuer",
-      "period": "Period",
-      "digits": "Digits",
-      "backupCodesTitle": "Save your backup codes",
-      "backupCodesDescription": "8 single-use backup codes were generated. Store them somewhere safe. You'll need them if you lose access to your authenticator app.",
-      "continue": "I've scanned the code - Continue",
-      "securityNote": "Your secret key is encrypted and never shared. This QR code is only shown once."
-    },
-    "verify": {
-      "heading": "Verify your app",
-      "description": "Enter the 6-digit code from your authenticator app to confirm setup.",
-      "errorInvalid": "Invalid code. Please try again.",
-      "submitting": "Verifying...",
-      "submit": "Verify & Finish"
-    },
-    "success": {
-      "heading": "Two-factor authentication is active",
-      "description": "Your account is now protected with an extra layer of security. You'll need your authenticator app each time you sign in.",
-      "enabled": "Two-factor authentication enabled"
-    }
+    "setupRequired": "Two-factor authentication is required for your account. Set it up in the security settings."
   }
 }

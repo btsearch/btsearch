@@ -31,12 +31,12 @@
     "drizzle-orm": "1.0.0-rc.4",
     "nanoid": "6.0.1",
     "postgres": "3.4.9",
-    "redis": "6.2.0",
-    "tsx": "4.23.11"
+    "redis": "6.2.1",
+    "tsx": "4.23.12"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
-    "@types/node": "25.9.3",
+    "@types/node": "26.2.0",
     "drizzle-kit": "1.0.0-rc.4"
   }
 }

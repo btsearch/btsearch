@@ -46,11 +46,15 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           <img
             src="/btsearch.webp"
             alt={APP_NAME}
+            width={185}
+            height={65}
             className="h-10 w-auto object-contain dark:invert pointer-events-none group-data-[collapsible=icon]:hidden"
           />
           <img
             src="/btsearch_transparent.webp"
             alt={APP_NAME}
+            width={1024}
+            height={1024}
             className="hidden h-8 w-auto object-contain dark:invert pointer-events-none group-data-[collapsible=icon]:block"
           />
         </SidebarHeader>
@@ -59,10 +63,18 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" render={<Link to="/" />} className="justify-center">
-                <img src="/btsearch.webp" alt={APP_NAME} className="h-10 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden" />
+                <img
+                  src="/btsearch.webp"
+                  alt={APP_NAME}
+                  width={185}
+                  height={65}
+                  className="h-10 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden"
+                />
                 <img
                   src="/btsearch_transparent.webp"
                   alt={APP_NAME}
+                  width={1024}
+                  height={1024}
                   className="hidden h-8 w-auto object-contain dark:invert group-data-[collapsible=icon]:block"
                 />
               </SidebarMenuButton>
@@ -127,7 +139,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                         href={`https://github.com/btsearch/btsearch/commit/${import.meta.env.VITE_GIT_COMMIT}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-mono text-chart-1 hover:underline"
+                        className="font-mono text-primary hover:underline"
                       >
                         {import.meta.env.VITE_GIT_COMMIT}
                       </a>

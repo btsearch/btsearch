@@ -272,15 +272,18 @@ function handleResize() {
   invalidateSnapshot();
 }
 
+function getProfileSnapshot(): PreferenceProfile {
+  if (cachedProfile !== null) return cachedProfile;
+  cachedProfile = resolveProfile();
+  return cachedProfile;
+}
+
 function getSnapshot(): UserPreferences {
-  const profile = resolveProfile();
-  const stored = readProfileRawWithLegacyFallback(profile);
+  if (cachedSnapshot !== null) return cachedSnapshot;
 
-  if (profile === cachedProfile && stored === cachedRaw && cachedSnapshot !== null) return cachedSnapshot;
-
-  cachedProfile = profile;
-  cachedRaw = stored;
-  cachedSnapshot = parsePreferences(stored, profile);
+  const profile = getProfileSnapshot();
+  cachedRaw = readProfileRawWithLegacyFallback(profile);
+  cachedSnapshot = parsePreferences(cachedRaw, profile);
   return cachedSnapshot;
 }
 
@@ -359,7 +362,7 @@ export function usePreferences() {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
   const preferences = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_PREFERENCES);
-  const activeProfile = useSyncExternalStore<PreferenceProfile>(subscribe, resolveProfile, () => DEFAULT_PROFILE);
+  const activeProfile = useSyncExternalStore<PreferenceProfile>(subscribe, getProfileSnapshot, () => DEFAULT_PROFILE);
 
   const queryKey = userId === undefined ? null : getCloudPreferencesQueryKey(userId);
   const { data: cloudPreferences, isFetching: isCloudPreferencesLoading } = useQuery({

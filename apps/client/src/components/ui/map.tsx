@@ -36,6 +36,7 @@ import {
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { LoadingIcon } from "@/components/ui/loading-icon";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { type GpsFormat, usePreferences } from "@/hooks/usePreferences";
@@ -346,12 +347,8 @@ type MapProps = {
 type MapRef = MaplibreMap;
 
 const DefaultLoader = () => (
-  <div className="absolute inset-0 flex items-center justify-center">
-    <div className="flex gap-1">
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse" />
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:150ms]" />
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:300ms]" />
-    </div>
+  <div className="absolute inset-0 flex items-center justify-center" role="status" aria-label="Loading">
+    <LoadingIcon className="size-6 text-muted-foreground" />
   </div>
 );
 
@@ -1217,7 +1214,7 @@ function MapControls({
 
     const updateScale = () => {
       const maxWidth = 96;
-      const y = map.getContainer().clientHeight / 2;
+      const y = map.getCanvas().height / map.getPixelRatio() / 2;
       const left = map.unproject([0, y]);
       const right = map.unproject([maxWidth, y]);
       const distance = left.distanceTo(right);

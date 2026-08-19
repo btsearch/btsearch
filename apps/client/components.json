@@ -21,6 +21,7 @@
     "hooks": "@/hooks"
   },
   "registries": {
+    "@better-auth-ui": "https://better-auth-ui.com/r/{style}/{name}.json",
     "@reui": "https://reui.io/r/{style}/{name}.json",
     "@evilcharts": "https://evilcharts.com/r/{name}.json"
   }
