@@ -3,7 +3,7 @@ info:
   title: BTSearch API
   description: |
     API for BTSearch Backend
-    Last updated: 2026-08-15
+    Last updated: 2026-08-19
   version: 1.1.2
 
 servers:
@@ -543,7 +543,7 @@ paths:
           schema: { type: string, enum: [station_id, updatedAt, createdAt] }
         - name: status
           in: query
-          description: "Comma-separated station statuses to include. Defaults to `published`"
+          description: "Comma-separated station statuses to include. Defaults to `published,pending`"
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
       responses:
         "200":
@@ -2949,7 +2949,7 @@ paths:
       description: |
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
-        - **stations**: bts_id, mnc (plmn)
+        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive)
         - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn

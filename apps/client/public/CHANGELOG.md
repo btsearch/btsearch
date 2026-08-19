@@ -6,6 +6,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🚀 Enhancements
 
 - Typing a station ID and operator that already exist in the database when creating a station now shows a warning under the station ID field with a link to edit the existing station
+- The stations tables now combine standards with bands, show each station's status directly under its ID, and can be filtered by status
 
 ### 🩹 Fixes
 

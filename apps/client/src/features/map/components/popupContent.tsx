@@ -13,6 +13,7 @@ import { getOperatorColor } from "@/lib/operatorUtils";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
 import { getPermitBands, getStationBands } from "../utils";
+import { TechnologySummary } from "./technologySummary";
 
 const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 
@@ -27,47 +28,8 @@ type PopupStationListProps = {
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
 };
 
-const TECHNOLOGY_BAND_PATTERN = /^(.+?)(\d+)$/;
-
 function getPopupOperatorGradient(color: string): string {
   return `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)`;
-}
-
-function groupTechnologyBands(bands: readonly string[]): Map<string, string[]> {
-  const technologies = new Map<string, string[]>();
-
-  for (const band of bands) {
-    const match = band.match(TECHNOLOGY_BAND_PATTERN);
-    const technology = match?.[1] ?? band;
-    const value = match?.[2];
-    const values = technologies.get(technology) ?? [];
-    if (value !== undefined) values.push(value);
-    technologies.set(technology, values);
-  }
-
-  return technologies;
-}
-
-function TechnologySummary({ bands, detail }: { bands: readonly string[]; detail?: string }) {
-  const technologies = groupTechnologyBands(bands);
-  if (technologies.size === 0 && detail === undefined) return null;
-
-  return (
-    <div className="mt-1 pl-3.5 text-[11px] leading-4 text-muted-foreground">
-      {[...technologies].map(([technology, values], index) => (
-        <span key={technology}>
-          {index > 0 ? <span className="mx-1 text-muted-foreground/40">/</span> : null}
-          <span className="font-bold text-foreground/70">{technology}</span> <span className="font-mono font-medium">{values.join(" ")}</span>
-        </span>
-      ))}
-      {detail !== undefined ? (
-        <>
-          {technologies.size > 0 ? <span className="mx-1 text-muted-foreground/40">/</span> : null}
-          <span>{detail}</span>
-        </>
-      ) : null}
-    </div>
-  );
 }
 
 function PopupStationList({

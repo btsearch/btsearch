@@ -1,4 +1,4 @@
-import { cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, operators, regions, stations, umtsCells } from "@openbts/drizzle";
+import { bands, cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, operators, regions, stations, umtsCells } from "@openbts/drizzle";
 import { type SQL, and, eq, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -10,8 +10,9 @@ import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
 import { type GroupedFilters, groupFiltersByTable, hasFilters, parseFilterQuery } from "./search.filters.js";
 
-const stationsSelectSchema = createSelectSchema(stations).omit({ status: true, operator_id: true, location_id: true });
+const stationsSelectSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const cellsSelectSchema = createSelectSchema(cells);
+const bandsSchema = createSelectSchema(bands);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });
 const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
@@ -21,13 +22,14 @@ const locationSelectSchema = createSelectSchema(locations).omit({ point: true, r
 const regionSelectSchema = createSelectSchema(regions);
 const operatorsSelectSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
-const cellWithDetailsSchema = cellsSelectSchema.extend({ details: cellDetailsSchema });
+const cellWithDetailsSchema = cellsSelectSchema.extend({ band: bandsSchema, details: cellDetailsSchema });
 
 type ReqBody = {
   Body: { query?: string };
   Querystring: { limit?: number; sort?: "asc" | "desc"; sortBy?: "station_id" | "updatedAt" | "createdAt" | "relevance" };
 };
 type CellWithRat = z.infer<typeof cellsSelectSchema> & {
+  band: z.infer<typeof bandsSchema>;
   gsm?: z.infer<typeof gsmCellsSchema>;
   umts?: z.infer<typeof umtsCellsSchema>;
   lte?: z.infer<typeof lteCellsSchema>;
@@ -75,12 +77,12 @@ const schemaRoute = {
 
 const stationQueryConfig = {
   with: {
-    cells: { with: { gsm: true, umts: true, lte: true, nr: true } },
+    cells: { with: { band: true, gsm: true, umts: true, lte: true, nr: true } },
     location: { with: { region: true }, columns: { point: false, region_id: false } },
     operator: true,
     extra_identificators: { columns: { station_id: false } },
   },
-  columns: { status: false, operator_id: false, location_id: false },
+  columns: { operator_id: false, location_id: false },
 } as const;
 
 const ratTables = [

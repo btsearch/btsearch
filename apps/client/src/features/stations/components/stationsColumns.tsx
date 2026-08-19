@@ -2,24 +2,17 @@ import { MapPinIcon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { memo } from "react";
 
-import { RatBadge } from "@/components/rat-badge";
-import type { Rat } from "@/components/rat-badge";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { RAT_ORDER } from "@/features/map/constants";
+import { TechnologySummary } from "@/features/map/components/technologySummary";
+import { getStationBands } from "@/features/map/utils";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy, StationSortDirection } from "@/types/station";
 
-const BandBadge = memo(({ band }: { band: string }) => (
-  <Badge variant="secondary" className="text-xs font-mono px-1.5 py-0">
-    {band}
-  </Badge>
-));
+import { StationStatusBadge } from "./StationStatusBadge";
 
 interface SortableHeaderProps {
   label: string;
@@ -50,26 +43,23 @@ function SortableHeader({ label, column, sort, sortBy, onSort }: SortableHeaderP
 type CreateColumnsOptions = {
   t: TFunction;
   locale: string;
-  isSearchActive?: boolean;
   sort: StationSortDirection;
   sortBy: StationSortBy | undefined;
   onSort: (column: StationSortBy) => void;
 };
 
-export function createStationsColumns({
-  t,
-  locale,
-  isSearchActive = false,
-  sort,
-  sortBy,
-  onSort,
-}: CreateColumnsOptions): ColumnDef<AppTableFeatures, Station>[] {
+export function createStationsColumns({ t, locale, sort, sortBy, onSort }: CreateColumnsOptions): ColumnDef<AppTableFeatures, Station>[] {
   const columns: ColumnDef<AppTableFeatures, Station>[] = [
     {
       accessorKey: "station_id",
       header: () => <SortableHeader label={t("labels.stationId")} column="station_id" sort={sort} sortBy={sortBy} onSort={onSort} />,
       size: 80,
-      cell: ({ getValue }) => <span className="font-mono text-sm text-muted-foreground pl-2">{getValue<string>()}</span>,
+      cell: ({ row: { original: station } }) => (
+        <div className="flex flex-col items-start gap-1 pl-2">
+          <span className="font-mono text-sm text-muted-foreground">{station.station_id}</span>
+          {station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
+        </div>
+      ),
     },
     {
       accessorKey: "operator",
@@ -91,57 +81,12 @@ export function createStationsColumns({
       },
     },
     {
-      id: "standards",
-      header: t("labels.standard"),
-      size: 140,
-      accessorFn: (station) => {
-        if (!station.cells) return [];
-        const rats = new Set(station.cells.filter((c) => c.rat).map((c) => c.rat.toUpperCase()));
-        return RAT_ORDER.filter((rat) => rats.has(rat));
-      },
-      cell: ({ getValue }) => (
-        <div className="flex items-center gap-1 flex-wrap">
-          {getValue<Rat[]>().map((rat) => (
-            <RatBadge key={rat} rat={rat} />
-          ))}
-        </div>
-      ),
+      id: "technology",
+      header: `${t("labels.standard")} / ${t("labels.band")}`,
+      size: 220,
+      accessorFn: (station) => getStationBands(station.cells),
+      cell: ({ getValue }) => <TechnologySummary bands={getValue<string[]>()} className="mt-0 pl-0" />,
     },
-    ...(isSearchActive
-      ? []
-      : ([
-          {
-            id: "bands" as const,
-            header: t("labels.band"),
-            size: 160,
-            accessorFn: (station: Station) => {
-              if (!station.cells) return [];
-              const bands = new Set(station.cells.filter((c) => c.band?.value).map((c) => `${c.band.value}`));
-              return Array.from(bands).sort((a, b) => Number(a) - Number(b));
-            },
-            cell: ({ getValue }) => {
-              const bands = getValue<string[]>();
-              if (bands.length === 0) return <span className="text-muted-foreground">-</span>;
-              const displayBands = bands.slice(0, 4);
-              const hiddenBands = bands.slice(4);
-              return (
-                <div className="flex items-center gap-1 flex-wrap">
-                  {displayBands.map((band) => (
-                    <BandBadge key={band} band={band} />
-                  ))}
-                  {hiddenBands.length > 0 && (
-                    <Tooltip>
-                      <TooltipTrigger className="text-xs text-muted-foreground cursor-default">+{hiddenBands.length}</TooltipTrigger>
-                      <TooltipContent>
-                        <p>{hiddenBands.join(", ")}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              );
-            },
-          },
-        ] as ColumnDef<AppTableFeatures, Station>[])),
     {
       id: "location",
       header: t("labels.location"),

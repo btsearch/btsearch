@@ -22,7 +22,6 @@ interface StationsDataTableProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   totalItems?: number;
-  isSearchActive?: boolean;
   sort: StationSortDirection;
   sortBy: StationSortBy | undefined;
   onSort: (column: StationSortBy) => void;
@@ -37,7 +36,6 @@ export function StationsDataTable({
   onLoadMore,
   hasMore,
   totalItems,
-  isSearchActive = false,
   sort,
   sortBy,
   onSort,
@@ -49,8 +47,8 @@ export function StationsDataTable({
   const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
 
   const columns = useMemo(
-    () => createStationsColumns({ t: tCommon, locale: i18n.language, isSearchActive, sort, sortBy, onSort }),
-    [tCommon, i18n.language, isSearchActive, sort, sortBy, onSort],
+    () => createStationsColumns({ t: tCommon, locale: i18n.language, sort, sortBy, onSort }),
+    [tCommon, i18n.language, sort, sortBy, onSort],
   );
 
   const table = useTable({

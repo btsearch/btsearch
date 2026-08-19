@@ -21,7 +21,10 @@ import { parseFilters } from "@/features/map/filters";
 import { useSearchState } from "@/features/map/hooks/useSearchState";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
-import type { Operator, Region, StationFilters } from "@/types/station";
+import type { Operator, Region, StationFilters, StationStatus } from "@/types/station";
+
+import { DEFAULT_STATIONS_LIST_STATUSES, getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
+import { StationStatusFilter } from "./stationStatusFilter";
 
 const STATIONS_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("stations"));
 
@@ -63,7 +66,8 @@ export function StationsFilters({
   isSheet = false,
 }: StationsFiltersProps) {
   const { t } = useTranslation(["stations", "common"]);
-  const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length;
+  const activeFilterCount =
+    filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + getStationStatusFilterCount(filters.status);
 
   const [showOtherOperators, setShowOtherOperators] = useState(false);
 
@@ -128,6 +132,10 @@ export function StationsFilters({
     onFiltersChange({ ...filters, rat: toggleValue(filters.rat, rat) });
   };
 
+  const handleToggleStatus = (status: StationStatus) => {
+    onFiltersChange({ ...filters, status: toggleStationStatusSelection(filters.status, status) });
+  };
+
   const handleBandsChange = (bands: number[]) => {
     onFiltersChange({ ...filters, bands });
   };
@@ -144,7 +152,7 @@ export function StationsFilters({
       showStations: true,
       recentDateFields: ["createdAt"],
       showHeatmap: false,
-      status: ["published", "pending"],
+      status: [...DEFAULT_STATIONS_LIST_STATUSES],
       showPlannedMeasurements: false,
     });
     onRegionsChange([]);
@@ -368,6 +376,8 @@ export function StationsFilters({
             </ComboboxContent>
           </Combobox>
         </div>
+
+        <StationStatusFilter filters={filters} onToggleStatus={handleToggleStatus} />
 
         <div className="text-xs text-muted-foreground pt-2 border-t">
           {totalStations !== undefined

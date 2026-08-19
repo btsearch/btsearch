@@ -75,6 +75,10 @@ const ratListSchema = z
   .string()
   .transform((value) => splitList(value).map((item) => item.toUpperCase()))
   .pipe(z.array(z.enum(["GSM", "UMTS", "LTE", "NR"])).min(1));
+const stationStatusListSchema = z
+  .string()
+  .transform((value) => splitList(value))
+  .pipe(z.array(z.enum(["published", "pending", "inactive"])).min(1));
 const booleanSchema = z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true");
 const duplexListSchema = z
   .union([z.boolean(), z.string()])
@@ -93,6 +97,10 @@ function parseStrings(v: FilterValue): string[] {
 
 function parseRats(v: FilterValue): ("GSM" | "UMTS" | "LTE" | "NR")[] {
   return ratListSchema.parse(String(v));
+}
+
+function parseStationStatuses(v: FilterValue): ("published" | "pending" | "inactive")[] {
+  return stationStatusListSchema.parse(String(v));
 }
 
 function parseBoolean(v: FilterValue): boolean {
@@ -174,6 +182,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
     table: "stations",
     buildCondition: (value, refs) =>
       buildInArrayFromSubquery(refs.stations.operator_id, (values) => sql`(SELECT id FROM ${refs.operators} WHERE mnc IN ${values})`)(value),
+  },
+  status: {
+    table: "stations",
+    buildCondition: (value, refs) => buildInArray(refs.stations.status, parseStationStatuses)(value),
   },
 
   created_after: {

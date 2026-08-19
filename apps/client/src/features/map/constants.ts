@@ -69,6 +69,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   // Station filters
   { key: "bts_id:", description: "Station ID", availableOn: ["map", "stations"] },
   { key: "mnc:", description: "Operator PLMN code (e.g. 26003)", availableOn: ["map"] },
+  { key: "status:", description: "Station status (published, pending, inactive)", availableOn: ["stations"] },
   { key: "has_photo:", description: "Has photo (true, false)", availableOn: ["map", "stations"] },
   { key: "created_after:", description: "Created after date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
   { key: "created_before:", description: "Created before date (YYYY-MM-DD)", availableOn: ["map", "stations"] },

@@ -5,7 +5,9 @@ import { useCallback, useMemo, useRef } from "react";
 import { parseFilters } from "@/features/map/filters";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
-import type { Station, StationFilters, StationSortBy, StationSortDirection } from "@/types/station";
+import type { Station, StationFilters, StationSortBy, StationSortDirection, StationStatus } from "@/types/station";
+
+import { DEFAULT_STATIONS_LIST_STATUSES, getStationStatusFilterCount, isDefaultStationsListStatusSelection, isStationStatus } from "../stationStatus";
 
 const FETCH_LIMIT = 120;
 
@@ -28,6 +30,7 @@ function buildSearchQuery({ query, filters, regionNames }: SearchWithFiltersPara
     if (rats.length) filterParts.push(`rat:${rats.join(",")}`);
     if (filters.rat.includes("iot") && !existingKeys.has("supports_iot")) filterParts.push("supports_iot:true");
   }
+  if (filters.status.length && !existingKeys.has("status")) filterParts.push(`status:${filters.status.join(",")}`);
   if (regionNames.length && !existingKeys.has("region")) filterParts.push(`region:${regionNames.join(",")}`);
 
   return filterParts.join(" ").trim();
@@ -66,6 +69,7 @@ const fetchStationsList = async (params: FetchStationsParams): Promise<StationsR
   if (params.filters.operators.length) searchParams.set("operators", params.filters.operators.join(","));
   if (params.filters.bands.length) searchParams.set("bands", params.filters.bands.join(","));
   if (params.filters.rat.length) searchParams.set("rat", params.filters.rat.join(","));
+  searchParams.set("status", params.filters.status.join(","));
   if (params.regionNames.length) searchParams.set("regions", params.regionNames.join(","));
   searchParams.set("sort", params.sort);
   searchParams.set("sortBy", params.sortBy ?? "updatedAt");
@@ -86,10 +90,16 @@ const parseNumberArrayParam = (value: string | null): number[] => {
     .filter((n) => !Number.isNaN(n));
 };
 
+const parseStatusArrayParam = (value: string | null): StationStatus[] => {
+  const statuses = parseArrayParam(value).filter(isStationStatus);
+  return statuses.length > 0 ? [...new Set(statuses)] : [...DEFAULT_STATIONS_LIST_STATUSES];
+};
+
 type FullState = {
   operators: number[];
   bands: number[];
   rat: string[];
+  status: StationStatus[];
   recentDays: number | null;
   regions: number[];
   q: string;
@@ -102,6 +112,7 @@ function stateToParams(state: FullState): URLSearchParams {
   if (state.operators.length) next.set("mnc", state.operators.join(","));
   if (state.bands.length) next.set("band", state.bands.join(","));
   if (state.rat.length) next.set("rat", state.rat.join(","));
+  if (!isDefaultStationsListStatusSelection(state.status)) next.set("status", state.status.join(","));
   if (state.recentDays !== null) next.set("recent", String(state.recentDays));
   if (state.regions.length) next.set("regions", state.regions.join(","));
   if (state.q) next.set("q", state.q);
@@ -115,6 +126,7 @@ function paramsToState(searchParams: URLSearchParams): FullState {
     operators: parseNumberArrayParam(searchParams.get("mnc")),
     bands: parseNumberArrayParam(searchParams.get("band")),
     rat: parseArrayParam(searchParams.get("rat")),
+    status: parseStatusArrayParam(searchParams.get("status")),
     recentDays: (() => {
       const v = searchParams.get("recent");
       if (!v) return null;
@@ -152,6 +164,7 @@ export function useStationsData() {
       operators: state.operators,
       bands: state.bands,
       rat: state.rat,
+      status: state.status,
       source: "internal",
       recentDays: state.recentDays,
       showStations: true,
@@ -159,8 +172,9 @@ export function useStationsData() {
       showHeatmap: false,
       recentDateFields: ["createdAt"],
       radiolineOperators: [],
+      showPlannedMeasurements: false,
     }),
-    [state.operators, state.bands, state.rat, state.recentDays],
+    [state.operators, state.bands, state.rat, state.status, state.recentDays],
   );
 
   const selectedRegions = state.regions;
@@ -175,6 +189,7 @@ export function useStationsData() {
         operators: stateRef.current.operators,
         bands: stateRef.current.bands,
         rat: stateRef.current.rat,
+        status: stateRef.current.status,
         source: "internal",
         recentDays: stateRef.current.recentDays,
         showStations: true,
@@ -182,12 +197,14 @@ export function useStationsData() {
         showHeatmap: false,
         recentDateFields: ["createdAt"],
         radiolineOperators: [],
+        showPlannedMeasurements: false,
       };
       const resolved = typeof newFilters === "function" ? newFilters(current) : newFilters;
       commit({
         operators: resolved.operators,
         bands: resolved.bands,
         rat: resolved.rat,
+        status: resolved.status,
         recentDays: resolved.recentDays,
       });
     },
@@ -240,7 +257,7 @@ export function useStationsData() {
   }, [selectedRegions, regionById]);
 
   const { data, fetchNextPage, hasNextPage, isLoading, isFetching } = useInfiniteQuery({
-    queryKey: ["stations-list", FETCH_LIMIT, filters.operators, filters.bands, filters.rat, selectedRegionNames, sort, sortBy],
+    queryKey: ["stations-list", FETCH_LIMIT, filters.operators, filters.bands, filters.rat, filters.status, selectedRegionNames, sort, sortBy],
     queryFn: ({ pageParam }) =>
       fetchStationsList({
         pageParam,
@@ -289,7 +306,8 @@ export function useStationsData() {
     return [...new Set(bands.map((b) => b.value))].sort((a, b) => a - b);
   }, [bands]);
 
-  const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length;
+  const activeFilterCount =
+    filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + getStationStatusFilterCount(filters.status);
 
   return {
     stations,

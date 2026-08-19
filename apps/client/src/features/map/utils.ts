@@ -144,7 +144,7 @@ function sortBands(bands: string[]): string[] {
 }
 
 export function getStationBands(cells: Cell[]): string[] {
-  return sortBands([...new Set(cells.map((c) => `${c.rat}${c.band.value}`))]);
+  return sortBands([...new Set(cells.map((c) => `${c.rat}${c.band.value ?? ""}`))]);
 }
 
 export function getPermitBands(permits: Array<{ band?: UkeStationPermit["band"] }>): string[] {

@@ -1,4 +1,13 @@
-import { Cancel01Icon, DatabaseIcon, FilterIcon, FullSignalIcon, Location01Icon, Radar01Icon, Search02Icon } from "@hugeicons/core-free-icons";
+import {
+  Cancel01Icon,
+  CheckmarkCircle02Icon,
+  DatabaseIcon,
+  FilterIcon,
+  FullSignalIcon,
+  Location01Icon,
+  Radar01Icon,
+  Search02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -16,7 +25,10 @@ import { StationsDataTable } from "@/features/stations/components/stationsDataTa
 import type { useStationsData } from "@/features/stations/hooks/useStationsData";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
-import type { Operator, Region, Station, StationFilters, StationSortBy } from "@/types/station";
+import type { Operator, Region, Station, StationFilters, StationSortBy, StationStatus } from "@/types/station";
+
+import { DEFAULT_STATIONS_LIST_STATUSES, getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
+import { StationStatusFilter } from "./stationStatusFilter";
 
 const RAT_OPTIONS = [
   { value: "NR", label: "NR", gen: "5G" },
@@ -73,7 +85,8 @@ function StationsMobileFilterRail({
     () => selectedRegions.map((id) => regions.find((region) => region.id === id)?.name).filter((name): name is string => Boolean(name)),
     [regions, selectedRegions],
   );
-  const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length;
+  const statusFilterCount = getStationStatusFilterCount(filters.status);
+  const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + statusFilterCount;
   const hasSearch = searchQuery.trim().length > 0;
   const hasActiveFilters = activeFilterCount > 0 || hasSearch;
   const [showSearchAutocomplete, setShowSearchAutocomplete] = useState(false);
@@ -82,6 +95,10 @@ function StationsMobileFilterRail({
   const handleAutocompleteSelect = (keyword: string) => {
     onSearchQueryChange(replaceLastSearchToken(searchQuery, keyword));
     setShowSearchAutocomplete(false);
+  };
+
+  const handleToggleStatus = (status: StationStatus) => {
+    onFiltersChange({ ...filters, status: toggleStationStatusSelection(filters.status, status) });
   };
 
   const handleClearFilters = () => {
@@ -96,7 +113,7 @@ function StationsMobileFilterRail({
       showStations: true,
       recentDateFields: ["createdAt"],
       showHeatmap: false,
-      status: ["published", "pending"],
+      status: [...DEFAULT_STATIONS_LIST_STATUSES],
       showPlannedMeasurements: false,
     });
     onRegionsChange([]);
@@ -247,6 +264,10 @@ function StationsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
+      <MobileFilterChip active={statusFilterCount > 0} count={statusFilterCount} icon={CheckmarkCircle02Icon} label={t("main:filters.stationStatus")}>
+        <StationStatusFilter filters={filters} onToggleStatus={handleToggleStatus} />
+      </MobileFilterChip>
+
       {hasActiveFilters ? (
         <button
           type="button"
@@ -343,7 +364,6 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
             onLoadMore={loadMore}
             hasMore={hasMore}
             totalItems={totalStations ?? stations.length}
-            isSearchActive={!!searchQuery}
             sort={sort}
             sortBy={sortBy}
             onSort={handleSort}

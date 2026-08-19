@@ -1,9 +1,6 @@
 import {
   AirportTowerIcon,
   ArrowDown01Icon,
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Clock01Icon,
   Database02Icon,
   File02Icon,
   FilterIcon,
@@ -13,7 +10,7 @@ import {
   Radar01Icon,
   Route02Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type Dispatch, type ReactNode, type RefObject, type SetStateAction, useCallback, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -33,6 +30,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import type { UkeOperator } from "@/features/shared/api";
 import { fetchUkeRadioLineOperators } from "@/features/shared/api";
+import { StationStatusFilter } from "@/features/stations/components/stationStatusFilter";
 import { usePreferences } from "@/hooks/usePreferences";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
@@ -318,62 +316,6 @@ function RecentDaysFilter({ filters, onRecentDaysChange, onRecentDateFieldChange
   );
 }
 
-type StatusFilterProps = {
-  filters: StationFilters;
-  onToggleStatus: (status: StationStatus) => void;
-};
-
-const STATION_STATUS_OPTIONS: { status: StationStatus; icon: IconSvgElement; activeClassName: string }[] = [
-  {
-    status: "published",
-    icon: CheckmarkCircle02Icon,
-    activeClassName: "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  },
-  {
-    status: "pending",
-    icon: Clock01Icon,
-    activeClassName: "border-yellow-600/45 bg-yellow-300/20 text-yellow-800 dark:border-yellow-400/45 dark:bg-yellow-400/15 dark:text-yellow-300",
-  },
-  {
-    status: "inactive",
-    icon: Cancel01Icon,
-    activeClassName: "border-red-600/40 bg-red-500/10 text-red-700 dark:border-red-400/45 dark:bg-red-400/15 dark:text-red-300",
-  },
-];
-
-function StatusFilter({ filters, onToggleStatus }: StatusFilterProps) {
-  const { t } = useTranslation(["main", "stations"]);
-
-  if (filters.source !== "internal") return null;
-
-  return (
-    <div className="pt-2">
-      <h4 className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("main:filters.stationStatus")}</h4>
-      <div className="flex flex-wrap gap-1">
-        {STATION_STATUS_OPTIONS.map(({ status, icon, activeClassName }) => {
-          const isActive = filters.status.includes(status);
-          return (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={isActive}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onToggleStatus(status)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium leading-5 transition-colors",
-                isActive ? activeClassName : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <HugeiconsIcon icon={icon} className="size-3 shrink-0" />
-              <span>{t(`stations:status.${status}`)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 type FilterPanelProps = {
   filters: StationFilters;
   operators: Operator[];
@@ -559,7 +501,7 @@ export function FilterPanel({
       {!hideAPIFilters && (
         <>
           <RecentDaysFilter filters={filters} onRecentDaysChange={onRecentDaysChange} onRecentDateFieldChange={onRecentDateFieldChange} />
-          <StatusFilter filters={filters} onToggleStatus={onToggleStatus} />
+          <StationStatusFilter filters={filters} onToggleStatus={onToggleStatus} />
         </>
       )}
 
