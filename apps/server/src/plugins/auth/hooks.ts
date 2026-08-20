@@ -64,11 +64,16 @@ async function handleApiKeyCreate(ctx: HookCtx) {
   const session = await getSessionFromCtx(ctx);
   if (!session) throw new APIError("UNAUTHORIZED", { message: "Unauthorized access to this endpoint" });
 
+  const prefix = ctx.body?.prefix;
+  if (typeof prefix === "string" && prefix.startsWith("pk_"))
+    throw new APIError("BAD_REQUEST", { message: "Publishable API keys can no longer be created" });
+
   const keys = await db.query.apikeys.findMany({
     where: { referenceId: session.user.id },
   });
+  const secretKeyCount = keys.filter((key) => !key.start?.startsWith("pk_")).length;
 
-  if (keys.length >= API_KEYS_LIMIT && session.user.role !== "admin") {
+  if (secretKeyCount >= API_KEYS_LIMIT && session.user.role !== "admin") {
     throw new APIError("FORBIDDEN", {
       message: "You have reached the maximum number of API keys. Please delete an existing key before creating a new one",
     });

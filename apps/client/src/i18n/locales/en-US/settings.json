@@ -205,20 +205,13 @@
       "secret": "Secret",
       "publishable": "Public"
     },
-    "pkKeysUsed": "{{count}} of {{max}} public keys used",
+    "pkKeysCount_one": "{{count}} public key",
+    "pkKeysCount_other": "{{count}} public keys",
     "dialog": {
       "title": "Create API Key",
-      "description": "Choose a key type based on where it will be used.",
-      "typeLabel": "Key Type",
-      "typeSecret": "Secret key",
-      "typeSecretDesc": "For server-side use only. Never expose publicly.",
-      "typeSecretTag": "sk_...",
-      "typePublishable": "Publishable key",
-      "typePublishableDesc": "Safe for client-side apps, scripts, and curl.",
-      "typePublishableTag": "pk_...",
+      "description": "Create a key for API access. Never expose it publicly.",
       "nameLabel": "Name",
       "namePlaceholder": "e.g. Production server",
-      "namePlaceholderPublishable": "e.g. My map app",
       "expiresLabel": "Expires In",
       "expiresOptions": {
         "1d": "1 day",

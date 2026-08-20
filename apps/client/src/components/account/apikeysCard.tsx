@@ -1,4 +1,4 @@
-import { Add01Icon, Alert02Icon, CheckmarkCircle02Icon, CodeIcon, Copy01Icon, SecurityLockIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Alert02Icon, CheckmarkCircle02Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memo, useState } from "react";
@@ -49,7 +49,6 @@ type ApiKeyInfo = {
 
 const EXPIRY_OPTIONS = ["1d", "3d", "7d", "30d", "90d", "1y", "never"] as const;
 const MAX_KEYS = 1;
-const MAX_PK_KEYS = 2;
 
 function isPublishableKey(key: ApiKeyInfo): boolean {
   return key.start?.startsWith("pk_") ?? false;
@@ -141,8 +140,6 @@ function KeyCreatedDialog({ apiKey, open, onClose }: { apiKey: string; open: boo
   );
 }
 
-type KeyType = "secret" | "publishable";
-
 function CreateKeyDialog({
   open,
   onOpenChange,
@@ -155,18 +152,9 @@ function CreateKeyDialog({
   const { t } = useTranslation(["settings", "common"]);
   const [name, setName] = useState("");
   const [expiresIn, setExpiresIn] = useState("7d");
-  const [keyType, setKeyType] = useState<KeyType>("secret");
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (keyType === "publishable") {
-        const result = await fetchJson<{ data: { key: string } }>(`${API_BASE}/account/publishable-keys`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name.trim() }),
-        });
-        return { key: result.data.key };
-      }
       const result = await authClient.apiKey.create({
         name: name.trim(),
         expiresIn: EXPIRY_SECONDS[expiresIn],
@@ -179,27 +167,9 @@ function CreateKeyDialog({
       onOpenChange(false);
       setName("");
       setExpiresIn("7d");
-      setKeyType("secret");
     },
     onError: (err: Error) => toast.error(err.message),
   });
-
-  const KEY_TYPES: { value: KeyType; icon: typeof SecurityLockIcon; label: string; description: string; tag: string }[] = [
-    {
-      value: "secret",
-      icon: SecurityLockIcon,
-      label: t("apiKeys.dialog.typeSecret"),
-      description: t("apiKeys.dialog.typeSecretDesc"),
-      tag: t("apiKeys.dialog.typeSecretTag"),
-    },
-    {
-      value: "publishable",
-      icon: CodeIcon,
-      label: t("apiKeys.dialog.typePublishable"),
-      description: t("apiKeys.dialog.typePublishableDesc"),
-      tag: t("apiKeys.dialog.typePublishableTag"),
-    },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,98 +181,48 @@ function CreateKeyDialog({
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>{t("apiKeys.dialog.typeLabel")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {KEY_TYPES.map(({ value, icon, label, description, tag }) => {
-                const active = keyType === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setKeyType(value)}
-                    className={cn(
-                      "relative rounded-lg border p-3 text-left transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active
-                        ? "border-primary/60 bg-primary/4 ring-1 ring-inset ring-primary/15"
-                        : "border-border hover:border-muted-foreground/30 hover:bg-muted/40",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div
-                        className={cn(
-                          "flex items-center justify-center size-6 rounded-md transition-colors",
-                          active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        <HugeiconsIcon icon={icon} className="size-3.5" />
-                      </div>
-                      {active && (
-                        <div className="size-4 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-2.5 text-primary-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <p className={cn("text-xs font-semibold leading-none mb-1", active ? "text-foreground" : "text-foreground/80")}>{label}</p>
-                    <p className="text-[11px] text-muted-foreground leading-snug mb-2">{description}</p>
-                    <span
-                      className={cn(
-                        "inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-sm",
-                        active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {tag}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
             <Label htmlFor="api-key-name">{t("apiKeys.dialog.nameLabel")}</Label>
             <Input
               id="api-key-name"
-              placeholder={keyType === "publishable" ? t("apiKeys.dialog.namePlaceholderPublishable") : t("apiKeys.dialog.namePlaceholder")}
+              placeholder={t("apiKeys.dialog.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="off"
             />
           </div>
 
-          {keyType === "secret" && (
-            <div className="space-y-1.5">
-              <Label>{t("apiKeys.dialog.expiresLabel")}</Label>
-              <Select value={expiresIn} onValueChange={(v) => v && setExpiresIn(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {EXPIRY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {t(`apiKeys.dialog.expiresOptions.${opt}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
-                {EXPIRY_OPTIONS.map((opt, i) => (
-                  <span key={opt}>
-                    <button
-                      type="button"
-                      onClick={() => setExpiresIn(opt)}
-                      className={cn(
-                        "text-xs transition-colors",
-                        expiresIn === opt ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {t(`apiKeys.dialog.expiresOptions.${opt}`)}
-                    </button>
-                    {i < EXPIRY_OPTIONS.length - 1 && <span className="text-muted-foreground/50 text-xs ml-1.5">·</span>}
-                  </span>
+          <div className="space-y-1.5">
+            <Label>{t("apiKeys.dialog.expiresLabel")}</Label>
+            <Select value={expiresIn} onValueChange={(v) => v && setExpiresIn(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPIRY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt} value={opt}>
+                    {t(`apiKeys.dialog.expiresOptions.${opt}`)}
+                  </SelectItem>
                 ))}
-              </div>
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap gap-x-1.5 gap-y-0.5">
+              {EXPIRY_OPTIONS.map((opt, i) => (
+                <span key={opt}>
+                  <button
+                    type="button"
+                    onClick={() => setExpiresIn(opt)}
+                    className={cn(
+                      "text-xs transition-colors",
+                      expiresIn === opt ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t(`apiKeys.dialog.expiresOptions.${opt}`)}
+                  </button>
+                  {i < EXPIRY_OPTIONS.length - 1 && <span className="text-muted-foreground/50 text-xs ml-1.5">·</span>}
+                </span>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -476,7 +396,7 @@ export function ApiKeysCard({ userId }: { userId: string }) {
               <span className="text-xs text-muted-foreground">
                 {t("apiKeys.keysUsed", { count: secretKeys.length, max: MAX_KEYS })}
                 {" · "}
-                {t("apiKeys.pkKeysUsed", { count: publishableKeys.length, max: MAX_PK_KEYS })}
+                {t("apiKeys.pkKeysCount", { count: publishableKeys.length })}
               </span>
               <Button size="sm" onClick={() => setCreateOpen(true)}>
                 <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />

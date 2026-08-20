@@ -20,7 +20,6 @@ declare module "fastify" {
 export const registerRateLimit = (fastify: FastifyZodInstance) => {
   const rateLimitService = new RateLimitService(redis, {
     routes: [
-      { url: "/api/v1/account/publishable-keys", max: 2, window: 604800 },
       {
         url: "/api/v1/submissions/batch",
         max: 4,
