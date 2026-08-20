@@ -232,7 +232,7 @@ export function FloatingStationDialogFrame({
       <button
         type="button"
         aria-label={t("actions.resizeHorizontally")}
-        className="absolute -right-1 top-8 bottom-8 w-3 border-0 bg-transparent p-0 pointer-events-auto cursor-ew-resize touch-none opacity-40 transition-opacity hover:opacity-100 focus-visible:opacity-100 after:absolute after:right-1 after:top-1/2 after:h-16 after:w-1 after:-translate-y-1/2 after:rounded-full after:bg-muted-foreground/40"
+        className="absolute -right-1 top-8 bottom-8 w-3 border-0 bg-transparent p-0 pointer-events-auto cursor-ew-resize touch-none opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 after:absolute after:right-1 after:top-1/2 after:h-16 after:w-1 after:-translate-y-1/2 after:rounded-full after:bg-muted-foreground/40"
         onPointerDown={(event) => beginInteraction(event, "resize-horizontal")}
         onPointerMove={handlePointerMove}
         onPointerUp={endInteraction}
@@ -241,7 +241,7 @@ export function FloatingStationDialogFrame({
       <button
         type="button"
         aria-label={t("actions.resize")}
-        className="absolute bottom-1 right-1 pointer-events-auto size-5 rounded-br-2xl cursor-nwse-resize touch-none opacity-60 hover:opacity-100 before:absolute before:right-1 before:bottom-1 before:h-2.5 before:w-2.5 before:border-r before:border-b before:border-muted-foreground"
+        className="absolute bottom-1 right-1 pointer-events-auto size-5 rounded-br-2xl cursor-nwse-resize touch-none opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 before:absolute before:right-1 before:bottom-1 before:h-2.5 before:w-2.5 before:border-r before:border-b before:border-muted-foreground"
         onPointerDown={(event) => beginInteraction(event, "resize-corner")}
         onPointerMove={handlePointerMove}
         onPointerUp={endInteraction}
