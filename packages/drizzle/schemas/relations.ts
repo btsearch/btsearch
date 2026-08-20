@@ -314,7 +314,7 @@ export const relations = defineRelations(
       }),
     },
     accounts: {
-      user: helpers.one.users({
+      users: helpers.one.users({
         from: helpers.accounts.userId,
         to: helpers.users.id,
       }),
@@ -326,13 +326,13 @@ export const relations = defineRelations(
       }),
     },
     passkeys: {
-      user: helpers.one.users({
+      users: helpers.one.users({
         from: helpers.passkeys.userId,
         to: helpers.users.id,
       }),
     },
     twoFactors: {
-      user: helpers.one.users({
+      users: helpers.one.users({
         from: helpers.twoFactors.userId,
         to: helpers.users.id,
       }),
