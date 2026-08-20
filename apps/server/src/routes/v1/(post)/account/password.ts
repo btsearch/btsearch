@@ -1,3 +1,4 @@
+import { createLocalAccountIssuer } from "@better-auth/core/db";
 import { hash } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -37,6 +38,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
   await db.insert(schema.accounts).values({
     userId: session.user.id,
     accountId: session.user.id,
+    issuer: createLocalAccountIssuer("credential"),
     providerId: "credential",
     password: hashedPassword,
   });

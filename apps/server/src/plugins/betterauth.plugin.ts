@@ -89,6 +89,7 @@ export const auth = betterAuth({
     cookiePrefix: "openbts",
     database: {
       generateId: false,
+      joins: true,
     },
     cookies: {
       session_token: {
@@ -163,7 +164,6 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
   },
-  experimental: { joins: true },
   hooks: {
     before: beforeAuthHook,
     after: afterAuthHook,

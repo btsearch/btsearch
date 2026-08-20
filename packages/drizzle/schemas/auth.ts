@@ -173,6 +173,7 @@ export const accounts = AuthSchema.table(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     accountId: varchar("account_id", { length: 255 }).notNull(),
+    issuer: text("issuer").notNull(),
     providerId: text("provider_id").notNull(),
     refreshToken: text("refresh_token"),
     accessToken: text("access_token"),
@@ -185,7 +186,7 @@ export const accounts = AuthSchema.table(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("accounts_user_id_idx").on(t.userId)],
+  (t) => [index("accounts_user_id_idx").on(t.userId), unique("accounts_issuer_account_id_unique").on(t.issuer, t.accountId)],
 );
 
 export const verificationTokens = AuthSchema.table("verification_tokens", {

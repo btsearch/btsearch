@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-20
+
+### 🩹 Fixes
+
+- Signing in with a password, Google or GitHub works again after the authentication service upgrade
+
 # 2026-08-19
 
 ### 🚀 Enhancements
