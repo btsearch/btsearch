@@ -8,7 +8,7 @@ export type StationDialogRect = {
 export type StationDialogInteractionMode = "drag" | "resize-corner" | "resize-horizontal";
 
 export const STATION_DIALOG_DESKTOP_MIN_WIDTH = 610;
-export const STATION_DIALOG_DESKTOP_MIN_HEIGHT = 650;
+export const STATION_DIALOG_DESKTOP_MIN_HEIGHT = 600;
 
 const DEFAULT_DIALOG_WIDTH = 920;
 const DEFAULT_DIALOG_HEIGHT = STATION_DIALOG_DESKTOP_MIN_HEIGHT;
@@ -82,7 +82,7 @@ export function getStationDialogPosition(rect: StationDialogRect) {
 }
 
 export function getNaturalStationDialogHeight(content: HTMLDivElement, body: HTMLDivElement, bodyContent: HTMLDivElement) {
-  const heightOutsideScrollableBody = content.scrollHeight - body.clientHeight;
+  const heightOutsideScrollableBody = content.clientHeight - body.clientHeight;
   return Math.ceil(heightOutsideScrollableBody + bodyContent.scrollHeight);
 }
 

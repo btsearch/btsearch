@@ -105,10 +105,11 @@ export function FloatingStationDialogFrame({
 
     const currentRect = dialogRectRef.current;
     const naturalHeight = getNaturalStationDialogHeight(content, body, bodyContent);
+    const targetHeight = clampStationDialogRect({ ...currentRect, height: naturalHeight }).height;
     const nextRect = clampStationDialogRect({
       ...currentRect,
-      y: currentRect.y + (currentRect.height - naturalHeight) / 2,
-      height: naturalHeight,
+      y: currentRect.y + (currentRect.height - targetHeight) / 2,
+      height: targetHeight,
     });
 
     if (!shouldSyncStationDialogRect(currentRect, nextRect)) return;
@@ -120,10 +121,8 @@ export function FloatingStationDialogFrame({
   useLayoutEffect(() => {
     if (!fitHeightToContent) return;
 
-    const content = contentRef.current;
-    const body = bodyRef.current;
     const bodyContent = bodyContentRef.current;
-    if (content === null || body === null || bodyContent === null) return;
+    if (bodyContent === null) return;
 
     let frameId: number | null = null;
     const scheduleFit = () => {
@@ -137,8 +136,6 @@ export function FloatingStationDialogFrame({
     fitDialogToContent();
 
     const resizeObserver = new ResizeObserver(scheduleFit);
-    resizeObserver.observe(content);
-    resizeObserver.observe(body);
     resizeObserver.observe(bodyContent);
 
     return () => {

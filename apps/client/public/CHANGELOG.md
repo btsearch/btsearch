@@ -6,6 +6,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🩹 Fixes
 
 - Signing in with a password, Google or GitHub works again after the authentication service upgrade
+- Movable desktop dialogs no longer drift down the screen or repeatedly resize when switching between scrollable tabs
 
 # 2026-08-19
 
