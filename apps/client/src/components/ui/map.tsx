@@ -33,7 +33,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, preconnect } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { LoadingIcon } from "@/components/ui/loading-icon";
@@ -408,6 +408,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
     const saved = localStorage.getItem("map-style");
     return (saved as MapStyle) || initialMapStyle;
   });
+  if (mapStyle === "carto") preconnect("https://tiles.basemaps.cartocdn.com", { crossOrigin: "anonymous" });
   const { t } = useTranslation("main");
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

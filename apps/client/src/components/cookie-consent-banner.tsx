@@ -4,21 +4,16 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { useCookieConsent } from "@/hooks/useCookieConsent";
-import { authClient } from "@/lib/authClient";
-
-const PRIVILEGED_ROLES = new Set(["admin", "editor"]);
 
 export function CookieConsentBanner() {
   const { t } = useTranslation("common");
   const { consent, accept, reject } = useCookieConsent();
-  const { data: session, isPending } = authClient.useSession();
 
-  if (isPending || PRIVILEGED_ROLES.has(session?.user?.role as string)) return null;
   if (consent !== null) return null;
 
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-5xl rounded-xl border border-border bg-popover px-4 py-3 shadow-lg animate-in slide-in-from-bottom-4 fade-in sm:px-5"
+      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-5xl rounded-xl border border-border bg-popover px-4 py-3 shadow-lg sm:px-5"
       role="dialog"
       aria-label={t("cookieConsent.title")}
     >
