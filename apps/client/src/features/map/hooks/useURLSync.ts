@@ -261,8 +261,16 @@ function buildUrlHash(filters: StationFilters, map: MapLibreMap, zoomOverride?: 
   return `#${mapPart}${tokens.length > 0 ? `~${tokens.join("~")}` : ""}`;
 }
 
+function replaceMapHash(pathname: string, hash: string) {
+  if (window.location.pathname !== pathname) return;
+
+  const newUrl = `${pathname}${window.location.search}${hash}`;
+  window.history.replaceState(window.history.state, "", newUrl);
+}
+
 export function useUrlSync({ map, isLoaded, filters, onInitialize }: UseUrlSyncArgs) {
   const isInitialized = useRef(false);
+  const pathname = useRef(window.location.pathname);
   const filtersRef = useRef(filters);
   useEffect(() => {
     filtersRef.current = filters;
@@ -314,8 +322,7 @@ export function useUrlSync({ map, isLoaded, filters, onInitialize }: UseUrlSyncA
 
     const handleMoveEnd = () => {
       if (!isInitialized.current) return;
-      const newUrl = `${window.location.pathname}${buildUrlHash(filtersRef.current, map)}`;
-      window.history.replaceState(null, "", newUrl);
+      replaceMapHash(pathname.current, buildUrlHash(filtersRef.current, map));
     };
 
     map.on("moveend", handleMoveEnd);
@@ -327,7 +334,6 @@ export function useUrlSync({ map, isLoaded, filters, onInitialize }: UseUrlSyncA
   useEffect(() => {
     if (!isLoaded || !map || !isInitialized.current) return;
 
-    const newUrl = `${window.location.pathname}${buildUrlHash(filters, map)}`;
-    window.history.replaceState(null, "", newUrl);
+    replaceMapHash(pathname.current, buildUrlHash(filters, map));
   }, [filters, isLoaded, map]);
 }
