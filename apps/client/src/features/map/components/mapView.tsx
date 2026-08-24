@@ -11,6 +11,8 @@ import type { LocationInfo, Station, StationFilters, StationSource, UkeLocationW
 
 import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
+import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
+
 import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -20,6 +22,7 @@ import { MapSearchOverlay } from "./search-overlay";
 import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "./stationsLayer";
 
 const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
+const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/components/terrainProfileSurface"));
 
 const MAP_POSITION_KEY = "map:position";
 const ZABKA_EASTER_EGG_SEQUENCE = "ZABKA";
@@ -108,6 +111,8 @@ function MapViewInner() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const terrainProfile = useTerrainProfileController({ map, isLoaded });
+
   const [pendingRadiolineId, setPendingRadiolineId] = useState<number | null>(null);
   const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
 
@@ -127,6 +132,7 @@ function MapViewInner() {
     detailsFilters: filters,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,
+    onStartTerrainProfile: terrainProfile.start,
   });
 
   useEffect(() => {
@@ -367,6 +373,41 @@ function MapViewInner() {
         </Suspense>
       ) : null}
       <MapControls showLocate showCompass showScale showFullscreen />
+      {terrainProfile.isOpen && terrainProfile.receiver && (
+        <MapMarker
+          draggable
+          longitude={terrainProfile.receiver.longitude}
+          latitude={terrainProfile.receiver.latitude}
+          onDragEnd={terrainProfile.handleReceiverDragEnd}
+        >
+          <MarkerContent>
+            <div className="relative flex items-center justify-center">
+              <div className="absolute h-5 w-5 animate-ping rounded-full bg-sky-500/30" />
+              <div className="relative h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-500 shadow-md" />
+            </div>
+          </MarkerContent>
+        </MapMarker>
+      )}
+      {terrainProfile.isOpen && (
+        <Suspense fallback={null}>
+          <TerrainProfileSurface
+            analysis={terrainProfile.analysis}
+            station={terrainProfile.station}
+            receiver={terrainProfile.receiver}
+            antennaKey={terrainProfile.antennaKey}
+            isWorking={terrainProfile.isWorking}
+            isLocating={terrainProfile.isLocating}
+            gpsError={terrainProfile.gpsError}
+            error={terrainProfile.error}
+            onClose={terrainProfile.close}
+            onRetry={terrainProfile.retry}
+            onUseCurrentLocation={terrainProfile.useCurrentLocation}
+            onReceiverHeightChange={terrainProfile.setReceiverHeight}
+            onAntennaChange={terrainProfile.setAntenna}
+            onHoverSample={terrainProfile.setHoveredSample}
+          />
+        </Suspense>
+      )}
     </>
   );
 }

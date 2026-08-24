@@ -1,0 +1,96 @@
+{
+  "title": "Profil terenu",
+  "actions": {
+    "analyze": "Analizuj profil terenu",
+    "retry": "Uruchom ponownie"
+  },
+  "station": {
+    "selected": "Wybrana stacja"
+  },
+  "receiver": {
+    "height": "Wysokość odbiornika",
+    "useGps": "Użyj GPS",
+    "locating": "Ustalanie pozycji...",
+    "coordinates": "Współrzędne odbiornika",
+    "hint": "Przeciągnij niebieski znacznik na mapie, aby zmienić punkt odbioru",
+    "gpsErrors": {
+      "unsupported": "Ta przeglądarka nie może odczytać Twojej lokalizacji. Przeciągnij znacznik na mapie",
+      "permissionDenied": "Odmówiono dostępu do lokalizacji. Zezwól na niego w ustawieniach przeglądarki lub przeciągnij znacznik na mapie.",
+      "unavailable": "Twoja lokalizacja jest obecnie niedostępna. Spróbuj ponownie lub przeciągnij znacznik na mapie",
+      "timeout": "Przekroczono czas oczekiwania na pozycję GPS. Spróbuj ponownie lub przeciągnij znacznik na mapie",
+      "unknown": "Nie udało się odczytać Twojej lokalizacji. Spróbuj ponownie lub przeciągnij znacznik na mapie"
+    }
+  },
+  "empty": {
+    "stationTitle": "Wybierz stację",
+    "stationDescription": "Otwórz znacznik stacji i wybierz akcję profilu terenu"
+  },
+  "states": {
+    "processing": "Odczytywanie terenu LiDAR i analizowanie danych...",
+    "failed": "Nie udało się obliczyć profilu",
+    "failedDescription": "Sprawdź wybrane końce trasy i spróbuj ponownie",
+    "outOfAzimuth": "Odbiornik znajduje się poza głównym azymutem wybranej anteny. Wybierz inny sektor, aby zobaczyć profil"
+  },
+  "selection": {
+    "title": "Sektor antenowy",
+    "placeholder": "Pasmo · azymut · wysokość",
+    "required": "Wybierz sektor antenowy, aby uruchomić analizę"
+  },
+  "verdict": {
+    "clear": "Stacja jest widoczna",
+    "constrained": "Widoczność ograniczona",
+    "blocked": "Stacja przesłonięta",
+    "unavailable": "Nie można ocenić widoczności",
+    "summary": "{{distance}} km · azymut {{bearing}}°",
+    "surfaceOnly": "Sam teren nie przesłania trasy. Ograniczeniem są budynki lub roślinność"
+  },
+  "metrics": {
+    "pathLoss": "Tłumienie trasy",
+    "antennaHeight": "Wysokość anteny",
+    "fieldStrength": "Natężenie pola"
+  },
+  "chart": {
+    "label": "Profil terenu i widoczności optycznej",
+    "description": "Przekrój od odbiornika po lewej do wybranej stacji po prawej. Wykres pokazuje teren, obiekty powierzchniowe i promień z predykcją ITU-R P.1812-8",
+    "distance": "{{value}} km od odbiornika",
+    "clearance": "Prześwit",
+    "endpoints": {
+      "receiver": "Odbiornik · {{height}} m n.p.t.",
+      "station": "Stacja · {{height}} m n.p.t."
+    },
+    "legend": {
+      "label": "Warstwy profilu",
+      "terrain": "Teren",
+      "surface": "Pokrycie",
+      "lineOfSight": "Promień",
+      "obstruction": "Przeszkoda"
+    },
+    "series": {
+      "surfaceElevationM": "Pokrycie / roślinność",
+      "terrainElevationM": "Teren",
+      "lineOfSightElevationM": "Linia widoczności"
+    }
+  },
+  "evidence": {
+    "lidar": "Teren: {{source}}",
+    "si2pem": "Raport SI2PEM · {{date}}",
+    "latest": "najnowszy",
+    "noReport": "Brak pasującego raportu SI2PEM"
+  },
+  "warnings": {
+    "title": "Uwagi o danych",
+    "codes": {
+      "ANTENNA_SELECTION_REQUIRED": "Wybierz sektor antenowy, aby kontynuować",
+      "ANTENNA_SELECTION_INVALID": "Wybrana antena nie jest już dostępna",
+      "SI2PEM_REPORT_UNAVAILABLE": "Nie znaleziono pasującego raportu SI2PEM",
+      "SI2PEM_REPORT_PARSE_FAILED": "Nie udało się wiarygodnie odczytać najnowszego raportu SI2PEM",
+      "UKE_ANTENNA_FALLBACK": "Użyto wysokości z pozwolenia UKE, ponieważ dane SI2PEM były niedostępne",
+      "NETWORKS_SHARING_DATA": "Dane antenowe pochodzą ze stacji partnerskiej w tej samej lokalizacji (współdzielenie sieci T-Mobile/Orange)",
+      "ANTENNA_AZIMUTH_MISMATCH": "Odbiornik znajduje się poza głównym azymutem wybranej anteny",
+      "SURFACE_MODEL_UNAVAILABLE": "Brak danych o pokryciu i roślinności",
+      "SURFACE_MODEL_PARTIAL": "Dane o pokryciu i roślinności są niepełne na tej trasie",
+      "TERRAIN_MODEL_PARTIAL": "Dane o terenie są niepełne na tej trasie",
+      "TERRAIN_CACHE_STALE": "Dane terenu z pamięci podręcznej mogą być starsze niż bieżący model GUGiK"
+    }
+  }
+}

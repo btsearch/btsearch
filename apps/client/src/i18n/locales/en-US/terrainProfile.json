@@ -1,0 +1,96 @@
+{
+  "title": "Terrain profile",
+  "actions": {
+    "analyze": "Analyze terrain profile",
+    "retry": "Run again"
+  },
+  "station": {
+    "selected": "Selected station"
+  },
+  "receiver": {
+    "height": "Receiver height",
+    "useGps": "Use GPS",
+    "locating": "Locating...",
+    "coordinates": "Receiver coordinates",
+    "hint": "Drag the blue marker on the map to move the receive point",
+    "gpsErrors": {
+      "unsupported": "This browser cannot access your location. Drag the marker on the map instead",
+      "permissionDenied": "Location access was denied. Allow it in your browser settings or drag the marker on the map",
+      "unavailable": "Your location is currently unavailable. Try again or drag the marker on the map",
+      "timeout": "The GPS request timed out. Try again or drag the marker on the map",
+      "unknown": "Your location could not be read. Try again or drag the marker on the map"
+    }
+  },
+  "empty": {
+    "stationTitle": "Select a station",
+    "stationDescription": "Open a station marker and choose the terrain-profile action"
+  },
+  "states": {
+    "processing": "Reading LiDAR terrain and running analysis...",
+    "failed": "The profile could not be calculated",
+    "failedDescription": "Check the selected endpoints and try again",
+    "outOfAzimuth": "The receiver is outside the selected antenna's main azimuth. Choose a different sector to see the profile"
+  },
+  "selection": {
+    "title": "Antenna sector",
+    "placeholder": "Band · azimuth · height",
+    "required": "Choose an antenna sector to run the analysis"
+  },
+  "verdict": {
+    "clear": "Station is visible",
+    "constrained": "Limited visibility",
+    "blocked": "Station is obstructed",
+    "unavailable": "Visibility could not be assessed",
+    "summary": "{{distance}} km · azimuth {{bearing}}°",
+    "surfaceOnly": "The terrain itself is clear. Buildings or vegetation constrain the path"
+  },
+  "metrics": {
+    "pathLoss": "Path loss",
+    "antennaHeight": "Antenna height",
+    "fieldStrength": "Field strength"
+  },
+  "chart": {
+    "label": "Terrain and line-of-sight profile",
+    "description": "Cross-section from the receiver on the left to the selected station on the right. The chart shows terrain, surface objects, and the direct ray with ITU-R P.1812-8 prediction",
+    "distance": "{{value}} km from receiver",
+    "clearance": "Clearance",
+    "endpoints": {
+      "receiver": "Receiver · {{height}} m AGL",
+      "station": "Station · {{height}} m AGL"
+    },
+    "legend": {
+      "label": "Profile layers",
+      "terrain": "Terrain",
+      "surface": "Surface",
+      "lineOfSight": "Direct ray",
+      "obstruction": "Obstruction"
+    },
+    "series": {
+      "surfaceElevationM": "Surface / vegetation",
+      "terrainElevationM": "Terrain",
+      "lineOfSightElevationM": "Line of sight"
+    }
+  },
+  "evidence": {
+    "lidar": "Terrain: {{source}}",
+    "si2pem": "SI2PEM report · {{date}}",
+    "latest": "latest",
+    "noReport": "No matching SI2PEM report"
+  },
+  "warnings": {
+    "title": "Data notes",
+    "codes": {
+      "ANTENNA_SELECTION_REQUIRED": "Choose the antenna sector to continue",
+      "ANTENNA_SELECTION_INVALID": "The selected antenna is no longer available",
+      "SI2PEM_REPORT_UNAVAILABLE": "No matching SI2PEM report was available",
+      "SI2PEM_REPORT_PARSE_FAILED": "The latest SI2PEM report could not be read reliably",
+      "UKE_ANTENNA_FALLBACK": "A UKE permit height was used because SI2PEM data was unavailable",
+      "NETWORKS_SHARING_DATA": "Antenna data comes from the co-located partner network station (T-Mobile/Orange RAN sharing)",
+      "ANTENNA_AZIMUTH_MISMATCH": "The receiver is outside the selected antenna's main azimuth",
+      "SURFACE_MODEL_UNAVAILABLE": "Surface and vegetation data was unavailable",
+      "SURFACE_MODEL_PARTIAL": "Surface and vegetation coverage is incomplete along this path",
+      "TERRAIN_MODEL_PARTIAL": "Terrain coverage is incomplete along this path",
+      "TERRAIN_CACHE_STALE": "Cached terrain data may be older than the current GUGiK model"
+    }
+  }
+}

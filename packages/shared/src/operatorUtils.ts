@@ -1,3 +1,5 @@
+export const NETWORKS_SIBLING_MNC: Record<number, number> = { 26002: 26003, 26003: 26002 };
+
 export const getOperatorColor = (mnc: number): string => {
   switch (mnc) {
     case 26002:

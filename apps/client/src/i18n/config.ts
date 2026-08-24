@@ -37,6 +37,8 @@ import plPLStationDetails from "./locales/pl-PL/stationDetails.json";
 import plPLStations from "./locales/pl-PL/stations.json";
 import plPLStatistics from "./locales/pl-PL/statistics.json";
 import plPLSubmissions from "./locales/pl-PL/submissions.json";
+import enUSTerrainProfile from "./locales/en-US/terrainProfile.json";
+import plPLTerrainProfile from "./locales/pl-PL/terrainProfile.json";
 
 export const defaultNS = "common";
 export const resources = {
@@ -59,6 +61,7 @@ export const resources = {
     spectrum: enUSSpectrum,
     pem: enUSPem,
     kmz: enUSKMZ,
+    terrainProfile: enUSTerrainProfile,
   },
   "pl-PL": {
     common: plPLCommon,
@@ -79,6 +82,7 @@ export const resources = {
     spectrum: plPLSpectrum,
     pem: plPLPem,
     kmz: plPLKMZ,
+    terrainProfile: plPLTerrainProfile,
   },
 } as const;
 
@@ -118,6 +122,7 @@ void i18n.use(initReactI18next).init({
     "notifications",
     "lists",
     "ntmAnalyzer",
+    "terrainProfile",
   ],
   interpolation: {
     escapeValue: false,

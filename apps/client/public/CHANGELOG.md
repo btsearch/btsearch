@@ -1,6 +1,15 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-24
+
+### 🚀 Enhancements
+
+- Terrain profile analysis with ITU-R P.1812-8 propagation prediction powered by GUGiK LiDAR elevation data and SI2PEM antenna reports
+- Path loss, field strength, and diffraction diagnostics for point-to-point links between any station and a receiver location
+- Terrain and surface elevation chart with line-of-sight visualization and Bullington obstruction marker
+- Automatic antenna sector selection from SI2PEM reports with UKE permit fallback
+
 # 2026-08-20
 
 ### 🩹 Fixes

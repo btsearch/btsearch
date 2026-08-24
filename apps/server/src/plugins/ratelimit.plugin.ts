@@ -37,6 +37,8 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/api/v1/auth/callback/github", max: 10, window: 300 },
       { url: "/api/v1/auth/forget-password", max: 5, window: 300 },
       { url: "/api/v1/auth/reset-password", max: 5, window: 300 },
+      { url: "/api/v1/terrain-profile/analyses", max: 15, window: 300, roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } } },
+      { url: "/api/v1/terrain-profile/analyses/:analysis_id", max: 120, window: 60 },
     ],
   });
 

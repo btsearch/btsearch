@@ -12,6 +12,9 @@ import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
+import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
+
 import { getPermitBands, getStationBands } from "../utils";
 import { TechnologySummary } from "./technologySummary";
 
@@ -24,8 +27,10 @@ type PopupStationListProps = {
   ukeStations?: UkeStation[] | null;
   stations: StationWithoutCells[] | null;
   showAddToList: boolean;
+  location: LocationInfo;
   onOpenStationDetails: (id: number) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
 
 function getPopupOperatorGradient(color: string): string {
@@ -39,8 +44,10 @@ function PopupStationList({
   ukeStations,
   stations,
   showAddToList,
+  location,
   onOpenStationDetails,
   onOpenUkeStationDetails,
+  onStartTerrainProfile,
 }: PopupStationListProps) {
   const { t } = useTranslation(["main", "stationDetails"]);
 
@@ -111,11 +118,19 @@ function PopupStationList({
             </div>
             {technologySummary}
           </button>
-          {showAddToList && (
+          {onStartTerrainProfile && (
             <div className="absolute top-2 right-2">
-              <Suspense>
-                <AddToListPopover stationId={station.id} />
-              </Suspense>
+              <TerrainProfileAnalyzeButton
+                target={{
+                  source: "internal",
+                  id: station.id,
+                  stationId,
+                  operatorName,
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                onStart={onStartTerrainProfile}
+              />
             </div>
           )}
         </div>
@@ -133,6 +148,7 @@ type PopupContentProps = {
   showAddToList?: boolean;
   onOpenStationDetails: (id: number) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+  onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
 
 function StationSkeleton() {
@@ -242,6 +258,7 @@ export const PopupContent = memo(function PopupContent({
   showAddToList = false,
   onOpenStationDetails,
   onOpenUkeStationDetails,
+  onStartTerrainProfile,
 }: PopupContentProps) {
   const { preferences } = usePreferences();
 
@@ -268,8 +285,10 @@ export const PopupContent = memo(function PopupContent({
           ukeStations={ukeStations}
           stations={stations}
           showAddToList={showAddToList}
+          location={location}
           onOpenStationDetails={onOpenStationDetails}
           onOpenUkeStationDetails={onOpenUkeStationDetails}
+          onStartTerrainProfile={onStartTerrainProfile}
         />
       </div>
 

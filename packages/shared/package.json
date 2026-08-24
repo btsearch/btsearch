@@ -24,6 +24,10 @@
     "./clfExportTemplates": {
       "types": "./src/clfExportTemplates.ts",
       "default": "./dist/src/clfExportTemplates.js"
+    },
+    "./terrainProfile": {
+      "types": "./src/terrainProfile.ts",
+      "default": "./dist/src/terrainProfile.js"
     }
   },
   "scripts": {
