@@ -310,8 +310,8 @@ importers:
         specifier: 1.7.1
         version: 1.7.1(@better-auth/core@1.7.1(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.4.3))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.1(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@types/pg@8.21.0)(postgres@3.4.9)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(better-call@1.4.0(zod@4.4.3))(nanostores@1.5.2)
       '@btsearch/rf-engine':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: 0.1.5
+        version: 0.1.5
       '@bufbuild/protobuf':
         specifier: 2.14.0
         version: 2.14.0
@@ -1245,33 +1245,35 @@ packages:
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
-  '@btsearch/rf-engine-darwin-arm64@0.1.4':
-    resolution: {integrity: sha512-uGP/Lanytfdn8i1xwN4fTVW+ebGVo86FG3gRbQY4BwDOTbonoIw9zhznb7aS4uu6ofnjxzLtSRTOnT15WJbxhw==}
+  '@btsearch/rf-engine-darwin-arm64@0.1.5':
+    resolution: {integrity: sha512-f14zRKBLtEqh280LwgWR+TR6tN9vKJPUjornDCJo3pzgNbJPSEQIR2GyyQ/5sC0w4JiENTjIaygo6UsYNZYwPg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@btsearch/rf-engine-darwin-x64@0.1.4':
-    resolution: {integrity: sha512-DhHqoMyC2jracptDItsR6retVvjGsAakZ5+Cd9CD3xp6gZOS98wQGTBhkicjv13tlPkdqr3Zs4keJ3uPy4WTzQ==}
+  '@btsearch/rf-engine-darwin-x64@0.1.5':
+    resolution: {integrity: sha512-4ckv6YDzbQdFf4kgPTlNqGuS9votzmUcmWBDNZDidoHyaGzKy8r8/zQyhnkthj5s+j5p9lrSU2v4u2Lz0OI6BA==}
     cpu: [x64]
     os: [darwin]
 
-  '@btsearch/rf-engine-linux-arm64-gnu@0.1.4':
-    resolution: {integrity: sha512-hCq845ITtJtKHICWu/q7PVuOKB/5POXxz4PfCjXOrW8iLL7jHgv+5GoFf3zOsRf+V+Yihk3+ZvdqLfNRtclOFQ==}
+  '@btsearch/rf-engine-linux-arm64-gnu@0.1.5':
+    resolution: {integrity: sha512-1QrxlI56tpPNLOWqcOoZQAWVL5CKEujVVCn/SwPJ1tqcBKhTdmouWlAAtQDZTKZSuWT4yjbB8WM+O7oW8Xqvmw==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
-  '@btsearch/rf-engine-linux-x64-gnu@0.1.4':
-    resolution: {integrity: sha512-8HrZs9xbrr6k4Cp6UZEIBwPdNnagNExM6Ld1DHfrWXbywPPkDyrLptzxE9Qw2AQKSpBW1YM9vJZueiagIgKSTw==}
+  '@btsearch/rf-engine-linux-x64-gnu@0.1.5':
+    resolution: {integrity: sha512-i0XzId0oHUZ4tXK/yNyh3F4BthdyypuIWCTNKYkG0QP1WTATH+mC7+dk4K3zgxUNQJdi3QVb663enomCqLu9uA==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
-  '@btsearch/rf-engine-win32-x64-msvc@0.1.4':
-    resolution: {integrity: sha512-G+qctDyINkkqpJ+4S9TanSnGtd3NxcYOVYAdcez086qUrUtUo9BvU+emr//s8hhtMs7TELzx2b9KhFCTI7oTxg==}
+  '@btsearch/rf-engine-win32-x64-msvc@0.1.5':
+    resolution: {integrity: sha512-bBkM1Bg44zXUXixRKpBy9CEaLtpJ3q73Qm6l8GRwPEv8Vd9w9Gnu/RoATMPIG1cJ6TZvKHfRBE70jsWXjfR05A==}
     cpu: [x64]
     os: [win32]
 
-  '@btsearch/rf-engine@0.1.4':
-    resolution: {integrity: sha512-mRcRVupvDS8WgvQ1EavskMCxeGOMdw+S3P08DR0FYav6Y/KeRDCXXXX2XM/a84i/cdkgYbNedrQaL6OI44pXtQ==}
+  '@btsearch/rf-engine@0.1.5':
+    resolution: {integrity: sha512-Va73qyeWFsCC7PBmw0E5LeSWZQdT1spQE4ty1dvE06PEkSlix1Ztr9DscW5cTmJKxz1YuFH82wIwgL1mUTudCA==}
     engines: {node: '>=18'}
 
   '@bufbuild/buf-darwin-arm64@1.72.0':
@@ -8570,28 +8572,28 @@ snapshots:
 
   '@borewit/text-codec@0.2.2': {}
 
-  '@btsearch/rf-engine-darwin-arm64@0.1.4':
+  '@btsearch/rf-engine-darwin-arm64@0.1.5':
     optional: true
 
-  '@btsearch/rf-engine-darwin-x64@0.1.4':
+  '@btsearch/rf-engine-darwin-x64@0.1.5':
     optional: true
 
-  '@btsearch/rf-engine-linux-arm64-gnu@0.1.4':
+  '@btsearch/rf-engine-linux-arm64-gnu@0.1.5':
     optional: true
 
-  '@btsearch/rf-engine-linux-x64-gnu@0.1.4':
+  '@btsearch/rf-engine-linux-x64-gnu@0.1.5':
     optional: true
 
-  '@btsearch/rf-engine-win32-x64-msvc@0.1.4':
+  '@btsearch/rf-engine-win32-x64-msvc@0.1.5':
     optional: true
 
-  '@btsearch/rf-engine@0.1.4':
+  '@btsearch/rf-engine@0.1.5':
     optionalDependencies:
-      '@btsearch/rf-engine-darwin-arm64': 0.1.4
-      '@btsearch/rf-engine-darwin-x64': 0.1.4
-      '@btsearch/rf-engine-linux-arm64-gnu': 0.1.4
-      '@btsearch/rf-engine-linux-x64-gnu': 0.1.4
-      '@btsearch/rf-engine-win32-x64-msvc': 0.1.4
+      '@btsearch/rf-engine-darwin-arm64': 0.1.5
+      '@btsearch/rf-engine-darwin-x64': 0.1.5
+      '@btsearch/rf-engine-linux-arm64-gnu': 0.1.5
+      '@btsearch/rf-engine-linux-x64-gnu': 0.1.5
+      '@btsearch/rf-engine-win32-x64-msvc': 0.1.5
 
   '@bufbuild/buf-darwin-arm64@1.72.0':
     optional: true

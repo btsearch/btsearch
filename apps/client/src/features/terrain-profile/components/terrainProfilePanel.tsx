@@ -246,7 +246,14 @@ export default function TerrainProfilePanel({
               <span className="hidden lg:inline">{isLocating ? t("receiver.locating") : t("receiver.useGps")}</span>
             </Button>
             {selectableCandidates.length > 1 ? (
-              <Select value={selectedKey ?? ""} items={antennaItems} onValueChange={onAntennaChange}>
+              <Select
+                value={selectedKey ?? ""}
+                items={antennaItems}
+                onValueChange={(value) => {
+                  if (value === null) return;
+                  onAntennaChange(value);
+                }}
+              >
                 <SelectTrigger className="h-7 w-44 text-xs" aria-label={t("selection.title")}>
                   <SelectValue placeholder={t("selection.placeholder")} />
                 </SelectTrigger>

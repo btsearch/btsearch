@@ -42,7 +42,6 @@ function PopupStationList({
   isUkeSource,
   ukeStations,
   stations,
-  showAddToList,
   location,
   onOpenStationDetails,
   onOpenUkeStationDetails,
@@ -166,8 +165,8 @@ function StationSkeleton() {
 function TechnologySummarySkeleton() {
   return (
     <div className="mt-1.5 flex gap-2 pl-3.5">
-      <Skeleton className="h-[11px] w-8 rounded-sm" />
-      <Skeleton className="h-[11px] w-24 rounded-sm" />
+      <Skeleton className="h-2.75 w-8 rounded-sm" />
+      <Skeleton className="h-2.75 w-24 rounded-sm" />
     </div>
   );
 }
