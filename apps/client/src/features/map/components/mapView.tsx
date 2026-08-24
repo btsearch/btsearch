@@ -4,6 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import ZabkaIcon from "@/features/station-details/components/logos/zabka.svg?react";
+import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -11,8 +12,6 @@ import type { LocationInfo, Station, StationFilters, StationSource, UkeLocationW
 
 import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
-import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
-
 import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
 import { useWakeLock } from "../hooks/useWakeLock";

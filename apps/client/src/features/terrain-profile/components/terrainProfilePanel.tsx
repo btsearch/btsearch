@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 
 import { filterTerrainProfileCandidatesByBearing } from "../antennaSelection";
 import {
-  samplesFromArrays,
   type TerrainProfileAnalysis,
   type TerrainProfileAntennaCandidate,
   type TerrainProfileClearanceStatus,
@@ -31,6 +30,7 @@ import {
   type TerrainProfileReceiver,
   type TerrainProfileSample,
   type TerrainProfileStationTarget,
+  samplesFromArrays,
 } from "../types";
 
 const TerrainProfileChart = lazy(() => import("./terrainProfileChart"));
@@ -76,11 +76,7 @@ function candidateLabel(candidate: TerrainProfileAntennaCandidate) {
   return parts.length > 0 ? parts.join(" · ") : candidate.key;
 }
 
-function resolveSwatchColor(
-  hasStation: boolean,
-  operatorMnc: number | null,
-  operatorLabel: string | undefined,
-): string | undefined {
+function resolveSwatchColor(hasStation: boolean, operatorMnc: number | null, operatorLabel: string | undefined): string | undefined {
   if (!hasStation) return undefined;
   if (operatorMnc !== null) return getOperatorColor(operatorMnc);
   if (operatorLabel !== undefined) return getOperatorColorByName(operatorLabel);
@@ -250,11 +246,7 @@ export default function TerrainProfilePanel({
               <span className="hidden lg:inline">{isLocating ? t("receiver.locating") : t("receiver.useGps")}</span>
             </Button>
             {selectableCandidates.length > 1 ? (
-              <Select
-                value={selectedKey ?? ""}
-                items={antennaItems}
-                onValueChange={onAntennaChange}
-              >
+              <Select value={selectedKey ?? ""} items={antennaItems} onValueChange={onAntennaChange}>
                 <SelectTrigger className="h-7 w-44 text-xs" aria-label={t("selection.title")}>
                   <SelectValue placeholder={t("selection.placeholder")} />
                 </SelectTrigger>

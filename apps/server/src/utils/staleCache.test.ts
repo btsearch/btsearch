@@ -36,15 +36,10 @@ class FakeCacheStore implements StaleCacheStore {
 
 void test("retries lock acquisition after a cold waiter times out", async () => {
   const store = new FakeCacheStore([false, true]);
-  const result = await withStaleCache(
-    store,
-    "terrain",
-    { freshTtlSeconds: 60, staleTtlSeconds: 120, waitForLockMs: 0 },
-    async () => {
-      assert.equal(store.lockHeld, true);
-      return { status: "available" };
-    },
-  );
+  const result = await withStaleCache(store, "terrain", { freshTtlSeconds: 60, staleTtlSeconds: 120, waitForLockMs: 0 }, async () => {
+    assert.equal(store.lockHeld, true);
+    return { status: "available" };
+  });
 
   assert.equal(store.acquireAttempts, 2);
   assert.equal(store.writes, 1);

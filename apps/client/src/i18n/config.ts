@@ -19,6 +19,7 @@ import enUSStationDetails from "./locales/en-US/stationDetails.json";
 import enUSStations from "./locales/en-US/stations.json";
 import enUSStatistics from "./locales/en-US/statistics.json";
 import enUSSubmissions from "./locales/en-US/submissions.json";
+import enUSTerrainProfile from "./locales/en-US/terrainProfile.json";
 import plPLAdmin from "./locales/pl-PL/admin.json";
 import plPLAuth from "./locales/pl-PL/auth.json";
 import plPLCellAnalyzer from "./locales/pl-PL/cellAnalyzer.json";
@@ -37,7 +38,6 @@ import plPLStationDetails from "./locales/pl-PL/stationDetails.json";
 import plPLStations from "./locales/pl-PL/stations.json";
 import plPLStatistics from "./locales/pl-PL/statistics.json";
 import plPLSubmissions from "./locales/pl-PL/submissions.json";
-import enUSTerrainProfile from "./locales/en-US/terrainProfile.json";
 import plPLTerrainProfile from "./locales/pl-PL/terrainProfile.json";
 
 export const defaultNS = "common";

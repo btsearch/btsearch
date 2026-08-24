@@ -7,13 +7,12 @@ import { useTranslation } from "react-i18next";
 import { Lightbox } from "@/components/lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
+import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor } from "@/lib/operatorUtils";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
-
-import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
-import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 
 import { getPermitBands, getStationBands } from "../utils";
 import { TechnologySummary } from "./technologySummary";

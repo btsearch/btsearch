@@ -63,18 +63,15 @@ export default function TerrainProfileSurface(props: TerrainProfileSurfaceProps)
     [],
   );
 
-  const handlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!(event.target instanceof Element)) return;
-      if (event.target.closest("button,a,input,label,select,[role='combobox'],[role='listbox'],[role='option']") !== null) return;
-      event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
-      document.body.style.userSelect = "none";
-      const origin = clampPosition(positionRef.current, panelRef.current);
-      dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin, next: origin, frameId: null };
-    },
-    [],
-  );
+  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest("button,a,input,label,select,[role='combobox'],[role='listbox'],[role='option']") !== null) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.style.userSelect = "none";
+    const origin = clampPosition(positionRef.current, panelRef.current);
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin, next: origin, frameId: null };
+  }, []);
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {

@@ -26,6 +26,8 @@ type UkePermitWithDetails = {
     name: string;
     value: number | null;
     rat: string;
+    duplex: "FDD" | "TDD" | null;
+    variant: "commercial" | "railway";
   } | null;
   sectors: {
     id: number;

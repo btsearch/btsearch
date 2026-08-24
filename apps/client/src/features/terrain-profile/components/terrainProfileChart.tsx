@@ -30,7 +30,8 @@ const chartConfig = {
 function isBlocked(sample: TerrainProfileSample | undefined) {
   return (
     sample !== undefined &&
-    ((sample.surface_clearance_m !== null && sample.surface_clearance_m < 0) || (sample.terrain_clearance_m !== null && sample.terrain_clearance_m < 0))
+    ((sample.surface_clearance_m !== null && sample.surface_clearance_m < 0) ||
+      (sample.terrain_clearance_m !== null && sample.terrain_clearance_m < 0))
   );
 }
 
@@ -101,9 +102,7 @@ export default function TerrainProfileChart({ samples, bullingtonDistanceKm, tot
       };
     });
     const elevations = data.flatMap((sample) =>
-      [sample.terrain_elevation_m, sample.surface_elevation_m, sample.line_of_sight_elevation_m].filter(
-        (value): value is number => value !== null,
-      ),
+      [sample.terrain_elevation_m, sample.surface_elevation_m, sample.line_of_sight_elevation_m].filter((value): value is number => value !== null),
     );
     const minimumElevationM = elevations.length === 0 ? 0 : Math.min(...elevations);
     const maximumElevationM = elevations.length === 0 ? 1 : Math.max(...elevations);

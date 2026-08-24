@@ -1,10 +1,10 @@
 import { circularAzimuthDeltaDeg } from "@openbts/shared/terrainProfile";
 import { createHash } from "node:crypto";
+import { SI2PEMClient, type SI2PEMLaboratoryReport } from "si2pem-reader";
+import type { SI2PEMAntenna } from "si2pem-reader/reports";
 
-import { SI2PEMClient, type SI2PEMAntenna, type SI2PEMLaboratoryReport } from "si2pem-reader";
-
-import { TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
 import { withRedisStaleCache } from "./cache.js";
+import { TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
 import type { AntennaCandidate, ResolvedTerrainStation, SI2PEMReport, TerrainWarningCode } from "./types.js";
 
 const si2pem = new SI2PEMClient({ timeoutMs: TERRAIN_UPSTREAM_TIMEOUT_MS });
@@ -47,11 +47,7 @@ function toReport(report: SI2PEMLaboratoryReport): SI2PEMReport {
   };
 }
 
-function mapAntennaCandidates(
-  antennas: SI2PEMAntenna[],
-  report: SI2PEMReport,
-  fallbackCandidates: AntennaCandidate[],
-): AntennaCandidate[] {
+function mapAntennaCandidates(antennas: SI2PEMAntenna[], report: SI2PEMReport, fallbackCandidates: AntennaCandidate[]): AntennaCandidate[] {
   const candidates: AntennaCandidate[] = [];
   const seen = new Set<string>();
   for (const antenna of antennas) {

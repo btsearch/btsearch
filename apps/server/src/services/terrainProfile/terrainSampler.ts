@@ -1,5 +1,6 @@
 import { sql as postgres } from "@openbts/drizzle/db";
 import { createHash } from "node:crypto";
+
 import { logger } from "../../utils/logger.js";
 import { withRedisStaleCache } from "./cache.js";
 import { TERRAIN_PROFILE_MAX_DISTANCE_M, TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
@@ -210,4 +211,3 @@ export class GeoportalTerrainSampler implements TerrainSampler {
     return { ...result.value, fromCache: result.fromCache, stale: result.stale };
   }
 }
-

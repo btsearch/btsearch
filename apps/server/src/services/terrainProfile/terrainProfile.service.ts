@@ -109,7 +109,12 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
       job.request.receiver.longitude,
     );
     if (distanceM < MIN_DISTANCE_M || distanceM > TERRAIN_PROFILE_MAX_DISTANCE_M) {
-      await failAndSave(job, "PATH_DISTANCE_OUT_OF_RANGE", `The path must be between ${MIN_DISTANCE_M} and ${TERRAIN_PROFILE_MAX_DISTANCE_M} metres.`, warningCodes);
+      await failAndSave(
+        job,
+        "PATH_DISTANCE_OUT_OF_RANGE",
+        `The path must be between ${MIN_DISTANCE_M} and ${TERRAIN_PROFILE_MAX_DISTANCE_M} metres.`,
+        warningCodes,
+      );
       return;
     }
 
@@ -191,7 +196,7 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
 
     if (geometry.azimuthDeltaDegrees !== null && geometry.azimuthDeltaDegrees > ANTENNA_AZIMUTH_TOLERANCE_DEG)
       warningCodes.push("ANTENNA_AZIMUTH_MISMATCH");
-    const terrainStatus = geometry.lineOfSight.terrain ? "clear" : "blocked" as const;
+    const terrainStatus = geometry.lineOfSight.terrain ? "clear" : ("blocked" as const);
     const surfaceStatus = surfaceModelStatus === "unavailable" ? "unavailable" : geometry.status;
     const assessmentStatus = surfaceStatus === "unavailable" ? terrainStatus : geometry.status;
     const antennaConfidence = selectedAntenna.source === "si2pem_report" ? 2 : 0;
@@ -239,9 +244,7 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
           surface_elevation_m: terrain.samples.map((s) => s.surfaceElevationM),
           line_of_sight_elevation_m: geometry.samples.map((s) => s.lineOfSightElevationM),
           terrain_clearance_m: geometry.samples.map((s) => s.terrainClearanceM),
-          surface_clearance_m: geometry.samples.map((s) =>
-            surfaceModelStatus === "unavailable" ? null : s.surfaceClearanceM,
-          ),
+          surface_clearance_m: geometry.samples.map((s) => (surfaceModelStatus === "unavailable" ? null : s.surfaceClearanceM)),
         },
       },
       propagation: {

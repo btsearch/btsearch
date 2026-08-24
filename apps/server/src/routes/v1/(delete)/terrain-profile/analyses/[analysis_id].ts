@@ -2,7 +2,7 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
+import type { EmptyResponse, Route } from "../../../../../interfaces/routes.interface.js";
 import { cancelTerrainProfileAnalysis } from "../../../../../services/terrainProfile/terrainProfile.service.js";
 
 const schemaRoute = {
@@ -12,7 +12,7 @@ const schemaRoute = {
 
 type RequestParams = { Params: { analysis_id: string } };
 
-async function handler(req: FastifyRequest<RequestParams>, res: ReplyPayload<JSONBody<undefined>>) {
+async function handler(req: FastifyRequest<RequestParams>, res: ReplyPayload<EmptyResponse>) {
   await cancelTerrainProfileAnalysis(req.params.analysis_id);
   return res.status(204).send();
 }

@@ -17,11 +17,7 @@ export function TerrainProfileAnalyzeButton({ target, onStart }: TerrainProfileA
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
-            type="button"
-            className="p-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0"
-            onClick={() => onStart(target)}
-          />
+          <button type="button" className="p-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0" onClick={() => onStart(target)} />
         }
       >
         <HugeiconsIcon icon={MountainIcon} className="size-3 text-muted-foreground" />
