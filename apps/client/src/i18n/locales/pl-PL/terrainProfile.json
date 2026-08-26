@@ -23,7 +23,7 @@
   },
   "empty": {
     "stationTitle": "Wybierz stację",
-    "stationDescription": "Otwórz znacznik stacji i wybierz akcję profilu terenu"
+    "stationDescription": "Otwórz szczegóły stacji i wybierz Analizuj profil terenu w sekcji Akcje"
   },
   "states": {
     "processing": "Odczytywanie terenu LiDAR i analizowanie danych...",
@@ -85,7 +85,7 @@
       "SI2PEM_REPORT_UNAVAILABLE": "Nie znaleziono pasującego raportu SI2PEM",
       "SI2PEM_REPORT_PARSE_FAILED": "Nie udało się wiarygodnie odczytać najnowszego raportu SI2PEM",
       "UKE_ANTENNA_FALLBACK": "Użyto wysokości z pozwolenia UKE, ponieważ dane SI2PEM były niedostępne",
-      "NETWORKS_SHARING_DATA": "Dane antenowe pochodzą ze stacji partnerskiej w tej samej lokalizacji (współdzielenie sieci T-Mobile/Orange)",
+      "NETWORKS_SHARING_DATA": "Dane antenowe pochodzą ze stacji partnerskiej w tej samej lokalizacji (współdzielenie stacji T-Mobile/Orange)",
       "ANTENNA_AZIMUTH_MISMATCH": "Odbiornik znajduje się poza głównym azymutem wybranej anteny",
       "SURFACE_MODEL_UNAVAILABLE": "Brak danych o pokryciu i roślinności",
       "SURFACE_MODEL_PARTIAL": "Dane o pokryciu i roślinności są niepełne na tej trasie",

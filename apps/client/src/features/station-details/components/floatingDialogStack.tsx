@@ -2,6 +2,7 @@ import { type ReactNode, Suspense, lazy } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useIsMobile } from "@/hooks/useMobile";
 
 import { assertNever } from "./floatingDialogStackTypes";
@@ -24,9 +25,14 @@ type FloatingDialogStackProps = {
   onClose: (key: string) => void;
   onFocus: (key: string) => void;
   onRectChange: (key: string, rect: StationDialogRect) => void;
+  onStartTerrainProfile: ((station: TerrainProfileStationTarget) => void) | null;
 };
 
-function renderMobileDialog(dialog: FloatingDialogItem, onClose: () => void): ReactNode {
+function renderMobileDialog(
+  dialog: FloatingDialogItem,
+  onClose: () => void,
+  onStartTerrainProfile: ((station: TerrainProfileStationTarget) => void) | null,
+): ReactNode {
   switch (dialog.kind) {
     case "station":
       return (
@@ -34,6 +40,7 @@ function renderMobileDialog(dialog: FloatingDialogItem, onClose: () => void): Re
           stationId={dialog.id}
           source={dialog.source}
           onClose={onClose}
+          onStartTerrainProfile={onStartTerrainProfile ?? undefined}
           showPhotoPanel={false}
           className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-4xl"
           contentClassName="border border-border/70"
@@ -75,7 +82,12 @@ function renderMobileDialog(dialog: FloatingDialogItem, onClose: () => void): Re
   }
 }
 
-function renderDesktopDialog(dialog: FloatingDialogItem, frame: FloatingStationDialogRenderProps, onClose: () => void): ReactNode {
+function renderDesktopDialog(
+  dialog: FloatingDialogItem,
+  frame: FloatingStationDialogRenderProps,
+  onClose: () => void,
+  onStartTerrainProfile: ((station: TerrainProfileStationTarget) => void) | null,
+): ReactNode {
   switch (dialog.kind) {
     case "station":
       return (
@@ -83,6 +95,7 @@ function renderDesktopDialog(dialog: FloatingDialogItem, frame: FloatingStationD
           stationId={dialog.id}
           source={dialog.source}
           onClose={onClose}
+          onStartTerrainProfile={onStartTerrainProfile ?? undefined}
           contentRef={frame.contentRef}
           bodyRef={frame.bodyRef}
           bodyContentRef={frame.bodyContentRef}
@@ -140,7 +153,7 @@ function renderDesktopDialog(dialog: FloatingDialogItem, frame: FloatingStationD
   }
 }
 
-export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange }: FloatingDialogStackProps) {
+export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, onStartTerrainProfile }: FloatingDialogStackProps) {
   const { t } = useTranslation("common");
   const isMobile = useIsMobile();
   const orderedDialogs = dialogs.slice().sort((a, b) => a.zIndex - b.zIndex);
@@ -160,7 +173,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange }:
           aria-label={t("actions.close")}
         />
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto pointer-events-none">
-          {renderMobileDialog(topDialog, () => onClose(topDialog.key))}
+          {renderMobileDialog(topDialog, () => onClose(topDialog.key), onStartTerrainProfile)}
         </div>
       </Suspense>,
       document.body,
@@ -178,7 +191,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange }:
             onFocus={() => onFocus(dialog.key)}
             onRectChange={(rect) => onRectChange(dialog.key, rect)}
           >
-            {(frame) => renderDesktopDialog(dialog, frame, () => onClose(dialog.key))}
+            {(frame) => renderDesktopDialog(dialog, frame, () => onClose(dialog.key), onStartTerrainProfile)}
           </FloatingStationDialogFrame>
         </Suspense>
       ))}

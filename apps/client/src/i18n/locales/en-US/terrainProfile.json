@@ -23,7 +23,7 @@
   },
   "empty": {
     "stationTitle": "Select a station",
-    "stationDescription": "Open a station marker and choose the terrain-profile action"
+    "stationDescription": "Open a station's details and choose Analyze terrain profile under Actions"
   },
   "states": {
     "processing": "Reading LiDAR terrain and running analysis...",

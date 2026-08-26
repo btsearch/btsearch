@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
+import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -31,7 +33,13 @@ type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   source: "internal" | "uke";
   onContentLayoutChange?: () => void;
   showPhotoPanel?: boolean;
+  onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
+
+const inlineStationActionClassName = cn(
+  stationDialogHeaderIconActionClassName,
+  "inline-flex h-6 w-6 items-center justify-center gap-1 rounded-md bg-muted/40 p-0 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:hover:bg-muted/60 md:w-auto md:px-1.5 md:[&_svg]:size-3.5",
+);
 
 export function StationDetailsDialogPanel({
   stationId,
@@ -46,6 +54,7 @@ export function StationDetailsDialogPanel({
   style,
   headerDragProps,
   showPhotoPanel = true,
+  onStartTerrainProfile,
 }: StationDetailsDialogPanelProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { t: tCommon } = useTranslation("common");
@@ -72,6 +81,7 @@ export function StationDetailsDialogPanel({
   const leaseOperator = station ? getHardwareLeaseOperator(station.station_id, station.operator.mnc) : null;
   const stationNotes = station?.notes?.trim();
   const headerDragClassName = headerDragProps?.className;
+  const hasStationActions = !!session?.user || !!onStartTerrainProfile;
 
   return (
     <div className={cn("relative", className)} style={style}>
@@ -84,7 +94,7 @@ export function StationDetailsDialogPanel({
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
           <div
-            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+            className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
             style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
           >
             <div className="flex-1 min-w-0">
@@ -95,7 +105,7 @@ export function StationDetailsDialogPanel({
                 </div>
               ) : station ? (
                 <div className="min-w-0 space-y-1.5">
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
                     <DialogOperatorName name={station.operator.name} mnc={station.operator.mnc} />
                     {leaseOperator ? (
                       <Tooltip>
@@ -151,14 +161,55 @@ export function StationDetailsDialogPanel({
                       <TooltipContent>{formatFullDate(station.updatedAt, i18n.language)}</TooltipContent>
                     </Tooltip>
                   </div>
+                  {hasStationActions ? (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <div className="flex flex-wrap items-center gap-1 md:-ml-1.5">
+                        <AddToListPopover
+                          stationId={station.id}
+                          size="md"
+                          className={inlineStationActionClassName}
+                          showLabel
+                          labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
+                          showTooltip={false}
+                        />
+                        <WatchButton
+                          stationId={station.id}
+                          size="md"
+                          className={inlineStationActionClassName}
+                          showLabel
+                          labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
+                          showTooltip={false}
+                        />
+                        {onStartTerrainProfile ? (
+                          <TerrainProfileAnalyzeButton
+                            target={{
+                              source: "internal",
+                              id: station.id,
+                              stationId: station.station_id,
+                              operatorName: station.operator.name,
+                              latitude: station.location.latitude,
+                              longitude: station.location.longitude,
+                            }}
+                            onStart={(target) => {
+                              onStartTerrainProfile(target);
+                              onClose();
+                            }}
+                            size="md"
+                            className={inlineStationActionClassName}
+                            showLabel
+                            labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
+                            showTooltip={false}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
-            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
+            <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
               {station && (
                 <>
-                  <AddToListPopover stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
-                  <WatchButton stationId={station.id} size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
                     title={`${station.station_id} (${station.operator.name})`}
                     text={`${station.station_id} (${station.operator.name}) - ${station.location.city} ${station.location.address}`}

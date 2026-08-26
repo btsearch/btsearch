@@ -113,7 +113,12 @@ function MapViewInner() {
   const terrainProfile = useTerrainProfileController({ map, isLoaded });
 
   const [pendingRadiolineId, setPendingRadiolineId] = useState<number | null>(null);
-  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
+  const { openStationDialog, openUkePermitDialog, setTerrainProfileStartHandler } = useFloatingDialogStack();
+
+  useEffect(() => {
+    setTerrainProfileStartHandler(terrainProfile.start);
+    return () => setTerrainProfileStartHandler(null);
+  }, [setTerrainProfileStartHandler, terrainProfile.start]);
 
   const handleOpenStationDetails = useCallback((id: number, source: StationSource) => openStationDialog(id, source), [openStationDialog]);
   const handleOpenUkeStationDetails = useCallback((station: UkeStation) => openUkePermitDialog(station), [openUkePermitDialog]);
@@ -131,7 +136,6 @@ function MapViewInner() {
     detailsFilters: filters,
     onOpenStationDetails: handleOpenStationDetails,
     onOpenUkeStationDetails: handleOpenUkeStationDetails,
-    onStartTerrainProfile: terrainProfile.start,
   });
 
   useEffect(() => {
@@ -142,11 +146,7 @@ function MapViewInner() {
   const effectiveMapQuery = filters.source === "internal" ? mapQuery : undefined;
   const queryClient = useQueryClient();
 
-  const {
-    data: locationsResponse,
-    isLoading,
-    isFetching,
-  } = useQuery({
+  const { data: locationsResponse } = useQuery({
     queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, effectiveMapQuery],
     queryFn: ({ signal }) =>
       fetchLocations(bounds, filters, preferences.mapStationsLimit, {
@@ -318,8 +318,6 @@ function MapViewInner() {
         radioLineCount={filters.showRadiolines ? radioLineCount : 0}
         radioLineTotalCount={filters.showRadiolines ? radioLineTotalCount : 0}
         isRadioLinesFetching={filters.showRadiolines && isRadioLinesFetching}
-        isLoading={isLoading}
-        isFetching={isFetching}
         filters={filters}
         zoom={zoom}
         activeMarker={activeMarker}

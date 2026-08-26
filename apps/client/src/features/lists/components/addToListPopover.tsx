@@ -68,6 +68,9 @@ type AddToListPopoverProps = {
   ukeLocationId?: number;
   size?: "sm" | "md";
   className?: string;
+  showLabel?: boolean;
+  labelClassName?: string;
+  showTooltip?: boolean;
 };
 
 export function AddToListPopover(props: AddToListPopoverProps) {
@@ -79,7 +82,16 @@ export function AddToListPopover(props: AddToListPopoverProps) {
   return <AddToListPopoverInner {...props} />;
 }
 
-function AddToListPopoverInner({ stationId, radiolineIds, ukeLocationId, size = "sm", className }: AddToListPopoverProps) {
+function AddToListPopoverInner({
+  stationId,
+  radiolineIds,
+  ukeLocationId,
+  size = "sm",
+  className,
+  showLabel = false,
+  labelClassName,
+  showTooltip = true,
+}: AddToListPopoverProps) {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
@@ -130,33 +142,41 @@ function AddToListPopoverInner({ stationId, radiolineIds, ukeLocationId, size = 
   const icon = stationId || ukeLocationId ? AirportTowerIcon : SignalFull02Icon;
   const iconSize = size === "sm" ? "size-3" : "size-4";
   const buttonPadding = size === "sm" ? "p-0.5" : "p-1.5";
+  const label = t("lists:addToList");
+  const triggerButton = (
+    <button
+      type="button"
+      className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0", className)}
+      aria-label={label}
+    />
+  );
+  const triggerContent = (
+    <>
+      <HugeiconsIcon icon={TaskDaily01Icon} className={cn(iconSize, "text-muted-foreground")} />
+      {showLabel ? <span className={labelClassName}>{label}</span> : null}
+    </>
+  );
 
   return (
     <>
       <Popover>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    className={cn(buttonPadding, "hover:bg-muted rounded transition-colors cursor-pointer shrink-0", className)}
-                  />
-                }
-                onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              />
-            }
-          >
-            <HugeiconsIcon icon={TaskDaily01Icon} className={cn(iconSize, "text-muted-foreground")} />
-          </TooltipTrigger>
-          <TooltipContent>{t("lists:addToList")}</TooltipContent>
-        </Tooltip>
+        {showTooltip ? (
+          <Tooltip>
+            <TooltipTrigger render={<PopoverTrigger render={triggerButton} onClick={(event: React.MouseEvent) => event.stopPropagation()} />}>
+              {triggerContent}
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <PopoverTrigger render={triggerButton} onClick={(event: React.MouseEvent) => event.stopPropagation()}>
+            {triggerContent}
+          </PopoverTrigger>
+        )}
 
         <PopoverContent align="end" className="w-60 p-0 gap-0 overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 bg-muted/30">
             <HugeiconsIcon icon={icon} className="size-3 text-muted-foreground shrink-0" />
-            <span className="text-xs font-semibold text-foreground leading-none">{t("lists:addToList")}</span>
+            <span className="text-xs font-semibold text-foreground leading-none">{label}</span>
           </div>
 
           <div>

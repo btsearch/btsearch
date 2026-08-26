@@ -21,7 +21,6 @@ type UseMapPopupArgs = {
   filterStations?: (stations: StationWithoutCells[]) => StationWithoutCells[];
   onOpenStationDetails: (id: number, source: StationSource) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
-  onStartTerrainProfile?: (station: import("@/features/terrain-profile/types").TerrainProfileStationTarget) => void;
   onClose?: (location: MapPopupLocation) => void;
 };
 
@@ -50,7 +49,6 @@ type PopupLocationContentProps = {
   showAddToList?: boolean;
   onOpenStationDetails: (id: number) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
-  onStartTerrainProfile?: (station: import("@/features/terrain-profile/types").TerrainProfileStationTarget) => void;
 };
 
 function PopupLocationContent({
@@ -63,7 +61,6 @@ function PopupLocationContent({
   showAddToList,
   onOpenStationDetails,
   onOpenUkeStationDetails,
-  onStartTerrainProfile,
 }: PopupLocationContentProps) {
   const { data } = useQuery({
     queryKey: locationQueryKey(location.id, filters),
@@ -89,7 +86,6 @@ function PopupLocationContent({
       showAddToList={showAddToList}
       onOpenStationDetails={onOpenStationDetails}
       onOpenUkeStationDetails={onOpenUkeStationDetails}
-      onStartTerrainProfile={onStartTerrainProfile}
     />
   );
 }
@@ -116,7 +112,6 @@ export function useMapPopup({
   filterStations,
   onOpenStationDetails,
   onOpenUkeStationDetails,
-  onStartTerrainProfile,
   onClose,
 }: UseMapPopupArgs): UseMapPopupReturn {
   const popupEntriesRef = useRef(new Map<string, PopupEntry>());
@@ -142,12 +137,11 @@ export function useMapPopup({
               const didOpen = onOpenUkeStationDetails(station);
               if (didOpen !== false) entry.popup.remove();
             }}
-            onStartTerrainProfile={onStartTerrainProfile}
           />
         </QueryClientProvider>,
       );
     },
-    [detailsFilters, filterStations, showAddToList, onOpenStationDetails, onOpenUkeStationDetails, onStartTerrainProfile],
+    [detailsFilters, filterStations, showAddToList, onOpenStationDetails, onOpenUkeStationDetails],
   );
 
   useEffect(() => {
