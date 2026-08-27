@@ -396,8 +396,6 @@ export function FilterPanel({
   }, [rawRadiolineOperators]);
 
   const radiolineOperatorsChipsRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef(filters);
-  filtersRef.current = filters;
 
   const topOperators = useMemo(
     () => operators.filter((op) => TOP4_MNCS.includes(op.mnc)).sort((a, b) => TOP4_MNCS.indexOf(a.mnc) - TOP4_MNCS.indexOf(b.mnc)),
@@ -412,12 +410,12 @@ export function FilterPanel({
   ];
 
   const handleToggleStations = useCallback(() => {
-    onFiltersChange({ ...filtersRef.current, showStations: !filtersRef.current.showStations });
-  }, [onFiltersChange]);
+    onFiltersChange({ ...filters, showStations: !filters.showStations });
+  }, [filters, onFiltersChange]);
 
   const handleToggleRadiolines = useCallback(() => {
-    onFiltersChange({ ...filtersRef.current, showRadiolines: !filtersRef.current.showRadiolines });
-  }, [onFiltersChange]);
+    onFiltersChange({ ...filters, showRadiolines: !filters.showRadiolines });
+  }, [filters, onFiltersChange]);
 
   const handleToggleHeatmap = useCallback(() => {
     onToggleHeatmap?.();

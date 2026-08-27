@@ -20,20 +20,17 @@ export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsAr
   const [zoom, setZoom] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debounceMsRef = useRef(debounceMs);
-  debounceMsRef.current = debounceMs;
 
   useEffect(() => {
-    if (!map || !isLoaded) {
-      setIsMoving(false);
-      return;
-    }
+    if (!map || !isLoaded) return;
 
-    try {
-      setIsMoving(false);
-      setZoom(map.getZoom());
-      setBounds(formatBounds(map));
-    } catch {}
+    const initialFrame = requestAnimationFrame(() => {
+      try {
+        setIsMoving(map.isMoving());
+        setZoom(map.getZoom());
+        setBounds(formatBounds(map));
+      } catch {}
+    });
 
     const updateBounds = () => {
       setZoom(map.getZoom());
@@ -41,7 +38,7 @@ export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsAr
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         setBounds(formatBounds(map));
-      }, debounceMsRef.current);
+      }, debounceMs);
     };
 
     const onMoveStart = () => setIsMoving(true);
@@ -56,9 +53,10 @@ export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsAr
     return () => {
       map.off("movestart", onMoveStart);
       map.off("moveend", onMoveEnd);
+      cancelAnimationFrame(initialFrame);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [map, isLoaded]);
+  }, [map, isLoaded, debounceMs]);
 
-  return { bounds, zoom, isMoving };
+  return { bounds, zoom, isMoving: map !== null && isLoaded && isMoving };
 }

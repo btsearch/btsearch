@@ -1,7 +1,8 @@
 import type { ListDeviceSession, MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useRevokeMultiSession, useSetActiveSession } from "@better-auth-ui/react/plugins/multi-session";
-import { ArrowLeftRight, LogOut, MoreHorizontal } from "lucide-react";
+import { ArrowLeftRightIcon, LogOutIcon, MoreHorizontalIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
 import { UserView } from "@/components/auth/user/user-view";
@@ -55,7 +56,7 @@ export function ManageAccount({ deviceSession, isPending }: ManageAccountProps) 
             onClick={() => revokeSession({ sessionToken: deviceSession.session.token })}
             disabled={isBusy}
           >
-            {isRevoking ? <Spinner /> : <LogOut />}
+            {isRevoking ? <Spinner /> : <HugeiconsIcon icon={LogOutIcon} />}
             {localization.auth.signOut}
           </Button>
         )}
@@ -63,7 +64,7 @@ export function ManageAccount({ deviceSession, isPending }: ManageAccountProps) 
         {deviceSession && !isActive && (
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "shrink-0")} disabled={isBusy}>
-              <MoreHorizontal />
+              <HugeiconsIcon icon={MoreHorizontalIcon} />
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="min-w-fit">
@@ -74,7 +75,7 @@ export function ManageAccount({ deviceSession, isPending }: ManageAccountProps) 
                   })
                 }
               >
-                <ArrowLeftRight className="text-muted-foreground" />
+                <HugeiconsIcon icon={ArrowLeftRightIcon} className="text-muted-foreground" />
                 {multiSessionLocalization.switchAccount}
               </DropdownMenuItem>
 
@@ -85,7 +86,7 @@ export function ManageAccount({ deviceSession, isPending }: ManageAccountProps) 
                   })
                 }
               >
-                <LogOut className="text-muted-foreground" />
+                <HugeiconsIcon icon={LogOutIcon} className="text-muted-foreground" />
                 {localization.auth.signOut}
               </DropdownMenuItem>
             </DropdownMenuContent>

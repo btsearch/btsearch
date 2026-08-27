@@ -2,8 +2,9 @@
 
 import { type AuthSocialProvider, getProviderId, getProviderName } from "@better-auth-ui/core";
 import { renderProviderIcon, useAccountInfo, useAuth, useLinkSocial, useUnlinkAccount } from "@better-auth-ui/react";
+import { Link02Icon, LinkOffIcon, PlugIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { Account } from "better-auth";
-import { Link2, Link2Off, Plug } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function LinkedAccount({ account, provider }: LinkedAccountProps) {
   return (
     <Item>
       <ItemMedia variant="icon" className={cn(!account && "opacity-50")}>
-        {providerIcon ? providerIcon : <Plug />}
+        {providerIcon ? providerIcon : <HugeiconsIcon icon={PlugIcon} />}
       </ItemMedia>
       <ItemContent>
         <ItemTitle>{providerName}</ItemTitle>
@@ -67,7 +68,7 @@ export function LinkedAccount({ account, provider }: LinkedAccountProps) {
             disabled={isUnlinking}
             aria-label={localization.settings.unlinkProvider.replace("{{provider}}", providerName)}
           >
-            {isUnlinking ? <Spinner /> : <Link2Off />}
+            {isUnlinking ? <Spinner /> : <HugeiconsIcon icon={LinkOffIcon} />}
             {localization.settings.unlinkProvider.replace("{{provider}}", "").trim()}
           </Button>
         ) : (
@@ -83,7 +84,7 @@ export function LinkedAccount({ account, provider }: LinkedAccountProps) {
             disabled={isLinking}
             aria-label={localization.settings.linkProvider.replace("{{provider}}", providerName)}
           >
-            {isLinking ? <Spinner /> : <Link2 />}
+            {isLinking ? <Spinner /> : <HugeiconsIcon icon={Link02Icon} />}
             {localization.settings.link}
           </Button>
         )}

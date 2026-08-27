@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 import { parseFilters } from "@/features/map/filters";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
@@ -148,7 +148,10 @@ export function useStationsData() {
 
   const state = useMemo(() => paramsToState(searchParams), [searchParams]);
   const stateRef = useRef(state);
-  stateRef.current = state;
+
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const commit = useCallback(
     (patch: Partial<FullState>) => {

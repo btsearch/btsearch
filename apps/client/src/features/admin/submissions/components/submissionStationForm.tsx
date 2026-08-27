@@ -79,6 +79,7 @@ export function SubmissionStationForm({
   const { t } = useTranslation(["submissions", "common", "stationDetails"]);
   const { openStationDialog } = useFloatingDialogStack();
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
+  const selectedOperatorMnc = selectedOperator?.mnc;
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!extraIdsForm.networks_id;
   const showMnoNameOnly = selectedOperator ? MNO_NAME_ONLY_MNCS.includes(selectedOperator.mnc) : !extraIdsForm.networks_id && !!extraIdsForm.mno_name;
   const showSection = showExtraIdsFields || showMnoNameOnly;
@@ -95,8 +96,8 @@ export function SubmissionStationForm({
   }, [currentStation?.sectors, sectors]);
   const hasNewSectors = useMemo(() => sectors.some((sector) => sector.id === undefined), [sectors]);
 
-  const siblingBrand = selectedOperator?.mnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
-  const SiblingLogo = selectedOperator?.mnc === 26002 ? OrangeIcon : TMobileIcon;
+  const siblingBrand = selectedOperatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
+  const SiblingLogo = selectedOperatorMnc === 26002 ? OrangeIcon : TMobileIcon;
   const currentStationId = currentStation?.id;
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
@@ -109,10 +110,10 @@ export function SubmissionStationForm({
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
     const trimmedStationId = stationForm.station_id.trim();
-    const mnc = selectedOperator?.mnc;
+    const mnc = selectedOperatorMnc;
     if (!trimmedStationId || !mnc) return [];
     return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, mnc));
-  }, [selectedOperator?.mnc, stationForm.station_id]);
+  }, [selectedOperatorMnc, stationForm.station_id]);
 
   const siblingSectors = useMemo(
     () =>
@@ -137,10 +138,10 @@ export function SubmissionStationForm({
       stationForm.station_id.trim()
         ? {
             ...(locationForm.latitude !== null && locationForm.longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-            ...(selectedOperator?.mnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+            ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
           }
         : undefined,
-    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, locationForm.latitude, locationForm.longitude, selectedOperator?.mnc, stationForm.station_id],
+    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, locationForm.latitude, locationForm.longitude, selectedOperatorMnc, stationForm.station_id],
   );
 
   const handleFetchSibling = useCallback(async () => {
@@ -154,7 +155,7 @@ export function SubmissionStationForm({
       }
       if (data.networks_id !== null) onExtraIdsChange({ networks_id: data.networks_id });
       if (data.networks_name) onExtraIdsChange({ networks_name: data.networks_name });
-      const isCurrentTMPL = selectedOperator?.mnc === 26002;
+      const isCurrentTMPL = selectedOperatorMnc === 26002;
       if (isCurrentTMPL) {
         if (!stationForm.station_id.startsWith("N") && locationForm.city)
           onExtraIdsChange({ mno_name: `${normalizeCityForMNOName(locationForm.city)}_${stationForm.station_id}` });
@@ -167,7 +168,7 @@ export function SubmissionStationForm({
     } finally {
       setIsFetchingSibling(false);
     }
-  }, [currentStationId, locationForm.city, onExtraIdsChange, selectedOperator?.mnc, stationForm.station_id, t]);
+  }, [currentStationId, locationForm.city, onExtraIdsChange, selectedOperatorMnc, stationForm.station_id, t]);
 
   const renderPreviousAzimuth = useCallback((azimuth: number) => <ChangeBadge label={t("diff.was")} current={`${azimuth}°`} />, [t]);
 
@@ -236,7 +237,7 @@ export function SubmissionStationForm({
                 </>
               )}
               <div>
-                <span className="text-muted-foreground text-xs">{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperator?.mnc) })}</span>
+                <span className="text-muted-foreground text-xs">{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperatorMnc) })}</span>
                 <p className="font-medium">{extraIdsForm.mno_name || "-"}</p>
               </div>
             </div>
@@ -274,7 +275,7 @@ export function SubmissionStationForm({
                 </div>
               )}
               <div className="space-y-2">
-                <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperator?.mnc) })}</Label>
+                <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperatorMnc) })}</Label>
                 <Input
                   value={extraIdsForm.mno_name}
                   maxLength={50}

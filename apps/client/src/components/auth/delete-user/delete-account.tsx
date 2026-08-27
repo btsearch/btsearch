@@ -2,8 +2,9 @@
 
 import { authQueryKeys } from "@better-auth-ui/core";
 import { useAuth, useAuthPlugin, useDeleteUser, useListAccounts } from "@better-auth-ui/react";
+import { TriangleAlertIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -101,7 +102,7 @@ export function DeleteAccount({ className }: DeleteAccountProps) {
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <AlertDialogHeader>
                 <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                  <TriangleAlert />
+                  <HugeiconsIcon icon={TriangleAlertIcon} />
                 </AlertDialogMedia>
 
                 <AlertDialogTitle>{deleteUserLocalization.deleteAccount}</AlertDialogTitle>
@@ -135,7 +136,7 @@ export function DeleteAccount({ className }: DeleteAccountProps) {
                           setIsPasswordVisible((visible) => !visible);
                         }}
                       >
-                        {isPasswordVisible ? <EyeOff /> : <Eye />}
+                        {isPasswordVisible ? <HugeiconsIcon icon={ViewOffSlashIcon} /> : <HugeiconsIcon icon={ViewIcon} />}
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>

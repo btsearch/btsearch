@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
-import { Fingerprint, Pencil, X } from "lucide-react";
+import { Cancel01Icon, Edit03Icon, FingerprintPatternIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export function Passkey({ passkey }: PasskeyProps) {
   return (
     <Item>
       <ItemMedia variant="icon">
-        <Fingerprint />
+        <HugeiconsIcon icon={FingerprintPatternIcon} />
       </ItemMedia>
       <ItemContent>
         <ItemTitle>{passkeyName}</ItemTitle>
@@ -39,7 +40,7 @@ export function Passkey({ passkey }: PasskeyProps) {
       </ItemContent>
       <ItemActions>
         <Button variant="outline" size="sm" onClick={() => setRenameOpen(true)}>
-          <Pencil />
+          <HugeiconsIcon icon={Edit03Icon} />
           {passkeyLocalization.renamePasskey}
         </Button>
         <Button
@@ -48,7 +49,7 @@ export function Passkey({ passkey }: PasskeyProps) {
           onClick={() => setDeleteOpen(true)}
           aria-label={passkeyLocalization.deletePasskey.replace("{{name}}", passkeyName)}
         >
-          <X />
+          <HugeiconsIcon icon={Cancel01Icon} />
 
           {localization.settings.delete}
         </Button>

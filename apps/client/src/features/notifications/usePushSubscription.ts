@@ -57,7 +57,7 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
 export function usePushSubscription() {
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(getStoredId);
-  const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [permission, setPermission] = useState<NotificationPermission>(() => (isPushSupported() ? Notification.permission : "default"));
   const [isSubscribing, setIsSubscribing] = useState(false);
   const syncing = useRef(false);
   const subscriptionRef = useRef(subscription);
@@ -68,7 +68,6 @@ export function usePushSubscription() {
 
   useEffect(() => {
     if (!isPushSupported()) return;
-    setPermission(Notification.permission);
 
     let cancelled = false;
     getPushRegistration()

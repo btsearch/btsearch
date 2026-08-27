@@ -37,6 +37,7 @@
       "location": "Lokalizacja",
       "city": "Miasto",
       "address": "Adres",
+      "cell_type": "Typ komórki",
       "notes": "Notatki",
       "region": "Region",
       "station_id": "ID Stacji",

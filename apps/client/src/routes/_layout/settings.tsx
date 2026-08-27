@@ -15,7 +15,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -185,12 +185,9 @@ type ProfileData = {
   hunterRegions: number[];
 };
 
-function ProfileTab({ username }: { username: string | undefined }) {
-  const { t } = useTranslation("settings");
-  const qc = useQueryClient();
-
+function ProfileTab({ userId, username }: { userId: string; username: string | undefined }) {
   const { data: profileData, isLoading } = useQuery({
-    queryKey: ["account", "profile"],
+    queryKey: ["account", "profile", userId],
     queryFn: () => fetchJson<{ data: ProfileData }>(`${API_BASE}/account/profile`).then((r) => r.data),
   });
   const { data: regions = [], isLoading: regionsLoading } = useQuery({
@@ -198,24 +195,40 @@ function ProfileTab({ username }: { username: string | undefined }) {
     queryFn: fetchRegions,
   });
 
-  const [bio, setBio] = useState<string>("");
-  const [instagram, setInstagram] = useState("");
-  const [facebook, setFacebook] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [isPublic, setIsPublic] = useState<boolean | undefined>(undefined);
-  const [hunterListing, setHunterListing] = useState(false);
-  const [hunterRegions, setHunterRegions] = useState<number[]>([]);
+  if (isLoading || !profileData)
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
+    );
 
-  useEffect(() => {
-    if (!profileData) return;
-    setBio(profileData.bio ?? "");
-    setInstagram(profileData.contactInfo?.instagram ?? "");
-    setFacebook(profileData.contactInfo?.facebook ?? "");
-    setContactEmail(profileData.contactInfo?.email ?? "");
-    setIsPublic(profileData.profileVisibility !== "private");
-    setHunterListing(profileData.hunterListing ?? false);
-    setHunterRegions(profileData.hunterRegions ?? []);
-  }, [profileData]);
+  return <ProfileForm key={userId} userId={userId} username={username} profileData={profileData} regions={regions} regionsLoading={regionsLoading} />;
+}
+
+function ProfileForm({
+  userId,
+  username,
+  profileData,
+  regions,
+  regionsLoading,
+}: {
+  userId: string;
+  username: string | undefined;
+  profileData: ProfileData;
+  regions: Awaited<ReturnType<typeof fetchRegions>>;
+  regionsLoading: boolean;
+}) {
+  const { t } = useTranslation("settings");
+  const qc = useQueryClient();
+  const [bio, setBio] = useState(() => profileData.bio ?? "");
+  const [instagram, setInstagram] = useState(() => profileData.contactInfo?.instagram ?? "");
+  const [facebook, setFacebook] = useState(() => profileData.contactInfo?.facebook ?? "");
+  const [contactEmail, setContactEmail] = useState(() => profileData.contactInfo?.email ?? "");
+  const [isPublic, setIsPublic] = useState(() => profileData.profileVisibility !== "private");
+  const [hunterListing, setHunterListing] = useState(() => profileData.hunterListing ?? false);
+  const [hunterRegions, setHunterRegions] = useState<number[]>(() => profileData.hunterRegions ?? []);
 
   const toggleHunterRegion = (regionId: number) => {
     setHunterRegions((current) => (current.includes(regionId) ? current.filter((id) => id !== regionId) : [...current, regionId]));
@@ -238,9 +251,16 @@ function ProfileTab({ username }: { username: string | undefined }) {
           hunterRegions,
         }),
       }),
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
+      setBio(data.bio ?? "");
+      setInstagram(data.contactInfo?.instagram ?? "");
+      setFacebook(data.contactInfo?.facebook ?? "");
+      setContactEmail(data.contactInfo?.email ?? "");
+      setIsPublic(data.profileVisibility !== "private");
+      setHunterListing(data.hunterListing ?? false);
+      setHunterRegions(data.hunterRegions ?? []);
+      qc.setQueryData(["account", "profile", userId], data);
       toast.success(t("profile.saveSuccess"));
-      void qc.invalidateQueries({ queryKey: ["account", "profile"] });
     },
     onError: (err: Error) => toast.error(err.message || t("profile.saveError")),
   });
@@ -251,15 +271,6 @@ function ProfileTab({ username }: { username: string | undefined }) {
   const facebookInvalid = !!facebook && !/^https:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9._%+-]{1,60}\/?$/.test(facebook);
   const emailInvalid = !!contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail);
   const hasErrors = bioHasLink || instagramInvalid || facebookInvalid || emailInvalid;
-
-  if (isLoading || isPublic === undefined)
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
-      </div>
-    );
 
   return (
     <div className="space-y-4 max-w-2xl">
@@ -504,7 +515,7 @@ function AccountSettingsPage() {
 
         {tab === "profile" && user && (
           <div key="profile" className="animate-in fade-in slide-in-from-bottom-1 duration-150">
-            <ProfileTab username={user.username ?? undefined} />
+            <ProfileTab userId={user.id} username={user.username ?? undefined} />
           </div>
         )}
 

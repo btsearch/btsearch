@@ -1,7 +1,8 @@
 import type { TwoFactorAuthClient } from "@better-auth-ui/core/plugins/two-factor";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useGenerateBackupCodes } from "@better-auth-ui/react/plugins/two-factor";
-import { KeyRound } from "lucide-react";
+import { KeyRoundIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -88,7 +89,7 @@ export function RegenerateBackupCodesDialog({ open, onOpenChange }: RegenerateBa
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <AlertDialogHeader>
             <AlertDialogMedia>
-              <KeyRound />
+              <HugeiconsIcon icon={KeyRoundIcon} />
             </AlertDialogMedia>
 
             <AlertDialogTitle>{twoFactorLocalization.backupCodes}</AlertDialogTitle>

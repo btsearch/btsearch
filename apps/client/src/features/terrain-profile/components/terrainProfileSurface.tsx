@@ -1,4 +1,4 @@
-import { type ComponentProps, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef } from "react";
+import { type ComponentProps, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { useIsMobile } from "@/hooks/useMobile";
@@ -47,6 +47,11 @@ export default function TerrainProfileSurface(props: TerrainProfileSurfaceProps)
     panel.style.left = `${Math.round(next.x)}px`;
     panel.style.top = `${Math.round(next.y)}px`;
   }, []);
+
+  useLayoutEffect(() => {
+    if (isMobile) return;
+    applyPosition(clampPosition(positionRef.current, panelRef.current));
+  }, [applyPosition, isMobile]);
 
   useEffect(() => {
     const handleResize = () => applyPosition(clampPosition(positionRef.current, panelRef.current));
@@ -115,11 +120,7 @@ export default function TerrainProfileSurface(props: TerrainProfileSurfaceProps)
       <TerrainProfilePanel {...props} />
     </div>
   ) : (
-    <div
-      ref={panelRef}
-      className="pointer-events-auto fixed z-40 max-h-[min(60dvh,30rem)] w-[min(72rem,calc(100vw-2rem))]"
-      style={{ left: positionRef.current.x, top: positionRef.current.y }}
-    >
+    <div ref={panelRef} className="pointer-events-auto fixed z-40 max-h-[min(60dvh,30rem)] w-[min(72rem,calc(100vw-2rem))]">
       <TerrainProfilePanel {...props} headerDragProps={headerDragProps} />
     </div>
   );

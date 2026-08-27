@@ -3,7 +3,8 @@
 import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useDeletePasskey } from "@better-auth-ui/react/plugins/passkey";
-import { Fingerprint } from "lucide-react";
+import { FingerprintPatternIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
   AlertDialog,
@@ -49,7 +50,7 @@ export function DeletePasskeyDialog({ open, onOpenChange, passkey }: DeletePassk
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogMedia>
-            <Fingerprint />
+            <HugeiconsIcon icon={FingerprintPatternIcon} />
           </AlertDialogMedia>
 
           <AlertDialogTitle>{passkeyLocalization.deletePasskeyTitle}</AlertDialogTitle>

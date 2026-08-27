@@ -1,7 +1,8 @@
 import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useAddPasskey } from "@better-auth-ui/react/plugins/passkey";
-import { Fingerprint } from "lucide-react";
+import { FingerprintPatternIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { SyntheticEvent } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function AddPasskeyDialog({ open, onOpenChange }: AddPasskeyDialogProps) 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <DialogHeader>
             <DialogTitle>
-              <Fingerprint />
+              <HugeiconsIcon icon={FingerprintPatternIcon} />
               {passkeyLocalization.addPasskey}
             </DialogTitle>
 

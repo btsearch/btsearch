@@ -2,7 +2,8 @@ import { createQrCodeSvgData } from "@better-auth-ui/core";
 import type { TwoFactorAuthClient } from "@better-auth-ui/core/plugins/two-factor";
 import { useAuth, useAuthPlugin, useCopyToClipboard } from "@better-auth-ui/react";
 import { useEnableTwoFactor, useVerifyTotp } from "@better-auth-ui/react/plugins/two-factor";
-import { Check, Copy, ShieldCheck } from "lucide-react";
+import { Copy01Icon, ShieldCheckIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -148,7 +149,7 @@ export function EnableTwoFactorDialog({ open, onOpenChange }: EnableTwoFactorDia
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <DialogHeader>
             <DialogTitle>
-              <ShieldCheck />
+              <HugeiconsIcon icon={ShieldCheckIcon} />
               {twoFactorLocalization.twoFactor}
             </DialogTitle>
 
@@ -204,7 +205,7 @@ export function EnableTwoFactorDialog({ open, onOpenChange }: EnableTwoFactorDia
                         onClick={copySetupKey}
                         size="icon-xs"
                       >
-                        {setupKeyCopied ? <Check /> : <Copy />}
+                        <HugeiconsIcon icon={setupKeyCopied ? Tick02Icon : Copy01Icon} />
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>

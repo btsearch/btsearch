@@ -1,6 +1,7 @@
 import { getViewURL } from "@better-auth-ui/core";
 import { useAuth, useChangePassword, useFetchOptions, useListAccounts, useRequestPasswordReset, useSession } from "@better-auth-ui/react";
-import { Eye, EyeOff } from "lucide-react";
+import { ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -220,7 +221,7 @@ function ChangePasswordForm({
                         setIsCurrentPasswordVisible((visible) => !visible);
                       }}
                     >
-                      {isCurrentPasswordVisible ? <EyeOff /> : <Eye />}
+                      <HugeiconsIcon icon={isCurrentPasswordVisible ? ViewOffSlashIcon : ViewIcon} />
                     </InputGroupButton>
                   </InputGroupAddon>
                 </InputGroup>
@@ -273,7 +274,7 @@ function ChangePasswordForm({
                       aria-label={isNewPasswordVisible ? localization.auth.hidePassword : localization.auth.showPassword}
                       onClick={() => setIsNewPasswordVisible((visible) => !visible)}
                     >
-                      {isNewPasswordVisible ? <EyeOff /> : <Eye />}
+                      <HugeiconsIcon icon={isNewPasswordVisible ? ViewOffSlashIcon : ViewIcon} />
                     </InputGroupButton>
                   </InputGroupAddon>
                 </InputGroup>
@@ -328,7 +329,7 @@ function ChangePasswordForm({
                         aria-label={isConfirmPasswordVisible ? localization.auth.hidePassword : localization.auth.showPassword}
                         onClick={() => setIsConfirmPasswordVisible((visible) => !visible)}
                       >
-                        {isConfirmPasswordVisible ? <EyeOff /> : <Eye />}
+                        <HugeiconsIcon icon={isConfirmPasswordVisible ? ViewOffSlashIcon : ViewIcon} />
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>

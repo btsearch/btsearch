@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 type EscapeCallback = () => void;
 const escapeListeners = new Set<EscapeCallback>();
@@ -10,13 +10,12 @@ function globalEscapeHandler(e: KeyboardEvent) {
 }
 
 export function useEscapeKey(callback: () => void, enabled = true) {
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  const onEscape = useEffectEvent(callback);
 
   useEffect(() => {
     if (!enabled) return;
 
-    const handler: EscapeCallback = () => callbackRef.current();
+    const handler: EscapeCallback = () => onEscape();
 
     if (escapeListeners.size === 0) {
       window.addEventListener("keydown", globalEscapeHandler);

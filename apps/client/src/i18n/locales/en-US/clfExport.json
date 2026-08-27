@@ -37,6 +37,7 @@
       "location": "Location",
       "city": "City",
       "address": "Address",
+      "cell_type": "Cell type",
       "notes": "Notes",
       "region": "Region",
       "station_id": "Station ID",

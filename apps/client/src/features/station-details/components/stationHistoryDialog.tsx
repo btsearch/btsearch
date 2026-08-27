@@ -12,7 +12,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { memo, useCallback, useEffect, useId, useMemo, useRef } from "react";
+import { memo, useEffect, useId, useImperativeHandle, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -283,14 +283,7 @@ export function StationHistoryDialogPanel({
   const entries = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const assignBodyRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      scrollContainerRef.current = node;
-      if (typeof bodyRef === "function") bodyRef(node);
-      else if (bodyRef) bodyRef.current = node;
-    },
-    [bodyRef],
-  );
+  useImperativeHandle(bodyRef, () => scrollContainerRef.current!);
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -371,7 +364,7 @@ export function StationHistoryDialogPanel({
           </div>
         </div>
 
-        <div ref={assignBodyRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
           <div ref={bodyContentRef} className="px-3 py-2 sm:px-4 sm:py-2.5">
             {isPending ? (
               <div className="divide-y divide-border/60" aria-hidden="true">

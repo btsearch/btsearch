@@ -2,7 +2,8 @@
 
 import { downloadTextFile, formatBackupCodesText, printTextFile } from "@better-auth-ui/core";
 import { useAuth, useAuthPlugin, useCopyToClipboard } from "@better-auth-ui/react";
-import { Check, Copy, Download, Printer } from "lucide-react";
+import { Copy01Icon, Download01Icon, PrinterIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -51,17 +52,17 @@ export function BackupCodes({ codes }: BackupCodesProps) {
           aria-label={copied ? twoFactorLocalization.backupCodesCopied : localization.settings.copyToClipboard}
           onClick={copyCodes}
         >
-          {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
+          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} data-icon="inline-start" />
           {localization.settings.copyToClipboard}
         </Button>
 
         <Button type="button" size="sm" variant="outline" onClick={() => downloadTextFile(getBackupCodesText(), "backup-codes.txt")}>
-          <Download data-icon="inline-start" />
+          <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" />
           {twoFactorLocalization.downloadBackupCodes}
         </Button>
 
         <Button type="button" size="sm" variant="outline" onClick={() => printTextFile(getBackupCodesText())}>
-          <Printer data-icon="inline-start" />
+          <HugeiconsIcon icon={PrinterIcon} data-icon="inline-start" />
           {twoFactorLocalization.printBackupCodes}
         </Button>
       </div>

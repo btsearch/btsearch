@@ -3,7 +3,8 @@
 import type { TwoFactorAuthClient } from "@better-auth-ui/core/plugins/two-factor";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useDisableTwoFactor } from "@better-auth-ui/react/plugins/two-factor";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlertIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { SyntheticEvent } from "react";
 import { toast } from "sonner";
 
@@ -64,7 +65,7 @@ export function DisableTwoFactorDialog({ open, onOpenChange }: DisableTwoFactorD
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-              <ShieldAlert />
+              <HugeiconsIcon icon={ShieldAlertIcon} />
             </AlertDialogMedia>
 
             <AlertDialogTitle>{twoFactorLocalization.disableTwoFactor}</AlertDialogTitle>

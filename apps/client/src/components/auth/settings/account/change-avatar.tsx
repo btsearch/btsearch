@@ -2,7 +2,8 @@
 
 import { fileToAvatarDataUrl } from "@better-auth-ui/core";
 import { useAuth, useSession, useUpdateUser } from "@better-auth-ui/react";
-import { Trash2, Upload } from "lucide-react";
+import { Delete02Icon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -105,13 +106,13 @@ export function ChangeAvatar({ className }: ChangeAvatarProps) {
 
           <DropdownMenuContent className="min-w-fit">
             <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-              <Upload className="text-muted-foreground" />
+              <HugeiconsIcon icon={Upload01Icon} className="text-muted-foreground" />
 
               {localization.settings.uploadAvatar}
             </DropdownMenuItem>
 
             <DropdownMenuItem variant="destructive" disabled={!session?.user.image} onClick={handleDelete}>
-              <Trash2 />
+              <HugeiconsIcon icon={Delete02Icon} />
 
               {localization.settings.deleteAvatar}
             </DropdownMenuItem>

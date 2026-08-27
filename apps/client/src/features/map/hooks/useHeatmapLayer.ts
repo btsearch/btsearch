@@ -21,7 +21,10 @@ export function useHeatmapLayer({
   showStations: boolean;
 }) {
   const showStationsRef = useRef(showStations);
-  showStationsRef.current = showStations;
+
+  useEffect(() => {
+    showStationsRef.current = showStations;
+  }, [showStations]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;

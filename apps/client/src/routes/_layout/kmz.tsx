@@ -14,7 +14,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -320,14 +320,9 @@ function KmzListPage() {
 
   const { data: datesData, isLoading: isDatesLoading } = useKmzDates(type, source);
   const availableDates = useMemo(() => datesData ?? [], [datesData]);
+  const selectedDate = date !== null && availableDates.includes(date) ? date : (availableDates[0] ?? null);
 
-  useEffect(() => {
-    if (availableDates.length === 0) return;
-    if (date !== null && availableDates.includes(date)) return;
-    setDate(availableDates[0]);
-  }, [availableDates, date]);
-
-  const { data, isLoading, isError, refetch } = useKmzList({ type, source, date, region }, { enabled: date !== null });
+  const { data, isLoading, isError, refetch } = useKmzList({ type, source, date: selectedDate, region }, { enabled: selectedDate !== null });
   const { data: regions = [] } = useQuery(regionsQueryOptions());
 
   const selectedRegion = useMemo(() => (region === null ? null : (regions.find((item) => item.code === region) ?? null)), [region, regions]);
@@ -480,9 +475,9 @@ function KmzListPage() {
 
               <div className="flex w-full flex-col gap-1 sm:w-40">
                 <span className="text-xs font-medium text-muted-foreground">{t("common:labels.date")}</span>
-                <Select value={date ?? ""} onValueChange={(value) => value && setDate(value)}>
+                <Select value={selectedDate ?? ""} onValueChange={(value) => value && setDate(value)}>
                   <SelectTrigger className="h-8 w-full" disabled={availableDates.length === 0}>
-                    <SelectValue>{date ? formatDayMonthYear(date) : t("list.noDates")}</SelectValue>
+                    <SelectValue>{selectedDate ? formatDayMonthYear(selectedDate) : t("list.noDates")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {availableDates.map((value) => (
@@ -555,7 +550,7 @@ function KmzListPage() {
                 <KmzMobileFilterRail
                   type={type}
                   source={source}
-                  date={date}
+                  date={selectedDate}
                   region={region}
                   onTypeChange={handleTypeChange}
                   sortBy={sortBy}

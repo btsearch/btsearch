@@ -69,6 +69,7 @@ export function ListsPageContent() {
 
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual requires the compiler's automatic bailout
   const virtualizer = useVirtualizer({
     count: lists.length,
     getScrollElement: () => parentRef.current,
@@ -206,7 +207,7 @@ export function ListsPageContent() {
                               aria-label={favoriteLabel}
                               aria-pressed={favorite}
                               title={favoriteLabel}
-                              className={cn(favorite && "text-amber-500 hover:text-amber-500 [&_*]:fill-current")}
+                              className={cn(favorite && "text-amber-500 hover:text-amber-500 **:fill-current")}
                               onClick={() => toggleFavorite(list.uuid)}
                             >
                               <HugeiconsIcon icon={StarIcon} strokeWidth={2} />

@@ -110,14 +110,15 @@ export function StationInfoForm({
   const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
   const { openStationDialog } = useFloatingDialogStack();
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
+  const selectedOperatorMnc = selectedOperator?.mnc;
   const [stationIdFocused, setStationIdFocused] = useState(false);
 
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!networksId;
   const showMnoNameOnly = selectedOperator ? MNO_NAME_ONLY_MNCS.includes(selectedOperator.mnc) : !networksId && !!mnoName;
   const showSection = showExtraIdsFields || showMnoNameOnly;
 
-  const siblingBrand = selectedOperator?.mnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
-  const SiblingLogo = selectedOperator?.mnc === 26002 ? OrangeIcon : TMobileIcon;
+  const siblingBrand = selectedOperatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
+  const SiblingLogo = selectedOperatorMnc === 26002 ? OrangeIcon : TMobileIcon;
   const trimmedStationId = stationId.trim();
   const { latitude, longitude } = location;
 
@@ -133,10 +134,10 @@ export function StationInfoForm({
   }, [stationDbId]);
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
-    const mnc = selectedOperator?.mnc;
+    const mnc = selectedOperatorMnc;
     if (!trimmedStationId || !mnc) return [];
     return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, mnc));
-  }, [selectedOperator?.mnc, trimmedStationId]);
+  }, [selectedOperatorMnc, trimmedStationId]);
 
   const fetchSI2PEMAzimuthSectors = useCallback(async () => {
     if (!trimmedStationId || latitude === null || longitude === null) return [];
@@ -157,12 +158,12 @@ export function StationInfoForm({
 
   const ukeSectors = useMemo(
     () =>
-      trimmedStationId && selectedOperator?.mnc
+      trimmedStationId && selectedOperatorMnc
         ? {
             onFetch: fetchUkeAzimuthSectors,
           }
         : undefined,
-    [fetchUkeAzimuthSectors, selectedOperator?.mnc, trimmedStationId],
+    [fetchUkeAzimuthSectors, selectedOperatorMnc, trimmedStationId],
   );
 
   const azimuthSources = useMemo(
@@ -170,10 +171,10 @@ export function StationInfoForm({
       stationDbId && trimmedStationId
         ? {
             ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-            ...(selectedOperator?.mnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+            ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
           }
         : undefined,
-    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, selectedOperator?.mnc, stationDbId, trimmedStationId],
+    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, selectedOperatorMnc, stationDbId, trimmedStationId],
   );
 
   const handleFetchSibling = useCallback(async () => {
@@ -188,7 +189,7 @@ export function StationInfoForm({
       const { networks_id, networks_name, mno_name } = data;
       if (networks_id !== null) onNetworksIdChange?.(networks_id);
       if (networks_name) onNetworksNameChange?.(networks_name);
-      const isCurrentTMPL = selectedOperator?.mnc === 26002;
+      const isCurrentTMPL = selectedOperatorMnc === 26002;
       if (isCurrentTMPL) {
         if (!stationId.startsWith("N") && location.city) onMnoNameChange?.(`${normalizeCityForMNOName(location.city)}_${stationId}`);
       } else {
@@ -200,7 +201,7 @@ export function StationInfoForm({
     } finally {
       setIsFetchingSibling(false);
     }
-  }, [location.city, onMnoNameChange, onNetworksIdChange, onNetworksNameChange, selectedOperator?.mnc, stationDbId, stationId, t]);
+  }, [location.city, onMnoNameChange, onNetworksIdChange, onNetworksNameChange, selectedOperatorMnc, stationDbId, stationId, t]);
 
   return (
     <div className="space-y-3">
@@ -244,7 +245,7 @@ export function StationInfoForm({
             onNotesChange={onNotesChange}
             stationIdMeta={
               stationDbId === undefined ? (
-                <DuplicateStationNotice stationId={stationId} mnc={selectedOperator?.mnc} editTarget="admin" inputFocused={stationIdFocused} />
+                <DuplicateStationNotice stationId={stationId} mnc={selectedOperatorMnc} editTarget="admin" inputFocused={stationIdFocused} />
               ) : undefined
             }
             operatorAccessory={
@@ -331,7 +332,7 @@ export function StationInfoForm({
             </div>
           )}
           <div className="space-y-2">
-            <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperator?.mnc) })}</Label>
+            <Label>{t("common:labels.mnoName", { brand: getMnoBrand(selectedOperatorMnc) })}</Label>
             <Input
               value={mnoName ?? ""}
               maxLength={50}

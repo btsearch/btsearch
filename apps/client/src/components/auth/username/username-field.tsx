@@ -1,8 +1,9 @@
 import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useIsUsernameAvailable } from "@better-auth-ui/react/plugins/username";
+import { Cancel01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useDebouncer } from "@tanstack/react-pacer";
-import { Check, X } from "lucide-react";
 import { useState } from "react";
 
 import type { AdditionalFieldProps } from "@/components/auth/additional-field";
@@ -106,9 +107,9 @@ export function UsernameField({ name, field, isPending }: AdditionalFieldProps) 
             }
           >
             {availability?.available ? (
-              <Check className="size-4 text-foreground" />
+              <HugeiconsIcon icon={Tick02Icon} className="size-4 text-foreground" />
             ) : availabilityError || availability?.available === false ? (
-              <X className="size-4 text-destructive" />
+              <HugeiconsIcon icon={Cancel01Icon} className="size-4 text-destructive" />
             ) : (
               <Spinner />
             )}

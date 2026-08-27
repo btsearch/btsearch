@@ -214,16 +214,18 @@ export function useMapLayer({
   blockedByLayers = [],
 }: UseMapLayerArgs) {
   const callbackRefs = useRef({ onFeatureClick, onFeatureContextMenu, onFeatureMouseDown, renderHoverTooltip });
-  callbackRefs.current = { onFeatureClick, onFeatureContextMenu, onFeatureMouseDown, renderHoverTooltip };
   const tooltipRef = useRef<ActiveTooltip | null>(null);
   const blockedByLayersRef = useRef(blockedByLayers);
-  blockedByLayersRef.current = blockedByLayers;
-
   const geoJSONRef = useRef(geoJSON);
-  geoJSONRef.current = geoJSON;
   const lastAppliedDataRef = useRef<{ source: GeoJSONSource; data: MapFeatureCollection } | null>(null);
 
   const addedImagesRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    callbackRefs.current = { onFeatureClick, onFeatureContextMenu, onFeatureMouseDown, renderHoverTooltip };
+    blockedByLayersRef.current = blockedByLayers;
+    geoJSONRef.current = geoJSON;
+  }, [blockedByLayers, geoJSON, onFeatureClick, onFeatureContextMenu, onFeatureMouseDown, renderHoverTooltip]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;

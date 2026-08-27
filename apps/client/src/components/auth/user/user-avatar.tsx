@@ -2,8 +2,9 @@
 
 import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { useAuth, useSession } from "@better-auth-ui/react";
+import { UserIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { User } from "better-auth";
-import { User2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,7 +48,9 @@ export function UserAvatar({ className, user, isPending, fallback }: UserAvatarP
     <Avatar className={cn("size-8 bg-muted text-foreground text-sm rounded-full", className)}>
       <AvatarImage src={resolvedUser?.image ?? undefined} alt={resolvedUser?.displayUsername || resolvedUser?.name || resolvedUser?.email} />
 
-      <AvatarFallback className="text-muted-foreground!">{fallback || initials || <User2 className="size-4" />}</AvatarFallback>
+      <AvatarFallback className="text-muted-foreground!">
+        {fallback || initials || <HugeiconsIcon icon={UserIcon} className="size-4" />}
+      </AvatarFallback>
     </Avatar>
   );
 }

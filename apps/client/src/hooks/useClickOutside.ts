@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useEffectEvent } from "react";
 
 type ClickOutsideEntry = {
   ref: RefObject<HTMLElement | null>;
@@ -16,15 +16,14 @@ function globalMousedownHandler(e: MouseEvent) {
 }
 
 export function useClickOutside<T extends HTMLElement>(ref: RefObject<T | null>, callback: () => void, enabled = true) {
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  const onClickOutside = useEffectEvent(callback);
 
   useEffect(() => {
     if (!enabled) return;
 
     const entry: ClickOutsideEntry = {
       ref: ref as RefObject<HTMLElement | null>,
-      callback: () => callbackRef.current(),
+      callback: () => onClickOutside(),
     };
 
     if (clickOutsideListeners.size === 0) {

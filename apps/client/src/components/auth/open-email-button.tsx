@@ -2,8 +2,9 @@
 
 import { createQrCodeSvgData, getEmailProviderLink } from "@better-auth-ui/core";
 import { useAuth } from "@better-auth-ui/react";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { VariantProps } from "class-variance-authority";
-import { QrCode } from "lucide-react";
 import { useMemo } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -56,7 +57,7 @@ export function OpenEmailButton({ email, className, variant }: OpenEmailButtonPr
           onClick={() => window.open(provider.loginUrl, "_blank", "noopener,noreferrer")}
         >
           {localization.auth.openEmailProvider.replace("{{provider}}", provider.companyProvider)}
-          <QrCode data-icon="inline-end" />
+          <HugeiconsIcon icon={QrCodeIcon} data-icon="inline-end" />
         </TooltipTrigger>
         <TooltipContent sideOffset={8} className="flex-col items-center gap-2 p-3">
           <svg viewBox={`0 0 ${qrCode.size} ${qrCode.size}`} aria-hidden="true" focusable="false" className="size-40">

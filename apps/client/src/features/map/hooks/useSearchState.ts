@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FocusEvent, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type FocusEvent, type KeyboardEvent, useMemo, useRef, useState } from "react";
 
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
@@ -38,22 +38,24 @@ function getUrlHashQueryParam(key: string): string | null {
 }
 
 export function useSearchState({ filterKeywords, parseFilters, initialValue, affectMap = false }: UseSearchStateArgs) {
-  const [inputValue, setInputValue] = useState(() => {
-    if (!initialValue) return "";
-    return parseFilters(initialValue).remainingText;
+  const [initialSearchState] = useState(() => {
+    const urlQuery = getUrlHashQueryParam("q");
+    const query = urlQuery || initialValue || "";
+    const { filters, remainingText } = query ? parseFilters(query) : { filters: [], remainingText: "" };
+    return {
+      inputValue: remainingText,
+      parsedFilters: filters,
+      activeOverlay: urlQuery ? computeOverlay(remainingText, getAutocompleteMatches(remainingText, filterKeywords).length > 0, affectMap) : null,
+    };
   });
-  const [parsedFilters, setParsedFilters] = useState<ParsedFilter[]>(() => {
-    if (!initialValue) return [];
-    return parseFilters(initialValue).filters;
-  });
+  const [inputValue, setInputValue] = useState(initialSearchState.inputValue);
+  const [parsedFilters, setParsedFilters] = useState<ParsedFilter[]>(initialSearchState.parsedFilters);
   const [isFocused, setIsFocused] = useState(false);
-  const [activeOverlay, setActiveOverlay] = useState<OverlayType>(null);
+  const [activeOverlay, setActiveOverlay] = useState<OverlayType>(initialSearchState.activeOverlay);
   const [focusedChipIndex, setFocusedChipIndex] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const stateRef = useRef({ inputValue, parsedFilters, focusedChipIndex });
-  stateRef.current = { inputValue, parsedFilters, focusedChipIndex };
 
   const query = useMemo(() => [...parsedFilters.map((f) => f.raw), inputValue.trim()].filter(Boolean).join(" "), [parsedFilters, inputValue]);
 
@@ -63,16 +65,6 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
   const searchMode = affectMap || debouncedInput === "" ? "bounds" : "search";
 
   const autocompleteOptions = useMemo(() => getAutocompleteMatches(inputValue, filterKeywords), [inputValue, filterKeywords]);
-
-  useEffect(() => {
-    const q = getUrlHashQueryParam("q");
-    if (!q) return;
-
-    const { filters, remainingText } = parseFilters(q);
-    setParsedFilters(filters);
-    setInputValue(remainingText);
-    setActiveOverlay(computeOverlay(remainingText, getAutocompleteMatches(remainingText, filterKeywords).length > 0, affectMap));
-  }, [filterKeywords, parseFilters, affectMap]);
 
   function handleContainerBlur(e: FocusEvent) {
     const relatedTarget = e.relatedTarget as Node | null;
@@ -121,8 +113,10 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
     inputRef.current?.focus();
   }
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    const { inputValue: currentInput, parsedFilters: filters, focusedChipIndex: chipIdx } = stateRef.current;
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    const currentInput = inputValue;
+    const filters = parsedFilters;
+    const chipIdx = focusedChipIndex;
     const caretAtStart = inputRef.current?.selectionStart === 0 && inputRef.current?.selectionEnd === 0;
 
     if (chipIdx !== null) {
@@ -157,7 +151,7 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
       e.preventDefault();
       setFocusedChipIndex(filters.length - 1);
     }
-  }, []);
+  }
 
   function handleInputFocus() {
     setIsFocused(true);

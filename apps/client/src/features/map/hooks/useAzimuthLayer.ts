@@ -506,13 +506,16 @@ export function useAzimuthLayer({ map, isLoaded, locations, ukeLocations, enable
   );
 
   const ukeTripleRef = useRef(ukeTriple);
-  ukeTripleRef.current = ukeTriple;
   const internalTripleRef = useRef(internalTriple);
-  internalTripleRef.current = internalTriple;
   const minZoomRef = useRef(minZoom);
-  minZoomRef.current = minZoom;
   const lineModeRef = useRef(lineMode);
-  lineModeRef.current = lineMode;
+
+  useEffect(() => {
+    ukeTripleRef.current = ukeTriple;
+    internalTripleRef.current = internalTriple;
+    minZoomRef.current = minZoom;
+    lineModeRef.current = lineMode;
+  }, [internalTriple, lineMode, minZoom, ukeTriple]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;

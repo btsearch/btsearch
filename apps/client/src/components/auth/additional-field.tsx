@@ -1,7 +1,8 @@
 import { type AdditionalField as AdditionalFieldConfig, resolveInputType } from "@better-auth-ui/core";
 import { useAuth, useCopyToClipboard } from "@better-auth-ui/react";
+import { ArrowDown01Icon, Calendar04Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronDownIcon, Copy } from "lucide-react";
 import { type ComponentType, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -68,7 +69,7 @@ function CopyButton({ getValue, isDisabled }: { getValue: () => string | undefin
       onClick={handleCopy}
       disabled={isDisabled}
     >
-      {copied ? <Check /> : <Copy />}
+      {copied ? <HugeiconsIcon icon={Tick02Icon} /> : <HugeiconsIcon icon={Copy01Icon} />}
     </InputGroupButton>
   );
 }
@@ -447,7 +448,7 @@ function DateInput({ name, field, isPending }: AdditionalFieldProps) {
           >
             {date ? format(date, "PPP") : <span>{field.placeholder}</span>}
 
-            {isDateTime ? <ChevronDownIcon /> : <CalendarIcon />}
+            {isDateTime ? <HugeiconsIcon icon={ArrowDown01Icon} /> : <HugeiconsIcon icon={Calendar04Icon} />}
           </PopoverTrigger>
 
           <PopoverContent className="w-auto overflow-hidden p-0" align="start">

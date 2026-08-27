@@ -4,8 +4,9 @@ import { authMutationKeys } from "@better-auth-ui/core";
 import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { AuthPrompts, useAuth, useAuthPlugin, useFetchOptions, useSignInEmail } from "@better-auth-ui/react";
 import { useSignInUsername } from "@better-auth-ui/react/plugins/username";
+import { ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useIsMutating } from "@tanstack/react-query";
-import { Eye, EyeOff } from "lucide-react";
 import { type SyntheticEvent, useState } from "react";
 
 import { ProviderButtons, type SocialLayout } from "@/components/auth/provider-buttons";
@@ -237,7 +238,7 @@ export function SignInUsername({ className, socialLayout, socialPosition = "bott
                           setIsPasswordVisible((visible) => !visible);
                         }}
                       >
-                        {isPasswordVisible ? <EyeOff /> : <Eye />}
+                        <HugeiconsIcon icon={isPasswordVisible ? ViewOffSlashIcon : ViewIcon} />
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>

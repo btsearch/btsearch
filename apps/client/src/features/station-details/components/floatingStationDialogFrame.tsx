@@ -73,17 +73,16 @@ export function FloatingStationDialogFrame({
   const dialogRectRef = useRef(rect);
   const onRectChangeRef = useRef(onRectChange);
 
-  dialogRectRef.current = rect;
-  onRectChangeRef.current = onRectChange;
-
   useLayoutEffect(() => {
+    dialogRectRef.current = rect;
+    onRectChangeRef.current = onRectChange;
     const nextRect = clampStationDialogRect(rect);
     applyStationDialogRect(panelRef.current, nextRect);
     if (shouldSyncStationDialogRect(rect, nextRect)) {
       dialogRectRef.current = nextRect;
       onRectChangeRef.current(nextRect);
     }
-  }, [rect]);
+  }, [onRectChange, rect]);
 
   useEffect(
     () => () => {

@@ -48,8 +48,6 @@ export function useCellDrafts<T extends CellDraftBase>({
   const { t } = useTranslation("stations");
 
   const [cells, setCells] = useState<T[]>(initialCells);
-  const cellsRef = useRef(cells);
-  cellsRef.current = cells;
   const [clonedIds, setClonedIds] = useState<ReadonlySet<string>>(new Set());
   const cloneTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [enabledRats, setEnabledRats] = useState<string[]>(
@@ -170,7 +168,7 @@ export function useCellDrafts<T extends CellDraftBase>({
   const cloneCell = useCallback(
     (localId: string) => {
       if (disabled) return;
-      const prev = cellsRef.current;
+      const prev = cells;
       const cell = prev.find((c) => c._localId === localId);
       if (!cell) return;
       const band = allBands.find((b) => b.id === cell.band_id) ?? allBands.find((b) => b.rat === cell.rat);
@@ -201,7 +199,7 @@ export function useCellDrafts<T extends CellDraftBase>({
       }, 2000);
       cloneTimers.current.set(id, timer);
     },
-    [disabled, allBands, createNewCell],
+    [disabled, cells, allBands, createNewCell],
   );
 
   const deleteCellFn = useCallback(

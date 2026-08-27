@@ -1,5 +1,6 @@
 import { useAuthPlugin } from "@better-auth-ui/react";
-import { Fingerprint } from "lucide-react";
+import { FingerprintPatternIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -16,7 +17,7 @@ export function PasskeysEmpty({ onAddPress }: PasskeysEmptyProps) {
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <Fingerprint />
+          <HugeiconsIcon icon={FingerprintPatternIcon} />
         </EmptyMedia>
         <EmptyTitle>{passkeyLocalization.noPasskeys}</EmptyTitle>
         <EmptyDescription>{passkeyLocalization.passkeysDescription}</EmptyDescription>

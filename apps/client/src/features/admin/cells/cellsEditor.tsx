@@ -1,6 +1,6 @@
 import { Add01Icon, ArrowDown01Icon, ArrowReloadHorizontalIcon, Copy01Icon, FlashIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, type ReactNode, useCallback, useRef } from "react";
+import { Fragment, type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { EmptyPanel } from "@/components/empty-panel";
@@ -105,24 +105,21 @@ function RatTable<T extends CellDraftBase>({
 }: RatTableProps<T>) {
   const { t } = useTranslation(["stations"]);
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
-  const cellsRef = useRef(cells);
-  cellsRef.current = cells;
 
   const handleCellChange = useCallback(
     (localId: string, patch: Partial<CellDraftBase>) => {
       onCellChange(localId, patch);
 
-      const current = cellsRef.current;
-      if (!patch.details || current.length < 2) return;
-      const rat = current[0]?.rat;
+      if (!patch.details || cells.length < 2) return;
+      const rat = cells[0]?.rat;
       if (!rat) return;
       const field = TAC_LAC_FIELD[rat];
       if (!field) return;
-      const changedCell = current.find((c) => c._localId === localId);
+      const changedCell = cells.find((c) => c._localId === localId);
       if (!changedCell) return;
       const newVal = patch.details[field];
       if (newVal === changedCell.details[field]) return;
-      for (const sibling of current) {
+      for (const sibling of cells) {
         if (sibling._localId === localId) continue;
         const next = { ...sibling.details };
         if (newVal === undefined) delete next[field];
@@ -130,7 +127,7 @@ function RatTable<T extends CellDraftBase>({
         onCellChange(sibling._localId, { details: next });
       }
     },
-    [onCellChange],
+    [cells, onCellChange],
   );
 
   return (

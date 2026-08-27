@@ -20,6 +20,36 @@ function getEditableSortDetailField(rat: RatType): string {
   return "clid";
 }
 
+function getInitialCellOrder(cells: ProposedCellForm[], bandValueMap: Map<number, number>, rat: RatType): string[] {
+  const sortField = getEditableSortDetailField(rat);
+  return [...cells]
+    .sort((a, b) => {
+      const bandA = a.band_id !== null ? (bandValueMap.get(a.band_id) ?? 0) : 0;
+      const bandB = b.band_id !== null ? (bandValueMap.get(b.band_id) ?? 0) : 0;
+      if (bandA !== bandB) return bandA - bandB;
+      const detailsA = a.details as Record<string, unknown>;
+      const detailsB = b.details as Record<string, unknown>;
+      const detailA = (detailsA[sortField] as number) ?? 0;
+      const detailB = (detailsB[sortField] as number) ?? 0;
+      return detailA - detailB;
+    })
+    .map((cell) => cell.id);
+}
+
+function reconcileStableCellOrder(order: string[], cells: ProposedCellForm[]): string[] {
+  const presentIds = new Set(cells.map((cell) => cell.id));
+  const result = order.filter((id) => presentIds.has(id));
+  const orderedIds = new Set(result);
+
+  for (const cell of cells) {
+    if (orderedIds.has(cell.id)) continue;
+    result.push(cell.id);
+    orderedIds.add(cell.id);
+  }
+
+  return result;
+}
+
 export type UseCellDetailsFormProps = {
   rat: RatType;
   cells: ProposedCellForm[];
@@ -49,41 +79,16 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
     return [...cells, ...deletedCells];
   }, [cells, originalCells, isNewStation, rat]);
 
-  const stableOrderRef = useRef<string[] | null>(null);
+  const [stableOrder, setStableOrder] = useState<string[] | null>(null);
+  const initialOrder = useMemo(() => getInitialCellOrder(mergedCells, bandValueMap, rat), [bandValueMap, mergedCells, rat]);
+
+  if (stableOrder === null && bandValueMap.size > 0) setStableOrder(initialOrder);
 
   const sortedCells = useMemo(() => {
-    const sortField = getEditableSortDetailField(rat);
-    const bandSort = (a: ProposedCellForm, b: ProposedCellForm) => {
-      const bandA = a.band_id !== null ? (bandValueMap.get(a.band_id) ?? 0) : 0;
-      const bandB = b.band_id !== null ? (bandValueMap.get(b.band_id) ?? 0) : 0;
-      if (bandA !== bandB) return bandA - bandB;
-      const detailsA = a.details as Record<string, unknown>;
-      const detailsB = b.details as Record<string, unknown>;
-      const clidA = sortField ? ((detailsA[sortField] as number) ?? 0) : 0;
-      const clidB = sortField ? ((detailsB[sortField] as number) ?? 0) : 0;
-      return clidA - clidB;
-    };
-
-    if (bandValueMap.size === 0 || stableOrderRef.current === null) {
-      const initial = [...mergedCells].sort(bandSort);
-      if (bandValueMap.size > 0) stableOrderRef.current = initial.map((c) => c.id);
-      return initial;
-    }
-
-    const presentIds = new Set(mergedCells.map((c) => c.id));
-    const result = stableOrderRef.current.filter((id) => presentIds.has(id));
-    const inResult = new Set(result);
-
-    for (const cell of mergedCells) {
-      if (inResult.has(cell.id)) continue;
-      result.push(cell.id);
-      inResult.add(cell.id);
-    }
-
-    stableOrderRef.current = result;
-    const orderMap = new Map(result.map((id, i) => [id, i]));
+    const order = reconcileStableCellOrder(stableOrder ?? initialOrder, mergedCells);
+    const orderMap = new Map(order.map((id, i) => [id, i]));
     return [...mergedCells].sort((a, b) => (orderMap.get(a.id) ?? Infinity) - (orderMap.get(b.id) ?? Infinity));
-  }, [mergedCells, bandValueMap, rat]);
+  }, [initialOrder, mergedCells, stableOrder]);
 
   const originalsMap = useMemo(() => buildOriginalCellsMap(originalCells), [originalCells]);
 

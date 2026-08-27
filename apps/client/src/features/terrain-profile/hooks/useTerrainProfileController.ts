@@ -1,5 +1,5 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { selectTerrainProfileAntenna } from "../antennaSelection";
 import { DEFAULT_RECEIVER_HEIGHT_AGL_M, INITIAL_TERRAIN_PROFILE_STATE, terrainProfileReducer } from "../state";
@@ -27,8 +27,10 @@ export function useTerrainProfileController({ map, isLoaded }: UseTerrainProfile
   const receiverHeightRef = useRef(state.receiver?.mountedHeight ?? DEFAULT_RECEIVER_HEIGHT_AGL_M);
   const gpsRequestRef = useRef(0);
 
-  openRef.current = state.isOpen;
-  receiverHeightRef.current = state.receiver?.mountedHeight ?? DEFAULT_RECEIVER_HEIGHT_AGL_M;
+  useEffect(() => {
+    openRef.current = state.isOpen;
+    receiverHeightRef.current = state.receiver?.mountedHeight ?? DEFAULT_RECEIVER_HEIGHT_AGL_M;
+  }, [state.isOpen, state.receiver?.mountedHeight]);
 
   const seedReceiverFromMapCenter = useCallback(() => {
     if (state.receiver !== null || !map) return;
@@ -107,6 +109,7 @@ export function useTerrainProfileController({ map, isLoaded }: UseTerrainProfile
   const setReceiverHeight = useCallback(
     (mountedHeight: number) => {
       if (state.receiver === null) return;
+      receiverHeightRef.current = mountedHeight;
       dispatch({ type: "set_receiver", receiver: { ...state.receiver, mountedHeight } });
     },
     [state.receiver],

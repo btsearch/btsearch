@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRightIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { DropdownMenuSub, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
@@ -34,7 +35,7 @@ export function SwitchAccountSubmenu({ className }: SwitchAccountSubmenuProps) {
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger className={className}>
-        <ArrowLeftRight className="text-muted-foreground" />
+        <HugeiconsIcon icon={ArrowLeftRightIcon} className="text-muted-foreground" />
 
         {multiSessionLocalization.switchAccount}
       </DropdownMenuSubTrigger>

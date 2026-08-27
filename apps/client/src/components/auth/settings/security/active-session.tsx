@@ -1,9 +1,10 @@
 "use client";
 
 import { useAuth, useRevokeSession, useSession } from "@better-auth-ui/react";
+import { Cancel01Icon, LogOutIcon, MonitorIcon, SmartPhone01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { Session } from "better-auth";
 import Bowser from "bowser";
-import { LogOut, Monitor, Smartphone, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +62,9 @@ export function ActiveSession({ activeSession }: ActiveSessionProps) {
 
   return (
     <Item>
-      <ItemMedia variant="icon">{isMobile ? <Smartphone /> : <Monitor />}</ItemMedia>
+      <ItemMedia variant="icon">
+        <HugeiconsIcon icon={isMobile ? SmartPhone01Icon : MonitorIcon} />
+      </ItemMedia>
       <ItemContent>
         <ItemTitle>
           {ua.browser.name || "Unknown Browser"}
@@ -87,7 +90,7 @@ export function ActiveSession({ activeSession }: ActiveSessionProps) {
           disabled={isRevoking}
           aria-label={isCurrentSession ? localization.auth.signOut : localization.settings.revokeSession}
         >
-          {isRevoking ? <Spinner /> : isCurrentSession ? <LogOut /> : <X />}
+          {isRevoking ? <Spinner /> : <HugeiconsIcon icon={isCurrentSession ? LogOutIcon : Cancel01Icon} />}
 
           {isCurrentSession ? localization.auth.signOut : localization.settings.revoke}
         </Button>

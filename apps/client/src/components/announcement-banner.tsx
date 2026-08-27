@@ -80,6 +80,7 @@ export function AnnouncementBanner() {
   }, []);
 
   const announcement = settings === undefined ? cachedAnnouncement : settings?.announcement;
+  const announcementMessage = announcement?.message;
 
   useEffect(() => {
     if (settings === undefined) return;
@@ -91,12 +92,12 @@ export function AnnouncementBanner() {
   }, [settings]);
 
   const handleDismiss = useCallback(() => {
-    if (!announcement?.message) return;
-    setDismissed(announcement.message);
+    if (!announcementMessage) return;
+    setDismissed(announcementMessage);
     try {
-      localStorage.setItem(DISMISSED_KEY, announcement.message);
+      localStorage.setItem(DISMISSED_KEY, announcementMessage);
     } catch {}
-  }, [announcement?.message]);
+  }, [announcementMessage]);
 
   if (!announcement?.enabled || !announcement.message) return null;
   if (dismissed === announcement.message) return null;

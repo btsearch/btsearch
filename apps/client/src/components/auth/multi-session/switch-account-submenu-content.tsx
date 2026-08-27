@@ -1,7 +1,8 @@
 import type { MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useListDeviceSessions } from "@better-auth-ui/react/plugins/multi-session";
-import { Check, CirclePlus } from "lucide-react";
+import { AddCircleIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { UserView } from "@/components/auth/user/user-view";
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
@@ -29,7 +30,7 @@ export function SwitchAccountSubmenuContent() {
       <DropdownMenuItem>
         <UserView isPending={isPending} />
 
-        {!isPending && <Check className="ml-auto" />}
+        {!isPending && <HugeiconsIcon icon={Tick02Icon} className="ml-auto" />}
       </DropdownMenuItem>
 
       {deviceSessions
@@ -41,7 +42,7 @@ export function SwitchAccountSubmenuContent() {
       <DropdownMenuSeparator />
 
       <DropdownMenuItem onClick={() => navigate({ to: `${basePaths.auth}/${viewPaths.auth.signIn}` })}>
-        <CirclePlus className="text-muted-foreground" />
+        <HugeiconsIcon icon={AddCircleIcon} className="text-muted-foreground" />
 
         {multiSessionLocalization.addAccount}
       </DropdownMenuItem>

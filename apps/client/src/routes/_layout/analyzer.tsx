@@ -419,13 +419,10 @@ function AnalyzerPage() {
     [handleFile],
   );
 
-  const parsedRowsRef = useRef(parsedRows);
-  parsedRowsRef.current = parsedRows;
-
   const mutationFn = useCallback(async () => {
-    const cells = parsedRowsRef.current!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
+    const cells = parsedRows!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
     return postApiData<AnalyzerResult[], { cells: typeof cells }>("analyzer", { cells });
-  }, []);
+  }, [parsedRows]);
 
   const onAnalyzeSuccess = useCallback(
     (data: AnalyzerResult[]) => {

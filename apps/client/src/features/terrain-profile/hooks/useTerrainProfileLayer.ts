@@ -3,7 +3,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { POINT_LAYER_ID } from "@/features/map/constants";
 
-import type { TerrainProfileAnalysis, TerrainProfileReceiver, TerrainProfileSample, TerrainProfileStationTarget } from "../types";
+import {
+  type TerrainProfileAnalysis,
+  type TerrainProfileReceiver,
+  type TerrainProfileSample,
+  type TerrainProfileStationTarget,
+  samplesFromArrays,
+} from "../types";
 
 const SOURCE_ID = "terrain-profile-path-source";
 const LINE_LAYER_ID = "terrain-profile-path-line";
@@ -25,7 +31,7 @@ function buildPathData(
 ): FeatureCollection {
   const ready = analysis?.status === "ready" ? analysis : null;
   const resolvedStation = analysis?.status === "ready" || analysis?.status === "selection_required" ? analysis.station : null;
-  const samples = ready?.path.samples ?? [];
+  const samples = ready === null ? [] : samplesFromArrays(ready.path.samples);
   const coordinates = samples.length > 1 ? getSampleCoordinates(samples) : null;
   const stationLatitude = resolvedStation?.latitude ?? station?.latitude;
   const stationLongitude = resolvedStation?.longitude ?? station?.longitude;
@@ -93,7 +99,10 @@ type UseTerrainProfileLayerArgs = {
 export function useTerrainProfileLayer({ map, isLoaded, enabled, station, receiver, analysis }: UseTerrainProfileLayerArgs) {
   const pathData = useMemo(() => buildPathData(station, receiver, analysis), [analysis, receiver, station]);
   const pathDataRef = useRef(pathData);
-  pathDataRef.current = pathData;
+
+  useEffect(() => {
+    pathDataRef.current = pathData;
+  }, [pathData]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;

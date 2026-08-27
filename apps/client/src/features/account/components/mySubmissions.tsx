@@ -367,6 +367,7 @@ export function MySubmissions() {
   const { openStationDialog } = useFloatingDialogStack();
   const handleStationClick = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
 
+  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual requires the compiler's automatic bailout
   const virtualizer = useVirtualizer({
     count: submissions.length,
     getScrollElement: () => scrollEl,
