@@ -216,10 +216,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       for (const cell of item.cells) {
         if (cell.operation === "update" && cell.target_cell_id !== undefined) {
           // oxlint-disable-next-line no-await-in-loop
-          await tx
-            .update(cells)
-            .set({ band_id: cell.band_id, is_confirmed: true, updatedAt: new Date() })
-            .where(eq(cells.id, cell.target_cell_id));
+          await tx.update(cells).set({ band_id: cell.band_id, is_confirmed: true, updatedAt: new Date() }).where(eq(cells.id, cell.target_cell_id));
           // oxlint-disable-next-line no-await-in-loop
           await updateRATCellDetails(tx, cell.rat, cell.target_cell_id, cell.details as RATUpdateDetails);
           updatedCellIds.push(cell.target_cell_id);

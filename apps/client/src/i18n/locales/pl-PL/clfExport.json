@@ -26,6 +26,7 @@
     "description": "Puste pola użyją naszego templateu. Placeholdery wstawisz przyciskiem plus.",
     "insertPlaceholder": "Wstaw placeholder",
     "preview": "Podgląd",
+    "toggleHint": "Kliknij, by zasymulować brak wartości",
     "placeholders": {
       "unconfirmed_prefix": "Prefiks niepotwierdzonej",
       "sector_prefix": "Prefiks azymutu",

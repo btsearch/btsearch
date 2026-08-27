@@ -11,6 +11,7 @@ import {
   CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT,
   CLF_DESCRIPTION_TEMPLATE_RATS,
   DISPLAY_NR_SEPARATELY_PARAM,
+  extractTemplatePlaceholders,
   normalizeCLFDescriptionTemplates,
   renderClfTemplatePreview,
 } from "@openbts/shared/clfExportTemplates";
@@ -149,6 +150,7 @@ function ClfExportPage() {
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
   const [templateDrafts, setTemplateDrafts] = useState<CLFDescriptionTemplates>(() => clfDescriptionTemplates);
   const [copiedApiUrl, setCopiedApiUrl] = useState(false);
+  const [disabledPreviews, setDisabledPreviews] = useState<Partial<Record<CLFDescriptionTemplateRat, Set<string>>>>({});
   const lastSentTemplatesRef = useRef<CLFDescriptionTemplates | null>(null);
 
   const debouncedSaveTemplates = useDebouncedCallback((next: CLFDescriptionTemplates) => {
@@ -189,6 +191,15 @@ function ClfExportPage() {
       input?.focus();
       const cursor = selectionStart + token.length;
       input?.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function togglePreviewPlaceholder(rat: CLFDescriptionTemplateRat, placeholder: string) {
+    setDisabledPreviews((current) => {
+      const ratSet = new Set(current[rat]);
+      if (ratSet.has(placeholder)) ratSet.delete(placeholder);
+      else ratSet.add(placeholder);
+      return { ...current, [rat]: ratSet };
     });
   }
 
@@ -546,48 +557,72 @@ function ClfExportPage() {
             </div>
 
             <div className="space-y-4">
-              {CLF_DESCRIPTION_TEMPLATE_RATS.map((rat) => (
-                <div key={rat} className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor={`template-${rat}`} className="font-mono text-xs font-semibold text-foreground">
-                      {CLF_DESCRIPTION_TEMPLATE_LABELS[rat]}
-                    </Label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={t("templates.insertPlaceholder")} />}>
-                        <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-72 sm:w-80">
-                        {CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat].map((placeholder) => (
-                          <DropdownMenuItem key={placeholder} onClick={() => insertTemplatePlaceholder(rat, placeholder)} className="gap-3">
-                            <span className="shrink-0 rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{`{${placeholder}}`}</span>
-                            <span className="ml-auto truncate text-right text-xs text-muted-foreground">
-                              {t(`templates.placeholders.${placeholder}`)}
-                            </span>
-                          </DropdownMenuItem>
+              {CLF_DESCRIPTION_TEMPLATE_RATS.map((rat) => {
+                const usedPlaceholders = extractTemplatePlaceholders(rat, templateDrafts[rat] ?? "");
+                const disabled = disabledPreviews[rat];
+                return (
+                  <div key={rat} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor={`template-${rat}`} className="font-mono text-xs font-semibold text-foreground">
+                        {CLF_DESCRIPTION_TEMPLATE_LABELS[rat]}
+                      </Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={t("templates.insertPlaceholder")} />}>
+                          <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-72 sm:w-80">
+                          {CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat].map((placeholder) => (
+                            <DropdownMenuItem key={placeholder} onClick={() => insertTemplatePlaceholder(rat, placeholder)} className="gap-3">
+                              <span className="shrink-0 rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{`{${placeholder}}`}</span>
+                              <span className="ml-auto truncate text-right text-xs text-muted-foreground">
+                                {t(`templates.placeholders.${placeholder}`)}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <Textarea
+                      id={`template-${rat}`}
+                      ref={(node) => {
+                        templateInputRefs.current[rat] = node;
+                      }}
+                      value={templateDrafts[rat] ?? ""}
+                      onChange={(event) => updateTemplateDraft(rat, event.target.value)}
+                      placeholder={CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat]}
+                      maxLength={CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH}
+                      rows={2}
+                      className="min-h-14 resize-none font-mono text-xs leading-relaxed placeholder:text-muted-foreground"
+                    />
+                    <output
+                      className="block font-mono text-[11px] leading-relaxed whitespace-pre-wrap wrap-break-word text-muted-foreground"
+                      aria-label={`${CLF_DESCRIPTION_TEMPLATE_LABELS[rat]} ${t("templates.preview")}`}
+                    >
+                      {renderClfTemplatePreview(rat, templateDrafts[rat] ?? "", disabled)}
+                    </output>
+                    {usedPlaceholders.length > 0 ? (
+                      <div className="flex flex-wrap gap-1" role="group" aria-label={t("templates.toggleHint")}>
+                        {usedPlaceholders.map((placeholder) => (
+                          <button
+                            key={placeholder}
+                            type="button"
+                            title={t("templates.toggleHint")}
+                            onClick={() => togglePreviewPlaceholder(rat, placeholder)}
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors cursor-pointer",
+                              disabled?.has(placeholder)
+                                ? "border-transparent bg-muted text-muted-foreground/50 line-through"
+                                : "border-primary/20 bg-primary/10 text-foreground hover:bg-primary/20",
+                            )}
+                          >
+                            {placeholder}
+                          </button>
                         ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </div>
+                    ) : null}
                   </div>
-                  <Textarea
-                    id={`template-${rat}`}
-                    ref={(node) => {
-                      templateInputRefs.current[rat] = node;
-                    }}
-                    value={templateDrafts[rat] ?? ""}
-                    onChange={(event) => updateTemplateDraft(rat, event.target.value)}
-                    placeholder={CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat]}
-                    maxLength={CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH}
-                    rows={2}
-                    className="min-h-14 resize-none font-mono text-xs leading-relaxed placeholder:text-muted-foreground"
-                  />
-                  <output
-                    className="block font-mono text-[11px] leading-relaxed whitespace-pre-wrap wrap-break-word text-muted-foreground"
-                    aria-label={`${CLF_DESCRIPTION_TEMPLATE_LABELS[rat]} ${t("templates.preview")}`}
-                  >
-                    {renderClfTemplatePreview(rat, templateDrafts[rat] ?? "")}
-                  </output>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

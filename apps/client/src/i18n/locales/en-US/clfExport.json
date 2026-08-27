@@ -26,6 +26,7 @@
     "description": "Empty fields use our template. Insert placeholders with the plus button.",
     "insertPlaceholder": "Insert placeholder",
     "preview": "Preview",
+    "toggleHint": "Click to simulate missing values",
     "placeholders": {
       "unconfirmed_prefix": "Unconfirmed prefix",
       "sector_prefix": "Azimuth prefix",

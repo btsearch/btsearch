@@ -270,7 +270,25 @@ export function normalizeCLFDescriptionTemplates(templates: CLFDescriptionTempla
   return normalized;
 }
 
-export function renderClfTemplatePreview(rat: CLFDescriptionTemplateRat, template: string): string {
+export function extractTemplatePlaceholders(rat: CLFDescriptionTemplateRat, template: string): string[] {
   const source = template.trim() || CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat];
-  return renderCLFDescriptionTemplate(source, (key) => CLF_DESCRIPTION_TEMPLATE_PREVIEW_VALUES[rat][key] ?? "");
+  const valid = new Set<string>(CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT[rat]);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const match of source.matchAll(TEMPLATE_VAR_RE)) {
+    const key = match[1];
+    if (key && valid.has(key) && !seen.has(key)) {
+      seen.add(key);
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+export function renderClfTemplatePreview(rat: CLFDescriptionTemplateRat, template: string, disabledPlaceholders?: ReadonlySet<string>): string {
+  const source = template.trim() || CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat];
+  return renderCLFDescriptionTemplate(source, (key) => {
+    if (disabledPlaceholders?.has(key)) return "";
+    return CLF_DESCRIPTION_TEMPLATE_PREVIEW_VALUES[rat][key] ?? "";
+  });
 }

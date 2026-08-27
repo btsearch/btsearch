@@ -13,6 +13,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - UKE stations can now be added to lists individually from the map popup and the station details panel, instead of adding the whole location
 - Azimuth lines now appear for internal stations on list maps when the azimuth setting is enabled
 - Every station now has a public change history showing what was changed, when, and the previous and new values
+- CLF export metadata creator now shows toggleable field chips below each preview to simulate missing values and see how the template handles absent data
 
 ### 🩹 Fixes
 
