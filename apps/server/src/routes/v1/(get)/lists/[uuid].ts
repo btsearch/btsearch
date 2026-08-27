@@ -6,6 +6,7 @@ import {
   radioLinesManufacturers,
   radiolinesAntennaTypes,
   regions,
+  stationSectors,
   stations,
   ukeLocations,
   ukePermitSectors,
@@ -92,11 +93,13 @@ const locationSchema = createSelectSchema(locations).omit({ point: true, region_
 const bandsSchema = createSelectSchema(bands);
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
 const stationsSchema = createSelectSchema(stations).omit({ status: true, operator_id: true, location_id: true });
+const sectorResponseSchema = createSelectSchema(stationSectors).omit({ station_id: true });
 const cellResponseSchema = cellsSchema.extend({ band: bandsSchema });
 const stationResponseSchema = stationsSchema.extend({
   cells: z.array(cellResponseSchema),
   location: locationSchema.extend({ region: regionSchema }),
   operator: operatorSchema,
+  sectors: z.array(sectorResponseSchema).optional(),
 });
 const radioLineResponseSchema = z.object({
   id: z.number(),
@@ -188,6 +191,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
             },
             location: { columns: { point: false, region_id: false }, with: { region: true } },
             operator: true,
+            ...(azimuths ? { sectors: { columns: { station_id: false }, orderBy: { id: "asc" } } } : {}),
           },
           where: {
             id: { in: stationIds },

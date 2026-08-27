@@ -62,7 +62,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   }, []);
   const handleFilterQueryChange = useCallback((_q: string | undefined) => {}, []);
 
-  const wantAzimuths = preferences.showAzimuths && filters.source === "uke";
+  const wantAzimuths = preferences.showAzimuths;
   const { data: listData, isLoading, isError } = useListDetail(uuid, wantAzimuths);
 
   const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();

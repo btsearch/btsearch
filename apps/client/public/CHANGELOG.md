@@ -11,6 +11,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Review and revoke access for authorized applications anytime in Settings → Security
 - Active sessions now appear next to the password and passkey settings on desktop
 - UKE stations can now be added to lists individually from the map popup and the station details panel, instead of adding the whole location
+- Azimuth lines now appear for internal stations on list maps when the azimuth setting is enabled
 
 ### 🩹 Fixes
 
