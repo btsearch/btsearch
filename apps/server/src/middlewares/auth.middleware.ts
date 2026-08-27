@@ -21,6 +21,7 @@ const TWO_FACTOR_ALLOWED = [
 import type { TokenTier } from "../interfaces/auth.interface.ts";
 import type { ApiToken } from "../interfaces/fastify.interface.js";
 import type { Route } from "../interfaces/routes.interface.js";
+import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../services/oauthToken.service.js";
 
 export async function authHook(req: FastifyRequest, _: FastifyReply) {
   const route = req.routeOptions as unknown as Route;
@@ -35,6 +36,20 @@ export async function authHook(req: FastifyRequest, _: FastifyReply) {
 
   const { headers } = req;
   const authHeader = headers["x-api-key"];
+
+  const authorizationHeader = headers.authorization;
+  const bearerToken =
+    !authHeader && typeof authorizationHeader === "string" && authorizationHeader.startsWith("Bearer ") ? authorizationHeader.slice(7).trim() : null;
+  if (bearerToken && isOAuthBearerToken(bearerToken)) {
+    const verified = await verifyOAuthAccessToken(bearerToken);
+    if (!verified) throw new ErrorResponse("UNAUTHORIZED");
+    if (!hasRequiredScopes(verified.token, route?.config?.permissions)) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+
+    req.userSession = verified.userSession;
+    req.oauthToken = verified.token;
+    return;
+  }
+
   if (!authHeader) {
     const user = await getCurrentUser(req);
     const allowGuest = route?.config?.allowGuestAccess && !settings.enforceAuthForAllRoutes;

@@ -3,6 +3,14 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 # 2026-08-27
 
+### 🚀 Enhancements
+
+- Third-party applications can now sign you in with your BTSearch account via OAuth2 and act on your behalf within the permissions you approve
+- New authorization screen shows exactly which application is requesting access and what it will be able to do before you allow it
+- Register your own OAuth applications in Settings → Security to integrate your website or tool with BTSearch
+- Review and revoke access for authorized applications anytime in Settings → Security
+- Active sessions now appear next to the password and passkey settings on desktop
+
 ### 🩹 Fixes
 
 - The terrain profile panel now uses mobile screen space more efficiently, keeping the full chart and key results visible with less scrolling

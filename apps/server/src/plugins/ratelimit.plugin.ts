@@ -37,6 +37,10 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/api/v1/auth/callback/github", max: 10, window: 300 },
       { url: "/api/v1/auth/forget-password", max: 5, window: 300 },
       { url: "/api/v1/auth/reset-password", max: 5, window: 300 },
+      { url: "/api/v1/auth/oauth2/token", max: 20, window: 60 },
+      { url: "/api/v1/auth/oauth2/authorize", max: 30, window: 60 },
+      { url: "/api/v1/auth/oauth2/consent", max: 15, window: 60 },
+      { url: "/api/v1/auth/oauth2/create-client", max: 10, window: 3600 },
       {
         url: "/api/v1/terrain-profile/analyses",
         max: 15,

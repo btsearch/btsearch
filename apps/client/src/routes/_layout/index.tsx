@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 
+import { OAuthConsentGate } from "@/components/oauth/consentGate";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 
 const MapView = lazy(() => import("@/features/map/components/mapView"));
@@ -17,6 +18,7 @@ function Page() {
       <Suspense fallback={mapFallback}>
         <MapView />
       </Suspense>
+      <OAuthConsentGate />
     </div>
   );
 }

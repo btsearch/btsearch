@@ -22,6 +22,7 @@ import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
+import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
 import { initRuntimeSettings } from "./services/settings.service.js";
 import { logger, serializeError } from "./utils/logger.js";
@@ -191,6 +192,8 @@ export default class App {
         maxAge: 86400,
       })
       .register(import("@fastify/multipart"));
+
+    this.fastify.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => done(null, body));
   }
 
   private initControllers(): void {
@@ -213,6 +216,8 @@ export default class App {
       decorateReply: false,
     });
     this.fastify.get("/api/v1/openapi.yaml", (_req, res) => res.sendFile("openapi.yaml"));
+    this.fastify.get("/.well-known/openid-configuration", async (_req, res) => res.send(await auth.api.getOpenIdConfig()));
+    this.fastify.get("/.well-known/oauth-authorization-server", async (_req, res) => res.send(await auth.api.getOAuthServerConfig()));
     this.fastify.register(APIv1Controller, { prefix: "/api/v1" });
   }
 

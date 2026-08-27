@@ -5,10 +5,19 @@ import {
   apikeys,
   attachments,
   auditLogs,
+  jwks,
   locationPhotos,
   notifications,
+  oauthAccessTokens,
+  oauthClientAssertions,
+  oauthClientResources,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  oauthResources,
   passkeys,
   pushSubscriptions,
+  sessions,
   stationComments,
   stationPhotoSelections,
   stationWatches,
@@ -86,9 +95,18 @@ export const relations = defineRelations(
     apikeys,
     attachments,
     auditLogs,
+    jwks,
     notifications,
+    oauthAccessTokens,
+    oauthClientAssertions,
+    oauthClientResources,
+    oauthClients,
+    oauthConsents,
+    oauthRefreshTokens,
+    oauthResources,
     passkeys,
     pushSubscriptions,
+    sessions,
     locationPhotos,
     stationComments,
     stationPhotoSelections,
@@ -271,6 +289,9 @@ export const relations = defineRelations(
       lists: helpers.many.userLists(),
       apiKeys: helpers.many.apikeys(),
       passkeys: helpers.many.passkeys(),
+      sessions: helpers.many.sessions(),
+      oauthClients: helpers.many.oauthClients(),
+      oauthConsents: helpers.many.oauthConsents(),
       twoFactors: helpers.many.twoFactors(),
       attachments: helpers.many.attachments({
         from: helpers.users.id,
@@ -316,6 +337,59 @@ export const relations = defineRelations(
     accounts: {
       users: helpers.one.users({
         from: helpers.accounts.userId,
+        to: helpers.users.id,
+      }),
+    },
+    sessions: {
+      user: helpers.one.users({
+        from: helpers.sessions.userId,
+        to: helpers.users.id,
+      }),
+    },
+    oauthClients: {
+      user: helpers.one.users({
+        from: helpers.oauthClients.userId,
+        to: helpers.users.id,
+      }),
+      accessTokens: helpers.many.oauthAccessTokens(),
+      refreshTokens: helpers.many.oauthRefreshTokens(),
+      consents: helpers.many.oauthConsents(),
+    },
+    oauthAccessTokens: {
+      client: helpers.one.oauthClients({
+        from: helpers.oauthAccessTokens.clientId,
+        to: helpers.oauthClients.clientId,
+      }),
+      user: helpers.one.users({
+        from: helpers.oauthAccessTokens.userId,
+        to: helpers.users.id,
+      }),
+      session: helpers.one.sessions({
+        from: helpers.oauthAccessTokens.sessionId,
+        to: helpers.sessions.id,
+      }),
+    },
+    oauthRefreshTokens: {
+      client: helpers.one.oauthClients({
+        from: helpers.oauthRefreshTokens.clientId,
+        to: helpers.oauthClients.clientId,
+      }),
+      user: helpers.one.users({
+        from: helpers.oauthRefreshTokens.userId,
+        to: helpers.users.id,
+      }),
+      session: helpers.one.sessions({
+        from: helpers.oauthRefreshTokens.sessionId,
+        to: helpers.sessions.id,
+      }),
+    },
+    oauthConsents: {
+      client: helpers.one.oauthClients({
+        from: helpers.oauthConsents.clientId,
+        to: helpers.oauthClients.clientId,
+      }),
+      user: helpers.one.users({
+        from: helpers.oauthConsents.userId,
         to: helpers.users.id,
       }),
     },

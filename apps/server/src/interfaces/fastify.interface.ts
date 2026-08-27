@@ -12,6 +12,7 @@ import type {
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
 import type { auth } from "../plugins/betterauth.plugin.js";
+import type { OAuthTokenContext } from "../services/oauthToken.service.js";
 import type { TokenTier } from "./auth.interface.js";
 
 export type Session = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
@@ -36,9 +37,8 @@ declare module "fastify" {
   export interface FastifyRequest {
     requestStartTime: bigint;
     apiToken: ApiToken;
+    oauthToken: OAuthTokenContext | null;
     publishableKey: { id: string; name: string | null; tier: TokenTier } | null;
-    // TODO: to check again later on
-    // oxlint-disable-next-line typescript/no-redundant-type-constituents: Better Auth broke types?
     userSession: Session | null;
   }
 

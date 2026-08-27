@@ -40,14 +40,14 @@ export function useTerrainProfileAnalysis({ enabled, station, receiver, antennaK
 
   useEffect(() => {
     const prev = previousAnalysisIdRef.current;
-    if (prev && prev !== analysisId) cancelTerrainProfileAnalysis(prev);
+    if (prev && prev !== analysisId) void cancelTerrainProfileAnalysis(prev);
     previousAnalysisIdRef.current = analysisId;
   }, [analysisId]);
 
   useEffect(() => {
     return () => {
       const id = previousAnalysisIdRef.current;
-      if (id) cancelTerrainProfileAnalysis(id);
+      if (id) void cancelTerrainProfileAnalysis(id);
     };
   }, []);
 

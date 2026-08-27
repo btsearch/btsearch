@@ -7,7 +7,9 @@ import {
   InstagramIcon,
   Key01Icon,
   Mail01Icon,
+  PuzzleIcon,
   SecurityLockIcon,
+  SourceCodeIcon,
   UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -18,7 +20,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ApiKeysCard } from "@/components/account/apikeysCard";
+import { AuthorizedAppsCard } from "@/components/account/authorizedAppsCard";
 import { AvatarCard } from "@/components/account/avatarCard";
+import { OAuthAppsCard } from "@/components/account/oauthAppsCard";
 import { PasswordCard } from "@/components/account/passwordCard";
 import { DeleteAccount } from "@/components/auth/delete-user/delete-account";
 import { Passkeys } from "@/components/auth/passkey/passkeys";
@@ -515,16 +519,26 @@ function AccountSettingsPage() {
                   <Passkeys />
                 </div>
               </section>
-            </div>
 
-            <section className="space-y-4">
-              <SectionHeader icon={ComputerIcon} title={t("sessions.title")} description={t("sessions.description")} />
-              <ActiveSessions />
-            </section>
+              <section className="space-y-4">
+                <SectionHeader icon={ComputerIcon} title={t("sessions.title")} description={t("sessions.description")} />
+                <ActiveSessions />
+              </section>
+            </div>
 
             <section className="space-y-4">
               <SectionHeader icon={Key01Icon} title={t("apiKeys.title")} description={t("apiKeys.description")} />
               <ApiKeysCard userId={user.id} />
+            </section>
+
+            <section className="space-y-4">
+              <SectionHeader icon={PuzzleIcon} title={t("oauth:authorized.title")} description={t("oauth:authorized.description")} />
+              <AuthorizedAppsCard userId={user.id} />
+            </section>
+
+            <section className="space-y-4">
+              <SectionHeader icon={SourceCodeIcon} title={t("oauth:apps.title")} description={t("oauth:apps.description")} />
+              <OAuthAppsCard userId={user.id} />
             </section>
 
             <section className="space-y-4 border-t border-destructive/20 pt-8 pb-6">

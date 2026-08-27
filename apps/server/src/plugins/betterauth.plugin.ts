@@ -1,11 +1,12 @@
 import { apiKey } from "@better-auth/api-key";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { hash, verify } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import { type GenericEndpointContext, betterAuth } from "better-auth";
 import { fromNodeHeaders } from "better-auth/node";
-import { admin, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
+import { admin, jwt, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
 import type { FastifyRequest } from "fastify";
 
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
@@ -15,6 +16,7 @@ import type { UserRole } from "../interfaces/auth.interface.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { afterAuthHook, beforeAuthHook } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
+import { OAUTH_SCOPES } from "./auth/scopes.js";
 
 export function mapHeaders(headers: { [s: string]: unknown } | ArrayLike<unknown>) {
   const entries = Object.entries(headers);
@@ -137,6 +139,7 @@ export const auth = betterAuth({
       ...schema,
       verifications: schema.verificationTokens,
       apikeys: schema.apikeys,
+      jwkss: schema.jwks,
     },
   }),
   emailAndPassword: {
@@ -200,8 +203,22 @@ export const auth = betterAuth({
         enabled: false,
       },
     }),
+    jwt(),
     lastLoginMethod(),
     multiSession(),
+    oauthProvider({
+      loginPage: `${TRUSTED_ORIGIN}/`,
+      consentPage: `${TRUSTED_ORIGIN}/`,
+      scopes: OAUTH_SCOPES,
+      clientRegistrationDefaultScopes: OAUTH_SCOPES,
+      clientRegistrationAllowedScopes: OAUTH_SCOPES,
+      refreshTokenReuseInterval: 30,
+      prefix: {
+        opaqueAccessToken: "oat_",
+        refreshToken: "ort_",
+        clientSecret: "ocs_",
+      },
+    }),
     username({
       minUsernameLength: 3,
       maxUsernameLength: 25,
@@ -235,6 +252,7 @@ export const auth = betterAuth({
     },
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
+    storeSessionInDatabase: true,
   },
   secondaryStorage: {
     get: async (key) => {
@@ -260,7 +278,7 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [TRUSTED_ORIGIN],
-  disabledPaths: ["/is-username-available"],
+  disabledPaths: ["/is-username-available", "/token"],
 });
 
 export function getCurrentUser(req: FastifyRequest) {

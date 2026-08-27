@@ -263,7 +263,7 @@ const getAdminSubmissions: Route<ReqQuery, ResponseBody> = {
   method: "GET",
   schema: schemaRoute,
   config: {
-    permissions: ["submissions:read"],
+    permissions: ["read:submissions"],
   },
   handler: handler,
 };

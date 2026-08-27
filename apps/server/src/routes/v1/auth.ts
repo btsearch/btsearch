@@ -17,7 +17,7 @@ async function handler(req: FastifyRequest, res: FastifyReply) {
     const request = new Request(url.toString(), {
       method: req.method,
       headers,
-      body: req.body ? JSON.stringify(req.body) : undefined,
+      body: req.body ? (typeof req.body === "string" ? req.body : JSON.stringify(req.body)) : undefined,
     });
 
     const response = await auth.handler(request);

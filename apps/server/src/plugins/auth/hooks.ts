@@ -110,11 +110,19 @@ async function handleSocialSignIn(ctx: HookCtx) {
   if (key) await checkAccountLimit(key);
 }
 
+async function handleOAuthClientWrite(ctx: HookCtx) {
+  const body = ctx.body as { logo_uri?: unknown; update?: { logo_uri?: unknown } } | undefined;
+  if (body?.logo_uri !== undefined || body?.update?.logo_uri !== undefined)
+    throw new APIError("BAD_REQUEST", { message: "Custom application logos are not supported" });
+}
+
 const beforeHandlers: Array<{ path: string; handler: (ctx: HookCtx) => Promise<unknown> }> = [
   { path: "/sign-up/email", handler: handleSignUp },
   { path: "/sign-in/social", handler: handleSocialSignIn },
   { path: "/admin/set-user-password", handler: handleSetUserPassword },
   { path: "/api-key/create", handler: handleApiKeyCreate },
+  { path: "/oauth2/create-client", handler: handleOAuthClientWrite },
+  { path: "/oauth2/update-client", handler: handleOAuthClientWrite },
 ];
 
 export const beforeAuthHook = createAuthMiddleware(async (ctx) => {

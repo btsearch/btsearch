@@ -12,6 +12,7 @@ import enUSLists from "./locales/en-US/lists.json";
 import enUSMain from "./locales/en-US/main.json";
 import enUSNav from "./locales/en-US/nav.json";
 import enUSNotifications from "./locales/en-US/notifications.json";
+import enUSOAuth from "./locales/en-US/oauth.json";
 import enUSPem from "./locales/en-US/pem.json";
 import enUSSettings from "./locales/en-US/settings.json";
 import enUSSpectrum from "./locales/en-US/spectrum.json";
@@ -31,6 +32,7 @@ import plPLLists from "./locales/pl-PL/lists.json";
 import plPLMain from "./locales/pl-PL/main.json";
 import plPLNav from "./locales/pl-PL/nav.json";
 import plPLNotifications from "./locales/pl-PL/notifications.json";
+import plPLOAuth from "./locales/pl-PL/oauth.json";
 import plPLPem from "./locales/pl-PL/pem.json";
 import plPLSettings from "./locales/pl-PL/settings.json";
 import plPLSpectrum from "./locales/pl-PL/spectrum.json";
@@ -62,6 +64,7 @@ export const resources = {
     pem: enUSPem,
     kmz: enUSKMZ,
     terrainProfile: enUSTerrainProfile,
+    oauth: enUSOAuth,
   },
   "pl-PL": {
     common: plPLCommon,
@@ -83,6 +86,7 @@ export const resources = {
     pem: plPLPem,
     kmz: plPLKMZ,
     terrainProfile: plPLTerrainProfile,
+    oauth: plPLOAuth,
   },
 } as const;
 
@@ -123,6 +127,7 @@ void i18n.use(initReactI18next).init({
     "lists",
     "ntmAnalyzer",
     "terrainProfile",
+    "oauth",
   ],
   interpolation: {
     escapeValue: false,

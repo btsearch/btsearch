@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
+import { getDateFormatter } from "@/lib/dateFormat";
 import { cn } from "@/lib/utils";
 
 type ApiKeyInfo = {
@@ -279,7 +280,7 @@ export function ApiKeysCard({ userId }: { userId: string }) {
   }
 
   function formatDate(dateStr: string) {
-    return new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric", year: "numeric" }).format(new Date(dateStr));
+    return getDateFormatter(i18n.language).format(new Date(dateStr));
   }
 
   if (isLoading) {
