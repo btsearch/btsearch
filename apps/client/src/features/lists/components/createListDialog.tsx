@@ -16,7 +16,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   initialStationId?: number;
   initialRadiolineIds?: number[];
-  initialUkeLocationId?: number;
+  initialUkeStationId?: number;
 };
 
 type ToggleProps = { checked: boolean; onChange: (checked: boolean) => void };
@@ -40,7 +40,7 @@ function Toggle({ checked, onChange }: ToggleProps): JSX.Element {
   );
 }
 
-export function CreateListDialog({ open, onOpenChange, initialStationId, initialRadiolineIds, initialUkeLocationId }: Props): JSX.Element {
+export function CreateListDialog({ open, onOpenChange, initialStationId, initialRadiolineIds, initialUkeStationId }: Props): JSX.Element {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
@@ -67,7 +67,7 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
       is_public: isPublic,
       stations: {
         internal: initialStationId ? [initialStationId] : [],
-        uke: initialUkeLocationId ? [initialUkeLocationId] : [],
+        uke: initialUkeStationId ? [initialUkeStationId] : [],
       },
       radiolines: initialRadiolineIds ?? [],
     });

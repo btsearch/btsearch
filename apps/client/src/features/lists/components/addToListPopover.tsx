@@ -65,7 +65,7 @@ function ListContent({ isLoading, lists, isPending, pendingUuid, handleToggle, i
 type AddToListPopoverProps = {
   stationId?: number;
   radiolineIds?: number[];
-  ukeLocationId?: number;
+  ukeStationId?: number;
   size?: "sm" | "md";
   className?: string;
   showLabel?: boolean;
@@ -85,7 +85,7 @@ export function AddToListPopover(props: AddToListPopoverProps) {
 function AddToListPopoverInner({
   stationId,
   radiolineIds,
-  ukeLocationId,
+  ukeStationId,
   size = "sm",
   className,
   showLabel = false,
@@ -115,9 +115,9 @@ function AddToListPopoverInner({
       const inList = list.stations.internal.includes(stationId);
       const internal = inList ? list.stations.internal.filter((id) => id !== stationId) : [...list.stations.internal, stationId];
       toggleMutation.mutate({ uuid: list.uuid, data: { stations: { internal, uke: list.stations.uke } } });
-    } else if (ukeLocationId) {
-      const inList = list.stations.uke.includes(ukeLocationId);
-      const uke = inList ? list.stations.uke.filter((id) => id !== ukeLocationId) : [...list.stations.uke, ukeLocationId];
+    } else if (ukeStationId) {
+      const inList = list.stations.uke.includes(ukeStationId);
+      const uke = inList ? list.stations.uke.filter((id) => id !== ukeStationId) : [...list.stations.uke, ukeStationId];
       toggleMutation.mutate({ uuid: list.uuid, data: { stations: { internal: list.stations.internal, uke } } });
     } else if (radiolineIds) {
       const radiolineSet = new Set(radiolineIds);
@@ -129,7 +129,7 @@ function AddToListPopoverInner({
 
   function isChecked(list: UserListSummary) {
     if (stationId) return list.stations.internal.includes(stationId);
-    if (ukeLocationId) return list.stations.uke.includes(ukeLocationId);
+    if (ukeStationId) return list.stations.uke.includes(ukeStationId);
     if (radiolineIds) return radiolineIds.every((id) => list.radiolines.includes(id));
     return false;
   }
@@ -139,7 +139,7 @@ function AddToListPopoverInner({
     [data, session?.user?.id],
   );
 
-  const icon = stationId || ukeLocationId ? AirportTowerIcon : SignalFull02Icon;
+  const icon = stationId || ukeStationId ? AirportTowerIcon : SignalFull02Icon;
   const iconSize = size === "sm" ? "size-3" : "size-4";
   const buttonPadding = size === "sm" ? "p-0.5" : "p-1.5";
   const label = t("lists:addToList");
@@ -210,7 +210,7 @@ function AddToListPopoverInner({
             onOpenChange={setCreateOpen}
             initialStationId={stationId}
             initialRadiolineIds={radiolineIds}
-            initialUkeLocationId={ukeLocationId}
+            initialUkeStationId={ukeStationId}
           />
         </Suspense>
       ) : null}

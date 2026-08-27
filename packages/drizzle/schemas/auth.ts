@@ -547,6 +547,8 @@ export const userLists = pgTable(
     unique("user_lists_creator_name_unique").on(t.created_by, t.name),
     check("user_lists_stations_is_object", sql`jsonb_typeof(${t.stations}) = 'object'`),
     index("user_lists_radiolines_gin").using("gin", t.radiolines),
+    index("user_lists_stations_internal_gin").using("gin", sql`(${t.stations} -> 'internal')`),
+    index("user_lists_stations_uke_gin").using("gin", sql`(${t.stations} -> 'uke')`),
     check("user_lists_radiolines_is_array", sql`jsonb_typeof(${t.radiolines}) = 'array'`),
   ],
 );

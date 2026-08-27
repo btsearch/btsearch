@@ -14,6 +14,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
@@ -140,6 +141,7 @@ export function UkePermitDetailsDialogPanel({
             <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
               {stationLocation && (
                 <>
+                  <AddToListPopover ukeStationId={ukeStation.id} size="md" className={stationDialogHeaderIconActionClassName} />
                   <WatchButton stationId={ukeStation.id} source="uke" size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
                     title={`${station_id} (${operator?.name ?? "UKE"})`}

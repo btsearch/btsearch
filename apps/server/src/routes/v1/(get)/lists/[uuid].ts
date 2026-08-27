@@ -170,10 +170,10 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   const stationsObj = (list.stations as { internal: number[]; uke: number[] }) ?? { internal: [], uke: [] };
   const stationIds = stationsObj.internal ?? [];
-  const ukeLocationIds = stationsObj.uke ?? [];
+  const ukeStationIds = stationsObj.uke ?? [];
   const radiolineIds = (list.radiolines as number[]) ?? [];
 
-  const [stationsData, radiolinesData, ukeLocationsDataRaw] = await Promise.all([
+  const [stationsData, radiolinesData, ukeStationsDataRaw] = await Promise.all([
     stationIds.length
       ? db.query.stations.findMany({
           columns: {
@@ -210,29 +210,37 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
           },
         })
       : [],
-    ukeLocationIds.length
-      ? db.query.ukeLocations.findMany({
-          columns: { point: false, region_id: false },
+    ukeStationIds.length
+      ? db.query.ukeStations.findMany({
+          columns: { operator_id: false, location_id: false },
           with: {
-            region: true,
-            stations: {
-              columns: { operator_id: false, location_id: false },
+            operator: true,
+            location: { columns: { point: false, region_id: false }, with: { region: true } },
+            permits: {
+              columns: { uke_station_id: false, band_id: false },
               with: {
-                operator: true,
-                permits: {
-                  columns: { uke_station_id: false, band_id: false },
-                  with: {
-                    band: true,
-                    ...(azimuths ? { sectors: { columns: { permit_id: false } } } : {}),
-                  },
-                },
+                band: true,
+                ...(azimuths ? { sectors: { columns: { permit_id: false } } } : {}),
               },
             },
           },
-          where: { id: { in: ukeLocationIds } },
+          where: { id: { in: ukeStationIds } },
         })
       : [],
   ]);
+
+  type UkeStationRow = (typeof ukeStationsDataRaw)[number];
+  const ukeLocationMap = new Map<number, UkeStationRow["location"] & { stations: Omit<UkeStationRow, "location">[] }>();
+  for (const ukeStation of ukeStationsDataRaw) {
+    const { location, ...stationData } = ukeStation;
+    let entry = ukeLocationMap.get(location.id);
+    if (!entry) {
+      entry = { ...location, stations: [] };
+      ukeLocationMap.set(location.id, entry);
+    }
+    entry.stations.push(stationData);
+  }
+  const ukeLocationsData = [...ukeLocationMap.values()];
 
   const mappedRadiolines: RadioLineResponse[] = radiolinesData.map((radioLine) => ({
     id: radioLine.id,
@@ -288,7 +296,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       notificationsEnabled: list.notificationsEnabled,
       stations: stationsData,
       radiolines: mappedRadiolines,
-      ukeLocations: ukeLocationsDataRaw,
+      ukeLocations: ukeLocationsData,
       createdAt: list.createdAt,
       updatedAt: list.updatedAt,
     },

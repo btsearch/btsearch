@@ -10,9 +10,11 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Register your own OAuth applications in Settings → Security to integrate your website or tool with BTSearch
 - Review and revoke access for authorized applications anytime in Settings → Security
 - Active sessions now appear next to the password and passkey settings on desktop
+- UKE stations can now be added to lists individually from the map popup and the station details panel, instead of adding the whole location
 
 ### 🩹 Fixes
 
+- Notifications for lists now correctly trigger on UKE permit changes for stations in the list
 - The terrain profile panel now uses mobile screen space more efficiently, keeping the full chart and key results visible with less scrolling
 
 # 2026-08-24
