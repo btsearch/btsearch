@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 
+const OBSTRUCTION_RELEASE_DELAY_MS = 1_000;
+const OBSTRUCTION_SETTLE_DELAY_MS = 400;
+
 // Google top anchor ads push the page down, clipping the bottom of the 100dvh app shell
 export function useTopViewportObstruction() {
   useEffect(() => {
@@ -7,21 +10,50 @@ export function useTopViewportObstruction() {
     if (!root) return;
 
     let frame = 0;
-    let settle: ReturnType<typeof setTimeout> | undefined;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    let pendingDecrease: number | undefined;
+    let decreaseTimer: ReturnType<typeof setTimeout> | undefined;
     let lastOffset = -1;
 
-    const measure = () => {
-      const offset = Math.max(0, Math.round(root.getBoundingClientRect().top));
+    const readOffset = () => Math.max(0, Math.round(root.getBoundingClientRect().top));
+    const applyOffset = (offset: number) => {
       if (offset === lastOffset) return;
       lastOffset = offset;
       document.documentElement.style.setProperty("--top-viewport-obstruction", `${offset}px`);
     };
+    const clearPendingDecrease = () => {
+      clearTimeout(decreaseTimer);
+      decreaseTimer = undefined;
+      pendingDecrease = undefined;
+    };
+    const processOffset = (offset: number) => {
+      if (offset >= lastOffset) {
+        clearPendingDecrease();
+        applyOffset(offset);
+        return;
+      }
+      if (offset === pendingDecrease && decreaseTimer !== undefined) return;
+
+      clearPendingDecrease();
+      pendingDecrease = offset;
+      decreaseTimer = setTimeout(() => {
+        decreaseTimer = undefined;
+        pendingDecrease = undefined;
+        const confirmedOffset = readOffset();
+        if (confirmedOffset === offset) {
+          applyOffset(confirmedOffset);
+          return;
+        }
+        processOffset(confirmedOffset);
+      }, OBSTRUCTION_RELEASE_DELAY_MS);
+    };
+    const measure = () => processOffset(readOffset());
 
     const schedule = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(measure);
-      clearTimeout(settle);
-      settle = setTimeout(measure, 400);
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(measure, OBSTRUCTION_SETTLE_DELAY_MS);
     };
 
     let siblingObservers: MutationObserver[] = [];
@@ -50,7 +82,8 @@ export function useTopViewportObstruction() {
       observer.disconnect();
       for (const siblingObserver of siblingObservers) siblingObserver.disconnect();
       cancelAnimationFrame(frame);
-      clearTimeout(settle);
+      clearTimeout(settleTimer);
+      clearPendingDecrease();
       window.removeEventListener("resize", schedule);
       window.visualViewport?.removeEventListener("resize", schedule);
     };
