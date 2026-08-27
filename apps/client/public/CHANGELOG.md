@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-27
+
+### 🩹 Fixes
+
+- The terrain profile panel now uses mobile screen space more efficiently, keeping the full chart and key results visible with less scrolling
+
 # 2026-08-24
 
 ### 🚀 Enhancements

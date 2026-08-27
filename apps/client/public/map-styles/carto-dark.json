@@ -7,11 +7,11 @@
   "sources": {
     "carto": {
       "type": "vector",
-      "url": "https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json"
+      "url": "https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json?key=cb1_27le_1_93b48b76757452137be3df15"
     }
   },
-  "sprite": "https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/sprite",
-  "glyphs": "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
+  "sprite": "https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/sprite?key=cb1_27le_1_93b48b76757452137be3df15",
+  "glyphs": "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf?key=cb1_27le_1_93b48b76757452137be3df15",
   "layers": [
     {
       "id": "background",

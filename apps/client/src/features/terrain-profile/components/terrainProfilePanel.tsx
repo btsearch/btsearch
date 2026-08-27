@@ -193,17 +193,23 @@ export default function TerrainProfilePanel({
   };
 
   return (
-    <section className="flex max-h-[inherit] min-h-0 flex-col overflow-hidden rounded-lg border bg-background/95 text-foreground shadow-xl backdrop-blur-md animate-in fade-in duration-150">
-      <div {...headerDragProps} className={cn("shrink-0 border-b", headerDragProps?.className)}>
+    <section className="flex max-h-[inherit] min-h-0 flex-col overflow-y-auto overscroll-contain rounded-lg border bg-background/95 text-foreground shadow-xl backdrop-blur-md animate-in fade-in duration-150 md:overflow-hidden">
+      <div
+        {...headerDragProps}
+        className={cn(
+          "sticky top-0 z-10 shrink-0 border-b bg-background/95 backdrop-blur-md md:static md:z-auto md:bg-transparent md:backdrop-blur-none",
+          headerDragProps?.className,
+        )}
+      >
         <div
-          className="flex items-start gap-3 px-4 py-3"
+          className="relative flex flex-col gap-2 px-3 py-2.5 md:flex-row md:items-start md:gap-3 md:px-4 md:py-3"
           style={
             operatorSwatchColor
               ? { backgroundImage: `linear-gradient(115deg, ${operatorSwatchColor}24 0%, ${operatorSwatchColor}0f 34%, transparent 70%)` }
               : undefined
           }
         >
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-8 md:pr-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               {hasStation ? (
                 <>
@@ -230,7 +236,7 @@ export default function TerrainProfilePanel({
               </div>
             ) : null}
           </div>
-          <div className="-mt-0.5 -mr-1 flex shrink-0 items-center gap-1">
+          <div className="flex w-full min-w-0 items-center gap-1 md:-mt-0.5 md:-mr-1 md:w-auto md:shrink-0">
             <ReceiverHeightField receiver={receiver} onCommit={onReceiverHeightChange} />
             <Button
               type="button"
@@ -254,7 +260,7 @@ export default function TerrainProfilePanel({
                   onAntennaChange(value);
                 }}
               >
-                <SelectTrigger className="h-7 w-44 text-xs" aria-label={t("selection.title")}>
+                <SelectTrigger className="h-7 min-w-0 flex-1 text-xs md:w-44 md:flex-none" aria-label={t("selection.title")}>
                   <SelectValue placeholder={t("selection.placeholder")} />
                 </SelectTrigger>
                 <SelectContent className="min-w-56">
@@ -270,7 +276,7 @@ export default function TerrainProfilePanel({
               type="button"
               onClick={onClose}
               aria-label={t("common:actions.close")}
-              className="flex size-7 items-center justify-center rounded-md transition-colors hover:bg-muted"
+              className="absolute top-2.5 right-3 flex size-7 items-center justify-center rounded-md transition-colors hover:bg-muted md:static"
             >
               <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
             </button>
@@ -278,7 +284,7 @@ export default function TerrainProfilePanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 custom-scrollbar scrollbar-gutter-stable">
+      <div className="shrink-0 overflow-visible px-3 py-3 custom-scrollbar scrollbar-gutter-stable md:min-h-0 md:flex-1 md:overflow-y-auto">
         {gpsError !== null ? (
           <div id="terrain-profile-gps-error" role="alert" className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-destructive">
             <HugeiconsIcon icon={AlertCircleIcon} className="mt-px size-3.5 shrink-0" />

@@ -111,7 +111,7 @@ export default function TerrainProfileSurface(props: TerrainProfileSurfaceProps)
   );
 
   const content = isMobile ? (
-    <div className="pointer-events-auto fixed inset-x-2 bottom-[calc(3rem+var(--floating-nav-map-offset,0rem)+env(safe-area-inset-bottom))] z-40 max-h-[58dvh]">
+    <div className="pointer-events-auto fixed inset-x-2 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 max-h-[min(85dvh,calc(100dvh-4rem-env(safe-area-inset-bottom)))]">
       <TerrainProfilePanel {...props} />
     </div>
   ) : (
