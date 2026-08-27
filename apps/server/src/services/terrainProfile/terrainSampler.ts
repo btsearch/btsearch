@@ -1,7 +1,6 @@
 import { sql as postgres } from "@openbts/drizzle/db";
 import { createHash } from "node:crypto";
 
-import { logger } from "../../utils/logger.js";
 import { withRedisStaleCache } from "./cache.js";
 import { TERRAIN_PROFILE_MAX_DISTANCE_M, TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
 import type { ResolvedTerrainStation, TerrainProfileRequest, TerrainSampleResult } from "./types.js";
@@ -134,6 +133,7 @@ async function fetchCoverage(url: string, coverage: string, points: SamplePoint[
 async function fetchCoverageOrNull(url: string, coverage: string, points: SamplePoint[], resolutionM: number): Promise<AaiGrid | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      // oxlint-disable-next-line no-await-in-loop -- retries are intentionally sequential
       return await fetchCoverage(url, coverage, points, resolutionM);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

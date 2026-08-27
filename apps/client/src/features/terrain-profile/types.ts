@@ -59,7 +59,7 @@ export type TerrainProfileAnalysisRequest = {
 
 export function samplesFromArrays(arrays: TerrainPathSamples): TerrainProfileSample[] {
   const n = arrays.distance_m.length;
-  const result: TerrainProfileSample[] = new Array(n);
+  const result: TerrainProfileSample[] = Array.from({ length: n });
   for (let i = 0; i < n; i++) {
     result[i] = {
       distance_m: arrays.distance_m[i]!,

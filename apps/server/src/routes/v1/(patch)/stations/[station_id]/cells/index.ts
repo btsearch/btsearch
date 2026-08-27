@@ -9,7 +9,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../../../services/auditLog.service.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
 import { validateCellARFCNsForBands } from "../../../../../../utils/cellARFCNValidation.js";
 import { queueStationCellsChangedNotification } from "../../../../../../utils/notifications/stationCellChanges.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../utils/ratCellPersistence.js";
@@ -197,7 +197,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
     const cellsUpdated = response.map((cell) => {
       const oldFull = existingCells.find((c) => c.id === cell.id);
-      const { gsm, umts, lte, nr, ...oldBase } = oldFull ?? ({} as typeof oldFull & Record<string, never>);
+      const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, ...oldBase } = oldFull ?? ({} as typeof oldFull & Record<string, never>);
       const oldDetails = oldFull ? (oldFull.gsm ?? oldFull.umts ?? oldFull.lte ?? oldFull.nr ?? undefined) : undefined;
       return { old: { ...oldBase, details: oldDetails }, new: cell };
     });

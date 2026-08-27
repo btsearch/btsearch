@@ -134,8 +134,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     });
     const details = full?.gsm ?? full?.umts ?? full?.lte ?? full?.nr ?? null;
 
-    // oxlint-disable-next-line no-unused-vars: We want to remove those from the object
-    const { gsm, umts, lte, nr, ...oldBase } = cell;
+    const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, ...oldBase } = cell;
     const oldDetails = cell.gsm ?? cell.umts ?? cell.lte ?? cell.nr ?? null;
     await createAuditLog(
       {
