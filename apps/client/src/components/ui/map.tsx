@@ -1168,11 +1168,13 @@ function ControlButton({
   label,
   children,
   disabled = false,
+  active = false,
 }: {
   onClick: () => void;
   label: string;
   children: React.ReactNode;
   disabled?: boolean;
+  active?: boolean;
 }) {
   return (
     <button
@@ -1180,7 +1182,8 @@ function ControlButton({
       aria-label={label}
       type="button"
       className={cn(
-        "flex items-center justify-center size-8 hover:bg-accent dark:hover:bg-accent/40 transition-colors",
+        "flex items-center justify-center size-8 transition-colors",
+        active ? "bg-blue-500 text-white hover:bg-blue-600" : "hover:bg-accent dark:hover:bg-accent/40",
         disabled && "opacity-50 pointer-events-none cursor-not-allowed",
       )}
       disabled={disabled}
@@ -1206,6 +1209,8 @@ function MapControls({
   const [userLocation, setUserLocation] = useState<{ longitude: number; latitude: number; accuracy: number } | null>(null);
   const userLocationRef = useRef<{ longitude: number; latitude: number; accuracy: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const isFollowingRef = useRef(false);
 
   const [scaleLabel, setScaleLabel] = useState("");
   const [scaleWidth, setScaleWidth] = useState(0);
@@ -1252,7 +1257,10 @@ function MapControls({
   const handleLocate = useCallback(() => {
     if (watchIdRef.current !== null && userLocationRef.current) {
       const loc = userLocationRef.current;
-      map?.flyTo({ center: [loc.longitude, loc.latitude], zoom: 14, duration: 1500 });
+      const currentZoom = map?.getZoom() ?? 14;
+      map?.flyTo({ center: [loc.longitude, loc.latitude], zoom: Math.max(currentZoom, 14), duration: 1500 });
+      isFollowingRef.current = true;
+      setIsFollowing(true);
       return;
     }
     if (!("geolocation" in navigator)) return;
@@ -1268,6 +1276,10 @@ function MapControls({
           setWaitingForLocation(false);
           map?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 14, duration: 1500 });
           onLocate?.(coords);
+          isFollowingRef.current = true;
+          setIsFollowing(true);
+        } else if (isFollowingRef.current) {
+          map?.easeTo({ center: [coords.longitude, coords.latitude], duration: 500 });
         }
       },
       (error) => {
@@ -1278,6 +1290,20 @@ function MapControls({
     );
     watchIdRef.current = watchId;
   }, [map, onLocate]);
+
+  useEffect(() => {
+    if (!map) return;
+    const handleDragStart = () => {
+      if (isFollowingRef.current) {
+        isFollowingRef.current = false;
+        setIsFollowing(false);
+      }
+    };
+    map.on("dragstart", handleDragStart);
+    return () => {
+      map.off("dragstart", handleDragStart);
+    };
+  }, [map]);
 
   useEffect(() => {
     return () => {
@@ -1315,11 +1341,16 @@ function MapControls({
         )}
         {showLocate && (
           <ControlGroup>
-            <ControlButton onClick={handleLocate} label={userLocation ? "Center on my location" : "Find my location"} disabled={waitingForLocation}>
+            <ControlButton
+              onClick={handleLocate}
+              label={isFollowing ? "Following your location" : userLocation ? "Center on my location" : "Find my location"}
+              disabled={waitingForLocation}
+              active={isFollowing}
+            >
               {waitingForLocation ? (
                 <Spinner className="size-4" />
               ) : (
-                <HugeiconsIcon icon={Location01Icon} className={cn("size-4", userLocation && "text-blue-500")} />
+                <HugeiconsIcon icon={Location01Icon} className={cn("size-4", !isFollowing && userLocation && "text-blue-500")} />
               )}
             </ControlButton>
           </ControlGroup>
