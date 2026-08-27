@@ -7,7 +7,7 @@ import type { Band } from "@/types/station";
 
 import type { CellDraftBase } from "../cellEditRow";
 import { RAT_ORDER, compareRatCellDetails, findPreferredRatBand, getSharedDetailFields } from "../rat";
-import { applyMissingSectorPCISync } from "../sectorAssignmentSync";
+import { syncNRByPCI } from "../sectorAssignmentSync";
 
 type UseCellDraftsOptions<T extends CellDraftBase> = {
   initialCells: T[];
@@ -102,12 +102,8 @@ export function useCellDrafts<T extends CellDraftBase>({
 
   const syncMissingSectorsByPCIInRat = useCallback(
     (rat: string) => {
-      if (disabled) return;
-      setCells((prev) => {
-        const syncedCells = applyMissingSectorPCISync(prev.filter((cell) => cell.rat === rat));
-        const syncedByLocalId = new Map(syncedCells.map((cell) => [cell._localId, cell] as const));
-        return prev.map((cell) => (cell.rat === rat ? (syncedByLocalId.get(cell._localId) ?? cell) : cell));
-      });
+      if (disabled || rat !== "NR") return;
+      setCells((prev) => syncNRByPCI(prev));
     },
     [disabled],
   );

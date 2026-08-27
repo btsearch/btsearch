@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { applyMissingSectorPCISync } from "@/features/admin/cells/sectorAssignmentSync";
+import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { getCellDetailDefaultValue, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
 import { buildRemainingLteCells, createRemainingLteDetails } from "@/lib/remaining-lte-cells";
@@ -201,7 +201,7 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
   );
 
   const syncMissingSectorsByPCI = useCallback(() => {
-    onCellsChange(rat, applyMissingSectorPCISync(cells));
+    onCellsChange(rat, syncByPCI(cells));
   }, [cells, onCellsChange, rat]);
 
   const handleDetailsChange = useCallback(

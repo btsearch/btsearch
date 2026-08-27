@@ -15,6 +15,7 @@ import type { Band, SectorDraft } from "@/types/station";
 import type { CellDraftBase } from "./cellEditRow";
 import { CellEditRow } from "./cellEditRow";
 import { RAT_ICONS, RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
+import { isNRSyncTarget } from "./sectorAssignmentSync";
 
 export type DiffBadges = {
   added?: number;
@@ -231,7 +232,7 @@ export function CellsEditor<T extends CellDraftBase>({
             onSyncSectorsByPCIInRat !== undefined &&
             sectors !== undefined &&
             sectors.length > 0 &&
-            cellsForRat.length > 0;
+            cellsForRat.some(isNRSyncTarget);
 
           return (
             <Collapsible key={rat} defaultOpen>

@@ -16,6 +16,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Every station now has a public change history showing what was changed, when, and the previous and new values
 - CLF export metadata creator now shows toggleable field chips below each preview to simulate missing values and see how the template handles absent data
 - The map now follows your location in real time when GPS is active, just like Google Maps
+- NR NSA cells can now copy azimuth assignments from LTE cells with matching PCI values
 
 ### 🩹 Fixes
 
