@@ -63,6 +63,7 @@ export function useSaveSubmissionMutation() {
               ...sectorAssignmentPayload(lc._sectorLocalId),
               band_id: lc.band_id,
               rat: lc.rat,
+              type: lc.type ?? null,
               is_confirmed: lc.is_confirmed,
               notes: lc.notes || null,
               details: lc.operation === "delete" ? undefined : Object.keys(lc.details).length > 0 ? lc.details : undefined,

@@ -56,6 +56,7 @@ export function isEqualCell(a: ProposedCellForm, b: ProposedCellForm): boolean {
     a.band_id === b.band_id &&
     a._sectorLocalId === b._sectorLocalId &&
     a.rat === b.rat &&
+    (a.type ?? null) === (b.type ?? null) &&
     (a.notes ?? "") === (b.notes ?? "") &&
     compareCellDetails(a.details ?? {}, b.details ?? {})
   );
@@ -98,6 +99,7 @@ export function isEqualCellPayload(a: CellPayload, b: CellPayload): boolean {
     a.sector_unassigned === b.sector_unassigned &&
     a.band_id === b.band_id &&
     a.rat === b.rat &&
+    (a.type ?? null) === (b.type ?? null) &&
     (a.notes ?? "") === (b.notes ?? "") &&
     compareCellDetails((a.details ?? {}) as Record<string, unknown>, (b.details ?? {}) as Record<string, unknown>)
   );

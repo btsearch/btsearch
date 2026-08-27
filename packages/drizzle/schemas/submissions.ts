@@ -16,7 +16,7 @@ import {
 import { sql } from "drizzle-orm/sql";
 
 import { locationPhotos, users } from "./auth.ts";
-import { NRType, bands, cells, operators, ratEnum, regions, stationSectors, stations } from "./bts.ts";
+import { CellType, NRType, bands, cells, operators, ratEnum, regions, stationSectors, stations } from "./bts.ts";
 
 export const SubmissionStatus = pgEnum("submission_status", ["pending", "approved", "rejected"]);
 export const SubmissionTypeEnum = pgEnum("submission_type", ["new", "update", "delete"]);
@@ -70,6 +70,7 @@ export const proposedCells = SubmissionsSchema.table(
     sector_local_id: text("sector_local_id"),
     sector_unassigned: boolean("sector_unassigned").default(false).notNull(),
     rat: ratEnum("rat"),
+    type: CellType("type"),
     notes: text("notes"),
     is_confirmed: boolean("is_confirmed").default(false).notNull(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

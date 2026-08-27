@@ -84,6 +84,7 @@ const COMMON_LABEL_KEYS: Record<string, string> = {
   band: "band",
   networks_id: "networksId",
   networks_name: "networksName",
+  cell_type: "cellType",
 };
 
 type HistoryDayGroup = { key: string; label: string; entries: StationHistoryEntry[] };

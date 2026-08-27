@@ -1,3 +1,4 @@
+import { CELL_TYPE_SHORT_LABELS } from "@openbts/shared/cellTypes";
 import {
   type CLFDescriptionTemplatePlaceholder,
   type CLFDescriptionTemplateValues,
@@ -41,6 +42,7 @@ export interface CellExportData {
   operator_mnc?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  cell_type?: string | null;
   notes?: string | null;
   city?: string | null;
   address?: string | null;
@@ -125,6 +127,11 @@ function getNRDesignation(bandValue: number | null | undefined, duplex: "FDD" | 
 function getLteBandName(bandValue: number | null | undefined, duplex: "FDD" | "TDD" | null | undefined): string {
   if (bandValue === null || bandValue === undefined) return "";
   return getBandName("LTE", bandValue, duplex) ?? "";
+}
+
+function getCellTypeLabel(cell: CellExportData): string {
+  if (!cell.cell_type) return "";
+  return CELL_TYPE_SHORT_LABELS[cell.cell_type as keyof typeof CELL_TYPE_SHORT_LABELS] ?? "";
 }
 
 function getLocationDescription(cell: CellExportData): string {
@@ -410,6 +417,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
     location: getLocationDescription(cell),
     city: cell.city,
     address: cell.address,
+    cell_type: getCellTypeLabel(cell),
     notes: cell.notes,
     sector_prefix: getSectorPrefix(cell),
     sector_tag: getSectorTag(cell),

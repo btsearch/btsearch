@@ -87,6 +87,7 @@
     "confirmed": "Confirmed",
     "networksId": "N! ID",
     "networksName": "Network name",
+    "cellType": "Cell type",
     "mnoName": "{{brand}} name",
     "cells": "cells",
     "newStation": "New Station",

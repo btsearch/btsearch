@@ -16,6 +16,7 @@ message StationCell {
 
   string updatedAt = 8;
   string createdAt = 9;
+  CellType type = 10;
 }
 
 enum NRType {
@@ -36,6 +37,7 @@ message Cell {
 
   string updatedAt = 9;
   string createdAt = 10;
+  CellType type = 11;
 }
 
 message Station {

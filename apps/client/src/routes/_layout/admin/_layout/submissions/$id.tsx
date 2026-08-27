@@ -22,6 +22,7 @@ import { SubmissionStationForm } from "@/features/admin/submissions/components/s
 import { SubmitterCard } from "@/features/admin/submissions/components/submitterCard";
 import { useApproveSubmissionMutation, useRejectSubmissionMutation, useSaveSubmissionMutation } from "@/features/admin/submissions/mutations";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
@@ -53,6 +54,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
       _sectorLocalId: cell.sector_local_id ?? (cell.target_sector_id ? `sector-${cell.target_sector_id}` : cell.sector_unassigned ? null : undefined),
       rat: cell.rat ?? "",
       band_id: cell.band_id ?? 0,
+      type: cell.type ?? null,
       is_confirmed: cell.is_confirmed,
       notes: cell.notes ?? "",
       details: { ...cell.details },
@@ -76,6 +78,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
       _sectorLocalId: c.sector_id ? `sector-${c.sector_id}` : null,
       rat: c.rat as (typeof RAT_ORDER)[number],
       band_id: c.band.id,
+      type: c.type ?? null,
       is_confirmed: c.is_confirmed,
       notes: c.notes ?? "",
       details: (c.details as Record<string, unknown>) ?? {},
@@ -93,6 +96,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
           _sectorLocalId: target.sector_id ? `sector-${target.sector_id}` : null,
           rat: target.rat as (typeof RAT_ORDER)[number],
           band_id: target.band.id,
+          type: target.type ?? null,
           is_confirmed: target.is_confirmed,
           notes: target.notes ?? "",
           details: (target.details as Record<string, unknown>) ?? {},
@@ -107,6 +111,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
       _sectorLocalId: cell.sector_local_id ?? (cell.target_sector_id ? `sector-${cell.target_sector_id}` : cell.sector_unassigned ? null : undefined),
       rat: cell.rat ?? "",
       band_id: cell.band_id ?? 0,
+      type: cell.type ?? null,
       is_confirmed: cell.is_confirmed,
       notes: cell.notes ?? "",
       details: { ...cell.details },
@@ -338,6 +343,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
       target_cell_id: null,
       rat: rat as (typeof RAT_ORDER)[number],
       band_id: defaultBand.id,
+      type: null,
       is_confirmed: false,
       notes: "",
       details: {},
@@ -556,6 +562,14 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
             </td>
           )}
           <SubmissionDiffDetailCells details={details} rat={targetCell.rat} changedKeys={changedKeys} />
+          <td
+            className={cn(
+              "px-3 py-1 font-mono text-xs text-muted-foreground",
+              (targetCell.type ?? null) !== (cell.type ?? null) && "text-amber-700 dark:text-amber-300",
+            )}
+          >
+            {targetCell.type ? CELL_TYPE_LABELS[targetCell.type] : "-"}
+          </td>
           <td className="px-3 py-1 font-mono text-xs text-muted-foreground truncate max-w-28">{targetCell.notes || "-"}</td>
           <td className="px-3 py-1" />
           <td className="px-3 py-1" />

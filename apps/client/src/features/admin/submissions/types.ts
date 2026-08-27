@@ -1,4 +1,5 @@
 import type { LocationPhoto } from "@/features/station-details/api";
+import type { CellType } from "@/types/station";
 
 import type { RAT_ORDER } from "../cells/rat";
 
@@ -22,6 +23,7 @@ export type ProposedCell = {
   station_id: number | null;
   band_id: number | null;
   rat: (typeof RAT_ORDER)[number];
+  type: CellType | null;
   notes: string | null;
   is_confirmed: boolean;
   details: Record<string, unknown> | null;
@@ -115,6 +117,7 @@ export type ProposedCellWithDetails = {
   station_id: number | null;
   band_id: number | null;
   rat: string | null;
+  type: CellType | null;
   notes: string | null;
   is_confirmed: boolean;
   details: Record<string, unknown> | null;

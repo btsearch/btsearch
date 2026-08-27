@@ -55,6 +55,7 @@ function isCellModified(current: ProposedCellForm, original: ProposedCellForm): 
   return (
     current.band_id !== original.band_id ||
     current._sectorLocalId !== original._sectorLocalId ||
+    (current.type ?? null) !== (original.type ?? null) ||
     current.notes !== original.notes ||
     !areDetailsEqual(current.details, original.details)
   );
@@ -67,6 +68,7 @@ function toCellPayload(cell: ProposedCellForm, operation: CellPayload["operation
     ...sectorAssignmentPayload(cell._sectorLocalId),
     band_id: cell.band_id,
     rat: cell.rat,
+    type: cell.type ?? null,
     notes: cell.notes ?? null,
     details: operation === "delete" ? undefined : cell.details,
   };

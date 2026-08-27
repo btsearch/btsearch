@@ -141,6 +141,7 @@ function flattenCell(value: unknown): PlainObject | null {
   if (!isPlainObject(value)) return null;
   const flat: PlainObject = {};
   for (const key of CELL_FIELDS) if (key in value) flat[key] = value[key];
+  if ("type" in value) flat.cell_type = value.type ?? null;
   const details = [value.details, value.gsm, value.umts, value.lte, value.nr].find(isPlainObject) ?? null;
   if (details) for (const key of CELL_DETAIL_FIELDS) if (key in details) flat[key] = details[key];
   return flat;
@@ -210,7 +211,7 @@ function transformCells(row: AuditRow, action: StationHistoryEntry["action"], lo
     const label = baseLabel !== undefined && identifier !== undefined ? `${baseLabel} · ${identifier}` : (baseLabel ?? identifier);
     const ratValue = newFlat.rat ?? oldFlat.rat;
     changes.push(
-      ...diffFields(oldFlat, newFlat, [...CELL_FIELDS, ...CELL_DETAIL_FIELDS], lookups, {
+      ...diffFields(oldFlat, newFlat, [...CELL_FIELDS, "cell_type", ...CELL_DETAIL_FIELDS], lookups, {
         requireBothSides: true,
         label,
         rat: typeof ratValue === "string" ? ratValue : undefined,

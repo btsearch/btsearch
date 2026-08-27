@@ -28,6 +28,10 @@
     "./terrainProfile": {
       "types": "./src/terrainProfile.ts",
       "default": "./dist/src/terrainProfile.js"
+    },
+    "./cellTypes": {
+      "types": "./src/cellTypes.ts",
+      "default": "./dist/src/cellTypes.js"
     }
   },
   "scripts": {

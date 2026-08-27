@@ -27,7 +27,15 @@
     "cellsCount_few": "{{count, number}} cells",
     "cellsCount_many": "{{count, number}} cells",
     "cellsCount_other": "{{count, number}} cells",
-    "notesPlaceholder": "e.g. picocell",
+    "notesPlaceholder": "e.g. building B2",
+    "cellType": "Cell type",
+    "cellTypes": {
+      "macrocell": "Macrocell",
+      "microcell": "Microcell",
+      "picocell": "Picocell",
+      "femtocell": "Femtocell",
+      "smallcell": "Smallcell"
+    },
     "addCell": "Add Cell",
     "fillEarfcn": "Fill EARFCN",
     "addRemainingCells": "Add remaining cells",

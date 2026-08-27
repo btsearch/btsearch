@@ -57,10 +57,13 @@ export type CellDetails = {
   supports_nr_redcap?: boolean;
 } | null;
 
+export type CellType = "MACROCELL" | "MICROCELL" | "PICOCELL" | "FEMTOCELL" | "SMALLCELL";
+
 export type Cell = {
   id: number;
   rat: string;
   station_id: number;
+  type: CellType | null;
   notes: string | null;
   sector_id: number | null;
   is_confirmed: boolean;

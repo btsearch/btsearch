@@ -45,6 +45,15 @@ enum BandVariant {
   railway = 2;
 }
 
+enum CellType {
+  CELL_TYPE_UNKNOWN = 0;
+  MACROCELL = 1;
+  MICROCELL = 2;
+  PICOCELL = 3;
+  FEMTOCELL = 4;
+  SMALLCELL = 5;
+}
+
 message Band {
   int32 id = 1;
   int32 value = 2;

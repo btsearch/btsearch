@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getBandName } from "@/features/station-details/frequencyCalc";
 import { cn } from "@/lib/utils";
-import type { Band, SectorDraft } from "@/types/station";
+import type { Band, CellType, SectorDraft } from "@/types/station";
 
 import { CellDetailsFields } from "./cellDetailsFields";
 import { useBandSelection } from "./hooks/useBandSelection";
@@ -21,6 +22,7 @@ export type CellDraftBase = {
   _sectorLocalId?: string | null;
   rat: (typeof RAT_ORDER)[number];
   band_id: number;
+  type: CellType | null;
   is_confirmed: boolean;
   notes: string;
   details: Record<string, unknown>;
@@ -180,6 +182,14 @@ export const CellEditRow = memo(function CellEditRow({
         onDetailChange={handleDetailChange}
         onDetailsBulkChange={handleDetailsBulkChange}
       />
+      <td className="px-3 py-1">
+        <CellTypeSelect
+          value={localCell.type}
+          onChange={(v) => onChange(localCell._localId, { type: v })}
+          disabled={disabled}
+          onKeyDown={navigateRowHorizontal}
+        />
+      </td>
       <td className="px-3 py-1">
         <Input
           type="text"

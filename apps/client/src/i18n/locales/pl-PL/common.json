@@ -86,6 +86,7 @@
     "confirmed": "Potwierdzona",
     "networksId": "N! ID",
     "networksName": "Nazwa NetWorks",
+    "cellType": "Rodzaj komórki",
     "mnoName": "Nazwa {{brand}}",
     "cells": "komórki",
     "newStation": "Nowa stacja",

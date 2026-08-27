@@ -1,5 +1,5 @@
 import type { RatType } from "@/features/shared/rat";
-import type { Band, Operator, Region, SectorDraft } from "@/types/station";
+import type { Band, CellType, Operator, Region, SectorDraft } from "@/types/station";
 
 export type { RatType };
 
@@ -46,6 +46,7 @@ export type ProposedCellForm = {
   _sectorLocalId?: string | null;
   rat: RatType;
   band_id: number | null;
+  type?: CellType | null;
   notes?: string;
   is_confirmed?: boolean;
   details: Partial<CellFormDetails>;
@@ -78,6 +79,7 @@ export type CellPayload = {
   sector_unassigned?: boolean;
   band_id?: number | null;
   rat?: RatType;
+  type?: CellType | null;
   notes?: string | null;
   details?: Partial<CellFormDetails>;
 };

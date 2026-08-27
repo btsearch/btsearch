@@ -53,6 +53,7 @@ workerPort.on("message", async (params: WorkerParams) => {
     if (rat?.includes("IOT") && !rat.includes("NR")) nrConditions.push(eq(nrCells.supports_nr_redcap, true));
 
     const commonSelect = {
+      cell_type: cells.type,
       notes: cells.notes,
       station_pk: stations.id,
       station_sid: stations.station_id,
@@ -256,6 +257,7 @@ workerPort.on("message", async (params: WorkerParams) => {
 
     function buildCommonCellFields(
       row: {
+        cell_type: string | null;
         notes: string | null;
         station_sid: string;
         extra_address: string | null;
@@ -281,6 +283,7 @@ workerPort.on("message", async (params: WorkerParams) => {
         operator_mnc: row.operator_mnc,
         latitude: row.latitude,
         longitude: row.longitude,
+        cell_type: row.cell_type,
         notes: row.notes,
         city: row.city ?? null,
         address: row.extra_address ?? row.address ?? null,

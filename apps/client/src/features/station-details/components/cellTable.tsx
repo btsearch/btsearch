@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CELL_TYPE_COLORS, CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { getRatChannelField, getRatShowsBandDuplex } from "@/features/shared/rat";
 import { type RatDetailField, getRatDetailFields } from "@/features/shared/ratCellFields";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
@@ -137,6 +138,19 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                             <TooltipContent side="top">
                               <p>{t("stations:cells.cellNotConfirmed")}</p>
                             </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {cell.type && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge
+                                variant="secondary"
+                                className={cn(CELL_TYPE_COLORS[cell.type], "text-[10px] px-1.5 py-0 font-medium cursor-help")}
+                              >
+                                {CELL_TYPE_LABELS[cell.type]}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{t(`stations:cells.${CELL_TYPE_I18N_KEY[cell.type]}`)}</TooltipContent>
                           </Tooltip>
                         )}
                       </div>

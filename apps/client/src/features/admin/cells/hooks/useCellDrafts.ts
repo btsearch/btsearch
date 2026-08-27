@@ -184,6 +184,7 @@ export function useCellDrafts<T extends CellDraftBase>({
         ...template,
         band_id: cell.band_id,
         _sectorLocalId: cell._sectorLocalId,
+        type: cell.type,
         is_confirmed: cell.is_confirmed,
         notes: cell.notes,
         details: { ...cell.details },

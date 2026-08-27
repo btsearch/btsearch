@@ -2,7 +2,17 @@ import type { SubmissionDetail, SubmissionRow } from "@/features/admin/submissio
 import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/rat";
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
 import { type GeocodingResult, reverseGeocode as reverseGeocodeWithMapbox } from "@/lib/mapboxGeocoding";
-import type { CellDetails, Location, LocationWithStations, Operator, Region, Sector, Station, UkeLocationWithPermits } from "@/types/station";
+import type {
+  CellDetails,
+  CellType,
+  Location,
+  LocationWithStations,
+  Operator,
+  Region,
+  Sector,
+  Station,
+  UkeLocationWithPermits,
+} from "@/types/station";
 
 import type { CellFormDetails, RatType, SubmissionFormData } from "./types";
 
@@ -29,6 +39,7 @@ export type SearchCell = {
   rat: string;
   station_id: number;
   band_id: number;
+  type: CellType | null;
   sector_id: number | null;
   notes: string | null;
   is_confirmed: boolean;
@@ -109,6 +120,7 @@ export async function fetchStationForSubmission(id: number): Promise<SearchStati
       rat: cell.rat,
       station_id: cell.station_id,
       band_id: cell.band.id,
+      type: cell.type,
       notes: cell.notes,
       is_confirmed: cell.is_confirmed,
       updatedAt: cell.updatedAt,
@@ -169,6 +181,7 @@ function buildSubmissionPayload(data: SubmissionFormData): Record<string, unknow
       sector_unassigned: cell.sector_unassigned,
       band_id: cell.band_id,
       rat: cell.rat,
+      type: cell.type ?? null,
       notes: cell.notes,
       details: pickCellDetails(cell.rat, cell.details),
     }));

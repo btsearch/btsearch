@@ -20,7 +20,6 @@ import {
   Mail01Icon,
   MapsIcon,
   Message01Icon,
-  NewsIcon,
   Note01Icon,
   Radar01Icon,
   SecurityLockIcon,
@@ -121,7 +120,6 @@ export const infoNavConfig: NavConfigSection[] = [
     url: "#",
     icon: InformationCircleIcon,
     items: [
-      { titleKey: "items.releasenotes", url: "/release-v3", icon: NewsIcon },
       { titleKey: "items.about", url: "/about", icon: InformationCircleIcon },
       { titleKey: "items.contact", url: "/contact", icon: Mail01Icon },
       { titleKey: "items.terms", url: "/terms", icon: LegalDocument01Icon },

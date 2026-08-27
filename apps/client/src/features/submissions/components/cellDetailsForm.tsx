@@ -11,12 +11,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CellDetailsFields } from "@/features/admin/cells/cellDetailsFields";
 import { useBandSelection } from "@/features/admin/cells/hooks/useBandSelection";
 import { navigateRowHorizontal } from "@/features/admin/cells/rowNav";
+import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import { getBandName } from "@/features/station-details/frequencyCalc";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { getKnownEARFCN } from "@/lib/earfcn-fill";
 import { cn } from "@/lib/utils";
-import type { Band, SectorDraft } from "@/types/station";
+import type { Band, CellType, SectorDraft } from "@/types/station";
 
 import type { ProposedCellForm, RatType } from "../types";
 import { type CellDiffStatus, getCellDiffStatus } from "../utils/cells";
@@ -231,6 +232,8 @@ const CellRow = memo(function CellRow({
     [bandValue, findBandId, cell.id, onUpdate],
   );
 
+  const handleTypeChange = useCallback((value: CellType | null) => onUpdate(cell.id, { type: value }), [cell.id, onUpdate]);
+
   const handleNotesChange = useCallback((value: string) => onNotesChange(cell.id, value), [cell.id, onNotesChange]);
 
   const firstCellBorderClass = isCloned
@@ -341,6 +344,9 @@ const CellRow = memo(function CellRow({
         disabled={diffStatus === "deleted"}
         onDetailChange={(field, value) => onDetailsChange(cell.id, field, value)}
       />
+      <td className={cn("px-3 py-1", deletedCellClass)}>
+        <CellTypeSelect value={cell.type ?? null} onChange={handleTypeChange} disabled={diffStatus === "deleted"} onKeyDown={navigateRowHorizontal} />
+      </td>
       <td className={cn("px-3 py-1", deletedCellClass)}>
         <DebouncedNotesInput
           value={cell.notes ?? ""}

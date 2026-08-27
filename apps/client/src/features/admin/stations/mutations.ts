@@ -118,6 +118,7 @@ export function isCellModified(lc: LocalCell, originalCells: Cell[], sectorIdByL
   return (
     lc.band_id !== orig.band.id ||
     sectorId !== (orig.sector_id ?? null) ||
+    (lc.type ?? null) !== (orig.type ?? null) ||
     lc.notes !== (orig.notes ?? "") ||
     lc.is_confirmed !== orig.is_confirmed ||
     !shallowEqual(lc.details, orig.details ?? {})
@@ -180,6 +181,7 @@ export function useSaveStationMutation() {
           station_id: 0,
           band_id: lc.band_id,
           rat: lc.rat,
+          type: lc.type ?? null,
           is_confirmed: lc.is_confirmed,
           notes: lc.notes || null,
           details: pickCellDetails(lc.rat, lc.details),
@@ -293,6 +295,7 @@ export function useSaveStationMutation() {
             band_id: lc.band_id,
             sector_id: resolveSectorId(lc._sectorLocalId, sectorIdByLocalId),
             rat: lc.rat,
+            type: lc.type ?? null,
             is_confirmed: lc.is_confirmed,
             notes: lc.notes || null,
             details: pickCellDetails(lc.rat, lc.details),
@@ -341,6 +344,7 @@ export function useSaveStationMutation() {
           cell_id: lc._serverId as number,
           band_id: lc.band_id,
           sector_id: resolveSectorId(lc._sectorLocalId, sectorIdByLocalId),
+          type: lc.type ?? null,
           notes: lc.notes || null,
           is_confirmed: lc.is_confirmed,
           details: pickCellDetails(lc.rat, lc.details),

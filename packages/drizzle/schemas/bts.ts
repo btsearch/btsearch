@@ -27,6 +27,7 @@ export const BandVariant = pgEnum("band_variant", ["commercial", "railway"]);
 export const StationStatus = pgEnum("station_status", ["published", "inactive", "pending"]);
 export const PermitsSource = pgEnum("permits_source", ["permits", "device_registry"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
+export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL", "SMALLCELL"]);
 export const UkeSchema = pgSchema("uke");
 export const StatisticsSchema = pgSchema("statistics");
 
@@ -332,6 +333,7 @@ export const cells = pgTable(
       .references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
     rat: ratEnum("rat").notNull(),
+    type: CellType("type"),
     notes: text("notes"),
     sector_id: integer("sector_id").references(() => stationSectors.id, { onDelete: "set null", onUpdate: "cascade" }),
     is_confirmed: boolean("is_confirmed").default(false).notNull(),

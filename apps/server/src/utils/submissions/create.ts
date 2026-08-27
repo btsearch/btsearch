@@ -379,6 +379,7 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
             sector_local_id: cell.sector_local_id ?? null,
             sector_unassigned: cell.sector_unassigned ?? false,
             rat: cell.rat ?? null,
+            type: cell.type ?? null,
             notes: cell.notes ?? null,
             is_confirmed: false,
             operation: cell.operation ?? "add",

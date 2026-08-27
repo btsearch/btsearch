@@ -236,6 +236,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
     table: "cells",
     buildCondition: (value, refs) => buildLikeAny(refs.cells.notes)(value),
   },
+  cell_type: {
+    table: "cells",
+    buildCondition: (value, refs) => buildInArray(refs.cells.type, (v) => v.split(",").map((s) => s.trim()))(value),
+  },
 
   // gsmCells
   lac: {

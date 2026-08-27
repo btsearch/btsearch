@@ -13,6 +13,7 @@ message CellWithoutDetails {
 
   string updatedAt = 8;
   string createdAt = 9;
+  CellType type = 10;
 }
 
 message ExtraIdentificators {

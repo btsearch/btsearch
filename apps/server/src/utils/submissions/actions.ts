@@ -740,6 +740,7 @@ async function addProposedCell(
       band_id: proposed.band_id,
       sector_id: sectorId ?? null,
       rat: proposed.rat,
+      type: proposed.type ?? null,
       notes: proposed.notes,
       is_confirmed: proposed.is_confirmed,
     })
@@ -765,6 +766,7 @@ async function updateProposedCell(
   const cellUpdate: Record<string, unknown> = { updatedAt: new Date() };
   if (proposed.band_id) cellUpdate.band_id = proposed.band_id;
   if (proposed.rat) cellUpdate.rat = proposed.rat;
+  if (proposed.type !== undefined) cellUpdate.type = proposed.type;
   if (proposed.notes !== null) cellUpdate.notes = proposed.notes;
   const sectorId = resolveProposedCellSectorId(proposed, sectorIdByLocalId);
   if (sectorId !== undefined) cellUpdate.sector_id = sectorId;

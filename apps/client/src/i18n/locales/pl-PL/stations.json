@@ -26,7 +26,15 @@
     "cellsCount_one": "{{count, number}} komórka",
     "cellsCount_few": "{{count, number}} komórki",
     "cellsCount_many": "{{count, number}} komórek",
-    "notesPlaceholder": "np. pikokomórka",
+    "notesPlaceholder": "np. budynek B2",
+    "cellType": "Rodzaj",
+    "cellTypes": {
+      "macrocell": "Makrokomórka",
+      "microcell": "Mikrokomórka",
+      "picocell": "Pikokomórka",
+      "femtocell": "Femtokomórka",
+      "smallcell": "Mała komórka"
+    },
     "addCell": "Dodaj komórkę",
     "fillEarfcn": "Wstaw EARFCN",
     "addRemainingCells": "Dodaj brakujące komórki",
