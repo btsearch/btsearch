@@ -6,7 +6,12 @@ import type { DuplexRadioLink } from "@/features/map/utils";
 import type { StationSource, UkeStation } from "@/types/station";
 
 import { assertNever } from "./floatingDialogStackTypes";
-import type { FloatingDialogItem, FloatingDialogOpenRequest, SI2PEMReportDialogPayload } from "./floatingDialogStackTypes";
+import type {
+  FloatingDialogItem,
+  FloatingDialogOpenRequest,
+  SI2PEMReportDialogPayload,
+  StationHistoryDialogPayload,
+} from "./floatingDialogStackTypes";
 import { type StationDialogRect, areStationDialogRectsEqual, createInitialStationDialogRect } from "./stationDialogGeometry";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
@@ -81,6 +86,29 @@ function resolveDialogRequest(request: FloatingDialogOpenRequest): ResolvedDialo
         update: (dialog, zIndex) => (dialog.kind === "si2pem-report" ? { ...dialog, ...request, zIndex } : dialog),
       };
     }
+    case "station-history": {
+      const key = `station-history:${request.stationId}`;
+      return {
+        key,
+        matchesPayload: (dialog) =>
+          dialog.kind === "station-history" &&
+          dialog.stationId === request.stationId &&
+          dialog.stationCode === request.stationCode &&
+          dialog.operatorName === request.operatorName &&
+          dialog.operatorMnc === request.operatorMnc,
+        create: (rect, zIndex) => ({
+          kind: "station-history",
+          key,
+          stationId: request.stationId,
+          stationCode: request.stationCode,
+          operatorName: request.operatorName,
+          operatorMnc: request.operatorMnc,
+          rect,
+          zIndex,
+        }),
+        update: (dialog, zIndex) => (dialog.kind === "station-history" ? { ...dialog, ...request, zIndex } : dialog),
+      };
+    }
     default:
       return assertNever(request);
   }
@@ -139,7 +167,8 @@ export function useFloatingDialogStackState() {
         return false;
       }
 
-      const initialSize = request.kind === "si2pem-report" ? { width: 730, height: 800 } : undefined;
+      const initialSize =
+        request.kind === "si2pem-report" ? { width: 730, height: 800 } : request.kind === "station-history" ? { width: 900, height: 680 } : undefined;
       const dialog = resolved.create(createInitialStationDialogRect(familyCount, initialSize), getNextZIndex());
       setDialogsSynced((previous) => [...previous, dialog]);
       return true;
@@ -154,6 +183,11 @@ export function useFloatingDialogStackState() {
   const openRadioLineDialog = useCallback((link: DuplexRadioLink) => openDialog({ kind: "radioline", link }), [openDialog]);
 
   const openSI2PEMReportDialog = useCallback((payload: SI2PEMReportDialogPayload) => openDialog({ kind: "si2pem-report", ...payload }), [openDialog]);
+
+  const openStationHistoryDialog = useCallback(
+    (payload: StationHistoryDialogPayload) => openDialog({ kind: "station-history", ...payload }),
+    [openDialog],
+  );
 
   const closeDialog = useCallback(
     (key: string) => {
@@ -194,6 +228,7 @@ export function useFloatingDialogStackState() {
     openUkePermitDialog,
     openRadioLineDialog,
     openSI2PEMReportDialog,
+    openStationHistoryDialog,
     closeDialog,
     focusDialog,
     updateDialogRect,

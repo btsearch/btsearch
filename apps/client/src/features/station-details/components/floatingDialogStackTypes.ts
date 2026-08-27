@@ -21,12 +21,19 @@ export type FloatingDialogPanelFrameProps = {
   headerDragProps?: HTMLAttributes<HTMLDivElement>;
 };
 
-export type FloatingDialogKind = "station" | "uke-permit" | "radioline" | "si2pem-report";
+export type FloatingDialogKind = "station" | "uke-permit" | "radioline" | "si2pem-report" | "station-history";
 
 export type SI2PEMReportDialogPayload = {
   report: PemReport;
   latitude: number;
   longitude: number;
+  operatorName: string;
+  operatorMnc?: number | null;
+};
+
+export type StationHistoryDialogPayload = {
+  stationId: number;
+  stationCode: string;
   operatorName: string;
   operatorMnc?: number | null;
 };
@@ -55,14 +62,18 @@ export type RadioLineFloatingDialogItem = FloatingDialogItemBase & {
 
 export type SI2PEMReportFloatingDialogItem = FloatingDialogItemBase & SI2PEMReportDialogPayload & { kind: "si2pem-report" };
 
+export type StationHistoryFloatingDialogItem = FloatingDialogItemBase & StationHistoryDialogPayload & { kind: "station-history" };
+
 export type FloatingDialogItem =
   | StationFloatingDialogItem
   | UkePermitFloatingDialogItem
   | RadioLineFloatingDialogItem
-  | SI2PEMReportFloatingDialogItem;
+  | SI2PEMReportFloatingDialogItem
+  | StationHistoryFloatingDialogItem;
 
 export type FloatingDialogOpenRequest =
   | { kind: "station"; id: number; source: StationSource }
   | { kind: "uke-permit"; station: UkeStation }
   | { kind: "radioline"; link: DuplexRadioLink }
-  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload);
+  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)
+  | ({ kind: "station-history" } & StationHistoryDialogPayload);

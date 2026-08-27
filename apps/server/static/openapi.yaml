@@ -1240,6 +1240,35 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /stations/{station_id}/history:
+    get:
+      tags: [Stations]
+      summary: Get public change history for station
+      description: Changes derived from audit log records, what changed, when, and the previous/new values. Author info is included only for editors and admins
+      parameters:
+        - $ref: "#/components/parameters/StationIdPath"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          description: Returns entries with an ID lower than this value (taken from `nextCursor` of the previous page)
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/StationHistoryEntry" } }
+                  nextCursor: { type: integer, nullable: true }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /operators:
     get:
       tags: [Operators]
@@ -5070,6 +5099,41 @@ components:
         user:
           allOf:
             - $ref: "#/components/schemas/UserPublic"
+          nullable: true
+
+    StationHistoryChangeValue:
+      description: A primitive value, an array of primitives, or a flat object of primitives. Null when one side of the change is absent.
+      nullable: true
+    StationHistoryChange:
+      type: object
+      required: [field, from, to]
+      properties:
+        field: { type: string }
+        label: { type: string, description: 'Cell identity label, e.g. "LTE 1800 · CLID 31"' }
+        rat: { type: string, description: RAT of the affected cell, present on cell changes }
+        from: { $ref: "#/components/schemas/StationHistoryChangeValue" }
+        to: { $ref: "#/components/schemas/StationHistoryChangeValue" }
+    StationHistoryAuthor:
+      type: object
+      required: [id, name, username, image]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, nullable: true }
+        username: { type: string }
+        image: { type: string, nullable: true }
+    StationHistoryEntry:
+      type: object
+      required: [id, kind, action, createdAt, changes]
+      properties:
+        id: { type: integer, description: ID of the underlying audit log entry }
+        kind: { type: string, enum: [station, location, cells, sectors, network_ids] }
+        action: { type: string, enum: [create, update, delete] }
+        createdAt: { type: string, format: date-time }
+        changes: { type: array, items: { $ref: "#/components/schemas/StationHistoryChange" } }
+        author:
+          description: Included only for editors and admins; null for system or import changes
+          allOf:
+            - $ref: "#/components/schemas/StationHistoryAuthor"
           nullable: true
 
     UkePermitWithBandOperator:

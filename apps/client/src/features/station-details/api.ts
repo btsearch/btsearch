@@ -5,6 +5,42 @@ import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
 import type { Station, UkePermit, UkeStation } from "@/types/station";
 
 export const fetchStation = (id: number) => fetchApiData<Station>(`stations/${id}`, { proto: StationResponseSchema });
+
+export type StationHistoryValue = string | number | boolean | null;
+export type StationHistoryChangeValue = StationHistoryValue | StationHistoryValue[] | Record<string, StationHistoryValue>;
+
+export type StationHistoryChange = {
+  field: string;
+  label?: string;
+  rat?: string;
+  from: StationHistoryChangeValue;
+  to: StationHistoryChangeValue;
+};
+
+export type StationHistoryAuthor = {
+  id: string;
+  name: string | null;
+  username: string;
+  image: string | null;
+};
+
+export type StationHistoryEntry = {
+  id: number;
+  kind: "station" | "location" | "cells" | "sectors" | "network_ids";
+  action: "create" | "update" | "delete";
+  createdAt: string;
+  changes: StationHistoryChange[];
+  author?: StationHistoryAuthor | null;
+};
+
+export type StationHistoryPage = { data: StationHistoryEntry[]; nextCursor: number | null };
+
+export const STATION_HISTORY_PAGE_SIZE = 25;
+
+export const fetchStationHistory = (stationId: number, cursor: number | null) =>
+  fetchJson<StationHistoryPage>(
+    `${API_BASE}/stations/${stationId}/history?limit=${STATION_HISTORY_PAGE_SIZE}${cursor !== null ? `&cursor=${cursor}` : ""}`,
+  );
 export const fetchUkeStation = (id: number) => fetchApiData<UkeStation>(`uke/stations/${id}`);
 export const fetchUkePermit = (id: string) => fetchApiData<UkePermit[]>(`uke/permits?station_id=${id}`, { proto: UKEPermitsResponseSchema });
 export const fetchStationWatch = (stationId: number, source: "internal" | "uke" = "internal") =>

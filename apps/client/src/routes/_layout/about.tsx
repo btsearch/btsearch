@@ -14,7 +14,7 @@ import {
 } from "@/components/reui/timeline";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import NetworksIcon from "@/features/station-details/components/logos/networks.svg?react";
+import NetWorksIcon from "@/features/station-details/components/logos/networks.svg?react";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import PlayIcon from "@/features/station-details/components/logos/play.svg?react";
 import PlusIcon from "@/features/station-details/components/logos/plus.svg?react";
@@ -160,7 +160,7 @@ function AboutPage() {
         <section className="space-y-4 border-t pt-8">
           <h2 className="text-xl font-semibold">Informacje prawne</h2>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <NetworksIcon aria-label="NetWorks" className="size-6 shrink-0" />
+            <NetWorksIcon aria-label="NetWorks" className="size-6 shrink-0" />
             <OrangeIcon aria-label="Orange" className="h-6 w-auto shrink-0" />
             <TmobileIcon aria-label="T-Mobile" className="size-6 shrink-0" />
             <PlusIcon aria-label="Plus" className="size-6 shrink-0" />

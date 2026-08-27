@@ -105,5 +105,37 @@
     "setAsMain": "Ustaw jako główne",
     "uploadedBy": "Przesłane przez {{username}}",
     "unknownUser": "Nieznany"
+  },
+  "history": {
+    "title": "Historia zmian stacji",
+    "tooltip": "Kliknij, aby zobaczyć historię zmian",
+    "empty": "Brak zarejestrowanych zmian",
+    "emptyHint": "Zmiany sprzed wprowadzenia rejestru zmian mogą nie być tutaj widoczne",
+    "error": "Nie udało się wczytać historii zmian",
+    "loadMore": "Wczytaj więcej",
+    "openAuditLog": "Logi w dzienniku",
+    "openSubmissions": "Zgłoszenia",
+    "values": {
+      "yes": "Tak",
+      "no": "Nie"
+    },
+    "titles": {
+      "station_create": "Utworzono stację",
+      "station_update": "Zaktualizowano stację",
+      "station_delete": "Dezaktywowano stację",
+      "location_create": "Dodano lokalizację",
+      "location_update": "Zaktualizowano lokalizację",
+      "location_delete": "Usunięto lokalizację",
+      "cells_create": "Dodano komórki",
+      "cells_update": "Zaktualizowano komórki",
+      "cells_delete": "Usunięto komórki",
+      "sectors_update": "Zaktualizowano azymuty",
+      "network_ids_create": "Dodano identyfikatory sieci",
+      "network_ids_update": "Zaktualizowano identyfikatory sieci",
+      "network_ids_delete": "Usunięto identyfikatory sieci"
+    },
+    "fields": {
+      "cell": "Komórka"
+    }
   }
 }

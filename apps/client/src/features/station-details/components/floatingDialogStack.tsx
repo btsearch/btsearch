@@ -19,6 +19,7 @@ const RadioLineDetailsDialogPanel = lazy(() =>
   import("./radioLineDetailsDialog").then((module) => ({ default: module.RadioLineDetailsDialogPanel })),
 );
 const SI2PEMAntennaDialogPanel = lazy(() => import("./si2pemAntennaDialog").then((module) => ({ default: module.SI2PEMAntennaDialogPanel })));
+const StationHistoryDialogPanel = lazy(() => import("./stationHistoryDialog").then((module) => ({ default: module.StationHistoryDialogPanel })));
 
 type FloatingDialogStackProps = {
   dialogs: FloatingDialogItem[];
@@ -74,6 +75,18 @@ function renderMobileDialog(
           operatorMnc={dialog.operatorMnc}
           onClose={onClose}
           className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-5xl"
+          contentClassName="border border-border/70"
+        />
+      );
+    case "station-history":
+      return (
+        <StationHistoryDialogPanel
+          stationId={dialog.stationId}
+          stationCode={dialog.stationCode}
+          operatorName={dialog.operatorName}
+          operatorMnc={dialog.operatorMnc}
+          onClose={onClose}
+          className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-xl"
           contentClassName="border border-border/70"
         />
       );
@@ -148,6 +161,22 @@ function renderDesktopDialog(
           headerDragProps={frame.headerDragProps}
         />
       );
+    case "station-history":
+      return (
+        <StationHistoryDialogPanel
+          stationId={dialog.stationId}
+          stationCode={dialog.stationCode}
+          operatorName={dialog.operatorName}
+          operatorMnc={dialog.operatorMnc}
+          onClose={onClose}
+          contentRef={frame.contentRef}
+          bodyRef={frame.bodyRef}
+          bodyContentRef={frame.bodyContentRef}
+          className="h-full"
+          contentClassName="h-full max-h-none border border-border/70"
+          headerDragProps={frame.headerDragProps}
+        />
+      );
     default:
       return assertNever(dialog);
   }
@@ -187,7 +216,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, o
           <FloatingStationDialogFrame
             rect={dialog.rect}
             zIndex={dialog.zIndex}
-            fitHeightToContent={dialog.kind !== "si2pem-report"}
+            fitHeightToContent={dialog.kind !== "si2pem-report" && dialog.kind !== "station-history"}
             onFocus={() => onFocus(dialog.key)}
             onRectChange={(rect) => onRectChange(dialog.key, rect)}
           >

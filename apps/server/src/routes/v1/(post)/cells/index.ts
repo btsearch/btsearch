@@ -88,6 +88,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
         record_id: inserted.id,
         old_values: null,
         new_values: { ...inserted, details },
+        metadata: { station_id: inserted.station_id },
       },
       req,
     );

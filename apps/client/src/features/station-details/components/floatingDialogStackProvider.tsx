@@ -6,13 +6,14 @@ import type { StationSource, UkeStation } from "@/types/station";
 
 import { FloatingDialogStack } from "./floatingDialogStack";
 import { useFloatingDialogStackState } from "./floatingDialogStackState";
-import type { SI2PEMReportDialogPayload } from "./floatingDialogStackTypes";
+import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
 
 type FloatingDialogStackContextValue = {
   openStationDialog: (id: number, source: StationSource) => boolean;
   openUkePermitDialog: (station: UkeStation) => boolean;
   openRadioLineDialog: (link: DuplexRadioLink) => boolean;
   openSI2PEMReportDialog: (payload: SI2PEMReportDialogPayload) => boolean;
+  openStationHistoryDialog: (payload: StationHistoryDialogPayload) => boolean;
   setTerrainProfileStartHandler: (handler: ((station: TerrainProfileStationTarget) => void) | null) => void;
 };
 
@@ -30,9 +31,17 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
       openUkePermitDialog: stack.openUkePermitDialog,
       openRadioLineDialog: stack.openRadioLineDialog,
       openSI2PEMReportDialog: stack.openSI2PEMReportDialog,
+      openStationHistoryDialog: stack.openStationHistoryDialog,
       setTerrainProfileStartHandler,
     }),
-    [setTerrainProfileStartHandler, stack.openRadioLineDialog, stack.openSI2PEMReportDialog, stack.openStationDialog, stack.openUkePermitDialog],
+    [
+      setTerrainProfileStartHandler,
+      stack.openRadioLineDialog,
+      stack.openSI2PEMReportDialog,
+      stack.openStationHistoryDialog,
+      stack.openStationDialog,
+      stack.openUkePermitDialog,
+    ],
   );
 
   return (

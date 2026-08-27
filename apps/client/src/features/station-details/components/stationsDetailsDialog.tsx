@@ -22,6 +22,7 @@ import { fetchStation } from "../api";
 import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
 import { DialogOperatorName } from "./dialogOperatorName";
+import { useFloatingDialogStack } from "./floatingDialogStackProvider";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
@@ -59,10 +60,10 @@ export function StationDetailsDialogPanel({
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { t: tCommon } = useTranslation("common");
   const [activeTab, setActiveTab] = useState<TabId>(source === "uke" ? "permits" : "specs");
+  const { openStationHistoryDialog } = useFloatingDialogStack();
   const { data: settings } = useSettings();
   const { data: session } = authClient.useSession();
   const userRole = session?.user?.role as string | undefined;
-  const isAuditLogUser = userRole === "admin";
   const isAdmin = userRole === "admin" || userRole === "editor";
   const { preferences } = usePreferences();
 
@@ -140,25 +141,30 @@ export function StationDetailsDialogPanel({
                     </Tooltip>
                     <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">·</span>
                     <Tooltip>
-                      {isAdmin ? (
-                        <TooltipTrigger
-                          render={
-                            <Link
-                              to={isAuditLogUser ? "/admin/audit-logs" : "/admin/submissions"}
-                              search={isAuditLogUser ? { q: String(station.id) } : { q: station.station_id, page: 0 }}
-                              className="whitespace-nowrap text-[11px] text-muted-foreground/80 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-                              onClick={onClose}
-                            />
-                          }
-                        >
-                          {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                        </TooltipTrigger>
-                      ) : (
-                        <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] text-muted-foreground/80">
-                          {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                        </TooltipTrigger>
-                      )}
-                      <TooltipContent>{formatFullDate(station.updatedAt, i18n.language)}</TooltipContent>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openStationHistoryDialog({
+                                stationId: station.id,
+                                stationCode: station.station_id,
+                                operatorName: station.operator.name,
+                                operatorMnc: station.operator.mnc,
+                              })
+                            }
+                            className="cursor-pointer whitespace-nowrap text-[11px] text-muted-foreground/80 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
+                          />
+                        }
+                      >
+                        {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="space-y-0.5">
+                          <p>{formatFullDate(station.updatedAt, i18n.language)}</p>
+                          <p className="text-background/85">{t("history.tooltip")}</p>
+                        </div>
+                      </TooltipContent>
                     </Tooltip>
                   </div>
                   {hasStationActions ? (

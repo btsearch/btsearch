@@ -58,6 +58,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
           record_id: cell.id,
           old_values: cell,
           new_values: null,
+          metadata: { station_id: cell.station_id },
         },
         req,
         tx,

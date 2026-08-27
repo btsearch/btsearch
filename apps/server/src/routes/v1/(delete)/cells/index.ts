@@ -51,17 +51,22 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
 
       await tx.delete(cells).where(inArray(cells.id, ids));
 
-      await createAuditLog(
-        {
-          action: "cells.delete",
-          table_name: "cells",
-          record_id: null,
-          old_values: { cells: foundCells },
-          new_values: null,
-        },
-        req,
-        tx,
-      );
+      /* eslint-disable no-await-in-loop */
+      for (const stationId of uniqueStationIds) {
+        await createAuditLog(
+          {
+            action: "cells.delete",
+            table_name: "cells",
+            record_id: null,
+            old_values: { cells: foundCells.filter((cell) => cell.station_id === stationId) },
+            new_values: null,
+            metadata: { station_id: stationId },
+          },
+          req,
+          tx,
+        );
+      }
+      /* eslint-enable no-await-in-loop */
 
       /* eslint-disable no-await-in-loop */
       for (const stationId of uniqueStationIds) {

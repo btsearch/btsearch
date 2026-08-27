@@ -144,6 +144,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         record_id: id,
         old_values: { ...oldBase, details: oldDetails },
         new_values: { ...updated, details },
+        metadata: { station_id: cell.station_id },
       },
       req,
     );

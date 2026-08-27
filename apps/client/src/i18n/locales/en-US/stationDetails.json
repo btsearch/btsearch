@@ -105,5 +105,37 @@
     "setAsMain": "Set as main",
     "uploadedBy": "Uploaded by {{username}}",
     "unknownUser": "Unknown"
+  },
+  "history": {
+    "title": "Station change history",
+    "tooltip": "Click to view change history",
+    "empty": "No recorded changes",
+    "emptyHint": "Changes made before change tracking was introduced may not be listed here",
+    "error": "Failed to load change history",
+    "loadMore": "Load more",
+    "openAuditLog": "Audit log",
+    "openSubmissions": "Submissions",
+    "values": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "titles": {
+      "station_create": "Station created",
+      "station_update": "Station updated",
+      "station_delete": "Station deactivated",
+      "location_create": "Location added",
+      "location_update": "Location updated",
+      "location_delete": "Location removed",
+      "cells_create": "Cells added",
+      "cells_update": "Cells updated",
+      "cells_delete": "Cells removed",
+      "sectors_update": "Azimuths updated",
+      "network_ids_create": "Network identifiers added",
+      "network_ids_update": "Network identifiers updated",
+      "network_ids_delete": "Network identifiers removed"
+    },
+    "fields": {
+      "cell": "Cell"
+    }
   }
 }
