@@ -3,12 +3,12 @@
     "title": "Preferencje",
     "description": "Te ustawienia są zapisywane lokalnie na tym urządzeniu",
     "cloudSync": "Synchronizacja w chmurze",
-    "cloudSyncHint": "Zapisz ustawienia na swoim koncie, aby były dostępne na innych urządzeniach.",
+    "cloudSyncHint": "Zapisz ustawienia na swoim koncie, aby były dostępne na innych urządzeniach",
     "cloudSyncEnabled": "Zapisuj ustawienia w chmurze",
     "profile": "Profil urządzenia",
     "profileDesktop": "Komputer",
     "profileMobile": "Telefon",
-    "profileHint": "Wybierz profil ustawień synchronizowany przez tę przeglądarkę.",
+    "profileHint": "Wybierz profil ustawień synchronizowany przez tę przeglądarkę",
     "loginToSync": "Zaloguj się, aby używać synchronizacji w chmurze",
     "gpsFormat": "Format współrzędnych GPS",
     "gpsFormatHint": "Wybierz sposób wyświetlania współrzędnych GPS w aplikacji",
@@ -71,13 +71,13 @@
     "mapMeasureCircle": "Okrąg zasięgu",
     "mapMeasureCircleHint": "Rysuj okrąg o podanym promieniu wokół punktu odniesienia na mapie",
     "mapMeasureCircleLabel": "Włącz okrąg zasięgu",
-    "mapMeasureCircleNote": "Tip: Naciśnij <kbd>C</kbd> na mapie, aby schować lub pokazać z powrotem okrąg zasięgu. Naciśnij <kbd>Space</kbd>, aby zapisać bieżący okrąg, lub <kbd>Esc</kbd>, aby usunąć wszystkie zapisane okręgi.",
+    "mapMeasureCircleNote": "Tip: Naciśnij <kbd>C</kbd> na mapie, aby schować lub pokazać z powrotem okrąg zasięgu. Naciśnij <kbd>Space</kbd>, aby zapisać bieżący okrąg, lub <kbd>Esc</kbd>, aby usunąć wszystkie zapisane okręgi",
     "azimuthsMinZoom": "Minimalny zoom azymutów",
     "azimuthsMinZoomHint": "Ustaw minimalny poziom przybliżenia, od którego azymuty będą widoczne na mapie",
     "azimuthLineLength": "Długość linii azymutu",
     "azimuthLineLengthHint": "Ustaw długość linii kierunkowych azymutów rysowanych na mapie",
     "azimuthSpread": "Rozwarcie azymutu",
-    "azimuthSpreadHint": "Ustaw kątową szerokość trójkąta azymutu na mapie. Użyj 0°, aby wyświetlać proste linie kierunkowe.",
+    "azimuthSpreadHint": "Ustaw kątową szerokość trójkąta azymutu na mapie. Użyj 0°, aby wyświetlać proste linie kierunkowe",
     "groupNavigation": "Nawigacja",
     "groupMap": "Mapa",
     "groupAzimuths": "Azymuty",
@@ -90,7 +90,7 @@
     "ukeUpdatesHint": "Otrzymuj powiadomienie, gdy nowe dane stacji UKE zostaną zaimportowane",
     "ukeUpdatesLabel": "Powiadamiaj mnie o aktualizacjach UKE",
     "stationWatches": "Alerty obserwowanych stacji",
-    "stationWatchesHint": "Otrzymuj zgrupowane alerty dla obserwowanych stacji i list.",
+    "stationWatchesHint": "Otrzymuj zgrupowane alerty dla obserwowanych stacji i list",
     "stationWatchesLabel": "Powiadamiaj mnie o zmianach obserwowanych stacji",
     "submissionUpdates": "Aktualizacje zgłoszeń",
     "submissionUpdatesHint": "Otrzymuj powiadomienie, gdy Twoje zgłoszenia zostaną rozpatrzone",
@@ -100,11 +100,11 @@
     "newSubmissionsLabel": "Powiadamiaj mnie o nowych zgłoszeniach",
     "privacy": "Prywatność",
     "adConsent": "Reklamowe pliki cookie",
-    "adConsentHint": "Zezwól na spersonalizowane reklamy, które pomagają utrzymać serwis bezpłatnym. Reklamy są wyświetlane tylko po wyrażeniu zgody.",
+    "adConsentHint": "Zezwól na spersonalizowane reklamy, które pomagają utrzymać serwis bezpłatnym. Reklamy są wyświetlane tylko po wyrażeniu zgody",
     "adConsentLabel": "Zezwól na reklamowe pliki cookie",
-    "adConsentPending": "Nie dokonano jeszcze wyboru - baner będzie się wyświetlał do momentu podjęcia decyzji.",
+    "adConsentPending": "Nie dokonano jeszcze wyboru - baner będzie się wyświetlał do momentu podjęcia decyzji",
     "adConsentReset": "Resetuj zgodę",
-    "adConsentResetHint": "Usuń swój wybór dotyczący reklam i pokaż ponownie baner zgody przy następnym wejściu.",
+    "adConsentResetHint": "Usuń swój wybór dotyczący reklam i pokaż ponownie baner zgody przy następnym wejściu",
     "adConsentResetAction": "Zresetuj mój wybór"
   },
   "page": {
@@ -120,7 +120,7 @@
       "uploading": "Przesyłanie...",
       "remove": "Usuń",
       "removing": "Usuwanie...",
-      "hint": "JPG, PNG lub WebP. Maks. 3 MB.",
+      "hint": "JPG, PNG lub WebP. Maks. 3 MB",
       "uploadSuccess": "Zdjęcie profilowe zaktualizowane",
       "uploadError": "Nie udało się przesłać zdjęcia",
       "removeSuccess": "Zdjęcie profilowe usunięte",
@@ -133,7 +133,7 @@
     "emailVerification": {
       "verified": "Email zweryfikowany",
       "unverified": "Email niezweryfikowany",
-      "unverifiedDescription": "Zweryfikuj adres email, aby zabezpieczyć swoje konto.",
+      "unverifiedDescription": "Zweryfikuj adres email, aby zabezpieczyć swoje konto",
       "resend": "Wyślij ponownie",
       "resending": "Wysyłanie...",
       "resendSuccess": "Email weryfikacyjny wysłany",
@@ -147,37 +147,37 @@
       "setTitle": "Ustaw hasło",
       "setSubtitle": "Konto bez hasła - logowanie wyłącznie przez klucze dostępu",
       "setAction": "Ustaw hasło",
-      "setSuccess": "Hasło zostało ustawione.",
+      "setSuccess": "Hasło zostało ustawione",
       "setting": "Ustawianie hasła...",
       "changeTitle": "Zmień hasło",
       "changeSubtitle": "Wprowadź aktualne hasło, aby ustawić nowe",
       "changeAction": "Zaktualizuj hasło",
-      "changeSuccess": "Hasło zostało zaktualizowane.",
+      "changeSuccess": "Hasło zostało zaktualizowane",
       "currentPassword": "Aktualne hasło",
       "currentPasswordPlaceholder": "Wprowadź aktualne hasło",
       "newPassword": "Nowe hasło",
       "newPasswordPlaceholder": "Wprowadź nowe hasło",
       "confirmPassword": "Potwierdź hasło",
       "confirmPasswordPlaceholder": "Potwierdź nowe hasło",
-      "mismatch": "Hasła nie są zgodne.",
-      "tooShort": "Hasło musi mieć co najmniej 8 znaków.",
-      "setError": "Nie udało się ustawić hasła.",
-      "changeError": "Nie udało się zaktualizować hasła.",
-      "passkeyHint": "Przed ustawieniem hasła zostaniesz poproszony o weryfikację kluczem dostępu.",
+      "mismatch": "Hasła nie są zgodne",
+      "tooShort": "Hasło musi mieć co najmniej 8 znaków",
+      "setError": "Nie udało się ustawić hasła",
+      "changeError": "Nie udało się zaktualizować hasła",
+      "passkeyHint": "Przed ustawieniem hasła zostaniesz poproszony o weryfikację kluczem dostępu",
       "verifyPasskey": "Weryfikuj kluczem dostępu",
       "verifying": "Weryfikowanie...",
       "passkeyVerified": "Klucz dostępu zweryfikowany"
     },
     "passwordless": {
       "title": "Konto bez hasła",
-      "description": "Usuń hasło i loguj się wyłącznie za pomocą kluczy dostępu.",
+      "description": "Usuń hasło i loguj się wyłącznie za pomocą kluczy dostępu",
       "remove": "Usuń hasło",
       "removing": "Usuwanie...",
-      "success": "Hasło zostało usunięte. Możesz teraz logować się wyłącznie za pomocą kluczy dostępu.",
-      "noPassword": "Brak hasła. Logowanie tylko przez klucze dostępu.",
-      "requiresPasskey": "Musisz mieć co najmniej jeden klucz dostępu, zanim usuniesz hasło.",
-      "removeError": "Nie udało się usunąć hasła.",
-      "passkeyLoadError": "Nie udało się wczytać kluczy dostępu. Odśwież stronę i spróbuj ponownie."
+      "success": "Hasło zostało usunięte. Możesz teraz logować się wyłącznie za pomocą kluczy dostępu",
+      "noPassword": "Brak hasła. Logowanie tylko przez klucze dostępu",
+      "requiresPasskey": "Musisz mieć co najmniej jeden klucz dostępu, zanim usuniesz hasło",
+      "removeError": "Nie udało się usunąć hasła",
+      "passkeyLoadError": "Nie udało się wczytać kluczy dostępu. Odśwież stronę i spróbuj ponownie"
     }
   },
   "apiKeys": {
@@ -197,10 +197,10 @@
     "revokeKey": "Unieważnij",
     "revoking": "Unieważnianie...",
     "revokeConfirmTitle": "Unieważnij klucz API",
-    "revokeConfirmDescription": "Czy na pewno chcesz unieważnić \"{{name}}\"? Tej akcji nie można cofnąć, a wszystkie aplikacje używające tego klucza przestaną działać.",
+    "revokeConfirmDescription": "Czy na pewno chcesz unieważnić \"{{name}}\"? Tej akcji nie można cofnąć, a wszystkie aplikacje używające tego klucza przestaną działać",
     "revokeSuccess": "Klucz API został unieważniony",
     "noKeys": "Brak kluczy API",
-    "noKeysDescription": "Utwórz klucz API, aby programistycznie korzystać z API BTSearch.",
+    "noKeysDescription": "Utwórz klucz API, aby programistycznie korzystać z API BTSearch",
     "typeBadge": {
       "secret": "Tajny",
       "publishable": "Publiczny"
@@ -229,7 +229,7 @@
     },
     "success": {
       "title": "Klucz został utworzony",
-      "warning": "Przechowuj ten klucz w bezpiecznym miejscu. Nie będziesz mógł go ponownie wyświetlić po zamknięciu tego okna.",
+      "warning": "Przechowuj ten klucz w bezpiecznym miejscu. Nie będziesz mógł go ponownie wyświetlić po zamknięciu tego okna",
       "done": "Gotowe"
     },
     "usage": {
@@ -291,7 +291,7 @@
     },
     "hunters": {
       "title": "Katalog Łowców BTS",
-      "description": "Pokaż się innym łowcom. Wybierz województwa, w których działasz.",
+      "description": "Pokaż się innym łowcom. Wybierz województwa, w których działasz",
       "enabled": "Widoczny w katalogu",
       "disabled": "Ukryty w katalogu",
       "regions": "Twoje województwa",
@@ -299,6 +299,6 @@
     }
   },
   "twoFactor": {
-    "setupRequired": "Twoje konto wymaga uwierzytelniania dwuskładnikowego. Skonfiguruj je w ustawieniach bezpieczeństwa."
+    "setupRequired": "Twoje konto wymaga uwierzytelniania dwuskładnikowego. Skonfiguruj je w ustawieniach bezpieczeństwa"
   }
 }

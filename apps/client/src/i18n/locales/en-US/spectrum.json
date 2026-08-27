@@ -1,7 +1,7 @@
 {
   "title": "Spectrum",
-  "description": "Radio spectrum allocation for mobile operators in Poland.",
-  "maxBwPrefix": "max.",
+  "description": "Radio spectrum allocation for mobile operators in Poland",
+  "maxBwPrefix": "max",
   "badges": {
     "active": "NR Active",
     "deployment": "NR Assigned",

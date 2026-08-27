@@ -1,6 +1,7 @@
 "use client";
 
 import { authMutationKeys } from "@better-auth-ui/core";
+import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { AuthPrompts, useAuth, useAuthPlugin, useFetchOptions, useSignInEmail } from "@better-auth-ui/react";
 import { useSignInUsername } from "@better-auth-ui/react/plugins/username";
 import { useIsMutating } from "@tanstack/react-query";
@@ -15,7 +16,6 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSepar
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import type { UsernameAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { useSignInContinuation } from "@/lib/auth/use-sign-in-continuation";
 import { usernamePlugin } from "@/lib/auth/username-plugin";
 import { cn } from "@/lib/utils";

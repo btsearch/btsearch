@@ -34,17 +34,17 @@
     "download": "Download",
     "downloading": "Downloading...",
     "noDates": "No exports yet",
-    "noDatesSubtitle": "Nothing has been generated for this type and source yet.",
+    "noDatesSubtitle": "Nothing has been generated for this type and source yet",
     "emptyTitle": "No files for this date",
-    "emptySubtitle": "Try a different date, source, or region.",
+    "emptySubtitle": "Try a different date, source, or region",
     "filteredEmptyTitle": "No files match these filters",
-    "filteredEmptySubtitle": "Clear filters to see every file for this date.",
+    "filteredEmptySubtitle": "Clear filters to see every file for this date",
     "errorTitle": "Could not load KMZ files",
-    "errorSubtitle": "Refresh the page or try again in a moment."
+    "errorSubtitle": "Refresh the page or try again in a moment"
   },
   "file": {
     "new_stations": "New stations",
     "new_radiolines": "New radiolines"
   },
-  "downloadError": "Couldn't download the file. Please try again."
+  "downloadError": "Couldn't download the file. Please try again"
 }

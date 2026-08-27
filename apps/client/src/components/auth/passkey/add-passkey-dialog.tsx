@@ -1,3 +1,4 @@
+import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useAddPasskey } from "@better-auth-ui/react/plugins/passkey";
 import { Fingerprint } from "lucide-react";
@@ -8,7 +9,6 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { PasskeyAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 
 export type AddPasskeyDialogProps = {

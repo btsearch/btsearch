@@ -1,12 +1,12 @@
 "use client";
 
+import type { MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useListDeviceSessions } from "@better-auth-ui/react/plugins/multi-session";
 import { Fragment } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { ItemGroup, ItemSeparator } from "@/components/ui/item";
-import type { MultiSessionAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
 import { cn } from "@/lib/utils";
 

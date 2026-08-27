@@ -17,15 +17,15 @@
     "drizzle-orm": "1.0.0-rc.4",
     "node-sql-parser": "5.4.0",
     "ora": "9.4.1",
-    "papaparse": "5.5.4",
+    "papaparse": "5.7.0",
     "postgres": "3.4.9"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
     "@types/cli-progress": "3.11.6",
-    "@types/node": "25.9.3",
+    "@types/node": "26.3.0",
     "@types/papaparse": "5.5.2",
-    "@types/pg": "8.21.0",
-    "tsx": "4.23.11"
+    "@types/pg": "8.23.1",
+    "tsx": "4.23.12"
   }
 }

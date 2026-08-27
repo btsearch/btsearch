@@ -1,4 +1,4 @@
-import type { ListDeviceSession } from "@better-auth-ui/core/plugins/multi-session";
+import type { ListDeviceSession, MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useRevokeMultiSession, useSetActiveSession } from "@better-auth-ui/react/plugins/multi-session";
 import { ArrowLeftRight, LogOut, MoreHorizontal } from "lucide-react";
@@ -9,7 +9,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Item, ItemActions } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
-import type { MultiSessionAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
 import { cn } from "@/lib/utils";
 

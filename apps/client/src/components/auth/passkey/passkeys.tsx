@@ -1,3 +1,4 @@
+import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useListPasskeys } from "@better-auth-ui/react/plugins/passkey";
 import { Fragment, useState } from "react";
@@ -5,7 +6,6 @@ import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ItemGroup, ItemSeparator } from "@/components/ui/item";
-import type { PasskeyAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 import { cn } from "@/lib/utils";
 

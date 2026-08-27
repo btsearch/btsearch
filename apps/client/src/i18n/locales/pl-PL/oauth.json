@@ -1,7 +1,7 @@
 {
   "authorize": {
     "invalidTitle": "Nieprawidłowe żądanie autoryzacji",
-    "invalidDescription": "Ten link autoryzacyjny jest niekompletny lub wygasł. Wróć do aplikacji i spróbuj ponownie.",
+    "invalidDescription": "Ten link autoryzacyjny jest niekompletny lub wygasł. Wróć do aplikacji i spróbuj ponownie",
     "backHome": "Wróć do BTSearch",
     "wantsAccess": "{{app}} prosi o dostęp do Twojego konta BTSearch",
     "unknownApp": "Nieznana aplikacja",
@@ -10,12 +10,12 @@
     "writeAccess": "Działania w Twoim imieniu",
     "offlineAccess": "Zachowuje stały dostęp, dopóki go nie odwołasz",
     "redirectNotice": "Nastąpi przekierowanie do <strong>{{domain}}</strong>",
-    "revokeNotice": "Dostęp możesz odwołać w każdej chwili <settingsLink>tutaj</settingsLink>.",
+    "revokeNotice": "Dostęp możesz odwołać w każdej chwili <settingsLink>tutaj</settingsLink>",
     "allow": "Zezwól na dostęp",
-    "allowing": "Zezwalanie…",
+    "allowing": "Zezwalanie...",
     "deny": "Anuluj",
-    "denying": "Anulowanie…",
-    "error": "Autoryzacja nie powiodła się. Wróć do aplikacji i spróbuj ponownie.",
+    "denying": "Anulowanie...",
+    "error": "Autoryzacja nie powiodła się. Wróć do aplikacji i spróbuj ponownie",
     "scopes": {
       "openid": "Potwierdzenie Twojej tożsamości",
       "profile": "Wgląd w nazwę użytkownika i awatar",
@@ -40,7 +40,7 @@
     "title": "Aplikacje OAuth",
     "description": "Zarejestrowane przez Ciebie aplikacje integrujące się z BTSearch",
     "noApps": "Brak aplikacji",
-    "noAppsDescription": "Zarejestruj aplikację OAuth, aby Twoja strona lub narzędzie mogły logować użytkowników kontem BTSearch.",
+    "noAppsDescription": "Zarejestruj aplikację OAuth, aby Twoja strona lub narzędzie mogły logować użytkowników kontem BTSearch",
     "createApp": "Nowa aplikacja",
     "columns": {
       "name": "Aplikacja",
@@ -50,7 +50,7 @@
     "createdOn": "Utworzono {{date}}",
     "dialog": {
       "title": "Zarejestruj aplikację",
-      "description": "Użytkownicy zobaczą te informacje na ekranie autoryzacji.",
+      "description": "Użytkownicy zobaczą te informacje na ekranie autoryzacji",
       "nameLabel": "Nazwa aplikacji",
       "namePlaceholder": "Mój dodatek do NetMonster",
       "typeLabel": "Typ aplikacji",
@@ -62,19 +62,19 @@
       "redirectLabel": "Adresy przekierowań (redirect URI)",
       "redirectPlaceholder": "https://example.com/callback",
       "redirectPlaceholderNative": "pl.example.myapp:/callback",
-      "redirectHint": "Jeden na linię. Użytkownicy będą przekierowywani wyłącznie na dokładnie te adresy.",
-      "redirectHintWeb": "Wymagany jest protokół https://.",
+      "redirectHint": "Jeden na linię. Użytkownicy będą przekierowywani wyłącznie na dokładnie te adresy",
+      "redirectHintWeb": "Wymagany jest protokół https://",
       "redirectHintNative": "Użyj schematu w notacji odwróconej domeny z pojedynczym ukośnikiem (pl.example.myapp:/callback) lub adresu loopback (http://127.0.0.1).",
       "create": "Zarejestruj",
-      "creating": "Rejestrowanie…"
+      "creating": "Rejestrowanie..."
     },
     "success": {
       "title": "Aplikacja zarejestrowana",
       "rotatedTitle": "Nowy sekret klienta",
       "clientId": "Client ID",
       "clientSecret": "Sekret klienta (client secret)",
-      "warning": "Zapisz sekret klienta teraz — nie zostanie ponownie wyświetlony.",
-      "publicClientNote": "Aplikacje natywne nie otrzymują sekretu klienta. Autoryzacja wymaga PKCE.",
+      "warning": "Zapisz sekret klienta - nie zostanie on ponownie wyświetlony",
+      "publicClientNote": "Aplikacje natywne nie otrzymują sekretu klienta. Autoryzacja wymaga PKCE",
       "done": "Gotowe"
     },
     "typeBadge": {
@@ -83,12 +83,12 @@
     },
     "rotateSecret": "Zmień sekret",
     "rotateConfirmTitle": "Zmienić sekret klienta?",
-    "rotateConfirmDescription": "Obecny sekret aplikacji „{{name}}” natychmiast przestanie działać.",
-    "rotating": "Zmienianie…",
+    "rotateConfirmDescription": "Obecny sekret aplikacji \"{{name}}\" natychmiast przestanie działać",
+    "rotating": "Zmienianie...",
     "deleteApp": "Usuń",
     "deleteConfirmTitle": "Usunąć aplikację?",
-    "deleteConfirmDescription": "Aplikacja „{{name}}” natychmiast utraci dostęp u wszystkich użytkowników, którzy ją autoryzowali. Tej operacji nie można cofnąć.",
-    "deleting": "Usuwanie…",
+    "deleteConfirmDescription": "Aplikacja \"{{name}}\" natychmiast utraci dostęp u wszystkich użytkowników, którzy ją autoryzowali. Tej operacji nie można cofnąć",
+    "deleting": "Usuwanie...",
     "deleteSuccess": "Aplikacja usunięta",
     "errors": {
       "createFailed": "Nie udało się zarejestrować aplikacji",
@@ -99,16 +99,16 @@
     "title": "Autoryzowane aplikacje",
     "description": "Aplikacje zewnętrzne, którym przyznano dostęp do Twojego konta",
     "none": "Brak autoryzowanych aplikacji",
-    "noneDescription": "Tutaj pojawią się aplikacje, którym przyznasz dostęp do swojego konta.",
+    "noneDescription": "Tutaj pojawią się aplikacje, którym przyznasz dostęp do swojego konta",
     "grantedOn": "Autoryzowano {{date}}",
     "permissionCount_one": "{{count}} uprawnienie",
     "permissionCount_few": "{{count}} uprawnienia",
     "permissionCount_many": "{{count}} uprawnień",
     "permissionCount_other": "{{count}} uprawnienia",
     "revoke": "Odwołaj dostęp",
-    "revoking": "Odwoływanie…",
+    "revoking": "Odwoływanie...",
     "revokeConfirmTitle": "Odwołać dostęp?",
-    "revokeConfirmDescription": "Aplikacja „{{name}}” natychmiast utraci dostęp do Twojego konta.",
+    "revokeConfirmDescription": "Aplikacja \"{{name}}\" natychmiast utraci dostęp do Twojego konta",
     "revokeSuccess": "Dostęp odwołany"
   }
 }

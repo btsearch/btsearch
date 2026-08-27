@@ -23,7 +23,7 @@
   },
   "templates": {
     "title": "Metadata creator",
-    "description": "Empty fields use our template. Insert placeholders with the plus button.",
+    "description": "Empty fields use our template. Insert placeholders with the plus button",
     "insertPlaceholder": "Insert placeholder",
     "preview": "Preview",
     "toggleHint": "Click to simulate missing values",

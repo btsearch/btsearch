@@ -6,7 +6,7 @@
     "createStation": "Create Station",
     "deleteLocation": "Delete Location",
     "confirmDeleteLocation": "Are you sure you want to delete this location?",
-    "confirmDeleteLocationDesc": "This action cannot be undone. The location and its data will be permanently removed."
+    "confirmDeleteLocationDesc": "This action cannot be undone. The location and its data will be permanently removed"
   },
   "actions": {
     "newStation": "Create New Station"
@@ -41,10 +41,10 @@
     "addRemainingCells": "Add remaining cells",
     "confirmCells": "Confirm cells",
     "syncSectorsByPci": "Sync azimuths by PCI",
-    "noRats": "No cells yet. Select a radio technology above to add cells.",
-    "pendingReadOnly": "Cells cannot be modified while this station has pending status. Change the status to published to edit cells.",
+    "noRats": "No cells yet. Select a radio technology above to add cells",
+    "pendingReadOnly": "Cells cannot be modified while this station has pending status. Change the status to published to edit cells",
     "noStationCells": "No cells found for this station",
-    "noCells": "No cells yet. Click \"Add Cell\" to add one.",
+    "noCells": "No cells yet. Click \"Add Cell\" to add one",
     "diffAdded": "new",
     "diffModified": "modified",
     "diffDeleted": "deleted",

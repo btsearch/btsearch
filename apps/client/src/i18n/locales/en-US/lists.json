@@ -1,5 +1,5 @@
 {
-  "empty": "You haven't created any lists yet.",
+  "empty": "You haven't created any lists yet",
   "noLists": "No lists yet",
   "create": "Create List",
   "name": "Name",
@@ -13,7 +13,7 @@
   "public": "Public",
   "private": "Private",
   "deleteConfirm": "Are you sure you want to delete this list?",
-  "deleteConfirmDescription": "This action cannot be undone.",
+  "deleteConfirmDescription": "This action cannot be undone",
   "copied": "Link copied to clipboard",
   "created": "List created",
   "deleted": "List deleted",
@@ -27,5 +27,5 @@
   "rename": "Rename",
   "editList": "Edit list",
   "notificationsEnabled": "Notify me about station changes",
-  "notificationsEnabledHint": "Includes cells, photos, comments, and UKE permits for stations in this list."
+  "notificationsEnabledHint": "Includes cells, photos, comments, and UKE permits for stations in this list"
 }

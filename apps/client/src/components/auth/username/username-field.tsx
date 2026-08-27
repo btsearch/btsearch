@@ -1,3 +1,4 @@
+import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useIsUsernameAvailable } from "@better-auth-ui/react/plugins/username";
 import { useDebouncer } from "@tanstack/react-pacer";
@@ -8,7 +9,6 @@ import type { AdditionalFieldProps } from "@/components/auth/additional-field";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import type { UsernameAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { usernamePlugin } from "@/lib/auth/username-plugin";
 
 /**

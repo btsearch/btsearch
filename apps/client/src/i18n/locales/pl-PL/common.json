@@ -179,14 +179,14 @@
     "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie lub odśwież stronę",
     "tryAgain": "Spróbuj ponownie",
     "reload": "Odśwież stronę",
-    "toast": "Coś poszło nie tak. Spróbuj ponownie."
+    "toast": "Coś poszło nie tak. Spróbuj ponownie"
   },
   "toast": {
     "closeStationDialogFirst": "Zamknij najpierw jedno okno, aby otworzyć kolejne"
   },
   "backendUnavailable": {
     "title": "Serwer niedostępny",
-    "description": "Serwer jest obecnie niedostępny. Spróbuj ponownie później."
+    "description": "Serwer jest obecnie niedostępny. Spróbuj ponownie później"
   },
   "notFound": {
     "gps": "Brak współrzędnych GPS",
@@ -195,17 +195,17 @@
   },
   "pwa": {
     "updateAvailable": "Dostępna jest nowa wersja",
-    "updateDescription": "Odśwież, aby uzyskać najnowsze funkcje i poprawki."
+    "updateDescription": "Odśwież, aby uzyskać najnowsze funkcje i poprawki"
   },
   "cookieConsent": {
     "title": "Używamy plików cookie",
-    "description": "Strona używa reklamowych plików cookie, aby wyświetlać trafne reklamy, które pomagają utrzymać ją bezpłatną. Możesz to zmienić w dowolnym momencie w Preferencjach.",
+    "description": "Strona używa reklamowych plików cookie, aby wyświetlać trafne reklamy, które pomagają utrzymać ją bezpłatną. Możesz to zmienić w dowolnym momencie w Preferencjach",
     "learnMore": "Dowiedz się więcej",
     "accept": "Akceptuję",
     "decline": "Odrzucam"
   },
   "forbidden": {
     "title": "Brak dostępu",
-    "description": "Nie masz uprawnień do wyświetlenia tej strony."
+    "description": "Nie masz uprawnień do wyświetlenia tej strony"
   }
 }

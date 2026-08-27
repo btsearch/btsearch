@@ -1,3 +1,4 @@
+import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useUpdatePasskey } from "@better-auth-ui/react/plugins/passkey";
 import { type FormEvent, useEffect, useState } from "react";
@@ -7,7 +8,6 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { PasskeyAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 
 import type { ListedPasskey } from "./delete-passkey-dialog";

@@ -1,7 +1,7 @@
 {
   "authorize": {
     "invalidTitle": "Invalid authorization request",
-    "invalidDescription": "This authorization link is incomplete or has expired. Go back to the application and start again.",
+    "invalidDescription": "This authorization link is incomplete or has expired. Go back to the application and start again",
     "backHome": "Back to BTSearch",
     "wantsAccess": "{{app}} wants to access your BTSearch account",
     "unknownApp": "Unknown application",
@@ -10,12 +10,12 @@
     "writeAccess": "Act on your behalf",
     "offlineAccess": "Keeps access until you revoke it",
     "redirectNotice": "You will be redirected to <strong>{{domain}}</strong>",
-    "revokeNotice": "You can revoke this access anytime <settingsLink>here</settingsLink>.",
+    "revokeNotice": "You can revoke this access anytime <settingsLink>here</settingsLink>",
     "allow": "Allow access",
-    "allowing": "Allowing…",
+    "allowing": "Allowing...",
     "deny": "Cancel",
-    "denying": "Cancelling…",
-    "error": "Authorization failed. Go back to the application and try again.",
+    "denying": "Cancelling...",
+    "error": "Authorization failed. Go back to the application and try again",
     "scopes": {
       "openid": "Confirm your identity",
       "profile": "See your username and avatar",
@@ -40,7 +40,7 @@
     "title": "OAuth applications",
     "description": "Applications you registered that integrate with BTSearch",
     "noApps": "No applications yet",
-    "noAppsDescription": "Register an OAuth application to let your website or tool sign users in with their BTSearch account.",
+    "noAppsDescription": "Register an OAuth application to let your website or tool sign users in with their BTSearch account",
     "createApp": "New application",
     "columns": {
       "name": "Application",
@@ -50,7 +50,7 @@
     "createdOn": "Created {{date}}",
     "dialog": {
       "title": "Register application",
-      "description": "Users will see this information on the authorization screen.",
+      "description": "Users will see this information on the authorization screen",
       "nameLabel": "Application name",
       "namePlaceholder": "My NetMonster companion",
       "typeLabel": "Application type",
@@ -62,19 +62,19 @@
       "redirectLabel": "Redirect URIs",
       "redirectPlaceholder": "https://example.com/callback",
       "redirectPlaceholderNative": "pl.example.myapp:/callback",
-      "redirectHint": "One per line. Users are only ever redirected to these exact URIs.",
-      "redirectHintWeb": "Must use https://.",
+      "redirectHint": "One per line. Users are only ever redirected to these exact URIs",
+      "redirectHintWeb": "Must use https://",
       "redirectHintNative": "Use a reverse-domain scheme with a single slash (pl.example.myapp:/callback) or a loopback address (http://127.0.0.1).",
       "create": "Register",
-      "creating": "Registering…"
+      "creating": "Registering..."
     },
     "success": {
       "title": "Application registered",
       "rotatedTitle": "New client secret",
       "clientId": "Client ID",
       "clientSecret": "Client secret",
-      "warning": "Store the client secret now — it will not be shown again.",
-      "publicClientNote": "Native apps don't receive a client secret. Authorization requires PKCE.",
+      "warning": "Store the client secret now — it will not be shown again",
+      "publicClientNote": "Native apps don't receive a client secret. Authorization requires PKCE",
       "done": "Done"
     },
     "typeBadge": {
@@ -83,12 +83,12 @@
     },
     "rotateSecret": "Rotate secret",
     "rotateConfirmTitle": "Rotate client secret?",
-    "rotateConfirmDescription": "The current secret for \"{{name}}\" stops working immediately.",
-    "rotating": "Rotating…",
+    "rotateConfirmDescription": "The current secret for \"{{name}}\" stops working immediately",
+    "rotating": "Rotating...",
     "deleteApp": "Delete",
     "deleteConfirmTitle": "Delete application?",
-    "deleteConfirmDescription": "\"{{name}}\" immediately loses access for every user who authorized it. This cannot be undone.",
-    "deleting": "Deleting…",
+    "deleteConfirmDescription": "\"{{name}}\" immediately loses access for every user who authorized it. This cannot be undone",
+    "deleting": "Deleting...",
     "deleteSuccess": "Application deleted",
     "errors": {
       "createFailed": "Failed to register application",
@@ -99,14 +99,14 @@
     "title": "Authorized applications",
     "description": "Third-party applications you granted access to your account",
     "none": "No authorized applications",
-    "noneDescription": "Applications you grant access to your account will appear here.",
+    "noneDescription": "Applications you grant access to your account will appear here",
     "grantedOn": "Authorized {{date}}",
     "permissionCount_one": "{{count}} permission",
     "permissionCount_other": "{{count}} permissions",
     "revoke": "Revoke access",
-    "revoking": "Revoking…",
+    "revoking": "Revoking...",
     "revokeConfirmTitle": "Revoke access?",
-    "revokeConfirmDescription": "\"{{name}}\" will immediately lose access to your account.",
+    "revokeConfirmDescription": "\"{{name}}\" will immediately lose access to your account",
     "revokeSuccess": "Access revoked"
   }
 }

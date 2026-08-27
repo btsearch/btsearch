@@ -86,15 +86,15 @@
   "unknownOperator": "Nieznany operator",
   "photos": {
     "title": "Zdjęcia stacji",
-    "subtitle": "Aktualna galeria zdjęć wybranych dla opublikowanych stacji bazowych.",
+    "subtitle": "Aktualna galeria zdjęć wybranych dla opublikowanych stacji bazowych",
     "loadedCount": "Pokazano {{count, number}} z {{total, number}} zdjęć",
     "loadingMore": "Ładowanie kolejnych zdjęć...",
     "emptyTitle": "Brak zdjęć stacji",
-    "emptySubtitle": "Wybrane zdjęcia stacji pojawią się tutaj.",
+    "emptySubtitle": "Wybrane zdjęcia stacji pojawią się tutaj",
     "filteredEmptyTitle": "Brak zdjęć dla tych filtrów",
-    "filteredEmptySubtitle": "Wyczyść filtry albo rozszerz wyszukiwanie, aby zobaczyć więcej zdjęć stacji.",
+    "filteredEmptySubtitle": "Wyczyść filtry albo rozszerz wyszukiwanie, aby zobaczyć więcej zdjęć stacji",
     "errorTitle": "Nie udało się wczytać zdjęć",
-    "errorSubtitle": "Odśwież galerię albo spróbuj ponownie za chwilę.",
+    "errorSubtitle": "Odśwież galerię albo spróbuj ponownie za chwilę",
     "retry": "Spróbuj ponownie",
     "searchPlaceholder": "Szukaj stacji, miasta, adresu, województwa, notatki...",
     "allRegions": "Wszystkie województwa",
@@ -156,14 +156,14 @@
     "breadcrumb": "Profil użytkownika",
     "joinedDate": "Dołączył(a) {{date}}",
     "privateTitle": "Ten profil jest prywatny",
-    "privateSubtitle": "Tylko użytkownik może zobaczyć swój pełny profil.",
+    "privateSubtitle": "Tylko użytkownik może zobaczyć swój pełny profil",
     "notFoundTitle": "Nie znaleziono użytkownika",
-    "notFoundSubtitle": "Profil @{{username}} nie istnieje.",
+    "notFoundSubtitle": "Profil @{{username}} nie istnieje",
     "comments": "Komentarze",
     "noComments": "Brak komentarzy",
     "photos": "Zdjęcia",
     "photosSoon": "Wkrótce",
-    "privateOwnerNotice": "Twój profil jest ustawiony jako prywatny. Tylko Ty możesz zobaczyć tę stronę."
+    "privateOwnerNotice": "Twój profil jest ustawiony jako prywatny. Tylko Ty możesz zobaczyć tę stronę"
   },
   "hunters": {
     "breadcrumb": "Łowcy BTS",
@@ -172,10 +172,10 @@
     "searchPlaceholder": "Szukaj po nazwie lub nicku...",
     "allRegions": "Wszyscy",
     "emptyTitle": "Brak łowców w tym regionie",
-    "emptySubtitle": "Dołącz do katalogu, żeby inni mogli Cię znaleźć.",
+    "emptySubtitle": "Dołącz do katalogu, żeby inni mogli Cię znaleźć",
     "joinCta": "Dołącz do katalogu",
     "errorTitle": "Nie udało się wczytać łowców",
-    "errorSubtitle": "Odśwież stronę albo spróbuj ponownie za chwilę.",
+    "errorSubtitle": "Odśwież stronę albo spróbuj ponownie za chwilę",
     "count_one": "{{count}} łowca",
     "count_few": "{{count}} łowców",
     "count_many": "{{count}} łowców",
@@ -183,7 +183,7 @@
   },
   "webgl": {
     "title": "Mapa niedostępna",
-    "description": "Twoje urządzenie nie obsługuje WebGL2 lub ma go wyłączonego. Włącz go w ustawieniach przeglądarki, aby korzystać z mapy."
+    "description": "Twoje urządzenie nie obsługuje WebGL2 lub ma go wyłączonego. Włącz go w ustawieniach przeglądarki, aby korzystać z mapy"
   },
   "deletedEntries": {
     "title": "Usunięte wpisy",

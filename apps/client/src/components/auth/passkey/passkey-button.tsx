@@ -1,6 +1,7 @@
 "use client";
 
 import { type AuthView, authMutationKeys } from "@better-auth-ui/core";
+import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useSignInPasskey } from "@better-auth-ui/react/plugins/passkey";
 import { useIsMutating } from "@tanstack/react-query";
@@ -8,7 +9,6 @@ import { Fingerprint } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import type { PasskeyAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 import { cn } from "@/lib/utils";
 

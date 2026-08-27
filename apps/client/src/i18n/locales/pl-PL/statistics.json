@@ -30,13 +30,13 @@
     "internalByVoivodeship": "Stacje wg województwa",
     "history": "Trendy historyczne",
     "noData": "Brak danych",
-    "noHistoryData": "Brak danych historycznych. Trendy pojawią się, gdy dane zostaną zebrane."
+    "noHistoryData": "Brak danych historycznych. Trendy pojawią się, gdy dane zostaną zebrane"
   },
   "completeness": {
     "stationTitle": "Kompletność dokumentacji stacji",
-    "stationDescription": "Opublikowane stacje z azymutami i dodatkowymi identyfikatorami.",
+    "stationDescription": "Opublikowane stacje z azymutami i dodatkowymi identyfikatorami",
     "pciTitle": "Kompletność PCI",
-    "pciDescription": "Komórki LTE i NR z udokumentowanym lub brakującym PCI.",
+    "pciDescription": "Komórki LTE i NR z udokumentowanym lub brakującym PCI",
     "stations": "Stacje",
     "withSectors": "Z azymutami",
     "withoutSectors": "Bez azymutów",
@@ -48,14 +48,14 @@
   },
   "contributions": {
     "title": "Historia kontrybucji",
-    "description": "Różnice dla azymutów, dodatkowych identyfikatorów i komórek z PCI.",
+    "description": "Różnice dla azymutów, dodatkowych identyfikatorów i komórek z PCI",
     "addedSectors": "Dodane azymuty",
     "addedExtraIds": "Dodane dodatkowe ID",
     "addedCellsWithPCI": "Dodane komórki z PCI"
   },
   "permitsByMonth": {
     "title": "Stacje i pozwolenia UKE wg miesiąca",
-    "description": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń UKE.",
+    "description": "Wybierz miesiąc, aby sprawdzić liczbę stacji i pozwoleń UKE",
     "snapshotDate": "Dane z {{date}} względem {{previousDate}}",
     "month": "Miesiąc",
     "view": "Widok",
@@ -65,7 +65,13 @@
     },
     "all": "Wszystkie",
     "new": "Nowe",
-    "noPreviousSnapshot": "brak poprzednich danych"
+    "noPreviousSnapshot": "brak poprzednich danych",
+    "export": {
+      "button": "Pobierz PNG",
+      "generating": "Generowanie PNG...",
+      "error": "Nie udało się wygenerować obrazu. Spróbuj ponownie",
+      "imageTitle": "UKE w miesiącu {{month}} {{year}}"
+    }
   },
   "filters": {
     "allBands": "Wszystkie pasma",

@@ -5,7 +5,7 @@
   },
   "detail": {
     "title": "Rozpatrywanie zgłoszenia",
-    "readOnly": "To zgłoszenie zostało rozpatrzone i nie można go już edytować.",
+    "readOnly": "To zgłoszenie zostało rozpatrzone i nie można go już edytować",
     "submitter": "Zgłaszający",
     "createdAt": "Data zgłoszenia",
     "noSubmitterNote": "Brak notatki od zgłaszającego",
@@ -16,7 +16,7 @@
     "reviewNotesPlaceholder": "Dodaj notatkę dla zgłaszającego (opcjonalnie)...",
     "reviewedAt": "Data rozpatrzenia",
     "reviewerResponse": "Odpowiedź sprawdzającego",
-    "staleWarning": "To zgłoszenie zostało zmodyfikowane od momentu otwarcia. Przejrzyj zaktualizowaną wersję przed kontynuowaniem."
+    "staleWarning": "To zgłoszenie zostało zmodyfikowane od momentu otwarcia. Przejrzyj zaktualizowaną wersję przed kontynuowaniem"
   },
   "locationPicker": {
     "title": "Lokalizacja",
@@ -36,11 +36,11 @@
   },
   "rejectApproveCard": {
     "confirmReject": "Czy na pewno chcesz odrzucić to zgłoszenie?",
-    "confirmRejectDesc": "Tej operacji nie można cofnąć. Stacja nie zostanie dodana do bazy danych.",
+    "confirmRejectDesc": "Tej operacji nie można cofnąć. Stacja nie zostanie dodana do bazy danych",
     "confirmApprove": "Czy na pewno chcesz zatwierdzić to zgłoszenie?",
-    "confirmApproveDesc": "Tej operacji nie można cofnąć. Stacja zostanie dodana do bazy danych, a zgłoszenie oznaczone jako zatwierdzone."
+    "confirmApproveDesc": "Tej operacji nie można cofnąć. Stacja zostanie dodana do bazy danych, a zgłoszenie oznaczone jako zatwierdzone"
   },
-  "deletionBanner": "To zgłoszenie dotyczy usunięcia stacji {{stationId}}. Po zatwierdzeniu stacja zostanie oznaczona jako nieaktywna.",
+  "deletionBanner": "To zgłoszenie dotyczy usunięcia stacji {{stationId}}. Po zatwierdzeniu stacja zostanie oznaczona jako nieaktywna",
   "adminTitle": "Zarządzanie zgłoszeniami",
   "adminDescription": "Zarządzaj zgłoszeniami dotyczącymi stacji bazowych",
   "submitNew": "Utwórz nowe zgłoszenie",
@@ -53,7 +53,7 @@
     "new": "Nowa",
     "existing": "Istniejąca",
     "existingStation": "Istniejąca stacja",
-    "newStationHint": "Zacznij od zaznaczenia lokalizacji stacji na mapie poniżej."
+    "newStationHint": "Zacznij od zaznaczenia lokalizacji stacji na mapie poniżej"
   },
   "actionSelector": {
     "title": "Typ zgłoszenia",
@@ -62,13 +62,13 @@
   },
   "ratSelector": {
     "title": "Technologie radiowe",
-    "description": "Wybierz technologie radiowe (RAT) dostępne na tej stacji.",
-    "noSelection": "Wybierz co najmniej jedną technologię, aby dodać komórki.",
+    "description": "Wybierz technologie radiowe (RAT) dostępne na tej stacji",
+    "noSelection": "Wybierz co najmniej jedną technologię, aby dodać komórki",
     "iotHint": "Komórki IoT można oznaczyć w tabelach LTE i NR odpowiednio jako IoT (NB-IoT/LTE-M) i RedCap"
   },
   "deleteStation": {
     "title": "Usunięcie stacji",
-    "warning": "Ta stacja zostanie oznaczona do usunięcia i zweryfikowana przez moderatora.",
+    "warning": "Ta stacja zostanie oznaczona do usunięcia i zweryfikowana przez moderatora",
     "reason": "Powód usunięcia",
     "reasonPlaceholder": "Dlaczego ta stacja powinna zostać usunięta?"
   },
@@ -105,7 +105,7 @@
     "summary": "Notatka o zmianach",
     "summaryPlaceholder": "Opisz co zmieniłeś (opcjonalnie)...",
     "editingBanner": "Edycja zgłoszenia",
-    "noChanges": "Nie wykryto zmian - edytuj pole lub dodaj notatkę, aby odblokować przycisk aktualizacji."
+    "noChanges": "Nie wykryto zmian - edytuj pole lub dodaj notatkę, aby odblokować przycisk aktualizacji"
   },
   "table": {
     "cells": "Ilość komórek",
@@ -135,7 +135,7 @@
   },
   "warnings": {
     "photosTitle": "Wskazówka dotycząca zdjęć",
-    "photosDesc": "Jeśli planujesz dodać te zdjęcia do wielu stacji w tej lokalizacji, poczekaj na zatwierdzenie pierwszego zgłoszenia - po akceptacji będziesz mógł wybrać te zdjęcia dla pozostałych stacji bez ponownego wgrywania."
+    "photosDesc": "Jeśli planujesz dodać te zdjęcia do wielu stacji w tej lokalizacji, poczekaj na zatwierdzenie pierwszego zgłoszenia - po akceptacji będziesz mógł wybrać te zdjęcia dla pozostałych stacji bez ponownego wgrywania"
   },
   "photos": {
     "label": "Zdjęcia",
@@ -154,7 +154,7 @@
     "uploadFailed": "Nie udało się przesłać zdjęć",
     "fileTooLarge": "{{name}} jest za duże (maks. {{size}})",
     "confirmDelete": "Usunąć to zdjęcie?",
-    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zdjęcie zostanie trwale usunięte.",
+    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zdjęcie zostanie trwale usunięte",
     "deleteFailed": "Nie udało się usunąć zdjęcia",
     "setMainFailed": "Nie udało się zaktualizować głównego zdjęcia",
     "addNote": "Dodaj notatkę...",
@@ -167,8 +167,8 @@
     "saveSelection": "Zapisz wybór",
     "selectionSaved": "Wybór zdjęć zapisany",
     "selectionFailed": "Nie udało się zapisać wyboru zdjęć",
-    "emptyLocation": "Brak zdjęć w tej lokalizacji.",
-    "uploadBelow": "Prześlij nowe zdjęcia poniżej.",
+    "emptyLocation": "Brak zdjęć w tej lokalizacji",
+    "uploadBelow": "Prześlij nowe zdjęcia poniżej",
     "locationPhotos": "Istniejące zdjęcia lokalizacji",
     "uploadedPhotos": "Nowe zdjęcia do tego zgłoszenia",
     "selectedLocationPhotos": "Wybrane zdjęcia przez zgłaszającego",
@@ -177,14 +177,14 @@
     "pendingCount_few": "{{count}} zdjęcia mogą być jeszcze przesyłane",
     "pendingCount_many": "{{count}} zdjęć może być jeszcze przesyłanych",
     "pendingCount_other": "{{count}} zdjęć może być jeszcze przesyłanych",
-    "pendingHint": "Pojawią się tu za kilka sekund lub minut."
+    "pendingHint": "Pojawią się tu za kilka sekund lub minut"
   },
   "mySubmissions": {
     "reviewedBy": "Sprawdzone przez",
     "editTooltip": "Edytuj zgłoszenie",
     "deleteTooltip": "Usuń zgłoszenie",
     "confirmDelete": "Czy na pewno chcesz usunąć to zgłoszenie?",
-    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zgłoszenie zostanie trwale usunięte."
+    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zgłoszenie zostanie trwale usunięte"
   },
   "batch": {
     "stationCount": "{{count}} stacji",
@@ -206,7 +206,7 @@
     "applyDirectly": "Wyślij bezpośrednio",
     "applySuccess": "Zmiany zostały wprowadzone",
     "applyDirectlyConfirmTitle": "Wysłać bezpośrednio do bazy?",
-    "applyDirectlyConfirmDesc": "Tej operacji nie można cofnąć. Spowoduje to zaktualizowanie bazy bez przejścia przez zgłoszenia."
+    "applyDirectlyConfirmDesc": "Tej operacji nie można cofnąć. Spowoduje to zaktualizowanie bazy bez przejścia przez zgłoszenia"
   },
   "unsavedChangesConfirm": "Masz niezapisane zmiany. Czy na pewno chcesz opuścić stronę?",
   "sibling": {

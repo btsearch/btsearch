@@ -82,15 +82,15 @@
   "unknownOperator": "Unknown Operator",
   "photos": {
     "title": "Station Photos",
-    "subtitle": "A live contact sheet of photos selected for published base stations.",
+    "subtitle": "A live contact sheet of photos selected for published base stations",
     "loadedCount": "Showing {{count, number}} of {{total, number}} photos",
     "loadingMore": "Loading more photos...",
     "emptyTitle": "No station photos yet",
-    "emptySubtitle": "Photos selected for stations will appear here.",
+    "emptySubtitle": "Photos selected for stations will appear here",
     "filteredEmptyTitle": "No photos match these filters",
-    "filteredEmptySubtitle": "Clear filters or widen the search to see more station photos.",
+    "filteredEmptySubtitle": "Clear filters or widen the search to see more station photos",
     "errorTitle": "Could not load photos",
-    "errorSubtitle": "Refresh the gallery or try again in a moment.",
+    "errorSubtitle": "Refresh the gallery or try again in a moment",
     "retry": "Retry",
     "searchPlaceholder": "Search station, city, address, region, note...",
     "allRegions": "All regions",
@@ -150,14 +150,14 @@
     "breadcrumb": "User Profile",
     "joinedDate": "Joined {{date}}",
     "privateTitle": "This profile is private",
-    "privateSubtitle": "Only the user can see their full profile.",
+    "privateSubtitle": "Only the user can see their full profile",
     "notFoundTitle": "User not found",
-    "notFoundSubtitle": "The profile @{{username}} does not exist.",
+    "notFoundSubtitle": "The profile @{{username}} does not exist",
     "comments": "Comments",
     "noComments": "No comments yet",
     "photos": "Photos",
     "photosSoon": "Coming soon",
-    "privateOwnerNotice": "Your profile is set to private. Only you can see this page."
+    "privateOwnerNotice": "Your profile is set to private. Only you can see this page"
   },
   "hunters": {
     "breadcrumb": "BTS Hunters",
@@ -166,16 +166,16 @@
     "searchPlaceholder": "Search by name or handle...",
     "allRegions": "All",
     "emptyTitle": "No hunters in this region",
-    "emptySubtitle": "Join the directory so other hunters can find you.",
+    "emptySubtitle": "Join the directory so other hunters can find you",
     "joinCta": "Join the directory",
     "errorTitle": "Could not load hunters",
-    "errorSubtitle": "Refresh the page or try again in a moment.",
+    "errorSubtitle": "Refresh the page or try again in a moment",
     "count_one": "{{count}} hunter",
     "count_other": "{{count}} hunters"
   },
   "webgl": {
     "title": "Map unavailable",
-    "description": "Your device does not support WebGL2 or has it disabled. Enable it in your browser settings to use the map."
+    "description": "Your device does not support WebGL2 or has it disabled. Enable it in your browser settings to use the map"
   },
   "deletedEntries": {
     "title": "Deleted Entries",

@@ -1,13 +1,12 @@
 "use client";
 
-import type { ListDeviceSession } from "@better-auth-ui/core/plugins/multi-session";
+import type { ListDeviceSession, MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth } from "@better-auth-ui/react";
 import { useSetActiveSession } from "@better-auth-ui/react/plugins/multi-session";
 
 import { UserView } from "@/components/auth/user/user-view";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import type { MultiSessionAuthClient } from "@/lib/auth/better-auth-ui-compat";
 
 export type SwitchAccountSubmenuItemProps = {
   deviceSession: ListDeviceSession;

@@ -1,10 +1,10 @@
+import type { MultiSessionAuthClient } from "@better-auth-ui/core/plugins/multi-session";
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useListDeviceSessions } from "@better-auth-ui/react/plugins/multi-session";
 import { Check, CirclePlus } from "lucide-react";
 
 import { UserView } from "@/components/auth/user/user-view";
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import type { MultiSessionAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
 
 import { SwitchAccountSubmenuItem } from "./switch-account-submenu-item";

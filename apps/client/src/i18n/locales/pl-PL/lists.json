@@ -1,5 +1,5 @@
 {
-  "empty": "Nie utworzyłeś jeszcze żadnych list.",
+  "empty": "Nie utworzyłeś jeszcze żadnych list",
   "noLists": "Brak list",
   "create": "Utwórz listę",
   "name": "Nazwa",
@@ -16,7 +16,7 @@
   "public": "Publiczna",
   "private": "Prywatna",
   "deleteConfirm": "Czy na pewno chcesz usunąć tę listę?",
-  "deleteConfirmDescription": "Tej operacji nie można cofnąć.",
+  "deleteConfirmDescription": "Tej operacji nie można cofnąć",
   "copied": "Link skopiowany do schowka",
   "created": "Lista utworzona",
   "deleted": "Lista usunięta",
@@ -30,5 +30,5 @@
   "rename": "Zmień nazwę",
   "editList": "Edytuj listę",
   "notificationsEnabled": "Powiadamiaj mnie o zmianach stacji",
-  "notificationsEnabledHint": "Obejmuje komórki, zdjęcia, komentarze i pozwolenia UKE dla stacji z tej listy."
+  "notificationsEnabledHint": "Obejmuje komórki, zdjęcia, komentarze i pozwolenia UKE dla stacji z tej listy"
 }

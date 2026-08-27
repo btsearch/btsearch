@@ -1,4 +1,5 @@
 import { type AdditionalFieldValue, parseAdditionalFieldValue } from "@better-auth-ui/core";
+import type { UsernameAuthClient } from "@better-auth-ui/core/plugins/username";
 import { useAuth, useSession, useUpdateUser } from "@better-auth-ui/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +10,6 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import type { UsernameAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { cn } from "@/lib/utils";
 
 import { AdditionalField } from "../../additional-field";

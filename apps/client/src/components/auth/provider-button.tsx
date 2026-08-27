@@ -1,14 +1,12 @@
 "use client";
 
-import { type AuthView, authMutationKeys } from "@better-auth-ui/core";
-import { useAuth, useSignInSocial } from "@better-auth-ui/react";
+import { type AuthSocialProvider, type AuthView, authMutationKeys, getProviderId, getProviderName } from "@better-auth-ui/core";
+import { renderProviderIcon, useAuth, useSignInSocial } from "@better-auth-ui/react";
 import { useIsMutating } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getProviderId, getProviderName, renderProviderIcon } from "@/lib/auth/better-auth-ui-compat";
-import type { AuthSocialProvider } from "@/lib/auth/better-auth-ui-compat";
 import { cn } from "@/lib/utils";
 
 import { LastUsedBadge } from "./last-login-method/last-used-badge";

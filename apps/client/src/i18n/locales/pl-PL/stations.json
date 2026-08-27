@@ -6,7 +6,7 @@
     "createStation": "Utwórz stację",
     "deleteLocation": "Usuń lokalizację",
     "confirmDeleteLocation": "Czy na pewno chcesz usunąć tę lokalizację?",
-    "confirmDeleteLocationDesc": "Tej operacji nie można cofnąć. Lokalizacja i jej dane zostaną trwale usunięte."
+    "confirmDeleteLocationDesc": "Tej operacji nie można cofnąć. Lokalizacja i jej dane zostaną trwale usunięte"
   },
   "actions": {
     "newStation": "Utwórz nową stację"
@@ -40,10 +40,10 @@
     "addRemainingCells": "Dodaj brakujące komórki",
     "confirmCells": "Potwierdź komórki",
     "syncSectorsByPci": "Wpisz azymuty po PCI",
-    "noRats": "Brak komórek. Wybierz technologię radiową powyżej, aby dodać komórki.",
-    "pendingReadOnly": "Nie można modyfikować komórek, gdy stacja ma status oczekujący. Zmień status na opublikowany, aby edytować komórki.",
+    "noRats": "Brak komórek. Wybierz technologię radiową powyżej, aby dodać komórki",
+    "pendingReadOnly": "Nie można modyfikować komórek, gdy stacja ma status oczekujący. Zmień status na opublikowany, aby edytować komórki",
     "noStationCells": "Nie znaleziono komórek dla tej stacji",
-    "noCells": "Brak komórek. Kliknij \"Dodaj komórkę\", aby dodać.",
+    "noCells": "Brak komórek. Kliknij \"Dodaj komórkę\", aby dodać",
     "diffAdded_one": "nowa",
     "diffAdded_few": "nowe",
     "diffAdded_many": "nowych",

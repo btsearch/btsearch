@@ -1,6 +1,7 @@
 "use client";
 
-import { useAccountInfo, useAuth, useLinkSocial, useUnlinkAccount } from "@better-auth-ui/react";
+import { type AuthSocialProvider, getProviderId, getProviderName } from "@better-auth-ui/core";
+import { renderProviderIcon, useAccountInfo, useAuth, useLinkSocial, useUnlinkAccount } from "@better-auth-ui/react";
 import type { Account } from "better-auth";
 import { Link2, Link2Off, Plug } from "lucide-react";
 import { toast } from "sonner";
@@ -9,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { getProviderId, getProviderName, renderProviderIcon } from "@/lib/auth/better-auth-ui-compat";
-import type { AuthSocialProvider } from "@/lib/auth/better-auth-ui-compat";
 import { cn } from "@/lib/utils";
 
 export type LinkedAccountProps = {

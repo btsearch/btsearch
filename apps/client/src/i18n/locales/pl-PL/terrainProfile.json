@@ -15,7 +15,7 @@
     "hint": "Przeciągnij niebieski znacznik na mapie, aby zmienić punkt odbioru",
     "gpsErrors": {
       "unsupported": "Ta przeglądarka nie może odczytać Twojej lokalizacji. Przeciągnij znacznik na mapie",
-      "permissionDenied": "Odmówiono dostępu do lokalizacji. Zezwól na niego w ustawieniach przeglądarki lub przeciągnij znacznik na mapie.",
+      "permissionDenied": "Odmówiono dostępu do lokalizacji. Zezwól na niego w ustawieniach przeglądarki lub przeciągnij znacznik na mapie",
       "unavailable": "Twoja lokalizacja jest obecnie niedostępna. Spróbuj ponownie lub przeciągnij znacznik na mapie",
       "timeout": "Przekroczono czas oczekiwania na pozycję GPS. Spróbuj ponownie lub przeciągnij znacznik na mapie",
       "unknown": "Nie udało się odczytać Twojej lokalizacji. Spróbuj ponownie lub przeciągnij znacznik na mapie"

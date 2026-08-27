@@ -23,7 +23,7 @@
   },
   "templates": {
     "title": "Kreator metadanych",
-    "description": "Puste pola użyją naszego templateu. Placeholdery wstawisz przyciskiem plus.",
+    "description": "Puste pola użyją naszego templateu. Placeholdery wstawisz przyciskiem plus",
     "insertPlaceholder": "Wstaw placeholder",
     "preview": "Podgląd",
     "toggleHint": "Kliknij, by zasymulować brak wartości",

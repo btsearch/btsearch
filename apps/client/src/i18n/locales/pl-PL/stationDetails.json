@@ -30,9 +30,9 @@
     "title": "Anteny na stacji",
     "openReport": "Otwórz raport",
     "errorTitle": "Nie udało się odczytać danych anten",
-    "errorDescription": "Nie udało się pobrać wybranego raportu SI2PEM albo odczytać z niego tabeli anten. Spróbuj ponownie lub otwórz raport źródłowy.",
+    "errorDescription": "Nie udało się pobrać wybranego raportu SI2PEM albo odczytać z niego tabeli anten. Spróbuj ponownie lub otwórz raport źródłowy",
     "emptyTitle": "Brak danych anten",
-    "emptyDescription": "Ten raport nie zawiera wierszy anten, które można wyświetlić.",
+    "emptyDescription": "Ten raport nie zawiera wierszy anten, które można wyświetlić",
     "antennaNumber": "Antena {{number}}",
     "unknownModel": "Nieznany model anteny",
     "fields": {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PasskeyAuthClient } from "@better-auth-ui/core/plugins/passkey";
 import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useDeletePasskey } from "@better-auth-ui/react/plugins/passkey";
 import { Fingerprint } from "lucide-react";
@@ -18,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import type { PasskeyAuthClient } from "@/lib/auth/better-auth-ui-compat";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 
 export type ListedPasskey = {

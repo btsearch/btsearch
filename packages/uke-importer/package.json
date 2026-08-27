@@ -51,6 +51,6 @@
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
     "@types/geojson": "7946.0.16",
-    "@types/node": "26.2.0"
+    "@types/node": "26.3.0"
   }
 }
