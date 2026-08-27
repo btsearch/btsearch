@@ -10,6 +10,7 @@ import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/features/map/constants";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { type MapPopupLocation, useMapPopup } from "@/features/map/hooks/useMapPopup";
+import { useMapPositionPersistence } from "@/features/map/hooks/useMapPositionPersistence";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
@@ -43,6 +44,7 @@ function isEditableKeyboardTarget(target: EventTarget | null): boolean {
 function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const navigate = useNavigate();
   const { map, isLoaded } = useMap();
+  useMapPositionPersistence({ map, isLoaded });
   const { zoom } = useMapBounds({ map, isLoaded });
   const { data: runtimeSettings } = useSettings();
   const { data: session } = authClient.useSession();

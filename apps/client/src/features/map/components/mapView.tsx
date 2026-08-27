@@ -14,6 +14,7 @@ import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
 import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
+import { loadMapPosition, useMapPositionPersistence } from "../hooks/useMapPositionPersistence";
 import { useWakeLock } from "../hooks/useWakeLock";
 import type { UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
 import { attachUkeLocationToStations } from "../utils";
@@ -23,32 +24,13 @@ import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "
 const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
 const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/components/terrainProfileSurface"));
 
-const MAP_POSITION_KEY = "map:position";
 const ZABKA_EASTER_EGG_SEQUENCE = "ZABKA";
 const ZABKA_EASTER_EGG_TIMEOUT_MS = 3000;
-type SavedMapPosition = { center: [number, number]; zoom: number };
-
-function loadMapPosition(): SavedMapPosition | null {
-  try {
-    const raw = localStorage.getItem(MAP_POSITION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed.center) && parsed.center.length === 2 && typeof parsed.zoom === "number") {
-      return parsed as SavedMapPosition;
-    }
-  } catch {}
-  return null;
-}
-
-function saveMapPosition(center: [number, number], zoom: number) {
-  try {
-    localStorage.setItem(MAP_POSITION_KEY, JSON.stringify({ center, zoom }));
-  } catch {}
-}
 
 function MapViewInner() {
   useWakeLock();
   const { map, isLoaded } = useMap();
+  useMapPositionPersistence({ map, isLoaded });
   const { bounds, zoom, isMoving } = useMapBounds({ map, isLoaded });
   const { preferences } = usePreferences();
   const { data: runtimeSettings } = useSettings();
@@ -70,18 +52,6 @@ function MapViewInner() {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-    const handleMoveEnd = () => {
-      const center = map.getCenter();
-      saveMapPosition([center.lng, center.lat], map.getZoom());
-    };
-    map.on("moveend", handleMoveEnd);
-    return () => {
-      map.off("moveend", handleMoveEnd);
-    };
-  }, [map, isLoaded]);
 
   useEffect(() => {
     let sequence = "";

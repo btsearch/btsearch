@@ -21,6 +21,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Notifications for lists now correctly trigger on UKE permit changes for stations in the list
 - The terrain profile panel now uses mobile screen space more efficiently, keeping the full chart and key results visible with less scrolling
+- Moving the map no longer stutters when a top ad briefly hides and reappears
 
 # 2026-08-24
 
