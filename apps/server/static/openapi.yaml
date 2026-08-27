@@ -3546,7 +3546,7 @@ paths:
           schema: { type: string, format: uuid }
         - name: azimuths
           in: query
-          description: When `true`, each UKE permit in the response will include a `sectors` array with azimuth data
+          description: When `true`, internal stations and UKE permits in the response will include a `sectors` array with azimuth data
           schema: { type: boolean, default: false }
       responses:
         "200":
