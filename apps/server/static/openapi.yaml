@@ -4604,6 +4604,7 @@ components:
         id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         updatedAt: { type: string, format: date-time }
@@ -4616,6 +4617,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         updatedAt: { type: string, format: date-time }
@@ -4754,6 +4756,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details: { $ref: "#/components/schemas/CellDetailsInsert" }
@@ -4763,6 +4766,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details: { $ref: "#/components/schemas/CellDetailsInsert" }
@@ -4880,6 +4884,7 @@ components:
         sector_local_id: { type: string, nullable: true, description: "Local ID of a proposed sector to assign to the proposed cell" }
         sector_unassigned: { type: boolean, nullable: true, description: "When true, approval clears the cell sector assignment" }
         rat: { type: string, enum: [GSM, UMTS, LTE, NR], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed:
           { type: boolean, nullable: true, description: "Only respected when sent by an admin; regular submitters cannot self-confirm cells" }
@@ -4994,6 +4999,7 @@ components:
         sector_local_id: { type: string, nullable: true }
         sector_unassigned: { type: boolean, nullable: true }
         rat: { type: string, nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details:
@@ -5546,6 +5552,7 @@ components:
         cell_id: { type: integer }
         band_id: { type: integer }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details:
