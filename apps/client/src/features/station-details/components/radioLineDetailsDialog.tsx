@@ -192,7 +192,7 @@ export function RadioLineDetailsDialogPanel({
                 type="button"
                 onClick={onClose}
                 onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:pointer-events-none"
+                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:pointer-events-none"
                 aria-label={t("common:actions.close")}
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-5 shrink-0" />
