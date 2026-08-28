@@ -402,6 +402,25 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                 <AutocompleteDropdown options={autocompleteOptions} onSelect={applyAutocomplete} />
               </div>
             )}
+
+            {showResults && (
+              <div className="max-md:absolute max-md:inset-x-0 max-md:top-full max-md:z-10">
+                <SearchResults
+                  show
+                  isLoading={isSearching}
+                  gpsResult={gpsResult}
+                  locationResults={locationResults}
+                  stationResults={stationResults}
+                  permitResults={permitResults}
+                  radiolineResults={radiolineResults}
+                  onLocationSelect={onLocationSelect}
+                  onStationSelect={onStationSelect}
+                  onUkeStationSelect={onUkeStationSelect}
+                  onRadiolineSelect={onRadiolineSelect}
+                  onClose={closeOverlay}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -412,23 +431,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             </div>
           </div>
         ) : null}
-
-        {showResults && (
-          <SearchResults
-            show
-            isLoading={isSearching}
-            gpsResult={gpsResult}
-            locationResults={locationResults}
-            stationResults={stationResults}
-            permitResults={permitResults}
-            radiolineResults={radiolineResults}
-            onLocationSelect={onLocationSelect}
-            onStationSelect={onStationSelect}
-            onUkeStationSelect={onUkeStationSelect}
-            onRadiolineSelect={onRadiolineSelect}
-            onClose={closeOverlay}
-          />
-        )}
 
         {showFilters && !isMobile && (
           <fieldset ref={filterPanelRef} tabIndex={-1}>

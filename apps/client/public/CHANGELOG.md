@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-28
+
+### 🩹 Fixes
+
+- Mobile map search results now open directly below the search field and above the map style switcher
+
 # 2026-08-27
 
 ### 🚀 Enhancements
