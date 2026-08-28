@@ -36,6 +36,8 @@ import {
   getLinkTypeStyle,
 } from "@/features/map/utils";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
+import { authClient } from "@/lib/authClient";
 import { isPermitExpired } from "@/lib/dateUtils";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/operatorUtils";
@@ -45,6 +47,7 @@ import { CopyButton } from "./copyButton";
 import { DialogOperatorName } from "./dialogOperatorName";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { ShareButton } from "./shareButton";
+import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
@@ -118,6 +121,8 @@ export function RadioLineDetailsDialogPanel({
 }: RadioLineDetailsDialogPanelProps) {
   const { t, i18n } = useTranslation(["main", "stationDetails", "common"]);
   const { preferences } = usePreferences();
+  const { data: settings } = useSettings();
+  const { data: session } = authClient.useSession();
   const [selectedDirIndex, setSelectedDirIndex] = useState(0);
 
   const effectiveDirIndex = Math.min(selectedDirIndex, Math.max(link.directions.length - 1, 0));
@@ -146,12 +151,12 @@ export function RadioLineDetailsDialogPanel({
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
           <div
-            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+            className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
             style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
           >
             <div className="min-w-0 flex-1">
               <div className="min-w-0 space-y-1.5">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-20 sm:pr-0">
                   <DialogOperatorName name={operatorName} mnc={mnc} />
                   {linkTypeStyle ? <span className={cn("shrink-0 text-xs font-semibold", linkTypeStyle.text)}>{link.linkType}</span> : null}
                   {link.isExpired ? <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0 text-destructive" /> : null}
@@ -173,14 +178,21 @@ export function RadioLineDetailsDialogPanel({
                     </>
                   ) : null}
                 </div>
+                {session?.user && settings?.enableUserLists ? (
+                  <StationDialogActionBar>
+                    <AddToListPopover
+                      radiolineIds={link.directions.map((direction) => direction.id)}
+                      size="md"
+                      className={stationDialogInlineActionClassName}
+                      showLabel
+                      labelClassName={stationDialogInlineActionLabelClassName}
+                      showTooltip={false}
+                    />
+                  </StationDialogActionBar>
+                ) : null}
               </div>
             </div>
-            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
-              <AddToListPopover
-                radiolineIds={link.directions.map((direction) => direction.id)}
-                size="md"
-                className={stationDialogHeaderIconActionClassName}
-              />
+            <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
               <ShareButton
                 title={`${operatorName} - ${formatDistance(distance)} - ${formatFrequency(radioLine.link.freq)}`}
                 text={`${operatorName} ${formatDistance(distance)} - ${formatFrequency(radioLine.link.freq)}`}

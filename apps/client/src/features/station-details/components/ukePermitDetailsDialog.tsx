@@ -32,6 +32,7 @@ import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
+import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
@@ -104,12 +105,12 @@ export function UkePermitDetailsDialogPanel({
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
           <div
-            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+            className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
             style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
           >
             <div className="flex-1 min-w-0">
               <div className="min-w-0 space-y-1.5">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
                   <DialogOperatorName name={operator?.name ?? t("main:unknownOperator")} mnc={operator?.mnc} />
                   <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station_id}</span>
                 </div>
@@ -136,13 +137,32 @@ export function UkePermitDetailsDialogPanel({
                     )}
                   </div>
                 )}
+                {stationLocation && isLoggedIn ? (
+                  <StationDialogActionBar>
+                    <AddToListPopover
+                      ukeStationId={ukeStation.id}
+                      size="md"
+                      className={stationDialogInlineActionClassName}
+                      showLabel
+                      labelClassName={stationDialogInlineActionLabelClassName}
+                      showTooltip={false}
+                    />
+                    <WatchButton
+                      stationId={ukeStation.id}
+                      source="uke"
+                      size="md"
+                      className={stationDialogInlineActionClassName}
+                      showLabel
+                      labelClassName={stationDialogInlineActionLabelClassName}
+                      showTooltip={false}
+                    />
+                  </StationDialogActionBar>
+                ) : null}
               </div>
             </div>
-            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
+            <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
               {stationLocation && (
                 <>
-                  <AddToListPopover ukeStationId={ukeStation.id} size="md" className={stationDialogHeaderIconActionClassName} />
-                  <WatchButton stationId={ukeStation.id} source="uke" size="md" className={stationDialogHeaderIconActionClassName} />
                   <ShareButton
                     title={`${station_id} (${operator?.name ?? "UKE"})`}
                     text={`UKE: ${station_id} (${operator?.name ?? "UKE"}) - ${stationLocation.city} ${stationLocation.address}`}

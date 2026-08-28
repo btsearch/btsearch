@@ -26,6 +26,7 @@ import { useFloatingDialogStack } from "./floatingDialogStackProvider";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
+import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { WatchButton } from "./watchButton";
 
@@ -36,11 +37,6 @@ type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   showPhotoPanel?: boolean;
   onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
-
-const inlineStationActionClassName = cn(
-  stationDialogHeaderIconActionClassName,
-  "inline-flex h-6 w-6 items-center justify-center gap-1 rounded-md bg-muted/40 p-0 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:hover:bg-muted/60 md:w-auto md:px-1.5 md:[&_svg]:size-3.5",
-);
 
 export function StationDetailsDialogPanel({
   stationId,
@@ -168,47 +164,45 @@ export function StationDetailsDialogPanel({
                     </Tooltip>
                   </div>
                   {hasStationActions ? (
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                      <div className="flex flex-wrap items-center gap-1 md:-ml-1.5">
-                        <AddToListPopover
-                          stationId={station.id}
+                    <StationDialogActionBar>
+                      <AddToListPopover
+                        stationId={station.id}
+                        size="md"
+                        className={stationDialogInlineActionClassName}
+                        showLabel
+                        labelClassName={stationDialogInlineActionLabelClassName}
+                        showTooltip={false}
+                      />
+                      <WatchButton
+                        stationId={station.id}
+                        size="md"
+                        className={stationDialogInlineActionClassName}
+                        showLabel
+                        labelClassName={stationDialogInlineActionLabelClassName}
+                        showTooltip={false}
+                      />
+                      {onStartTerrainProfile ? (
+                        <TerrainProfileAnalyzeButton
+                          target={{
+                            source: "internal",
+                            id: station.id,
+                            stationId: station.station_id,
+                            operatorName: station.operator.name,
+                            latitude: station.location.latitude,
+                            longitude: station.location.longitude,
+                          }}
+                          onStart={(target) => {
+                            onStartTerrainProfile(target);
+                            onClose();
+                          }}
                           size="md"
-                          className={inlineStationActionClassName}
+                          className={stationDialogInlineActionClassName}
                           showLabel
-                          labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
+                          labelClassName={stationDialogInlineActionLabelClassName}
                           showTooltip={false}
                         />
-                        <WatchButton
-                          stationId={station.id}
-                          size="md"
-                          className={inlineStationActionClassName}
-                          showLabel
-                          labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
-                          showTooltip={false}
-                        />
-                        {onStartTerrainProfile ? (
-                          <TerrainProfileAnalyzeButton
-                            target={{
-                              source: "internal",
-                              id: station.id,
-                              stationId: station.station_id,
-                              operatorName: station.operator.name,
-                              latitude: station.location.latitude,
-                              longitude: station.location.longitude,
-                            }}
-                            onStart={(target) => {
-                              onStartTerrainProfile(target);
-                              onClose();
-                            }}
-                            size="md"
-                            className={inlineStationActionClassName}
-                            showLabel
-                            labelClassName="hidden whitespace-nowrap text-xs font-medium leading-none md:inline"
-                            showTooltip={false}
-                          />
-                        ) : null}
-                      </div>
-                    </div>
+                      ) : null}
+                    </StationDialogActionBar>
                   ) : null}
                 </div>
               ) : null}
