@@ -1,3 +1,5 @@
+import { TaskDaily01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
 import { type JSX, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
@@ -19,18 +21,15 @@ import type { LocationWithStations, RadioLine, Station, StationFilters, StationS
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
 
-type ListInfoBannerProps = { name: string; description?: string };
+type ListMapContextProps = { name: string };
 
-function ListInfoBanner({ name, description }: ListInfoBannerProps): JSX.Element {
+function ListMapContext({ name }: ListMapContextProps): JSX.Element {
   return (
-    <div className="hidden md:flex absolute top-4 left-1/2 -translate-x-1/2 z-10 items-stretch shadow-xl rounded-lg overflow-hidden border bg-background/95 backdrop-blur-md pointer-events-none">
-      <div className="px-3 py-1.5 flex items-center gap-2">
-        <div className="size-1.5 rounded-full shrink-0 bg-primary/70" />
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-bold leading-none tracking-tight truncate max-w-56">{name}</span>
-          {description && <span className="text-[10px] text-muted-foreground leading-none mt-0.5 truncate max-w-56">{description}</span>}
-        </div>
-      </div>
+    <div className="flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1.5 shadow-md backdrop-blur-md md:max-w-64">
+      <HugeiconsIcon icon={TaskDaily01Icon} className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
+      <span className="truncate text-xs font-semibold leading-none" title={name}>
+        {name}
+      </span>
     </div>
   );
 }
@@ -237,6 +236,8 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const locationCount = (locationsResponse?.data.length ?? 0) + (listData?.ukeLocations?.length ?? 0);
   const radiolineCount = listData?.radiolines.length ?? 0;
+  const listName = listData?.name;
+  const listMapContext = useMemo(() => (listName !== undefined ? <ListMapContext name={listName} /> : undefined), [listName]);
 
   return (
     <>
@@ -255,9 +256,8 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         onStationSelect={handleStationSelect}
         onFilterQueryChange={handleFilterQueryChange}
         hideAPIFilters
+        mapContext={listMapContext}
       />
-
-      {listData ? <ListInfoBanner name={listData.name} description={listData.description ?? undefined} /> : null}
 
       {(isError || (!isLoading && !listData)) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center">
