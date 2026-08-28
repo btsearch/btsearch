@@ -5,6 +5,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🩹 Fixes
 
+- The Sync azimuths by PCI action is available again for LTE cells
 - Mobile map search results now open directly below the search field and above the map style switcher
 
 # 2026-08-27

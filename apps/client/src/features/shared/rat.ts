@@ -75,6 +75,7 @@ export const RAT_CELL_SPECS: Record<RatType, RatCellSpec> = {
       2100: "FDD",
     },
     siblingSyncField: "tac",
+    supportsSectorPciSync: true,
   },
   UMTS: {
     value: "UMTS",

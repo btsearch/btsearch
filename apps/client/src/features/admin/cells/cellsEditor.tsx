@@ -229,7 +229,8 @@ export function CellsEditor<T extends CellDraftBase>({
             onSyncSectorsByPCIInRat !== undefined &&
             sectors !== undefined &&
             sectors.length > 0 &&
-            cellsForRat.some(isNRSyncTarget);
+            cellsForRat.length > 0 &&
+            (rat !== "NR" || cellsForRat.some(isNRSyncTarget));
 
           return (
             <Collapsible key={rat} defaultOpen>
