@@ -17,7 +17,7 @@ resolutionMode: "highest"
 minimumReleaseAge: 1440
 minimumReleaseAgeIgnoreMissingTime: true
 minimumReleaseAgeExclude:
-  - si2pem-reader@0.3.6
+  - si2pem-reader@0.3.7
   - "@btsearch/rf-engine@0.1.5"
   - "@btsearch/rf-engine-win32-x64-msvc@0.1.5"
   - "@btsearch/rf-engine-darwin-x64@0.1.5"
