@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { CELL_TYPE_COLORS, CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
+import { CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { getRatChannelField, getRatShowsBandDuplex } from "@/features/shared/rat";
 import { type RatDetailField, getRatDetailFields } from "@/features/shared/ratCellFields";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
@@ -43,7 +43,7 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t("common:labels.band")}</th>
+                <th className="w-px whitespace-nowrap px-4 py-2 text-left font-medium text-muted-foreground">{t("common:labels.band")}</th>
                 {getRatShowsBandDuplex(rat) && <th className="px-4 py-2 text-left font-medium text-muted-foreground">Duplex</th>}
                 {detailFields.map((field) => (
                   <StationDetailHeaderCell key={field.key} field={field} />
@@ -64,16 +64,58 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                 const sectorInfo = cell.sector_id !== null ? sectorInfoById?.get(cell.sector_id) : undefined;
                 const nrType = rat === "NR" && (cell.details?.type === "nsa" || cell.details?.type === "sa") ? cell.details.type : null;
                 const nrTypeTooltip = nrType === "nsa" ? "Non-Standalone (LTE anchor)" : "Standalone";
-                const sectorBadge = sectorInfo ? (
+                const sectorLabel = sectorInfo ? (
                   <Tooltip>
-                    <TooltipTrigger>
-                      <Badge variant="secondary" className="h-5 min-w-6 justify-center px-1 py-0 text-[10px] font-semibold tabular-nums cursor-help">
-                        {sectorInfo.label}
-                      </Badge>
+                    <TooltipTrigger className="cursor-help text-[11px] font-semibold leading-5 text-foreground/80 tabular-nums">
+                      {sectorInfo.label}
                     </TooltipTrigger>
                     <TooltipContent side="top">{sectorInfo.azimuth}°</TooltipContent>
                   </Tooltip>
                 ) : null;
+                const nrTypeLabel =
+                  nrType !== null ? (
+                    <Tooltip>
+                      <TooltipTrigger className="relative isolate cursor-help px-0.5 text-[10px] font-semibold leading-5 text-blue-950 dark:text-blue-100">
+                        <svg
+                          aria-hidden="true"
+                          focusable="false"
+                          viewBox="0 0 100 20"
+                          preserveAspectRatio="none"
+                          className="pointer-events-none absolute inset-x-0 top-1/2 -z-10 h-5 w-full -translate-y-1/2 scale-x-110 overflow-visible text-blue-500/25 dark:text-blue-400/20"
+                        >
+                          <path
+                            fill="currentColor"
+                            d="M1 6C12 3 23 5 35 3C49 1 62 5 75 3C86 2 94 4 99 3L97 15C83 14 73 17 60 15C46 13 33 17 20 15C11 14 5 17 2 14Z"
+                          />
+                          <path
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="5"
+                            strokeLinecap="round"
+                            opacity="0.35"
+                            d="M5 10C24 8 39 11 55 8C72 6 84 10 95 7"
+                          />
+                        </svg>
+                        {nrType.toUpperCase()}
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{nrTypeTooltip}</TooltipContent>
+                    </Tooltip>
+                  ) : null;
+                const cellMetadata =
+                  nrType !== null || cell.type ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      {nrTypeLabel}
+                      {nrType !== null && cell.type ? <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border" /> : null}
+                      {cell.type ? (
+                        <Tooltip>
+                          <TooltipTrigger className="cursor-help text-[10px] font-medium leading-5 text-muted-foreground">
+                            {CELL_TYPE_LABELS[cell.type]}
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{t(`stations:cells.${CELL_TYPE_I18N_KEY[cell.type]}`)}</TooltipContent>
+                        </Tooltip>
+                      ) : null}
+                    </span>
+                  ) : null;
                 return (
                   <tr
                     key={cell.id}
@@ -85,6 +127,7 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                   >
                     <td className="px-4 py-2 font-mono">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {sectorLabel}
                         {hasTooltip ? (
                           <Tooltip>
                             <TooltipTrigger>
@@ -100,21 +143,6 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                         ) : (
                           <span>{bandLabel}</span>
                         )}
-                        {rat !== "NR" && rat !== "GSM" ? sectorBadge : null}
-                        {nrType !== null && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge
-                                variant="secondary"
-                                className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] px-1.5 py-0 font-medium cursor-help"
-                              >
-                                {nrType.toUpperCase()}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{nrTypeTooltip}</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {rat === "NR" ? sectorBadge : null}
                         {rat === "GSM" && cell.details?.e_gsm && (
                           <Tooltip>
                             <TooltipTrigger>
@@ -127,7 +155,7 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                             </TooltipContent>
                           </Tooltip>
                         )}
-                        {rat === "GSM" ? sectorBadge : null}
+                        {cellMetadata}
                         {!cell.is_confirmed && (
                           <Tooltip>
                             <TooltipTrigger>
@@ -138,19 +166,6 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
                             <TooltipContent side="top">
                               <p>{t("stations:cells.cellNotConfirmed")}</p>
                             </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {cell.type && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge
-                                variant="secondary"
-                                className={cn(CELL_TYPE_COLORS[cell.type], "text-[10px] px-1.5 py-0 font-medium cursor-help")}
-                              >
-                                {CELL_TYPE_LABELS[cell.type]}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">{t(`stations:cells.${CELL_TYPE_I18N_KEY[cell.type]}`)}</TooltipContent>
                           </Tooltip>
                         )}
                       </div>
