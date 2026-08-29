@@ -1,7 +1,5 @@
-import { RAT_ICONS, compareRatCellDetails } from "@/features/shared/rat";
+import { compareRatCellDetails } from "@/features/shared/rat";
 import type { Cell } from "@/types/station";
-
-export { RAT_ICONS };
 
 export function groupCellsByRat(cells: Cell[]): Record<string, Cell[]> {
   const groups = cells.reduce<Record<string, Cell[]>>((acc, cell) => {

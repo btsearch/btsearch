@@ -1,7 +1,6 @@
-import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 
-import { RAT_ICONS, ratToGenLabel } from "@/features/shared/rat";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
 
 export const RAT_COLORS = {
@@ -21,14 +20,13 @@ interface RatBadgeProps {
 
 export const RatBadge = memo(({ rat, className, showTechName }: RatBadgeProps) => {
   const color = RAT_COLORS[rat as Rat];
-  const icon = RAT_ICONS[rat];
-  if (!color || !icon) {
+  if (!color) {
     return <span className="font-mono text-[10px] text-muted-foreground">{rat}</span>;
   }
   return (
     <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium", color, className)}>
-      <HugeiconsIcon icon={icon} className="size-3" />
-      {showTechName ? rat : ratToGenLabel(rat)}
+      <RatGenerationLabel rat={rat} className="text-[10px] text-current opacity-70" />
+      {showTechName ? rat : null}
     </span>
   );
 });

@@ -7,6 +7,7 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RatCellsTableHeader } from "@/features/shared/RatCellsTableHeader";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { getKnownEARFCN } from "@/lib/earfcn-fill";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ import type { Band, SectorDraft } from "@/types/station";
 
 import type { CellDraftBase } from "./cellEditRow";
 import { CellEditRow } from "./cellEditRow";
-import { RAT_ICONS, RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
+import { RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
 import { isNRSyncTarget } from "./sectorAssignmentSync";
 
 export type DiffBadges = {
@@ -241,7 +242,7 @@ export function CellsEditor<T extends CellDraftBase>({
                       icon={ArrowDown01Icon}
                       className="size-3.5 text-muted-foreground transition-transform group-data-panel-open:rotate-0 -rotate-90"
                     />
-                    <HugeiconsIcon icon={RAT_ICONS[rat]} className="size-4 text-muted-foreground" />
+                    <RatGenerationLabel rat={rat} />
                     <span className="font-semibold text-sm">{rat}</span>
                     <span className="text-xs text-muted-foreground inline sm:hidden">({cellsForRat.length})</span>
                     <span className="text-xs text-muted-foreground hidden sm:inline">({t("cells.cellsCount", { count: cellsForRat.length })})</span>

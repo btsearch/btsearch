@@ -9,12 +9,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UKESourceBadge } from "@/components/uke-source-badge";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { fetchApiData } from "@/lib/api";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import type { UkePermit, UkeStationPermit } from "@/types/station";
-
-import { RAT_ICONS } from "../utils";
 
 async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<UkeStationPermit[]> {
   if (isUkeSource) {
@@ -172,7 +171,7 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
   return (
     <Collapsible defaultOpen className="rounded-xl border overflow-hidden">
       <CollapsibleTrigger className="w-full px-4 py-2.5 bg-muted/30 border-b flex items-center gap-2 cursor-pointer">
-        <HugeiconsIcon icon={RAT_ICONS[rat]} className="size-4 text-muted-foreground" />
+        <RatGenerationLabel rat={rat} />
         <span className="font-bold text-sm">{rat}</span>
         <span className="text-xs text-muted-foreground">({t("permits.permitsCount", { count: ratPermits.length })})</span>
         <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 ml-auto text-muted-foreground transition-transform in-data-open:rotate-180" />

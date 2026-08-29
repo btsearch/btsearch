@@ -9,14 +9,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { getRatChannelField, getRatShowsBandDuplex } from "@/features/shared/rat";
 import { type RatDetailField, getRatDetailFields } from "@/features/shared/ratCellFields";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import type { Cell } from "@/types/station";
 
 import { calcExactFrequency, getBandName } from "../frequencyCalc";
-import { RAT_ICONS } from "../utils";
-
 type CellTableProps = {
   rat: string;
   cells: Cell[];
@@ -32,7 +31,7 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="border rounded-xl overflow-hidden">
       <CollapsibleTrigger className={cn("w-full px-4 py-2.5 bg-muted/50 flex items-center gap-2 cursor-pointer", open && "border-b")}>
-        <HugeiconsIcon icon={RAT_ICONS[rat]} className="size-4 text-muted-foreground" />
+        <RatGenerationLabel rat={rat} />
         <span className="font-semibold text-sm">{rat}</span>
         <span className="text-xs text-muted-foreground">({t("stations:cells.cellsCount", { count: cells.length })})</span>
         <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 ml-auto text-muted-foreground transition-transform", open && "rotate-180")} />

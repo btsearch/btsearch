@@ -1,6 +1,3 @@
-import { AirdropIcon, FlashIcon, RadioIcon, SignalFull02Icon, SmartPhone01Icon, Wifi01Icon } from "@hugeicons/core-free-icons";
-import type { IconSvgElement } from "@hugeicons/react";
-
 import type { CellDetails } from "@/types/station";
 
 export const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
@@ -101,16 +98,6 @@ export const RAT_CELL_SPECS: Record<RatType, RatCellSpec> = {
     siblingSyncField: "lac",
     showBandDuplex: false,
   },
-};
-
-export const RAT_ICONS: Record<string, IconSvgElement> = {
-  GSM: SignalFull02Icon,
-  UMTS: Wifi01Icon,
-  LTE: SmartPhone01Icon,
-  NR: FlashIcon,
-  CDMA: RadioIcon,
-  IOT: AirdropIcon,
-  OTHER: SignalFull02Icon,
 };
 
 export const RAT_OPTIONS: { value: RatType; label: string; gen: string }[] = RAT_ORDER.map((rat) => {
@@ -228,5 +215,7 @@ export function getRatSupportsSectorPciSync(rat: string): boolean {
 }
 
 export function ratToGenLabel(rat: string): string {
+  if (rat === "CDMA") return "3G";
+  if (rat === "IOT") return "NB";
   return getRatCellSpec(rat)?.gen ?? rat;
 }
