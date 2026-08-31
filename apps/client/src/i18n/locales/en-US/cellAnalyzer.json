@@ -58,7 +58,7 @@
   "warning": {
     "pciMissing": "PCI missing",
     "pciMissingFromDb": "This value is missing from the database",
-    "enbidOnly": "eNBID only",
+    "enbidOnly": "Matched by eNBID",
     "notConfirmed": "Unconfirmed cells",
     "notFound": "Not found in database",
     "dbValue": "Value from database"

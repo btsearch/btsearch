@@ -1266,7 +1266,14 @@ function AnalyzerPage() {
   const selectionBar =
     selectedCount > 0 ? (
       <div
-        className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5"
+        className={cn(
+          "flex min-w-0 shrink-0 items-center gap-x-2 gap-y-1",
+          isMobile
+            ? hasFloatingMobileActions
+              ? "w-full flex-wrap rounded-none border-0 bg-primary/5 px-2 py-1.5"
+              : "flex-wrap rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5"
+            : "h-10 w-full flex-nowrap rounded-md border border-primary/30 bg-primary/5 px-2",
+        )}
         role="status"
         aria-live="polite"
       >
@@ -1283,7 +1290,11 @@ function AnalyzerPage() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-foreground">{t("selection.rowsSelected", { count: selectedCount })}</p>
-          {selectionDisabledReason ? null : (
+          {selectionDisabledReason && !isMobile ? (
+            <p className="truncate text-[11px] text-destructive" role="note" tabIndex={0}>
+              {selectionDisabledReason}
+            </p>
+          ) : selectionDisabledReason ? null : (
             <p className="truncate text-[11px] text-muted-foreground">{t("selection.uniqueStationCount", { count: uniqueStationCount })}</p>
           )}
         </div>
@@ -1291,7 +1302,7 @@ function AnalyzerPage() {
           {t("selection.reviewBatch")}
           <HugeiconsIcon icon={LinkSquare01Icon} className="size-3.5" data-icon="inline-end" />
         </Button>
-        {selectionDisabledReason ? (
+        {selectionDisabledReason && isMobile ? (
           <p className="basis-full pl-9 text-[11px] leading-4 text-destructive" role="note" tabIndex={0}>
             {selectionDisabledReason}
           </p>
@@ -1590,6 +1601,11 @@ function AnalyzerPage() {
                 {t("common:actions.clear")}
               </Button>
             ) : null}
+            <div className="ml-auto flex h-[52px] min-w-0 basis-72 grow shrink-0 items-end xl:max-w-md">
+              <div className={cn("h-10 w-full overflow-hidden", !selectionBar && "invisible")} aria-hidden={selectionBar ? undefined : true}>
+                {selectionBar ?? <div className="h-10 w-full" />}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -1598,8 +1614,6 @@ function AnalyzerPage() {
             {selectionBar ?? <div className="w-max">{analyzerMobileFilterRail}</div>}
           </div>
         ) : null}
-
-        {selectionBar && !isMobile ? selectionBar : null}
 
         <div
           ref={containerRef}

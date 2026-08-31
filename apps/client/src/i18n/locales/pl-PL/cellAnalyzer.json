@@ -60,7 +60,7 @@
   "warning": {
     "pciMissing": "Brak PCI",
     "pciMissingFromDb": "Ta wartość nie istnieje w bazie danych",
-    "enbidOnly": "Tylko eNBID",
+    "enbidOnly": "Znaleziono po eNBIDzie",
     "notConfirmed": "Niepotwierdzone komórki",
     "notFound": "Nie znaleziono w bazie",
     "dbValue": "Wartość z bazy danych"
