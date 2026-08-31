@@ -23,6 +23,8 @@ const INTERACTIVE_CONTROL_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+const MAP_CANVAS_SELECTOR = ".maplibregl-canvas";
+
 export function isInteractiveTarget(target: EventTarget | null, currentTarget?: EventTarget): boolean {
   if (!(target instanceof Element) || target === currentTarget) return false;
   const interactiveElement = target.closest(INTERACTIVE_CONTROL_SELECTOR);
@@ -30,5 +32,6 @@ export function isInteractiveTarget(target: EventTarget | null, currentTarget?: 
 }
 
 export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.matches(MAP_CANVAS_SELECTOR)) return false;
   return isInteractiveTarget(target);
 }
