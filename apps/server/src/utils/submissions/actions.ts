@@ -1470,17 +1470,19 @@ export async function approveSubmissionAction({
       : Promise.resolve(null),
   ]);
 
-  void createQueuedSubmissionApprovalNotification({
-    userId: submission.submitter_id,
-    submissionId: submissionId,
-    stationId: transactionResult.resolvedStationId ?? undefined,
-    metadata: {
-      ...(stationStringId ? { station_id: stationStringId } : {}),
-      ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
-      ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
-    },
-    actionUrl: "/account/submissions",
-  }).catch((e) => logger.error("Failed to send notification", { error: e }));
+  if (submission.submitter_id !== null) {
+    void createQueuedSubmissionApprovalNotification({
+      userId: submission.submitter_id,
+      submissionId: submissionId,
+      stationId: transactionResult.resolvedStationId ?? undefined,
+      metadata: {
+        ...(stationStringId ? { station_id: stationStringId } : {}),
+        ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
+        ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
+      },
+      actionUrl: "/account/submissions",
+    }).catch((e) => logger.error("Failed to send notification", { error: e }));
+  }
 
   if (transactionResult.resolvedStationId) {
     const actionUrl = actionStation ? buildInternalStationActionUrl(actionStation) : undefined;
@@ -1555,18 +1557,20 @@ export async function rejectSubmissionAction({
   ]);
   const stationStringId = station?.station_id ?? null;
 
-  void createAndDeliverNotification({
-    userId: submission.submitter_id,
-    type: "submission_rejected",
-    submissionId: submissionId,
-    stationId: submission.station_id ?? undefined,
-    metadata: {
-      ...(stationStringId ? { station_id: stationStringId } : {}),
-      ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
-      ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
-    },
-    actionUrl: "/account/submissions",
-  }).catch((e) => logger.error("Failed to send notification", { error: e }));
+  if (submission.submitter_id !== null) {
+    void createAndDeliverNotification({
+      userId: submission.submitter_id,
+      type: "submission_rejected",
+      submissionId: submissionId,
+      stationId: submission.station_id ?? undefined,
+      metadata: {
+        ...(stationStringId ? { station_id: stationStringId } : {}),
+        ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
+        ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
+      },
+      actionUrl: "/account/submissions",
+    }).catch((e) => logger.error("Failed to send notification", { error: e }));
+  }
 
   return result;
 }
