@@ -70,7 +70,7 @@ export type ProposedLocation = {
 type SubmissionBase = {
   id: string;
   station_id: number | null;
-  submitter_id: string;
+  submitter_id: string | null;
   status: "pending" | "approved" | "rejected";
   type: "new" | "update" | "delete";
   reviewer: SubmissionUser | null;
@@ -89,7 +89,7 @@ export type SubmissionRow = SubmissionBase & {
 export type SubmissionDetail = SubmissionBase & {
   submitter_note: string | null;
   station: { id: number; station_id: string; operator_id: number; notes: string | null; is_confirmed: boolean } | null;
-  submitter: SubmissionUser;
+  submitter: SubmissionUser | null;
   proposedStation: ProposedStation | null;
   proposedLocation: ProposedLocation | null;
   sectors: ProposedSector[];
@@ -101,7 +101,7 @@ export type SubmissionDetail = SubmissionBase & {
 export type SubmissionListItem = SubmissionBase & {
   submitter_note: string | null;
   station: { id: number; station_id: string; operator_id: number | null } | null;
-  submitter: SubmissionUser;
+  submitter: SubmissionUser | null;
   proposedStation: ProposedStation | null;
   cells: ProposedCellWithDetails[];
 };

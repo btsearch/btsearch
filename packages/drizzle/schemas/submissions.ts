@@ -35,9 +35,7 @@ export const submissions = SubmissionsSchema.table(
       .default(sql`uuidv7()`)
       .notNull(),
     station_id: integer("station_id").references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    submitter_id: uuid("submitter_id")
-      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
-      .notNull(),
+    submitter_id: uuid("submitter_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
     status: SubmissionStatus("status").notNull().default("pending"),
     type: SubmissionTypeEnum("type").notNull().default("new"),
     reviewer_id: uuid("reviewer_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),

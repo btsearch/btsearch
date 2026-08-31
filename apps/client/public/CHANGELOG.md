@@ -5,6 +5,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
+- Deleting a user account now preserves their submissions and uploaded photos instead of removing them
 - Advanced map and station searches can now filter for stations with or without azimuths using `has_azimuth:true` or `has_azimuth:false`
 - Advanced map and station searches can now filter by cell type using `macro`, `micro`, `pico`, `femto` or `small`
 - Photo references in station change history now open the photo in a new tab and show a preview on hover or keyboard focus

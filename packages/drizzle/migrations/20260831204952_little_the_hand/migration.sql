@@ -1,0 +1,4 @@
+ALTER TABLE "attachments" ALTER COLUMN "author_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "submissions"."submissions" ALTER COLUMN "submitter_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "attachments" DROP CONSTRAINT "attachments_author_id_users_id_fkey", ADD CONSTRAINT "attachments_author_id_users_id_fkey" FOREIGN KEY ("author_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;--> statement-breakpoint
+ALTER TABLE "submissions"."submissions" DROP CONSTRAINT "submissions_submitter_id_users_id_fkey", ADD CONSTRAINT "submissions_submitter_id_users_id_fkey" FOREIGN KEY ("submitter_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

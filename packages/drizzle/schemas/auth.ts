@@ -498,9 +498,7 @@ export const attachments = pgTable(
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     name: text("name").notNull(),
     uuid: uuid("uuid").notNull().defaultRandom().unique(),
-    author_id: uuid("author_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    author_id: uuid("author_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
     mime_type: varchar("mime_type", { length: 100 }).notNull(),
     size: integer("size").notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

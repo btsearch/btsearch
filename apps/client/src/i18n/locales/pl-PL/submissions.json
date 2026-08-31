@@ -16,7 +16,8 @@
     "reviewNotesPlaceholder": "Dodaj notatkę dla zgłaszającego (opcjonalnie)...",
     "reviewedAt": "Data rozpatrzenia",
     "reviewerResponse": "Odpowiedź sprawdzającego",
-    "staleWarning": "To zgłoszenie zostało zmodyfikowane od momentu otwarcia. Przejrzyj zaktualizowaną wersję przed kontynuowaniem"
+    "staleWarning": "To zgłoszenie zostało zmodyfikowane od momentu otwarcia. Przejrzyj zaktualizowaną wersję przed kontynuowaniem",
+    "deletedUser": "Usunięty użytkownik"
   },
   "locationPicker": {
     "title": "Lokalizacja",

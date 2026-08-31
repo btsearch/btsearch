@@ -55,7 +55,7 @@ const schemaRoute = {
     200: z.object({
       data: submissionsSchema.extend({
         station: stationsSchema.nullable(),
-        submitter: userSchema,
+        submitter: userSchema.nullable(),
         reviewer: userSchema.nullable(),
         proposedLocation: createSelectSchema(proposedLocations).nullable(),
         proposedStation: createSelectSchema(proposedStations).nullable(),
@@ -72,7 +72,7 @@ type LocationPhotoDetails = z.infer<typeof locationPhotoDetailsSchema>;
 type LocationPhotoSelection = z.infer<typeof locationPhotoSelectionSchema>;
 type Submission = z.infer<typeof submissionsSchema> & {
   station: z.infer<typeof stationsSchema> | null;
-  submitter: z.infer<typeof userSchema>;
+  submitter: z.infer<typeof userSchema> | null;
   reviewer: z.infer<typeof userSchema> | null;
   sectors: z.infer<typeof proposedSectorsSchema>[];
   cells: Array<z.infer<typeof proposedCellsSchema> & { details: z.infer<typeof proposedDetailsSchema> }>;

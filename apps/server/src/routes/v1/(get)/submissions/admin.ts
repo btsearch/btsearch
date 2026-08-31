@@ -66,7 +66,7 @@ const schemaRoute = {
       data: z.array(
         submissionsSchema.extend({
           station: stationsSchema.nullable(),
-          submitter: usersSchema,
+          submitter: usersSchema.nullable(),
           reviewer: usersSchema.nullable(),
           cells: z.array(proposedCellWithDetails),
           proposedStation: proposedStationSchema.nullable(),
@@ -79,7 +79,7 @@ const schemaRoute = {
 
 type Submission = z.infer<typeof submissionsSchema> & {
   station: z.infer<typeof stationsSchema> | null;
-  submitter: z.infer<typeof usersSchema>;
+  submitter: z.infer<typeof usersSchema> | null;
   reviewer: z.infer<typeof usersSchema> | null;
   cells: z.infer<typeof proposedCellWithDetails>[];
   proposedStation: z.infer<typeof proposedStationSchema> | null;
@@ -88,7 +88,7 @@ type Submission = z.infer<typeof submissionsSchema> & {
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type ResponseData = z.infer<typeof submissionsSchema> & {
   station: z.infer<typeof stationsSchema> | null;
-  submitter: z.infer<typeof usersSchema>;
+  submitter: z.infer<typeof usersSchema> | null;
   reviewer: z.infer<typeof usersSchema> | null;
   cells: z.infer<typeof proposedCellWithDetails>[];
   proposedStation: z.infer<typeof proposedStationSchema> | null;

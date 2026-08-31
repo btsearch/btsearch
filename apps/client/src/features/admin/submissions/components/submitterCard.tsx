@@ -19,12 +19,20 @@ export function SubmitterCard({ submission }: { submission: SubmissionDetail }) 
       <div className="px-4 py-3 space-y-4">
         <div className="flex items-start gap-4">
           <Avatar className="size-10 border">
-            <AvatarImage src={resolveAvatarUrl(submission.submitter.image)} />
-            <AvatarFallback>{submission.submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+            {submission.submitter ? (
+              <>
+                <AvatarImage src={resolveAvatarUrl(submission.submitter.image)} />
+                <AvatarFallback>{submission.submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+              </>
+            ) : (
+              <AvatarFallback>
+                <HugeiconsIcon icon={UserIcon} className="size-4 text-muted-foreground" />
+              </AvatarFallback>
+            )}
           </Avatar>
           <div className="flex-1 min-w-0 space-y-1">
-            <p className="text-sm font-medium leading-none truncate">{submission.submitter.name}</p>
-            {submission.submitter.username && <p className="text-xs text-muted-foreground truncate">@{submission.submitter.username}</p>}
+            <p className="text-sm font-medium leading-none truncate">{submission.submitter?.name ?? t("detail.deletedUser")}</p>
+            {submission.submitter?.username && <p className="text-xs text-muted-foreground truncate">@{submission.submitter.username}</p>}
             {submission.createdAt && (
               <p className="text-[11px] text-muted-foreground/70">
                 {t("detail.createdAt")}: {formatFullDate(submission.createdAt, i18n.language)}

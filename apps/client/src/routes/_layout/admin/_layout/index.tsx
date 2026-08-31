@@ -325,11 +325,17 @@ function AdminDashboardPage() {
                       to="/admin/submissions/$id"
                       params={{ id: s.id }}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring transition-colors border-b border-border/50 last:border-0"
-                      aria-label={`${stationId ?? t("labels.newStation", { ns: "common" })} - ${s.submitter.name}, ${submissionTypeLabel}`}
+                      aria-label={`${stationId ?? t("labels.newStation", { ns: "common" })} - ${s.submitter?.name ?? t("detail.deletedUser", { ns: "submissions" })}, ${submissionTypeLabel}`}
                     >
                       <Avatar className="size-7 shrink-0" aria-hidden="true">
-                        <AvatarImage src={resolveAvatarUrl(s.submitter.image)} alt="" />
-                        <AvatarFallback className="text-[10px] font-bold">{s.submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+                        {s.submitter ? (
+                          <>
+                            <AvatarImage src={resolveAvatarUrl(s.submitter.image)} alt="" />
+                            <AvatarFallback className="text-[10px] font-bold">{s.submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          </>
+                        ) : (
+                          <AvatarFallback className="text-[10px] font-bold">?</AvatarFallback>
+                        )}
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -341,7 +347,7 @@ function AdminDashboardPage() {
                           <SubmissionTypeBadge type={s.type} />
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          {s.submitter.name}
+                          {s.submitter?.name ?? t("detail.deletedUser", { ns: "submissions" })}
                           {s.cells.length > 0 && <> · {t("dashboard.cells", { ns: "admin", count: s.cells.length })}</>}
                         </div>
                       </div>

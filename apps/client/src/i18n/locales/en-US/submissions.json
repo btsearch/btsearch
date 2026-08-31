@@ -16,7 +16,8 @@
     "reviewNotesPlaceholder": "Add a note for the submitter (optional)...",
     "reviewedAt": "Review Date",
     "reviewerResponse": "Reviewer Response",
-    "staleWarning": "This submission was modified since you opened it. Please review the updated version before proceeding"
+    "staleWarning": "This submission was modified since you opened it. Please review the updated version before proceeding",
+    "deletedUser": "Deleted user"
   },
   "locationPicker": {
     "title": "Location",

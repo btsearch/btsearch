@@ -518,7 +518,6 @@ export const relations = defineRelations(
       submitter: helpers.one.users({
         from: helpers.submissions.submitter_id,
         to: helpers.users.id,
-        optional: false,
       }),
       reviewer: helpers.one.users({
         from: helpers.submissions.reviewer_id,

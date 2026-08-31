@@ -4801,7 +4801,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         station_id: { type: integer, nullable: true }
-        submitter_id: { type: string, format: uuid }
+        submitter_id: { type: string, format: uuid, nullable: true }
         status: { type: string, enum: [pending, approved, rejected] }
         type: { type: string, enum: [new, update, delete] }
         reviewer_id: { type: string, format: uuid, nullable: true }
@@ -4902,7 +4902,10 @@ components:
               allOf:
                 - $ref: "#/components/schemas/Station"
               nullable: true
-            submitter: { $ref: "#/components/schemas/UserPublic" }
+            submitter:
+              allOf:
+                - $ref: "#/components/schemas/UserPublic"
+              nullable: true
             reviewer:
               allOf:
                 - $ref: "#/components/schemas/UserPublic"
@@ -4921,7 +4924,10 @@ components:
               allOf:
                 - $ref: "#/components/schemas/Station"
               nullable: true
-            submitter: { $ref: "#/components/schemas/UserFull" }
+            submitter:
+              allOf:
+                - $ref: "#/components/schemas/UserFull"
+              nullable: true
             reviewer:
               allOf:
                 - $ref: "#/components/schemas/UserPublic"

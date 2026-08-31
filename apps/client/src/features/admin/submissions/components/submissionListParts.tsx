@@ -62,17 +62,24 @@ export function SubmissionChangesSummary({ submission }: { submission: Submissio
 }
 
 export function SubmissionSubmitterSummary({ submission }: { submission: SubmissionListItem }) {
+  const { t } = useTranslation("submissions");
   const submitter = submission.submitter;
 
   return (
     <div className="flex min-w-0 items-center gap-2">
       <Avatar className="size-7 shrink-0">
-        <AvatarImage src={resolveAvatarUrl(submitter.image)} />
-        <AvatarFallback className="text-[10px]">{submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+        {submitter ? (
+          <>
+            <AvatarImage src={resolveAvatarUrl(submitter.image)} />
+            <AvatarFallback className="text-[10px]">{submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
+          </>
+        ) : (
+          <AvatarFallback className="text-[10px]">?</AvatarFallback>
+        )}
       </Avatar>
       <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{submitter.name}</div>
-        {submitter.username ? <div className="truncate text-xs text-muted-foreground">@{submitter.username}</div> : null}
+        <div className="truncate text-sm font-medium">{submitter?.name ?? t("detail.deletedUser")}</div>
+        {submitter?.username ? <div className="truncate text-xs text-muted-foreground">@{submitter.username}</div> : null}
       </div>
     </div>
   );
