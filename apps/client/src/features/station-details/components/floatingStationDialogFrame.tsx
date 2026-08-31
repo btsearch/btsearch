@@ -214,7 +214,6 @@ export function FloatingStationDialogFrame({
         zIndex,
       }}
       onPointerDown={onFocus}
-      onFocusCapture={onFocus}
     >
       {children({
         contentRef,
