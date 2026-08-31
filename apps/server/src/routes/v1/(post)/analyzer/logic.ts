@@ -1,5 +1,3 @@
-import { setImmediate } from "node:timers/promises";
-
 export type CellInput =
   | { rat: "GSM"; mnc: number; lac: number; cid: number }
   | { rat: "UMTS"; mnc: number; lac: number; cid: number; rnc: number | null; uarfcn?: number }
@@ -52,7 +50,7 @@ export type AnalyzerResult<TStation = unknown> = {
 };
 
 type Pair = [a: number, b: number];
-type PairMap = Map<number, Map<string, Pair>>;
+export type PairMap = Map<number, Map<string, Pair>>;
 const NETWORKS_MNCS = new Set([26002, 26003]);
 
 export const NETWORKS_SIBLING_MNC = new Map([
@@ -139,9 +137,7 @@ export type LookupMaps<TStation> = {
 export type CellGroups = {
   gsmByMnc: PairMap;
   umtsRncByMnc: PairMap;
-  umtsLacByMnc: PairMap;
   lteByMnc: PairMap;
-  lteEnbidsByMnc: Map<number, Set<number>>;
 };
 
 export function addPair(byMnc: PairMap, mnc: number, a: number, b: number): void {
@@ -182,9 +178,7 @@ export function candidateLTEEnbids(mnc: number, enbid: number): number[] {
 export function groupCellsByMnc(inputCells: CellInput[]): CellGroups {
   const gsmByMnc: PairMap = new Map();
   const umtsRncByMnc: PairMap = new Map();
-  const umtsLacByMnc: PairMap = new Map();
   const lteByMnc: PairMap = new Map();
-  const lteEnbidsByMnc = new Map<number, Set<number>>();
 
   for (const cell of inputCells) {
     switch (cell.rat) {
@@ -193,22 +187,14 @@ export function groupCellsByMnc(inputCells: CellInput[]): CellGroups {
         break;
       case "UMTS":
         if (cell.rnc !== null) addPair(umtsRncByMnc, cell.mnc, cell.rnc, cell.cid);
-        addPair(umtsLacByMnc, cell.mnc, cell.lac, cell.cid);
         break;
-      case "LTE": {
+      case "LTE":
         addPair(lteByMnc, cell.mnc, cell.enbid, cell.clid);
-        let enbids = lteEnbidsByMnc.get(cell.mnc);
-        if (!enbids) {
-          enbids = new Set();
-          lteEnbidsByMnc.set(cell.mnc, enbids);
-        }
-        enbids.add(cell.enbid);
         break;
-      }
     }
   }
 
-  return { gsmByMnc, umtsRncByMnc, umtsLacByMnc, lteByMnc, lteEnbidsByMnc };
+  return { gsmByMnc, umtsRncByMnc, lteByMnc };
 }
 
 const NOT_FOUND: AnalyzerResult<never> = { status: "not_found", warnings: [] };
@@ -336,15 +322,11 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
   }
 }
 
-const YIELD_EVERY = 2000;
-
-export async function resolveAllCells<TStation>(inputCells: CellInput[], maps: LookupMaps<TStation>): Promise<AnalyzerResult<TStation>[]> {
+export function resolveAllCells<TStation>(inputCells: CellInput[], maps: LookupMaps<TStation>): AnalyzerResult<TStation>[] {
   const results: AnalyzerResult<TStation>[] = [];
   for (let i = 0; i < inputCells.length; i++) {
     const cell = inputCells[i];
     if (cell) results.push(resolveCell(cell, maps));
-    // eslint-disable-next-line no-await-in-loop
-    if (i % YIELD_EVERY === 0 && i > 0) await setImmediate();
   }
   return results;
 }

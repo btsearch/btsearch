@@ -11,7 +11,8 @@
     "changeFile": "Change file"
   },
   "button": {
-    "analyze": "Analyze {{count}} cells",
+    "analyze_one": "Analyze {{count}} cell",
+    "analyze_other": "Analyze {{count}} cells",
     "analyzing": "Analyzing..."
   },
   "table": {

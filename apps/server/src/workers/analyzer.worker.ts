@@ -9,9 +9,9 @@ type WorkerMessage = {
   maps: LookupMaps<unknown>;
 };
 
-parentPort.on("message", async ({ cells, maps }: WorkerMessage) => {
+parentPort.on("message", ({ cells, maps }: WorkerMessage) => {
   try {
-    const results = await resolveAllCells(cells, maps);
+    const results = resolveAllCells(cells, maps);
     parentPort!.postMessage({ success: true, result: JSON.stringify(results) });
   } catch (e) {
     parentPort!.postMessage({ success: false, error: e instanceof Error ? e.message : String(e) });

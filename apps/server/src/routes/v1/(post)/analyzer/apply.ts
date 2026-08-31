@@ -94,17 +94,21 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if (!userId) throw new ErrorResponse("UNAUTHORIZED");
   const { items } = req.body;
 
-  const stationIds = items.map((item) => item.station_id);
-  const updateCellIds = items.flatMap((item) =>
-    item.cells.filter((cell) => cell.operation === "update" && cell.target_cell_id !== undefined).map((cell) => cell.target_cell_id!),
-  );
+  const stationIds = [...new Set(items.map((item) => item.station_id))];
+  const updateCellIds = [
+    ...new Set(
+      items.flatMap((item) =>
+        item.cells.filter((cell) => cell.operation === "update" && cell.target_cell_id !== undefined).map((cell) => cell.target_cell_id!),
+      ),
+    ),
+  ];
   const allBandIds = [...new Set(items.flatMap((item) => item.cells.map((cell) => cell.band_id)))];
 
-  const stationResults = await db.query.stations.findMany({
-    where: { AND: [{ id: { in: stationIds } }, { status: "published" }] },
-  });
-
-  const [existingCells, bandRows] = await Promise.all([
+  const [stationResults, existingCells, bandRows] = await Promise.all([
+    db.query.stations.findMany({
+      where: { AND: [{ id: { in: stationIds } }, { status: "published" }] },
+      columns: { id: true, operator_id: true, updatedAt: true },
+    }),
     updateCellIds.length > 0
       ? db.query.cells.findMany({ where: { id: { in: updateCellIds } }, with: { gsm: true, umts: true, lte: true, nr: true } })
       : Promise.resolve([]),
@@ -269,7 +273,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return records;
   });
 
-  const touchedCellIds = updateRecords.flatMap((record) => [...record.updatedCellIds, ...record.addedCellIds]);
+  const touchedCellIds = [...new Set(updateRecords.flatMap((record) => [...record.updatedCellIds, ...record.addedCellIds]))];
   const newCellStates =
     touchedCellIds.length > 0
       ? await db.query.cells.findMany({

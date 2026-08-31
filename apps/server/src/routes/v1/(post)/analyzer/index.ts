@@ -16,6 +16,7 @@ import {
   type CellInput,
   type LookupMaps,
   NETWORKS_SIBLING_MNC,
+  type PairMap,
   addPair,
   candidateLTEEnbids,
   groupCellsByMnc,
@@ -159,11 +160,15 @@ function lteLookupMncs(mnc: number): number[] {
   return sibling === undefined ? [mnc] : [mnc, sibling];
 }
 
-function chunks<T>(items: Iterable<T>): T[][] {
-  const values = [...items];
-  const result: T[][] = [];
-  for (let i = 0; i < values.length; i += BATCH_SIZE) result.push(values.slice(i, i + BATCH_SIZE));
-  return result;
+function* chunks<T>(items: Iterable<T>): Generator<T[]> {
+  let chunk: T[] = [];
+  for (const item of items) {
+    chunk.push(item);
+    if (chunk.length !== BATCH_SIZE) continue;
+    yield chunk;
+    chunk = [];
+  }
+  if (chunk.length > 0) yield chunk;
 }
 
 function addLookupTasks<TGroup, TItem>(
@@ -193,8 +198,8 @@ async function runLookupTasks(tasks: LookupTask[]): Promise<void> {
   await Promise.all(Array.from({ length: Math.min(LOOKUP_CONCURRENCY, tasks.length) }, runNext));
 }
 
-function getMissingUMTSLACGroups(inputCells: CellInput[], umtsRNCMap: LookupMaps<AnalyzerStation>["umtsRncMap"]): CellGroups["umtsLacByMnc"] {
-  const groups: CellGroups["umtsLacByMnc"] = new Map();
+function getMissingUMTSLACGroups(inputCells: CellInput[], umtsRNCMap: LookupMaps<AnalyzerStation>["umtsRncMap"]): PairMap {
+  const groups: PairMap = new Map();
   for (const cell of inputCells) {
     if (cell.rat !== "UMTS") continue;
     const hasPrimary = cell.rnc !== null && umtsRNCMap.has(pairKey(cell.mnc, cell.rnc, cell.cid));
@@ -203,8 +208,8 @@ function getMissingUMTSLACGroups(inputCells: CellInput[], umtsRNCMap: LookupMaps
   return groups;
 }
 
-function getMissingLTEENBIDGroups(inputCells: CellInput[], lteMap: LookupMaps<AnalyzerStation>["lteMap"]): CellGroups["lteEnbidsByMnc"] {
-  const groups: CellGroups["lteEnbidsByMnc"] = new Map();
+function getMissingLTEENBIDGroups(inputCells: CellInput[], lteMap: LookupMaps<AnalyzerStation>["lteMap"]): Map<number, Set<number>> {
+  const groups = new Map<number, Set<number>>();
   for (const cell of inputCells) {
     if (cell.rat !== "LTE" || lteMap.has(pairKey(cell.mnc, cell.enbid, cell.clid))) continue;
     let enbids = groups.get(cell.mnc);
@@ -399,6 +404,7 @@ function iso(date: Date): string {
 
 async function attachUkeMatches(inputCells: CellInput[], results: EnrichedAnalyzerResult[]): Promise<boolean> {
   const fragmentsByMnc = new Map<number, Set<string>>();
+  const allFragments = new Set<string>();
   const pending: { index: number; mncs: number[]; fragments: string[] }[] = [];
 
   for (let i = 0; i < inputCells.length; i++) {
@@ -406,6 +412,7 @@ async function attachUkeMatches(inputCells: CellInput[], results: EnrichedAnalyz
     if (!cell || cell.rat !== "LTE" || !UKE_MATCH_MNCS.has(cell.mnc) || results[i]?.status !== "not_found") continue;
     const fragments = ukeFragmentCandidates(cell.mnc, cell.enbid);
     if (fragments.length === 0) continue;
+    for (const fragment of fragments) allFragments.add(fragment);
     const mncs = lteLookupMncs(cell.mnc);
     for (const mnc of mncs) {
       let mncFragments = fragmentsByMnc.get(mnc);
@@ -426,25 +433,20 @@ async function attachUkeMatches(inputCells: CellInput[], results: EnrichedAnalyz
     .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
     .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
     .leftJoin(bands, eq(ukePermits.band_id, bands.id))
-    .where(
-      and(
-        inArray(fragmentExpr, [...new Set([...fragmentsByMnc.values()].flatMap((fragments) => [...fragments]))]),
-        inArray(operators.mnc, [...fragmentsByMnc.keys()]),
-      ),
-    );
+    .where(and(inArray(fragmentExpr, [...allFragments]), inArray(operators.mnc, [...fragmentsByMnc.keys()])));
   if (permitRows.length === 0) return false;
 
-  const stationIdsByKey = new Map<string, number[]>();
+  const stationIdsByKey = new Map<string, Set<number>>();
   const permitsByStation = new Map<number, UkeMatchStation["permits"]>();
   for (const row of permitRows) {
     if (row.mnc === null || !fragmentsByMnc.get(row.mnc)?.has(row.fragment)) continue;
     const key = `${row.mnc}:${row.fragment}`;
     let stationIds = stationIdsByKey.get(key);
     if (!stationIds) {
-      stationIds = [];
+      stationIds = new Set();
       stationIdsByKey.set(key, stationIds);
     }
-    if (!stationIds.includes(row.station_id)) stationIds.push(row.station_id);
+    stationIds.add(row.station_id);
 
     let permits = permitsByStation.get(row.station_id);
     if (!permits) {
@@ -481,15 +483,13 @@ async function attachUkeMatches(inputCells: CellInput[], results: EnrichedAnalyz
 
   let attached = false;
   for (const { index, mncs, fragments } of pending) {
-    const stationIds: number[] = [];
+    const stationIds = new Set<number>();
     for (const mnc of mncs) {
       for (const fragment of fragments) {
-        for (const stationId of stationIdsByKey.get(`${mnc}:${fragment}`) ?? []) {
-          if (!stationIds.includes(stationId)) stationIds.push(stationId);
-        }
+        for (const stationId of stationIdsByKey.get(`${mnc}:${fragment}`) ?? []) stationIds.add(stationId);
       }
     }
-    const matched = stationIds
+    const matched = [...stationIds]
       .slice(0, MAX_UKE_STATIONS_PER_CELL)
       .map((stationId) => stationsById.get(stationId))
       .filter((station): station is UkeMatchStation => station !== undefined);

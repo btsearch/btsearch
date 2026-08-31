@@ -11,7 +11,9 @@
     "changeFile": "Zmień plik"
   },
   "button": {
-    "analyze": "Analizuj {{count}} komórek",
+    "analyze_one": "Analizuj {{count}} komórkę",
+    "analyze_few": "Analizuj {{count}} komórki",
+    "analyze_many": "Analizuj {{count}} komórek",
     "analyzing": "Analizowanie..."
   },
   "table": {
