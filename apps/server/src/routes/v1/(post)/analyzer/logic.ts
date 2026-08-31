@@ -55,6 +55,11 @@ type Pair = [a: number, b: number];
 type PairMap = Map<number, Map<string, Pair>>;
 const NETWORKS_MNCS = new Set([26002, 26003]);
 
+export const NETWORKS_SIBLING_MNC = new Map([
+  [26002, 26003],
+  [26003, 26002],
+]);
+
 export type LookupMaps<TStation> = {
   gsmMap: Map<
     string,
@@ -112,6 +117,7 @@ export type LookupMaps<TStation> = {
       tac: number | null;
       pci: number | null;
       earfcn: number | null;
+      sibling: boolean;
       is_confirmed: boolean | undefined;
     }
   >;
@@ -124,6 +130,7 @@ export type LookupMaps<TStation> = {
       band_id: number | null;
       notes: string | null;
       enbid: number;
+      sibling: boolean;
       is_confirmed: boolean | undefined;
     }
   >;
@@ -281,12 +288,13 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
       const primary = maps.lteMap.get(pairKey(cell.mnc, cell.enbid, cell.clid));
       if (primary) {
         const warnings: string[] = [];
+        if (primary.sibling) warnings.push("ran_sharing");
         if (primary.tac !== null && primary.tac !== cell.tac) warnings.push("tac_mismatch");
         if (primary.pci === null) warnings.push("pci_missing");
         else if (primary.pci !== cell.pci) warnings.push("pci_mismatch");
         if (cell.earfcn !== undefined && primary.earfcn !== null && primary.earfcn !== cell.earfcn) warnings.push("earfcn_mismatch");
         return {
-          status: "found",
+          status: primary.sibling ? "probable" : "found",
           station: primary.station,
           cell: {
             rat: "LTE",
@@ -322,7 +330,7 @@ export function resolveCell<TStation>(cell: CellInput, maps: LookupMaps<TStation
           earfcn: null,
           is_confirmed: fallback.is_confirmed,
         },
-        warnings: ["enbid_only"],
+        warnings: fallback.sibling ? ["enbid_only", "ran_sharing"] : ["enbid_only"],
       };
     }
   }

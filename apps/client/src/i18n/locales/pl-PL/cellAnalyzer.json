@@ -61,9 +61,16 @@
     "pciMissing": "Brak PCI",
     "pciMissingFromDb": "Ta wartość nie istnieje w bazie danych",
     "enbidOnly": "Znaleziono po eNBIDzie",
+    "ranSharing": "Dopasowano przez RAN Sharing",
+    "ukeMatch": "Dopasowano w pozwoleniach UKE",
     "notConfirmed": "Niepotwierdzone komórki",
     "notFound": "Nie znaleziono w bazie",
     "dbValue": "Wartość z bazy danych"
+  },
+  "ukeMatch": {
+    "hint": "Prawdopodobna stacja z pozwoleń UKE, dopasowana po eNBIDzie",
+    "candidates": "Możliwe stacje UKE",
+    "moreCandidates": "Pokaż pozostałe możliwe stacje UKE"
   },
   "errors": {
     "fileTooLarge": "Plik zbyt duży (maks. 10 MB)",

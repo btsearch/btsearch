@@ -1,4 +1,5 @@
-import { locations, operators, regions, stations } from "@openbts/drizzle";
+import { bands, locations, operators, regions, stations, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { createHash } from "node:crypto";
@@ -14,11 +15,13 @@ import {
   type CellGroups,
   type CellInput,
   type LookupMaps,
+  NETWORKS_SIBLING_MNC,
   addPair,
   candidateLTEEnbids,
   groupCellsByMnc,
   lteEnbidKey,
   pairKey,
+  stripFirstDigit,
 } from "./logic.js";
 import { analyzerPool } from "./pool.js";
 
@@ -41,6 +44,25 @@ const analyzerStationSchema = stationSchema.extend({
   location: locationSchema.extend({ region: regionSchema }),
 });
 type AnalyzerStation = z.infer<typeof analyzerStationSchema>;
+
+const bandSchema = createSelectSchema(bands);
+const ukeMatchPermitSchema = createSelectSchema(ukePermits)
+  .omit({ uke_station_id: true, band_id: true })
+  .extend({ updatedAt: dateTime, createdAt: dateTime, expiry_date: dateTime, band: bandSchema.nullable() });
+const ukeMatchLocationSchema = createSelectSchema(ukeLocations)
+  .omit({ point: true, region_id: true })
+  .extend({ updatedAt: dateTime, createdAt: dateTime, region: regionSchema });
+const ukeMatchStationSchema = createSelectSchema(ukeStations)
+  .omit({ operator_id: true, location_id: true })
+  .extend({
+    updatedAt: dateTime,
+    createdAt: dateTime,
+    operator: operatorSchema,
+    location: ukeMatchLocationSchema,
+    permits: z.array(ukeMatchPermitSchema),
+  });
+type UkeMatchStation = z.infer<typeof ukeMatchStationSchema>;
+type EnrichedAnalyzerResult = AnalyzerResult<AnalyzerStation> & { uke_stations?: UkeMatchStation[] };
 
 const cellInputSchema = z.union([
   z.object({ rat: z.literal("GSM"), mnc: z.number().int(), lac: z.number().int(), cid: z.number().int() }),
@@ -115,6 +137,7 @@ const schemaRoute = {
           station: analyzerStationSchema.optional(),
           cell: matchedCellSchema.optional(),
           warnings: z.array(z.string()),
+          uke_stations: z.array(ukeMatchStationSchema).optional(),
         }),
       ),
     }),
@@ -130,6 +153,11 @@ const STATION_COLS = { operator_id: false, location_id: false, status: false } a
 const CELL_COLS = { station_id: false } as const;
 
 type LookupTask = () => Promise<void>;
+
+function lteLookupMncs(mnc: number): number[] {
+  const sibling = NETWORKS_SIBLING_MNC.get(mnc);
+  return sibling === undefined ? [mnc] : [mnc, sibling];
+}
 
 function chunks<T>(items: Iterable<T>): T[][] {
   const values = [...items];
@@ -257,12 +285,19 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
     (pairMap) => pairMap.values(),
     async (mnc, chunk) => {
       const rows = await db.query.lteCells.findMany({
-        where: { cell: { station: { operator: { mnc }, status: "published" } }, OR: chunk.map(([enbid, clid]) => ({ enbid, clid })) },
+        where: {
+          cell: { station: { operator: { mnc: { in: lteLookupMncs(mnc) } }, status: "published" } },
+          OR: chunk.map(([enbid, clid]) => ({ enbid, clid })),
+        },
         with: { cell: { columns: CELL_COLS, with: { station: { columns: STATION_COLS, with: STATION_WITH } } } },
       });
 
-      for (const row of rows)
-        maps.lteMap.set(pairKey(mnc, row.enbid, row.clid), {
+      for (const row of rows) {
+        const key = pairKey(mnc, row.enbid, row.clid);
+        const sibling = (row.cell.station.operator?.mnc ?? null) !== mnc;
+        const existing = maps.lteMap.get(key);
+        if (existing && (!existing.sibling || sibling)) continue;
+        maps.lteMap.set(key, {
           station: row.cell.station as unknown as AnalyzerStation,
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
@@ -273,8 +308,10 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           tac: row.tac ?? null,
           pci: row.pci ?? null,
           earfcn: row.earfcn ?? null,
+          sibling,
           is_confirmed: row.cell.is_confirmed,
         });
+      }
     },
   );
 
@@ -317,13 +354,18 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
     (enbidSet) => enbidSet,
     async (mnc, chunk) => {
       const rows = await db.query.lteCells.findMany({
-        where: { cell: { station: { operator: { mnc }, status: "published" } }, OR: chunk.map((enbid) => ({ enbid })) },
+        where: {
+          cell: { station: { operator: { mnc: { in: lteLookupMncs(mnc) } }, status: "published" } },
+          OR: chunk.map((enbid) => ({ enbid })),
+        },
         with: { cell: { columns: CELL_COLS, with: { station: { columns: STATION_COLS, with: STATION_WITH } } } },
       });
 
       for (const row of rows) {
         const key = lteEnbidKey(mnc, row.enbid);
-        if (maps.lteEnbidMap.has(key)) continue;
+        const sibling = (row.cell.station.operator?.mnc ?? null) !== mnc;
+        const existing = maps.lteEnbidMap.get(key);
+        if (existing && (!existing.sibling || sibling)) continue;
         maps.lteEnbidMap.set(key, {
           station: row.cell.station as unknown as AnalyzerStation,
           cell_id: row.cell_id,
@@ -331,6 +373,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           band_id: row.cell.band_id,
           notes: row.cell.notes ?? null,
           enbid: row.enbid,
+          sibling,
           is_confirmed: row.cell.is_confirmed,
         });
       }
@@ -341,7 +384,128 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
   return maps;
 }
 
-async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<AnalyzerResult<AnalyzerStation>[]>>) {
+const UKE_MATCH_MNCS = new Set([26001, 26002, 26003]);
+const MAX_UKE_STATIONS_PER_CELL = 5;
+
+function ukeFragmentCandidates(mnc: number, enbid: number): string[] {
+  const stripped = stripFirstDigit(enbid);
+  const ordered = mnc === 26001 ? [enbid, stripped] : [stripped, enbid];
+  return [...new Set(ordered.filter((value): value is number => value !== null).map(String))];
+}
+
+function iso(date: Date): string {
+  return date.toISOString();
+}
+
+async function attachUkeMatches(inputCells: CellInput[], results: EnrichedAnalyzerResult[]): Promise<boolean> {
+  const fragmentsByMnc = new Map<number, Set<string>>();
+  const pending: { index: number; mncs: number[]; fragments: string[] }[] = [];
+
+  for (let i = 0; i < inputCells.length; i++) {
+    const cell = inputCells[i];
+    if (!cell || cell.rat !== "LTE" || !UKE_MATCH_MNCS.has(cell.mnc) || results[i]?.status !== "not_found") continue;
+    const fragments = ukeFragmentCandidates(cell.mnc, cell.enbid);
+    if (fragments.length === 0) continue;
+    const mncs = lteLookupMncs(cell.mnc);
+    for (const mnc of mncs) {
+      let mncFragments = fragmentsByMnc.get(mnc);
+      if (!mncFragments) {
+        mncFragments = new Set();
+        fragmentsByMnc.set(mnc, mncFragments);
+      }
+      for (const fragment of fragments) mncFragments.add(fragment);
+    }
+    pending.push({ index: i, mncs, fragments });
+  }
+  if (pending.length === 0) return false;
+
+  const fragmentExpr = sql<string>`split_part(${ukePermits.decision_number}, '/', 3)`;
+  const permitRows = await db
+    .select({ permit: ukePermits, band: bands, station_id: ukeStations.id, mnc: operators.mnc, fragment: fragmentExpr })
+    .from(ukePermits)
+    .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
+    .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
+    .leftJoin(bands, eq(ukePermits.band_id, bands.id))
+    .where(
+      and(
+        inArray(fragmentExpr, [...new Set([...fragmentsByMnc.values()].flatMap((fragments) => [...fragments]))]),
+        inArray(operators.mnc, [...fragmentsByMnc.keys()]),
+      ),
+    );
+  if (permitRows.length === 0) return false;
+
+  const stationIdsByKey = new Map<string, number[]>();
+  const permitsByStation = new Map<number, UkeMatchStation["permits"]>();
+  for (const row of permitRows) {
+    if (row.mnc === null || !fragmentsByMnc.get(row.mnc)?.has(row.fragment)) continue;
+    const key = `${row.mnc}:${row.fragment}`;
+    let stationIds = stationIdsByKey.get(key);
+    if (!stationIds) {
+      stationIds = [];
+      stationIdsByKey.set(key, stationIds);
+    }
+    if (!stationIds.includes(row.station_id)) stationIds.push(row.station_id);
+
+    let permits = permitsByStation.get(row.station_id);
+    if (!permits) {
+      permits = [];
+      permitsByStation.set(row.station_id, permits);
+    }
+    const { uke_station_id: _ukeStationId, band_id: _bandId, ...permit } = row.permit;
+    permits.push({
+      ...permit,
+      expiry_date: iso(permit.expiry_date),
+      createdAt: iso(permit.createdAt),
+      updatedAt: iso(permit.updatedAt),
+      band: row.band,
+    });
+  }
+  if (permitsByStation.size === 0) return false;
+
+  const stationRows = await db.query.ukeStations.findMany({
+    columns: { operator_id: false, location_id: false },
+    with: { operator: true, location: { columns: { point: false, region_id: false }, with: { region: true } } },
+    where: { id: { in: [...permitsByStation.keys()] } },
+  });
+
+  const stationsById = new Map<number, UkeMatchStation>();
+  for (const station of stationRows) {
+    stationsById.set(station.id, {
+      ...station,
+      createdAt: iso(station.createdAt),
+      updatedAt: iso(station.updatedAt),
+      location: { ...station.location, createdAt: iso(station.location.createdAt), updatedAt: iso(station.location.updatedAt) },
+      permits: permitsByStation.get(station.id) ?? [],
+    });
+  }
+
+  let attached = false;
+  for (const { index, mncs, fragments } of pending) {
+    const stationIds: number[] = [];
+    for (const mnc of mncs) {
+      for (const fragment of fragments) {
+        for (const stationId of stationIdsByKey.get(`${mnc}:${fragment}`) ?? []) {
+          if (!stationIds.includes(stationId)) stationIds.push(stationId);
+        }
+      }
+    }
+    const matched = stationIds
+      .slice(0, MAX_UKE_STATIONS_PER_CELL)
+      .map((stationId) => stationsById.get(stationId))
+      .filter((station): station is UkeMatchStation => station !== undefined);
+    const result = results[index];
+    if (result && matched.length > 0) {
+      result.uke_stations = matched;
+      result.warnings.push("uke_match");
+      const [ownMnc] = mncs;
+      if (mncs.length > 1 && !matched.some((station) => station.operator.mnc === ownMnc)) result.warnings.push("ran_sharing");
+      attached = true;
+    }
+  }
+  return attached;
+}
+
+async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<EnrichedAnalyzerResult[]>>) {
   const { cells: inputCells } = req.body;
 
   void recordAnalyzerUsage();
@@ -354,12 +518,14 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const maps = await executeLookups(inputCells, groups);
 
   const json = await analyzerPool.run(inputCells, maps);
-  await redis.set(key, json, { EX: CACHE_TTL_S });
+  const results: EnrichedAnalyzerResult[] = JSON.parse(json);
+  const hasUkeMatches = await attachUkeMatches(inputCells, results);
+  await redis.set(key, hasUkeMatches ? JSON.stringify(results) : json, { EX: CACHE_TTL_S });
 
-  return res.send({ data: JSON.parse(json) });
+  return res.send({ data: results });
 }
 
-const analyzerRoute: Route<ReqBody, AnalyzerResult<AnalyzerStation>[]> = {
+const analyzerRoute: Route<ReqBody, EnrichedAnalyzerResult[]> = {
   url: "/analyzer",
   method: "POST",
   schema: schemaRoute,

@@ -51,7 +51,7 @@ import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/band-uti
 import { formatDuration } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
-import type { Operator, Region } from "@/types/station";
+import type { Operator, Region, UkeStation } from "@/types/station";
 
 type AnalyzerLocation = {
   id: number;
@@ -119,6 +119,7 @@ export type AnalyzerResult = {
   station?: AnalyzerStation;
   cell?: MatchedCell;
   warnings: string[];
+  uke_stations?: UkeStation[];
 };
 
 type AnalyzerRow = {
@@ -164,6 +165,8 @@ const ANALYZER_WARNING_FILTERS = [
   "not_found",
   "pci_missing",
   "enbid_only",
+  "ran_sharing",
+  "uke_match",
   "not_confirmed",
 ] as const;
 
@@ -214,6 +217,7 @@ function isRowSelectable(row: Row<AppTableFeatures, AnalyzerRow>): boolean {
   const { status, warnings, cell } = rawRow.result as AnalyzerResult;
   if (cell?.rat === "NR" || status === "not_found" || status === "unsupported") return false;
   if (!warnings) return false;
+  if (warnings.includes("ran_sharing")) return false;
   if (status === "found") return warnings.some((warning) => ACTIONABLE_WARNINGS.has(warning));
   if (status === "probable") return warnings.includes("enbid_only") || warnings.includes("rnc_mismatch");
   return false;
@@ -618,17 +622,86 @@ function SourceDescriptionCell({ row }: { row: ParsedRow }) {
   );
 }
 
+function UkeCandidateButton({ station, onOpen }: { station: UkeStation; onOpen: (station: UkeStation) => void }) {
+  const locationText = [station.location?.city, station.location?.address].filter(Boolean).join(", ");
+  return (
+    <button type="button" className="group block min-w-0 max-w-full cursor-pointer text-left" onClick={() => onOpen(station)}>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline group-focus-visible:underline">
+          {station.station_id}
+        </span>
+        {station.permits[0] ? (
+          <span className="truncate font-mono text-[11px] text-muted-foreground">{station.permits[0].decision_number}</span>
+        ) : null}
+      </span>
+      {locationText ? <span className="block truncate text-[11px] text-muted-foreground">{locationText}</span> : null}
+    </button>
+  );
+}
+
+function UkeMatchCell({
+  stations,
+  openUkePermitDialog,
+  t,
+}: {
+  stations: UkeStation[];
+  openUkePermitDialog: (station: UkeStation) => void;
+  t: AnalyzerTranslation;
+}) {
+  const first = stations[0];
+  if (first === undefined) return null;
+
+  return (
+    <div className="flex min-w-0 items-start gap-1.5">
+      <Tooltip>
+        <TooltipTrigger aria-label={t("ukeMatch.hint")}>
+          <span className="mt-0.5 inline-flex h-5 shrink-0 cursor-help items-center rounded-md bg-sky-100 px-1.5 text-[11px] font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-300">
+            UKE
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72">{t("ukeMatch.hint")}</TooltipContent>
+      </Tooltip>
+      <div className="min-w-0 flex-1">
+        <UkeCandidateButton station={first} onOpen={openUkePermitDialog} />
+      </div>
+      {stations.length > 1 ? (
+        <Popover>
+          <PopoverTrigger
+            className="mt-0.5 inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+            aria-label={t("ukeMatch.moreCandidates")}
+          >
+            +{stations.length - 1}
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-2">
+            <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("ukeMatch.candidates")}</p>
+            <div className="grid gap-2">
+              {stations.map((station) => (
+                <UkeCandidateButton key={station.id} station={station} onOpen={openUkePermitDialog} />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : null}
+    </div>
+  );
+}
+
 function StationActionsCell({
   result,
   openStationDialog,
+  openUkePermitDialog,
   t,
 }: {
   result: AnalyzerResult | undefined;
   openStationDialog: (stationId: number, source: "internal") => void;
+  openUkePermitDialog: (station: UkeStation) => void;
   t: AnalyzerTranslation;
 }) {
   const station = result?.station;
-  if (!station) return <span className="text-xs text-muted-foreground">{t("table.noStation")}</span>;
+  if (!station) {
+    if (result?.uke_stations?.length) return <UkeMatchCell stations={result.uke_stations} openUkePermitDialog={openUkePermitDialog} t={t} />;
+    return <span className="text-xs text-muted-foreground">{t("table.noStation")}</span>;
+  }
 
   return (
     <div className="min-w-0 space-y-1">
@@ -665,11 +738,13 @@ function AnalyzerMobileRow({
   warningLabels,
   t,
   openStationDialog,
+  openUkePermitDialog,
 }: {
   row: Row<AppTableFeatures, AnalyzerRow>;
   warningLabels: Record<string, string>;
   t: AnalyzerTranslation;
   openStationDialog: (stationId: number, source: "internal") => void;
+  openUkePermitDialog: (station: UkeStation) => void;
 }) {
   const analyzerRow = row.original;
 
@@ -702,7 +777,7 @@ function AnalyzerMobileRow({
         </div>
         <div>
           <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("common:labels.station")}</p>
-          <StationActionsCell result={analyzerRow.result} openStationDialog={openStationDialog} t={t} />
+          <StationActionsCell result={analyzerRow.result} openStationDialog={openStationDialog} openUkePermitDialog={openUkePermitDialog} t={t} />
         </div>
       </div>
     </article>
@@ -714,7 +789,7 @@ function AnalyzerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [state, dispatch] = useReducer(analyzerReducer, initialState);
-  const { openStationDialog } = useFloatingDialogStack();
+  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
   const [sorting, setSorting] = useState<SortingState>([]);
   const analyzeStartRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -843,6 +918,8 @@ function AnalyzerPage() {
       uarfcn_mismatch: "UARFCN · UMTS",
       earfcn_mismatch: "EARFCN · LTE",
       enbid_only: t("warning.enbidOnly"),
+      ran_sharing: t("warning.ranSharing"),
+      uke_match: t("warning.ukeMatch"),
       not_confirmed: t("warning.notConfirmed"),
       not_found: t("warning.notFound"),
       mismatchGroup: t("filter.mismatchGroup"),
@@ -1036,10 +1113,12 @@ function AnalyzerPage() {
           id: "station",
           header: t("common:labels.station"),
           size: 240,
-          cell: ({ getValue }) => <StationActionsCell result={getValue()} openStationDialog={openStationDialog} t={t} />,
+          cell: ({ getValue }) => (
+            <StationActionsCell result={getValue()} openStationDialog={openStationDialog} openUkePermitDialog={openUkePermitDialog} t={t} />
+          ),
         }),
       ]),
-    [openStationDialog, t, warningLabels],
+    [openStationDialog, openUkePermitDialog, t, warningLabels],
   );
 
   const table = useTable({
@@ -1511,6 +1590,8 @@ function AnalyzerPage() {
                     <SelectItem value="not_found">{warningLabels.not_found}</SelectItem>
                     <SelectItem value="pci_missing">{warningLabels.pci_missing}</SelectItem>
                     <SelectItem value="enbid_only">{warningLabels.enbid_only}</SelectItem>
+                    <SelectItem value="ran_sharing">{warningLabels.ran_sharing}</SelectItem>
+                    <SelectItem value="uke_match">{warningLabels.uke_match}</SelectItem>
                     <SelectItem value="not_confirmed">{warningLabels.not_confirmed}</SelectItem>
                   </SelectGroup>
                 </SelectContent>
@@ -1601,7 +1682,7 @@ function AnalyzerPage() {
                 {t("common:actions.clear")}
               </Button>
             ) : null}
-            <div className="ml-auto flex h-[52px] min-w-0 basis-72 grow shrink-0 items-end xl:max-w-md">
+            <div className="ml-auto flex h-13 min-w-0 basis-72 grow shrink-0 items-end xl:max-w-md">
               <div className={cn("h-10 w-full overflow-hidden", !selectionBar && "invisible")} aria-hidden={selectionBar ? undefined : true}>
                 {selectionBar ?? <div className="h-10 w-full" />}
               </div>
@@ -1660,7 +1741,13 @@ function AnalyzerPage() {
                   <ul ref={listRef} className="divide-y">
                     {table.getRowModel().rows.map((row) => (
                       <li key={row.id}>
-                        <AnalyzerMobileRow row={row} warningLabels={warningLabels} t={t} openStationDialog={openStationDialog} />
+                        <AnalyzerMobileRow
+                          row={row}
+                          warningLabels={warningLabels}
+                          t={t}
+                          openStationDialog={openStationDialog}
+                          openUkePermitDialog={openUkePermitDialog}
+                        />
                       </li>
                     ))}
                   </ul>

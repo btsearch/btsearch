@@ -59,9 +59,16 @@
     "pciMissing": "PCI missing",
     "pciMissingFromDb": "This value is missing from the database",
     "enbidOnly": "Matched by eNBID",
+    "ranSharing": "Matched via RAN sharing",
+    "ukeMatch": "Matched in UKE permits",
     "notConfirmed": "Unconfirmed cells",
     "notFound": "Not found in database",
     "dbValue": "Value from database"
+  },
+  "ukeMatch": {
+    "hint": "Probable station from UKE permits, matched by eNBID",
+    "candidates": "Possible UKE stations",
+    "moreCandidates": "Show other possible UKE stations"
   },
   "errors": {
     "fileTooLarge": "File too large (max 10 MB)",

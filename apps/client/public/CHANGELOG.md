@@ -5,13 +5,15 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- List maps now offer the full set of map filters — operator, band, standard, status and recently updated
+- List maps now offer the full set of map filters, operator, band, standard, status and recently updated
 - Large lists load noticeably faster on the map, as filtering now happens on the server instead of downloading the entire list
 - API: `/stations`, `/locations`, `/uke/locations` and `/uke/radiolines` accept a new `list` parameter to return only entries belonging to a given list, combinable with all existing filters
 - Deleting a user account now preserves their submissions and uploaded photos instead of removing them
 - Advanced map and station searches can now filter for stations with or without azimuths using `has_azimuth:true` or `has_azimuth:false`
 - Advanced map and station searches can now filter by cell type using `macro`, `micro`, `pico`, `femto` or `small`
 - Photo references in station change history now open the photo in a new tab and show a preview on hover or keyboard focus
+- The cell analyzer now suggests probable UKE stations for LTE cells missing from the database by matching the eNBID against UKE permit numbers (Plus, T-Mobile and Orange) - such cells are flagged with a filterable "Matched in UKE permits" warning and a click opens the full permit details
+- When T-Mobile or Orange has no record for an LTE cell, the cell analyzer now also checks the RAN sharing partner's stations and UKE permits, flagging such results with a "Matched via RAN sharing" warning
 
 ### 🩹 Fixes
 
