@@ -264,9 +264,13 @@
     @apply font-sans;
   }
 
-  /* MapLibre popup styling */
+  /* MapLibre styling */
   .maplibregl-map {
     font-family: var(--font-sans) !important;
+  }
+
+  .maplibregl-canvas:focus {
+    outline: none;
   }
 
   .maplibregl-popup {

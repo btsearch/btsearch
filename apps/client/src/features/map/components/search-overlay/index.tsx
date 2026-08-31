@@ -82,7 +82,7 @@ type MapSearchOverlayProps = {
   zoom?: number;
   activeMarker?: { latitude: number; longitude: number } | null;
   onActiveMarkerClear?: () => void;
-  onFiltersChange: (filters: StationFilters) => void;
+  onFiltersChange: (update: StationFilters | ((prev: StationFilters) => StationFilters)) => void;
   onLocationSelect?: (lat: number, lon: number) => void;
   onStationSelect?: (station: SearchStation) => void;
   onUkeStationSelect?: (station: UkeSearchPermitStation) => void;
@@ -450,11 +450,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     switch (key) {
       case "s":
         e.preventDefault();
-        handleFiltersChange({ ...filters, showStations: !filters.showStations });
+        onFiltersChange((prev) => ({ ...prev, showStations: !prev.showStations }));
         break;
       case "r":
         e.preventDefault();
-        handleFiltersChange({ ...filters, showRadiolines: !filters.showRadiolines });
+        onFiltersChange((prev) => ({ ...prev, showRadiolines: !prev.showRadiolines }));
         break;
       case "a":
         e.preventDefault();
