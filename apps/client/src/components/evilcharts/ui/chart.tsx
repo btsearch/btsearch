@@ -235,7 +235,7 @@ export const generateEasedGradientStops = (steps = 17, minOpacity = 0.05, maxOpa
     return { offset: `${(t * 100).toFixed(0)}%`, opacity: Number(opacity.toFixed(3)) };
   });
 
-export function useLoadingData(isLoading: boolean, count: number, min?: number, max?: number) {
+export function useLoadingData(isLoading: boolean, count?: number, min?: number, max?: number) {
   const [loadingDataKey, setLoadingDataKey] = React.useState(false);
 
   const onShimmerExit = React.useCallback(() => {

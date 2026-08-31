@@ -9,6 +9,7 @@ import {
   FullSignalIcon,
   LinkSquare01Icon,
   Location01Icon,
+  Radar01Icon,
   Sorting05Icon,
   Tag01Icon,
   Upload04Icon,
@@ -17,28 +18,30 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { type Row, type RowSelectionState, type SortingState, createColumnHelper, flexRender, useTable } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
-import { RatBadge } from "@/components/rat-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DataTable } from "@/components/ui/data-table";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { TechnologySummary } from "@/features/map/components/technologySummary";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { getBandName } from "@/features/station-details/frequencyCalc";
 import { saveDraft } from "@/features/submissions/utils/analyzerDraftStore";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
+import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "@/lib/analyzer-parsers";
@@ -46,7 +49,6 @@ import { postApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/band-utils";
 import { formatDuration } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
@@ -144,19 +146,26 @@ const MNC_NAMES: Record<number, string> = {
 
 const ACTIONABLE_WARNINGS = new Set(["lac_mismatch", "tac_mismatch", "pci_mismatch", "pci_missing", "uarfcn_mismatch", "earfcn_mismatch"]);
 
-const MISMATCH_WARNINGS = new Set([
-  "lac_mismatch",
-  "tac_mismatch",
-  "pci_mismatch",
-  "pci_missing",
-  "rnc_mismatch",
-  "uarfcn_mismatch",
-  "earfcn_mismatch",
-]);
-
 const WARNING_FILTER_ALIASES: Partial<Record<string, string[]>> = {
   pci_mismatch: ["pci_mismatch", "pci_missing"],
 };
+
+const ANALYZER_STATUS_FILTERS = ["all", "found", "probable", "not_found", "unsupported"] as const;
+const ANALYZER_RAT_FILTERS = ["all", "GSM", "UMTS", "LTE", "NR"] as const;
+const ANALYZER_WARNING_FILTERS = [
+  "all",
+  "any",
+  "lac_mismatch",
+  "tac_mismatch",
+  "rnc_mismatch",
+  "pci_mismatch",
+  "uarfcn_mismatch",
+  "earfcn_mismatch",
+  "not_found",
+  "pci_missing",
+  "enbid_only",
+  "not_confirmed",
+] as const;
 
 const WARNING_I18N_KEY: Record<string, string> = {
   enbid_only: "warning.enbidOnly",
@@ -178,16 +187,24 @@ function getMatchedCellNote(cell: MatchedCell | undefined): string | null {
 
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
-const DESKTOP_TABLE_PAGINATION_CONFIG = { rowHeight: 60, headerHeight: 40, paginationHeight: 49 };
-const MOBILE_TABLE_PAGINATION_CONFIG = { rowHeight: 76, headerHeight: 40, paginationHeight: 49 };
+const DESKTOP_TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+};
+const MOBILE_TABLE_PAGINATION_CONFIG = {
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+};
+const MOBILE_ROW_HEIGHT_FALLBACK = 220;
 
 const columnHelper = createColumnHelper<AppTableFeatures, AnalyzerRow>();
 
 function rowBg(result?: AnalyzerResult): string {
   if (!result) return "hover:bg-muted/50";
   if (result.status === "not_found") return "bg-destructive/5 hover:bg-destructive/10";
-  if (result.status === "probable") return "bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20";
-  if (result.status === "found" && result.warnings.length > 0) return "bg-amber-50/40 dark:bg-amber-900/5";
+  if (result.status === "probable") return "bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-950/10 dark:hover:bg-amber-950/20";
+  if (result.status === "found" && result.warnings.length > 0) return "bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-950/5";
   return "hover:bg-muted/50";
 }
 
@@ -251,11 +268,11 @@ function analyzerReducer(state: AnalyzerState, action: AnalyzerAction): Analyzer
     case "SET_DRAGGING":
       return { ...state, isDragging: action.payload };
     case "SET_FILE":
-      return { ...state, fileName: action.payload.name, fileSize: action.payload.size, results: null };
+      return { ...state, fileName: action.payload.name, fileSize: action.payload.size, results: null, rowSelection: {} };
     case "SET_PARSED":
       return action.payload
-        ? { ...state, parsedRows: action.payload.rows, fileFormat: action.payload.format }
-        : { ...state, parsedRows: null, fileFormat: null };
+        ? { ...state, parsedRows: action.payload.rows, fileFormat: action.payload.format, rowSelection: {} }
+        : { ...state, parsedRows: null, fileFormat: null, rowSelection: {} };
     case "SET_RESULTS":
       return { ...state, results: action.payload };
     case "SET_STATUS_FILTER":
@@ -300,9 +317,11 @@ function BandFilterButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        disabled={bands.length === 0 && value.length === 0}
         className={cn(
           "h-8 rounded-lg border bg-transparent px-2.5 text-sm transition-colors flex items-center gap-2 min-w-42.5",
           "border-input dark:bg-input/30 dark:hover:bg-input/50 hover:bg-muted",
+          "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent",
           value.length > 0 ? "text-foreground" : "text-muted-foreground",
         )}
       >
@@ -345,6 +364,351 @@ function BandFilterButton({
   );
 }
 
+type AnalyzerTranslation = ReturnType<typeof useTranslation<["cellAnalyzer", "common", "stations"]>>["t"];
+
+type IdentifierItem = {
+  label: string;
+  value: number | null;
+  dbValue?: number | null;
+  warn?: boolean;
+  missing?: boolean;
+};
+
+function getBandDetails(row: ParsedRow): { value: string; name: string | null } | null {
+  let band: number | null = null;
+  if (row.rat === "LTE" && row.earfcn !== undefined) band = getBandFromEARFCN(row.earfcn);
+  else if (row.rat === "UMTS" && row.uarfcn !== undefined) band = getBandFromUARFCN(row.uarfcn);
+  if (band === null) return null;
+  const value = getBandMhz(band);
+  if (value === null) return null;
+  return { value, name: getBandName(row.rat, Number(value)) };
+}
+
+function getIdentifierItems({ parsedRow: cell, result }: AnalyzerRow): IdentifierItem[] {
+  const warnings = result?.warnings ?? [];
+  const matched = result?.cell;
+
+  switch (cell.rat) {
+    case "GSM":
+      return [
+        { label: "LAC", value: cell.lac, dbValue: matched?.rat === "GSM" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
+        { label: "CID", value: cell.cid },
+      ];
+    case "UMTS":
+      return [
+        { label: "RNC", value: cell.rnc, dbValue: matched?.rat === "UMTS" ? matched.rnc : null, warn: warnings.includes("rnc_mismatch") },
+        { label: "LAC", value: cell.lac, dbValue: matched?.rat === "UMTS" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
+        { label: "CID", value: cell.cid },
+        ...(cell.uarfcn !== undefined
+          ? [
+              {
+                label: "UARFCN",
+                value: cell.uarfcn,
+                dbValue: matched?.rat === "UMTS" ? matched.arfcn : null,
+                warn: warnings.includes("uarfcn_mismatch"),
+              },
+            ]
+          : []),
+      ];
+    case "LTE":
+      return [
+        { label: "eNBID", value: cell.enbid },
+        { label: "CLID", value: cell.clid },
+        { label: "TAC", value: cell.tac, dbValue: matched?.rat === "LTE" ? matched.tac : null, warn: warnings.includes("tac_mismatch") },
+        {
+          label: "PCI",
+          value: cell.pci,
+          dbValue: matched?.rat === "LTE" ? matched.pci : null,
+          warn: warnings.includes("pci_mismatch"),
+          missing: warnings.includes("pci_missing"),
+        },
+        ...(cell.earfcn !== undefined
+          ? [
+              {
+                label: "EARFCN",
+                value: cell.earfcn,
+                dbValue: matched?.rat === "LTE" ? matched.earfcn : null,
+                warn: warnings.includes("earfcn_mismatch"),
+              },
+            ]
+          : []),
+      ];
+    case "NR":
+      return cell.arfcn !== undefined ? [{ label: "ARFCN", value: cell.arfcn }] : [];
+  }
+}
+
+function IdentifierChips({ analyzerRow, compact = false, t }: { analyzerRow: AnalyzerRow; compact?: boolean; t: AnalyzerTranslation }) {
+  const items = getIdentifierItems(analyzerRow);
+  if (items.length === 0) return <span className="text-xs text-muted-foreground">-</span>;
+
+  return (
+    <div className={cn("flex items-center gap-1", compact ? "flex-nowrap overflow-hidden" : "flex-wrap")}>
+      {items.map(({ label, value, dbValue, warn, missing }) => (
+        <span
+          key={label}
+          className={cn(
+            "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+            warn && "bg-destructive/10 text-destructive",
+            missing && !warn && "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+            !warn && !missing && "bg-muted text-muted-foreground",
+          )}
+        >
+          <span className="mr-1 opacity-65">{label}</span>
+          {warn && dbValue !== null && dbValue !== undefined ? (
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="inline-flex items-center">
+                  <span className="font-mono font-semibold underline decoration-dotted underline-offset-2">{dbValue}</span>
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="mx-0.5 size-3 opacity-60" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t("warning.dbValue")}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          {missing ? (
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="cursor-help font-mono font-semibold underline decoration-dotted underline-offset-2">{value}</span>
+              </TooltipTrigger>
+              <TooltipContent>{t("warning.pciMissingFromDb")}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="font-mono font-semibold tabular-nums">{value ?? "-"}</span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ParsedIdentityCell({ analyzerRow, compact = false, t }: { analyzerRow: AnalyzerRow; compact?: boolean; t: AnalyzerTranslation }) {
+  const { parsedRow, result } = analyzerRow;
+  const operatorName = MNC_NAMES[parsedRow.mnc] ?? String(parsedRow.mnc);
+  const band = getBandDetails(parsedRow);
+
+  return (
+    <div className="min-w-0 space-y-1">
+      <div className={cn("flex min-w-0 items-center gap-2", compact ? "overflow-hidden" : "flex-wrap")}>
+        <DialogOperatorName name={operatorName} mnc={parsedRow.mnc} compact />
+        <div className="flex min-w-0 shrink-0 items-center gap-1 whitespace-nowrap">
+          <TechnologySummary bands={[`${parsedRow.rat}${band?.value ?? ""}`]} className="mt-0 pl-0" />
+          {band?.name ? <span className="text-[11px] text-muted-foreground">({band.name})</span> : null}
+        </div>
+        {isNotConfirmedCell(result) ? (
+          <Tooltip>
+            <TooltipTrigger aria-label={t("stations:cells.cellNotConfirmed")}>
+              <span className="inline-flex size-5 cursor-help items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t("stations:cells.cellNotConfirmed")}</TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
+      <IdentifierChips analyzerRow={analyzerRow} compact={compact} t={t} />
+    </div>
+  );
+}
+
+function AnalyzerStatusBadge({ result, t }: { result: AnalyzerResult | undefined; t: AnalyzerTranslation }) {
+  const status = result?.status;
+  let label = t("status.notAnalyzed");
+  if (status) label = t(`status.${status === "not_found" ? "notFound" : status}`);
+  let icon = AlertCircleIcon;
+  if (status === "found") icon = CheckmarkCircle02Icon;
+  else if (status === "not_found") icon = Cancel01Icon;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 w-fit shrink-0 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold",
+        status === "found" && "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+        status === "probable" && "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+        status === "not_found" && "bg-destructive/10 text-destructive",
+        (status === "unsupported" || status === undefined) && "bg-muted text-muted-foreground",
+      )}
+    >
+      <HugeiconsIcon icon={icon} className="size-3" />
+      {label}
+    </span>
+  );
+}
+
+function getWarningLabel(warning: string, warningLabels: Record<string, string>, t: AnalyzerTranslation): string {
+  return warningLabels[warning] ?? t(WARNING_I18N_KEY[warning] ?? warning);
+}
+
+function MatchResultCell({
+  analyzerRow,
+  compact = false,
+  warningLabels,
+  t,
+}: {
+  analyzerRow: AnalyzerRow;
+  compact?: boolean;
+  warningLabels: Record<string, string>;
+  t: AnalyzerTranslation;
+}) {
+  const result = analyzerRow.result;
+  const loc = result?.station?.location;
+  const regionText = loc?.region?.name;
+  const locationText = loc?.city || loc?.address ? [loc.city, loc.address].filter(Boolean).join(", ") : null;
+  const matchedNote = getMatchedCellNote(result?.cell);
+  const warningKeys = result ? [...new Set(result.warnings)] : [];
+  if (isNotConfirmedCell(result) && !warningKeys.includes("not_confirmed")) warningKeys.push("not_confirmed");
+  const warningTexts = warningKeys.map((warning) => getWarningLabel(warning, warningLabels, t));
+
+  return (
+    <div className="min-w-0 space-y-1">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <AnalyzerStatusBadge result={result} t={t} />
+        {regionText ? <span className="truncate text-[11px] text-muted-foreground">{regionText}</span> : null}
+        {compact && warningTexts.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger aria-label={warningTexts.join("; ")}>
+              <span className="inline-flex h-5 shrink-0 cursor-help items-center gap-1 rounded bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <HugeiconsIcon icon={AlertCircleIcon} className="size-3" />
+                {warningTexts.length}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-80">
+              <ul className="grid gap-1">
+                {warningTexts.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
+      {result && (result.status === "found" || result.status === "probable") ? (
+        <p
+          className="truncate text-xs font-medium text-emerald-800 dark:text-emerald-300"
+          title={[locationText, matchedNote].filter(Boolean).join(" - ")}
+        >
+          {locationText ?? "-"}
+          {matchedNote ? <span className="font-normal"> - {matchedNote}</span> : null}
+        </p>
+      ) : null}
+      {!compact && warningTexts.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {warningTexts.map((warning) => (
+            <span
+              key={warning}
+              className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            >
+              <HugeiconsIcon icon={AlertCircleIcon} className="size-3 shrink-0" />
+              {warning}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SourceDescriptionCell({ row }: { row: ParsedRow }) {
+  return (
+    <div className="min-w-0">
+      <p className="line-clamp-2 text-xs leading-4 text-foreground/80" title={row.description || row.rawLine}>
+        {row.description || "-"}
+      </p>
+    </div>
+  );
+}
+
+function StationActionsCell({
+  result,
+  openStationDialog,
+  t,
+}: {
+  result: AnalyzerResult | undefined;
+  openStationDialog: (stationId: number, source: "internal") => void;
+  t: AnalyzerTranslation;
+}) {
+  const station = result?.station;
+  if (!station) return <span className="text-xs text-muted-foreground">{t("table.noStation")}</span>;
+
+  return (
+    <div className="min-w-0 space-y-1">
+      <button
+        type="button"
+        className="group flex max-w-full cursor-pointer items-center gap-1.5 text-left"
+        onClick={() => openStationDialog(station.id, "internal")}
+      >
+        <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline group-focus-visible:underline">
+          {station.station_id}
+        </span>
+      </button>
+      <div className="flex flex-nowrap items-center gap-1">
+        <Button type="button" variant="outline" size="xs" onClick={() => openStationDialog(station.id, "internal")}>
+          <HugeiconsIcon icon={Tag01Icon} className="size-3" data-icon="inline-start" />
+          {t("table.openStation")}
+        </Button>
+        <Link
+          to="/"
+          hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
+          target="_blank"
+          className={buttonVariants({ variant: "ghost", size: "xs" })}
+        >
+          <HugeiconsIcon icon={Location01Icon} className="size-3" data-icon="inline-start" />
+          {t("table.showOnMap")}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function AnalyzerMobileRow({
+  row,
+  warningLabels,
+  t,
+  openStationDialog,
+}: {
+  row: Row<AppTableFeatures, AnalyzerRow>;
+  warningLabels: Record<string, string>;
+  t: AnalyzerTranslation;
+  openStationDialog: (stationId: number, source: "internal") => void;
+}) {
+  const analyzerRow = row.original;
+
+  return (
+    <article className={cn("space-y-2 p-2.5 transition-colors", rowBg(analyzerRow.result))}>
+      <div className="flex items-start gap-3">
+        <Checkbox
+          checked={row.getIsSelected()}
+          disabled={!row.getCanSelect()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label={t("selection.selectRow", { number: analyzerRow.index + 1 })}
+        />
+        <span className="pt-0.5 text-xs text-muted-foreground tabular-nums">#{analyzerRow.index + 1}</span>
+        <div className="min-w-0 flex-1">
+          <ParsedIdentityCell analyzerRow={analyzerRow} t={t} />
+        </div>
+      </div>
+
+      {analyzerRow.parsedRow.description ? (
+        <div className="border-t pt-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("table.sourceDescription")}</p>
+          <SourceDescriptionCell row={analyzerRow.parsedRow} />
+        </div>
+      ) : null}
+
+      <div className="grid gap-2 border-t pt-2 sm:grid-cols-2">
+        <div>
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("table.matchResult")}</p>
+          <MatchResultCell analyzerRow={analyzerRow} warningLabels={warningLabels} t={t} />
+        </div>
+        <div>
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("common:labels.station")}</p>
+          <StationActionsCell result={analyzerRow.result} openStationDialog={openStationDialog} t={t} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function AnalyzerPage() {
   const { t } = useTranslation(["cellAnalyzer", "common", "stations"]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -355,6 +719,7 @@ function AnalyzerPage() {
   const analyzeStartRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
+  const [hasAnalysisError, setHasAnalysisError] = useState(false);
   const { isDragging, parsedRows, results, fileName, fileSize, fileFormat, statusFilter, ratFilter, warningFilter, operatorFilter, bandFilter } =
     state;
   const { data: session } = authClient.useSession();
@@ -362,19 +727,12 @@ function AnalyzerPage() {
 
   const isMobile = useIsMobile();
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
-  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(
-    isMobile ? MOBILE_TABLE_PAGINATION_CONFIG : DESKTOP_TABLE_PAGINATION_CONFIG,
-  );
+  const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK);
+  const desktopPagination = useTablePagination(DESKTOP_TABLE_PAGINATION_CONFIG);
+  const mobilePagination = useTablePagination({ ...MOBILE_TABLE_PAGINATION_CONFIG, rowHeight: mobileRowHeight });
+  const { containerRef, pagination, setPagination, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
   const navActionTarget = useNavActionTarget();
-  const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
-
-  const mergedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      scrollRef(node);
-      containerRef(node);
-    },
-    [containerRef, scrollRef],
-  );
+  const hasFloatingMobileActions = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const resetPage = useCallback(() => setPagination((p) => ({ ...p, pageIndex: 0 })), [setPagination]);
 
@@ -385,6 +743,7 @@ function AnalyzerPage() {
         return;
       }
 
+      setHasAnalysisError(false);
       dispatch({ type: "SET_FILE", payload: { name: file.name, size: file.size } });
 
       const reader = new FileReader();
@@ -427,6 +786,7 @@ function AnalyzerPage() {
   const onAnalyzeSuccess = useCallback(
     (data: AnalyzerResult[]) => {
       if (analyzeStartRef.current) setFinalDuration(Date.now() - analyzeStartRef.current);
+      setHasAnalysisError(false);
       dispatch({ type: "SET_RESULTS", payload: data });
       resetPage();
     },
@@ -439,9 +799,13 @@ function AnalyzerPage() {
       analyzeStartRef.current = Date.now();
       setElapsed(0);
       setFinalDuration(null);
+      setHasAnalysisError(false);
     },
     onSuccess: onAnalyzeSuccess,
-    onError: showApiError,
+    onError: (error) => {
+      setHasAnalysisError(true);
+      showApiError(error);
+    },
   });
 
   useEffect(() => {
@@ -599,84 +963,29 @@ function AnalyzerPage() {
           header: ({ table }) => {
             const allSelected = table.getIsAllPageRowsSelected();
             const checked = allSelected || table.getIsSomePageRowsSelected();
-            return <Checkbox checked={checked} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} />;
+            return (
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                aria-label={t("selection.selectAllVisible")}
+              />
+            );
           },
-          size: 40,
+          size: 64,
           cell: ({ row }) => (
-            <Checkbox checked={row.getIsSelected()} disabled={!row.getCanSelect()} onCheckedChange={(value) => row.toggleSelected(!!value)} />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={row.getIsSelected()}
+                disabled={!row.getCanSelect()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label={t("selection.selectRow", { number: row.original.index + 1 })}
+              />
+              <span className="text-xs text-muted-foreground tabular-nums">{row.original.index + 1}</span>
+            </div>
           ),
         }),
-        columnHelper.display({
-          id: "num",
-          header: "#",
-          size: 40,
-          cell: ({ row }) => <span className="text-muted-foreground text-xs tabular-nums">{row.original.index + 1}</span>,
-        }),
-        columnHelper.accessor((r) => r.parsedRow.rat, {
-          id: "rat",
-          header: "Standard",
-          size: 80,
-          cell: ({ getValue }) => <RatBadge rat={getValue()} showTechName />,
-        }),
-        columnHelper.accessor((r) => r, {
-          id: "band",
-          header: t("common:labels.band"),
-          size: 90,
-          cell: ({ getValue }) => {
-            const { parsedRow: row, result } = getValue();
-            let band: number | null = null;
-            if (row.rat === "LTE" && row.earfcn !== undefined) band = getBandFromEARFCN(row.earfcn);
-            else if (row.rat === "UMTS" && row.uarfcn !== undefined) band = getBandFromUARFCN(row.uarfcn);
-            const isNotConfirmed = isNotConfirmedCell(result);
-            if (band === null && !isNotConfirmed) return <span className="text-muted-foreground text-xs">-</span>;
-            const mhz = band !== null ? getBandMhz(band) : null;
-            return (
-              <div className="flex items-center gap-1">
-                {band !== null && (
-                  <span className="text-xs font-mono">
-                    {mhz && <span className="font-semibold">{mhz}</span>}
-                    <span className="opacity-75">
-                      {mhz ? " " : ""}(b{band})
-                    </span>
-                  </span>
-                )}
-                {isNotConfirmed && (
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <span className="inline-flex items-center justify-center size-5 rounded-md bg-destructive/10 text-destructive cursor-help">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{t("stations:cells.cellNotConfirmed")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            );
-          },
-        }),
         columnHelper.accessor((r) => r.parsedRow, {
-          id: "operator",
-          header: t("common:labels.operator"),
-          size: 140,
-          cell: ({ getValue }) => {
-            const row = getValue();
-            const name = MNC_NAMES[row.mnc];
-            const color = getOperatorColor(row.mnc);
-            return (
-              <div className="flex items-center gap-1.5">
-                <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-medium leading-tight">{name ?? row.mnc}</span>
-                  {name && <span className="font-mono text-[10px] text-muted-foreground leading-tight">({row.mnc})</span>}
-                </div>
-              </div>
-            );
-          },
-        }),
-        columnHelper.accessor((r) => r.parsedRow, {
-          id: "identifiers",
+          id: "identity",
           header: ({ column }) => {
             const sorted = column.getIsSorted();
             return (
@@ -685,7 +994,7 @@ function AnalyzerPage() {
                 className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
                 onClick={column.getToggleSortingHandler()}
               >
-                {t("table.identifiers")}
+                {t("table.parsedCell")}
                 <HugeiconsIcon
                   icon={Sorting05Icon}
                   className={cn("size-3.5 transition-colors", sorted ? "text-foreground" : "text-muted-foreground/40")}
@@ -694,7 +1003,7 @@ function AnalyzerPage() {
               </button>
             );
           },
-          size: 180,
+          size: 360,
           sortFn: (rowA, rowB) => {
             const a = rowA.original.parsedRow;
             const b = rowB.original.parsedRow;
@@ -709,193 +1018,35 @@ function AnalyzerPage() {
             }
             return 0;
           },
-          cell: ({ getValue, row }) => {
-            const cell = getValue();
-            const warnings = row.original.result?.warnings ?? [];
-
-            const matched = row.original.result?.cell;
-
-            const ids: { label: string; value: number | null; dbValue?: number | null; warn?: boolean; missing?: boolean }[] = (() => {
-              switch (cell.rat) {
-                case "GSM":
-                  return [
-                    { label: "LAC", value: cell.lac, dbValue: matched?.rat === "GSM" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
-                    { label: "CID", value: cell.cid },
-                  ];
-                case "UMTS":
-                  return [
-                    { label: "RNC", value: cell.rnc, dbValue: matched?.rat === "UMTS" ? matched.rnc : null, warn: warnings.includes("rnc_mismatch") },
-                    { label: "LAC", value: cell.lac, dbValue: matched?.rat === "UMTS" ? matched.lac : null, warn: warnings.includes("lac_mismatch") },
-                    { label: "CID", value: cell.cid },
-                    ...(cell.uarfcn !== undefined
-                      ? [
-                          {
-                            label: "UARFCN",
-                            value: cell.uarfcn,
-                            dbValue: matched?.rat === "UMTS" ? matched.arfcn : null,
-                            warn: warnings.includes("uarfcn_mismatch"),
-                          },
-                        ]
-                      : []),
-                  ];
-                case "LTE":
-                  return [
-                    { label: "eNBID", value: cell.enbid },
-                    { label: "CLID", value: cell.clid },
-                    { label: "TAC", value: cell.tac, dbValue: matched?.rat === "LTE" ? matched.tac : null, warn: warnings.includes("tac_mismatch") },
-                    {
-                      label: "PCI",
-                      value: cell.pci,
-                      dbValue: matched?.rat === "LTE" ? matched.pci : null,
-                      warn: warnings.includes("pci_mismatch"),
-                      missing: warnings.includes("pci_missing"),
-                    },
-                    ...(cell.earfcn !== undefined
-                      ? [
-                          {
-                            label: "EARFCN",
-                            value: cell.earfcn,
-                            dbValue: matched?.rat === "LTE" ? matched.earfcn : null,
-                            warn: warnings.includes("earfcn_mismatch"),
-                          },
-                        ]
-                      : []),
-                  ];
-                case "NR":
-                  return cell.arfcn !== undefined ? [{ label: "ARFCN", value: cell.arfcn }] : [];
-              }
-            })();
-
-            const extraWarnings = warnings.filter((w) => !MISMATCH_WARNINGS.has(w));
-
-            if (ids.length === 0 && extraWarnings.length === 0) return <span className="text-muted-foreground text-xs">-</span>;
-
-            return (
-              <div className="flex flex-wrap items-center gap-1">
-                {ids.map(({ label, value, dbValue, warn, missing }) => {
-                  let stateClass = "bg-muted px-1.5 py-0.5 text-muted-foreground";
-                  if (warn) stateClass = "bg-destructive/10 text-destructive px-1.5 py-0.5";
-                  else if (missing) stateClass = "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200 px-1.5 py-0.5";
-                  return (
-                    <span key={label} className={cn("inline-flex items-center rounded-md text-[11px] font-medium", stateClass)}>
-                      <span className="mr-0.5 opacity-60">{label}</span>
-                      {warn && dbValue !== null && dbValue !== undefined && (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <span className="inline-flex items-center">
-                              <span className="font-mono font-semibold underline decoration-dotted">{dbValue}</span>
-                              <HugeiconsIcon icon={ArrowRight01Icon} className="mx-0.5 size-3 opacity-50" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("warning.dbValue")}</TooltipContent>
-                        </Tooltip>
-                      )}
-                      {missing ? (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <span className="font-mono font-semibold underline decoration-dotted cursor-help">{value}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("warning.pciMissingFromDb")}</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="font-mono font-semibold">{value}</span>
-                      )}
-                    </span>
-                  );
-                })}
-                {extraWarnings.map((w) => (
-                  <span
-                    key={w}
-                    className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                  >
-                    <HugeiconsIcon icon={AlertCircleIcon} className="size-3 shrink-0" />
-                    {t(WARNING_I18N_KEY[w] ?? w)}
-                  </span>
-                ))}
-              </div>
-            );
-          },
+          cell: ({ row }) => <ParsedIdentityCell analyzerRow={row.original} compact t={t} />,
         }),
-        columnHelper.accessor((r) => r.parsedRow.description, {
+        columnHelper.accessor((r) => r.parsedRow, {
           id: "description",
-          header: t("table.description"),
-          size: 260,
-          cell: ({ getValue }) => (
-            <span className="text-xs text-muted-foreground line-clamp-2" title={getValue()}>
-              {getValue() || "-"}
-            </span>
-          ),
+          header: t("table.sourceDescription"),
+          size: 220,
+          cell: ({ getValue }) => <SourceDescriptionCell row={getValue()} />,
         }),
-        columnHelper.accessor((r) => r.result, {
-          id: "location",
-          header: t("table.location"),
-          size: 240,
-          cell: ({ getValue }) => {
-            const result = getValue();
-            if (!result) return <span className="text-muted-foreground text-xs">-</span>;
-            if (result.status === "unsupported") return <span className="text-muted-foreground text-xs italic">{t("status.unsupported")}</span>;
-            if (result.status === "not_found") return <span className="text-destructive font-semibold text-sm">{t("status.notFound")}</span>;
-
-            const loc = result.station?.location;
-            const locationText = loc?.city || loc?.address ? [loc.city, loc.address].filter(Boolean).join(", ") : "-";
-            const regionText = loc?.region?.name;
-            const matchedNote = getMatchedCellNote(result.cell);
-
-            return (
-              <div className="text-emerald-700 dark:text-emerald-400 text-sm font-medium">
-                {locationText}
-                {matchedNote ? <span className="font-normal"> - {matchedNote}</span> : null}
-                {regionText && <span className="text-muted-foreground font-normal text-xs"> · {regionText}</span>}
-              </div>
-            );
-          },
+        columnHelper.accessor((r) => r, {
+          id: "match",
+          header: t("table.matchResult"),
+          size: 330,
+          cell: ({ getValue }) => <MatchResultCell analyzerRow={getValue()} compact warningLabels={warningLabels} t={t} />,
         }),
         columnHelper.accessor((r) => r.result, {
           id: "station",
           header: t("common:labels.station"),
-          size: 160,
-          cell: ({ getValue }) => {
-            const result = getValue();
-            const station = result?.station;
-            if (!station) return <span className="text-muted-foreground text-xs">-</span>;
-            return (
-              <div className="flex items-center gap-1.5 flex-nowrap">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => openStationDialog(station.id, "internal")}
-                >
-                  <HugeiconsIcon icon={Tag01Icon} className="size-3 shrink-0" />
-                  <span className="font-mono">{station.station_id}</span>
-                </button>
-                {station.location && (
-                  <Link
-                    to="/"
-                    hash={`map=16/${station.location.latitude}/${station.location.longitude}~f~L${station.location.id}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <HugeiconsIcon icon={Location01Icon} className="size-3 shrink-0" />
-                    <span className="font-mono">{station.location.id}</span>
-                  </Link>
-                )}
-                {result?.status === "probable" && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                    {t("status.probable")}
-                  </span>
-                )}
-              </div>
-            );
-          },
+          size: 240,
+          cell: ({ getValue }) => <StationActionsCell result={getValue()} openStationDialog={openStationDialog} t={t} />,
         }),
       ]),
-    [openStationDialog, t],
+    [openStationDialog, t, warningLabels],
   );
 
   const table = useTable({
     features: appTableFeatures,
     data: tableData,
     columns,
+    getRowId: (row) => String(row.index),
     state: { pagination, sorting, rowSelection: state.rowSelection },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -934,21 +1085,28 @@ function AnalyzerPage() {
     window.open(href, "_blank", "noopener,noreferrer");
   }
 
+  const resetSelectedRows = useEffectEvent(() => table.resetRowSelection());
+
   useEffect(() => {
     if (selectedCount === 0) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") table.resetRowSelection();
+      if (e.key === "Escape") resetSelectedRows();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCount, table]);
+  }, [selectedCount]);
 
-  const analyzerMobileFilterRail = (
+  const analyzerMobileFilterRail = isMobile ? (
     <div className="flex items-center gap-1">
-      <MobileFilterChip active={statusFilter !== "all"} icon={CheckmarkCircle02Icon} label={t("filter.status")}>
+      <MobileFilterChip
+        active={statusFilter !== "all"}
+        count={statusFilter !== "all" ? 1 : 0}
+        icon={CheckmarkCircle02Icon}
+        label={t("filter.status")}
+      >
         <MobileFilterPanelTitle>{t("filter.status")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
-          {(["all", "found", "probable", "not_found", "unsupported"] as const).map((status) => (
+          {ANALYZER_STATUS_FILTERS.map((status) => (
             <button
               key={status}
               type="button"
@@ -967,114 +1125,10 @@ function AnalyzerPage() {
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={ratFilter !== "all"} icon={FullSignalIcon} label="Standard">
-        <MobileFilterPanelTitle>Standard</MobileFilterPanelTitle>
-        <div className="grid gap-1">
-          {(["all", "GSM", "UMTS", "LTE", "NR"] as const).map((rat) => (
-            <button
-              key={rat}
-              type="button"
-              onClick={() => {
-                dispatch({ type: "SET_RAT_FILTER", payload: rat });
-                resetPage();
-              }}
-              className={cn(
-                "h-8 rounded-md px-2 text-left text-sm transition-colors",
-                ratFilter === rat ? "bg-primary/10 text-primary" : "hover:bg-muted",
-              )}
-            >
-              {rat === "all" ? t("common:status.all") : rat}
-            </button>
-          ))}
-        </div>
-      </MobileFilterChip>
-
-      <MobileFilterChip active={operatorFilter !== "all"} icon={FilterIcon} label={t("common:labels.operator")}>
-        <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
-        <div className="grid gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              dispatch({ type: "SET_OPERATOR_FILTER", payload: "all" });
-              resetPage();
-            }}
-            className={cn(
-              "h-8 rounded-md px-2 text-left text-sm transition-colors",
-              operatorFilter === "all" ? "bg-primary/10 text-primary" : "hover:bg-muted",
-            )}
-          >
-            {t("common:status.all")}
-          </button>
-          {availableMncs.map((mnc) => (
-            <button
-              key={mnc}
-              type="button"
-              onClick={() => {
-                dispatch({ type: "SET_OPERATOR_FILTER", payload: String(mnc) });
-                resetPage();
-              }}
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-                operatorFilter === String(mnc) ? "bg-primary/10 text-primary" : "hover:bg-muted",
-              )}
-            >
-              <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(mnc) }} />
-              <span>{MNC_NAMES[mnc] ?? mnc}</span>
-            </button>
-          ))}
-        </div>
-      </MobileFilterChip>
-
-      {availableBands.length > 0 ? (
-        <MobileFilterChip active={bandFilter.length > 0} count={bandFilter.length} icon={Tag01Icon} label={t("filter.band")}>
-          <MobileFilterPanelTitle>{t("filter.band")}</MobileFilterPanelTitle>
-          <div className="grid max-h-64 gap-1 overflow-y-auto">
-            {availableBands.map(({ rat, band }) => {
-              const key = `${rat}-${band}`;
-              const selected = bandFilter.includes(key);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    dispatch({ type: "SET_BAND_FILTER", payload: selected ? bandFilter.filter((value) => value !== key) : [...bandFilter, key] });
-                    resetPage();
-                  }}
-                  className={cn(
-                    "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-                    selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-                  )}
-                >
-                  <span className="font-mono">
-                    {rat} B{band}
-                  </span>
-                  {getBandMhz(band) ? <span className="text-muted-foreground">{getBandMhz(band)} MHz</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        </MobileFilterChip>
-      ) : null}
-
-      <MobileFilterChip active={warningFilter !== "all"} icon={AlertCircleIcon} label={t("filter.warning")}>
+      <MobileFilterChip active={warningFilter !== "all"} count={warningFilter !== "all" ? 1 : 0} icon={AlertCircleIcon} label={t("filter.warning")}>
         <MobileFilterPanelTitle>{t("filter.warning")}</MobileFilterPanelTitle>
         <div className="grid max-h-64 gap-1 overflow-y-auto">
-          {(
-            [
-              "all",
-              "any",
-              "lac_mismatch",
-              "tac_mismatch",
-              "rnc_mismatch",
-              "pci_mismatch",
-              "uarfcn_mismatch",
-              "earfcn_mismatch",
-              "not_found",
-              "pci_missing",
-              "enbid_only",
-              "not_confirmed",
-            ] as const
-          ).map((warning) => (
+          {ANALYZER_WARNING_FILTERS.map((warning) => (
             <button
               key={warning}
               type="button"
@@ -1087,9 +1141,105 @@ function AnalyzerPage() {
                 warningFilter === warning ? "bg-primary/10 text-primary" : "hover:bg-muted",
               )}
             >
-              {warning === "all" ? t("common:status.all") : warning === "any" ? t("filter.anyWarning") : warningLabels[warning]}
+              {warningLabels[warning]}
             </button>
           ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={ratFilter !== "all"} count={ratFilter !== "all" ? 1 : 0} icon={FullSignalIcon} label={t("common:labels.standard")}>
+        <MobileFilterPanelTitle>{t("common:labels.standard")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          {ANALYZER_RAT_FILTERS.map((rat) => (
+            <button
+              key={rat}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_RAT_FILTER", payload: rat });
+                resetPage();
+              }}
+              className={cn("h-8 rounded-md px-2 text-left text-sm", ratFilter === rat ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+            >
+              {rat === "all" ? t("common:status.all") : rat}
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip
+        active={operatorFilter !== "all"}
+        count={operatorFilter !== "all" ? 1 : 0}
+        icon={FilterIcon}
+        label={t("common:labels.operator")}
+      >
+        <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: "SET_OPERATOR_FILTER", payload: "all" });
+              resetPage();
+            }}
+            className={cn("h-8 rounded-md px-2 text-left text-sm", operatorFilter === "all" ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+          >
+            {t("common:status.all")}
+          </button>
+          {availableMncs.map((mnc) => (
+            <button
+              key={mnc}
+              type="button"
+              onClick={() => {
+                dispatch({ type: "SET_OPERATOR_FILTER", payload: String(mnc) });
+                resetPage();
+              }}
+              className={cn(
+                "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm",
+                operatorFilter === String(mnc) ? "bg-primary/10 text-primary" : "hover:bg-muted",
+              )}
+            >
+              <DialogOperatorName name={MNC_NAMES[mnc] ?? String(mnc)} mnc={mnc} compact />
+            </button>
+          ))}
+        </div>
+      </MobileFilterChip>
+
+      <MobileFilterChip active={bandFilter.length > 0} count={bandFilter.length} icon={Radar01Icon} label={t("filter.band")}>
+        <MobileFilterPanelTitle>{t("filter.band")}</MobileFilterPanelTitle>
+        <div className="grid gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              dispatch({ type: "SET_BAND_FILTER", payload: [] });
+              resetPage();
+            }}
+            className={cn("h-8 rounded-md px-2 text-left text-sm", bandFilter.length === 0 ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+          >
+            {t("filter.allBands")}
+          </button>
+          {availableBands.map(({ rat, band }) => {
+            const key = `${rat}-${band}`;
+            const selected = bandFilter.includes(key);
+            const mhz = getBandMhz(band);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  dispatch({ type: "SET_BAND_FILTER", payload: selected ? bandFilter.filter((value) => value !== key) : [...bandFilter, key] });
+                  resetPage();
+                }}
+                className={cn(
+                  "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm",
+                  selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                )}
+              >
+                <span className="font-mono">
+                  {rat} B{band}
+                </span>
+                {mhz ? <span className="text-muted-foreground">{mhz} MHz</span> : null}
+              </button>
+            );
+          })}
         </div>
       </MobileFilterChip>
 
@@ -1107,12 +1257,56 @@ function AnalyzerPage() {
         </button>
       ) : null}
     </div>
-  );
+  ) : null;
+
+  let selectionDisabledReason: string | null = null;
+  if (uniqueStationCount === 0) selectionDisabledReason = t("selection.reviewBatchDisabledNoStations");
+  else if (uniqueStationCount > stationCap) selectionDisabledReason = t("selection.reviewBatchDisabledOverLimit", { count: stationCap });
+
+  const selectionBar =
+    selectedCount > 0 ? (
+      <div
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5"
+        role="status"
+        aria-live="polite"
+      >
+        <button
+          type="button"
+          onClick={() => table.resetRowSelection()}
+          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={t("selection.clearSelection")}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+        </button>
+        <span className="flex h-5 min-w-6 shrink-0 items-center justify-center rounded bg-primary px-1.5 text-xs font-bold text-primary-foreground tabular-nums">
+          {selectedCount}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-foreground">{t("selection.rowsSelected", { count: selectedCount })}</p>
+          {selectionDisabledReason ? null : (
+            <p className="truncate text-[11px] text-muted-foreground">{t("selection.uniqueStationCount", { count: uniqueStationCount })}</p>
+          )}
+        </div>
+        <Button size="sm" onClick={handleNavigationToReview} disabled={selectionDisabledReason !== null} className="shrink-0">
+          {t("selection.reviewBatch")}
+          <HugeiconsIcon icon={LinkSquare01Icon} className="size-3.5" data-icon="inline-end" />
+        </Button>
+        {selectionDisabledReason ? (
+          <p className="basis-full pl-9 text-[11px] leading-4 text-destructive" role="note" tabIndex={0}>
+            {selectionDisabledReason}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
+  let statusAnnouncement = "";
+  if (isLoading) statusAnnouncement = t("statusAnnouncement.analyzing");
+  else if (results) statusAnnouncement = t("statusAnnouncement.complete", { count: results.length });
 
   return (
     <RequireAuth>
-      <div className={cn("flex-1 p-4", parsedRows ? "flex flex-col gap-4 min-h-0 overflow-hidden" : "overflow-y-auto space-y-4")}>
-        <div className="flex flex-col gap-4 shrink-0">
+      <div className={cn("flex-1 p-3 md:p-4", parsedRows ? "flex min-h-0 flex-col gap-3 overflow-hidden" : "space-y-4 overflow-y-auto")}>
+        <div className="flex shrink-0 flex-col gap-3">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold">{t("nav:items.analyzer")}</h1>
             <p className="text-muted-foreground text-sm">{t("page.description")}</p>
@@ -1130,18 +1324,78 @@ function AnalyzerPage() {
           />
 
           {parsedRows ? (
-            <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3">
-              <HugeiconsIcon icon={File02Icon} className="size-5 text-muted-foreground shrink-0" />
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium truncate">{fileName}</span>
-                <span className="text-xs text-muted-foreground">
-                  {t("file.rowCount", { count: parsedRows.length })} · {formatFileSize(fileSize)} ·{" "}
-                  {fileFormat === "netmonitor" ? "NetMonitor" : "NetMonster"}
-                </span>
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <HugeiconsIcon icon={File02Icon} className="size-5" />
+                  </div>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold">{fileName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("file.rowCount", { count: parsedRows.length })} · {formatFileSize(fileSize)} ·{" "}
+                      {fileFormat === "netmonitor" ? "NetMonitor" : "NetMonster"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    {t("file.changeFile")}
+                  </Button>
+                  <Button
+                    onClick={() => handleAnalyze()}
+                    disabled={isLoading || parsedRows.length === 0}
+                    size="sm"
+                    className="min-w-44 justify-center"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Spinner data-icon="inline-start" />
+                        {t("button.analyzing")}
+                        <span className="text-xs opacity-75 tabular-nums">{formatDuration(elapsed)}</span>
+                      </>
+                    ) : (
+                      t("button.analyze", { count: parsedRows.length })
+                    )}
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" size="sm" className="ml-auto shrink-0" onClick={() => fileInputRef.current?.click()}>
-                {t("file.changeFile")}
-              </Button>
+              {stats ? (
+                <div className="flex flex-wrap items-center gap-1.5 border-t bg-muted/20 px-3 py-2" aria-label={t("stats.summary")}>
+                  {(
+                    [
+                      ["found", stats.found, "text-emerald-800 dark:text-emerald-300"],
+                      ["probable", stats.probable, "text-amber-900 dark:text-amber-200"],
+                      ["not_found", stats.notFound, "text-destructive"],
+                      ["unsupported", stats.unsupported, "text-muted-foreground"],
+                    ] as const
+                  ).map(([status, count, colorClass]) =>
+                    count > 0 || status === "found" || status === "not_found" ? (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => {
+                          dispatch({ type: "SET_STATUS_FILTER", payload: statusFilter === status ? "all" : status });
+                          resetPage();
+                        }}
+                        className={cn(
+                          "rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-muted",
+                          colorClass,
+                          statusFilter === status && "bg-background shadow-sm ring-1 ring-border",
+                        )}
+                        aria-pressed={statusFilter === status}
+                      >
+                        <span className="font-bold tabular-nums">{count}</span> {t(`stats.${status === "not_found" ? "notFound" : status}`)}
+                      </button>
+                    ) : null,
+                  )}
+                  {finalDuration !== null ? (
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                      {t("stats.completedIn", { duration: formatDuration(finalDuration) })}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div
@@ -1159,7 +1413,9 @@ function AnalyzerPage() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+                if (e.key !== "Enter" && e.key !== " ") return;
+                if (e.key === " ") e.preventDefault();
+                fileInputRef.current?.click();
               }}
             >
               <HugeiconsIcon icon={Upload04Icon} className="size-10 mx-auto mb-3 text-muted-foreground" />
@@ -1170,124 +1426,37 @@ function AnalyzerPage() {
             </div>
           )}
 
-          {parsedRows && (
-            <div className="flex items-center gap-4 flex-wrap">
-              <Button onClick={() => handleAnalyze()} disabled={isLoading || !parsedRows?.length} size="lg">
-                {isLoading ? (
-                  <>
-                    <Spinner data-icon="inline-start" />
-                    {t("button.analyzing")}
-                    <span className="opacity-70 text-xs tabular-nums">{formatDuration(elapsed)}</span>
-                  </>
-                ) : (
-                  t("button.analyze", { count: parsedRows.length })
-                )}
+          {hasAnalysisError ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2" role="alert">
+              <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{t("errors.analysisFailed")}</p>
+                <p className="text-xs text-muted-foreground">{t("errors.analysisFailedHint")}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => handleAnalyze()} disabled={isLoading}>
+                {t("common:actions.retry")}
               </Button>
-
-              {stats && (
-                <div className="flex items-center gap-4 text-sm flex-wrap">
-                  <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="size-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-                    {stats.found} {t("stats.found")}
-                  </span>
-                  {stats.probable > 0 && (
-                    <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                      <span className="size-2 rounded-full bg-amber-600 dark:bg-amber-400" />
-                      {stats.probable} {t("stats.probable")}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1.5 text-destructive">
-                    <span className="size-2 rounded-full bg-destructive" />
-                    {stats.notFound} {t("stats.notFound")}
-                  </span>
-                  {stats.unsupported > 0 && (
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <span className="size-2 rounded-full bg-muted-foreground" />
-                      {stats.unsupported} {t("stats.unsupported")}
-                    </span>
-                  )}
-                  {finalDuration !== null ? <span className="text-muted-foreground tabular-nums">{formatDuration(finalDuration)}</span> : null}
-                </div>
-              )}
             </div>
-          )}
+          ) : null}
+
+          <p className="sr-only" role="status" aria-live="polite">
+            {statusAnnouncement}
+          </p>
         </div>
 
-        {selectedCount > 0
-          ? createPortal(
-              <div className="fixed inset-x-0 bottom-0 z-50 animate-in slide-in-from-bottom-5 duration-200">
-                <div
-                  className="flex items-center justify-between border-t-2 border-primary bg-background px-4 py-3 shadow-sm sm:py-2"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => table.resetRowSelection()}
-                      className="flex shrink-0 items-center justify-center rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      aria-label={t("cellAnalyzer:selection.clearSelection")}
-                    >
-                      <HugeiconsIcon icon={Cancel01Icon} className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="flex h-4 min-w-6 shrink-0 items-center justify-center rounded-sm bg-primary px-1.5 text-xs font-bold text-primary-foreground tabular-nums">
-                      {selectedCount}
-                    </span>
-                    <span className="shrink-0 text-sm font-medium text-foreground">
-                      {t("cellAnalyzer:selection.rowsSelected", { count: selectedCount })}
-                    </span>
-                    <Separator orientation="vertical" className="h-4 shrink-0" />
-                    <span className="shrink-0 text-sm font-normal text-muted-foreground">
-                      {uniqueStationCount === 0
-                        ? t("cellAnalyzer:selection.noStationsResolved")
-                        : t("cellAnalyzer:selection.uniqueStationCount", { count: uniqueStationCount })}
-                    </span>
-                    {uniqueStationCount > stationCap ? (
-                      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-destructive">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="h-3.5 w-3.5" />
-                        {t("cellAnalyzer:selection.stationCapWarning", { count: stationCap })}
-                      </span>
-                    ) : null}
-                  </div>
-                  {uniqueStationCount === 0 || uniqueStationCount > stationCap ? (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <span className="ml-auto shrink-0 pl-4">
-                          <Button size="sm" disabled onClick={handleNavigationToReview}>
-                            {t("cellAnalyzer:selection.reviewBatch")} <HugeiconsIcon icon={LinkSquare01Icon} className="ml-1.5 h-3.5 w-3.5" />
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {uniqueStationCount === 0
-                          ? t("cellAnalyzer:selection.reviewBatchDisabledNoStations")
-                          : t("cellAnalyzer:selection.reviewBatchDisabledOverLimit", { count: stationCap })}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button size="sm" onClick={handleNavigationToReview} className="ml-auto shrink-0">
-                      {t("cellAnalyzer:selection.reviewBatch")} <HugeiconsIcon icon={LinkSquare01Icon} className="ml-1.5 h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>,
-              document.body,
-            )
-          : null}
-
-        {parsedRows && (
-          <div className={cn("flex flex-wrap items-end gap-2 shrink-0", showFloatingMobileFilters && "max-md:hidden")}>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground px-0.5">{t("filter.status")}</span>
+        {parsedRows && !isMobile ? (
+          <div className="flex shrink-0 flex-wrap items-end gap-2 rounded-lg border bg-card p-2">
+            <div className="flex min-w-36 flex-1 flex-col gap-1 sm:flex-none">
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("filter.status")}</span>
               <Select
                 value={statusFilter}
-                onValueChange={(v) => {
-                  dispatch({ type: "SET_STATUS_FILTER", payload: v });
+                onValueChange={(value) => {
+                  dispatch({ type: "SET_STATUS_FILTER", payload: value });
                   resetPage();
                 }}
                 disabled={!results}
               >
-                <SelectTrigger className="min-w-40">
+                <SelectTrigger className="w-full sm:min-w-40">
                   <SelectValue>{statusLabels[statusFilter as keyof typeof statusLabels] ?? statusFilter}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -1300,83 +1469,17 @@ function AnalyzerPage() {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground px-0.5">Standard</span>
-              <Select
-                value={ratFilter}
-                onValueChange={(v) => {
-                  dispatch({ type: "SET_RAT_FILTER", payload: v });
-                  resetPage();
-                }}
-              >
-                <SelectTrigger className="min-w-32">
-                  <SelectValue>{ratLabels[ratFilter as keyof typeof ratLabels] ?? ratFilter}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("common:status.all")}</SelectItem>
-                  <SelectItem value="GSM">GSM</SelectItem>
-                  <SelectItem value="UMTS">UMTS</SelectItem>
-                  <SelectItem value="LTE">LTE</SelectItem>
-                  <SelectItem value="NR">NR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground px-0.5">Operator</span>
-              <Select
-                value={operatorFilter}
-                onValueChange={(v) => {
-                  dispatch({ type: "SET_OPERATOR_FILTER", payload: v });
-                  resetPage();
-                }}
-                disabled={availableMncs.length <= 1}
-              >
-                <SelectTrigger className="min-w-36">
-                  <SelectValue>
-                    {operatorFilter === "all" ? t("common:status.all") : (MNC_NAMES[Number(operatorFilter)] ?? operatorFilter)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("common:status.all")}</SelectItem>
-                  {availableMncs.map((mnc) => (
-                    <SelectItem key={mnc} value={String(mnc)}>
-                      <div className="flex items-center gap-2">
-                        <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(mnc) }} />
-                        {MNC_NAMES[mnc] ?? mnc}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {availableBands.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground px-0.5">{t("filter.band")}</span>
-                <BandFilterButton
-                  value={bandFilter}
-                  onChange={(v) => {
-                    dispatch({ type: "SET_BAND_FILTER", payload: v });
-                    resetPage();
-                  }}
-                  bands={availableBands}
-                  t={t}
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground px-0.5">{t("filter.warning")}</span>
+            <div className="flex min-w-40 flex-1 flex-col gap-1 sm:flex-none">
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("filter.warning")}</span>
               <Select
                 value={warningFilter}
-                onValueChange={(v) => {
-                  dispatch({ type: "SET_WARNING_FILTER", payload: v });
+                onValueChange={(value) => {
+                  dispatch({ type: "SET_WARNING_FILTER", payload: value });
                   resetPage();
                 }}
                 disabled={!results}
               >
-                <SelectTrigger className="min-w-40">
+                <SelectTrigger className="w-full sm:min-w-44">
                   <SelectValue>{warningLabels[warningFilter as keyof typeof warningLabels] ?? warningFilter}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="min-w-56">
@@ -1403,7 +1506,68 @@ function AnalyzerPage() {
               </Select>
             </div>
 
-            {hasActiveFilters && (
+            <div className="flex min-w-32 flex-1 flex-col gap-1 sm:flex-none">
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("common:labels.standard")}</span>
+              <Select
+                value={ratFilter}
+                onValueChange={(value) => {
+                  dispatch({ type: "SET_RAT_FILTER", payload: value });
+                  resetPage();
+                }}
+              >
+                <SelectTrigger className="w-full sm:min-w-32">
+                  <SelectValue>{ratLabels[ratFilter as keyof typeof ratLabels] ?? ratFilter}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("common:status.all")}</SelectItem>
+                  <SelectItem value="GSM">GSM</SelectItem>
+                  <SelectItem value="UMTS">UMTS</SelectItem>
+                  <SelectItem value="LTE">LTE</SelectItem>
+                  <SelectItem value="NR">NR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex min-w-40 flex-1 flex-col gap-1 sm:flex-none">
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("common:labels.operator")}</span>
+              <Select
+                value={operatorFilter}
+                onValueChange={(value) => {
+                  dispatch({ type: "SET_OPERATOR_FILTER", payload: value });
+                  resetPage();
+                }}
+                disabled={availableMncs.length <= 1}
+              >
+                <SelectTrigger className="w-full sm:min-w-40">
+                  <SelectValue>
+                    {operatorFilter === "all" ? t("common:status.all") : (MNC_NAMES[Number(operatorFilter)] ?? operatorFilter)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("common:status.all")}</SelectItem>
+                  {availableMncs.map((mnc) => (
+                    <SelectItem key={mnc} value={String(mnc)}>
+                      <DialogOperatorName name={MNC_NAMES[mnc] ?? String(mnc)} mnc={mnc} compact labelClassName="text-sm font-normal" />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex min-w-42.5 flex-1 flex-col gap-1 sm:flex-none">
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("filter.band")}</span>
+              <BandFilterButton
+                value={bandFilter}
+                onChange={(value) => {
+                  dispatch({ type: "SET_BAND_FILTER", payload: value });
+                  resetPage();
+                }}
+                bands={availableBands}
+                t={t}
+              />
+            </div>
+
+            {hasActiveFilters ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -1416,50 +1580,125 @@ function AnalyzerPage() {
                 <HugeiconsIcon icon={Cancel01Icon} className="size-3" data-icon="inline-start" />
                 {t("common:actions.clear")}
               </Button>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
+
+        {parsedRows && isMobile && !hasFloatingMobileActions ? (
+          <div className="min-w-0 shrink-0 overflow-x-auto overflow-y-hidden rounded-lg border bg-card p-1.5">
+            {selectionBar ?? <div className="w-max">{analyzerMobileFilterRail}</div>}
+          </div>
+        ) : null}
+
+        {selectionBar && !isMobile ? selectionBar : null}
 
         <div
-          ref={mergedRef}
+          ref={containerRef}
           className={cn(
-            "flex-1 min-h-0 overflow-auto transition-opacity",
-            showFloatingMobileFilters && "max-md:mb-10",
+            "flex min-h-0 flex-1 flex-col overflow-hidden transition-opacity",
+            hasFloatingMobileActions && "mb-10",
             !parsedRows && "hidden",
-            isLoading && "opacity-50 pointer-events-none",
+            isLoading && "pointer-events-none opacity-55",
           )}
+          aria-busy={isLoading}
         >
-          <DataTable.Root table={table}>
-            <DataTable.Table className="w-max min-w-full">
-              <DataTable.Header />
-              <tbody className="[&_tr:last-child]:border-0">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className={cn("h-15 border-b transition-colors", rowBg(row.original.result))}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-2 py-1 align-middle overflow-hidden" style={{ width: cell.column.getSize() }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+          {isMobile ? (
+            <div className="max-h-full overflow-y-auto">
+              <div className="overflow-hidden rounded-t-lg border border-b-0 bg-card">
+                <div className="flex h-10 items-center gap-2 border-b bg-muted/20 px-2">
+                  <Checkbox
+                    checked={table.getIsAllPageRowsSelected() || table.getIsSomePageRowsSelected()}
+                    onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                    aria-label={t("selection.selectAllVisible")}
+                  />
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors hover:bg-muted",
+                      table.getColumn("identity")?.getIsSorted() ? "text-foreground" : "text-muted-foreground",
+                    )}
+                    onClick={() => table.getColumn("identity")?.toggleSorting()}
+                    aria-label={t("table.sortByIdentity")}
+                  >
+                    {t("table.parsedCell")}
+                    <HugeiconsIcon
+                      icon={Sorting05Icon}
+                      className="size-3.5"
+                      style={table.getColumn("identity")?.getIsSorted() === "asc" ? SORT_ASC_STYLE : undefined}
+                    />
+                  </button>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">{t("table.visibleCount", { count: tableData.length })}</span>
+                </div>
+                {tableData.length === 0 ? (
+                  <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-muted-foreground" role="status">
+                    {t("table.noResults")}
+                  </div>
+                ) : (
+                  <ul ref={listRef} className="divide-y">
+                    {table.getRowModel().rows.map((row) => (
+                      <li key={row.id}>
+                        <AnalyzerMobileRow row={row} warningLabels={warningLabels} t={t} openStationDialog={openStationDialog} />
+                      </li>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-              <DataTable.Footer columns={columns.length}>
-                <DataTablePagination table={table} totalItems={tableData.length} pageSizeOptions={pageSizeOptions} />
-              </DataTable.Footer>
-            </DataTable.Table>
-          </DataTable.Root>
-        </div>
-        {navActionTarget &&
-          createPortal(
-            showFloatingMobileFilters && parsedRows ? (
-              <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
-                <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-                  <div className="w-max">{analyzerMobileFilterRail}</div>
+                  </ul>
+                )}
+              </div>
+              <DataTable.PaginationFooter>
+                <DataTablePagination table={table} totalItems={tableData.length} pageSizeOptions={pageSizeOptions} showRowsPerPage={false} />
+              </DataTable.PaginationFooter>
+            </div>
+          ) : (
+            <div className="h-full">
+              <div ref={scrollRef} className="max-h-[calc(100%-49px)] overflow-auto">
+                <div className="min-w-295">
+                  <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+                    <DataTable.Table>
+                      <DataTable.Header />
+                      {tableData.length === 0 ? (
+                        <tbody>
+                          <DataTable.Empty columns={columns.length}>
+                            <span className="text-sm text-muted-foreground" role="status">
+                              {t("table.noResults")}
+                            </span>
+                          </DataTable.Empty>
+                        </tbody>
+                      ) : (
+                        <tbody className="[&_tr:last-child]:border-0">
+                          {table.getRowModel().rows.map((row) => (
+                            <tr key={row.id} className={cn("h-16 border-b transition-colors", rowBg(row.original.result))}>
+                              {row.getVisibleCells().map((cell) => (
+                                <td key={cell.id} className="h-16 overflow-hidden px-2 py-1 align-middle" style={{ width: cell.column.getSize() }}>
+                                  <div className="flex h-14 items-center overflow-hidden">
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      )}
+                    </DataTable.Table>
+                  </DataTable.Root>
                 </div>
               </div>
-            ) : null,
-            navActionTarget,
+              <DataTable.PaginationFooter>
+                <DataTablePagination table={table} totalItems={tableData.length} pageSizeOptions={pageSizeOptions} />
+              </DataTable.PaginationFooter>
+            </div>
           )}
+        </div>
+        {hasFloatingMobileActions && navActionTarget && parsedRows
+          ? createPortal(
+              <div className="w-[calc(100vw-1.5rem)] min-w-0">
+                {selectionBar ?? (
+                  <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
+                    <div className="w-max">{analyzerMobileFilterRail}</div>
+                  </div>
+                )}
+              </div>,
+              navActionTarget,
+            )
+          : null}
       </div>
     </RequireAuth>
   );

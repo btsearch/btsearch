@@ -185,14 +185,18 @@ export function MeasurementsDataTable({
   });
 
   return (
-    <DataTable.Root table={table}>
-      <DataTable.Table>
-        <DataTable.Header />
-        {isLoading ? <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} /> : <DataTable.Body />}
-        <DataTable.Footer columns={columns.length}>
-          <DataTablePagination table={table} totalItems={totalItems} pageSizeOptions={pageSizeOptions} />
-        </DataTable.Footer>
-      </DataTable.Table>
-    </DataTable.Root>
+    <div className="custom-scrollbar h-full min-h-0 overflow-x-hidden overflow-y-auto">
+      <div className="custom-scrollbar overflow-x-auto overflow-y-hidden">
+        <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+          <DataTable.Table>
+            <DataTable.Header />
+            {isLoading ? <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} /> : <DataTable.Body />}
+          </DataTable.Table>
+        </DataTable.Root>
+      </div>
+      <DataTable.PaginationFooter>
+        <DataTablePagination table={table} totalItems={totalItems} pageSizeOptions={pageSizeOptions} />
+      </DataTable.PaginationFooter>
+    </div>
   );
 }

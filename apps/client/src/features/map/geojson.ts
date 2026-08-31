@@ -1,3 +1,5 @@
+import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
+
 import { getOperatorColor, resolveOperatorMnc } from "@/lib/operatorUtils";
 import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPermits } from "@/types/station";
 
@@ -31,7 +33,7 @@ export function getOperatorData(mncs: OperatorMnc[]) {
   };
 }
 
-export function createPointFeature(lng: number, lat: number, properties: GeoJSON.GeoJsonProperties): GeoJSON.Feature {
+export function createPointFeature(lng: number, lat: number, properties: GeoJsonProperties): Feature {
   return {
     type: "Feature",
     geometry: { type: "Point", coordinates: [lng, lat] },
@@ -39,8 +41,8 @@ export function createPointFeature(lng: number, lat: number, properties: GeoJSON
   };
 }
 
-export function locationsToGeoJSON(locations: LocationWithStations[], source: StationSource): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = [];
+export function locationsToGeoJSON(locations: LocationWithStations[], source: StationSource): FeatureCollection {
+  const features: Feature[] = [];
 
   for (const location of locations) {
     if (location.latitude === null || location.latitude === undefined || location.longitude === null || location.longitude === undefined) continue;
@@ -71,8 +73,8 @@ export function locationsToGeoJSON(locations: LocationWithStations[], source: St
   return { type: "FeatureCollection", features };
 }
 
-export function ukeLocationsToGeoJSON(locations: UkeLocationWithPermits[], source: StationSource): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = [];
+export function ukeLocationsToGeoJSON(locations: UkeLocationWithPermits[], source: StationSource): FeatureCollection {
+  const features: Feature[] = [];
 
   for (const location of locations) {
     if (location.latitude === null || location.latitude === undefined || location.longitude === null || location.longitude === undefined) continue;
@@ -101,12 +103,12 @@ export function ukeLocationsToGeoJSON(locations: UkeLocationWithPermits[], sourc
 }
 
 export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
-  lines: GeoJSON.FeatureCollection;
-  endpoints: GeoJSON.FeatureCollection;
+  lines: FeatureCollection;
+  endpoints: FeatureCollection;
 } {
   const links = groupRadioLinesIntoLinks(radioLines);
-  const lineFeatures: GeoJSON.Feature[] = [];
-  const endpointFeatures: GeoJSON.Feature[] = [];
+  const lineFeatures: Feature[] = [];
+  const endpointFeatures: Feature[] = [];
 
   for (const link of links) {
     const first = link.directions[0];

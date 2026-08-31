@@ -17,22 +17,25 @@ type DialogOperatorNameProps = {
   name: string;
   mnc?: number | null;
   compact?: boolean;
+  labelClassName?: string;
 };
 
-export function DialogOperatorName({ name, mnc, compact = false }: DialogOperatorNameProps) {
+export function DialogOperatorName({ name, mnc, compact = false, labelClassName }: DialogOperatorNameProps) {
   const Logo = mnc ? MNO_LOGO[getMnoBrand(mnc)] : undefined;
+  const Root = compact ? "span" : "div";
+
   return (
-    <div className={cn("flex min-w-0 items-center", compact ? "gap-1.5" : "gap-2")}>
+    <Root className={cn("flex min-w-0 items-center", compact ? "gap-1.5" : "gap-2")}>
       {Logo ? (
         <Logo className={cn("w-auto shrink-0 rounded-[2px]", compact ? "h-4" : "h-5")} aria-hidden />
       ) : mnc ? (
-        <div className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: getOperatorColor(mnc) }} aria-hidden />
+        <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: getOperatorColor(mnc) }} aria-hidden />
       ) : null}
       {compact ? (
-        <span className="min-w-0 truncate text-xs font-medium text-foreground">{name}</span>
+        <span className={cn("min-w-0 truncate text-xs font-medium text-foreground", labelClassName)}>{name}</span>
       ) : (
         <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{name}</h2>
       )}
-    </div>
+    </Root>
   );
 }

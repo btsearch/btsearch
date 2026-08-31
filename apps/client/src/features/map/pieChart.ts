@@ -1,3 +1,6 @@
+import type { Feature } from "geojson";
+import type { Map as MaplibreMap } from "maplibre-gl";
+
 import { getOperatorColor } from "@/lib/operatorUtils";
 
 const PIE_IMAGE_SIZE = 34;
@@ -109,7 +112,7 @@ function createPinImage(segments: { value: number; color: string }[]): ImageData
   return ctx.getImageData(0, 0, PIN_W, PIN_H);
 }
 
-export function syncMarkerImages(map: maplibregl.Map, features: GeoJSON.Feature[], addedImages: Set<string>): void {
+export function syncMarkerImages(map: MaplibreMap, features: Feature[], addedImages: Set<string>): void {
   for (const feature of features) {
     const props = feature.properties;
     if (!props) continue;
@@ -147,7 +150,7 @@ export function syncMarkerImages(map: maplibregl.Map, features: GeoJSON.Feature[
   }
 }
 
-export function syncPieImages(map: maplibregl.Map, features: GeoJSON.Feature[], addedImages: Set<string>): void {
+export function syncPieImages(map: MaplibreMap, features: Feature[], addedImages: Set<string>): void {
   for (const feature of features) {
     const pieImageId = feature.properties?.pieImageId;
     if (!pieImageId || addedImages.has(pieImageId)) continue;

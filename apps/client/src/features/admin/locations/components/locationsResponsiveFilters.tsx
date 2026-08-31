@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/useMobile";
 import type { Operator, Region } from "@/types/station";
 
 import type { LocationFilters } from "../hooks/useLocationsData";
@@ -18,6 +19,7 @@ interface LocationsResponsiveFiltersProps {
   onRegionsChange: (regionIds: number[]) => void;
   onClearAllFilters: () => void;
   onSearchQueryChange: (query: string) => void;
+  hasActiveFilters: boolean;
   locationCount: number;
   totalLocations?: number;
 }
@@ -34,10 +36,12 @@ export function LocationsResponsiveFilters({
   onRegionsChange,
   onClearAllFilters,
   onSearchQueryChange,
+  hasActiveFilters,
   locationCount,
   totalLocations,
 }: LocationsResponsiveFiltersProps) {
   const { t } = useTranslation("admin");
+  const isMobile = useIsMobile();
 
   const filterProps = {
     filters,
@@ -49,26 +53,31 @@ export function LocationsResponsiveFilters({
     onRegionsChange,
     onClearAllFilters,
     onSearchQueryChange,
+    hasActiveFilters,
     locationCount,
     totalLocations,
   };
 
   return (
     <>
-      <div className="hidden md:block shrink-0">
-        <LocationsFilters {...filterProps} />
-      </div>
+      {!isMobile ? (
+        <div className="shrink-0">
+          <LocationsFilters {...filterProps} />
+        </div>
+      ) : null}
 
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="border-b px-4 py-3">
-            <SheetTitle>{t("common:labels.filters")}</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto">
-            <LocationsFilters {...filterProps} isSheet />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {isMobile ? (
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetHeader className="border-b px-4 py-3">
+              <SheetTitle>{t("common:labels.filters")}</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto">
+              <LocationsFilters {...filterProps} isSheet />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </>
   );
 }

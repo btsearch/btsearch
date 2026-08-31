@@ -7,6 +7,13 @@ import type { FilterKeyword, ParsedFilter } from "../types";
 
 type OverlayType = "autocomplete" | "results" | null;
 
+type SearchState = {
+  inputValue: string;
+  parsedFilters: ParsedFilter[];
+  activeOverlay: OverlayType;
+  focusedChipIndex: number | null;
+};
+
 type UseSearchStateArgs = {
   filterKeywords: FilterKeyword[];
   parseFilters: (query: string) => {
@@ -14,13 +21,15 @@ type UseSearchStateArgs = {
     remainingText: string;
   };
   initialValue?: string;
-  affectMap?: boolean;
+  externalQuery?: string;
+  onQueryChange?: (query: string) => void;
+  resultsEnabled?: boolean;
 };
 
-function computeOverlay(input: string, hasMatches: boolean, affectMap: boolean): OverlayType {
+function computeOverlay(input: string, hasMatches: boolean, resultsEnabled: boolean): OverlayType {
   if (input === "") return "autocomplete";
   if (hasMatches) return "autocomplete";
-  if (!affectMap && input.trim() !== "") return "results";
+  if (resultsEnabled && input.trim() !== "") return "results";
   return null;
 }
 
@@ -37,79 +46,117 @@ function getUrlHashQueryParam(key: string): string | null {
   return params.get(key);
 }
 
-export function useSearchState({ filterKeywords, parseFilters, initialValue, affectMap = false }: UseSearchStateArgs) {
-  const [initialSearchState] = useState(() => {
+function buildSearchQuery(filters: ParsedFilter[], inputValue: string): string {
+  return [...filters.map((filter) => filter.raw), inputValue.trim()].filter(Boolean).join(" ");
+}
+
+export function useSearchState({
+  filterKeywords,
+  parseFilters,
+  initialValue,
+  externalQuery,
+  onQueryChange,
+  resultsEnabled = true,
+}: UseSearchStateArgs) {
+  const [searchState, setSearchState] = useState<SearchState>(() => {
     const urlQuery = getUrlHashQueryParam("q");
-    const query = urlQuery || initialValue || "";
+    const query = externalQuery ?? urlQuery ?? initialValue ?? "";
     const { filters, remainingText } = query ? parseFilters(query) : { filters: [], remainingText: "" };
     return {
       inputValue: remainingText,
       parsedFilters: filters,
-      activeOverlay: urlQuery ? computeOverlay(remainingText, getAutocompleteMatches(remainingText, filterKeywords).length > 0, affectMap) : null,
+      focusedChipIndex: null,
+      activeOverlay:
+        externalQuery === undefined && urlQuery
+          ? computeOverlay(remainingText, getAutocompleteMatches(remainingText, filterKeywords).length > 0, resultsEnabled)
+          : null,
     };
   });
-  const [inputValue, setInputValue] = useState(initialSearchState.inputValue);
-  const [parsedFilters, setParsedFilters] = useState<ParsedFilter[]>(initialSearchState.parsedFilters);
   const [isFocused, setIsFocused] = useState(false);
-  const [activeOverlay, setActiveOverlay] = useState<OverlayType>(initialSearchState.activeOverlay);
-  const [focusedChipIndex, setFocusedChipIndex] = useState<number | null>(null);
+  const externalSearchState = useMemo(() => {
+    if (externalQuery === undefined) return null;
+    const { filters, remainingText } = externalQuery ? parseFilters(externalQuery) : { filters: [], remainingText: "" };
+    return { inputValue: remainingText, parsedFilters: filters };
+  }, [externalQuery, parseFilters]);
+  const inputValue = externalSearchState?.inputValue ?? searchState.inputValue;
+  const parsedFilters = externalSearchState?.parsedFilters ?? searchState.parsedFilters;
+  const { activeOverlay, focusedChipIndex } = searchState;
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const query = useMemo(() => [...parsedFilters.map((f) => f.raw), inputValue.trim()].filter(Boolean).join(" "), [parsedFilters, inputValue]);
+  const query = useMemo(() => buildSearchQuery(parsedFilters, inputValue), [parsedFilters, inputValue]);
 
   const debouncedQuery = useDebouncedValue(query, 500);
   const debouncedInput = useDebouncedValue(inputValue.trim(), 500);
 
-  const searchMode = affectMap || debouncedInput === "" ? "bounds" : "search";
+  const statsSearchMode = !resultsEnabled || debouncedInput === "" ? "bounds" : "search";
 
   const autocompleteOptions = useMemo(() => getAutocompleteMatches(inputValue, filterKeywords), [inputValue, filterKeywords]);
+
+  function publishQuery(nextFilters: ParsedFilter[], nextInputValue: string) {
+    const nextQuery = buildSearchQuery(nextFilters, nextInputValue);
+    if (nextQuery !== externalQuery) onQueryChange?.(nextQuery);
+  }
 
   function handleContainerBlur(e: FocusEvent) {
     const relatedTarget = e.relatedTarget as Node | null;
     if (!containerRef.current?.contains(relatedTarget)) {
       setIsFocused(false);
-      setActiveOverlay(null);
+      setSearchState((current) => ({ ...current, activeOverlay: null }));
     }
   }
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
-    setInputValue(value);
-    setFocusedChipIndex(null);
 
     if ((value.endsWith(" ") && !hasUnclosedQuote(value)) || value === "") {
       const fullQuery = [...parsedFilters.map((f) => f.raw), value].filter(Boolean).join(" ");
       const { filters: detected, remainingText } = parseFilters(fullQuery);
 
       if (detected.length > parsedFilters.length) {
-        setParsedFilters(detected);
-        setInputValue(remainingText);
-        setActiveOverlay("results");
+        publishQuery(detected, remainingText);
+        setSearchState({
+          inputValue: remainingText,
+          parsedFilters: detected,
+          focusedChipIndex: null,
+          activeOverlay: resultsEnabled ? "results" : null,
+        });
         return;
       }
     }
 
     const matches = getAutocompleteMatches(value, filterKeywords);
-    setActiveOverlay(computeOverlay(value, matches.length > 0, affectMap));
+    publishQuery(parsedFilters, value);
+    setSearchState((current) => ({
+      ...current,
+      inputValue: value,
+      focusedChipIndex: null,
+      activeOverlay: computeOverlay(value, matches.length > 0, resultsEnabled),
+    }));
   }
 
   function applyAutocomplete(keyword: string) {
-    setInputValue(replaceLastSearchToken(inputValue, keyword));
-    setActiveOverlay("results");
+    const nextInput = replaceLastSearchToken(inputValue, keyword);
+    publishQuery(parsedFilters, nextInput);
+    setSearchState((current) => ({
+      ...current,
+      inputValue: nextInput,
+      activeOverlay: computeOverlay(nextInput, getAutocompleteMatches(nextInput, filterKeywords).length > 0, resultsEnabled),
+    }));
     inputRef.current?.focus();
   }
 
   function clearSearch() {
-    setInputValue("");
-    setParsedFilters([]);
-    setActiveOverlay(null);
+    publishQuery([], "");
+    setSearchState({ inputValue: "", parsedFilters: [], activeOverlay: null, focusedChipIndex: null });
     inputRef.current?.focus();
   }
 
   function removeFilter(filter: ParsedFilter) {
-    setParsedFilters((prev) => prev.filter((f) => f !== filter));
+    const nextFilters = parsedFilters.filter((item) => item !== filter);
+    publishQuery(nextFilters, inputValue);
+    setSearchState((current) => ({ ...current, parsedFilters: nextFilters }));
     inputRef.current?.focus();
   }
 
@@ -122,26 +169,28 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
     if (chipIdx !== null) {
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
-        setParsedFilters((prev) => prev.filter((_, i) => i !== chipIdx));
+        const nextFilters = filters.filter((_, index) => index !== chipIdx);
+        publishQuery(nextFilters, currentInput);
         if (filters.length <= 1) {
-          setFocusedChipIndex(null);
+          setSearchState((current) => ({ ...current, parsedFilters: nextFilters, focusedChipIndex: null }));
           inputRef.current?.focus();
         } else {
-          setFocusedChipIndex(Math.min(chipIdx, filters.length - 2));
+          setSearchState((current) => ({ ...current, parsedFilters: nextFilters, focusedChipIndex: Math.min(chipIdx, filters.length - 2) }));
         }
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setFocusedChipIndex(Math.max(0, chipIdx - 1));
+        setSearchState((current) => ({ ...current, focusedChipIndex: Math.max(0, chipIdx - 1) }));
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         if (chipIdx < filters.length - 1) {
-          setFocusedChipIndex(chipIdx + 1);
+          setSearchState((current) => ({ ...current, focusedChipIndex: chipIdx + 1 }));
         } else {
-          setFocusedChipIndex(null);
+          setSearchState((current) => ({ ...current, focusedChipIndex: null }));
           inputRef.current?.focus();
         }
       } else if (e.key === "Escape") {
-        setFocusedChipIndex(null);
+        e.preventDefault();
+        setSearchState((current) => ({ ...current, focusedChipIndex: null }));
         inputRef.current?.focus();
       }
       return;
@@ -149,28 +198,31 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
 
     if (caretAtStart && currentInput === "" && filters.length > 0 && (e.key === "Backspace" || e.key === "ArrowLeft")) {
       e.preventDefault();
-      setFocusedChipIndex(filters.length - 1);
+      setSearchState((current) => ({ ...current, focusedChipIndex: filters.length - 1 }));
     }
   }
 
   function handleInputFocus() {
     setIsFocused(true);
-    setFocusedChipIndex(null);
-    if (inputValue === "" && parsedFilters.length === 0) setActiveOverlay("autocomplete");
-    else if (query.trim() !== "") setActiveOverlay("results");
+    setSearchState((current) => ({ ...current, focusedChipIndex: null }));
+    openOverlay();
   }
 
   function handleInputClick() {
-    if (query.trim() !== "" && activeOverlay !== "autocomplete") setActiveOverlay("results");
+    if (activeOverlay !== "autocomplete") openOverlay();
+  }
+
+  function openOverlay(nextResultsEnabled = resultsEnabled, hasMatches = autocompleteOptions.length > 0) {
+    setSearchState((current) => ({ ...current, activeOverlay: computeOverlay(inputValue, hasMatches, nextResultsEnabled) }));
   }
 
   function closeOverlay() {
-    setActiveOverlay(null);
+    setSearchState((current) => ({ ...current, activeOverlay: null }));
   }
 
   return {
     query,
-    searchMode,
+    statsSearchMode,
     autocompleteOptions,
 
     inputValue,
@@ -189,6 +241,7 @@ export function useSearchState({ filterKeywords, parseFilters, initialValue, aff
     handleInputChange,
     handleInputFocus,
     handleInputClick,
+    openOverlay,
     handleKeyDown,
     applyAutocomplete,
     clearSearch,

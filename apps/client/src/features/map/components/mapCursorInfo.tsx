@@ -1,5 +1,6 @@
 import { Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { type ReactNode, useCallback, useEffect, useEffectEvent, useReducer, useRef } from "react";
 
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";
 
-const EMPTY_FC = { type: "FeatureCollection", features: [] };
+const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
 
 function safeSetData(source: GeoJSONSource | null, data: object) {

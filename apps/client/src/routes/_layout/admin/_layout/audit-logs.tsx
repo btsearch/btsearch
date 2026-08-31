@@ -22,7 +22,7 @@ import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DataTable } from "@/components/ui/data-table";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
@@ -41,7 +41,12 @@ import { cn } from "@/lib/utils";
 
 import { ACTION_GROUPS, type AuditLogEntry, TABLE_LABELS, TABLE_OPTIONS, getActionStyle } from "../../../../features/admin/audit-logs/constants";
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
+const TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+  minRows: 1,
+};
 
 function formatAuditDate(dateString: string, locale: string): string {
   return new Date(dateString).toLocaleDateString(locale, {
@@ -524,14 +529,16 @@ function AdminAuditLogsPage() {
       ]),
     [t, sort, i18n.language, resetPage, getTableLabel],
   );
+  const sorting = useMemo(() => [{ id: "createdAt", desc: sort === "desc" }], [sort]);
 
   const table = useTable({
     features: appTableFeatures,
     data: logs,
     columns,
     manualPagination: true,
+    manualSorting: true,
     pageCount: Math.ceil(total / pagination.pageSize),
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
   });
 
@@ -646,46 +653,48 @@ function AdminAuditLogsPage() {
 
       <div
         ref={containerRef}
-        className={cn("flex-1 min-h-0 max-md:mb-10 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
+        className={cn("flex-1 min-h-0 max-md:mb-10 overflow-x-hidden", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
       >
-        <DataTable.Root table={table}>
-          <DataTable.Table>
-            <DataTable.Header />
-            {isLoading ? (
-              <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-            ) : isError ? (
-              <tbody>
-                <tr>
-                  <td colSpan={columns.length} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+        <div className="custom-scrollbar overflow-x-auto">
+          <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+            <DataTable.Table>
+              <DataTable.Header />
+              {isLoading ? (
+                <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
+              ) : isError ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={columns.length} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
+                          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+                        </div>
+                        <p>{t("common:error.title")}</p>
                       </div>
-                      <p>{t("common:error.title")}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            ) : logs.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={columns.length} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
-                      <p className="font-medium">{t("auditLogs.empty.title")}</p>
-                      <p className="text-sm opacity-70">{t("auditLogs.empty.subtitle")}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              <DataTable.Body onRowClick={(row: AuditLogEntry) => dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: row })} />
-            )}
-            <DataTable.Footer columns={columns.length}>
-              <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
-            </DataTable.Footer>
-          </DataTable.Table>
-        </DataTable.Root>
+                    </td>
+                  </tr>
+                </tbody>
+              ) : logs.length === 0 ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={columns.length} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
+                        <p className="font-medium">{t("auditLogs.empty.title")}</p>
+                        <p className="text-sm opacity-70">{t("auditLogs.empty.subtitle")}</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              ) : (
+                <DataTable.Body onRowClick={(row: AuditLogEntry) => dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: row })} />
+              )}
+            </DataTable.Table>
+          </DataTable.Root>
+        </div>
+        <DataTable.PaginationFooter>
+          <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
+        </DataTable.PaginationFooter>
       </div>
 
       <AuditLogDetailSheet

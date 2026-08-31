@@ -6,6 +6,11 @@
     "dark": "Dark",
     "system": "System"
   },
+  "sorting": {
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "none": "Not sorted"
+  },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",
@@ -188,6 +193,7 @@
   "error": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. Please try again or refresh the page",
+    "staleData": "Couldn't refresh the list. Showing previously loaded data.",
     "tryAgain": "Try again",
     "reload": "Reload page",
     "toast": "Something went wrong. Please try again"

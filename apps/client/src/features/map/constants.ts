@@ -66,64 +66,47 @@ export const UKE_RAT_OPTIONS = [
 ] as const;
 
 export const FILTER_KEYWORDS: FilterKeyword[] = [
-  // Station filters
-  { key: "bts_id:", description: "Station ID", availableOn: ["map", "stations"] },
-  { key: "mnc:", description: "Operator PLMN code (e.g. 26003)", availableOn: ["map"] },
-  { key: "status:", description: "Station status (published, pending, inactive)", availableOn: ["stations"] },
-  { key: "has_photo:", description: "Has photo (true, false)", availableOn: ["map", "stations"] },
-  { key: "created_after:", description: "Created after date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
-  { key: "created_before:", description: "Created before date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
-  { key: "updated_after:", description: "Updated after date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
-  { key: "updated_before:", description: "Updated before date (YYYY-MM-DD)", availableOn: ["map", "stations"] },
-
-  // GPS filter
-  { key: "gps:", description: "GPS coordinates (lat,lng)", availableOn: ["map", "stations"] },
-
-  // Location filters
-  { key: "city:", description: "City name", availableOn: ["map", "stations"] },
-  { key: "address:", description: "Address", availableOn: ["map", "stations"] },
-  { key: "region:", description: "Region code (e.g., MAZ, SL, WP)", availableOn: ["map"] },
-
-  // Cell filters
-  { key: "band:", description: "Frequency in MHz (e.g., 800, 1800, 2100)", availableOn: ["map"] },
-  { key: "duplex:", description: "Band duplex (FDD, TDD, null/false)", availableOn: ["map", "stations"] },
-  { key: "rat:", description: "Standard (GSM, UMTS, LTE, NR)", availableOn: ["map"] },
-  { key: "is_confirmed:", description: "Confirmation status (true, false)", availableOn: ["map", "stations"] },
-  { key: "cell_notes:", description: "Cell notes", availableOn: ["map", "stations"] },
-
-  // GSM cell filters
-  { key: "lac:", description: "GSM Location Area Code", availableOn: ["map", "stations"] },
-  { key: "cid:", description: "GSM Cell ID", availableOn: ["map", "stations"] },
-
-  // UMTS cell filters
-  { key: "rnc:", description: "UMTS Radio Network Controller ID", availableOn: ["map", "stations"] },
-  { key: "umts_cid:", description: "UMTS Cell ID", availableOn: ["map", "stations"] },
-  { key: "cid_long:", description: "UMTS Long Cell ID", availableOn: ["map", "stations"] },
-  { key: "umts_lac:", description: "UMTS Location Area Code", availableOn: ["map", "stations"] },
-  { key: "uarfcn:", description: "UMTS UARFCN value", availableOn: ["map", "stations"] },
-
-  // LTE cell filters
-  { key: "enbid:", description: "LTE eNodeB ID", availableOn: ["map", "stations"] },
-  { key: "ecid:", description: "LTE E-UTRAN Cell ID", availableOn: ["map", "stations"] },
-  { key: "lte_clid:", description: "LTE Cell Local ID", availableOn: ["map", "stations"] },
-  { key: "tac:", description: "LTE Tracking Area Code", availableOn: ["map", "stations"] },
-  { key: "lte_pci:", description: "LTE Physical Cell ID", availableOn: ["map", "stations"] },
-  { key: "earfcn:", description: "LTE EARFCN value", availableOn: ["map", "stations"] },
-  { key: "supports_iot:", description: "Supports IoT (true, false)", availableOn: ["map", "stations"] },
-
-  // NR (5G) cell filters
-  { key: "gnbid:", description: "5G gNodeB ID", availableOn: ["map", "stations"] },
-  { key: "nci:", description: "5G NR Cell Identity", availableOn: ["map", "stations"] },
-  { key: "nr_clid:", description: "5G Cell Local ID", availableOn: ["map", "stations"] },
-  { key: "nrtac:", description: "5G Tracking Area Code", availableOn: ["map", "stations"] },
-  { key: "nr_pci:", description: "5G Physical Cell ID", availableOn: ["map", "stations"] },
-  { key: "arfcn:", description: "5G NR ARFCN value", availableOn: ["map", "stations"] },
-  { key: "supports_nr_redcap:", description: "Supports RedCap (true, false)", availableOn: ["map", "stations"] },
-
-  // Extra Identificators filters
-  { key: "networks_id:", description: "NetWorks ID", availableOn: ["map", "stations"] },
-  { key: "networks_name:", description: "NetWorks name", availableOn: ["map", "stations"] },
-  { key: "mno_name:", description: "MNO name", availableOn: ["map", "stations"] },
+  { key: "bts_id:", descriptionKey: "btsId", group: "common", availableOn: ["map", "stations"] },
+  { key: "mnc:", descriptionKey: "mnc", group: "common", availableOn: ["map"] },
+  { key: "city:", descriptionKey: "city", group: "common", availableOn: ["map", "stations"] },
+  { key: "address:", descriptionKey: "address", group: "common", availableOn: ["map", "stations"] },
+  { key: "rat:", descriptionKey: "rat", group: "common", availableOn: ["map"] },
+  { key: "band:", descriptionKey: "band", group: "common", availableOn: ["map"] },
+  { key: "status:", descriptionKey: "status", group: "common", availableOn: ["stations"] },
+  { key: "has_photo:", descriptionKey: "hasPhoto", group: "common", availableOn: ["map", "stations"] },
+  { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"] },
+  { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"] },
+  { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"] },
+  { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"] },
+  { key: "cell_notes:", descriptionKey: "cellNotes", group: "cell", availableOn: ["map", "stations"] },
+  { key: "lac:", descriptionKey: "lac", group: "gsm", availableOn: ["map", "stations"] },
+  { key: "cid:", descriptionKey: "cid", group: "gsm", availableOn: ["map", "stations"] },
+  { key: "rnc:", descriptionKey: "rnc", group: "umts", availableOn: ["map", "stations"] },
+  { key: "umts_cid:", descriptionKey: "umtsCid", group: "umts", availableOn: ["map", "stations"] },
+  { key: "cid_long:", descriptionKey: "cidLong", group: "umts", availableOn: ["map", "stations"] },
+  { key: "umts_lac:", descriptionKey: "umtsLac", group: "umts", availableOn: ["map", "stations"] },
+  { key: "uarfcn:", descriptionKey: "uarfcn", group: "umts", availableOn: ["map", "stations"] },
+  { key: "enbid:", descriptionKey: "enbid", group: "lte", availableOn: ["map", "stations"] },
+  { key: "ecid:", descriptionKey: "ecid", group: "lte", availableOn: ["map", "stations"] },
+  { key: "lte_clid:", descriptionKey: "lteClid", group: "lte", availableOn: ["map", "stations"] },
+  { key: "tac:", descriptionKey: "tac", group: "lte", availableOn: ["map", "stations"] },
+  { key: "lte_pci:", descriptionKey: "ltePci", group: "lte", availableOn: ["map", "stations"] },
+  { key: "earfcn:", descriptionKey: "earfcn", group: "lte", availableOn: ["map", "stations"] },
+  { key: "supports_iot:", descriptionKey: "supportsIot", group: "lte", availableOn: ["map", "stations"] },
+  { key: "gnbid:", descriptionKey: "gnbid", group: "nr", availableOn: ["map", "stations"] },
+  { key: "nci:", descriptionKey: "nci", group: "nr", availableOn: ["map", "stations"] },
+  { key: "nr_clid:", descriptionKey: "nrClid", group: "nr", availableOn: ["map", "stations"] },
+  { key: "nrtac:", descriptionKey: "nrtac", group: "nr", availableOn: ["map", "stations"] },
+  { key: "nr_pci:", descriptionKey: "nrPci", group: "nr", availableOn: ["map", "stations"] },
+  { key: "arfcn:", descriptionKey: "arfcn", group: "nr", availableOn: ["map", "stations"] },
+  { key: "supports_nr_redcap:", descriptionKey: "supportsNrRedcap", group: "nr", availableOn: ["map", "stations"] },
+  { key: "networks_id:", descriptionKey: "networksId", group: "identifiers", availableOn: ["map", "stations"] },
+  { key: "networks_name:", descriptionKey: "networksName", group: "identifiers", availableOn: ["map", "stations"] },
+  { key: "mno_name:", descriptionKey: "mnoName", group: "identifiers", availableOn: ["map", "stations"] },
+  { key: "created_after:", descriptionKey: "createdAfter", group: "date", availableOn: ["map", "stations"] },
+  { key: "created_before:", descriptionKey: "createdBefore", group: "date", availableOn: ["map", "stations"] },
+  { key: "updated_after:", descriptionKey: "updatedAfter", group: "date", availableOn: ["map", "stations"] },
+  { key: "updated_before:", descriptionKey: "updatedBefore", group: "date", availableOn: ["map", "stations"] },
 ];
 
 export const FILTER_REGEX = /(\w+):\s*(?:'([^']*)'|"([^"]*)"|([^\s]+))(?=\s|$)/gi;

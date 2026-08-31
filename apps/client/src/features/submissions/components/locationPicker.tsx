@@ -2,6 +2,8 @@ import { Location01Icon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import type { Feature, FeatureCollection } from "geojson";
+import type { MapMouseEvent } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -35,8 +37,8 @@ function roundCoord(value: number): number {
   return Math.round(value * 1000000) / 1000000;
 }
 
-function locationsToPickerGeoJSON(locations: LocationWithStations[]): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = [];
+function locationsToPickerGeoJSON(locations: LocationWithStations[]): FeatureCollection {
+  const features: Feature[] = [];
 
   for (const loc of locations) {
     if (!loc.latitude || !loc.longitude) continue;
@@ -63,8 +65,8 @@ function locationsToPickerGeoJSON(locations: LocationWithStations[]): GeoJSON.Fe
   return { type: "FeatureCollection", features };
 }
 
-function ukeLocationsToPickerGeoJSON(locations: UkeLocationWithPermits[]): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = [];
+function ukeLocationsToPickerGeoJSON(locations: UkeLocationWithPermits[]): FeatureCollection {
+  const features: Feature[] = [];
 
   for (const loc of locations) {
     if (!loc.latitude || !loc.longitude || !loc.stations?.length) continue;
@@ -434,7 +436,7 @@ function PickerMapInner({
   useEffect(() => {
     if (!map || !isLoaded) return;
 
-    const handleMapClick = (e: maplibregl.MapMouseEvent) => {
+    const handleMapClick = (e: MapMouseEvent) => {
       const features = map.queryRenderedFeatures(e.point, { layers: [...PICKER_LAYER_IDS] });
 
       if (features.length > 0) {

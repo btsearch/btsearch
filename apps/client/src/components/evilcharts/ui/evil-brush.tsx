@@ -14,6 +14,22 @@ import { cn } from "@/lib/utils";
 type EvilBrushVariant = "line" | "area" | "bar";
 type CurveType = ComponentProps<typeof Area>["type"];
 
+function formatDefaultLabel(value: unknown, index: number) {
+  if (value === null || value === undefined) return String(index);
+
+  switch (typeof value) {
+    case "string":
+      return value;
+    case "number":
+    case "bigint":
+    case "boolean":
+    case "symbol":
+      return String(value);
+    default:
+      return String(index);
+  }
+}
+
 interface EvilBrushRange {
   startIndex: number;
   endIndex: number;
@@ -331,7 +347,7 @@ function EvilBrush({
     (idx: number) => {
       if (!xDataKey) return String(idx);
       const v = data[idx]?.[xDataKey];
-      return formatLabel ? formatLabel(v, idx) : String(v ?? idx);
+      return formatLabel ? formatLabel(v, idx) : formatDefaultLabel(v, idx);
     },
     [data, xDataKey, formatLabel],
   );

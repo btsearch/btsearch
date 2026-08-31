@@ -8,7 +8,7 @@ import { useTerrainProfileController } from "@/features/terrain-profile/hooks/us
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
-import type { LocationInfo, Station, StationFilters, StationSource, UkeLocationWithPermits, UkeStation } from "@/types/station";
+import type { LocationInfo, StationFilters, StationSource, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
@@ -16,7 +16,7 @@ import { useMapBounds } from "../hooks/useMapBounds";
 import { useMapPopup } from "../hooks/useMapPopup";
 import { loadMapPosition, useMapPositionPersistence } from "../hooks/useMapPositionPersistence";
 import { useWakeLock } from "../hooks/useWakeLock";
-import type { UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
+import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
 import { attachUkeLocationToStations } from "../utils";
 import { MapSearchOverlay } from "./search-overlay";
 import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "./stationsLayer";
@@ -196,12 +196,12 @@ function MapViewInner() {
   });
 
   const handleStationSelect = useCallback(
-    async (station: Station) => {
+    async (station: SearchStation) => {
       if (!map) return;
 
-      const lat = station.location?.latitude;
-      const lng = station.location?.longitude;
-      if (!lat || !lng) return;
+      const stationLocation = station.location;
+      if (!stationLocation) return;
+      const { latitude: lat, longitude: lng } = stationLocation;
 
       map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.5 });
 
@@ -215,9 +215,9 @@ function MapViewInner() {
 
         const location: LocationInfo = {
           id: ukeLocation.id,
-          city: ukeLocation.city ?? station.location?.city,
-          address: ukeLocation.address ?? station.location?.address,
-          region: ukeLocation.region?.name ?? station.location?.region?.name,
+          city: ukeLocation.city ?? stationLocation.city ?? undefined,
+          address: ukeLocation.address ?? stationLocation.address ?? undefined,
+          region: ukeLocation.region?.name ?? stationLocation.region.name,
           latitude: lat,
           longitude: lng,
         };
@@ -225,15 +225,15 @@ function MapViewInner() {
         return;
       }
 
-      const location: LocationInfo = {
-        id: station.location?.id,
-        city: station.location?.city,
-        address: station.location?.address,
-        region: station.location?.region?.name,
+      const locationInfo: LocationInfo = {
+        id: stationLocation.id,
+        city: stationLocation.city ?? undefined,
+        address: stationLocation.address ?? undefined,
+        region: stationLocation.region.name,
         latitude: lat,
         longitude: lng,
       };
-      showPopup([lng, lat], location, null, null, currentFilters.source);
+      showPopup([lng, lat], locationInfo, null, null, currentFilters.source);
     },
     [map, showPopup],
   );
@@ -253,11 +253,17 @@ function MapViewInner() {
       const location: LocationInfo = {
         id: station.location.id,
         city: station.location.city ?? undefined,
-        address: undefined,
+        address: station.location.address ?? undefined,
         latitude: lat,
         longitude: lng,
       };
-      showPopup([lng, lat], location, null, [station], "uke");
+      const popupStation: UkeStation = {
+        id: station.id,
+        station_id: station.station_id,
+        operator: station.operator,
+        permits: station.permits,
+      };
+      showPopup([lng, lat], location, null, [popupStation], "uke");
     },
     [map, showPopup],
   );

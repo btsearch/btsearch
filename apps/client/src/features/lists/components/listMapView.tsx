@@ -13,11 +13,13 @@ import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/f
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { type MapPopupLocation, useMapPopup } from "@/features/map/hooks/useMapPopup";
 import { useMapPositionPersistence } from "@/features/map/hooks/useMapPositionPersistence";
+import type { SearchStation } from "@/features/map/searchApi";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/authClient";
-import type { LocationWithStations, RadioLine, Station, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
+import { isEditableKeyboardTarget } from "@/lib/keyboard";
+import type { LocationWithStations, RadioLine, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
 
@@ -32,12 +34,6 @@ function ListMapContext({ name }: ListMapContextProps): JSX.Element {
       </span>
     </div>
   );
-}
-
-function isEditableKeyboardTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
 }
 
 function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
@@ -61,8 +57,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       return next;
     });
   }, []);
-  const handleFilterQueryChange = useCallback((_q: string | undefined) => {}, []);
-
   const wantAzimuths = preferences.showAzimuths;
   const { data: listData, isLoading, isError } = useListDetail(uuid, wantAzimuths);
 
@@ -185,23 +179,22 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   );
 
   const handleStationSelect = useCallback(
-    (station: Station) => {
-      const lat = station.location?.latitude;
-      const lng = station.location?.longitude;
-      if (!lat || !lng || !map) return;
+    (station: SearchStation) => {
+      const location = station.location;
+      if (!location || !map) return;
 
-      const locationId = station.location?.id;
+      const { id: locationId, latitude: lat, longitude: lng } = location;
       const alreadyInList = listData?.stations.some((s) => s.location?.id === locationId);
       if (!alreadyInList) {
         const tempLoc: LocationWithStations = {
           id: locationId,
           latitude: lat,
           longitude: lng,
-          city: station.location?.city ?? undefined,
-          address: station.location?.address ?? undefined,
-          region: station.location?.region ?? { id: 0, name: "", code: "" },
-          updatedAt: station.location?.updatedAt ?? new Date().toISOString(),
-          createdAt: station.location?.createdAt ?? new Date().toISOString(),
+          city: location.city ?? undefined,
+          address: location.address ?? undefined,
+          region: location.region,
+          updatedAt: location.updatedAt,
+          createdAt: location.createdAt,
           stations: [station as unknown as StationWithoutCells],
         };
         setTempLocations((locations) => [...locations.filter((location) => location.id !== locationId), tempLoc]);
@@ -209,9 +202,9 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
       const locationInfo = {
         id: locationId,
-        city: station.location?.city ?? undefined,
-        address: station.location?.address ?? undefined,
-        region: station.location?.region?.name,
+        city: location.city ?? undefined,
+        address: location.address ?? undefined,
+        region: location.region.name,
         latitude: lat,
         longitude: lng,
       };
@@ -246,7 +239,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         totalCount={locationCount}
         radioLineCount={radiolineCount}
         radioLineTotalCount={radiolineCount}
-        isLoading={isLoading}
         filters={filters}
         zoom={zoom}
         activeMarker={activeMarker}
@@ -254,7 +246,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         onFiltersChange={setFilters}
         onLocationSelect={handleLocationSelect}
         onStationSelect={handleStationSelect}
-        onFilterQueryChange={handleFilterQueryChange}
         hideAPIFilters
         mapContext={listMapContext}
       />

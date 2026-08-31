@@ -37,10 +37,10 @@ export function isNRSyncTarget(cell: CrossRatSectorSyncCell): boolean {
 export function syncByPCI<T extends SectorSyncCell>(cells: T[]): T[] {
   const sectorsByPci = new Map<number, string>();
   for (const cell of cells) {
-    if (!hasSector(cell)) continue;
     const pci = getPCI(cell);
-    if (pci === null || sectorsByPci.has(pci)) continue;
-    sectorsByPci.set(pci, cell._sectorLocalId);
+    const sectorLocalId = getSectorLocalId(cell);
+    if (pci === null || sectorLocalId === null || sectorsByPci.has(pci)) continue;
+    sectorsByPci.set(pci, sectorLocalId);
   }
 
   if (sectorsByPci.size === 0) return cells;

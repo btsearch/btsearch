@@ -342,7 +342,7 @@ function SignInForm({
 }
 
 function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void; onSwitchView: () => void }) {
-  const { t } = useTranslation("auth");
+  const { t, i18n } = useTranslation("auth");
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
@@ -355,6 +355,8 @@ function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void; onSwit
         password: value.password,
         name: value.name,
         username: value.username,
+        bio: "",
+        locale: i18n.language,
       });
 
       if (signUpError) {

@@ -1,3 +1,4 @@
+import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
@@ -120,8 +121,8 @@ function attachCursorHandlers(map: MaplibreMap, layerIds: readonly string[]): ()
 type UsePickerMapLayersArgs = {
   map: MaplibreMap | null;
   isLoaded: boolean;
-  geoJSON: GeoJSON.FeatureCollection;
-  ukeGeoJSON: GeoJSON.FeatureCollection;
+  geoJSON: FeatureCollection;
+  ukeGeoJSON: FeatureCollection;
   showUkeLocations: boolean;
 };
 

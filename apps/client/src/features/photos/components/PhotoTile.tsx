@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 
 import { isRecentPhoto } from "@/components/photoGridPrimitives";
+import { cn } from "@/lib/utils";
 
 import type { GalleryPhoto } from "../api";
 
@@ -27,10 +28,11 @@ type Props = {
   index: number;
   locale: string;
   labels: PhotoTileLabels;
+  compact?: boolean;
   onOpen: (index: number) => void;
 };
 
-export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
+export function PhotoTile({ photo, index, locale, labels, compact = false, onOpen }: Props) {
   const reduceMotion = useReducedMotion();
   const [imageFailed, setImageFailed] = useState(false);
   const recent = isRecentPhoto(photo.createdAt);
@@ -38,6 +40,8 @@ export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
   const uploadedDate = new Date(photo.createdAt).toLocaleDateString(locale, DATE_FORMAT);
   const takenDate = photo.taken_at ? new Date(photo.taken_at).toLocaleDateString(locale, MONTH_FORMAT) : null;
   const alt = [photo.station.station_id, photo.location.label, photo.note].filter(Boolean).join(" - ");
+  const accessibleState = [photo.is_main ? labels.mainPhoto : null, recent ? labels.recent : null].filter(Boolean).join(", ");
+  const accessibleLabel = [`${labels.openPhoto}: ${photo.station.station_id}`, accessibleState].filter(Boolean).join(", ");
 
   return (
     <motion.article
@@ -48,7 +52,7 @@ export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
       <button
         type="button"
         className="relative block aspect-square w-full cursor-zoom-in overflow-hidden bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        aria-label={labels.openPhoto}
+        aria-label={accessibleLabel}
         onClick={() => onOpen(index)}
       >
         {imageFailed ? (
@@ -80,7 +84,7 @@ export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
         </span>
         <span className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1 bg-linear-to-t from-black/75 via-black/35 to-transparent px-2.5 pb-2.5 pt-12 text-white">
           <span className="truncate text-[11px] font-medium text-white/90">@{author}</span>
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/82">
+          <span className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/82", compact && "max-sm:hidden")}>
             <span className="inline-flex items-center gap-1" title={labels.uploaded}>
               <HugeiconsIcon icon={Upload04Icon} className="size-3 opacity-70" />
               <span className="tabular-nums">{uploadedDate}</span>
@@ -92,7 +96,7 @@ export function PhotoTile({ photo, index, locale, labels, onOpen }: Props) {
               </span>
             ) : null}
           </span>
-          {photo.note ? <span className="truncate text-[11px] italic text-white/70">{photo.note}</span> : null}
+          {photo.note ? <span className={cn("truncate text-[11px] italic text-white/70", compact && "max-sm:hidden")}>{photo.note}</span> : null}
         </span>
       </button>
     </motion.article>

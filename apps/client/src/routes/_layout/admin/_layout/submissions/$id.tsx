@@ -22,6 +22,7 @@ import { SubmissionStationForm } from "@/features/admin/submissions/components/s
 import { SubmitterCard } from "@/features/admin/submissions/components/submitterCard";
 import { useApproveSubmissionMutation, useRejectSubmissionMutation, useSaveSubmissionMutation } from "@/features/admin/submissions/mutations";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { countCellOperations } from "@/features/admin/submissions/utils";
 import { CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import type { ProposedLocationForm } from "@/features/submissions/types";
@@ -166,24 +167,6 @@ function getChangedDetailKeys(oldDetails: Record<string, unknown>, newDetails: R
   for (const key of Object.keys(oldDetails)) if (oldDetails[key] !== newDetails[key]) changedKeys.add(key);
   for (const key of Object.keys(newDetails)) if (oldDetails[key] !== newDetails[key]) changedKeys.add(key);
   return changedKeys;
-}
-
-function countCellOperations(cellsForRat: LocalCell[]): { added: number; modified: number; deleted: number } {
-  const counts = { added: 0, modified: 0, deleted: 0 };
-  for (const cell of cellsForRat) {
-    switch (cell.operation) {
-      case "add":
-        counts.added += 1;
-        break;
-      case "update":
-        counts.modified += 1;
-        break;
-      case "delete":
-        counts.deleted += 1;
-        break;
-    }
-  }
-  return counts;
 }
 
 function SubmissionDetailPage() {

@@ -50,14 +50,16 @@ export function CommentsDataTable({
     () => createCommentsColumns({ t, tCommon, locale: i18n.language, sortBy, sort, onSort, onEdit, onDelete, onApprove, onOpenLightbox }),
     [t, tCommon, i18n.language, sortBy, sort, onSort, onEdit, onDelete, onApprove, onOpenLightbox],
   );
+  const sorting = useMemo(() => [{ id: sortBy, desc: sort === "desc" }], [sort, sortBy]);
 
   const table = useTable({
     features: appTableFeatures,
     data,
     columns,
     manualPagination: true,
+    manualSorting: true,
     rowCount: total,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
   });
 
@@ -66,29 +68,31 @@ export function CommentsDataTable({
   const isEmpty = !isLoading && data.length === 0;
 
   return (
-    <div ref={containerRef} className="h-full overflow-x-auto overflow-y-auto">
-      <DataTable.Root table={table}>
-        <DataTable.Table>
-          <DataTable.Header />
-          {showSkeleton ? (
-            <DataTable.Skeleton rows={pagination.pageSize} columns={columnCount} />
-          ) : isEmpty ? (
-            <tbody>
-              <DataTable.Empty columns={columnCount}>
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <span>{t("comments.table.empty")}</span>
-                  <span className="text-sm">{t("comments.table.emptyHint")}</span>
-                </div>
-              </DataTable.Empty>
-            </tbody>
-          ) : (
-            <DataTable.Body />
-          )}
-          <DataTable.Footer columns={columnCount}>
-            <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
-          </DataTable.Footer>
-        </DataTable.Table>
-      </DataTable.Root>
+    <div ref={containerRef} className="custom-scrollbar h-full min-h-0 overflow-x-hidden overflow-y-auto">
+      <div className="custom-scrollbar overflow-x-auto overflow-y-hidden">
+        <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+          <DataTable.Table>
+            <DataTable.Header />
+            {showSkeleton ? (
+              <DataTable.Skeleton rows={pagination.pageSize} columns={columnCount} />
+            ) : isEmpty ? (
+              <tbody>
+                <DataTable.Empty columns={columnCount}>
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <span>{t("comments.table.empty")}</span>
+                    <span className="text-sm">{t("comments.table.emptyHint")}</span>
+                  </div>
+                </DataTable.Empty>
+              </tbody>
+            ) : (
+              <DataTable.Body />
+            )}
+          </DataTable.Table>
+        </DataTable.Root>
+      </div>
+      <DataTable.PaginationFooter>
+        <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
+      </DataTable.PaginationFooter>
     </div>
   );
 }

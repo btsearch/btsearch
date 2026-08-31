@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/ui/data-table";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +20,12 @@ import { resolveAvatarUrl } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 36, paginationHeight: 40 };
+const TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+  minRows: 1,
+};
 const EMPTY_USERS: AdminUser[] = [];
 
 const columnHelper = createColumnHelper<AppTableFeatures, AdminUser>();
@@ -175,21 +180,23 @@ function AdminUsersPage() {
 
       <div
         ref={containerRef}
-        className={cn("flex-1 min-h-0 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
+        className={cn("flex-1 min-h-0 overflow-x-hidden", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
       >
-        <DataTable.Root table={table}>
-          <DataTable.Table>
-            <DataTable.Header />
-            {isLoading ? (
-              <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-            ) : (
-              <DataTable.Body onRowClick={(user) => navigate({ to: "/admin/users/$id", params: { id: (user as AdminUser).id } })} />
-            )}
-            <DataTable.Footer columns={columns.length}>
-              <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
-            </DataTable.Footer>
-          </DataTable.Table>
-        </DataTable.Root>
+        <div className="custom-scrollbar overflow-x-auto">
+          <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+            <DataTable.Table>
+              <DataTable.Header />
+              {isLoading ? (
+                <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
+              ) : (
+                <DataTable.Body onRowClick={(user) => navigate({ to: "/admin/users/$id", params: { id: (user as AdminUser).id } })} />
+              )}
+            </DataTable.Table>
+          </DataTable.Root>
+        </div>
+        <DataTable.PaginationFooter>
+          <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
+        </DataTable.PaginationFooter>
       </div>
     </div>
   );

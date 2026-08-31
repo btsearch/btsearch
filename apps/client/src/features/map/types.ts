@@ -8,6 +8,7 @@ export type ParsedFilter = {
 
 export type FilterKeyword = {
   key: string;
-  description: string;
+  descriptionKey: string;
+  group: "common" | "location" | "cell" | "gsm" | "umts" | "lte" | "nr" | "identifiers" | "date";
   availableOn: ("map" | "stations")[];
 };

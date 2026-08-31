@@ -7,7 +7,7 @@ import { useCallback, useMemo, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UKESourceBadge } from "@/components/uke-source-badge";
@@ -43,7 +43,12 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   radiolines: "Radiolines",
 };
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
+const TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+  minRows: 1,
+};
 
 const columnHelper = createColumnHelper<AppTableFeatures, DeletedEntry>();
 
@@ -240,14 +245,16 @@ function DeletedEntriesPage() {
       ]),
     [t, sort, i18n.language, resetPage],
   );
+  const sorting = useMemo(() => [{ id: "deleted_at", desc: sort === "desc" }], [sort]);
 
   const table = useTable({
     features: appTableFeatures,
     data: entries,
     columns,
     manualPagination: true,
+    manualSorting: true,
     pageCount: Math.ceil(total / pagination.pageSize),
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
   });
 
@@ -364,45 +371,47 @@ function DeletedEntriesPage() {
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 h-full overflow-x-auto overflow-y-auto">
-        <DataTable.Root table={table}>
-          <DataTable.Table>
-            <DataTable.Header />
-            {isLoading ? (
-              <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-            ) : isError ? (
-              <tbody>
-                <tr>
-                  <td colSpan={columns.length} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+      <div ref={containerRef} className="custom-scrollbar h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="custom-scrollbar overflow-x-auto overflow-y-hidden">
+          <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+            <DataTable.Table>
+              <DataTable.Header />
+              {isLoading ? (
+                <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
+              ) : isError ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={columns.length} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
+                          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+                        </div>
+                        <p>{t("common:error.title")}</p>
                       </div>
-                      <p>{t("common:error.title")}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            ) : entries.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={columns.length} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
-                      <p className="font-medium">{t("deletedEntries.empty.title")}</p>
-                      <p className="text-sm opacity-70">{t("deletedEntries.empty.subtitle")}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              <DataTable.Body onRowClick={(row: DeletedEntry) => dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: row })} />
-            )}
-            <DataTable.Footer columns={columns.length}>
-              <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
-            </DataTable.Footer>
-          </DataTable.Table>
-        </DataTable.Root>
+                    </td>
+                  </tr>
+                </tbody>
+              ) : entries.length === 0 ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={columns.length} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
+                        <p className="font-medium">{t("deletedEntries.empty.title")}</p>
+                        <p className="text-sm opacity-70">{t("deletedEntries.empty.subtitle")}</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              ) : (
+                <DataTable.Body onRowClick={(row: DeletedEntry) => dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: row })} />
+              )}
+            </DataTable.Table>
+          </DataTable.Root>
+        </div>
+        <DataTable.PaginationFooter>
+          <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
+        </DataTable.PaginationFooter>
       </div>
 
       <DeletedEntryDetailSheet

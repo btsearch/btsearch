@@ -109,6 +109,14 @@
   },
   "table": {
     "cells": "Ilość komórek",
+    "cellCountsLabel": "Komórki — dodane: {{added}}, zaktualizowane: {{updated}}, usunięte: {{deleted}}",
+    "cellCountsLegend": "Dodane / zaktualizowane / usunięte komórki",
+    "changes": "Zmiany",
+    "review": "Rozpatrzenie",
+    "statusQueue": "Status zgłoszeń",
+    "sortAscending": "rosnąco",
+    "sortDescending": "malejąco",
+    "openSubmission": "Otwórz zgłoszenie {{id}} dla {{stationId}}. Typ: {{type}}. Status: {{status}}",
     "searchPlaceholder": "Szukaj po ID stacji lub ID zgłoszenia...",
     "empty": "Brak zgłoszeń do wyświetlenia",
     "emptyHint": "Brak zgłoszeń pasujących do wybranych filtrów",
@@ -181,6 +189,7 @@
   },
   "mySubmissions": {
     "reviewedBy": "Sprawdzone przez",
+    "staleDataWarning": "Nie udało się odświeżyć zgłoszeń. Wyświetlamy wcześniej wczytane dane.",
     "editTooltip": "Edytuj zgłoszenie",
     "deleteTooltip": "Usuń zgłoszenie",
     "confirmDelete": "Czy na pewno chcesz usunąć to zgłoszenie?",

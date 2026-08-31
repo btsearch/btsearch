@@ -1,3 +1,4 @@
+import type { FeatureCollection } from "geojson";
 import {
   type GeoJSONFeature,
   type GeoJSONSource,
@@ -29,10 +30,7 @@ type FeatureClickData = {
 
 type FeatureClickHandler = (data: FeatureClickData) => void;
 
-type MapFeatureCollection = {
-  type: "FeatureCollection";
-  features: GeoJSONFeature[];
-};
+type MapFeatureCollection = FeatureCollection;
 
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
 

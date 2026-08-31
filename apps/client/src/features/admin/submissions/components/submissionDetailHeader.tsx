@@ -18,8 +18,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { SUBMISSION_STATUS, SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
+import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { useScrolled } from "@/hooks/useScrolled";
 import { cn } from "@/lib/utils";
 
@@ -134,15 +135,7 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
         </div>
 
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border shrink-0",
-              SUBMISSION_TYPE[submission.type].badgeClass,
-            )}
-          >
-            <span className={cn("size-1.5 rounded-[1px]", SUBMISSION_TYPE[submission.type].dotClass)} />
-            {t(`common:submissionType.${submission.type}`)}
-          </span>
+          <SubmissionTypeBadge type={submission.type} />
           <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md shrink-0", SUBMISSION_STATUS[submission.status].bgClass)}>
             <HugeiconsIcon
               icon={SUBMISSION_STATUS[submission.status].icon}

@@ -26,21 +26,3 @@ export const SUBMISSION_STATUS = {
     badgeColor: "text-red-600 bg-red-500/10 border-red-500/20",
   },
 } as const;
-
-export const SUBMISSION_TYPE = {
-  new: {
-    label: "new",
-    badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20",
-    dotClass: "bg-emerald-500",
-  },
-  update: {
-    label: "update",
-    badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-300 border-blue-200 dark:border-blue-500/20",
-    dotClass: "bg-blue-500",
-  },
-  delete: {
-    label: "delete",
-    badgeClass: "bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300 border-rose-200 dark:border-rose-500/20",
-    dotClass: "bg-rose-500",
-  },
-} as const;

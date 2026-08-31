@@ -24,7 +24,7 @@ export function useTerrainProfileAnalysis({ enabled, station, receiver, antennaK
     };
   }, [antennaKey, enabled, receiver, station]);
 
-  const previousAnalysisIdRef = useRef<string | undefined>();
+  const previousAnalysisIdRef = useRef<string | undefined>(undefined);
 
   const creation = useQuery({
     queryKey: ["terrain-profile", "create", request, revision],

@@ -39,8 +39,8 @@ import {
   fetchRecentAuditLogs,
   fetchImportStatus,
 } from "@/features/admin/dashboard/api";
-import { SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
 import type { StepStatus } from "@/features/admin/uke-import/api";
+import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { formatRelativeTime, formatShortDate, resolveAvatarUrl } from "@/lib/format";
 
 const STEP_ICON: Record<StepStatus, { icon: IconSvgElement | null; className: string }> = {
@@ -317,15 +317,15 @@ function AdminDashboardPage() {
                 </div>
               ) : (
                 submissions.map((s) => {
-                  const typeCfg = SUBMISSION_TYPE[s.type];
                   const stationId = s.station?.station_id ?? s.proposedStation?.station_id;
+                  const submissionTypeLabel = t(`submissionType.${s.type}`, { ns: "common" });
                   return (
                     <Link
                       key={s.id}
                       to="/admin/submissions/$id"
                       params={{ id: s.id }}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring transition-colors border-b border-border/50 last:border-0"
-                      aria-label={`${stationId ?? t("labels.newStation", { ns: "common" })} - ${s.submitter.name}, ${s.type}`}
+                      aria-label={`${stationId ?? t("labels.newStation", { ns: "common" })} - ${s.submitter.name}, ${submissionTypeLabel}`}
                     >
                       <Avatar className="size-7 shrink-0" aria-hidden="true">
                         <AvatarImage src={resolveAvatarUrl(s.submitter.image)} alt="" />
@@ -338,16 +338,7 @@ function AdminDashboardPage() {
                           ) : (
                             <span className="text-xs text-muted-foreground italic">{t("labels.newStation", { ns: "common" })}</span>
                           )}
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              "shrink-0 inline-flex items-center gap-1 px-1.5 py-px rounded-sm text-[9px] font-bold uppercase border",
-                              typeCfg.badgeClass,
-                            )}
-                          >
-                            <span className={cn("size-1.5 rounded-[1px]", typeCfg.dotClass)} />
-                            {s.type}
-                          </span>
+                          <SubmissionTypeBadge type={s.type} />
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           {s.submitter.name}

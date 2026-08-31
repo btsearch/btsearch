@@ -1,4 +1,5 @@
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import type { FeatureCollection } from "geojson";
 import { Popup } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
@@ -17,8 +18,8 @@ import { useRadioLinesLayer } from "../hooks/useRadioLinesLayer";
 import { type DuplexRadioLink, findDuplexLinkByRadioLineId, groupRadioLinesIntoLinks } from "../utils";
 import { RadioLineFooter, RadioLinePopupContent } from "./radioLinePopupContent";
 
-const EMPTY_LINES: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
-const EMPTY_ENDPOINTS: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_LINES: FeatureCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_ENDPOINTS: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 type RadioLinesLayerProps = {
   radioLines: RadioLine[];

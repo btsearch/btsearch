@@ -1,6 +1,6 @@
 import { ArrowDown01Icon, Cancel01Icon, Search02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Checkbox as UICheckbox } from "@/components/ui/checkbox";
@@ -23,7 +23,7 @@ import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator, Region, StationFilters, StationStatus } from "@/types/station";
 
-import { DEFAULT_STATIONS_LIST_STATUSES, getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
+import { toggleStationStatusSelection } from "../stationStatus";
 import { StationStatusFilter } from "./stationStatusFilter";
 
 const STATIONS_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("stations"));
@@ -45,7 +45,9 @@ type StationsFiltersProps = {
   searchQuery: string;
   onFiltersChange: (filters: StationFilters) => void;
   onRegionsChange: (regionIds: number[]) => void;
+  onClearAllFilters: () => void;
   onSearchQueryChange: (query: string) => void;
+  hasActiveFilters: boolean;
   stationCount: number;
   totalStations?: number;
   isSheet?: boolean;
@@ -60,15 +62,14 @@ export function StationsFilters({
   searchQuery: parentSearchQuery,
   onFiltersChange,
   onRegionsChange,
+  onClearAllFilters,
   onSearchQueryChange,
+  hasActiveFilters,
   stationCount,
   totalStations,
   isSheet = false,
 }: StationsFiltersProps) {
   const { t } = useTranslation(["stations", "common"]);
-  const activeFilterCount =
-    filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + getStationStatusFilterCount(filters.status);
-
   const [showOtherOperators, setShowOtherOperators] = useState(false);
 
   const topOperators = useMemo(
@@ -88,7 +89,6 @@ export function StationsFilters({
   const hiddenSelectedBandCount = filters.bands.length - visibleSelectedBands.length;
 
   const {
-    query,
     inputValue,
     parsedFilters,
     autocompleteOptions,
@@ -105,23 +105,15 @@ export function StationsFilters({
     applyAutocomplete,
     clearSearch,
     removeFilter,
-  } = useSearchState({ filterKeywords: STATIONS_FILTER_KEYWORDS, parseFilters, initialValue: parentSearchQuery });
-
-  const searchDebounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      onSearchQueryChange(query);
-    }, 500);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, [query, onSearchQueryChange]);
+  } = useSearchState({
+    filterKeywords: STATIONS_FILTER_KEYWORDS,
+    parseFilters,
+    externalQuery: parentSearchQuery,
+    onQueryChange: onSearchQueryChange,
+  });
 
   const handleClearSearch = () => {
     clearSearch();
-    onSearchQueryChange("");
   };
 
   const handleToggleOperator = (mnc: number) => {
@@ -141,29 +133,15 @@ export function StationsFilters({
   };
 
   const handleClearFilters = () => {
-    onFiltersChange({
-      operators: [],
-      bands: [],
-      rat: [],
-      source: "internal",
-      recentDays: null,
-      showRadiolines: false,
-      radiolineOperators: [],
-      showStations: true,
-      recentDateFields: ["createdAt"],
-      showHeatmap: false,
-      status: [...DEFAULT_STATIONS_LIST_STATUSES],
-      showPlannedMeasurements: false,
-    });
-    onRegionsChange([]);
+    onClearAllFilters();
   };
 
   const regionChipsRef = useRef<HTMLDivElement>(null);
   const bandChipsRef = useRef<HTMLDivElement>(null);
 
   return (
-    <aside className={cn("shrink-0 overflow-y-auto h-full", isSheet ? "w-full" : "w-72 border-r bg-muted/20")}>
-      <div className="p-3 space-y-4">
+    <aside className={cn("flex h-full shrink-0 flex-col overflow-visible", isSheet ? "w-full" : "w-72 border-r bg-muted/20")}>
+      <div className="relative z-20 shrink-0 px-3 pt-3">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.search")}</span>
         <search ref={containerRef} onBlur={handleContainerBlur} className="relative">
           <div className={cn("rounded-lg border bg-background transition-all", isFocused && "ring-2 ring-primary/20 border-primary/30")}>
@@ -205,184 +183,188 @@ export function StationsFilters({
                 </button>
               )}
             </div>
-            {activeOverlay === "autocomplete" && autocompleteOptions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border bg-background shadow-lg">
-                <AutocompleteDropdown options={autocompleteOptions} onSelect={applyAutocomplete} />
+          </div>
+          {activeOverlay === "autocomplete" && autocompleteOptions.length > 0 && (
+            <div className={cn("absolute top-full z-50 mt-1 [&>div]:mt-0", isSheet ? "inset-x-0" : "left-0 w-105 max-w-[calc(100vw-2rem)]")}>
+              <AutocompleteDropdown options={autocompleteOptions} onSelect={applyAutocomplete} />
+            </div>
+          )}
+        </search>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-4 px-3 pt-4 pb-3">
+          <Separator />
+
+          {!isSheet && (
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm">{t("common:labels.filters")}</h2>
+              {hasActiveFilters ? (
+                <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {t("common:actions.clearAll")}
+                </button>
+              ) : null}
+            </div>
+          )}
+          {isSheet && hasActiveFilters ? (
+            <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {t("common:actions.clearAll")}
+            </button>
+          ) : null}
+
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.operator")}</span>
+            <div className="space-y-0.5">
+              {topOperators.map((op) => (
+                <label
+                  htmlFor={`operator-${op.mnc}`}
+                  key={op.mnc}
+                  className={cn(
+                    "flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors",
+                    filters.operators.includes(op.mnc) ? "bg-primary/10" : "hover:bg-muted",
+                  )}
+                >
+                  <UICheckbox
+                    id={`operator-${op.mnc}`}
+                    checked={filters.operators.includes(op.mnc)}
+                    onCheckedChange={() => handleToggleOperator(op.mnc)}
+                  />
+                  <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
+                  <span className="text-sm truncate">{op.name}</span>
+                </label>
+              ))}
+            </div>
+
+            {otherOperators.length > 0 && (
+              <div className="mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowOtherOperators(!showOtherOperators)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full py-1"
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 transition-transform", showOtherOperators && "rotate-180")} />
+                  <span>
+                    {t("common:labels.otherOperators", { count: otherOperators.length })}
+                    {hasSelectedOther &&
+                      ` (${t("common:labels.selected", { count: otherOperators.filter((op) => filters.operators.includes(op.mnc)).length })})`}
+                  </span>
+                </button>
+
+                {showOtherOperators && (
+                  <div className="space-y-0.5 mt-1.5 pt-1.5 border-t border-border/50">
+                    {otherOperators.map((op) => (
+                      <label
+                        htmlFor={`operator-${op.mnc}`}
+                        key={op.mnc}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors",
+                          filters.operators.includes(op.mnc) ? "bg-primary/10" : "hover:bg-muted",
+                        )}
+                      >
+                        <UICheckbox
+                          id={`operator-${op.mnc}`}
+                          checked={filters.operators.includes(op.mnc)}
+                          onCheckedChange={() => handleToggleOperator(op.mnc)}
+                        />
+                        <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
+                        <span className="text-sm truncate">{op.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        </search>
 
-        <Separator />
-
-        {!isSheet && (
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm">{t("common:labels.filters")}</h2>
-            {activeFilterCount > 0 && (
-              <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                {t("common:actions.clearAll")}
-              </button>
-            )}
-          </div>
-        )}
-        {isSheet && activeFilterCount > 0 && (
-          <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-            {t("common:actions.clearAll")}
-          </button>
-        )}
-
-        <div>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.operator")}</span>
-          <div className="space-y-0.5">
-            {topOperators.map((op) => (
-              <label
-                htmlFor={`operator-${op.mnc}`}
-                key={op.mnc}
-                className={cn(
-                  "flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors",
-                  filters.operators.includes(op.mnc) ? "bg-primary/10" : "hover:bg-muted",
-                )}
-              >
-                <UICheckbox
-                  id={`operator-${op.mnc}`}
-                  checked={filters.operators.includes(op.mnc)}
-                  onCheckedChange={() => handleToggleOperator(op.mnc)}
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.region")}</span>
+            <Combobox multiple value={selectedRegionItems} onValueChange={(values) => onRegionsChange(values.map((v) => v.id))} items={regions}>
+              <ComboboxChips ref={regionChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+                {visibleSelectedRegions.map((region) => (
+                  <ComboboxChip key={region.id} className="max-w-40 shrink-0">
+                    <span className="truncate">{region.name}</span>
+                  </ComboboxChip>
+                ))}
+                {hiddenSelectedRegionCount > 0 ? (
+                  <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                    +{hiddenSelectedRegionCount}
+                  </ComboboxChip>
+                ) : null}
+                <ComboboxChipsInput
+                  className={selectedRegions.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                  placeholder={selectedRegions.length === 0 ? t("common:placeholder.selectRegions") : ""}
                 />
-                <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
-                <span className="text-sm truncate">{op.name}</span>
-              </label>
-            ))}
-          </div>
-
-          {otherOperators.length > 0 && (
-            <div className="mt-1.5">
-              <button
-                type="button"
-                onClick={() => setShowOtherOperators(!showOtherOperators)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full py-1"
-              >
-                <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 transition-transform", showOtherOperators && "rotate-180")} />
-                <span>
-                  {t("common:labels.otherOperators", { count: otherOperators.length })}
-                  {hasSelectedOther &&
-                    ` (${t("common:labels.selected", { count: otherOperators.filter((op) => filters.operators.includes(op.mnc)).length })})`}
-                </span>
-              </button>
-
-              {showOtherOperators && (
-                <div className="space-y-0.5 mt-1.5 pt-1.5 border-t border-border/50">
-                  {otherOperators.map((op) => (
-                    <label
-                      htmlFor={`operator-${op.mnc}`}
-                      key={op.mnc}
-                      className={cn(
-                        "flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors",
-                        filters.operators.includes(op.mnc) ? "bg-primary/10" : "hover:bg-muted",
-                      )}
-                    >
-                      <UICheckbox
-                        id={`operator-${op.mnc}`}
-                        checked={filters.operators.includes(op.mnc)}
-                        onCheckedChange={() => handleToggleOperator(op.mnc)}
-                      />
-                      <div className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
-                      <span className="text-sm truncate">{op.name}</span>
-                    </label>
+              </ComboboxChips>
+              <ComboboxContent anchor={regionChipsRef}>
+                <ComboboxList>
+                  <ComboboxEmpty>{t("common:placeholder.noRegionsFound")}</ComboboxEmpty>
+                  {regions.map((region) => (
+                    <ComboboxItem key={region.id} value={region}>
+                      {region.name}
+                    </ComboboxItem>
                   ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.region")}</span>
-          <Combobox multiple value={selectedRegionItems} onValueChange={(values) => onRegionsChange(values.map((v) => v.id))} items={regions}>
-            <ComboboxChips ref={regionChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
-              {visibleSelectedRegions.map((region) => (
-                <ComboboxChip key={region.id} className="max-w-40 shrink-0">
-                  <span className="truncate">{region.name}</span>
-                </ComboboxChip>
-              ))}
-              {hiddenSelectedRegionCount > 0 ? (
-                <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
-                  +{hiddenSelectedRegionCount}
-                </ComboboxChip>
-              ) : null}
-              <ComboboxChipsInput
-                className={selectedRegions.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-                placeholder={selectedRegions.length === 0 ? t("common:placeholder.selectRegions") : ""}
-              />
-            </ComboboxChips>
-            <ComboboxContent anchor={regionChipsRef}>
-              <ComboboxList>
-                <ComboboxEmpty>{t("common:placeholder.noRegionsFound")}</ComboboxEmpty>
-                {regions.map((region) => (
-                  <ComboboxItem key={region.id} value={region}>
-                    {region.name}
-                  </ComboboxItem>
-                ))}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </div>
-
-        <div>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.standard")}</span>
-          <div className="grid grid-cols-2 gap-0.5">
-            {RAT_OPTIONS.map((rat) => (
-              <label
-                htmlFor={`rat-${rat.value}`}
-                key={rat.value}
-                className={cn(
-                  "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
-                  filters.rat.includes(rat.value) ? "bg-primary/10" : "hover:bg-muted",
-                )}
-              >
-                <UICheckbox id={`rat-${rat.value}`} checked={filters.rat.includes(rat.value)} onCheckedChange={() => handleToggleRat(rat.value)} />
-                <span className="text-[10px] text-muted-foreground font-mono">{rat.gen}</span>
-                <span className="text-xs">{rat.label}</span>
-              </label>
-            ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </div>
-        </div>
 
-        <div>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.band")} (MHz)</span>
-          <Combobox multiple value={filters.bands} onValueChange={handleBandsChange} items={uniqueBandValues}>
-            <ComboboxChips ref={bandChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
-              {visibleSelectedBands.map((band) => (
-                <ComboboxChip key={band}>{band === 0 ? t("stations:cells.unknownBand") : band}</ComboboxChip>
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.standard")}</span>
+            <div className="grid grid-cols-2 gap-0.5">
+              {RAT_OPTIONS.map((rat) => (
+                <label
+                  htmlFor={`rat-${rat.value}`}
+                  key={rat.value}
+                  className={cn(
+                    "flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer transition-colors",
+                    filters.rat.includes(rat.value) ? "bg-primary/10" : "hover:bg-muted",
+                  )}
+                >
+                  <UICheckbox id={`rat-${rat.value}`} checked={filters.rat.includes(rat.value)} onCheckedChange={() => handleToggleRat(rat.value)} />
+                  <span className="text-[10px] text-muted-foreground font-mono">{rat.gen}</span>
+                  <span className="text-xs">{rat.label}</span>
+                </label>
               ))}
-              {hiddenSelectedBandCount > 0 ? (
-                <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
-                  +{hiddenSelectedBandCount}
-                </ComboboxChip>
-              ) : null}
-              <ComboboxChipsInput
-                className={filters.bands.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-                placeholder={filters.bands.length === 0 ? t("common:placeholder.selectBand") : ""}
-              />
-            </ComboboxChips>
-            <ComboboxContent anchor={bandChipsRef}>
-              <ComboboxList>
-                <ComboboxEmpty>{t("common:placeholder.noBandsFound")}</ComboboxEmpty>
-                {uniqueBandValues.map((band) => (
-                  <ComboboxItem key={band} value={band}>
-                    <span className="font-mono">{band === 0 ? t("stations:cells.unknownBand") : band}</span>
-                  </ComboboxItem>
+            </div>
+          </div>
+
+          <div>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.band")} (MHz)</span>
+            <Combobox multiple value={filters.bands} onValueChange={handleBandsChange} items={uniqueBandValues}>
+              <ComboboxChips ref={bandChipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm">
+                {visibleSelectedBands.map((band) => (
+                  <ComboboxChip key={band}>{band === 0 ? t("stations:cells.unknownBand") : band}</ComboboxChip>
                 ))}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </div>
+                {hiddenSelectedBandCount > 0 ? (
+                  <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
+                    +{hiddenSelectedBandCount}
+                  </ComboboxChip>
+                ) : null}
+                <ComboboxChipsInput
+                  className={filters.bands.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
+                  placeholder={filters.bands.length === 0 ? t("common:placeholder.selectBand") : ""}
+                />
+              </ComboboxChips>
+              <ComboboxContent anchor={bandChipsRef}>
+                <ComboboxList>
+                  <ComboboxEmpty>{t("common:placeholder.noBandsFound")}</ComboboxEmpty>
+                  {uniqueBandValues.map((band) => (
+                    <ComboboxItem key={band} value={band}>
+                      <span className="font-mono">{band === 0 ? t("stations:cells.unknownBand") : band}</span>
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
 
-        <StationStatusFilter filters={filters} onToggleStatus={handleToggleStatus} />
+          <StationStatusFilter filters={filters} onToggleStatus={handleToggleStatus} />
 
-        <div className="text-xs text-muted-foreground pt-2 border-t">
-          {totalStations !== undefined
-            ? t("main:filters.showingStationsOfTotal", { count: stationCount, total: totalStations })
-            : t("main:filters.showingStations", { count: stationCount })}
+          <div className="text-xs text-muted-foreground pt-2 border-t">
+            {totalStations !== undefined
+              ? t("main:filters.showingStationsOfTotal", { count: stationCount, total: totalStations })
+              : t("main:filters.showingStations", { count: stationCount })}
+          </div>
         </div>
       </div>
     </aside>

@@ -1,6 +1,6 @@
 import { ArrowDown01Icon, Cancel01Icon, Search02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Checkbox as UICheckbox } from "@/components/ui/checkbox";
@@ -31,6 +31,7 @@ type LocationsFiltersProps = {
   onRegionsChange: (regionIds: number[]) => void;
   onClearAllFilters: () => void;
   onSearchQueryChange: (query: string) => void;
+  hasActiveFilters: boolean;
   locationCount: number;
   totalLocations?: number;
   isSheet?: boolean;
@@ -41,20 +42,18 @@ export function LocationsFilters({
   operators,
   regions,
   selectedRegions,
-  searchQuery: parentSearchQuery,
+  searchQuery,
   onFiltersChange,
   onRegionsChange,
   onClearAllFilters,
   onSearchQueryChange,
+  hasActiveFilters,
   locationCount,
   totalLocations,
   isSheet = false,
 }: LocationsFiltersProps) {
   const { t } = useTranslation(["admin", "common"]);
-  const activeFilterCount = filters.operators.length + selectedRegions.length;
-
   const [showOtherOperators, setShowOtherOperators] = useState(false);
-  const [localSearch, setLocalSearch] = useState(parentSearchQuery);
 
   const topOperators = useMemo(() => operators.filter((op) => TOP4_MNCS.includes(op.mnc)), [operators]);
   const otherOperators = useMemo(() => operators.filter((op) => !TOP4_MNCS.includes(op.mnc)), [operators]);
@@ -67,20 +66,7 @@ export function LocationsFilters({
   const visibleSelectedRegions = useMemo(() => selectedRegionItems.slice(0, 1), [selectedRegionItems]);
   const hiddenSelectedRegionCount = selectedRegionItems.length - visibleSelectedRegions.length;
 
-  const searchDebounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = window.setTimeout(() => {
-      onSearchQueryChange(localSearch);
-    }, 500);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, [localSearch, onSearchQueryChange]);
-
   const handleClearSearch = () => {
-    setLocalSearch("");
     onSearchQueryChange("");
   };
 
@@ -104,16 +90,16 @@ export function LocationsFilters({
               <HugeiconsIcon icon={Search02Icon} className="size-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
                 placeholder={t("common:placeholder.search")}
                 className="flex-1 min-w-16 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
               />
-              {localSearch && (
+              {searchQuery ? (
                 <button type="button" onClick={handleClearSearch} className="p-0.5 hover:bg-muted rounded transition-colors shrink-0">
                   <HugeiconsIcon icon={Cancel01Icon} className="size-4 text-muted-foreground" />
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -123,13 +109,18 @@ export function LocationsFilters({
         {!isSheet && (
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm">{t("common:labels.filters")}</h2>
-            {activeFilterCount > 0 && (
+            {hasActiveFilters ? (
               <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                 {t("common:actions.clearAll")}
               </button>
-            )}
+            ) : null}
           </div>
         )}
+        {isSheet && hasActiveFilters ? (
+          <button type="button" onClick={handleClearFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            {t("common:actions.clearAll")}
+          </button>
+        ) : null}
 
         <div>
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">{t("common:labels.operator")}</span>

@@ -48,12 +48,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { StationIdentityCell } from "@/features/admin/submissions/components/stationIdentityCell";
-import { SUBMISSION_STATUS, SUBMISSION_TYPE } from "@/features/admin/submissions/submissionUI";
+import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import type { MySubmissionsFilters } from "@/features/submissions/api";
 import { deleteSubmission } from "@/features/submissions/api";
+import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { showApiError } from "@/lib/api";
@@ -350,7 +351,7 @@ export function MySubmissions() {
 
   const hasActiveFilters = statusFilter !== "all" || selectedOperatorMncs.length > 0 || activeSearch.trim().length > 0;
 
-  const { data, isLoading, error, isFetchingNextPage, hasNextPage, fetchNextPage } = useMySubmissions(userId, filters);
+  const { data, isLoading, error, isRefetching, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } = useMySubmissions(userId, filters);
 
   const deleteMutation = useMutation({
     mutationFn: deleteSubmission,
@@ -362,6 +363,9 @@ export function MySubmissions() {
   });
 
   const submissions = useMemo<SubmissionRow[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  const totalSubmissionCount = data?.pages[0]?.totalCount ?? submissions.length;
+  const hasLoadedSubmissions = submissions.length > 0;
+  const showStaleDataWarning = error !== null && hasLoadedSubmissions;
 
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const { openStationDialog } = useFloatingDialogStack();
@@ -403,22 +407,27 @@ export function MySubmissions() {
   const listContent = isLoading ? (
     <div className="divide-y divide-border/50">
       {[1, 2, 3].map((i) => (
-        <div key={`skeleton-${i}`} className="flex items-center gap-4 px-3 py-2.5">
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-4 w-20 rounded" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="h-4 w-32 rounded ml-auto" />
+        <div key={`skeleton-${i}`} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 md:flex md:gap-3">
+          <Skeleton className="col-span-2 col-start-1 row-start-1 h-4 w-32 max-w-full rounded md:order-2 md:mr-auto" />
+          <Skeleton className="col-start-3 row-start-1 h-5 w-16 justify-self-end rounded-full md:order-4" />
+          <Skeleton className="col-start-1 row-start-2 h-5 w-14 rounded-full md:order-1" />
+          <Skeleton className="col-start-2 row-start-2 h-3 w-16 rounded md:order-5" />
+          <Skeleton className="col-start-3 row-start-2 h-6 w-12 justify-self-end rounded md:order-3" />
         </div>
       ))}
     </div>
-  ) : error ? (
-    <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+  ) : error !== null && !hasLoadedSubmissions ? (
+    <div role="alert" className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
       <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
         <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
       </div>
       <p className="text-sm">{t("common:placeholder.errorFetching")}</p>
+      <Button size="sm" variant="outline" className="mt-4" onClick={() => void refetch()} disabled={isRefetching}>
+        {isRefetching ? <Spinner className="size-3.5" /> : null}
+        {t("common:actions.retry")}
+      </Button>
     </div>
-  ) : submissions.length === 0 ? (
+  ) : !hasLoadedSubmissions ? (
     <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
       <HugeiconsIcon icon={hasActiveFilters ? Search01Icon : SentIcon} className="size-8 mb-2 opacity-30" />
       <p className="text-sm font-medium">{t("table.empty")}</p>
@@ -437,6 +446,9 @@ export function MySubmissions() {
   ) : (
     <>
       <div
+        role="list"
+        aria-label={t("userPage.title")}
+        aria-busy={isRefetching || isFetchingNextPage}
         style={{
           height: virtualizer.getTotalSize(),
           width: "100%",
@@ -446,16 +458,20 @@ export function MySubmissions() {
         {items.map((virtualItem) => {
           const submission = submissions[virtualItem.index];
           const statusCfg = SUBMISSION_STATUS[submission.status];
-          const typeCfg = SUBMISSION_TYPE[submission.type];
           const hasNotes = !!submission.review_notes;
           const hasReview = hasNotes || !!submission.reviewer;
           const stationId = submission.station_id;
+          const submissionIdentityId = `submission-${submission.id}-identity`;
+          const reviewHeadingId = `submission-${submission.id}-review-heading`;
 
           return (
             <div
               key={virtualItem.key}
               data-index={virtualItem.index}
               ref={virtualizer.measureElement}
+              role="listitem"
+              aria-posinset={virtualItem.index + 1}
+              aria-setsize={totalSubmissionCount}
               style={{
                 position: "absolute",
                 top: 0,
@@ -464,105 +480,113 @@ export function MySubmissions() {
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              <div className="group border-b border-border/50 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center gap-3 px-3 py-2.5 min-w-0">
-                  <span
+              <article aria-labelledby={submissionIdentityId} className="group border-b border-border/50 hover:bg-muted/40 transition-colors">
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 md:flex md:gap-3">
+                  <div id={submissionIdentityId} className="col-span-2 col-start-1 row-start-1 min-w-0 md:order-2 md:flex-1">
+                    {submission.station ? (
+                      <StationIdentityCell
+                        stationId={submission.station.station_id}
+                        operator={getOperatorById(submission.station.operator_id)}
+                        fallback={t("common:labels.newStation")}
+                        onStationClick={stationId !== null ? () => handleStationClick(stationId) : undefined}
+                      />
+                    ) : (
+                      <StationIdentityCell
+                        stationId={submission.proposedStation?.station_id ?? null}
+                        operator={getOperatorById(submission.proposedStation?.operator_id)}
+                        fallback={t("common:labels.newStation")}
+                      />
+                    )}
+                  </div>
+
+                  <div
                     className={cn(
-                      "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border shrink-0",
-                      typeCfg.badgeClass,
+                      "col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end rounded-md px-2 py-1 md:order-4",
+                      statusCfg.bgClass,
                     )}
                   >
-                    <span className={cn("size-1.5 rounded-[1px]", typeCfg.dotClass)} />
-                    {t(`common:submissionType.${submission.type}`)}
-                  </span>
+                    <HugeiconsIcon icon={statusCfg.icon} className={cn("size-3.5", statusCfg.iconClass)} />
+                    <span className="whitespace-nowrap text-xs font-medium capitalize">{t(`common:status.${submission.status}`)}</span>
+                  </div>
 
-                  {submission.station ? (
-                    <StationIdentityCell
-                      layout="inline"
-                      stationId={submission.station.station_id}
-                      operator={getOperatorById(submission.station.operator_id)}
-                      fallback={t("common:labels.newStation")}
-                      onStationClick={stationId !== null ? () => handleStationClick(stationId) : undefined}
-                    />
-                  ) : (
-                    <StationIdentityCell
-                      layout="inline"
-                      stationId={submission.proposedStation?.station_id ?? null}
-                      operator={getOperatorById(submission.proposedStation?.operator_id)}
-                      fallback={t("common:labels.newStation")}
-                    />
-                  )}
+                  <div className="col-start-1 row-start-2 justify-self-start md:order-1">
+                    <SubmissionTypeBadge type={submission.type} />
+                  </div>
 
-                  <div className="ml-auto flex items-center gap-3">
-                    {submission.status === "pending" && (
-                      <div className="flex items-center gap-1">
+                  <time
+                    dateTime={submission.createdAt}
+                    className="col-start-2 row-start-2 self-center whitespace-nowrap text-[11px] text-muted-foreground tabular-nums md:order-5 md:text-xs"
+                  >
+                    {formatShortDate(submission.createdAt, i18n.language)}
+                  </time>
+
+                  {submission.status === "pending" ? (
+                    <div className="col-start-3 row-start-2 flex items-center gap-1 justify-self-end md:order-3">
+                      <Tooltip>
+                        <TooltipTrigger render={<span />}>
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            nativeButton={false}
+                            render={<Link to="/submission" search={{ edit: submission.id }} />}
+                            aria-label={t("mySubmissions.editTooltip")}
+                          >
+                            <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("mySubmissions.editTooltip")}</TooltipContent>
+                      </Tooltip>
+                      <AlertDialog>
                         <Tooltip>
                           <TooltipTrigger render={<span />}>
-                            <Button
-                              size="icon-sm"
-                              variant="ghost"
-                              nativeButton={false}
-                              render={<Link to="/submission" search={{ edit: submission.id }} />}
-                            >
-                              <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                            </Button>
+                            <AlertDialogTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("mySubmissions.deleteTooltip")} />}>
+                              <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
+                            </AlertDialogTrigger>
                           </TooltipTrigger>
-                          <TooltipContent>{t("mySubmissions.editTooltip")}</TooltipContent>
+                          <TooltipContent>{t("mySubmissions.deleteTooltip")}</TooltipContent>
                         </Tooltip>
-                        <AlertDialog>
-                          <Tooltip>
-                            <TooltipTrigger render={<span />}>
-                              <AlertDialogTrigger render={<Button size="icon-sm" variant="ghost" />}>
-                                <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
-                              </AlertDialogTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent>{t("mySubmissions.deleteTooltip")}</TooltipContent>
-                          </Tooltip>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t("mySubmissions.confirmDelete")}</AlertDialogTitle>
-                              <AlertDialogDescription>{t("mySubmissions.confirmDeleteDesc")}</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-                              <AlertDialogAction
-                                variant="destructive"
-                                onClick={() => deleteMutation.mutate(submission.id)}
-                                disabled={deleteMutation.isPending}
-                              >
-                                {t("common:actions.delete")}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    )}
-                    <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md", statusCfg.bgClass)}>
-                      <HugeiconsIcon icon={statusCfg.icon} className={cn("size-3.5", statusCfg.iconClass)} />
-                      <span className="text-xs font-medium capitalize">{t(`common:status.${submission.status}`)}</span>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("mySubmissions.confirmDelete")}</AlertDialogTitle>
+                            <AlertDialogDescription>{t("mySubmissions.confirmDeleteDesc")}</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction
+                              variant="destructive"
+                              onClick={() => deleteMutation.mutate(submission.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              {t("common:actions.delete")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
-                    <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
-                      {formatShortDate(submission.createdAt, i18n.language)}
-                    </span>
-                  </div>
+                  ) : null}
                 </div>
 
                 {hasReview && (
                   <div className="px-3 pb-2.5 pt-0">
-                    <div className="bg-muted/60 rounded-lg px-3 py-2.5 space-y-1">
-                      {submission.reviewer && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {t("mySubmissions.reviewedBy")} <span className="font-medium text-foreground">{submission.reviewer.name}</span>
-                          {submission.reviewer.username && <span> (@{submission.reviewer.username})</span>}
-                        </p>
-                      )}
+                    <section aria-labelledby={reviewHeadingId} className="bg-muted/60 rounded-lg px-3 py-2.5 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <h3 id={reviewHeadingId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {hasNotes ? t("detail.reviewNotes") : t("table.review")}
+                        </h3>
+                        {submission.reviewer && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {t("mySubmissions.reviewedBy")} <span className="font-medium text-foreground">{submission.reviewer.name}</span>
+                            {submission.reviewer.username && <span> (@{submission.reviewer.username})</span>}
+                          </p>
+                        )}
+                      </div>
                       {hasNotes && (
                         <p className="text-sm leading-relaxed text-foreground wrap-break-word whitespace-pre-wrap">{submission.review_notes}</p>
                       )}
-                    </div>
+                    </section>
                   </div>
                 )}
-              </div>
+              </article>
             </div>
           );
         })}
@@ -578,16 +602,32 @@ export function MySubmissions() {
 
   return (
     <>
-      <div className={cn("shrink-0", showFloatingMobileFilters && "max-md:hidden")}>
-        <MySubmissionsDesktopFilters
-          statusFilter={statusFilter}
-          selectedOperators={selectedOperators}
-          operators={operators}
-          searchInput={searchInput}
-          onStatusChange={handleStatusChange}
-          onOperatorChange={handleOperatorChange}
-          onSearchChange={setSearchInput}
-        />
+      <div className="shrink-0 space-y-2">
+        <div className={cn(showFloatingMobileFilters && "max-md:hidden")}>
+          <MySubmissionsDesktopFilters
+            statusFilter={statusFilter}
+            selectedOperators={selectedOperators}
+            operators={operators}
+            searchInput={searchInput}
+            onStatusChange={handleStatusChange}
+            onOperatorChange={handleOperatorChange}
+            onSearchChange={setSearchInput}
+          />
+        </div>
+
+        {showStaleDataWarning ? (
+          <div
+            role="status"
+            className="flex min-w-0 items-center gap-2 rounded-md border border-amber-600/30 bg-amber-500/10 px-2.5 py-1.5 text-foreground"
+          >
+            <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+            <p className="min-w-0 flex-1 text-xs">{t("mySubmissions.staleDataWarning")}</p>
+            <Button size="xs" variant="ghost" onClick={() => void refetch()} disabled={isRefetching}>
+              {isRefetching ? <Spinner className="size-3" /> : null}
+              {t("common:actions.retry")}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div ref={setScrollEl} className={cn("flex-1 min-h-0 overflow-y-auto", showFloatingMobileFilters && "max-md:mb-10")}>

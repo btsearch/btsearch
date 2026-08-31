@@ -610,10 +610,7 @@ function FloatingLanguageMenuItems() {
   const handleLanguageChange = (code: SupportedLanguage) => {
     void i18n.changeLanguage(code);
     if (typeof window !== "undefined") window.localStorage.setItem("i18nextLng", code);
-    if (session?.user) {
-      const localeUpdate = { locale: code } as unknown as Parameters<typeof authClient.updateUser>[0];
-      void authClient.updateUser(localeUpdate);
-    }
+    if (session?.user) void authClient.updateUser({ locale: code });
   };
 
   return (

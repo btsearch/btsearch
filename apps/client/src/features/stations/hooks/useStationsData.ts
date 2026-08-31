@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 import { parseFilters } from "@/features/map/filters";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
 import type { Station, StationFilters, StationSortBy, StationSortDirection, StationStatus } from "@/types/station";
 
@@ -182,9 +183,11 @@ export function useStationsData() {
 
   const selectedRegions = state.regions;
   const searchQuery = state.q;
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 500);
   const sort = state.order;
   const sortBy = state.sort;
-  const isSearchMode = searchQuery.trim().length > 0;
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const isSearchMode = debouncedSearchQuery.trim().length > 0;
 
   const setFilters = useCallback(
     (newFilters: StationFilters | ((prev: StationFilters) => StationFilters)) => {
@@ -247,6 +250,18 @@ export function useStationsData() {
     [commit],
   );
 
+  const clearAllFilters = useCallback(() => {
+    commit({
+      operators: [],
+      bands: [],
+      rat: [],
+      status: [...DEFAULT_STATIONS_LIST_STATUSES],
+      recentDays: null,
+      regions: [],
+      q: "",
+    });
+  }, [commit]);
+
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
 
   const { data: bands = [] } = useQuery(bandsQueryOptions());
@@ -259,7 +274,16 @@ export function useStationsData() {
     return selectedRegions.map((id) => regionById.get(id)?.code).filter((code): code is string => Boolean(code));
   }, [selectedRegions, regionById]);
 
-  const { data, fetchNextPage, hasNextPage, isLoading, isFetching } = useInfiniteQuery({
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    isError: isListError,
+    refetch: refetchList,
+  } = useInfiniteQuery({
     queryKey: ["stations-list", FETCH_LIMIT, filters.operators, filters.bands, filters.rat, filters.status, selectedRegionNames, sort, sortBy],
     queryFn: ({ pageParam }) =>
       fetchStationsList({
@@ -282,14 +306,20 @@ export function useStationsData() {
   const combinedSearchQuery = useMemo(() => {
     if (!isSearchMode) return "";
     return buildSearchQuery({
-      query: searchQuery,
+      query: debouncedSearchQuery,
       filters,
       regionNames: selectedRegionNames,
     });
-  }, [isSearchMode, searchQuery, filters, selectedRegionNames]);
+  }, [isSearchMode, debouncedSearchQuery, filters, selectedRegionNames]);
 
   const searchQuerySortBy = searchParams.has("sort") ? sortBy : undefined;
-  const { data: searchResults = [], isLoading: isSearching } = useQuery({
+  const {
+    data: searchResults = [],
+    isLoading: isSearching,
+    isFetching: isSearchFetching,
+    isError: isSearchError,
+    refetch: refetchSearch,
+  } = useQuery({
     queryKey: ["station-search-table", combinedSearchQuery, sort, searchQuerySortBy],
     queryFn: () => searchStations(combinedSearchQuery, sort, searchQuerySortBy),
     enabled: combinedSearchQuery.length > 0,
@@ -310,7 +340,13 @@ export function useStationsData() {
   }, [bands]);
 
   const activeFilterCount =
-    filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + getStationStatusFilterCount(filters.status);
+    filters.operators.length +
+    filters.bands.length +
+    filters.rat.length +
+    selectedRegions.length +
+    getStationStatusFilterCount(filters.status) +
+    Number(hasSearchQuery);
+  const hasActiveFilters = activeFilterCount > 0;
 
   return {
     stations,
@@ -323,7 +359,9 @@ export function useStationsData() {
     setFilters,
     selectedRegions,
     setSelectedRegions,
+    clearAllFilters,
     activeFilterCount,
+    hasActiveFilters,
 
     sort,
     setSort,
@@ -334,7 +372,10 @@ export function useStationsData() {
     setSearchQuery,
 
     isLoading: isSearchMode ? isSearching : isLoading,
-    isFetching,
+    isFetching: isSearchMode ? isSearchFetching : isFetching,
+    isFetchingNextPage: isSearchMode ? false : isFetchingNextPage,
+    isError: isSearchMode ? isSearchError : isListError,
+    refetch: isSearchMode ? refetchSearch : refetchList,
     hasMore: isSearchMode ? false : hasNextPage,
     loadMore: hasNextPage && !isSearchMode ? fetchNextPage : undefined,
   };

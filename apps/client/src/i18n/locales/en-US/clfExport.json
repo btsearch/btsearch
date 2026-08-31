@@ -1,7 +1,17 @@
 {
   "page": {
     "title": "CLF Export",
-    "description": "Export cell data to CLF (Cell List File) format. These files can be used in cellular network monitoring applications to identify base stations serving the phone"
+    "description": "Export cell data to CLF (Cell List File) format. These files can be used in cellular network monitoring applications to identify base stations serving the phone."
+  },
+  "workflow": {
+    "dataset": {
+      "title": "Dataset",
+      "description": "Choose the data scope. Leaving a group empty includes every available value."
+    },
+    "format": {
+      "title": "Format",
+      "description": "Choose the format supported by the app you will import the data into."
+    }
   },
   "info": {
     "appsTitle": "Popular monitoring applications using CLF files:",
@@ -12,6 +22,7 @@
     "standardHint": "Optional, all standards are exported by default",
     "bandsHint": "Optional, all bands are exported by default",
     "outputFormat": "Output Format",
+    "compatibility": "compatible with {{app}}",
     "displayNRSeparately": {
       "title": "Display 5G NSA separately",
       "description": "For NetMonster only, 5G NSA cells will be exported as separate NR entries using the linked LTE cell TAC and NCI 1. Not recommended for Snapdragon users due to Snapdragon showing LTE PCI on NR"
@@ -19,11 +30,25 @@
     "formatInfo": "Detailed information about formats:",
     "export": "Export",
     "exporting": "Exporting...",
-    "copyApiUrl": "Copy API URL"
+    "copyApiUrl": "Copy API URL",
+    "elapsed": "Exporting for {{duration}}",
+    "completed": "Completed in {{duration}}"
+  },
+  "dataSources": {
+    "operators": "operators",
+    "regions": "regions",
+    "bands": "bands",
+    "loading": "Loading {{source}}...",
+    "error": "Could not load {{source}}. The remaining settings are still available."
   },
   "templates": {
-    "title": "Metadata creator",
-    "description": "Empty fields use our template. Insert placeholders with the plus button",
+    "title": "Description templates (advanced)",
+    "description": "Empty fields use the default description templates. Insert variables with the plus button.",
+    "defaultSummary": "Default templates are in use",
+    "editedSummary": "Edited templates: {{count}}",
+    "autoSave": "Autosave",
+    "saving": "Saving...",
+    "saved": "Saved",
     "insertPlaceholder": "Insert placeholder",
     "preview": "Preview",
     "toggleHint": "Click to simulate missing values",

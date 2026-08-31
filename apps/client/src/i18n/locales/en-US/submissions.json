@@ -109,6 +109,14 @@
   },
   "table": {
     "cells": "Cell Count",
+    "cellCountsLabel": "Cells — added: {{added}}, updated: {{updated}}, deleted: {{deleted}}",
+    "cellCountsLegend": "Added / updated / deleted cells",
+    "changes": "Changes",
+    "review": "Review",
+    "statusQueue": "Submission status",
+    "sortAscending": "ascending",
+    "sortDescending": "descending",
+    "openSubmission": "Open submission {{id}} for {{stationId}}. Type: {{type}}. Status: {{status}}",
     "searchPlaceholder": "Search by station ID or submission ID...",
     "empty": "No submissions to display",
     "emptyHint": "No submissions matching selected filters",
@@ -179,6 +187,7 @@
   },
   "mySubmissions": {
     "reviewedBy": "Reviewed by",
+    "staleDataWarning": "Couldn't refresh submissions. Showing previously loaded data.",
     "editTooltip": "Edit submission",
     "deleteTooltip": "Delete submission",
     "confirmDelete": "Are you sure you want to delete this submission?",

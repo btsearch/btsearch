@@ -1,24 +1,26 @@
 import { Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { type KeyboardEvent, type ReactNode, type RefObject, useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Checkbox } from "@/components/ui/checkbox.js";
 import { Spinner } from "@/components/ui/spinner.js";
 import { cn } from "@/lib/utils.js";
 
 import type { ParsedFilter } from "../../types.js";
 
 type SearchInputProps = {
-  containerRef: RefObject<HTMLDivElement | null>;
   inputRef: RefObject<HTMLInputElement | null>;
   inputValue: string;
   parsedFilters: ParsedFilter[];
   focusedChipIndex?: number | null;
-  isSearching: boolean;
+  isBusy: boolean;
   query: string;
   isFocused: boolean;
+  isMobile: boolean;
   mobileExpanded: boolean;
+  listboxId?: string;
+  activeOptionId?: string;
+  isExpanded: boolean;
   filterSlot?: ReactNode;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
@@ -26,24 +28,26 @@ type SearchInputProps = {
   onInputClick: () => void;
   onRemoveFilter: (filter: ParsedFilter) => void;
   onClearSearch: () => void;
-  onContainerBlur: (e: React.FocusEvent) => void;
   onMobileExpand: () => void;
-  onMobileCollapse: () => void;
-  affectMap: boolean;
-  showAffectMap: boolean;
-  onAffectMapChange: (v: boolean) => void;
+  mode: "results" | "map";
+  showModeControl: boolean;
+  mapModeDisabled: boolean;
+  onModeChange: (mode: "results" | "map") => void;
 };
 
 export function SearchInput({
-  containerRef,
   inputRef,
   inputValue,
   parsedFilters,
   focusedChipIndex = null,
-  isSearching,
+  isBusy,
   query,
   isFocused,
+  isMobile,
   mobileExpanded,
+  listboxId,
+  activeOptionId,
+  isExpanded,
   filterSlot,
   onInputChange,
   onKeyDown,
@@ -51,21 +55,15 @@ export function SearchInput({
   onInputClick,
   onRemoveFilter,
   onClearSearch,
-  onContainerBlur,
   onMobileExpand,
-  onMobileCollapse,
-  affectMap,
-  showAffectMap,
-  onAffectMapChange,
+  mode,
+  showModeControl,
+  mapModeDisabled,
+  onModeChange,
 }: SearchInputProps) {
   const { t } = useTranslation(["main", "common"]);
-
-  function handleContainerBlur(e: React.FocusEvent) {
-    onContainerBlur(e);
-    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-      onMobileCollapse();
-    }
-  }
+  const modeName = useId();
+  const disabledMapDescriptionId = useId();
 
   function handleMobileSearchClick() {
     onMobileExpand();
@@ -73,21 +71,27 @@ export function SearchInput({
   }
 
   return (
-    <search
-      ref={containerRef}
-      onBlur={handleContainerBlur}
+    <div
       className={cn(
         "bg-background/95 backdrop-blur-md border rounded-2xl shadow-xl transition-all duration-200",
         isFocused && "ring-2 ring-primary/20 border-primary/30",
         !mobileExpanded && !isFocused && "md:w-auto w-fit ml-auto",
       )}
     >
-      <div className="flex items-center gap-2 px-3 py-2">
-        <button type="button" className="md:pointer-events-none shrink-0" onClick={handleMobileSearchClick} aria-label={t("common:actions.search")}>
+      <div className="flex flex-nowrap items-center gap-1.5 px-2.5 py-2 md:gap-2 md:px-3">
+        <button
+          type="button"
+          tabIndex={isMobile ? 0 : -1}
+          className="relative shrink-0 rounded-lg outline-none after:absolute after:-inset-x-3 after:-inset-y-2 after:content-[''] focus-visible:ring-2 focus-visible:ring-ring/60 max-md:py-1 md:pointer-events-none md:after:hidden"
+          onClick={handleMobileSearchClick}
+          aria-label={t("common:actions.search")}
+        >
           <HugeiconsIcon icon={Search01Icon} className="size-5 text-muted-foreground" />
         </button>
 
-        <div className={cn("flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide", !mobileExpanded && !isFocused && "hidden md:flex")}>
+        <div
+          className={cn("scrollbar-hide flex min-w-0 flex-1 items-center gap-2 overflow-x-auto", !mobileExpanded && !isFocused && "hidden md:flex")}
+        >
           {parsedFilters.map((filter, index) => (
             <div
               key={filter.raw}
@@ -102,7 +106,7 @@ export function SearchInput({
               </span>
               <button
                 onClick={() => onRemoveFilter(filter)}
-                className="hover:bg-primary/20 rounded p-0.5 transition-colors ml-0.5"
+                className="ml-0.5 flex shrink-0 items-center justify-center rounded p-0.5 transition-colors hover:bg-primary/20 max-md:size-6 max-md:p-0"
                 type="button"
                 aria-label={`${t("common:actions.clear")} ${filter.key}:${filter.value}`}
               >
@@ -120,33 +124,79 @@ export function SearchInput({
             onFocus={onInputFocus}
             onClick={onInputClick}
             placeholder={parsedFilters.length > 0 ? t("search.placeholderAddMore") : t("common:placeholder.search")}
-            className="flex-1 min-w-25 bg-transparent text-base md:text-sm outline-none placeholder:text-muted-foreground/60"
+            role="combobox"
+            aria-label={t("search.accessibleLabel")}
+            aria-autocomplete="list"
+            aria-expanded={isExpanded}
+            aria-controls={listboxId}
+            aria-activedescendant={activeOptionId}
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:min-w-25 md:text-sm"
           />
         </div>
 
-        {isFocused && showAffectMap ? (
-          <label className="flex items-center select-none animate-in fade-in slide-in-from-right-2 duration-200 gap-1.5 shrink-0">
-            <Checkbox checked={affectMap} onCheckedChange={(checked) => onAffectMapChange(checked)} />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{t("common:labels.map")}</span>
-          </label>
+        {isFocused && showModeControl ? (
+          <fieldset
+            aria-label={t("search.modeLabel")}
+            className="flex h-6 shrink-0 items-center rounded-lg border border-border/70 bg-muted/40 p-0 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-150"
+          >
+            <label className="relative cursor-pointer">
+              <input
+                type="radio"
+                name={modeName}
+                value="results"
+                checked={mode === "results"}
+                onChange={() => onModeChange("results")}
+                className="peer absolute inset-x-0 -inset-y-0.5 z-10 m-0 h-6 w-full cursor-pointer opacity-0"
+              />
+              <span className="flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors peer-checked:bg-background peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring/60 md:px-2 md:text-[11px]">
+                {t("search.modeResults")}
+              </span>
+            </label>
+            <label
+              className={cn("relative", mapModeDisabled ? "cursor-not-allowed" : "cursor-pointer")}
+              title={mapModeDisabled ? t("search.modeMapUnavailableUke") : undefined}
+            >
+              <input
+                type="radio"
+                name={modeName}
+                value="map"
+                checked={mode === "map"}
+                disabled={mapModeDisabled}
+                aria-describedby={mapModeDisabled ? disabledMapDescriptionId : undefined}
+                onChange={() => onModeChange("map")}
+                className="peer absolute inset-x-0 -inset-y-0.5 z-10 m-0 h-6 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+              />
+              <span className="flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors peer-checked:bg-background peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring/60 peer-disabled:opacity-45 md:px-2 md:text-[11px]">
+                {t("search.modeMap")}
+              </span>
+            </label>
+            {mapModeDisabled ? (
+              <span id={disabledMapDescriptionId} className="sr-only">
+                {t("search.modeMapUnavailableUke")}
+              </span>
+            ) : null}
+          </fieldset>
         ) : null}
 
-        {isSearching && query.trim() !== "" && <Spinner className="size-4 text-muted-foreground shrink-0" />}
+        {isBusy && query.trim() !== "" ? <Spinner className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
 
-        {(query || parsedFilters.length > 0) && !isSearching && (
+        {(query || parsedFilters.length > 0) && !isBusy ? (
           <button
             onPointerDown={(e) => e.preventDefault()}
             onClick={onClearSearch}
-            className={cn("p-1.5 hover:bg-muted rounded-lg transition-colors shrink-0", !mobileExpanded && !isFocused && "hidden md:block")}
+            className={cn(
+              "relative shrink-0 rounded-lg p-1.5 outline-none transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 max-md:min-w-11 md:after:hidden",
+              !mobileExpanded && !isFocused && "hidden md:block",
+            )}
             type="button"
             aria-label={t("common:actions.clear")}
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-4 text-muted-foreground" />
           </button>
-        )}
+        ) : null}
 
         {filterSlot}
       </div>
-    </search>
+    </div>
   );
 }

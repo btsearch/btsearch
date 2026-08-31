@@ -25,7 +25,7 @@ export function FilterButton({ showFilters, activeFilterCount, onClick }: Filter
       type="button"
       aria-label={t("labels.filters")}
       className={cn(
-        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all font-medium text-sm shrink-0 whitespace-nowrap",
+        "relative flex min-w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-sm font-medium transition-all after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] md:min-w-0 md:after:hidden",
         showFilters || activeFilterCount > 0 ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted hover:bg-muted/80 text-foreground",
       )}
     >

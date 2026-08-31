@@ -49,7 +49,7 @@ export function useFavoriteLists() {
       return { previous };
     },
     onError: (_error, _nextFavoriteUuids, context) => {
-      if (queryKey === null || context.previous === undefined) return;
+      if (queryKey === null || context?.previous === undefined) return;
       queryClient.setQueryData(queryKey, context.previous);
     },
     onSettled: () => {

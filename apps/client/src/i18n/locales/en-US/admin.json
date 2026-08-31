@@ -11,7 +11,6 @@
     "editLocation": "Edit Location",
     "settings": "Settings",
     "ukeImport": "UKE Import",
-    "ukePermits": "Unassigned UKE Permits",
     "lists": "Lists",
     "comments": "Comments"
   },
@@ -184,14 +183,6 @@
   },
   "locations": {
     "title": "Locations"
-  },
-  "ukePermits": {
-    "title": "Unassigned UKE Permits",
-    "permits": "Permits",
-    "showingStations": "Showing {{count, number}} stations",
-    "showingStationsOfTotal": "Showing {{count, number}} of {{total, number}} stations",
-    "openDetails": "Open details",
-    "viewOnMap": "View on map"
   },
   "ukeImport": {
     "title": "UKE Import",

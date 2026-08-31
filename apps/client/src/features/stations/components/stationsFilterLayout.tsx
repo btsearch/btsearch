@@ -23,11 +23,12 @@ import { getAutocompleteMatches, replaceLastSearchToken } from "@/features/map/s
 import { ResponsiveFilters } from "@/features/stations/components/responsiveFilters";
 import { StationsDataTable } from "@/features/stations/components/stationsDataTable";
 import type { useStationsData } from "@/features/stations/hooks/useStationsData";
+import { useIsMobile } from "@/hooks/useMobile";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator, Region, Station, StationFilters, StationSortBy, StationStatus } from "@/types/station";
 
-import { DEFAULT_STATIONS_LIST_STATUSES, getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
+import { getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
 import { StationStatusFilter } from "./stationStatusFilter";
 
 const RAT_OPTIONS = [
@@ -57,7 +58,9 @@ type StationsMobileFilterRailProps = {
   searchQuery: string;
   onFiltersChange: (filters: StationFilters) => void;
   onRegionsChange: (regionIds: number[]) => void;
+  onClearAllFilters: () => void;
   onSearchQueryChange: (query: string) => void;
+  hasActiveFilters: boolean;
   stationCount: number;
   totalStations?: number;
 };
@@ -71,7 +74,9 @@ function StationsMobileFilterRail({
   searchQuery,
   onFiltersChange,
   onRegionsChange,
+  onClearAllFilters,
   onSearchQueryChange,
+  hasActiveFilters,
   stationCount,
   totalStations,
 }: StationsMobileFilterRailProps) {
@@ -86,9 +91,7 @@ function StationsMobileFilterRail({
     [regions, selectedRegions],
   );
   const statusFilterCount = getStationStatusFilterCount(filters.status);
-  const activeFilterCount = filters.operators.length + filters.bands.length + filters.rat.length + selectedRegions.length + statusFilterCount;
   const hasSearch = searchQuery.trim().length > 0;
-  const hasActiveFilters = activeFilterCount > 0 || hasSearch;
   const [showSearchAutocomplete, setShowSearchAutocomplete] = useState(false);
   const searchAutocompleteOptions = useMemo(() => getAutocompleteMatches(searchQuery, STATIONS_FILTER_KEYWORDS), [searchQuery]);
 
@@ -102,22 +105,7 @@ function StationsMobileFilterRail({
   };
 
   const handleClearFilters = () => {
-    onFiltersChange({
-      operators: [],
-      bands: [],
-      rat: [],
-      source: "internal",
-      recentDays: null,
-      showRadiolines: false,
-      radiolineOperators: [],
-      showStations: true,
-      recentDateFields: ["createdAt"],
-      showHeatmap: false,
-      status: [...DEFAULT_STATIONS_LIST_STATUSES],
-      showPlannedMeasurements: false,
-    });
-    onRegionsChange([]);
-    onSearchQueryChange("");
+    onClearAllFilters();
     setShowSearchAutocomplete(false);
   };
 
@@ -293,6 +281,7 @@ function StationsMobileFilterRail({
 
 export function StationsListLayout({ data, onRowClick, getRowHref, headerActions, children }: StationsListLayoutProps) {
   const { t } = useTranslation("stations");
+  const isMobile = useIsMobile();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const navActionTarget = useNavActionTarget();
 
@@ -306,7 +295,9 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
     setFilters,
     selectedRegions,
     setSelectedRegions,
+    clearAllFilters,
     activeFilterCount,
+    hasActiveFilters,
     sort,
     setSort,
     sortBy,
@@ -314,7 +305,9 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
     searchQuery,
     setSearchQuery,
     isLoading,
-    isFetching,
+    isFetchingNextPage,
+    isError,
+    refetch,
     hasMore,
     loadMore,
   } = data;
@@ -335,6 +328,27 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
     [sort, sortBy, setSort, setSortBy],
   );
 
+  const mobileFilterRail = (
+    <StationsMobileFilterRail
+      filters={filters}
+      operators={operators}
+      regions={regions}
+      uniqueBandValues={uniqueBandValues}
+      selectedRegions={selectedRegions}
+      searchQuery={searchQuery}
+      onFiltersChange={setFilters}
+      onRegionsChange={setSelectedRegions}
+      onClearAllFilters={clearAllFilters}
+      onSearchQueryChange={setSearchQuery}
+      hasActiveFilters={hasActiveFilters}
+      stationCount={stations.length}
+      totalStations={totalStations}
+    />
+  );
+  const usesFloatingNavTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
+  const showFloatingMobileRail = isMobile && usesFloatingNavTarget;
+  const showMobileFilterButton = isMobile && navActionTarget !== null && !usesFloatingNavTarget;
+
   return (
     <>
       <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
@@ -349,16 +363,25 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
           searchQuery={searchQuery}
           onFiltersChange={setFilters}
           onRegionsChange={setSelectedRegions}
+          onClearAllFilters={clearAllFilters}
           onSearchQueryChange={setSearchQuery}
+          hasActiveFilters={hasActiveFilters}
           stationCount={stations.length}
           totalStations={totalStations}
         />
 
         <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 min-h-0 overflow-hidden">
+          {isMobile && !navActionTarget ? (
+            <div className="mb-2 shrink-0 overflow-x-auto overflow-y-hidden md:hidden">
+              <div className="w-max">{mobileFilterRail}</div>
+            </div>
+          ) : null}
           <StationsDataTable
             data={stations}
             isLoading={isLoading}
-            isFetchingMore={isFetching && !isLoading}
+            isFetchingMore={isFetchingNextPage}
+            isError={isError}
+            onRetry={refetch}
             onRowClick={onRowClick}
             getRowHref={getRowHref}
             onLoadMore={loadMore}
@@ -373,31 +396,13 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
 
       {navActionTarget &&
         createPortal(
-          <div
-            className={cn(
-              "flex items-center gap-2",
-              navActionTarget.id === FLOATING_NAV_ACTION_TARGET_ID && "max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1",
-            )}
-          >
-            {navActionTarget.id === FLOATING_NAV_ACTION_TARGET_ID ? (
+          <div className={cn("flex items-center gap-2", usesFloatingNavTarget && "max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1")}>
+            {showFloatingMobileRail ? (
               <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-                <div className="w-max">
-                  <StationsMobileFilterRail
-                    filters={filters}
-                    operators={operators}
-                    regions={regions}
-                    uniqueBandValues={uniqueBandValues}
-                    selectedRegions={selectedRegions}
-                    searchQuery={searchQuery}
-                    onFiltersChange={setFilters}
-                    onRegionsChange={setSelectedRegions}
-                    onSearchQueryChange={setSearchQuery}
-                    stationCount={stations.length}
-                    totalStations={totalStations}
-                  />
-                </div>
+                <div className="w-max">{mobileFilterRail}</div>
               </div>
-            ) : (
+            ) : null}
+            {showMobileFilterButton ? (
               <Button variant="outline" size="sm" className="relative md:hidden" onClick={() => setMobileFiltersOpen(true)}>
                 <HugeiconsIcon icon={FilterIcon} className="size-4 mr-2" />
                 {t("common:labels.filters")}
@@ -407,14 +412,9 @@ export function StationsListLayout({ data, onRowClick, getRowHref, headerActions
                   </span>
                 )}
               </Button>
-            )}
+            ) : null}
             {headerActions ? (
-              <div
-                className={cn(
-                  "flex shrink-0 items-center",
-                  navActionTarget.id === FLOATING_NAV_ACTION_TARGET_ID && "max-md:border-l max-md:border-border/70 max-md:pl-1",
-                )}
-              >
+              <div className={cn("flex shrink-0 items-center", usesFloatingNavTarget && "max-md:border-l max-md:border-border/70 max-md:pl-1")}>
                 {headerActions}
               </div>
             ) : null}

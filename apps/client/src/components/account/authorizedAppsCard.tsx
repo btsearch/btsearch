@@ -26,7 +26,7 @@ type Consent = {
   id: string;
   clientId: string;
   scopes: string[];
-  createdAt: string;
+  createdAt: Date;
 };
 
 type PublicClient = {
@@ -50,7 +50,7 @@ export function AuthorizedAppsCard({ userId }: { userId: string }) {
     queryFn: async () => {
       const res = await authClient.oauth2.getConsents();
       if (res.error) throw new Error(res.error.message ?? "Failed to load authorizations");
-      const consents = (res.data ?? []) as Consent[];
+      const consents: Consent[] = res.data ?? [];
       return Promise.all(
         consents.map(async (consent): Promise<AuthorizedApp> => {
           const appRes = await authClient.oauth2.publicClient({ query: { client_id: consent.clientId } });
@@ -72,8 +72,8 @@ export function AuthorizedAppsCard({ userId }: { userId: string }) {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  function formatDate(dateStr: string) {
-    return getDateFormatter(i18n.language).format(new Date(dateStr));
+  function formatDate(date: Date) {
+    return getDateFormatter(i18n.language).format(date);
   }
 
   if (isLoading) {

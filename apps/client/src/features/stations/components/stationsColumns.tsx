@@ -6,8 +6,8 @@ import type { TFunction } from "i18next";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { getStationBands } from "@/features/map/utils";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy, StationSortDirection } from "@/types/station";
@@ -28,6 +28,7 @@ function SortableHeader({ label, column, sort, sortBy, onSort }: SortableHeaderP
     <button
       type="button"
       className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
+      aria-pressed={isActive}
       onClick={() => onSort(column)}
     >
       {label}
@@ -64,18 +65,15 @@ export function createStationsColumns({ t, locale, sort, sortBy, onSort }: Creat
     {
       accessorKey: "operator",
       header: t("labels.operator"),
-      size: 160,
+      size: 180,
       cell: ({ row: { original: s } }) => {
         if (!s.operator) return <span className="text-muted-foreground">-</span>;
         return (
-          <div className="flex items-start gap-2">
-            <div className="size-3 rounded-[2px] shrink-0 mt-1" style={{ backgroundColor: getOperatorColor(s.operator.mnc) }} />
-            <div className="flex flex-col">
-              <span className="font-medium">{s.operator.name}</span>
-              {s.operator.full_name !== s.operator.name && (
-                <span className="text-xs text-muted-foreground truncate max-w-40">{s.operator.full_name}</span>
-              )}
-            </div>
+          <div className="min-w-0">
+            <DialogOperatorName name={s.operator.name} mnc={s.operator.mnc} compact />
+            {s.operator.full_name !== s.operator.name ? (
+              <span className="mt-0.5 block truncate pl-5.5 text-xs text-muted-foreground">{s.operator.full_name}</span>
+            ) : null}
           </div>
         );
       },

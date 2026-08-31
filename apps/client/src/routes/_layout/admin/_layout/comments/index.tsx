@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT } from "@/components/ui/data-table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
@@ -37,7 +38,12 @@ import { API_BASE, fetchJson, showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const EMPTY_COMMENTS: AdminComment[] = [];
-const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
+const TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+  minRows: 1,
+};
 
 type CommentsStatusFilter = "all" | "pending" | "approved";
 

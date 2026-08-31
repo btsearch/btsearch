@@ -84,6 +84,7 @@ export function useLocationsData() {
   const clearAllFilters = useCallback(() => {
     setFiltersRaw({ operators: [] });
     setSelectedRegionsRaw([]);
+    setSearchQuery("");
     save({ operators: [], regions: [] });
   }, [save]);
 
@@ -118,7 +119,7 @@ export function useLocationsData() {
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  const { data, fetchNextPage, hasNextPage, isLoading, isFetching } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isLoading, isFetching, isFetchingNextPage, isError, refetch } = useInfiniteQuery({
     queryKey: ["admin-locations-list", FETCH_LIMIT, filters.operators, selectedRegionCodes, sort, sortBy, debouncedSearch],
     queryFn: ({ pageParam }) =>
       fetchLocationsList({
@@ -148,7 +149,8 @@ export function useLocationsData() {
     return data.pages[data.pages.length - 1]?.totalCount;
   }, [data]);
 
-  const activeFilterCount = filters.operators.length + selectedRegions.length;
+  const activeFilterCount = filters.operators.length + selectedRegions.length + Number(searchQuery.trim().length > 0);
+  const hasActiveFilters = activeFilterCount > 0;
 
   return {
     locations,
@@ -161,6 +163,7 @@ export function useLocationsData() {
     setSelectedRegions,
     clearAllFilters,
     activeFilterCount,
+    hasActiveFilters,
     searchQuery,
     setSearchQuery,
     sort,
@@ -169,6 +172,9 @@ export function useLocationsData() {
     setSortBy,
     isLoading,
     isFetching,
+    isFetchingNextPage,
+    isError,
+    refetch,
     hasMore: hasNextPage,
     loadMore: hasNextPage ? fetchNextPage : undefined,
   };

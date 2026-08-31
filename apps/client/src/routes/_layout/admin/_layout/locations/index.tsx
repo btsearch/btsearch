@@ -12,6 +12,7 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { LocationsDataTable } from "@/features/admin/locations/components/locationsDataTable";
 import { LocationsResponsiveFilters } from "@/features/admin/locations/components/locationsResponsiveFilters";
 import { type LocationFilters, useLocationsData } from "@/features/admin/locations/hooks/useLocationsData";
+import { useIsMobile } from "@/hooks/useMobile";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
 import type { LocationSortBy, LocationWithStations, Operator, Region } from "@/types/station";
@@ -26,6 +27,7 @@ type LocationsMobileFilterRailProps = {
   onRegionsChange: (regionIds: number[]) => void;
   onClearAllFilters: () => void;
   onSearchQueryChange: (query: string) => void;
+  hasActiveFilters: boolean;
   locationCount: number;
   totalLocations?: number;
 };
@@ -40,6 +42,7 @@ function LocationsMobileFilterRail({
   onRegionsChange,
   onClearAllFilters,
   onSearchQueryChange,
+  hasActiveFilters,
   locationCount,
   totalLocations,
 }: LocationsMobileFilterRailProps) {
@@ -54,12 +57,6 @@ function LocationsMobileFilterRail({
     [regions, selectedRegions],
   );
   const hasSearch = searchQuery.trim().length > 0;
-  const hasActiveFilters = filters.operators.length > 0 || selectedRegions.length > 0 || hasSearch;
-
-  const handleClearAll = () => {
-    onClearAllFilters();
-    onSearchQueryChange("");
-  };
 
   return (
     <div className="flex items-center gap-1">
@@ -138,7 +135,7 @@ function LocationsMobileFilterRail({
       {hasActiveFilters ? (
         <button
           type="button"
-          onClick={handleClearAll}
+          onClick={onClearAllFilters}
           className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
@@ -161,6 +158,7 @@ function LocationsMobileFilterRail({
 function AdminLocationsPage() {
   const { t } = useTranslation("admin");
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const navActionTarget = useNavActionTarget();
 
@@ -177,6 +175,7 @@ function AdminLocationsPage() {
     setSelectedRegions,
     clearAllFilters,
     activeFilterCount,
+    hasActiveFilters,
     searchQuery,
     setSearchQuery,
     sort,
@@ -184,7 +183,9 @@ function AdminLocationsPage() {
     setSort,
     setSortBy,
     isLoading,
-    isFetching,
+    isFetchingNextPage,
+    isError,
+    refetch,
     hasMore,
     loadMore,
   } = data;
@@ -203,6 +204,22 @@ function AdminLocationsPage() {
 
   const handleRowClick = useCallback((location: LocationWithStations) => navigate({ to: `/admin/locations/${location.id}` }), [navigate]);
   const getRowHref = useCallback((location: LocationWithStations) => `/admin/locations/${location.id}`, []);
+  const mobileFilterRail = (
+    <LocationsMobileFilterRail
+      filters={filters}
+      operators={operators}
+      regions={regions}
+      selectedRegions={selectedRegions}
+      searchQuery={searchQuery}
+      onFiltersChange={setFilters}
+      onRegionsChange={setSelectedRegions}
+      onClearAllFilters={clearAllFilters}
+      onSearchQueryChange={setSearchQuery}
+      hasActiveFilters={hasActiveFilters}
+      locationCount={locations.length}
+      totalLocations={totalLocations}
+    />
+  );
 
   return (
     <>
@@ -219,15 +236,23 @@ function AdminLocationsPage() {
           onRegionsChange={setSelectedRegions}
           onClearAllFilters={clearAllFilters}
           onSearchQueryChange={setSearchQuery}
+          hasActiveFilters={hasActiveFilters}
           locationCount={locations.length}
           totalLocations={totalLocations}
         />
 
         <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 min-h-0 overflow-hidden">
+          {isMobile && !navActionTarget ? (
+            <div className="mb-2 shrink-0 overflow-x-auto overflow-y-hidden md:hidden">
+              <div className="w-max">{mobileFilterRail}</div>
+            </div>
+          ) : null}
           <LocationsDataTable
             data={locations}
             isLoading={isLoading}
-            isFetchingMore={isFetching && !isLoading}
+            isFetchingMore={isFetchingNextPage}
+            isError={isError}
+            onRetry={refetch}
             onRowClick={handleRowClick}
             getRowHref={getRowHref}
             onLoadMore={loadMore}
@@ -241,6 +266,7 @@ function AdminLocationsPage() {
       </div>
 
       {navActionTarget &&
+        isMobile &&
         createPortal(
           <div
             className={cn(
@@ -250,21 +276,7 @@ function AdminLocationsPage() {
           >
             {navActionTarget.id === FLOATING_NAV_ACTION_TARGET_ID ? (
               <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-                <div className="w-max">
-                  <LocationsMobileFilterRail
-                    filters={filters}
-                    operators={operators}
-                    regions={regions}
-                    selectedRegions={selectedRegions}
-                    searchQuery={searchQuery}
-                    onFiltersChange={setFilters}
-                    onRegionsChange={setSelectedRegions}
-                    onClearAllFilters={clearAllFilters}
-                    onSearchQueryChange={setSearchQuery}
-                    locationCount={locations.length}
-                    totalLocations={totalLocations}
-                  />
-                </div>
+                <div className="w-max">{mobileFilterRail}</div>
               </div>
             ) : (
               <Button variant="outline" size="sm" className="relative md:hidden" onClick={() => setMobileFiltersOpen(true)}>

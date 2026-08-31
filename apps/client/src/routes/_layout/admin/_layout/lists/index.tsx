@@ -22,7 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
@@ -35,7 +35,12 @@ import { formatShortDate } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
-const TABLE_PAGINATION_CONFIG = { rowHeight: 64, headerHeight: 40, paginationHeight: 45 };
+const TABLE_PAGINATION_CONFIG = {
+  rowHeight: DATA_TABLE_ROW_HEIGHT,
+  headerHeight: DATA_TABLE_HEADER_HEIGHT,
+  paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
+  minRows: 1,
+};
 
 const columnHelper = createColumnHelper<AppTableFeatures, UserListSummary>();
 
@@ -93,7 +98,7 @@ function AdminListsPage() {
   const navActionTarget = useNavActionTarget();
   const hasFloatingRail = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -245,48 +250,47 @@ function AdminListsPage() {
           </div>
         </div>
 
-        <div
-          ref={containerRef}
-          className={cn("flex-1 min-h-0 overflow-x-auto", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
-        >
-          <DataTable.Root table={table}>
-            <DataTable.Table>
-              <DataTable.Header />
-              {isLoading ? (
-                <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-              ) : isError ? (
-                <tbody>
-                  <tr>
-                    <td colSpan={columns.length} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+        <div ref={containerRef} className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="custom-scrollbar overflow-x-auto overflow-y-hidden">
+            <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+              <DataTable.Table>
+                <DataTable.Header />
+                {isLoading ? (
+                  <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
+                ) : isError ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={columns.length} className="h-64 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                          <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
+                            <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+                          </div>
+                          <p>{t("common:error.title")}</p>
                         </div>
-                        <p>{t("common:error.title")}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              ) : lists.length === 0 ? (
-                <tbody>
-                  <tr>
-                    <td colSpan={columns.length} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <HugeiconsIcon icon={ListViewIcon} className="size-10 mb-2 opacity-20" />
-                        <p className="font-medium">{t("admin:lists.table.empty")}</p>
-                        <p className="text-sm opacity-70">{t("admin:lists.table.emptyHint")}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              ) : (
-                <DataTable.Body onRowClick={handleRowClick} />
-              )}
-              <DataTable.Footer columns={columns.length}>
-                <DataTablePagination table={table} totalItems={totalCount} pageSizeOptions={pageSizeOptions} />
-              </DataTable.Footer>
-            </DataTable.Table>
-          </DataTable.Root>
+                      </td>
+                    </tr>
+                  </tbody>
+                ) : lists.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={columns.length} className="h-64 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                          <HugeiconsIcon icon={ListViewIcon} className="size-10 mb-2 opacity-20" />
+                          <p className="font-medium">{t("admin:lists.table.empty")}</p>
+                          <p className="text-sm opacity-70">{t("admin:lists.table.emptyHint")}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                ) : (
+                  <DataTable.Body onRowClick={handleRowClick} />
+                )}
+              </DataTable.Table>
+            </DataTable.Root>
+          </div>
+          <DataTable.PaginationFooter>
+            <DataTablePagination table={table} totalItems={totalCount} pageSizeOptions={pageSizeOptions} />
+          </DataTable.PaginationFooter>
         </div>
       </div>
 

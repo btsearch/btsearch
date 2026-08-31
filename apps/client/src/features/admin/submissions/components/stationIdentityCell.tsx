@@ -1,56 +1,32 @@
-import { getOperatorColor } from "@/lib/operatorUtils";
-import { cn } from "@/lib/utils";
+import { StationTitle } from "@/features/station-details/components/stationTitle";
 import type { Operator } from "@/types/station";
-
-const FALLBACK_OPERATOR_COLOR = "#00E1FF";
 
 export function StationIdentityCell({
   stationId,
   operator,
   fallback,
   onStationClick,
-  layout = "stacked",
 }: {
   stationId: string | null;
   operator: Operator | undefined;
   fallback: string;
   onStationClick?: () => void;
-  layout?: "stacked" | "inline";
 }) {
   if (!stationId && !operator) return <span className="text-muted-foreground italic text-xs">{fallback}</span>;
 
-  const operatorMnc = operator?.mnc;
-  const color = operatorMnc !== null && operatorMnc !== undefined ? getOperatorColor(operatorMnc) : FALLBACK_OPERATOR_COLOR;
   const label = stationId ?? fallback;
-  const inline = layout === "inline";
+  const title = <StationTitle stationId={label} operator={operator} stationIdClassName="group-hover/header:underline" />;
 
-  const stationLabelClassName = cn("font-mono text-sm font-medium", inline ? "shrink-0 whitespace-nowrap" : "block max-w-full truncate");
-
-  const stationLabel = onStationClick ? (
-    <button type="button" onClick={onStationClick} className={cn(stationLabelClassName, "text-left hover:underline cursor-pointer")}>
-      {label}
-    </button>
-  ) : (
-    <span className={stationLabelClassName}>{label}</span>
-  );
-
-  if (inline) {
+  if (onStationClick)
     return (
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="size-3 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
-        {stationLabel}
-        {operator ? <span className="text-xs text-muted-foreground truncate">({operator.name})</span> : null}
-      </div>
+      <button
+        type="button"
+        className="group/header flex min-w-0 cursor-pointer items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onStationClick}
+      >
+        {title}
+      </button>
     );
-  }
 
-  return (
-    <div className="flex items-start gap-2 min-w-0">
-      <div className="size-3 rounded-[2px] shrink-0 mt-1" style={{ backgroundColor: color }} />
-      <div className="min-w-0">
-        {stationLabel}
-        <div className="text-xs text-muted-foreground truncate">{operator?.name ?? "-"}</div>
-      </div>
-    </div>
-  );
+  return <div className="flex min-w-0 items-center gap-2">{title}</div>;
 }

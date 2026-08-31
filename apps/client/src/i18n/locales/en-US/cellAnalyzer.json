@@ -17,19 +17,32 @@
   "table": {
     "identifiers": "Identifiers",
     "description": "Description",
-    "location": "Station Location"
+    "location": "Station Location",
+    "parsedCell": "Imported cell",
+    "sourceDescription": "Source description",
+    "matchResult": "Comparison result",
+    "noStation": "No station assigned",
+    "openStation": "Open",
+    "showOnMap": "Map",
+    "sortByIdentity": "Sort by cell identifiers",
+    "visibleCount_one": "{{count, number}} result",
+    "visibleCount_other": "{{count, number}} results",
+    "noResults": "No results match the selected filters"
   },
   "status": {
     "found": "Found",
     "probable": "Probable",
     "notFound": "Not found",
-    "unsupported": "Not supported"
+    "unsupported": "Not supported",
+    "notAnalyzed": "Not analyzed"
   },
   "stats": {
     "found": "found",
     "probable": "probable",
     "notFound": "not found",
-    "unsupported": "not supported"
+    "unsupported": "not supported",
+    "summary": "Result summary",
+    "completedIn": "Completed in {{duration}}"
   },
   "filter": {
     "anyWarning": "Any warning",
@@ -54,7 +67,9 @@
     "fileTooLarge": "File too large (max 10 MB)",
     "invalidFileType": "Unsupported file type",
     "noValidRows": "No valid rows found in file",
-    "truncated": "File is large, only the first {{count}} rows were loaded"
+    "truncated": "File is large, only the first {{count}} rows were loaded",
+    "analysisFailed": "The file could not be analyzed",
+    "analysisFailedHint": "Check your connection and try again. The imported file and filters have been preserved."
   },
   "selection": {
     "rowsSelected_one": "row selected",
@@ -64,8 +79,14 @@
     "stationCapWarning": "You have exceeded the {{count, number}} station limit",
     "reviewBatch": "Review the selected batch",
     "clearSelection": "Clear selection",
+    "selectAllVisible": "Select all visible rows",
+    "selectRow": "Select row {{number, number}}",
     "noStationsResolved": "No stations resolved",
     "reviewBatchDisabledNoStations": "No stations were resolved from the selected rows",
     "reviewBatchDisabledOverLimit": "Reduce to {{count, number}} or fewer stations to continue"
+  },
+  "statusAnnouncement": {
+    "analyzing": "Analysis started",
+    "complete": "Analysis complete. Checked {{count, number}} cells"
   }
 }

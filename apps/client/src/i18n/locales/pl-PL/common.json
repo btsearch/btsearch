@@ -6,6 +6,11 @@
     "dark": "Ciemny",
     "system": "System"
   },
+  "sorting": {
+    "ascending": "Rosnąco",
+    "descending": "Malejąco",
+    "none": "Brak sortowania"
+  },
   "actions": {
     "save": "Zapisz",
     "cancel": "Anuluj",
@@ -177,6 +182,7 @@
   "error": {
     "title": "Coś poszło nie tak",
     "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie lub odśwież stronę",
+    "staleData": "Nie udało się odświeżyć listy. Wyświetlamy wcześniej wczytane dane.",
     "tryAgain": "Spróbuj ponownie",
     "reload": "Odśwież stronę",
     "toast": "Coś poszło nie tak. Spróbuj ponownie"

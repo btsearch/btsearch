@@ -1,6 +1,6 @@
 {
   "page": {
-    "description": "Wczytaj export z NetMonster (.ntm) lub NetMonitor i sprawdź czy komórki istnieją już w bazie"
+    "description": "Wczytaj eksport z NetMonster (.ntm) lub NetMonitor i porównaj komórki z bazą"
   },
   "file": {
     "dropHint": "Upuść plik tutaj lub kliknij, aby wybrać",
@@ -17,19 +17,33 @@
   "table": {
     "identifiers": "Identyfikatory",
     "description": "Opis",
-    "location": "Lokalizacja stacji"
+    "location": "Lokalizacja stacji",
+    "parsedCell": "Komórka z pliku",
+    "sourceDescription": "Opis źródłowy",
+    "matchResult": "Wynik porównania",
+    "noStation": "Brak przypisanej stacji",
+    "openStation": "Otwórz",
+    "showOnMap": "Mapa",
+    "sortByIdentity": "Sortuj według identyfikatorów komórki",
+    "visibleCount_one": "{{count, number}} wynik",
+    "visibleCount_few": "{{count, number}} wyniki",
+    "visibleCount_many": "{{count, number}} wyników",
+    "noResults": "Brak wyników dla wybranych filtrów"
   },
   "status": {
     "found": "Znaleziono",
     "probable": "Prawdopodobna",
     "notFound": "Nie znaleziono",
-    "unsupported": "Nieobsługiwane"
+    "unsupported": "Nieobsługiwane",
+    "notAnalyzed": "Nieprzeanalizowana"
   },
   "stats": {
     "found": "znaleziono",
     "probable": "prawdopodobne",
     "notFound": "nie znaleziono",
-    "unsupported": "nieobsługiwane"
+    "unsupported": "nieobsługiwane",
+    "summary": "Podsumowanie wyników",
+    "completedIn": "Ukończono w {{duration}}"
   },
   "filter": {
     "anyWarning": "Dowolne ostrzeżenie",
@@ -55,7 +69,9 @@
     "fileTooLarge": "Plik zbyt duży (maks. 10 MB)",
     "invalidFileType": "Nieobsługiwany typ pliku",
     "noValidRows": "Brak poprawnych wierszy w pliku",
-    "truncated": "Plik jest duży, wczytano tylko pierwsze {{count}} wierszy"
+    "truncated": "Plik jest duży, wczytano tylko pierwsze {{count}} wierszy",
+    "analysisFailed": "Nie udało się przeanalizować pliku",
+    "analysisFailedHint": "Sprawdź połączenie i spróbuj ponownie. Wczytany plik oraz ustawienia pozostały bez zmian."
   },
   "selection": {
     "rowsSelected_one": "wybrany wiersz",
@@ -67,8 +83,14 @@
     "stationCapWarning": "Przekroczono limit {{count, number}} stacji",
     "reviewBatch": "Przejrzyj wybraną partię",
     "clearSelection": "Wyczyść zaznaczenie",
+    "selectAllVisible": "Zaznacz wszystkie widoczne wiersze",
+    "selectRow": "Zaznacz wiersz {{number, number}}",
     "noStationsResolved": "Brak rozwiązanych stacji",
     "reviewBatchDisabledNoStations": "Żaden z wybranych wierszy nie dał stacji w bazie",
     "reviewBatchDisabledOverLimit": "Zmniejsz zaznaczenie do {{count, number}} lub mniej stacji, aby kontynuować"
+  },
+  "statusAnnouncement": {
+    "analyzing": "Rozpoczęto analizę",
+    "complete": "Analiza zakończona. Sprawdzono {{count, number}} komórek"
   }
 }

@@ -1,7 +1,17 @@
 {
   "page": {
     "title": "Eksport CLF",
-    "description": "Eksportuj dane komórek do formatu CLF (Cell List File). Pliki te można wykorzystać w aplikacjach do monitorowania sieci komórkowych, aby zidentyfikować stacje bazowe obsługujące telefon"
+    "description": "Eksportuj dane komórek do formatu CLF (Cell List File). Pliki te można wykorzystać w aplikacjach do monitorowania sieci komórkowych, aby zidentyfikować stacje bazowe obsługujące telefon."
+  },
+  "workflow": {
+    "dataset": {
+      "title": "Dane",
+      "description": "Wybierz zakres danych. Brak wyboru oznacza wszystkie dostępne wartości."
+    },
+    "format": {
+      "title": "Format",
+      "description": "Wybierz format zgodny z aplikacją, do której importujesz dane."
+    }
   },
   "info": {
     "appsTitle": "Popularne aplikacje monitorujące korzystające z plików CLF:",
@@ -12,6 +22,7 @@
     "standardHint": "Opcjonalnie, domyślnie eksportowane są wszystkie standardy",
     "bandsHint": "Opcjonalnie, domyślnie eksportowane są wszystkie pasma",
     "outputFormat": "Format wyjściowy",
+    "compatibility": "zgodny z aplikacją {{app}}",
     "displayNRSeparately": {
       "title": "Wyświetlaj 5G NSA osobno",
       "description": "Tylko dla NetMonster, komórki 5G NSA zostaną wyeksportowane jako osobne wpisy NR z TAC powiązanej komórki LTE oraz NCI 1. Niezalecane dla użytkowników Snapdragona, ponieważ Snapdragon pokazuje PCI LTE przy NR"
@@ -19,12 +30,26 @@
     "formatInfo": "Szczegółowe informacje dotyczące formatów:",
     "export": "Eksportuj",
     "exporting": "Eksportowanie...",
-    "copyApiUrl": "Kopiuj adres API"
+    "copyApiUrl": "Kopiuj adres API",
+    "elapsed": "Eksport trwa {{duration}}",
+    "completed": "Gotowe w {{duration}}"
+  },
+  "dataSources": {
+    "operators": "operatorów",
+    "regions": "regionów",
+    "bands": "pasm",
+    "loading": "Ładowanie: {{source}}...",
+    "error": "Nie udało się wczytać: {{source}}. Pozostałe ustawienia są nadal dostępne."
   },
   "templates": {
-    "title": "Kreator metadanych",
-    "description": "Puste pola użyją naszego templateu. Placeholdery wstawisz przyciskiem plus",
-    "insertPlaceholder": "Wstaw placeholder",
+    "title": "Szablony opisów (zaawansowane)",
+    "description": "Puste pola użyją domyślnych szablonów opisów. Zmienne możesz wstawić przyciskiem plus.",
+    "defaultSummary": "Używane są domyślne szablony",
+    "editedSummary": "Własne szablony: {{count}}",
+    "autoSave": "Autozapis",
+    "saving": "Zapisywanie...",
+    "saved": "Zapisano",
+    "insertPlaceholder": "Wstaw zmienną",
     "preview": "Podgląd",
     "toggleHint": "Kliknij, by zasymulować brak wartości",
     "placeholders": {

@@ -26,8 +26,9 @@ export function DataTablePagination<TData extends RowData>({
   const pageSize = table.state.pagination.pageSize;
   const pageCount = table.getPageCount();
 
-  const startRow = pageIndex * pageSize + 1;
-  const endRow = Math.min((pageIndex + 1) * pageSize, totalItems ?? table.getRowCount());
+  const rowCount = totalItems ?? table.getRowCount();
+  const startRow = rowCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const endRow = Math.min((pageIndex + 1) * pageSize, rowCount);
 
   return (
     <div className="flex items-center justify-between gap-4 px-2">
@@ -45,7 +46,7 @@ export function DataTablePagination<TData extends RowData>({
 
       <div className="flex items-center gap-2">
         {showRowsPerPage && (
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             <span className="text-muted-foreground text-sm hidden sm:block">{t("pagination.rows")}</span>
             <Select
               value={pageSize}

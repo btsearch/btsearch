@@ -4,11 +4,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
-import type { LocationSortBy, LocationSortDirection, LocationWithStations } from "@/types/station";
+import type { LocationSortBy, LocationSortDirection, LocationWithStations, Operator } from "@/types/station";
 
 interface SortableHeaderProps {
   label: string;
@@ -24,6 +24,7 @@ function SortableHeader({ label, column, sort, sortBy, onSort }: SortableHeaderP
     <button
       type="button"
       className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
+      aria-pressed={isActive}
       onClick={() => onSort(column)}
     >
       {label}
@@ -44,6 +45,12 @@ type CreateColumnsOptions = {
   sortBy: LocationSortBy | undefined;
   onSort: (column: LocationSortBy) => void;
 };
+
+export function getLocationOperators(location: LocationWithStations) {
+  const operatorsById = new Map<number, Operator>();
+  for (const station of location.stations ?? []) if (station.operator) operatorsById.set(station.operator.id, station.operator);
+  return [...operatorsById.values()];
+}
 
 export function createLocationsColumns({
   t,
@@ -115,32 +122,40 @@ export function createLocationsColumns({
     {
       id: "stations",
       header: t("common:labels.stations"),
-      size: 140,
+      size: 180,
       accessorFn: (row) => row.stations?.length ?? 0,
       cell: ({ row }) => {
         const stations = row.original.stations ?? [];
         if (stations.length === 0) return <span className="text-muted-foreground">-</span>;
 
-        const uniqueOperators = [...new Map(stations.filter((s) => s.operator).map((s) => [s.operator_id, s.operator])).values()];
+        const operators = getLocationOperators(row.original);
+        const primaryOperator = operators[0];
+        const remainingOperatorNames = operators.slice(1).map((operator) => operator.name);
 
         return (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
               <HugeiconsIcon icon={AirportTowerIcon} className="size-3.5 text-muted-foreground" />
               <span className="text-sm font-medium">{stations.length}</span>
             </div>
-            <div className="flex items-center gap-0.5">
-              {uniqueOperators.map((op) => (
-                <Tooltip key={op.id}>
-                  <TooltipTrigger>
-                    <div className="size-3 rounded-[2px] border border-background" style={{ backgroundColor: getOperatorColor(op.mnc) }} />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{op.name}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
+            {primaryOperator ? (
+              <div className="flex min-w-0 items-center gap-1">
+                <DialogOperatorName name={primaryOperator.name} mnc={primaryOperator.mnc} compact />
+                {remainingOperatorNames.length > 0 ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      aria-label={remainingOperatorNames.join(", ")}
+                      className="shrink-0 rounded px-1 text-[11px] font-medium text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      +{remainingOperatorNames.length}
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{remainingOperatorNames.join(", ")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         );
       },

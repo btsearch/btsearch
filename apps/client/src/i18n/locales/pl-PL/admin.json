@@ -11,7 +11,6 @@
     "editLocation": "Edytuj lokalizację",
     "settings": "Ustawienia",
     "ukeImport": "Import UKE",
-    "ukePermits": "Nieprzypisane pozwolenia UKE",
     "lists": "Listy",
     "comments": "Komentarze"
   },
@@ -191,14 +190,6 @@
   },
   "locations": {
     "title": "Lokalizacje"
-  },
-  "ukePermits": {
-    "title": "Nieprzypisane pozwolenia UKE",
-    "permits": "Pozwolenia",
-    "showingStations": "Wyświetlono {{count, number}} stacji",
-    "showingStationsOfTotal": "Wyświetlono {{count, number}} z {{total, number}} stacji",
-    "openDetails": "Otwórz szczegóły",
-    "viewOnMap": "Pokaż na mapie"
   },
   "ukeImport": {
     "title": "Import UKE",

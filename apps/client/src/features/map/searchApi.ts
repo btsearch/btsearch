@@ -1,6 +1,6 @@
 import { postApiData } from "@/lib/api";
 import { forwardGeocode } from "@/lib/mapboxGeocoding";
-import type { Station, UkeStation } from "@/types/station";
+import type { Location, Operator, Station } from "@/types/station";
 
 import { POLAND_BOUNDS } from "./constants";
 import type { OSMResult } from "./types";
@@ -17,14 +17,51 @@ export function parseGpsCoordinates(query: string): { lat: number; lng: number }
   return { lat, lng };
 }
 
-export const searchStations = (query: string) => postApiData<Station[], { query: string }>("search", { query });
+type SearchOperator = Omit<Operator, "mnc"> & { mnc: number | null };
+type SearchLocation = Omit<Location, "city" | "address"> & { city: string | null; address: string | null };
 
-export type UkeSearchPermitStation = UkeStation;
+export type SearchStation = Omit<Station, "operator_id" | "operator" | "location" | "is_confirmed" | "status" | "statusChangedAt"> & {
+  operator: SearchOperator | null;
+  location: SearchLocation | null;
+  is_confirmed: boolean | null;
+  status: NonNullable<Station["status"]>;
+  statusChangedAt: string;
+};
+
+export const searchStations = (query: string) => postApiData<SearchStation[], { query: string }>("search", { query });
+
+export type UkeSearchPermit = {
+  id: number;
+  decision_number: string;
+  decision_type: "zmP" | "P";
+  expiry_date: string;
+  band_id: number;
+  source: "permits" | "device_registry";
+  updatedAt: string;
+  createdAt: string;
+};
+
+export type UkeSearchPermitStation = {
+  id: number;
+  station_id: string;
+  operator: SearchOperator | null;
+  location: {
+    id: number;
+    region_id: number;
+    city: string | null;
+    address: string | null;
+    longitude: number;
+    latitude: number;
+    updatedAt: string;
+    createdAt: string;
+  } | null;
+  permits: UkeSearchPermit[];
+};
 
 export type UkeSearchRadioline = {
   id: number;
   permit_number: string;
-  operator: { id: number; name: string } | null;
+  operator: { id: number; name: string; full_name: string; mnc?: number | null } | null;
   tx: { city: string | null; latitude: number; longitude: number };
   rx: { city: string | null; latitude: number; longitude: number };
 };
@@ -38,12 +75,6 @@ export const searchUkePermits = (query: string) => postApiData<UkeSearchResult, 
 
 export async function searchLocations(query: string): Promise<OSMResult[]> {
   if (query.length < 3) return [];
-
-  try {
-    const results = await forwardGeocode(query);
-
-    return results.slice(0, 5);
-  } catch {
-    return [];
-  }
+  const results = await forwardGeocode(query);
+  return results.slice(0, 5);
 }
