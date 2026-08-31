@@ -1,6 +1,6 @@
 import { Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type KeyboardEvent, type ReactNode, type RefObject, useId } from "react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components/ui/spinner.js";
@@ -31,7 +31,6 @@ type SearchInputProps = {
   onMobileExpand: () => void;
   mode: "results" | "map";
   showModeControl: boolean;
-  mapModeDisabled: boolean;
   onModeChange: (mode: "results" | "map") => void;
 };
 
@@ -58,12 +57,9 @@ export function SearchInput({
   onMobileExpand,
   mode,
   showModeControl,
-  mapModeDisabled,
   onModeChange,
 }: SearchInputProps) {
   const { t } = useTranslation(["main", "common"]);
-  const modeName = useId();
-  const disabledMapDescriptionId = useId();
 
   function handleMobileSearchClick() {
     onMobileExpand();
@@ -135,47 +131,36 @@ export function SearchInput({
         </div>
 
         {isFocused && showModeControl ? (
-          <fieldset
+          <div
+            role="group"
             aria-label={t("search.modeLabel")}
             className="flex h-6 shrink-0 items-center rounded-lg border border-border/70 bg-muted/40 p-0 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-150"
           >
-            <label className="relative cursor-pointer">
-              <input
-                type="radio"
-                name={modeName}
-                value="results"
-                checked={mode === "results"}
-                onChange={() => onModeChange("results")}
-                className="peer absolute inset-x-0 -inset-y-0.5 z-10 m-0 h-6 w-full cursor-pointer opacity-0"
-              />
-              <span className="flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors peer-checked:bg-background peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring/60 md:px-2 md:text-[11px]">
-                {t("search.modeResults")}
-              </span>
-            </label>
-            <label
-              className={cn("relative", mapModeDisabled ? "cursor-not-allowed" : "cursor-pointer")}
-              title={mapModeDisabled ? t("search.modeMapUnavailableUke") : undefined}
+            <button
+              type="button"
+              aria-pressed={mode === "results"}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => onModeChange("results")}
+              className={cn(
+                "relative flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:px-2 md:text-[11px]",
+                mode === "results" && "bg-background text-foreground shadow-sm",
+              )}
             >
-              <input
-                type="radio"
-                name={modeName}
-                value="map"
-                checked={mode === "map"}
-                disabled={mapModeDisabled}
-                aria-describedby={mapModeDisabled ? disabledMapDescriptionId : undefined}
-                onChange={() => onModeChange("map")}
-                className="peer absolute inset-x-0 -inset-y-0.5 z-10 m-0 h-6 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-              />
-              <span className="flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors peer-checked:bg-background peer-checked:text-foreground peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring/60 peer-disabled:opacity-45 md:px-2 md:text-[11px]">
-                {t("search.modeMap")}
-              </span>
-            </label>
-            {mapModeDisabled ? (
-              <span id={disabledMapDescriptionId} className="sr-only">
-                {t("search.modeMapUnavailableUke")}
-              </span>
-            ) : null}
-          </fieldset>
+              {t("search.modeResults")}
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "map"}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => onModeChange("map")}
+              className={cn(
+                "relative flex h-5 items-center rounded-md px-1.5 text-[10px] font-semibold leading-none text-muted-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:px-2 md:text-[11px]",
+                mode === "map" && "bg-background text-foreground shadow-sm",
+              )}
+            >
+              {t("search.modeMap")}
+            </button>
+          </div>
         ) : null}
 
         {isBusy && query.trim() !== "" ? <Spinner className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
@@ -185,7 +170,7 @@ export function SearchInput({
             onPointerDown={(e) => e.preventDefault()}
             onClick={onClearSearch}
             className={cn(
-              "relative shrink-0 rounded-lg p-1.5 outline-none transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 max-md:min-w-11 md:after:hidden",
+              "relative inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 outline-none transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 max-md:min-w-11 md:after:hidden",
               !mobileExpanded && !isFocused && "hidden md:block",
             )}
             type="button"

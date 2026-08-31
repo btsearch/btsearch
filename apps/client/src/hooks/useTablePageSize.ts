@@ -17,6 +17,7 @@ interface InternalState {
   pageIndex: number;
   pageSize: number;
   autoPageSize: number;
+  isPageSizeMeasured: boolean;
 }
 
 const EXTRA_PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
@@ -29,6 +30,7 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
     pageIndex: 0,
     pageSize: minRows,
     autoPageSize: minRows,
+    isPageSizeMeasured: false,
   }));
 
   const observerRef = useRef<ResizeObserver | null>(null);
@@ -54,6 +56,8 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
       if (!node) return;
 
       const calculatePageSize = () => {
+        if (node.clientHeight <= 0) return;
+
         const styles = window.getComputedStyle(node);
         const verticalPadding = (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
         const availableHeight = node.clientHeight - verticalPadding - headerHeight - paginationHeight;
@@ -62,8 +66,8 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
 
         setState((prev) => {
           const newPageSize = isManualRef.current ? prev.pageSize : clampedRows;
-          if (prev.autoPageSize === clampedRows && prev.pageSize === newPageSize) return prev;
-          return { ...prev, autoPageSize: clampedRows, pageSize: newPageSize };
+          if (prev.isPageSizeMeasured && prev.autoPageSize === clampedRows && prev.pageSize === newPageSize) return prev;
+          return { ...prev, autoPageSize: clampedRows, pageSize: newPageSize, isPageSizeMeasured: true };
         });
       };
 
@@ -77,5 +81,12 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
 
   const pageSizeOptions = useMemo(() => [...new Set([state.autoPageSize, ...EXTRA_PAGE_SIZE_OPTIONS])].sort((a, b) => a - b), [state.autoPageSize]);
 
-  return { containerRef, pagination, setPagination, autoPageSize: state.autoPageSize, pageSizeOptions };
+  return {
+    containerRef,
+    pagination,
+    setPagination,
+    autoPageSize: state.autoPageSize,
+    pageSizeOptions,
+    isPageSizeMeasured: state.isPageSizeMeasured,
+  };
 }

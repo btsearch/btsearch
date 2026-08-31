@@ -145,6 +145,12 @@
   "pagination": {
     "page": "Strona",
     "of": "z",
+    "range": "{{start}}-{{end}} z {{total}}",
+    "pageCount": "Strona {{page}} z {{pages}}",
+    "firstPage": "Pierwsza strona",
+    "previousPage": "Poprzednia strona",
+    "nextPage": "Następna strona",
+    "lastPage": "Ostatnia strona",
     "showing": "Wyświetlanie",
     "items": "elementów",
     "rows": "Liczba wierszy",

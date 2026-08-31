@@ -49,7 +49,7 @@ import { fetchBands, fetchOperators, fetchRegions } from "@/features/shared/api"
 import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
-import { type CLFExportFormat, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
+import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
@@ -314,6 +314,7 @@ function ClfExportPage() {
   const [copiedApiUrl, setCopiedApiUrl] = useState(false);
   const [disabledPreviews, setDisabledPreviews] = useState<Partial<Record<CLFDescriptionTemplateRat, Set<string>>>>({});
   const lastSentTemplatesRef = useRef<CLFDescriptionTemplates | null>(null);
+  const lastSentFiltersRef = useRef<clfExportFilters | null>(null);
 
   const debouncedSaveTemplates = useDebouncedCallback((next: CLFDescriptionTemplates) => {
     lastSentTemplatesRef.current = next;
@@ -323,7 +324,7 @@ function ClfExportPage() {
 
   useEffect(() => {
     const lastSent = lastSentTemplatesRef.current;
-    if (lastSent !== null && JSON.stringify(lastSent) === JSON.stringify(clfDescriptionTemplates)) return;
+    if (lastSent !== null && areCLFDescriptionTemplatesEqual(lastSent, clfDescriptionTemplates)) return;
     setTemplateDrafts(clfDescriptionTemplates);
   }, [clfDescriptionTemplates]);
 
@@ -393,6 +394,12 @@ function ClfExportPage() {
   });
 
   useEffect(() => {
+    const lastSent = lastSentFiltersRef.current;
+    if (lastSent === preferences.clfExportFilters) {
+      lastSentFiltersRef.current = null;
+      return;
+    }
+    lastSentFiltersRef.current = null;
     form.reset({
       ...INITIAL_VALUES,
       ...preferences.clfExportFilters,
@@ -401,7 +408,9 @@ function ClfExportPage() {
   }, [form, preferences.clfExportFilters]);
 
   function updateClfExportFilters(update: Partial<clfExportFilters>) {
-    updatePreferences({ clfExportFilters: { ...preferences.clfExportFilters, ...update } });
+    const next = { ...preferences.clfExportFilters, ...update };
+    lastSentFiltersRef.current = next;
+    updatePreferences({ clfExportFilters: next });
   }
 
   async function copyApiUrl() {

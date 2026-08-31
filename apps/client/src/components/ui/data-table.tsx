@@ -205,7 +205,7 @@ function Skeleton({ rows, columns }: SkeletonProps) {
   const colArray = useMemo(() => Array.from({ length: columns }, (_, i) => i), [columns]);
 
   return (
-    <tbody className="[&_tr:last-child]:border-0">
+    <tbody className="[&_tr:last-child]:border-0" aria-hidden="true">
       {rowArray.map((rowIndex) => (
         <tr key={rowIndex} className="h-16 border-b transition-colors">
           {colArray.map((colIndex) => (

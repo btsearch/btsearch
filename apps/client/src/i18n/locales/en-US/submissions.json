@@ -109,7 +109,7 @@
   },
   "table": {
     "cells": "Cell Count",
-    "cellCountsLabel": "Cells — added: {{added}}, updated: {{updated}}, deleted: {{deleted}}",
+    "cellCountsLabel": "Cells - added: {{added}}, updated: {{updated}}, deleted: {{deleted}}",
     "cellCountsLegend": "Added / updated / deleted cells",
     "changes": "Changes",
     "review": "Review",
@@ -233,9 +233,9 @@
     "fetch": "Fetch azimuths",
     "fetching": "Fetching...",
     "si2pem": {
-      "notFound": "No azimuths found in the latest generated SI2PEM laboratory report",
-      "fetched": "Azimuths fetched from the latest generated SI2PEM laboratory report",
-      "fetchFailed": "Failed to fetch azimuths from the latest generated SI2PEM laboratory report"
+      "notFound": "No azimuths found in the latest SI2PEM laboratory report",
+      "fetched": "Azimuths fetched from the latest SI2PEM laboratory report",
+      "fetchFailed": "Failed to fetch azimuths from the latest SI2PEM laboratory report"
     },
     "uke": {
       "notFound": "No UKE azimuths found for this station and operator",

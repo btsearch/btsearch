@@ -21,14 +21,15 @@ type DialogOperatorNameProps = {
 };
 
 export function DialogOperatorName({ name, mnc, compact = false, labelClassName }: DialogOperatorNameProps) {
-  const Logo = mnc ? MNO_LOGO[getMnoBrand(mnc)] : undefined;
+  const hasMnc = mnc !== null && mnc !== undefined;
+  const Logo = hasMnc ? MNO_LOGO[getMnoBrand(mnc)] : undefined;
   const Root = compact ? "span" : "div";
 
   return (
     <Root className={cn("flex min-w-0 items-center", compact ? "gap-1.5" : "gap-2")}>
       {Logo ? (
         <Logo className={cn("w-auto shrink-0 rounded-[2px]", compact ? "h-4" : "h-5")} aria-hidden />
-      ) : mnc ? (
+      ) : hasMnc ? (
         <span className="size-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: getOperatorColor(mnc) }} aria-hidden />
       ) : null}
       {compact ? (

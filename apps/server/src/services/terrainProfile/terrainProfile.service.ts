@@ -198,7 +198,7 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
       warningCodes.push("ANTENNA_AZIMUTH_MISMATCH");
     const terrainStatus = geometry.lineOfSight.terrain ? "clear" : ("blocked" as const);
     const surfaceStatus = surfaceModelStatus === "unavailable" ? "unavailable" : geometry.status;
-    const assessmentStatus = surfaceStatus === "unavailable" ? terrainStatus : geometry.status;
+    const assessmentStatus = surfaceModelStatus === "available" ? geometry.status : "unavailable";
     const antennaConfidence = selectedAntenna.source === "si2pem_report" ? 2 : 0;
     const terrainConfidence = terrain.terrainStatus === "available" && !terrain.stale ? 2 : 1;
     let surfaceConfidence = 0;

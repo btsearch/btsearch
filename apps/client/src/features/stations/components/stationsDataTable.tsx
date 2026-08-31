@@ -16,7 +16,6 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { getStationBands } from "@/features/map/utils";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
-import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
@@ -33,10 +32,10 @@ const DESKTOP_PAGINATION_CONFIG = {
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
 };
 const MOBILE_PAGINATION_CONFIG = {
+  rowHeight: 96,
   headerHeight: DATA_TABLE_HEADER_HEIGHT,
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
 };
-const MOBILE_ROW_HEIGHT_FALLBACK = 96;
 
 interface StationsDataTableProps {
   data: Station[];
@@ -123,7 +122,7 @@ function StationMobileRow({
         {station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
       </div>
       <div className="mt-2 flex min-w-0 items-end justify-between gap-3">
-        <TechnologySummary bands={getStationBands(station.cells)} className="mt-0 min-w-0 pl-0" />
+        <TechnologySummary bands={getStationBands(station.cells)} className="mt-0 min-w-0 truncate whitespace-nowrap pl-0" />
         <time className="shrink-0 text-xs text-muted-foreground" dateTime={station.updatedAt} title={formatFullDate(station.updatedAt, locale)}>
           {formatRelativeTime(station.updatedAt, t)}
         </time>
@@ -197,9 +196,8 @@ export function StationsDataTable({
   const { t, i18n } = useTranslation("main");
   const { t: tCommon } = useTranslation("common");
   const isMobile = useIsMobile();
-  const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK);
   const desktopPagination = useTablePagination(DESKTOP_PAGINATION_CONFIG);
-  const mobilePagination = useTablePagination({ ...MOBILE_PAGINATION_CONFIG, rowHeight: mobileRowHeight });
+  const mobilePagination = useTablePagination(MOBILE_PAGINATION_CONFIG);
   const { containerRef, pagination, setPagination, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
 
   const columns = useMemo(
@@ -295,7 +293,7 @@ export function StationsDataTable({
                 </div>
               ) : null}
               {viewState === "ready" ? (
-                <ul ref={listRef} className="divide-y">
+                <ul className="divide-y">
                   {table.getRowModel().rows.map((row) => (
                     <li key={row.id}>
                       <StationMobileRow station={row.original} locale={i18n.language} onRowClick={onRowClick} getRowHref={getRowHref} />

@@ -57,7 +57,7 @@ function SI2PEMAntennaList({ groups }: { groups: SI2PEMAntennaGroup[] }) {
   const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }), [i18n.language]);
 
   function formatNumber(value: number | null, unit = ""): string {
-    return value === null ? "—" : `${numberFormatter.format(value)}${unit}`;
+    return value === null ? "-" : `${numberFormatter.format(value)}${unit}`;
   }
 
   function formatTiltRange(range: SI2PEMAntenna["tiltRange"]): string {

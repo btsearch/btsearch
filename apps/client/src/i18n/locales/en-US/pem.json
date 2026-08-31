@@ -1,28 +1,32 @@
 {
   "page": {
-    "title": "SI2PEM Measurements",
-    "description": "Planned, completed and canceled electromagnetic field measurements from SI2PEM system"
+    "title": "EMF measurements",
+    "description": "Browse planned, completed, and canceled electromagnetic field measurements from SI2PEM, along with inactive stations"
   },
   "tabs": {
     "planned": "Planned",
     "completed": "Completed",
     "canceled": "Canceled",
-    "inactive": "Inactive stations"
-  },
-  "status": {
-    "planned": "Planned",
-    "completed": "Completed",
-    "canceled": "Canceled",
-    "inactive": "Inactive"
+    "inactive": "Inactive stations",
+    "inactiveMobile": "Inactive"
   },
   "table": {
-    "dateFrom": "Data from",
-    "dateTo": "Data to",
-    "disabledDate": "Disabling date",
-    "lab": "Lab"
+    "caption": "EMF measurement records",
+    "measurementDate": "Measurement period",
+    "disabledDate": "Deactivation date",
+    "lab": "Laboratory",
+    "unknownCity": "Unknown city"
   },
   "filters": {
-    "stationIdPlaceholder": "Station ID...",
+    "controls": "EMF measurement filters",
+    "stationIdPlaceholder": "Station ID…",
     "allRegions": "All regions"
+  },
+  "states": {
+    "loading": "Loading EMF measurements...",
+    "errorTitle": "Couldn't load EMF measurements",
+    "errorDescription": "Please try again.",
+    "emptyTitle": "No records to display",
+    "emptyFiltered": "No records match the selected filters"
   }
 }

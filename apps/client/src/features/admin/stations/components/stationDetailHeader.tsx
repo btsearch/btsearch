@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useNavActionTarget } from "@/contexts/navActions";
 import { DetailHeaderMetaItem, DetailHeaderTimestamp } from "@/features/admin/components/detailHeaderMeta";
 import { useDeleteStationMutation } from "@/features/admin/stations/mutations";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useScrolled } from "@/hooks/useScrolled";
 import { showApiError } from "@/lib/api";
@@ -58,9 +59,9 @@ export function StationDetailHeader({
 
   const { ref: headerRef, scrolled } = useScrolled();
   const stationLabel = isCreateMode ? t("common:labels.newStation") : (station?.station_id ?? stationId);
-  const operatorLabel = selectedOperator?.name ?? station?.operator.name ?? "-";
+  const summaryOperator = selectedOperator ?? station?.operator;
   const locationLabel = station?.location ? [station.location.city, station.location.address].filter(Boolean).join(", ") : "-";
-  const operatorAccentColor = selectedOperator ? getOperatorColor(selectedOperator.mnc) : "transparent";
+  const operatorAccentColor = summaryOperator ? getOperatorColor(summaryOperator.mnc ?? 0) : "transparent";
   const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
   const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
 
@@ -187,17 +188,21 @@ export function StationDetailHeader({
         </div>
 
         <div className="border-border/50 bg-background max-md:border-b max-md:px-4 max-md:py-2 md:mt-2 md:border-t md:pt-2">
-          <div className="flex items-start gap-3 overflow-hidden">
-            {selectedOperator && (
-              <div className="mt-1.5 size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(selectedOperator.mnc) }} />
-            )}
+          <div className="overflow-hidden">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 min-w-0">
+                {summaryOperator ? (
+                  <DialogOperatorName
+                    name={summaryOperator.name}
+                    mnc={summaryOperator.mnc ?? 0}
+                    compact
+                    labelClassName="text-sm leading-5 font-semibold"
+                  />
+                ) : null}
                 <h1 className="text-sm font-semibold text-foreground truncate">{stationLabel}</h1>
-                {!isCreateMode && station?.status && <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} />}
+                {!isCreateMode && station?.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
               </div>
               <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 sm:flex sm:items-center sm:gap-4 overflow-hidden">
-                <DetailHeaderMetaItem label={t("common:labels.operator")} value={operatorLabel} className="min-w-0 sm:max-w-40" />
                 <DetailHeaderMetaItem label={t("common:labels.id")} value={station?.id ?? "-"} />
                 <DetailHeaderTimestamp label={t("common:labels.created")} value={station?.createdAt} locale={i18n.language} />
                 <DetailHeaderTimestamp label={t("common:labels.updated")} value={station?.updatedAt} locale={i18n.language} />

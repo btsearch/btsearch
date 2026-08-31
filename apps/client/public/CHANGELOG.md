@@ -1,6 +1,17 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-08-31
+
+### 🚀 Enhancements
+
+- Advanced map and station searches can now filter for stations with or without azimuths using `has_azimuth:true` or `has_azimuth:false`
+- Advanced map and station searches can now filter by cell type using `macro`, `micro`, `pico`, `femto` or `small`
+
+### 🩹 Fixes
+
+- Terrain profiles now report an inconclusive result instead of visible whenever building or vegetation data is incomplete
+
 # 2026-08-28
 
 ### 🩹 Fixes

@@ -157,7 +157,7 @@ function queueCloudPatch(userId: string, patch: CloudPreferencesPatch, send: (pa
   });
 }
 
-function areCLFDescriptionTemplatesEqual(left: CLFDescriptionTemplates, right: CLFDescriptionTemplates) {
+export function areCLFDescriptionTemplatesEqual(left: CLFDescriptionTemplates, right: CLFDescriptionTemplates) {
   return CLF_DESCRIPTION_TEMPLATE_RATS.every((rat) => left[rat] === right[rat]);
 }
 

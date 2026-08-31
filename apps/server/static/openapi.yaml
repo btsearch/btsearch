@@ -2978,8 +2978,8 @@ paths:
       description: |
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
-        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive)
-        - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed
+        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false)
+        - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed, cell_type (macro/MACROCELL, micro/MICROCELL, pico/PICOCELL, femto/FEMTOCELL, small/SMALLCELL)
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
         - **lteCells**: enbid, ecid, lte_clid, tac, lte_pci, earfcn, supports_iot

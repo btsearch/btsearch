@@ -1266,7 +1266,7 @@ function AnalyzerPage() {
   const selectionBar =
     selectedCount > 0 ? (
       <div
-        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5"
+        className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5"
         role="status"
         aria-live="polite"
       >
@@ -1540,7 +1540,16 @@ function AnalyzerPage() {
               >
                 <SelectTrigger className="w-full sm:min-w-40">
                   <SelectValue>
-                    {operatorFilter === "all" ? t("common:status.all") : (MNC_NAMES[Number(operatorFilter)] ?? operatorFilter)}
+                    {operatorFilter === "all" ? (
+                      t("common:status.all")
+                    ) : (
+                      <DialogOperatorName
+                        name={MNC_NAMES[Number(operatorFilter)] ?? operatorFilter}
+                        mnc={Number(operatorFilter)}
+                        compact
+                        labelClassName="text-sm font-normal"
+                      />
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

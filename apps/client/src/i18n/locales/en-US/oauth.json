@@ -73,7 +73,7 @@
       "rotatedTitle": "New client secret",
       "clientId": "Client ID",
       "clientSecret": "Client secret",
-      "warning": "Store the client secret now — it will not be shown again",
+      "warning": "Store the client secret now - it will not be shown again",
       "publicClientNote": "Native apps don't receive a client secret. Authorization requires PKCE",
       "done": "Done"
     },

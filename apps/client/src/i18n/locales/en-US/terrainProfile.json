@@ -37,17 +37,24 @@
     "required": "Choose an antenna sector to run the analysis"
   },
   "verdict": {
-    "clear": "Station is visible",
-    "constrained": "Limited visibility",
-    "blocked": "Station is obstructed",
-    "unavailable": "Visibility could not be assessed",
+    "clear": "Modeled path is unobstructed",
+    "constrained": "Modeled path has limited clearance",
+    "blocked": "Modeled path is obstructed",
+    "unavailable": "Path assessment is inconclusive",
     "summary": "{{distance}} km · azimuth {{bearing}}°",
-    "surfaceOnly": "The terrain itself is clear. Buildings or vegetation constrain the path"
+    "surfaceOnly": "The terrain itself is clear. Buildings or vegetation constrain the path",
+    "description": {
+      "clear": "Terrain, buildings and vegetation do not obstruct the modeled path. This favors reception, but actual signal and speed may vary",
+      "constrained": "The modeled path passes close to terrain, buildings or vegetation. Reception may be less reliable",
+      "blocked": "Terrain, buildings or vegetation obstruct the modeled path. Reception may be weaker or less stable",
+      "unavailable": "Building and vegetation coverage is incomplete, so reception conditions cannot be assessed reliably"
+    }
   },
   "metrics": {
     "pathLoss": "Path loss",
     "antennaHeight": "Antenna height",
-    "fieldStrength": "Field strength"
+    "fieldStrength": "Reference field strength (1 kW ERP)",
+    "fieldStrengthDescription": "Normalized ITU-R P.1812 field strength for 1 kW ERP. It is not the station's actual signal level and cannot predict data speed"
   },
   "chart": {
     "label": "Terrain and line-of-sight profile",

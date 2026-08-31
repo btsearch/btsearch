@@ -83,9 +83,9 @@ function resolveSwatchColor(hasStation: boolean, operatorMnc: number | null, ope
   return undefined;
 }
 
-function InlineMetric({ label, value }: { label: string; value: string }) {
+function InlineMetric({ label, value, description }: { label: string; value: string; description?: string }) {
   return (
-    <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+    <span className="flex items-baseline gap-1.5 whitespace-nowrap" title={description}>
       <span>{label}</span>
       <span className="font-mono text-xs font-medium tabular-nums text-foreground">{value}</span>
     </span>
@@ -221,18 +221,23 @@ export default function TerrainProfilePanel({
               )}
             </div>
             {ready !== null && !outOfAzimuth ? (
-              <div className="mt-1.5 flex items-center gap-1.5">
+              <div className="mt-1.5 flex min-w-0 items-start gap-1.5">
                 <HugeiconsIcon
                   icon={VERDICT_ICON[ready.assessment.status]}
-                  className={cn("size-4 shrink-0", VERDICT_TEXT[ready.assessment.status])}
+                  className={cn("mt-0.5 size-4 shrink-0", VERDICT_TEXT[ready.assessment.status])}
                 />
-                <span className="text-sm font-medium">{t(`verdict.${ready.assessment.status}`)}</span>
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                  {t("verdict.summary", {
-                    distance: (ready.path.distance_m / 1000).toFixed(2),
-                    bearing: ready.path.bearing_deg.toFixed(1),
-                  })}
-                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-sm font-medium">{t(`verdict.${ready.assessment.status}`)}</span>
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {t("verdict.summary", {
+                        distance: (ready.path.distance_m / 1000).toFixed(2),
+                        bearing: ready.path.bearing_deg.toFixed(1),
+                      })}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{t(`verdict.description.${ready.assessment.status}`)}</p>
+                </div>
               </div>
             ) : null}
           </div>
@@ -353,10 +358,14 @@ export default function TerrainProfilePanel({
           {ready !== null ? (
             <>
               <InlineMetric label={t("metrics.pathLoss")} value={`${ready.propagation.basic_transmission_loss_db.toFixed(1)} dB`} />
-              <InlineMetric label={t("metrics.fieldStrength")} value={`${ready.propagation.field_strength_dbuvm.toFixed(1)} dBuV/m`} />
+              <InlineMetric
+                label={t("metrics.fieldStrength")}
+                value={`${ready.propagation.field_strength_dbuvm.toFixed(1)} dBuV/m`}
+                description={t("metrics.fieldStrengthDescription")}
+              />
               <InlineMetric
                 label={t("metrics.antennaHeight")}
-                value={selectedCandidate === undefined ? "—" : `${selectedCandidate.antenna.mountedHeight.toFixed(1)} m`}
+                value={selectedCandidate === undefined ? "-" : `${selectedCandidate.antenna.mountedHeight.toFixed(1)} m`}
               />
               <span className="ms-auto flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium">ITU-R P.1812-8</span>

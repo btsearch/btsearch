@@ -109,7 +109,7 @@
   },
   "table": {
     "cells": "Ilość komórek",
-    "cellCountsLabel": "Komórki — dodane: {{added}}, zaktualizowane: {{updated}}, usunięte: {{deleted}}",
+    "cellCountsLabel": "Komórki - dodane: {{added}}, zaktualizowane: {{updated}}, usunięte: {{deleted}}",
     "cellCountsLegend": "Dodane / zaktualizowane / usunięte komórki",
     "changes": "Zmiany",
     "review": "Rozpatrzenie",

@@ -1,4 +1,7 @@
-import { ArrowLeft01Icon, ArrowLeftDoubleIcon, ArrowRight01Icon, ArrowRightDoubleIcon } from "@hugeicons/core-free-icons";
+import ArrowLeft01Icon from "@hugeicons/core-free-icons/ArrowLeft01Icon";
+import ArrowLeftDoubleIcon from "@hugeicons/core-free-icons/ArrowLeftDoubleIcon";
+import ArrowRight01Icon from "@hugeicons/core-free-icons/ArrowRight01Icon";
+import ArrowRightDoubleIcon from "@hugeicons/core-free-icons/ArrowRightDoubleIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactTable, RowData } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
@@ -32,20 +35,14 @@ export function DataTablePagination<TData extends RowData>({
 
   return (
     <div className="flex items-center justify-between gap-4 px-2">
-      <div className="text-muted-foreground text-sm tabular-nums">
-        {totalItems !== undefined ? (
-          <>
-            {startRow}-{endRow} of {totalItems.toLocaleString(i18n.language)}
-          </>
-        ) : (
-          <>
-            Page {pageIndex + 1} of {pageCount}
-          </>
-        )}
+      <div className="text-muted-foreground text-sm tabular-nums" aria-live="polite" aria-atomic="true">
+        {totalItems !== undefined
+          ? t("pagination.range", { start: startRow, end: endRow, total: totalItems.toLocaleString(i18n.language) })
+          : t("pagination.pageCount", { page: pageIndex + 1, pages: pageCount })}
       </div>
 
       <div className="flex items-center gap-2">
-        {showRowsPerPage && (
+        {showRowsPerPage ? (
           <div className="hidden items-center gap-2 sm:flex">
             <span className="text-muted-foreground text-sm hidden sm:block">{t("pagination.rows")}</span>
             <Select
@@ -54,7 +51,7 @@ export function DataTablePagination<TData extends RowData>({
                 table.setPageSize(Number(value));
               }}
             >
-              <SelectTrigger size="sm" className="w-16">
+              <SelectTrigger size="sm" className="w-16" aria-label={t("pagination.rowsPerPage")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -66,20 +63,20 @@ export function DataTablePagination<TData extends RowData>({
               </SelectContent>
             </Select>
           </div>
-        )}
+        ) : null}
 
         <div className="flex items-center gap-1">
           <Button variant="outline" size="icon" className="size-8" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
-            <HugeiconsIcon icon={ArrowLeftDoubleIcon} className="size-4" />
-            <span className="sr-only">First page</span>
+            <HugeiconsIcon icon={ArrowLeftDoubleIcon} className="size-4" aria-hidden="true" />
+            <span className="sr-only">{t("pagination.firstPage")}</span>
           </Button>
           <Button variant="outline" size="icon" className="size-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            <span className="sr-only">Previous page</span>
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden="true" />
+            <span className="sr-only">{t("pagination.previousPage")}</span>
           </Button>
           <Button variant="outline" size="icon" className="size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
-            <span className="sr-only">Next page</span>
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden="true" />
+            <span className="sr-only">{t("pagination.nextPage")}</span>
           </Button>
           <Button
             variant="outline"
@@ -88,8 +85,8 @@ export function DataTablePagination<TData extends RowData>({
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
-            <HugeiconsIcon icon={ArrowRightDoubleIcon} className="size-4" />
-            <span className="sr-only">Last page</span>
+            <HugeiconsIcon icon={ArrowRightDoubleIcon} className="size-4" aria-hidden="true" />
+            <span className="sr-only">{t("pagination.lastPage")}</span>
           </Button>
         </div>
       </div>

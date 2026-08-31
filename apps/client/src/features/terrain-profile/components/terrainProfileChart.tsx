@@ -41,7 +41,7 @@ function endpointHeightAgl(sample: TerrainProfileSample | undefined): number | n
 }
 
 function formatMeters(value: number | null) {
-  return value === null ? "—" : `${value.toFixed(1)} m`;
+  return value === null ? "-" : `${value.toFixed(1)} m`;
 }
 
 function isChartSample(value: unknown): value is ChartSample {
@@ -237,7 +237,7 @@ export default function TerrainProfileChart({ samples, bullingtonDistanceKm, tot
               strokeWidth={2}
               label={{
                 value: t("chart.endpoints.receiver", {
-                  height: profile.receiverHeightAglM === null ? "—" : profile.receiverHeightAglM.toFixed(1),
+                  height: profile.receiverHeightAglM === null ? "-" : profile.receiverHeightAglM.toFixed(1),
                 }),
                 position: "insideTopLeft",
                 fill: "var(--foreground)",
@@ -257,7 +257,7 @@ export default function TerrainProfileChart({ samples, bullingtonDistanceKm, tot
               strokeWidth={2}
               label={{
                 value: t("chart.endpoints.station", {
-                  height: profile.stationHeightAglM === null ? "—" : profile.stationHeightAglM.toFixed(1),
+                  height: profile.stationHeightAglM === null ? "-" : profile.stationHeightAglM.toFixed(1),
                 }),
                 position: "insideTopRight",
                 fill: "var(--foreground)",

@@ -11,7 +11,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -21,17 +21,18 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useIsMobile } from "@/hooks/useMobile";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { TOP4_MNCS } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
 import type { Operator, Region, StationStatus } from "@/types/station";
 
@@ -359,8 +360,12 @@ function PhotosMobileFilterRail({
                   selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                <span className="min-w-0 flex-1 truncate">{operator.name}</span>
+                <DialogOperatorName
+                  name={operator.name}
+                  mnc={operator.mnc ?? 0}
+                  compact
+                  labelClassName={cn("text-sm leading-5 font-normal", selected && "text-primary")}
+                />
               </button>
             );
           })}
@@ -536,6 +541,18 @@ export function PhotosGallery() {
     () => (operator === null ? null : (operators.find((item) => item.id === operator) ?? null)),
     [operator, operators],
   );
+  const { sortedOperators, topOperatorCount, hasOperatorGroupSeparator } = useMemo(() => {
+    const topOperators = operators
+      .filter((item) => TOP4_MNCS.includes(item.mnc))
+      .sort((first, second) => TOP4_MNCS.indexOf(first.mnc) - TOP4_MNCS.indexOf(second.mnc));
+    const otherOperators = operators.filter((item) => !TOP4_MNCS.includes(item.mnc));
+
+    return {
+      sortedOperators: [...topOperators, ...otherOperators],
+      topOperatorCount: topOperators.length,
+      hasOperatorGroupSeparator: topOperators.length > 0 && otherOperators.length > 0,
+    };
+  }, [operators]);
   const selectedRegion = useMemo(() => (region === null ? null : (regions.find((item) => item.code === region) ?? null)), [region, regions]);
   const sortLabels = useMemo<Record<PhotosGallerySortBy, string>>(
     () => ({
@@ -790,23 +807,27 @@ export function PhotosGallery() {
                 <Select value={operator === null ? ALL_FILTER_VALUE : String(operator)} onValueChange={handleOperatorChange}>
                   <SelectTrigger className="h-8 w-full">
                     <SelectValue>
-                      <span className="flex items-center gap-2">
-                        {selectedOperator ? (
-                          <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(selectedOperator.mnc ?? 0) }} />
-                        ) : null}
-                        <span className="truncate">{selectedOperator?.name ?? t("common:labels.allOperators")}</span>
-                      </span>
+                      {selectedOperator ? (
+                        <DialogOperatorName
+                          name={selectedOperator.name}
+                          mnc={selectedOperator.mnc ?? 0}
+                          compact
+                          labelClassName="text-sm leading-5 font-normal"
+                        />
+                      ) : (
+                        t("common:labels.allOperators")
+                      )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL_FILTER_VALUE}>{t("common:labels.allOperators")}</SelectItem>
-                    {operators.map((item) => (
-                      <SelectItem key={item.id} value={String(item.id)}>
-                        <span className="flex items-center gap-2">
-                          <span className="size-2.5 rounded-[2px]" style={{ backgroundColor: getOperatorColor(item.mnc ?? 0) }} />
-                          {item.name}
-                        </span>
-                      </SelectItem>
+                    {sortedOperators.map((item, index) => (
+                      <Fragment key={item.id}>
+                        {hasOperatorGroupSeparator && index === topOperatorCount ? <SelectSeparator /> : null}
+                        <SelectItem value={String(item.id)}>
+                          <DialogOperatorName name={item.name} mnc={item.mnc ?? 0} compact labelClassName="text-sm leading-5 font-normal" />
+                        </SelectItem>
+                      </Fragment>
                     ))}
                   </SelectContent>
                 </Select>
@@ -941,7 +962,7 @@ export function PhotosGallery() {
                   activeFilterCount={activeFilterCount}
                   filters={storedFilters}
                   order={order}
-                  operators={operators}
+                  operators={sortedOperators}
                   regions={regions}
                   search={search}
                   selectedOperator={selectedOperator}

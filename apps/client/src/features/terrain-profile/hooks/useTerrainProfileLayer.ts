@@ -49,7 +49,7 @@ function buildPathData(
     features: [
       {
         type: "Feature",
-        properties: { status: ready?.assessment.surface_status ?? "unknown" },
+        properties: { status: ready?.assessment.status ?? "unknown" },
         geometry: { type: "LineString", coordinates: lineCoordinates },
       },
     ],
@@ -62,7 +62,19 @@ function createLineLayer(): LayerSpecification {
     type: "line",
     source: SOURCE_ID,
     paint: {
-      "line-color": ["match", ["get", "status"], "clear", "#16a34a", "constrained", "#d97706", "blocked", "#dc2626", "#2563eb"],
+      "line-color": [
+        "match",
+        ["get", "status"],
+        "clear",
+        "#16a34a",
+        "constrained",
+        "#d97706",
+        "blocked",
+        "#dc2626",
+        "unavailable",
+        "#64748b",
+        "#2563eb",
+      ],
       "line-width": 4,
       "line-opacity": 0.9,
     },

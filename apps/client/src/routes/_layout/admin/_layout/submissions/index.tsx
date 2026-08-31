@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Search01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, Search01Icon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -53,7 +53,15 @@ const DESKTOP_PAGINATION_CONFIG = {
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
 };
 const MOBILE_ROW_HEIGHT_FALLBACK = 157;
-const MOBILE_PAGINATION_CONFIG = { headerHeight: 0, paginationHeight: 51, minRows: 1 };
+const MOBILE_PAGINATION_CONFIG = { headerHeight: DATA_TABLE_HEADER_HEIGHT, paginationHeight: 51, minRows: 1 };
+const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
+const MOBILE_SUBMISSION_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => (
+  <div key={index} className="space-y-3 p-3">
+    <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+    <div className="h-5 w-1/2 animate-pulse rounded bg-muted" />
+    <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+  </div>
+));
 
 function loadStoredNumberArray(key: string) {
   try {
@@ -385,17 +393,6 @@ function AdminSubmissionsListPage() {
 
         {isMobile ? (
           <div className="flex flex-col">
-            {viewState === "loading" ? (
-              <div className="divide-y rounded-t-lg border border-b-0 bg-card" aria-hidden="true">
-                {Array.from({ length: Math.min(pagination.pageSize, 6) }, (_, index) => (
-                  <div key={index} className="space-y-3 p-3">
-                    <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                    <div className="h-5 w-1/2 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-                  </div>
-                ))}
-              </div>
-            ) : null}
             {viewState === "error" ? (
               <div
                 className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-t-lg border border-b-0 bg-card px-4 text-center text-muted-foreground"
@@ -410,43 +407,65 @@ function AdminSubmissionsListPage() {
                   {t("common:actions.retry")}
                 </Button>
               </div>
-            ) : null}
-            {viewState === "empty" ? (
-              <div
-                className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-t-lg border border-b-0 bg-card px-4 text-center text-muted-foreground"
-                role="status"
-              >
-                <HugeiconsIcon icon={Search01Icon} className="mb-2 size-10 opacity-20" />
-                <p className="font-medium text-foreground">{t("table.empty")}</p>
-                <p className="text-sm opacity-80">{t("table.emptyHint")}</p>
+            ) : (
+              <div className="overflow-hidden rounded-t-lg border border-b-0 bg-card">
+                <div className="flex h-10 items-center gap-1 border-b bg-muted/20 px-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={handleSortToggle}
+                    aria-label={`${t("common:labels.submitted")}: ${sortOrder === "asc" ? t("table.sortAscending") : t("table.sortDescending")}`}
+                    aria-pressed="true"
+                  >
+                    {t("common:labels.submitted")}
+                    <HugeiconsIcon
+                      icon={Sorting05Icon}
+                      aria-hidden="true"
+                      className="size-3.5 text-foreground"
+                      style={sortOrder === "asc" ? SORT_ASC_STYLE : undefined}
+                    />
+                  </button>
+                </div>
+                {viewState === "loading" ? (
+                  <div className="divide-y" aria-hidden="true">
+                    {MOBILE_SUBMISSION_SKELETON_ROWS.slice(0, Math.min(pagination.pageSize, MOBILE_SUBMISSION_SKELETON_ROWS.length))}
+                  </div>
+                ) : null}
+                {viewState === "empty" ? (
+                  <div className="flex min-h-64 flex-1 flex-col items-center justify-center px-4 text-center text-muted-foreground" role="status">
+                    <HugeiconsIcon icon={Search01Icon} className="mb-2 size-10 opacity-20" />
+                    <p className="font-medium text-foreground">{t("table.empty")}</p>
+                    <p className="text-sm opacity-80">{t("table.emptyHint")}</p>
+                  </div>
+                ) : null}
+                {viewState === "ready" ? (
+                  <ul ref={listRef} className="divide-y">
+                    {submissions.map((submission) => (
+                      <li key={submission.id}>
+                        <Link
+                          to="/admin/submissions/$id"
+                          params={{ id: submission.id }}
+                          className="group/header block px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          aria-label={getRowAriaLabel(submission)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <SubmissionStationSummary submission={submission} getOperatorById={getOperatorById} />
+                            <SubmissionStatusSummary submission={submission} />
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <SubmissionChangesSummary submission={submission} />
+                            <SubmissionTimestamp value={submission.createdAt} />
+                          </div>
+                          <div className="mt-3 border-t pt-2">
+                            <SubmissionSubmitterSummary submission={submission} />
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
-            ) : null}
-            {viewState === "ready" ? (
-              <ul ref={listRef} className="divide-y rounded-t-lg border border-b-0 bg-card">
-                {submissions.map((submission) => (
-                  <li key={submission.id}>
-                    <Link
-                      to="/admin/submissions/$id"
-                      params={{ id: submission.id }}
-                      className="group/header block px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                      aria-label={getRowAriaLabel(submission)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <SubmissionStationSummary submission={submission} getOperatorById={getOperatorById} />
-                        <SubmissionStatusSummary submission={submission} />
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <SubmissionChangesSummary submission={submission} />
-                        <SubmissionTimestamp value={submission.createdAt} />
-                      </div>
-                      <div className="mt-3 border-t pt-2">
-                        <SubmissionSubmitterSummary submission={submission} />
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            )}
 
             <DataTable.PaginationFooter>
               <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} showRowsPerPage={false} />

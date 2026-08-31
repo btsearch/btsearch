@@ -554,8 +554,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onClearSearch={clearSearch}
               onMobileExpand={handleMobileExpand}
               mode={searchMode}
-              showModeControl={supportsMapMode}
-              mapModeDisabled={isUkeSource}
+              showModeControl={supportsMapMode && !isUkeSource}
               onModeChange={handleSearchModeChange}
               filterSlot={
                 <>

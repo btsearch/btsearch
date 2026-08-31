@@ -37,17 +37,24 @@
     "required": "Wybierz sektor antenowy, aby uruchomić analizę"
   },
   "verdict": {
-    "clear": "Stacja jest widoczna",
-    "constrained": "Widoczność ograniczona",
-    "blocked": "Stacja przesłonięta",
-    "unavailable": "Nie można ocenić widoczności",
+    "clear": "Modelowana trasa jest wolna od przeszkód",
+    "constrained": "Modelowana trasa ma ograniczony prześwit",
+    "blocked": "Modelowana trasa jest przesłonięta",
+    "unavailable": "Ocena trasy jest niejednoznaczna",
     "summary": "{{distance}} km · azymut {{bearing}}°",
-    "surfaceOnly": "Sam teren nie przesłania trasy. Ograniczeniem są budynki lub roślinność"
+    "surfaceOnly": "Sam teren nie przesłania trasy. Ograniczeniem są budynki lub roślinność",
+    "description": {
+      "clear": "Teren, budynki ani roślinność nie przesłaniają modelowanej trasy. Sprzyja to odbiorowi, ale rzeczywisty poziom sygnału i prędkość mogą się różnić",
+      "constrained": "Modelowana trasa przebiega blisko terenu, budynków lub roślinności. Odbiór może być mniej stabilny",
+      "blocked": "Teren, budynki lub roślinność przesłaniają modelowaną trasę. Odbiór może być słabszy lub mniej stabilny",
+      "unavailable": "Dane o budynkach i roślinności są niepełne, dlatego nie można wiarygodnie ocenić warunków odbioru"
+    }
   },
   "metrics": {
     "pathLoss": "Tłumienie trasy",
     "antennaHeight": "Wysokość anteny",
-    "fieldStrength": "Natężenie pola"
+    "fieldStrength": "Referencyjne natężenie pola (1 kW ERP)",
+    "fieldStrengthDescription": "Natężenie pola znormalizowane przez ITU-R P.1812 do ERP 1 kW. Nie jest to rzeczywisty poziom sygnału stacji i nie pozwala przewidzieć szybkości transmisji danych"
   },
   "chart": {
     "label": "Profil terenu i widoczności optycznej",

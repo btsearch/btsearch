@@ -9,9 +9,11 @@ import {
   operators,
   regions,
   stationPhotoSelections,
+  stationSectors,
   stations,
   umtsCells,
 } from "@openbts/drizzle";
+import { CELL_TYPES, CELL_TYPE_SHORT_LABELS, type CellType } from "@openbts/shared/cellTypes";
 import { type SQL, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 
@@ -29,6 +31,7 @@ type FilterRefs = {
   bands: typeof bands;
   operators: typeof operators;
   regions: typeof regions;
+  stationSectors: typeof stationSectors;
 };
 export const defaultFilterRefs: FilterRefs = {
   locations,
@@ -42,6 +45,7 @@ export const defaultFilterRefs: FilterRefs = {
   bands,
   operators,
   regions,
+  stationSectors,
 };
 export type FilterCondition = {
   table: FilterTable;
@@ -93,6 +97,15 @@ function parseNumbers(v: FilterValue): number[] {
 
 function parseStrings(v: FilterValue): string[] {
   return stringListSchema.parse(String(v));
+}
+
+function parseCellTypes(v: FilterValue): CellType[] {
+  const values = parseStrings(v).map((value) => {
+    const normalized = value.toLowerCase();
+    return CELL_TYPES.find((cellType) => cellType.toLowerCase() === normalized || CELL_TYPE_SHORT_LABELS[cellType] === normalized);
+  });
+
+  return z.array(z.enum(CELL_TYPES)).parse(values);
 }
 
 function parseRats(v: FilterValue): ("GSM" | "UMTS" | "LTE" | "NR")[] {
@@ -213,6 +226,14 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
       return hasPhoto ? sql`EXISTS ${subquery}` : sql`NOT EXISTS ${subquery}`;
     },
   },
+  has_azimuth: {
+    table: "stations",
+    buildCondition: (value, refs) => {
+      const hasAzimuth = parseBoolean(value);
+      const subquery = sql`(SELECT 1 FROM ${refs.stationSectors} WHERE ${refs.stationSectors.station_id} = ${refs.stations.id})`;
+      return hasAzimuth ? sql`EXISTS ${subquery}` : sql`NOT EXISTS ${subquery}`;
+    },
+  },
 
   // cells
   band: {
@@ -238,7 +259,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   },
   cell_type: {
     table: "cells",
-    buildCondition: (value, refs) => buildInArray(refs.cells.type, parseStrings)(value),
+    buildCondition: (value, refs) => buildInArray(refs.cells.type, parseCellTypes)(value),
   },
 
   // gsmCells
