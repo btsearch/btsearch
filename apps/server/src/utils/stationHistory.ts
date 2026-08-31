@@ -20,7 +20,7 @@ export type StationHistoryAuthor = {
 
 export type StationHistoryEntry = {
   id: number;
-  kind: "station" | "location" | "cells" | "sectors" | "network_ids";
+  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
   action: "create" | "update" | "delete";
   createdAt: Date;
   changes: StationHistoryChange[];
@@ -230,6 +230,48 @@ function azimuthList(value: unknown): number[] {
     .sort((a, b) => a - b);
 }
 
+function photoSelections(value: unknown): Map<number, boolean> {
+  const selections = new Map<number, boolean>();
+  if (!Array.isArray(value)) return selections;
+
+  for (const selection of value) {
+    if (!isPlainObject(selection)) continue;
+    const photoId = selection.location_photo_id;
+    if (typeof photoId !== "number") continue;
+    selections.set(photoId, selection.is_main === true);
+  }
+
+  return selections;
+}
+
+function mainPhotoId(selections: ReadonlyMap<number, boolean>): number | null {
+  let result: number | null = null;
+  for (const [photoId, isMain] of selections) {
+    if (isMain && (result === null || photoId < result)) result = photoId;
+  }
+  return result;
+}
+
+function photoReference(photoId: number | null): string | null {
+  return photoId === null ? null : `#${photoId}`;
+}
+
+function transformPhotos(row: AuditRow): { action: StationHistoryEntry["action"]; changes: StationHistoryChange[] } {
+  const previous = photoSelections(row.old_values);
+  const next = photoSelections(row.new_values);
+  const addedIds = [...next.keys()].filter((photoId) => !previous.has(photoId)).sort((a, b) => a - b);
+  const deletedIds = [...previous.keys()].filter((photoId) => !next.has(photoId)).sort((a, b) => a - b);
+  const previousMainId = mainPhotoId(previous);
+  const nextMainId = mainPhotoId(next);
+  const changes: StationHistoryChange[] = [
+    ...deletedIds.map((photoId) => ({ field: "photo", from: `#${photoId}`, to: null })),
+    ...addedIds.map((photoId) => ({ field: "photo", from: null, to: `#${photoId}` })),
+    ...(previousMainId === nextMainId ? [] : [{ field: "main_photo", from: photoReference(previousMainId), to: photoReference(nextMainId) }]),
+  ];
+  const action = addedIds.length > 0 && deletedIds.length === 0 ? "create" : addedIds.length === 0 && deletedIds.length > 0 ? "delete" : "update";
+  return { action, changes };
+}
+
 export function enrichSectorAzimuths(map: Map<number, number>, rows: AuditRow[]): void {
   for (const row of rows) {
     if (row.table_name !== "station_sectors") continue;
@@ -298,6 +340,13 @@ export function transformAuditRow(row: AuditRow, lookups: StationHistoryLookups)
       kind = "cells";
       changes = transformCells(row, action, lookups);
       break;
+    case "station_photo_selections": {
+      kind = "photos";
+      const photoChanges = transformPhotos(row);
+      action = photoChanges.action;
+      changes = photoChanges.changes;
+      break;
+    }
     default:
       return null;
   }

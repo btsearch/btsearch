@@ -1,4 +1,4 @@
-import { auditLogs, submissions } from "@openbts/drizzle";
+import { attachments, auditLogs, locationPhotos, submissions } from "@openbts/drizzle";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -35,13 +35,18 @@ const historyAuthorSchema = z.object({
   username: z.string(),
   image: z.string().nullable(),
 });
+const historyPhotoReferenceSchema = z.object({
+  id: z.number(),
+  attachment_uuid: z.string(),
+});
 const historyEntrySchema = z.object({
   id: z.number(),
-  kind: z.enum(["station", "location", "cells", "sectors", "network_ids"]),
+  kind: z.enum(["station", "location", "cells", "sectors", "network_ids", "photos"]),
   action: z.enum(["create", "update", "delete"]),
   createdAt: z.date(),
   changes: z.array(historyChangeSchema),
   author: historyAuthorSchema.nullable().optional(),
+  photoReferences: z.array(historyPhotoReferenceSchema),
 });
 
 const schemaRoute = {
@@ -63,7 +68,9 @@ const schemaRoute = {
 type ReqParams = { Params: z.infer<typeof schemaRoute.params> };
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type RequestData = ReqParams & ReqQuery;
-type ResponseBody = { data: StationHistoryEntry[]; nextCursor: number | null };
+type StationHistoryPhotoReference = z.infer<typeof historyPhotoReferenceSchema>;
+type StationHistoryResponseEntry = StationHistoryEntry & { photoReferences: StationHistoryPhotoReference[] };
+type ResponseBody = { data: StationHistoryResponseEntry[]; nextCursor: number | null };
 
 type AuditRow = typeof auditLogs.$inferSelect;
 
@@ -121,6 +128,54 @@ async function fetchAuthors(rows: AuditRow[]): Promise<Map<string, StationHistor
   );
 }
 
+function parsePhotoId(value: unknown): number | null {
+  if (typeof value !== "string" || !value.startsWith("#")) return null;
+  const photoId = Number(value.slice(1));
+  return Number.isInteger(photoId) && photoId > 0 ? photoId : null;
+}
+
+async function fetchPhotoReferences(entries: StationHistoryEntry[]): Promise<Map<number, StationHistoryPhotoReference>> {
+  const photoIds = new Set<number>();
+  for (const entry of entries) {
+    for (const change of entry.changes) {
+      if (change.field !== "photo" && change.field !== "main_photo") continue;
+      const fromId = parsePhotoId(change.from);
+      const toId = parsePhotoId(change.to);
+      if (fromId !== null) photoIds.add(fromId);
+      if (toId !== null) photoIds.add(toId);
+    }
+  }
+  if (photoIds.size === 0) return new Map();
+
+  const rows = await db
+    .select({ id: locationPhotos.id, attachment_uuid: attachments.uuid })
+    .from(locationPhotos)
+    .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
+    .where(inArray(locationPhotos.id, [...photoIds]));
+  return new Map(rows.map((photo) => [photo.id, photo]));
+}
+
+function resolveEntryPhotoReferences(
+  entry: StationHistoryEntry,
+  references: ReadonlyMap<number, StationHistoryPhotoReference>,
+): StationHistoryPhotoReference[] {
+  const entryPhotoIds = new Set<number>();
+  for (const change of entry.changes) {
+    if (change.field !== "photo" && change.field !== "main_photo") continue;
+    const fromId = parsePhotoId(change.from);
+    const toId = parsePhotoId(change.to);
+    if (fromId !== null) entryPhotoIds.add(fromId);
+    if (toId !== null) entryPhotoIds.add(toId);
+  }
+
+  const result: StationHistoryPhotoReference[] = [];
+  for (const photoId of entryPhotoIds) {
+    const reference = references.get(photoId);
+    if (reference !== undefined) result.push(reference);
+  }
+  return result;
+}
+
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseBody>>) {
   const { station_id } = req.params;
   const { limit, cursor } = req.query;
@@ -135,7 +190,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const submissionIds = stationSubmissions.map((submission) => submission.id);
 
   const conditions = [
-    and(inArray(auditLogs.table_name, ["stations", "station_sectors", "extra_identificators"]), eq(auditLogs.record_id, station_id)),
+    and(
+      inArray(auditLogs.table_name, ["stations", "station_sectors", "extra_identificators", "station_photo_selections"]),
+      eq(auditLogs.record_id, station_id),
+    ),
     and(inArray(auditLogs.table_name, ["cells", "locations"]), sql`${auditLogs.metadata}->>'station_id' = ${String(station_id)}`),
   ];
   if (station.location_id !== null)
@@ -189,6 +247,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   if (entries.length > limit) nextCursor = pageEntries[pageEntries.length - 1]?.id ?? null;
   else if (hasMoreRows) nextCursor = scanCursor;
 
+  const photoReferencesPromise = fetchPhotoReferences(pageEntries);
+
   if (["admin", "editor"].includes(req.userSession?.user?.role ?? "") && pageEntries.length > 0) {
     const pageRows = pageEntries.map((entry) => rowByEntryId.get(entry.id)).filter((row): row is AuditRow => row !== undefined);
     const authors = await fetchAuthors(pageRows);
@@ -198,7 +258,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     }
   }
 
-  return res.send({ data: pageEntries, nextCursor });
+  const photoReferences = await photoReferencesPromise;
+  const responseEntries = pageEntries.map((entry) => ({ ...entry, photoReferences: resolveEntryPhotoReferences(entry, photoReferences) }));
+  return res.send({ data: responseEntries, nextCursor });
 }
 
 const getStationHistory: Route<RequestData, ResponseBody> = {

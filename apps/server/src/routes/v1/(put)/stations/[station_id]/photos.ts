@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../services/auditLog.service.js";
+import { createStationPhotoSelectionAuditLogs, loadStationPhotoSelectionSnapshots } from "../../../../../utils/stationPhotoHistory.js";
 
 const schemaRoute = {
   params: z.object({ station_id: z.coerce.number() }),
@@ -37,24 +37,21 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const previousSelections = await db
-    .select({ location_photo_id: stationPhotoSelections.location_photo_id, is_main: stationPhotoSelections.is_main })
-    .from(stationPhotoSelections)
-    .where(eq(stationPhotoSelections.station_id, station_id));
+  await db.transaction(async (tx) => {
+    const previousSelections = await loadStationPhotoSelectionSnapshots(tx, [station_id]);
 
-  if (selected.length > 0) {
-    const validPhotos = await db
-      .select({ id: locationPhotos.id })
-      .from(locationPhotos)
-      .where(and(inArray(locationPhotos.id, selected), eq(locationPhotos.location_id, station.location_id!)));
+    if (selected.length > 0) {
+      const validPhotos = await tx
+        .select({ id: locationPhotos.id })
+        .from(locationPhotos)
+        .where(and(inArray(locationPhotos.id, selected), eq(locationPhotos.location_id, station.location_id!)));
 
-    if (validPhotos.length !== selected.length) {
-      throw new ErrorResponse("BAD_REQUEST", { message: "Some photos do not belong to this station's location" });
-    }
+      if (validPhotos.length !== selected.length) {
+        throw new ErrorResponse("BAD_REQUEST", { message: "Some photos do not belong to this station's location" });
+      }
 
-    const mainId = main_id !== null && main_id !== undefined && selected.includes(main_id) ? main_id : null;
+      const mainId = main_id !== null && main_id !== undefined && selected.includes(main_id) ? main_id : null;
 
-    await db.transaction(async (tx) => {
       await tx.delete(stationPhotoSelections).where(eq(stationPhotoSelections.station_id, station_id));
       await tx.insert(stationPhotoSelections).values(
         selected.map((location_photo_id) => ({
@@ -63,27 +60,17 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           is_main: location_photo_id === mainId,
         })),
       );
-    });
-  } else {
-    await db.delete(stationPhotoSelections).where(eq(stationPhotoSelections.station_id, station_id));
-  }
+    } else {
+      await tx.delete(stationPhotoSelections).where(eq(stationPhotoSelections.station_id, station_id));
+    }
 
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "station_photo_selections",
-      record_id: station_id,
-      old_values: previousSelections,
-      new_values: selected.map((location_photo_id) => ({
-        location_photo_id,
-        is_main: location_photo_id === (main_id !== null && main_id !== undefined && selected.includes(main_id) ? main_id : null),
-      })),
-      metadata: {
-        station_id,
-      },
-    },
-    req,
-  );
+    await createStationPhotoSelectionAuditLogs({
+      handle: tx,
+      stationIds: [station_id],
+      previousSnapshots: previousSelections,
+      req,
+    });
+  });
 
   return res.send({ data: { updated: selected.length } });
 }

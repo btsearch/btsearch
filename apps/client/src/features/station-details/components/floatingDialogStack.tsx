@@ -1,11 +1,13 @@
-import { type ReactNode, Suspense, lazy } from "react";
+import { type ReactNode, Suspense, lazy, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useIsMobile } from "@/hooks/useMobile";
 
-import { assertNever } from "./floatingDialogStackTypes";
+import { assertNever, getStationHistoryTriggerId } from "./floatingDialogStackTypes";
 import type { FloatingDialogItem } from "./floatingDialogStackTypes";
 import type { FloatingStationDialogRenderProps } from "./floatingStationDialogFrame";
 import { FloatingStationDialogFrame } from "./floatingStationDialogFrame";
@@ -85,6 +87,7 @@ function renderMobileDialog(
           stationCode={dialog.stationCode}
           operatorName={dialog.operatorName}
           operatorMnc={dialog.operatorMnc}
+          modal
           onClose={onClose}
           className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-xl"
           contentClassName="border border-border/70"
@@ -183,15 +186,56 @@ function renderDesktopDialog(
 }
 
 export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, onStartTerrainProfile }: FloatingDialogStackProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["common", "stationDetails"]);
   const isMobile = useIsMobile();
   const orderedDialogs = dialogs.slice().sort((a, b) => a.zIndex - b.zIndex);
+  const topDialog = orderedDialogs[orderedDialogs.length - 1];
+  const previousTopDialogRef = useRef<FloatingDialogItem | undefined>(undefined);
+
+  useEffect(() => {
+    const previousTopDialog = previousTopDialogRef.current;
+    previousTopDialogRef.current = topDialog;
+    if (!isMobile || previousTopDialog?.kind !== "station-history" || topDialog?.kind !== "station" || previousTopDialog.stationId !== topDialog.id)
+      return;
+
+    const frameId = requestAnimationFrame(() => document.getElementById(getStationHistoryTriggerId(topDialog.id))?.focus());
+    return () => cancelAnimationFrame(frameId);
+  }, [isMobile, topDialog]);
 
   if (dialogs.length === 0) return null;
 
   if (isMobile) {
-    const topDialog = orderedDialogs[orderedDialogs.length - 1];
     if (topDialog === undefined) return null;
+
+    if (topDialog.kind === "station-history")
+      return (
+        <Dialog open modal onOpenChange={(open) => !open && onClose(topDialog.key)}>
+          <DialogContent
+            showCloseButton={false}
+            overlayClassName="bg-black/50 backdrop-blur-sm"
+            className="pointer-events-none fixed inset-0 flex h-dvh w-full max-w-none translate-x-0 translate-y-0 items-start justify-center gap-0 overflow-y-auto rounded-none bg-transparent p-4 ring-0"
+          >
+            <DialogTitle render={<span className="sr-only" />}>{t("stationDetails:history.title")}</DialogTitle>
+            <Suspense
+              fallback={
+                <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 bg-background shadow-2xl">
+                  <div className="space-y-2 border-b px-4 py-3">
+                    <Skeleton className="h-5 w-48" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                  <output className="block space-y-3 p-4" aria-label={t("common:actions.loading")}>
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </output>
+                </div>
+              }
+            >
+              {renderMobileDialog(topDialog, () => onClose(topDialog.key), onStartTerrainProfile)}
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+      );
 
     return createPortal(
       <Suspense fallback={null}>
@@ -199,7 +243,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, o
           type="button"
           className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm cursor-default"
           onClick={() => onClose(topDialog.key)}
-          aria-label={t("actions.close")}
+          aria-label={t("common:actions.close")}
         />
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto pointer-events-none">
           {renderMobileDialog(topDialog, () => onClose(topDialog.key), onStartTerrainProfile)}

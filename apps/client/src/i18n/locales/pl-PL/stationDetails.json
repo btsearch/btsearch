@@ -108,16 +108,34 @@
   },
   "history": {
     "title": "Historia zmian stacji",
+    "action": "Historia zmian",
     "tooltip": "Kliknij, aby zobaczyć historię zmian",
     "empty": "Brak zarejestrowanych zmian",
     "emptyHint": "Zmiany sprzed wprowadzenia rejestru zmian mogą nie być tutaj widoczne",
     "error": "Nie udało się wczytać historii zmian",
+    "refreshError": "Nie udało się pobrać najnowszych zmian. Poniższa historia może być nieaktualna.",
+    "loadMoreError": "Nie udało się wczytać dalszej historii.",
     "loadMore": "Wczytaj więcej",
+    "refreshing": "Odświeżanie historii",
+    "end": "Początek zarejestrowanej historii",
+    "cellCount_one": "{{count, number}} komórka",
+    "cellCount_few": "{{count, number}} komórki",
+    "cellCount_many": "{{count, number}} komórek",
+    "cellCount_other": "{{count, number}} komórki",
+    "otherCells": "Inne",
     "openAuditLog": "Logi w dzienniku",
     "openSubmissions": "Zgłoszenia",
     "values": {
       "yes": "Tak",
-      "no": "Nie"
+      "no": "Nie",
+      "previous": "Poprzednia wartość",
+      "current": "Aktualna wartość",
+      "photoReference": "Zdjęcie #{{id}}",
+      "mainPhotoReference": "Zdjęcie #{{id}} (zdjęcie główne)",
+      "openPhoto": "Otwórz zdjęcie #{{id}} w nowej karcie",
+      "photoPreviewAlt": "Podgląd zdjęcia #{{id}}",
+      "photoPreviewFailed": "Nie udało się wczytać podglądu zdjęcia #{{id}}",
+      "photoUnavailable": "Zdjęcie #{{id}} nie jest już dostępne"
     },
     "titles": {
       "station_create": "Utworzono stację",
@@ -132,10 +150,16 @@
       "sectors_update": "Zaktualizowano azymuty",
       "network_ids_create": "Dodano identyfikatory sieci",
       "network_ids_update": "Zaktualizowano identyfikatory sieci",
-      "network_ids_delete": "Usunięto identyfikatory sieci"
+      "network_ids_delete": "Usunięto identyfikatory sieci",
+      "photos_create": "Dodano zdjęcia",
+      "photos_update": "Zaktualizowano wybór zdjęć",
+      "photos_delete": "Usunięto zdjęcia"
     },
     "fields": {
-      "cell": "Komórka"
+      "cell": "Komórka",
+      "photo": "Zdjęcie",
+      "mainPhoto": "Główne zdjęcie",
+      "mnoName": "Nazwa MNO"
     }
   }
 }

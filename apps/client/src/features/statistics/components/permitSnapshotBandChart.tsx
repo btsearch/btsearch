@@ -27,6 +27,11 @@ type SnapshotBarShapeProps = ComponentProps<typeof Rectangle> & {
 
 const PAGE_BAR_SIZE = 32;
 const EXPORT_BAR_SIZE = 17;
+const EXPORT_LABEL_HALO_STYLE = {
+  stroke: "rgba(255,255,255,0.9)",
+  strokeWidth: 2,
+  paintOrder: "stroke",
+} as const;
 
 export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined): SnapshotBand[] {
   const bands = new Map<string, SnapshotBand>();
@@ -108,6 +113,7 @@ function NewBarLabel({
   width,
   value,
   viewBox,
+  outlined,
 }: {
   x?: number | string;
   y?: number | string;
@@ -115,6 +121,7 @@ function NewBarLabel({
   width?: number | string;
   value?: unknown;
   viewBox?: { x?: number | string; y?: number | string; height?: number | string; width?: number | string };
+  outlined?: boolean;
 }) {
   const [amountLabel, percentLabel, deltaTone] = typeof value === "string" ? value.split("|") : [];
   const xValue = Number(viewBox?.x ?? x);
@@ -127,7 +134,14 @@ function NewBarLabel({
   const labelY = Math.max(12, yValue - labelLift);
   const labelFill = deltaTone === "negative" ? "#ef4444" : "#10b981";
   return (
-    <text x={xValue + widthValue / 2} y={labelY} textAnchor="middle" fill={labelFill} className="text-[10px]">
+    <text
+      x={xValue + widthValue / 2}
+      y={labelY}
+      textAnchor="middle"
+      fill={labelFill}
+      className="text-[10px]"
+      style={outlined ? EXPORT_LABEL_HALO_STYLE : undefined}
+    >
       <tspan x={xValue + widthValue / 2} dy={0}>
         {amountLabel}
       </tspan>
@@ -213,7 +227,11 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
               dataKey="all"
               position="top"
               formatter={(value) => formatWholeNumber(value, i18n.language)}
-              style={{ fontSize: isExport ? 9 : 10, fill: "var(--muted-foreground)" }}
+              style={{
+                fontSize: isExport ? 9 : 10,
+                fill: "var(--muted-foreground)",
+                ...(isExport ? EXPORT_LABEL_HALO_STYLE : {}),
+              }}
             />,
           ],
         }}
@@ -227,7 +245,7 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
           minPointSize: (value) => (typeof value === "number" && value !== 0 ? 3 : 0),
           shape: deltaBarShape,
           activeBar: deltaBarShape,
-          children: [<LabelList key="lbl" dataKey="deltaLabel" content={<NewBarLabel />} />],
+          children: [<LabelList key="lbl" dataKey="deltaLabel" content={<NewBarLabel outlined={isExport} />} />],
         }}
       />
     </EvilBarChart>

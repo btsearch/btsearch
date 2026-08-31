@@ -24,22 +24,29 @@ export type StationHistoryAuthor = {
   image: string | null;
 };
 
+export type StationHistoryPhotoReference = { id: number; attachment_uuid: string };
+
 export type StationHistoryEntry = {
   id: number;
-  kind: "station" | "location" | "cells" | "sectors" | "network_ids";
+  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
   action: "create" | "update" | "delete";
   createdAt: string;
   changes: StationHistoryChange[];
   author?: StationHistoryAuthor | null;
+  photoReferences: StationHistoryPhotoReference[];
 };
 
-export type StationHistoryPage = { data: StationHistoryEntry[]; nextCursor: number | null };
+export type StationHistoryPage = {
+  data: StationHistoryEntry[];
+  nextCursor: number | null;
+};
 
 export const STATION_HISTORY_PAGE_SIZE = 25;
 
-export const fetchStationHistory = (stationId: number, cursor: number | null) =>
+export const fetchStationHistory = (stationId: number, cursor: number | null, signal?: AbortSignal) =>
   fetchJson<StationHistoryPage>(
     `${API_BASE}/stations/${stationId}/history?limit=${STATION_HISTORY_PAGE_SIZE}${cursor !== null ? `&cursor=${cursor}` : ""}`,
+    { signal },
   );
 export const fetchUkeStation = (id: number) => fetchApiData<UkeStation>(`uke/stations/${id}`);
 export const fetchUkePermit = (id: string) => fetchApiData<UkePermit[]>(`uke/permits?station_id=${id}`, { proto: UKEPermitsResponseSchema });

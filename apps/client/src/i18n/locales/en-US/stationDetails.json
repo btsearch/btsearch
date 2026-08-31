@@ -108,16 +108,32 @@
   },
   "history": {
     "title": "Station change history",
+    "action": "Change history",
     "tooltip": "Click to view change history",
     "empty": "No recorded changes",
     "emptyHint": "Changes made before change tracking was introduced may not be listed here",
     "error": "Failed to load change history",
+    "refreshError": "The latest changes could not be loaded. The history below may be outdated.",
+    "loadMoreError": "More history could not be loaded.",
     "loadMore": "Load more",
+    "refreshing": "Refreshing history",
+    "end": "Beginning of recorded history",
+    "cellCount_one": "{{count, number}} cell",
+    "cellCount_other": "{{count, number}} cells",
+    "otherCells": "Other",
     "openAuditLog": "Audit log",
     "openSubmissions": "Submissions",
     "values": {
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "previous": "Previous",
+      "current": "Current",
+      "photoReference": "Photo #{{id}}",
+      "mainPhotoReference": "Photo #{{id}} (main photo)",
+      "openPhoto": "Open Photo #{{id}} in a new tab",
+      "photoPreviewAlt": "Preview of Photo #{{id}}",
+      "photoPreviewFailed": "Could not load the preview of Photo #{{id}}",
+      "photoUnavailable": "Photo #{{id}} is no longer available"
     },
     "titles": {
       "station_create": "Station created",
@@ -132,10 +148,16 @@
       "sectors_update": "Azimuths updated",
       "network_ids_create": "Network identifiers added",
       "network_ids_update": "Network identifiers updated",
-      "network_ids_delete": "Network identifiers removed"
+      "network_ids_delete": "Network identifiers removed",
+      "photos_create": "Photos added",
+      "photos_update": "Photo selection updated",
+      "photos_delete": "Photos removed"
     },
     "fields": {
-      "cell": "Cell"
+      "cell": "Cell",
+      "photo": "Photo",
+      "mainPhoto": "Main photo",
+      "mnoName": "MNO name"
     }
   }
 }

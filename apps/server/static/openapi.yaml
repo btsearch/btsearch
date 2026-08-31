@@ -5114,7 +5114,7 @@ components:
       type: object
       required: [field, from, to]
       properties:
-        field: { type: string }
+        field: { type: string, description: Normalized changed field; photo selection events may use photo or main_photo }
         label: { type: string, description: 'Cell identity label, e.g. "LTE 1800 · CLID 31"' }
         rat: { type: string, description: RAT of the affected cell, present on cell changes }
         from: { $ref: "#/components/schemas/StationHistoryChangeValue" }
@@ -5127,15 +5127,25 @@ components:
         name: { type: string, nullable: true }
         username: { type: string }
         image: { type: string, nullable: true }
+    StationHistoryPhotoReference:
+      type: object
+      required: [id, attachment_uuid]
+      properties:
+        id: { type: integer }
+        attachment_uuid: { type: string, format: uuid }
     StationHistoryEntry:
       type: object
-      required: [id, kind, action, createdAt, changes]
+      required: [id, kind, action, createdAt, changes, photoReferences]
       properties:
         id: { type: integer, description: ID of the underlying audit log entry }
-        kind: { type: string, enum: [station, location, cells, sectors, network_ids] }
+        kind: { type: string, enum: [station, location, cells, sectors, network_ids, photos] }
         action: { type: string, enum: [create, update, delete] }
         createdAt: { type: string, format: date-time }
         changes: { type: array, items: { $ref: "#/components/schemas/StationHistoryChange" } }
+        photoReferences:
+          type: array
+          description: Currently available photos referenced by this history entry
+          items: { $ref: "#/components/schemas/StationHistoryPhotoReference" }
         author:
           description: Included only for editors and admins; null for system or import changes
           allOf:

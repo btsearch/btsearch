@@ -1,4 +1,4 @@
-import { Alert02Icon, Cancel01Icon, Note01Icon, PencilEdit02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, Cancel01Icon, Clock01Icon, Note01Icon, PencilEdit02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -23,6 +23,7 @@ import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { useFloatingDialogStack } from "./floatingDialogStackProvider";
+import { getStationHistoryTriggerId } from "./floatingDialogStackTypes";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
@@ -136,71 +137,75 @@ export function StationDetailsDialogPanel({
                       <TooltipContent>{formatFullDate(station.createdAt, i18n.language)}</TooltipContent>
                     </Tooltip>
                     <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">·</span>
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openStationHistoryDialog({
-                                stationId: station.id,
-                                stationCode: station.station_id,
-                                operatorName: station.operator.name,
-                                operatorMnc: station.operator.mnc,
-                              })
-                            }
-                            className="cursor-pointer whitespace-nowrap text-[11px] text-muted-foreground/80 underline decoration-dotted underline-offset-2 transition-colors hover:text-foreground"
-                          />
-                        }
-                      >
-                        {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="space-y-0.5">
-                          <p>{formatFullDate(station.updatedAt, i18n.language)}</p>
-                          <p className="text-background/85">{t("history.tooltip")}</p>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
+                    <time
+                      dateTime={station.updatedAt}
+                      title={formatFullDate(station.updatedAt, i18n.language)}
+                      className="whitespace-nowrap text-[11px] text-muted-foreground/80"
+                    >
+                      {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
+                    </time>
                   </div>
-                  {hasStationActions ? (
+                  {source === "internal" || hasStationActions ? (
                     <StationDialogActionBar>
-                      <AddToListPopover
-                        stationId={station.id}
-                        size="md"
-                        className={stationDialogInlineActionClassName}
-                        showLabel
-                        labelClassName={stationDialogInlineActionLabelClassName}
-                        showTooltip={false}
-                      />
-                      <WatchButton
-                        stationId={station.id}
-                        size="md"
-                        className={stationDialogInlineActionClassName}
-                        showLabel
-                        labelClassName={stationDialogInlineActionLabelClassName}
-                        showTooltip={false}
-                      />
-                      {onStartTerrainProfile ? (
-                        <TerrainProfileAnalyzeButton
-                          target={{
-                            source: "internal",
-                            id: station.id,
-                            stationId: station.station_id,
-                            operatorName: station.operator.name,
-                            latitude: station.location.latitude,
-                            longitude: station.location.longitude,
-                          }}
-                          onStart={(target) => {
-                            onStartTerrainProfile(target);
-                            onClose();
-                          }}
-                          size="md"
-                          className={stationDialogInlineActionClassName}
-                          showLabel
-                          labelClassName={stationDialogInlineActionLabelClassName}
-                          showTooltip={false}
-                        />
+                      {source === "internal" ? (
+                        <button
+                          id={getStationHistoryTriggerId(station.id)}
+                          type="button"
+                          aria-haspopup="dialog"
+                          onClick={() =>
+                            openStationHistoryDialog({
+                              stationId: station.id,
+                              stationCode: station.station_id,
+                              operatorName: station.operator.name,
+                              operatorMnc: station.operator.mnc,
+                            })
+                          }
+                          className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}
+                        >
+                          <HugeiconsIcon icon={Clock01Icon} className="size-3.5" />
+                          <span className="whitespace-nowrap text-xs font-medium leading-none">{t("history.action")}</span>
+                        </button>
+                      ) : null}
+                      {hasStationActions ? (
+                        <>
+                          <AddToListPopover
+                            stationId={station.id}
+                            size="md"
+                            className={stationDialogInlineActionClassName}
+                            showLabel
+                            labelClassName={stationDialogInlineActionLabelClassName}
+                            showTooltip={false}
+                          />
+                          <WatchButton
+                            stationId={station.id}
+                            size="md"
+                            className={stationDialogInlineActionClassName}
+                            showLabel
+                            labelClassName={stationDialogInlineActionLabelClassName}
+                            showTooltip={false}
+                          />
+                          {onStartTerrainProfile ? (
+                            <TerrainProfileAnalyzeButton
+                              target={{
+                                source: "internal",
+                                id: station.id,
+                                stationId: station.station_id,
+                                operatorName: station.operator.name,
+                                latitude: station.location.latitude,
+                                longitude: station.location.longitude,
+                              }}
+                              onStart={(target) => {
+                                onStartTerrainProfile(target);
+                                onClose();
+                              }}
+                              size="md"
+                              className={stationDialogInlineActionClassName}
+                              showLabel
+                              labelClassName={stationDialogInlineActionLabelClassName}
+                              showTooltip={false}
+                            />
+                          ) : null}
+                        </>
                       ) : null}
                     </StationDialogActionBar>
                   ) : null}

@@ -12,6 +12,7 @@ export function assertNever(value: never): never {
 
 export type FloatingDialogPanelFrameProps = {
   onClose: () => void;
+  modal?: boolean;
   className?: string;
   contentClassName?: string;
   contentRef?: Ref<HTMLDivElement>;
@@ -20,6 +21,10 @@ export type FloatingDialogPanelFrameProps = {
   style?: CSSProperties;
   headerDragProps?: HTMLAttributes<HTMLDivElement>;
 };
+
+export function getStationHistoryTriggerId(stationId: number): string {
+  return `station-history-trigger-${stationId}`;
+}
 
 export type FloatingDialogKind = "station" | "uke-permit" | "radioline" | "si2pem-report" | "station-history";
 

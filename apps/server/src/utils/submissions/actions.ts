@@ -37,6 +37,11 @@ import {
   isNormalRat,
   updateRATCellDetailsReturning,
 } from "../ratCellPersistence.ts";
+import {
+  type StationPhotoSelectionSnapshots,
+  createStationPhotoSelectionAuditLogs,
+  loadStationPhotoSelectionSnapshots,
+} from "../stationPhotoHistory.ts";
 import { migrateStationPhotosToLocation } from "../stationPhotos.helpers.ts";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stationStatus.ts";
 import { normalizeText } from "../submission.helpers.ts";
@@ -934,6 +939,7 @@ async function applyUploadedSubmissionPhotos(
   stationId: number,
   resolvedLocationId: number | null,
   photos: SubmissionPhotoRow[],
+  previousSelections: StationPhotoSelectionSnapshots,
 ): Promise<boolean> {
   if (photos.length === 0) return false;
 
@@ -1016,6 +1022,9 @@ async function applyUploadedSubmissionPhotos(
     .where(and(eq(stations.location_id, photoLocationId), eq(operators.mnc, siblingMnc)));
 
   if (!siblingStation) return explicitMainId !== null;
+
+  const siblingPreviousSelections = await loadStationPhotoSelectionSnapshots(tx, [siblingStation.id]);
+  previousSelections.set(siblingStation.id, siblingPreviousSelections.get(siblingStation.id) ?? []);
 
   const siblingExistingMain = await tx.query.stationPhotoSelections.findFirst({
     where: { station_id: siblingStation.id, is_main: true },
@@ -1205,8 +1214,11 @@ async function applySubmissionPhotos(
   resolvedLocationId: number | null,
   migratedPhotoIds: Map<number, number>,
   locationPhotoSelections: SubmissionLocationPhotoSelectionRow[],
+  req: FastifyRequest,
 ): Promise<{ attachmentUuidsToDelete: string[]; photosAdded: boolean }> {
   if (!stationId || submission.type === "delete") return { attachmentUuidsToDelete: [], photosAdded: false };
+
+  const previousSelections = await loadStationPhotoSelectionSnapshots(tx, [stationId]);
 
   const photos = await tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } });
   const remapPhotoId = (locationPhotoId: number) => migratedPhotoIds.get(locationPhotoId) ?? locationPhotoId;
@@ -1221,9 +1233,24 @@ async function applySubmissionPhotos(
     resolvedLocationId !== null ? null : await tx.query.stations.findFirst({ where: { id: stationId }, columns: { location_id: true } });
   const stationLocationId = resolvedLocationId ?? stationRow?.location_id ?? null;
 
-  const uploadedMainApplied = await applyUploadedSubmissionPhotos(tx, submission, submissionId, stationId, resolvedLocationId, photos);
+  const uploadedMainApplied = await applyUploadedSubmissionPhotos(
+    tx,
+    submission,
+    submissionId,
+    stationId,
+    resolvedLocationId,
+    photos,
+    previousSelections,
+  );
   await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId, stationLocationId, uploadedMainApplied);
   const attachmentUuidsToDelete = await applyLocationPhotoRemovals(tx, locationPhotoRemovalIds, stationId, stationLocationId);
+  await createStationPhotoSelectionAuditLogs({
+    handle: tx,
+    stationIds: [...previousSelections.keys()],
+    previousSnapshots: previousSelections,
+    req,
+    metadata: { submission_id: submissionId },
+  });
   return { attachmentUuidsToDelete, photosAdded: photos.length > 0 || locationPhotoAdditions.length > 0 };
 }
 
@@ -1368,6 +1395,7 @@ async function runApprovalTransaction({
     resolvedLocationId,
     migratedPhotoIds,
     submissionPhotoSelectionRows,
+    req,
   );
 
   const updated = await finalizeApprovedSubmission(tx, submission, submissionId, reviewerId, reviewerNotes);
