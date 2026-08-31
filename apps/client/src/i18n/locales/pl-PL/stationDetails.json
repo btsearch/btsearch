@@ -131,7 +131,7 @@
       "previous": "Poprzednia wartość",
       "current": "Aktualna wartość",
       "photoReference": "Zdjęcie #{{id}}",
-      "mainPhotoReference": "Zdjęcie #{{id}} (zdjęcie główne)",
+      "mainPhotoReference": "Zdjęcie #{{id}} (główne zdjęcie)",
       "openPhoto": "Otwórz zdjęcie #{{id}} w nowej karcie",
       "photoPreviewAlt": "Podgląd zdjęcia #{{id}}",
       "photoPreviewFailed": "Nie udało się wczytać podglądu zdjęcia #{{id}}",

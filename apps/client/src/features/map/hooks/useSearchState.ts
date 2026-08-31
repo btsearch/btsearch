@@ -73,14 +73,25 @@ export function useSearchState({
     };
   });
   const [isFocused, setIsFocused] = useState(false);
-  const externalSearchState = useMemo(() => {
-    if (externalQuery === undefined) return null;
-    const { filters, remainingText } = externalQuery ? parseFilters(externalQuery) : { filters: [], remainingText: "" };
-    return { inputValue: remainingText, parsedFilters: filters };
-  }, [externalQuery, parseFilters]);
-  const inputValue = externalSearchState?.inputValue ?? searchState.inputValue;
-  const parsedFilters = externalSearchState?.parsedFilters ?? searchState.parsedFilters;
-  const { activeOverlay, focusedChipIndex } = searchState;
+  const [previousExternalQuery, setPreviousExternalQuery] = useState(externalQuery);
+
+  if (externalQuery !== previousExternalQuery) {
+    setPreviousExternalQuery(externalQuery);
+    setSearchState((current) => {
+      if (externalQuery === undefined || buildSearchQuery(current.parsedFilters, current.inputValue) === externalQuery) return current;
+
+      const { filters, remainingText } = externalQuery ? parseFilters(externalQuery) : { filters: [], remainingText: "" };
+      return {
+        ...current,
+        inputValue: remainingText,
+        parsedFilters: filters,
+        focusedChipIndex: null,
+        activeOverlay: null,
+      };
+    });
+  }
+
+  const { inputValue, parsedFilters, activeOverlay, focusedChipIndex } = searchState;
 
   const containerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
