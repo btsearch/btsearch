@@ -16,7 +16,7 @@ export type UkeLocationsResponse = {
   totalCount: number;
 };
 
-function buildFilterParams(filters: StationFilters): URLSearchParams {
+export function buildFilterParams(filters: StationFilters): URLSearchParams {
   const params = new URLSearchParams();
 
   const { operators, bands, rat, status, recentDays, recentDateFields } = filters;
@@ -35,15 +35,16 @@ export function locationQueryKey(locationId: number, filters: StationFilters) {
 }
 
 export async function fetchLocations(
-  bounds: string,
+  bounds: string | undefined,
   filters: StationFilters,
   limit = 1000,
-  options?: { azimuths?: boolean; q?: string; signal?: AbortSignal },
+  options?: { azimuths?: boolean; q?: string; list?: string; signal?: AbortSignal },
 ): Promise<LocationsResponse> {
   if (filters.source === "uke") {
     const params = buildFilterParams(filters);
     params.set("limit", String(limit));
-    params.set("bounds", bounds);
+    if (bounds) params.set("bounds", bounds);
+    if (options?.list) params.set("list", options.list);
     if (options?.azimuths) params.set("azimuths", "true");
     const result = await fetchJson<UkeLocationsResponse>(`${API_BASE}/uke/locations?${decodeURIComponent(params.toString())}`, {
       signal: options?.signal,
@@ -54,7 +55,8 @@ export async function fetchLocations(
 
   const params = buildFilterParams(filters);
   params.set("limit", String(limit));
-  params.set("bounds", bounds);
+  if (bounds) params.set("bounds", bounds);
+  if (options?.list) params.set("list", options.list);
   if (options?.q) params.set("q", options.q);
   if (options?.azimuths) params.set("azimuths", "true");
 
@@ -102,6 +104,7 @@ type FetchRadioLinesOptions = {
   page?: number;
   recentDays?: number | null;
   permitNumber?: string;
+  list?: string;
 };
 
 export async function fetchRadioLines(bounds?: string, options?: FetchRadioLinesOptions): Promise<RadioLinesResponse> {
@@ -112,6 +115,7 @@ export async function fetchRadioLines(bounds?: string, options?: FetchRadioLines
   if (options?.operatorIds?.length) params.set("operators", options.operatorIds.join(","));
   if (options?.recentDays) params.set("new", String(options.recentDays));
   if (options?.permitNumber) params.set("permit_number", options.permitNumber);
+  if (options?.list) params.set("list", options.list);
 
   return fetchJson<RadioLinesResponse>(`${API_BASE}/uke/radiolines?${params.toString()}`, {
     signal: options?.signal,

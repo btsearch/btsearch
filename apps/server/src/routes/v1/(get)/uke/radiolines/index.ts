@@ -9,6 +9,7 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../utils/userLists.js";
 
 const manufacturerSchema = z.object({ id: z.number(), name: z.string() });
 const equipmentTypeSchema = z.object({ id: z.number(), name: z.string(), manufacturer: manufacturerSchema.optional() });
@@ -97,6 +98,7 @@ const schemaRoute = {
         const n = Number(val);
         return n >= 1 && n <= 30 ? n : null;
       }),
+    list: z.string().optional(),
   }),
   response: {
     200: z.object({
@@ -112,8 +114,15 @@ type ReqQuery = {
 const SIMILARITY_THRESHOLD = 0.6;
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const { limit, page, bounds, operators, permit_number, decision_type, new: recentDays } = req.query;
+  const { limit, page, bounds, operators, permit_number, decision_type, new: recentDays, list: listUuid } = req.query;
   const offset = limit ? (page - 1) * limit : undefined;
+
+  let listRadiolineIds: number[] | undefined;
+  if (listUuid) {
+    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    listRadiolineIds = getUserListMembership(list).radiolines;
+    if (!listRadiolineIds.length) return res.send({ data: [], totalCount: 0 });
+  }
 
   try {
     function buildConditions(f: typeof ukeRadiolines) {
@@ -135,6 +144,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       }
       if (decision_type) conditions.push(eq(f.decision_type, decision_type));
       if (operators) conditions.push(inArray(f.operator_id, operators));
+      if (listRadiolineIds?.length) conditions.push(inArray(f.id, listRadiolineIds));
       if (recentDays) {
         const cutoff = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000);
         conditions.push(sql`${f.createdAt} >= ${cutoff.toISOString()}`);

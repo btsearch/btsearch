@@ -1,5 +1,4 @@
 import { API_BASE, fetchJson } from "@/lib/api";
-import type { RadioLine, Station, UkeLocationWithPermits } from "@/types/station";
 
 export type UserListSummary = {
   id: number;
@@ -24,9 +23,8 @@ export type UserListDetail = {
   description: string | null;
   is_public: boolean | null;
   notificationsEnabled: boolean;
-  stations: Station[];
-  radiolines: RadioLine[];
-  ukeLocations: UkeLocationWithPermits[];
+  stations: { internal: number[]; uke: number[] };
+  radiolines: number[];
   createdAt: string;
   updatedAt: string;
 };
@@ -56,9 +54,8 @@ export async function fetchUserLists(limit = 50, page = 1, search?: string, all?
   return fetchJson<ListsResponse>(`${API_BASE}/lists?${params.toString()}`);
 }
 
-export async function fetchListByUuid(uuid: string, azimuths?: boolean): Promise<UserListDetail> {
-  const params = azimuths ? "?azimuths=true" : "";
-  const res = await fetchJson<ListDetailResponse>(`${API_BASE}/lists/${uuid}${params}`);
+export async function fetchListByUuid(uuid: string): Promise<UserListDetail> {
+  const res = await fetchJson<ListDetailResponse>(`${API_BASE}/lists/${uuid}`);
   return res.data;
 }
 

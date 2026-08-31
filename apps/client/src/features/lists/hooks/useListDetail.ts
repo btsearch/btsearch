@@ -4,10 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { UserListDetail } from "../api";
 import { fetchListByUuid } from "../api";
 
-export function useListDetail(uuid: string, azimuths?: boolean): UseQueryResult<UserListDetail> {
+export function useListDetail(uuid: string): UseQueryResult<UserListDetail> {
   return useQuery({
-    queryKey: ["list", uuid, { azimuths }],
-    queryFn: () => fetchListByUuid(uuid, azimuths),
+    queryKey: ["list", uuid],
+    queryFn: () => fetchListByUuid(uuid),
     enabled: !!uuid,
   });
 }

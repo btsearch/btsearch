@@ -57,66 +57,31 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const whereClause = and(showAll ? undefined : eq(userLists.created_by, userId), search ? ilike(userLists.name, `%${search}%`) : undefined);
 
-  const countQuery = db.select({ count: count() }).from(userLists).where(whereClause);
-
-  if (showAll) {
-    const [countResult, rows] = await Promise.all([
-      countQuery,
-      db
-        .select({
-          id: userLists.id,
-          uuid: userLists.uuid,
-          name: userLists.name,
-          description: userLists.description,
-          is_public: userLists.is_public,
-          notificationsEnabled: userLists.notificationsEnabled,
-          stations: userLists.stations,
-          radiolines: userLists.radiolines,
-          created_by: userLists.created_by,
-          createdAt: userLists.createdAt,
-          updatedAt: userLists.updatedAt,
-          createdByName: users.name,
-          createdByUsername: users.username,
-          createdByImage: users.image,
-        })
-        .from(userLists)
-        .leftJoin(users, eq(userLists.created_by, users.id))
-        .where(whereClause)
-        .orderBy(desc(userLists.createdAt))
-        .limit(limit)
-        .offset(offset),
-    ]);
-
-    const totalCount = countResult[0]?.count ?? 0;
-    const data = rows.map((row) => {
-      const stations = (row.stations as { internal: number[]; uke: number[] }) ?? { internal: [], uke: [] };
-      const radiolines = (row.radiolines as number[]) ?? [];
-      return {
-        id: row.id,
-        uuid: row.uuid,
-        name: row.name,
-        description: row.description,
-        is_public: row.is_public,
-        notificationsEnabled: row.notificationsEnabled,
-        stations,
-        radiolines,
-        stationCount: stations.internal.length + stations.uke.length,
-        radiolineCount: radiolines.length,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        createdBy: {
-          uuid: row.created_by,
-          ...(row.createdByName ? { name: row.createdByName, username: row.createdByUsername ?? null, image: row.createdByImage ?? null } : {}),
-        },
-      };
-    });
-
-    return res.send({ data, totalCount });
-  }
-
   const [countResult, rows] = await Promise.all([
-    countQuery,
-    db.select().from(userLists).where(whereClause).orderBy(desc(userLists.createdAt)).limit(limit).offset(offset),
+    db.select({ count: count() }).from(userLists).where(whereClause),
+    db
+      .select({
+        id: userLists.id,
+        uuid: userLists.uuid,
+        name: userLists.name,
+        description: userLists.description,
+        is_public: userLists.is_public,
+        notificationsEnabled: userLists.notificationsEnabled,
+        stations: userLists.stations,
+        radiolines: userLists.radiolines,
+        created_by: userLists.created_by,
+        createdAt: userLists.createdAt,
+        updatedAt: userLists.updatedAt,
+        createdByName: users.name,
+        createdByUsername: users.username,
+        createdByImage: users.image,
+      })
+      .from(userLists)
+      .leftJoin(users, eq(userLists.created_by, users.id))
+      .where(whereClause)
+      .orderBy(desc(userLists.createdAt))
+      .limit(limit)
+      .offset(offset),
   ]);
 
   const totalCount = countResult[0]?.count ?? 0;
@@ -136,7 +101,12 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       radiolineCount: radiolines.length,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      createdBy: { uuid: row.created_by },
+      createdBy: {
+        uuid: row.created_by,
+        ...(showAll && row.createdByName
+          ? { name: row.createdByName, username: row.createdByUsername ?? null, image: row.createdByImage ?? null }
+          : {}),
+      },
     };
   });
 

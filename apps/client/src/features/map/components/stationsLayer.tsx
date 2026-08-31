@@ -56,17 +56,17 @@ export const DEFAULT_FILTERS: StationFilters = {
 
 const MAP_FILTERS_STORAGE_KEY = "map:filters";
 
-export function saveMapFilters(filters: StationFilters) {
+export function saveMapFilters(filters: StationFilters, storageKey = MAP_FILTERS_STORAGE_KEY) {
   try {
-    localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    localStorage.setItem(storageKey, JSON.stringify(filters));
   } catch {
     // ignore localStorage errors
   }
 }
 
-export function loadMapFilters(): StationFilters | null {
+export function loadMapFilters(storageKey = MAP_FILTERS_STORAGE_KEY): StationFilters | null {
   try {
-    const raw = localStorage.getItem(MAP_FILTERS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return {

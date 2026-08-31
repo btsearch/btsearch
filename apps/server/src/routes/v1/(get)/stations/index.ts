@@ -10,6 +10,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../utils/stationStatus.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../utils/userLists.js";
 
 const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
@@ -78,6 +79,7 @@ const schemaRoute = {
       .transform((val): string[] | undefined => (val ? val.split(",").filter(Boolean) : undefined)),
     sort: z.enum(["asc", "desc"]).optional().default("desc"),
     sortBy: z.enum(["station_id", "updatedAt", "createdAt"]).optional(),
+    list: z.string().optional(),
   }),
   response: {
     200: z.object({
@@ -91,8 +93,33 @@ type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type ResponseBody = { data: Station[]; totalCount: number };
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const { limit, page, bounds, rat, operators: operatorMncs, bands: bandValues, status: selectedStatuses, regions, sort, sortBy } = req.query;
+  const {
+    limit,
+    page,
+    bounds,
+    rat,
+    operators: operatorMncs,
+    bands: bandValues,
+    status: selectedStatuses,
+    regions,
+    sort,
+    sortBy,
+    list: listUuid,
+  } = req.query;
   const offset = limit ? (page - 1) * limit : undefined;
+
+  let listStationIds: number[] | undefined;
+  if (listUuid) {
+    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    listStationIds = getUserListMembership(list).internal;
+    if (!listStationIds.length) return res.send({ data: [], totalCount: 0 });
+  }
+  const listIdsArray = listStationIds?.length
+    ? sql`ARRAY[${sql.join(
+        listStationIds.map((id) => sql`${id}`),
+        sql`,`,
+      )}]::int4[]`
+    : undefined;
 
   const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
 
@@ -146,6 +173,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const buildStationConditions = (stationFields: typeof stations): ReturnType<typeof sql>[] => {
     const conditions: ReturnType<typeof sql>[] = [buildStatusCondition(stationFields, selectedStatuses)];
 
+    if (listIdsArray) conditions.push(sql`${stationFields.id} = ANY(${listIdsArray})`);
     if (operatorIds.length) {
       conditions.push(
         sql`${stationFields.operator_id} = ANY(ARRAY[${sql.join(

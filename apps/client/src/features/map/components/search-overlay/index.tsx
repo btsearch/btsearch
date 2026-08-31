@@ -88,7 +88,6 @@ type MapSearchOverlayProps = {
   onUkeStationSelect?: (station: UkeSearchPermitStation) => void;
   onRadiolineSelect?: (radioline: UkeSearchRadioline) => void;
   hideSource?: boolean;
-  hideAPIFilters?: boolean;
   showHeatmap?: boolean;
   onToggleHeatmap?: () => void;
   showPlannedMeasurements?: boolean;
@@ -113,7 +112,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   onUkeStationSelect,
   onRadiolineSelect,
   hideSource = false,
-  hideAPIFilters = false,
   showHeatmap = false,
   onToggleHeatmap,
   showPlannedMeasurements = false,
@@ -623,7 +621,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onClearAllBands={handleClearAllBands}
               onClearFilters={handleClearFilters}
               hideSource={hideSource}
-              hideAPIFilters={hideAPIFilters}
               showHeatmap={showHeatmap}
               onToggleHeatmap={onToggleHeatmap}
               showPlannedMeasurements={showPlannedMeasurements}
@@ -673,7 +670,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                 onClearFilters={handleClearFilters}
                 isSheet
                 hideSource={hideSource}
-                hideAPIFilters={hideAPIFilters}
                 showHeatmap={showHeatmap}
                 onToggleHeatmap={onToggleHeatmap}
                 showPlannedMeasurements={showPlannedMeasurements}

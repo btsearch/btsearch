@@ -545,6 +545,10 @@ paths:
           in: query
           description: "Comma-separated station statuses to include. Defaults to `published,pending`"
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
+        - name: list
+          in: query
+          description: User list UUID. Only stations belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: OK
@@ -557,6 +561,9 @@ paths:
                   data: { type: array, items: { $ref: "#/components/schemas/StationWithCells" } }
                   totalCount: { type: integer }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
     post:
@@ -1667,6 +1674,10 @@ paths:
           in: query
           description: "Comma-separated station statuses to include. Defaults to `published,pending`"
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
+        - name: list
+          in: query
+          description: User list UUID. Only locations with at least one station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: OK
@@ -1679,6 +1690,9 @@ paths:
                   data: { type: array, items: { $ref: "#/components/schemas/LocationWithRegionStations" } }
                   totalCount: { type: integer }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
     post:
@@ -3138,6 +3152,10 @@ paths:
           in: query
           description: When true, each permit includes its `sectors` array with azimuth data. Omitted by default
           schema: { type: boolean, default: false }
+        - name: list
+          in: query
+          description: User list UUID. Only locations with at least one UKE station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: OK
@@ -3149,6 +3167,9 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/UkeLocationWithPermits" } }
                   totalCount: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -3355,6 +3376,10 @@ paths:
           in: query
           description: Only return radiolines updated within the last N days (1-30). Pass `true` for 30 days
           schema: { type: string }
+        - name: list
+          in: query
+          description: User list UUID. Only radiolines belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: OK
@@ -3366,6 +3391,9 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/UkeRadiolineResponse" } }
                   totalCount: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -3563,8 +3591,8 @@ paths:
   /lists/{uuid}:
     get:
       tags: [Lists]
-      summary: Get list by UUID with full station and radioline data
-      description: Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `user_lists:read` permission)
+      summary: Get list metadata and member IDs
+      description: "Returns the list's metadata plus the IDs of its member stations and radiolines. To fetch the member objects (optionally filtered and paginated), pass the list UUID as the `list` query parameter to `/stations`, `/locations`, `/uke/locations` or `/uke/radiolines`. Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `user_lists:read` permission)"
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3573,10 +3601,6 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
-        - name: azimuths
-          in: query
-          description: When `true`, internal stations and UKE permits in the response will include a `sectors` array with azimuth data
-          schema: { type: boolean, default: false }
       responses:
         "200":
           description: OK
@@ -5660,24 +5684,16 @@ components:
 
     UserListDetail:
       type: object
-      required: [id, uuid, name, is_public, stations, radiolines, ukeLocations, createdAt, updatedAt]
+      required: [id, uuid, name, is_public, notificationsEnabled, stations, radiolines, createdAt, updatedAt]
       properties:
         id: { type: integer }
         uuid: { type: string, format: uuid }
         name: { type: string }
         description: { type: string, nullable: true }
         is_public: { type: boolean, nullable: true }
-        stations:
-          type: array
-          items: { $ref: "#/components/schemas/StationWithCellsAndOperator" }
-          description: Full internal station objects
-        radiolines:
-          type: array
-          items: { $ref: "#/components/schemas/UkeRadiolineResponse" }
-        ukeLocations:
-          type: array
-          items: { $ref: "#/components/schemas/UkeLocationWithPermits" }
-          description: Full UKE location objects with stations and permits
+        notificationsEnabled: { type: boolean }
+        stations: { $ref: "#/components/schemas/UserListStations" }
+        radiolines: { type: array, items: { type: integer }, description: Array of radioline IDs }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 

@@ -23,6 +23,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../utils/stationStatus.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../utils/userLists.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);
@@ -103,6 +104,7 @@ const schemaRoute = {
     orphaned: z.coerce.boolean().optional().default(false),
     sort: z.enum(["asc", "desc"]).optional().default("desc"),
     sortBy: z.enum(["id", "updatedAt", "createdAt"]).optional(),
+    list: z.string().optional(),
   }),
   response: {
     200: z.object({
@@ -187,11 +189,25 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     sort,
     sortBy,
     q: query,
+    list: listUuid,
   } = req.query;
   const offset = (page - 1) * limit;
 
   const userRole = req.userSession?.user?.role as string | undefined;
   const showOrphaned = orphaned && userRole !== undefined && ORPHANED_ALLOWED_ROLES.has(userRole);
+
+  let listStationIds: number[] | undefined;
+  if (listUuid) {
+    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    listStationIds = getUserListMembership(list).internal;
+    if (!listStationIds.length) return res.send({ data: [], totalCount: 0 });
+  }
+  const listIdsArray = listStationIds?.length
+    ? sql`ARRAY[${sql.join(
+        listStationIds.map((id) => sql`${id}`),
+        sql`,`,
+      )}]::int4[]`
+    : undefined;
 
   const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
 
@@ -248,7 +264,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const nonIotRats: NonIotRat[] = requestedRats.map((r) => ratMap[r]).filter((r): r is NonIotRat => r !== undefined);
   const iotRequested = requestedRats.includes("iot");
 
-  const hasStationFilters = operatorIds.length || bandIds.length || nonIotRats.length || iotRequested;
+  const hasStationFilters = operatorIds.length || bandIds.length || nonIotRats.length || iotRequested || listIdsArray !== undefined;
   const { filters, remainingQuery: remainingSearch } = query ? parseFilterQuery(query) : { filters: {}, remainingQuery: "" };
 
   const buildStationFilter = (stationFields: typeof stations) => {
@@ -258,6 +274,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       stations: stationFields,
     });
 
+    if (listIdsArray) conditions.push(sql`${stationFields.id} = ANY(${listIdsArray})`);
     if (operatorIds.length) {
       conditions.push(
         sql`${stationFields.operator_id} = ANY(ARRAY[${sql.join(
@@ -336,6 +353,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       ...defaultFilterRefs,
       locations: locFields,
     });
+    const listCond = listIdsArray ? sql` AND ${stations.id} = ANY(${listIdsArray})` : sql``;
 
     if (remainingSearch) {
       const like = `%${remainingSearch}%`;
@@ -347,6 +365,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
           WHERE ${stations.location_id} = ${locFields.id}
           AND ${buildStatusCondition(stations, selectedStatuses)}
           AND ${stations.station_id} LIKE ${like}
+          ${listCond}
         )
       )`);
     }
@@ -367,6 +386,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         WHERE ${stations.location_id} = ${locFields.id}
         AND ${buildStatusCondition(stations, selectedStatuses)}
         AND (${sinceConditions})
+        ${listCond}
       )`);
     }
     if (hasStationFilters) {
@@ -405,6 +425,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 						WHERE ${stations.location_id} = ${locFields.id}
 						AND ${buildStatusCondition(stations, selectedStatuses)}
 						${operatorCond}
+						${listCond}
 						AND ${sql.join(cellAndConditions, sql` AND `)}
 					)`);
         }
@@ -423,6 +444,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 						WHERE ${stations.location_id} = ${locFields.id}
 						AND ${buildStatusCondition(stations, selectedStatuses)}
 						${operatorCond}
+						${listCond}
 						${iotBandCond}
 						AND (
 							EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)
@@ -440,6 +462,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 						WHERE ${stations.location_id} = ${locFields.id}
 						AND ${buildStatusCondition(stations, selectedStatuses)}
 						${operatorCond}
+						${listCond}
 					)
 				`);
       }
@@ -470,6 +493,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         sql`${stations.location_id} = ${locFields.id}`,
         buildStatusCondition(stations, selectedStatuses),
       ];
+      if (listIdsArray) innerConditions.push(sql`${stations.id} = ANY(${listIdsArray})`);
       for (const condition of locationGroupedFilters.stations) innerConditions.push(condition);
       appendStationScopedFilterConditions(innerConditions, locationGroupedFilters, stations);
 

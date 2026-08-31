@@ -103,6 +103,9 @@ function AddToListPopoverInner({
       updateList(uuid, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["user-lists"] });
+      void queryClient.invalidateQueries({ queryKey: ["list"] });
+      void queryClient.invalidateQueries({ queryKey: ["list-locations"] });
+      void queryClient.invalidateQueries({ queryKey: ["list-radiolines"] });
       toast.success(t("lists:updated"));
     },
     onError: () => {

@@ -5,6 +5,9 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
+- List maps now offer the full set of map filters — operator, band, standard, status and recently updated
+- Large lists load noticeably faster on the map, as filtering now happens on the server instead of downloading the entire list
+- API: `/stations`, `/locations`, `/uke/locations` and `/uke/radiolines` accept a new `list` parameter to return only entries belonging to a given list, combinable with all existing filters
 - Deleting a user account now preserves their submissions and uploaded photos instead of removing them
 - Advanced map and station searches can now filter for stations with or without azimuths using `has_azimuth:true` or `has_azimuth:false`
 - Advanced map and station searches can now filter by cell type using `macro`, `micro`, `pico`, `femto` or `small`

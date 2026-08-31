@@ -339,7 +339,6 @@ type FilterPanelProps = {
   onTogglePlannedMeasurements?: () => void;
   isSheet?: boolean;
   hideSource?: boolean;
-  hideAPIFilters?: boolean;
 };
 
 export function FilterPanel({
@@ -365,7 +364,6 @@ export function FilterPanel({
   onTogglePlannedMeasurements,
   isSheet = false,
   hideSource = false,
-  hideAPIFilters = false,
 }: FilterPanelProps) {
   const { t, i18n } = useTranslation(["main", "common", "stations"]);
   const { preferences, updatePreferences } = usePreferences();
@@ -496,116 +494,106 @@ export function FilterPanel({
         </div>
       )}
 
-      {!hideAPIFilters && (
-        <>
-          <RecentDaysFilter filters={filters} onRecentDaysChange={onRecentDaysChange} onRecentDateFieldChange={onRecentDateFieldChange} />
-          <StationStatusFilter filters={filters} onToggleStatus={onToggleStatus} />
-        </>
-      )}
+      <RecentDaysFilter filters={filters} onRecentDaysChange={onRecentDaysChange} onRecentDateFieldChange={onRecentDateFieldChange} />
+      <StationStatusFilter filters={filters} onToggleStatus={onToggleStatus} />
 
-      {!hideAPIFilters && (
-        <OperatorsSection
-          filters={filters}
-          topOperators={topOperators}
-          otherOperators={otherOperators}
-          hasSelectedOther={hasSelectedOther}
-          showOtherOperators={showOtherOperators}
-          setShowOtherOperators={setShowOtherOperators}
-          onToggleOperator={onToggleOperator}
-          radiolineOperatorsList={radiolineOperatorsList}
-          radiolineOperatorsChipsRef={radiolineOperatorsChipsRef}
-          onFiltersChange={onFiltersChange}
-        />
-      )}
-      {!hideAPIFilters && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("common:labels.standard")}</h4>
-              <span className="hidden md:inline-flex items-center gap-px">
-                <kbd className="inline-flex items-center px-1 py-0.5 rounded bg-muted font-mono text-[10px] border border-border text-foreground leading-none">
-                  Shift
-                </kbd>
-                <span className="text-[10px] text-muted-foreground font-mono">{t("filters.ratKeybindHint")}</span>
-              </span>
-            </div>
-            <div className="flex gap-1">
-              <button type="button" onClick={onSelectAllRats} className="text-xs text-primary underline-offset-4 hover:underline">
-                {t("common:status.all")}
-              </button>
-              <span className="text-muted-foreground">/</span>
-              <button
-                type="reset"
-                onClick={onClearAllRats}
-                className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-              >
-                {t("common:labels.none")}
-              </button>
-            </div>
+      <OperatorsSection
+        filters={filters}
+        topOperators={topOperators}
+        otherOperators={otherOperators}
+        hasSelectedOther={hasSelectedOther}
+        showOtherOperators={showOtherOperators}
+        setShowOtherOperators={setShowOtherOperators}
+        onToggleOperator={onToggleOperator}
+        radiolineOperatorsList={radiolineOperatorsList}
+        radiolineOperatorsChipsRef={radiolineOperatorsChipsRef}
+        onFiltersChange={onFiltersChange}
+      />
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("common:labels.standard")}</h4>
+            <span className="hidden md:inline-flex items-center gap-px">
+              <kbd className="inline-flex items-center px-1 py-0.5 rounded bg-muted font-mono text-[10px] border border-border text-foreground leading-none">
+                Shift
+              </kbd>
+              <span className="text-[10px] text-muted-foreground font-mono">{t("filters.ratKeybindHint")}</span>
+            </span>
           </div>
-          <div className="flex flex-wrap gap-1">
-            {(filters.source === "uke" ? UKE_RAT_OPTIONS : RAT_OPTIONS).map((rat) => {
-              const isActive = filters.rat.includes(rat.value);
-              return (
-                <button
-                  type="button"
-                  key={rat.value}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onToggleRat(rat.value)}
-                  className={cn(
-                    "flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all border",
-                    isActive
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "border-border bg-background hover:bg-muted text-foreground dark:bg-input/30 dark:border-input",
-                  )}
-                >
-                  <span className={cn("text-xs", isActive ? "text-primary-foreground/70" : "text-muted-foreground")}>{rat.gen}</span>
-                  <span>{rat.label}</span>
-                </button>
-              );
-            })}
+          <div className="flex gap-1">
+            <button type="button" onClick={onSelectAllRats} className="text-xs text-primary underline-offset-4 hover:underline">
+              {t("common:status.all")}
+            </button>
+            <span className="text-muted-foreground">/</span>
+            <button
+              type="reset"
+              onClick={onClearAllRats}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            >
+              {t("common:labels.none")}
+            </button>
           </div>
         </div>
-      )}
-
-      {!hideAPIFilters && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("common:labels.band")} (MHz)</h4>
-            <div className="flex gap-1">
-              <button type="button" onClick={onSelectAllBands} className="text-xs text-primary underline-offset-4 hover:underline">
-                {t("common:status.all")}
-              </button>
-              <span className="text-muted-foreground">/</span>
-              <button
-                type="reset"
-                onClick={onClearAllBands}
-                className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-              >
-                {t("common:labels.none")}
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {uniqueBandValues.map((value) => (
+        <div className="flex flex-wrap gap-1">
+          {(filters.source === "uke" ? UKE_RAT_OPTIONS : RAT_OPTIONS).map((rat) => {
+            const isActive = filters.rat.includes(rat.value);
+            return (
               <button
                 type="button"
-                key={value}
+                key={rat.value}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onToggleBand(value)}
+                onClick={() => onToggleRat(rat.value)}
                 className={cn(
-                  "px-2.5 py-0.5 rounded-full text-xs font-mono transition-all border",
-                  filters.bands.includes(value)
+                  "flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all border",
+                  isActive
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "border-border bg-background hover:bg-muted text-foreground dark:bg-input/30 dark:border-input",
                 )}
               >
-                {value === 0 ? t("stations:cells.unknownBand") : value}
+                <span className={cn("text-xs", isActive ? "text-primary-foreground/70" : "text-muted-foreground")}>{rat.gen}</span>
+                <span>{rat.label}</span>
               </button>
-            ))}
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("common:labels.band")} (MHz)</h4>
+          <div className="flex gap-1">
+            <button type="button" onClick={onSelectAllBands} className="text-xs text-primary underline-offset-4 hover:underline">
+              {t("common:status.all")}
+            </button>
+            <span className="text-muted-foreground">/</span>
+            <button
+              type="reset"
+              onClick={onClearAllBands}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            >
+              {t("common:labels.none")}
+            </button>
           </div>
         </div>
-      )}
+        <div className="flex flex-wrap gap-1">
+          {uniqueBandValues.map((value) => (
+            <button
+              type="button"
+              key={value}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onToggleBand(value)}
+              className={cn(
+                "px-2.5 py-0.5 rounded-full text-xs font-mono transition-all border",
+                filters.bands.includes(value)
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "border-border bg-background hover:bg-muted text-foreground dark:bg-input/30 dark:border-input",
+              )}
+            >
+              {value === 0 ? t("stations:cells.unknownBand") : value}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {activeFilterCount > 0 && (
         <div className="pt-2 border-t">

@@ -10,6 +10,7 @@ import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../utils/userLists.js";
 
 const ukeLocationsSchema = createSelectSchema(ukeLocations)
   .omit({ point: true, region_id: true })
@@ -108,6 +109,7 @@ const schemaRoute = {
       .string()
       .optional()
       .transform((val): boolean => val === "true" || val === "1"),
+    list: z.string().optional(),
   }),
 };
 
@@ -121,7 +123,14 @@ type ResponseBody = z.infer<typeof responseSchema>;
 const CACHE_TTL = 30;
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const { bounds, limit, page, rat, operators: operatorMncs, bands: bandValues, regions: regionNames, since, azimuths } = req.query;
+  const { bounds, limit, page, rat, operators: operatorMncs, bands: bandValues, regions: regionNames, since, azimuths, list: listUuid } = req.query;
+
+  let listUkeStationIds: number[] | undefined;
+  if (listUuid) {
+    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    listUkeStationIds = getUserListMembership(list).uke;
+    if (!listUkeStationIds.length) return res.send({ data: [], totalCount: 0 });
+  }
 
   const cacheKey = `uke:loc:${JSON.stringify({
     bounds: bounds ?? null,
@@ -133,6 +142,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     regions: regionNames ? [...regionNames].sort() : null,
     since: since ? `${[...since.fields].sort().join(",")}:${since.cutoff.toISOString()}` : null,
     azimuths,
+    list: listUuid ?? null,
   })}`;
   const cached = await redis.get(cacheKey);
 
@@ -223,6 +233,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const buildMatchingLocationCondition = (): SQL<unknown> => {
     const conditions: SQL<unknown>[] = [];
+    if (listUkeStationIds?.length) conditions.push(inArray(ukeStations.id, listUkeStationIds));
     if (operatorIds.length) conditions.push(inArray(ukeStations.operator_id, operatorIds));
     if (eligibleBandIds.length) conditions.push(inArray(ukePermits.band_id, eligibleBandIds));
     if (sinceCondition !== null) conditions.push(sinceCondition);
@@ -239,7 +250,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   try {
     const locationConditions = buildLocationOnlyConditions(ukeLocations);
     const locationWhereClause = locationConditions.length ? and(...locationConditions) : undefined;
-    const needsPermitLocationFilter = hasPermitFilters || since !== null;
+    const needsPermitLocationFilter = hasPermitFilters || since !== null || listUkeStationIds !== undefined;
     const matchingLocations = needsPermitLocationFilter
       ? (eligibleBandIds.length
           ? db
@@ -325,6 +336,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     const locationIds = rows.map((row) => row.id);
     const hydrationConditions: SQL<unknown>[] = [];
     if (locationIds.length) hydrationConditions.push(inArray(ukeStations.location_id, locationIds));
+    if (listUkeStationIds?.length) hydrationConditions.push(inArray(ukeStations.id, listUkeStationIds));
     if (operatorIds.length) hydrationConditions.push(inArray(ukeStations.operator_id, operatorIds));
     if (sinceCondition !== null) hydrationConditions.push(sinceCondition);
 
