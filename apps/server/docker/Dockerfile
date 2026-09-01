@@ -68,5 +68,5 @@ COPY apps/server/docker/docker-migrate.sh ./
 
 RUN chmod +x docker-entrypoint.sh docker-migrate.sh
 
-EXPOSE 3030
+EXPOSE 3030 3040
 CMD ["./docker-entrypoint.sh"]

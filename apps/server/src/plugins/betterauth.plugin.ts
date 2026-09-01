@@ -9,6 +9,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import { admin, jwt, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
 import type { FastifyRequest } from "fastify";
 
+import { baseUrl } from "../config.js";
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
 import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
@@ -27,7 +28,7 @@ export function mapHeaders(headers: { [s: string]: unknown } | ArrayLike<unknown
   return map;
 }
 
-const TRUSTED_ORIGIN = process.env.NODE_ENV === "production" ? "https://btsearch.pl" : "https://localhost";
+const TRUSTED_ORIGIN = process.env.NODE_ENV === "production" ? baseUrl : "https://localhost";
 
 const DISALLOWED_CHARACTERS = [
   "@",
@@ -102,7 +103,7 @@ export const auth = betterAuth({
       },
     },
   },
-  baseURL: process.env.NODE_ENV === "production" ? process.env.BASE_URL : "http://localhost:3030",
+  baseURL: baseUrl,
   basePath: "/api/v1/auth",
   socialProviders: {
     google: {

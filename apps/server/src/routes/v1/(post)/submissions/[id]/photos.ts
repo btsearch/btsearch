@@ -14,8 +14,8 @@ import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.j
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../../services/auditLog.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
+import { clearOtherMainPhotos } from "../../../../../services/submissions/photos.js";
 import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
-import { clearOtherMainPhotos } from "../../../../../utils/submissions/photos.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_PHOTOS_PER_SUBMISSION = 5;

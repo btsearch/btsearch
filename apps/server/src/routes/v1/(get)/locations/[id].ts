@@ -9,7 +9,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { buildStatusCondition, parseStationStatusParam } from "../../../../utils/stationStatus.js";
+import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);

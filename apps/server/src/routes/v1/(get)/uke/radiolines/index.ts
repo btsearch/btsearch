@@ -9,7 +9,7 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../../utils/userLists.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../services/lists/visibility.js";
 
 const manufacturerSchema = z.object({ id: z.number(), name: z.string() });
 const equipmentTypeSchema = z.object({ id: z.number(), name: z.string(), manufacturer: manufacturerSchema.optional() });
@@ -234,7 +234,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     res.send({ data, totalCount });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("INTERNAL_SERVER_ERROR"), { cause: error });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 

@@ -2,8 +2,8 @@ import { cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbt
 import { inArray } from "drizzle-orm";
 
 import db from "../database/psql.js";
-import { deleteLocationWithPhotos } from "../utils/location.helpers.js";
 import { logger } from "../utils/logger.js";
+import { deleteLocationWithPhotos } from "./locations/deleteWithPhotos.js";
 
 const INACTIVE_GRACE_MONTHS = 6;
 const CLEANUP_LIMIT = 100;

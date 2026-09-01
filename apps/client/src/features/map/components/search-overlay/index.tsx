@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils.js";
 import type { StationFilters, StationSource } from "@/types/station.js";
 
 import { FILTER_KEYWORDS } from "../../constants.js";
-import { changeFilterSource, getMapFilterKeybindUpdater, type StationFiltersUpdater } from "../../filterKeybinds.js";
+import { type StationFiltersUpdater, changeFilterSource, getMapFilterKeybindUpdater } from "../../filterKeybinds.js";
 import { parseFilters } from "../../filters.js";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers.js";
 import { useSearchState } from "../../hooks/useSearchState.js";

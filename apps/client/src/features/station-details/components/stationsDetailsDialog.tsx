@@ -18,7 +18,7 @@ import { getOperatorColor } from "@/lib/operatorUtils";
 import { getHardwareLeaseOperator } from "@/lib/stationUtils";
 import { cn } from "@/lib/utils";
 
-import { fetchStation } from "../api";
+import { stationQueryOptions } from "../queries";
 import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
 import { DialogOperatorName } from "./dialogOperatorName";
@@ -64,22 +64,15 @@ export function StationDetailsDialogPanel({
   const isAdmin = userRole === "admin" || userRole === "editor";
   const { preferences } = usePreferences();
 
-  const {
-    data: station,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["station", stationId, source],
-    queryFn: () => fetchStation(stationId),
-    enabled: source === "internal",
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: station, isLoading, error } = useQuery(stationQueryOptions(stationId, source));
 
   const operatorColor = station ? getOperatorColor(station.operator.mnc) : "#3b82f6";
   const leaseOperator = station ? getHardwareLeaseOperator(station.station_id, station.operator.mnc) : null;
   const stationNotes = station?.notes?.trim();
   const headerDragClassName = headerDragProps?.className;
   const hasStationActions = !!session?.user || !!onStartTerrainProfile;
+  const stationCity = station?.location.city || t("page.unknownLocation");
+  const stationAddress = station?.extra_address || station?.location.address;
 
   return (
     <div className={cn("relative", className)} style={style}>
@@ -217,8 +210,8 @@ export function StationDetailsDialogPanel({
                 <>
                   <ShareButton
                     title={`${station.station_id} (${station.operator.name})`}
-                    text={`${station.station_id} (${station.operator.name}) - ${station.location.city} ${station.location.address}`}
-                    url={`${window.location.origin}/#map=16/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`}
+                    text={`${station.station_id} (${station.operator.name}) - ${stationCity}${stationAddress ? ` ${stationAddress}` : ""}`}
+                    url={`${window.location.origin}/stations/${station.id}`}
                     size="md"
                     className={stationDialogHeaderIconActionClassName}
                   />

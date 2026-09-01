@@ -11,12 +11,12 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../services/cellDuplicateCheck.service.js";
+import { stationStatusForCellCount } from "../../../../services/stations/status.js";
 import { syncStationsPermitsAssociations } from "../../../../services/stationsPermitsAssociation.service.js";
 import { validateCellARFCNsForBands } from "../../../../utils/cellARFCNValidation.js";
 import { logger } from "../../../../utils/logger.js";
 import { type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../utils/ratCellPersistence.js";
 import { INSERT_OMIT, lteNullableFields, nrExtendFields, umtsNullableFields } from "../../../../utils/ratCellSchemas.js";
-import { stationStatusForCellCount } from "../../../../utils/stationStatus.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../utils/submission.helpers.js";
 
 const stationsInsertSchema = createInsertSchema(stations).omit({ extra_address: true, status: true, statusChangedAt: true });

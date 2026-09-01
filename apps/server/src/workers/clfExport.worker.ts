@@ -8,8 +8,8 @@ import { join } from "node:path";
 import { parentPort } from "node:worker_threads";
 
 import db from "../database/psql.js";
-import { serializeWorkerError } from "../lib/workerError.js";
-import { type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF } from "../utils/clf-export.js";
+import { type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF } from "../services/clfExport/converter.js";
+import { serializeWorkerError } from "../services/clfExport/protocol.js";
 
 if (!parentPort) throw new Error("This file must be run as a worker thread");
 const workerPort = parentPort;

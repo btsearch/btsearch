@@ -75,6 +75,20 @@
       "outdoorShort": "OUT"
     }
   },
+  "page": {
+    "info": "Information",
+    "stationsAtLocation": "Stations at this location",
+    "stationNotFoundTitle": "Station not found",
+    "stationNotFoundDescription": "A station with this identifier does not exist or has been removed from the database",
+    "stationUnavailableTitle": "Failed to load the station",
+    "stationUnavailableDescription": "Please try again in a moment",
+    "locationNotFoundTitle": "Location not found",
+    "locationNotFoundDescription": "A location with this identifier does not exist or has been removed from the database",
+    "locationUnavailableTitle": "Failed to load the location",
+    "locationUnavailableDescription": "Please try again in a moment",
+    "unknownLocation": "Unknown location",
+    "locationShareText": "{{location}} – base stations"
+  },
   "dialog": {
     "hardwareLease": "Hardware lease from {{operator}} (RAN sharing)",
     "btsStation": "Base station",
@@ -100,6 +114,13 @@
   },
   "photos": {
     "title": "Photos",
+    "openPhoto": "Open photo {{number}}",
+    "photoAlt": "Photo {{number}}",
+    "viewerLabel": "Photo viewer",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "uploadedAt": "Uploaded",
+    "takenAt": "Taken",
     "noPhotos": "No photos yet",
     "noPhotosHint": "Photos are added when submissions are approved",
     "setAsMain": "Set as main",

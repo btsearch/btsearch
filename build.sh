@@ -12,10 +12,12 @@ elif [[ "$1" == "deploy" ]]; then
   export COMMIT_SHA=$(docker service inspect btsearch_server --format '{{index (split .Spec.TaskTemplate.ContainerSpec.Image ":") 1}}')
   set -a && source .env && set +a
   docker stack deploy -c docker-compose.swarm.yml btsearch
-elif [[ "$1" == "client" || "$1" == "server" ]]; then
-  SERVICE=$1
-  COMMIT_SHA=$COMMIT_SHA docker compose build "$SERVICE"
-  docker compose up -d --no-deps "$SERVICE"
+elif [[ "$1" == "server" ]]; then
+  COMMIT_SHA=$COMMIT_SHA docker compose build server
+  docker compose up -d --no-deps server og-renderer
+elif [[ "$1" == "client" ]]; then
+  COMMIT_SHA=$COMMIT_SHA docker compose build client
+  docker compose up -d --no-deps client
 else
   COMMIT_SHA=$COMMIT_SHA docker compose build "$@"
 fi

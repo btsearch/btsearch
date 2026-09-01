@@ -123,7 +123,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         }),
       );
       if (error instanceof ErrorResponse) throw error;
-      throw (new ErrorResponse("INTERNAL_SERVER_ERROR"), { cause: error });
+      throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
     }
 
     if (!content) throw new ErrorResponse("BAD_REQUEST");
@@ -157,7 +157,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return res.code(201).send({ data: newComment });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("INTERNAL_SERVER_ERROR"), { cause: error });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 

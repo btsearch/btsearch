@@ -10,9 +10,9 @@ import type { ReplyPayload } from "../../../../../../interfaces/fastify.interfac
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
 import { createAuditLog } from "../../../../../../services/auditLog.service.js";
-import { notifyStationWatchers } from "../../../../../../services/notification.service.js";
+import { buildInternalStationActionUrl } from "../../../../../../services/notifications/actionUrls.js";
+import { notifyStationWatchers } from "../../../../../../services/notifications/service.js";
 import { logger } from "../../../../../../utils/logger.js";
-import { buildInternalStationActionUrl } from "../../../../../../utils/notifications/actionUrls.js";
 
 const stationCommentSelectSchema = createSelectSchema(stationComments);
 

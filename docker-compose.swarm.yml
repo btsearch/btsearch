@@ -10,9 +10,11 @@ x-server-common: &server-common
     - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
     - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-    - BASE_URL=${BASE_URL}
+    - BASE_URL=${BASE_URL:?BASE_URL is required}
     # App configuration
     - APP_NAME=${APP_NAME:-OpenBTS}
+    - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
+    - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
     - WORKERS=1
     # Resend (email)
     - RESEND_API_KEY=${RESEND_API_KEY}
@@ -102,6 +104,46 @@ services:
       - target: 3031
         published: 3034
         mode: host
+
+  og-renderer:
+    image: btsearch-server:${COMMIT_SHA}
+    command: ["bun", "--bun", "/app/apps/server/dist/og-renderer.js"]
+    expose:
+      - "3040"
+    environment:
+      - OG_RENDERER_HOST=0.0.0.0
+      - OG_RENDERER_PORT=3040
+      - BASE_URL=${BASE_URL:?BASE_URL is required}
+      - APP_NAME=${APP_NAME:-OpenBTS}
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3040/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: pause
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == manager
 
   discord-bot:
     image: btsearch-discord-bot:${COMMIT_SHA}

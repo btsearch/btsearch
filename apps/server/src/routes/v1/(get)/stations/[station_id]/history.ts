@@ -14,7 +14,7 @@ import {
   collectLocationSnapshotNames,
   enrichSectorAzimuths,
   transformAuditRow,
-} from "../../../../../utils/stationHistory.js";
+} from "../../../../../services/stations/history.js";
 
 const HISTORY_TABLES = ["stations", "locations", "cells", "station_sectors", "extra_identificators"];
 const BATCH_SIZE = 200;

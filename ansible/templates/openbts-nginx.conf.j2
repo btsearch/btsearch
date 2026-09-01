@@ -7,6 +7,8 @@ upstream sora_backend {
     keepalive 64;
 }
 
+proxy_cache_path /var/cache/nginx/og-images levels=1:2 keys_zone=og_images:10m max_size=512m inactive=24h use_temp_path=off;
+
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -78,6 +80,64 @@ server {
         proxy_pass_request_headers on;
         proxy_buffering off;
         proxy_store off;
+    }
+
+    location ~ ^/(stations|locations)/([0-9]+)/$ {
+        return 308 /$1/$2;
+    }
+
+    location ~ "^/(?:(?:stations|locations)/[0-9]+|robots\.txt|sitemap\.xml|sitemaps/(?:pages|(?:stations|locations)-[1-9][0-9]{0,3})\.xml)$" {
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_pass http://sora_backend;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    location ~ "^/public/og/(stations|locations)/[1-9][0-9]*\.png$" {
+        proxy_cache og_images;
+        proxy_cache_key "$scheme$host$uri";
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 30s;
+        proxy_cache_lock_age 30s;
+        proxy_cache_background_update on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_valid 200 1h;
+        proxy_cache_valid 404 1m;
+        proxy_ignore_headers Vary;
+        proxy_hide_header Vary;
+        proxy_hide_header Access-Control-Allow-Credentials;
+        proxy_hide_header Access-Control-Allow-Origin;
+        proxy_hide_header Access-Control-Expose-Headers;
+        proxy_hide_header X-Response-Time;
+        proxy_hide_header X-RateLimit-Limit;
+        proxy_hide_header X-RateLimit-Remaining;
+        proxy_hide_header X-RateLimit-Reset;
+        proxy_connect_timeout 1s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        proxy_next_upstream off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_pass http://sora_backend;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+
+    location /public/og/ {
+        return 404;
     }
 
     location / {

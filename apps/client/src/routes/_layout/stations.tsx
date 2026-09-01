@@ -10,8 +10,9 @@ function StationsListPage() {
   const { openStationDialog } = useFloatingDialogStack();
   const data = useStationsData();
   const handleRowClick = useCallback((station: Station) => openStationDialog(station.id, "internal"), [openStationDialog]);
+  const getRowHref = useCallback((station: Station) => `/stations/${station.id}`, []);
 
-  return <StationsListLayout data={data} onRowClick={handleRowClick} />;
+  return <StationsListLayout data={data} onRowClick={handleRowClick} getRowHref={getRowHref} />;
 }
 
 export const Route = createFileRoute("/_layout/stations")({

@@ -46,6 +46,7 @@ export type ErrorCode =
   | "TOO_MANY_REQUESTS"
   | "QUOTA_EXCEEDED"
   | "DUPLICATE_ENTRY"
+  | "SERVICE_UNAVAILABLE"
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST";
 
@@ -118,6 +119,10 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
   DUPLICATE_ENTRY: {
     message: "A duplicate entry already exists.",
     statusCode: 409,
+  },
+  SERVICE_UNAVAILABLE: {
+    message: "The service is temporarily unavailable.",
+    statusCode: 503,
   },
   TWO_FACTOR_REQUIRED: {
     message: "Two-factor authentication must be enabled to access this resource.",

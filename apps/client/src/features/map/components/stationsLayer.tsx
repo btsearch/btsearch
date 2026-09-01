@@ -38,6 +38,7 @@ const EMPTY_BLOCKED_LAYERS: string[] = [];
 const PLANNED_PEM_BLOCKED_LAYERS = [PLANNED_PEM_LAYER_ID];
 const MAP_TOUCH_LONG_PRESS_MS = 500;
 const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
+const ignorePrefetchError = () => undefined;
 
 export const DEFAULT_FILTERS: StationFilters = {
   operators: [],
@@ -299,11 +300,13 @@ export function StationsLayer({
   const handleFeatureMouseDown = useCallback(
     (locationId: number) => {
       if (filters.source === "uke") return;
-      void queryClient.prefetchQuery({
-        queryKey: locationQueryKey(locationId, filters),
-        queryFn: () => fetchLocationWithStations(locationId, filters),
-        staleTime: 1000 * 60 * 2,
-      });
+      void queryClient
+        .query({
+          queryKey: locationQueryKey(locationId, filters),
+          queryFn: () => fetchLocationWithStations(locationId, filters),
+          staleTime: 1000 * 60 * 2,
+        })
+        .catch(ignorePrefetchError);
     },
     [queryClient, filters],
   );

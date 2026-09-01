@@ -1,6 +1,6 @@
 import { ArrowLeft01Icon, ArrowRight01Icon, Camera01Icon, Cancel01Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
 const MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short" };
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export type LightboxPhoto = {
   attachment_uuid: string;
@@ -27,37 +28,82 @@ type Props = {
   onNext: () => void;
 };
 
+type NavigationDirection = "left" | "right";
+
 export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
-  const { i18n } = useTranslation();
-  const [visible, setVisible] = useState(false);
+  const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const [imgAnimClass, setImgAnimClass] = useState("opacity-0");
-  const [navDirection, setNavDirection] = useState<"left" | "right" | null>(null);
   const loadedUuids = useRef<Set<string>>(new Set());
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const navigationDirectionRef = useRef<NavigationDirection | null>(null);
 
   const activePhoto = index !== null ? (photos[index] ?? null) : null;
+  const isOpen = activePhoto !== null;
+  const hasMultiplePhotos = photos.length > 1;
 
-  useEscapeKey(onClose, index !== null);
+  function navigate(direction: NavigationDirection) {
+    navigationDirectionRef.current = direction;
+    if (direction === "left") onPrev();
+    else onNext();
+  }
 
-  useEffect(() => {
-    if (index === null || photos.length <= 1) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        setNavDirection("left");
-        onPrev();
-      } else if (e.key === "ArrowRight") {
-        setNavDirection("right");
-        onNext();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [index, photos.length, onPrev, onNext]);
+  const handleArrowKey = useEffectEvent((event: KeyboardEvent) => {
+    if (!hasMultiplePhotos) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      navigate("left");
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      navigate("right");
+    }
+  });
 
-  const isOpen = index !== null;
+  useEscapeKey(onClose, isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
-    const id = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(id);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const siblingStates = Array.from(document.body.children)
+      .filter((element): element is HTMLElement => element instanceof HTMLElement && element !== dialog)
+      .map((element) => ({ element, inert: element.inert }));
+
+    for (const { element } of siblingStates) element.inert = true;
+
+    const getFocusableElements = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => element.getClientRects().length > 0);
+    const focusFrame = requestAnimationFrame(() => (getFocusableElements()[0] ?? dialog).focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      handleArrowKey(event);
+      if (event.key !== "Tab") return;
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === firstElement || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && (activeElement === lastElement || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    dialog.addEventListener("keydown", handleKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      dialog.removeEventListener("keydown", handleKeyDown);
+      for (const { element, inert } of siblingStates) element.inert = inert;
+      previousFocus?.focus();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -67,25 +113,34 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
 
   function handleImgLoad() {
     if (activePhoto) loadedUuids.current.add(activePhoto.attachment_uuid);
-    const slide = navDirection === "left" ? " slide-in-from-left-8" : navDirection === "right" ? " slide-in-from-right-8" : "";
+    const navigationDirection = navigationDirectionRef.current;
+    navigationDirectionRef.current = null;
+    const slide = navigationDirection === "left" ? " slide-in-from-left-8" : navigationDirection === "right" ? " slide-in-from-right-8" : "";
     setImgAnimClass(`animate-in fade-in${slide} duration-200`);
   }
 
   if (index === null || !activePhoto) return null;
 
+  const username = activePhoto.author?.username.trim();
+  const photoAlt = activePhoto.note?.trim() || t("photos.photoAlt", { number: index + 1 });
+  const uploadedDate = new Date(activePhoto.createdAt).toLocaleDateString(i18n.language, DATE_FORMAT);
+  const takenDate = activePhoto.taken_at ? new Date(activePhoto.taken_at).toLocaleDateString(i18n.language, MONTH_FORMAT) : null;
+
   return createPortal(
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Photo viewer"
-      className={cn("fixed inset-0 z-200 flex items-center justify-center transition-opacity duration-200", visible ? "opacity-100" : "opacity-0")}
+      aria-label={t("photos.viewerLabel")}
+      tabIndex={-1}
+      className="fixed inset-0 z-200 flex animate-in items-center justify-center fade-in duration-200"
     >
       <div className="absolute inset-0 bg-black/90 cursor-pointer" onClick={onClose} />
 
       <button
         type="button"
         className="absolute top-3 right-3 z-10 p-2 text-white hover:bg-white/10 active:bg-white/20 active:scale-95 rounded-full transition-[colors,transform]"
-        aria-label="Close"
+        aria-label={t("common:actions.close")}
         onClick={onClose}
       >
         <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
@@ -102,22 +157,16 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
           <button
             type="button"
             className="hidden md:block absolute left-3 top-1/2 -translate-y-1/2 z-10 p-3 text-white hover:bg-white/10 active:bg-white/20 active:scale-95 rounded-full transition-[colors,transform]"
-            aria-label="Previous photo"
-            onClick={() => {
-              setNavDirection("left");
-              onPrev();
-            }}
+            aria-label={t("photos.previousPhoto")}
+            onClick={() => navigate("left")}
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-6" />
           </button>
           <button
             type="button"
             className="hidden md:block absolute right-3 top-1/2 -translate-y-1/2 z-10 p-3 text-white hover:bg-white/10 active:bg-white/20 active:scale-95 rounded-full transition-[colors,transform]"
-            aria-label="Next photo"
-            onClick={() => {
-              setNavDirection("right");
-              onNext();
-            }}
+            aria-label={t("photos.nextPhoto")}
+            onClick={() => navigate("right")}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-6" />
           </button>
@@ -132,35 +181,36 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
             if (!window.matchMedia("(pointer: coarse)").matches) return;
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / rect.width;
-            if (x < 0.33) {
-              setNavDirection("left");
-              onPrev();
-            } else if (x > 0.67) {
-              setNavDirection("right");
-              onNext();
-            }
+            if (x < 0.33) navigate("left");
+            else if (x > 0.67) navigate("right");
           }}
         >
           {imgAnimClass === "opacity-0" ? <Spinner className="absolute text-white/60 size-6" /> : null}
           <img
             key={activePhoto.attachment_uuid}
             src={`/uploads/${activePhoto.attachment_uuid}.webp`}
-            alt={activePhoto.note ?? ""}
+            alt={photoAlt}
             className={cn("max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg", imgAnimClass)}
             onLoad={handleImgLoad}
           />
         </div>
         <div className="flex flex-col items-center gap-1 text-white/80 text-xs">
           <div className="flex items-center gap-2.5">
-            <span className="font-medium">@{activePhoto.author?.username ?? "-"}</span>
+            <span className="font-medium">{username ? `@${username}` : t("photos.unknownUser")}</span>
             <div className="flex items-center gap-1.5">
-              <HugeiconsIcon icon={Upload04Icon} className="size-3 opacity-60" />
-              <span className="tabular-nums">{new Date(activePhoto.createdAt).toLocaleDateString(i18n.language, DATE_FORMAT)}</span>
+              <HugeiconsIcon icon={Upload04Icon} className="size-3 opacity-60" aria-hidden="true" />
+              <span className="sr-only">{t("photos.uploadedAt")}: </span>
+              <time dateTime={activePhoto.createdAt} className="tabular-nums">
+                {uploadedDate}
+              </time>
             </div>
-            {activePhoto.taken_at ? (
+            {activePhoto.taken_at && takenDate ? (
               <div className="flex items-center gap-1.5">
-                <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" />
-                <span className="tabular-nums">{new Date(activePhoto.taken_at).toLocaleDateString(i18n.language, MONTH_FORMAT)}</span>
+                <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" aria-hidden="true" />
+                <span className="sr-only">{t("photos.takenAt")}: </span>
+                <time dateTime={activePhoto.taken_at} className="tabular-nums">
+                  {takenDate}
+                </time>
               </div>
             ) : null}
           </div>

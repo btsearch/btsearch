@@ -30,7 +30,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
     await createAuditLog({ action: "regions.delete", table_name: "regions", record_id: id, old_values: region, new_values: null }, req);
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_DELETE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   }
 
   return res.status(204).send();

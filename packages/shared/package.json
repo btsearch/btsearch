@@ -32,6 +32,10 @@
     "./cellTypes": {
       "types": "./src/cellTypes.ts",
       "default": "./dist/src/cellTypes.js"
+    },
+    "./seo": {
+      "types": "./src/seo.ts",
+      "default": "./dist/src/seo.js"
     }
   },
   "scripts": {

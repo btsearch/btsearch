@@ -23,7 +23,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
 import type { Route } from "../../../../interfaces/routes.interface.js";
-import { type SerializedWorkerError, deserializeWorkerError } from "../../../../lib/workerError.js";
+import { type SerializedWorkerError, deserializeWorkerError } from "../../../../services/clfExport/protocol.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, "../../../../workers/clfExport.worker.js");

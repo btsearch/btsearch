@@ -7,8 +7,8 @@ import { port } from "./config.js";
 import redis from "./database/redis.js";
 import { takeContributionSnapshot } from "./services/contributionSnapshot.service.ts";
 import { cleanupExpiredInactiveStations } from "./services/inactiveStationCleanup.service.js";
-import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./services/notification.service.js";
-import { cleanupOrphanedSubmissions } from "./services/submissionCleanup.service.js";
+import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./services/notifications/service.js";
+import { cleanupOrphanedSubmissions } from "./services/submissions/cleanup.js";
 import { startImportJob } from "./services/ukeImportJob.service.js";
 import { installProcessErrorHandlers, logger } from "./utils/logger.js";
 

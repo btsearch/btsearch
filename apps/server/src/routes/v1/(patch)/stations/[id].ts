@@ -9,9 +9,9 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { deleteLocationWithPhotos } from "../../../../utils/location.helpers.js";
-import { migrateStationPhotosToLocation } from "../../../../utils/stationPhotos.helpers.js";
-import { assertStationStatusTransition, stationStatusUpdate } from "../../../../utils/stationStatus.js";
+import { deleteLocationWithPhotos } from "../../../../services/locations/deleteWithPhotos.js";
+import { migrateStationPhotosToLocation } from "../../../../services/stations/photoMigration.js";
+import { assertStationStatusTransition, stationStatusUpdate } from "../../../../services/stations/status.js";
 
 const stationsUpdateSchema = createUpdateSchema(stations)
   .omit({

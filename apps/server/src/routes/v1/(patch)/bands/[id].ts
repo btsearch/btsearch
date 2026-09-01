@@ -46,7 +46,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return res.send({ data: updated });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_UPDATE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   }
 }
 

@@ -93,7 +93,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     return res.send({ data: stationPermits });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("INTERNAL_SERVER_ERROR"), { cause: error });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 

@@ -17,6 +17,8 @@ services:
       - BETTER_AUTH_SECRET={{ auth_secret }}
       - BASE_URL=https://{{ openbts_domain }}
       - APP_NAME=OpenBTS
+      - CLIENT_ORIGIN=http://client
+      - OG_RENDERER_URL=http://og-renderer:3040
       - WORKERS=4
       # Fill in your OAuth credentials:
       - GOOGLE_CLIENT_ID=

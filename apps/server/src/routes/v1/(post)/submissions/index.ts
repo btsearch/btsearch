@@ -8,9 +8,8 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { notifyStaffNewSubmission } from "../../../../services/notification.service.js";
+import { notifyStaffNewSubmission } from "../../../../services/notifications/service.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
-import { logger } from "../../../../utils/logger.js";
 import {
   type SingleSubmission,
   type SubmissionWithExtras,
@@ -21,7 +20,8 @@ import {
   singleSubmissionSchema,
   submissionsSelectSchema,
   validateSubmission,
-} from "../../../../utils/submissions/create.ts";
+} from "../../../../services/submissions/create.js";
+import { logger } from "../../../../utils/logger.js";
 
 const requestSchema = z.union([singleSubmissionSchema, z.array(singleSubmissionSchema).min(1).max(10)]);
 

@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { deleteLocationWithPhotos } from "../../../../utils/location.helpers.js";
+import { deleteLocationWithPhotos } from "../../../../services/locations/deleteWithPhotos.js";
 
 const schemaRoute = {
   params: z.object({
@@ -35,7 +35,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
     await createAuditLog({ action: "locations.delete", table_name: "locations", record_id: id, old_values: location }, req);
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_DELETE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   }
 
   return res.status(204).send();

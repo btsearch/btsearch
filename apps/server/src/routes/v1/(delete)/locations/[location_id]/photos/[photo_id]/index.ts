@@ -11,7 +11,10 @@ import type { ReplyPayload } from "../../../../../../../interfaces/fastify.inter
 import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../../plugins/auth/utils.js";
 import { createAuditLog } from "../../../../../../../services/auditLog.service.js";
-import { createStationPhotoSelectionAuditLogs, loadStationPhotoSelectionSnapshots } from "../../../../../../../utils/stationPhotoHistory.js";
+import {
+  createStationPhotoSelectionAuditLogs,
+  loadStationPhotoSelectionSnapshots,
+} from "../../../../../../../services/stations/photoSelectionHistory.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 

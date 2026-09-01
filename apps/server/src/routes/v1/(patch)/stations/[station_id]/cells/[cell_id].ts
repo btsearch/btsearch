@@ -10,10 +10,10 @@ import type { ReplyPayload } from "../../../../../../interfaces/fastify.interfac
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../../../services/auditLog.service.js";
 import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../services/cellDuplicateCheck.service.js";
+import { queueStationCellsChangedNotification } from "../../../../../../services/notifications/stationCellChanges.js";
+import { assertCanMutateStationCells } from "../../../../../../services/stations/status.js";
 import { validateCellARFCNsForBands } from "../../../../../../utils/cellARFCNValidation.js";
-import { queueStationCellsChangedNotification } from "../../../../../../utils/notifications/stationCellChanges.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../utils/ratCellPersistence.js";
-import { assertCanMutateStationCells } from "../../../../../../utils/stationStatus.js";
 import { makeDetailsRatRefine } from "../../../../../../utils/submission.helpers.js";
 
 const cellsUpdateSchema = createUpdateSchema(cells)
@@ -227,7 +227,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return res.send({ data: { ...updated, details } });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_UPDATE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   }
 }
 

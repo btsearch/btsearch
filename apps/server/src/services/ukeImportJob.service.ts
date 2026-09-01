@@ -9,8 +9,8 @@ import { Worker } from "node:worker_threads";
 import { db } from "../database/psql.js";
 import redis from "../database/redis.js";
 import { logger } from "../utils/logger.js";
-import { buildInternalStationActionUrl, buildMapLocationActionUrl, buildUkeStationActionUrl } from "../utils/notifications/actionUrls.js";
-import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from "./notification.service.js";
+import { buildInternalStationActionUrl, buildMapLocationActionUrl, buildUkeStationActionUrl } from "./notifications/actionUrls.js";
+import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from "./notifications/service.js";
 import { cleanupOrphanedUkeLocations, cleanupOrphanedUkeStations, pruneStationsPermits } from "./stationsPermitsAssociation.service.js";
 import { getSnapshotDelta, takeStatsSnapshot } from "./statsSnapshot.service.js";
 

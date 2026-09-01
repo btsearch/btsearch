@@ -29,6 +29,13 @@ declare module "@tanstack/react-router" {
   }
 }
 
+const unsubscribeFromInitialResolve = router.subscribe("onResolved", () => {
+  unsubscribeFromInitialResolve();
+  requestAnimationFrame(() => {
+    for (const element of document.querySelectorAll("[data-seo-inject], [data-seo-fallback]")) element.remove();
+  });
+});
+
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");
 

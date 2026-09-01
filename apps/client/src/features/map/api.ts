@@ -16,8 +16,9 @@ export type UkeLocationsResponse = {
   totalCount: number;
 };
 
-export function buildFilterParams(filters: StationFilters): URLSearchParams {
+export function buildFilterParams(filters?: StationFilters): URLSearchParams {
   const params = new URLSearchParams();
+  if (filters === undefined) return params;
 
   const { operators, bands, rat, status, recentDays, recentDateFields } = filters;
   if (operators.length) params.set("operators", operators.join(","));
@@ -30,7 +31,7 @@ export function buildFilterParams(filters: StationFilters): URLSearchParams {
   return params;
 }
 
-export function locationQueryKey(locationId: number, filters: StationFilters) {
+export function locationQueryKey(locationId: number, filters?: StationFilters) {
   return ["location", locationId, buildFilterParams(filters).toString()] as const;
 }
 
@@ -67,7 +68,7 @@ export async function fetchLocations(
   return { data: result.data ?? [], totalCount: result.totalCount ?? 0 };
 }
 
-export async function fetchLocationWithStations(locationId: number, filters: StationFilters): Promise<LocationWithStations> {
+export async function fetchLocationWithStations(locationId: number, filters?: StationFilters): Promise<LocationWithStations> {
   const params = buildFilterParams(filters);
   const filter = params.toString() === "" ? "" : `?${decodeURIComponent(params.toString())}`;
   const result = await fetchJson<{ data: LocationWithStations }>(`${API_BASE}/locations/${locationId}${filter}`, {

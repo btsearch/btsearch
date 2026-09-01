@@ -8,7 +8,7 @@ import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.j
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
-import { approveSubmissionAction } from "../../../../../utils/submissions/actions.ts";
+import { approveSubmissionAction } from "../../../../../services/submissions/actions.js";
 
 const submissionsSelectSchema = createSelectSchema(submissions);
 const requestSchema = z

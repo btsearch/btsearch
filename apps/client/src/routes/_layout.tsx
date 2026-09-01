@@ -74,6 +74,8 @@ function AppLayout() {
   const breadcrumbs = handle?.breadcrumbs ?? EMPTY_BREADCRUMBS;
 
   useEffect(() => {
+    if (!handle) return;
+
     const titleParts: string[] = [];
 
     titleParts.push(APP_NAME);
@@ -85,7 +87,7 @@ function AppLayout() {
     if (pageTitle) titleParts.push(pageTitle);
 
     document.title = titleParts.join(" · ");
-  }, [pageTitle, breadcrumbs, t]);
+  }, [handle, pageTitle, breadcrumbs, t]);
 
   return (
     <PageSectionsProvider>

@@ -17,13 +17,13 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import { type GroupedFilters, defaultFilterRefs, groupFiltersByTable, parseFilterQuery } from "../../(post)/search.filters.ts";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { buildStatusCondition, parseStationStatusParam } from "../../../../utils/stationStatus.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../utils/userLists.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../services/lists/visibility.js";
+import { type GroupedFilters, defaultFilterRefs, groupFiltersByTable, parseFilterQuery } from "../../../../services/search/filters.js";
+import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);

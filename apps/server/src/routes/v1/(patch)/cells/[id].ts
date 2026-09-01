@@ -15,10 +15,10 @@ import {
   checkPciDuplicate,
   getOperatorIdForStation,
 } from "../../../../services/cellDuplicateCheck.service.js";
-import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.js";
+import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
+import { assertCanMutateStationCells } from "../../../../services/stations/status.js";
 import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../utils/ratCellPersistence.js";
 import { lteUpdateSchema, normalRatUpdateSchemaMap, nrUpdateSchema } from "../../../../utils/ratCellSchemas.js";
-import { assertCanMutateStationCells } from "../../../../utils/stationStatus.js";
 import { makeDetailsRatRefine } from "../../../../utils/submission.helpers.js";
 
 const cellsUpdateSchema = createUpdateSchema(cells)
@@ -165,7 +165,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return res.send({ data: { ...updated, details } });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_UPDATE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   }
 }
 

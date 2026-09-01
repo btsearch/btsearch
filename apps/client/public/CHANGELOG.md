@@ -5,11 +5,18 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
+- Every station and location now has its own page at `/stations/<id>` and `/locations/<id>`, with cells, azimuths, UKE permits, photos and comments, so they can be shared and found in search engines
+- Station rows in the database can now be opened in a new tab with middle-click or Ctrl+click
+- Pages now set proper titles, descriptions and link previews when shared on social media
+- A `sitemap.xml` listing all published stations and locations is now available for search engines
+- Station and location links shared on Discord, WhatsApp and other apps now show a preview with the station's actual details instead of the generic site card
+- Shared station and location links now include a generated dark map preview with the station's marker in the operator's color
 - Cell analyzer processing now uses less memory and avoids unnecessary scheduling and duplicate lookup work on large files
 
 ### 🩹 Fixes
 
 - The cell analyzer action now uses the correct singular and plural cell forms in English and Polish
+- Search engines are no longer told that every page is a copy of the homepage, which previously prevented subpages from being indexed correctly
 
 # 2026-08-31
 

@@ -24,6 +24,7 @@ import {
   plPLUsernameLocalization,
 } from "@/i18n/authLocalization";
 import i18n from "@/i18n/config";
+import { APP_NAME } from "@/lib/api";
 import { deleteUserPlugin } from "@/lib/auth/delete-user-plugin";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
@@ -31,6 +32,7 @@ import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
 import { usernamePlugin } from "@/lib/auth/username-plugin";
 import { authClient } from "@/lib/authClient";
 import { queryClient } from "@/lib/queryClient";
+import { buildDefaultMeta } from "@/lib/seo";
 import "@/index.css";
 
 declare global {
@@ -183,6 +185,7 @@ export const Route = createRootRoute({
   head: () => {
     const adClient = import.meta.env.VITE_ADSENSE_CLIENT as string | undefined;
     return {
+      meta: buildDefaultMeta(APP_NAME),
       scripts: adClient
         ? [
             {

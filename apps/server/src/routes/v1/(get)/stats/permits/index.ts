@@ -7,7 +7,7 @@ import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { type StatsOperator, statsBandSchema, statsOperatorSchema } from "../schemas.js";
+import { type StatsOperator, statsBandSchema, statsOperatorSchema } from "../../../../../services/stats/schemas.js";
 
 const CACHE_TTL = 86400; // 24h
 

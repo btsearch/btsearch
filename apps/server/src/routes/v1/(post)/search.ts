@@ -8,7 +8,7 @@ import db from "../../../database/psql.js";
 import { ErrorResponse } from "../../../errors.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
-import { type GroupedFilters, groupFiltersByTable, hasFilters, parseFilterQuery } from "./search.filters.js";
+import { type GroupedFilters, groupFiltersByTable, hasFilters, parseFilterQuery } from "../../../services/search/filters.js";
 
 const stationsSelectSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const cellsSelectSchema = createSelectSchema(cells);

@@ -9,7 +9,6 @@ import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { recordAnalyzerUsage } from "../../../../services/analyzerUsage.service.ts";
 import {
   type AnalyzerResult,
   type CellGroups,
@@ -23,8 +22,9 @@ import {
   lteEnbidKey,
   pairKey,
   stripFirstDigit,
-} from "./logic.js";
-import { analyzerPool } from "./pool.js";
+} from "../../../../services/analyzer/logic.js";
+import { analyzerPool } from "../../../../services/analyzer/pool.js";
+import { recordAnalyzerUsage } from "../../../../services/analyzerUsage.service.ts";
 
 const MAX_CELLS = 20_000;
 const BATCH_SIZE = 200;

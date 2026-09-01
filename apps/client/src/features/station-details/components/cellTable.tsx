@@ -1,6 +1,6 @@
 import { AlertCircleIcon, ArrowDown01Icon, BatteryLowIcon, Clock01Icon, WifiConnected01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ type CellTableProps = {
   sectorInfoById?: ReadonlyMap<number, { label: string; azimuth: number }>;
 };
 
-export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
+function CellTableComponent({ rat, cells, sectorInfoById }: CellTableProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const [open, setOpen] = useState(true);
   const scrollRef = useHorizontalScroll<HTMLDivElement>();
@@ -247,6 +247,8 @@ export function CellTable({ rat, cells, sectorInfoById }: CellTableProps) {
     </Collapsible>
   );
 }
+
+export const CellTable = memo(CellTableComponent);
 
 function StationDetailHeaderCell({ field }: { field: RatDetailField }) {
   return (

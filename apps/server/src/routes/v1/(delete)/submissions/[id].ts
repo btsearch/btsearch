@@ -110,7 +110,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
     });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_DELETE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   }
 
   await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));

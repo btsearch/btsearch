@@ -15,11 +15,11 @@ import {
   checkPciDuplicate,
   getOperatorIdForStation,
 } from "../../../../services/cellDuplicateCheck.service.js";
+import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
+import { assertCanMutateStationCells } from "../../../../services/stations/status.js";
 import { validateCellARFCNsForBands } from "../../../../utils/cellARFCNValidation.js";
-import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.js";
 import { type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../utils/ratCellPersistence.js";
 import { normalRatInsertSchemaMap } from "../../../../utils/ratCellSchemas.js";
-import { assertCanMutateStationCells } from "../../../../utils/stationStatus.js";
 import { makeDetailsRatRefine } from "../../../../utils/submission.helpers.js";
 
 const cellsSelectSchema = createSelectSchema(cells);
@@ -110,7 +110,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
     return res.send({ data: { ...inserted, details } as ResponseData });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_CREATE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
   }
 }
 

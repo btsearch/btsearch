@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
 import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { assertStationStatusTransition, stationStatusUpdate } from "../../../../utils/stationStatus.js";
+import { assertStationStatusTransition, stationStatusUpdate } from "../../../../services/stations/status.js";
 
 const schemaRoute = {
   params: z.object({
@@ -51,7 +51,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
     return res.status(204).send();
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("FAILED_TO_DELETE"), { cause: error });
+    throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   }
 }
 

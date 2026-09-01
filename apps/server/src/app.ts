@@ -15,6 +15,9 @@ import { resolve } from "node:path";
 import type { $ZodIssue } from "zod/v4/core";
 
 import { dlogger } from "./config.js";
+import { OGImagesController } from "./controllers/seo/og-images.controller.js";
+import { SEOPagesController } from "./controllers/seo/pages.controller.js";
+import { SitemapController } from "./controllers/seo/sitemap.controller.js";
 import { APIv1Controller } from "./controllers/v1.controller.js";
 import { redisReady } from "./database/redis.js";
 import { type ErrorResponse, ValidationError } from "./errors.js";
@@ -218,6 +221,9 @@ export default class App {
     this.fastify.get("/api/v1/openapi.yaml", (_req, res) => res.sendFile("openapi.yaml"));
     this.fastify.get("/.well-known/openid-configuration", async (_req, res) => res.send(await auth.api.getOpenIdConfig()));
     this.fastify.get("/.well-known/oauth-authorization-server", async (_req, res) => res.send(await auth.api.getOAuthServerConfig()));
+    this.fastify.register(SitemapController);
+    this.fastify.register(SEOPagesController);
+    this.fastify.register(OGImagesController);
     this.fastify.register(APIv1Controller, { prefix: "/api/v1" });
   }
 

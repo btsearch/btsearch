@@ -19,7 +19,7 @@ services:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3030/api/v1}
         - VITE_MAPBOX_ACCESS_TOKEN=${VITE_MAPBOX_ACCESS_TOKEN:-}
         - VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY:-}
-        - VITE_APP_NAME=${VITE_APP_NAME:-OpenBTS}
+        - VITE_APP_NAME=${VITE_APP_NAME:-${APP_NAME:-OpenBTS}}
         - VITE_ADSENSE_CLIENT=${VITE_ADSENSE_CLIENT:-}
         - COMMIT_SHA=${COMMIT_SHA}
     ports:
@@ -45,9 +45,11 @@ services:
       - GOOGLE_CLIENT_SECRET=your-google-client-secret
       - GITHUB_CLIENT_ID=your-github-client-id
       - GITHUB_CLIENT_SECRET=your-github-client-secret
-      - BASE_URL=http://localhost:3030
+      - BASE_URL=${BASE_URL:-http://localhost:3030}
       # App configuration
-      - APP_NAME=OpenBTS
+      - APP_NAME=${APP_NAME:-OpenBTS}
+      - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
+      - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
       - WORKERS=4 # Number of server workers, since javascript is single-threaded, this will improve performance of the server
       # Resend (email)
       - RESEND_API_KEY=
@@ -68,6 +70,30 @@ services:
       - postgres
       - redis
       - pgbouncer
+      - og-renderer
+    restart: unless-stopped
+
+  og-renderer:
+    image: btsearch-server:${COMMIT_SHA}
+    build:
+      context: .
+      dockerfile: apps/server/docker/Dockerfile
+    command: ["bun", "--bun", "/app/apps/server/dist/og-renderer.js"]
+    expose:
+      - "3040"
+    environment:
+      - OG_RENDERER_HOST=0.0.0.0
+      - OG_RENDERER_PORT=3040
+      - BASE_URL=${BASE_URL:-http://localhost:3030}
+      - APP_NAME=${APP_NAME:-OpenBTS}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3040/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    cpus: 1.0
+    mem_limit: 512m
     restart: unless-stopped
 
   postgres:

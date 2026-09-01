@@ -104,7 +104,7 @@ export class RateLimitService {
    * @returns Rate limit key or null if fingerprint generation fails
    */
   generateKey(req: FastifyRequest, useRouteKey = false): string | null {
-    const route = useRouteKey ? (req.url ?? req.routeOptions.url ?? "unknown").split("?")[0] : "";
+    const route = useRouteKey ? (req.routeOptions.url ?? req.url ?? "unknown").split("?")[0] : "";
 
     if (req.apiToken) {
       const tokenId = req.apiToken.id;

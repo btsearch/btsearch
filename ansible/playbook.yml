@@ -375,6 +375,8 @@
           BETTER_AUTH_SECRET={{ auth_secret }}
           BASE_URL=https://{{ openbts_domain }}
           APP_NAME=OpenBTS
+          CLIENT_ORIGIN=http://client
+          OG_RENDERER_URL=http://og-renderer:3040
           POSTGRES_USER=user
           POSTGRES_PASSWORD={{ db_password }}
           POSTGRES_DB=openbts
@@ -408,14 +410,59 @@
         group: root
         mode: "0600"
 
-    - name: Deploy nginx vhost for openbts
-      template:
-        src: templates/openbts-nginx.conf.j2
-        dest: /etc/nginx/conf.d/openbts.conf
-        owner: root
-        group: root
-        mode: "0644"
-      notify: Reload nginx
+    - name: Create Nginx OG image cache directory
+      file:
+        path: /var/cache/nginx/og-images
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0750"
+
+    - name: Deploy and validate nginx vhost for openbts
+      block:
+        - name: Deploy nginx vhost for openbts
+          template:
+            src: templates/openbts-nginx.conf.j2
+            dest: /etc/nginx/conf.d/openbts.conf
+            owner: root
+            group: root
+            mode: "0644"
+            backup: true
+          register: openbts_nginx_vhost
+          notify: Reload nginx
+
+        - name: Validate nginx configuration
+          command: nginx -t
+          changed_when: false
+      rescue:
+        - name: Restore previous nginx vhost
+          copy:
+            src: "{{ openbts_nginx_vhost.backup_file }}"
+            dest: /etc/nginx/conf.d/openbts.conf
+            owner: root
+            group: root
+            mode: "0644"
+            remote_src: true
+          when: openbts_nginx_vhost.backup_file is defined
+
+        - name: Remove invalid first-deploy nginx vhost
+          file:
+            path: /etc/nginx/conf.d/openbts.conf
+            state: absent
+          when:
+            - openbts_nginx_vhost.changed | default(false)
+            - openbts_nginx_vhost.backup_file is not defined
+
+        - name: Validate restored nginx configuration
+          command: nginx -t
+          changed_when: false
+
+        - name: Reject invalid nginx configuration
+          fail:
+            msg: The candidate nginx configuration was invalid and has been rolled back
+
+    - name: Apply validated nginx configuration
+      meta: flush_handlers
 
     - name: Install iptables-persistent
       apt:

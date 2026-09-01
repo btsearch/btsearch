@@ -75,6 +75,20 @@
       "outdoorShort": "Z"
     }
   },
+  "page": {
+    "info": "Informacje",
+    "stationsAtLocation": "Stacje w tej lokalizacji",
+    "stationNotFoundTitle": "Nie znaleziono stacji",
+    "stationNotFoundDescription": "Stacja o podanym identyfikatorze nie istnieje lub została usunięta z bazy",
+    "stationUnavailableTitle": "Nie udało się wczytać stacji",
+    "stationUnavailableDescription": "Spróbuj ponownie za chwilę",
+    "locationNotFoundTitle": "Nie znaleziono lokalizacji",
+    "locationNotFoundDescription": "Lokalizacja o podanym identyfikatorze nie istnieje lub została usunięta z bazy",
+    "locationUnavailableTitle": "Nie udało się wczytać lokalizacji",
+    "locationUnavailableDescription": "Spróbuj ponownie za chwilę",
+    "unknownLocation": "Nieznana lokalizacja",
+    "locationShareText": "{{location}} – stacje bazowe"
+  },
   "dialog": {
     "hardwareLease": "Dzierżawa sprzętu od {{operator}} (RAN sharing)",
     "btsStation": "Stacja bazowa",
@@ -100,6 +114,13 @@
   },
   "photos": {
     "title": "Zdjęcia",
+    "openPhoto": "Otwórz zdjęcie {{number}}",
+    "photoAlt": "Zdjęcie {{number}}",
+    "viewerLabel": "Przeglądarka zdjęć",
+    "previousPhoto": "Poprzednie zdjęcie",
+    "nextPhoto": "Następne zdjęcie",
+    "uploadedAt": "Dodano",
+    "takenAt": "Wykonano",
     "noPhotos": "Brak zdjęć",
     "noPhotosHint": "Zdjęcia są dodawane po zatwierdzeniu zgłoszeń",
     "setAsMain": "Ustaw jako główne",

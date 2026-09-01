@@ -10,7 +10,7 @@ import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../../utils/userLists.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../services/lists/visibility.js";
 
 const ukeLocationsSchema = createSelectSchema(ukeLocations)
   .omit({ point: true, region_id: true })

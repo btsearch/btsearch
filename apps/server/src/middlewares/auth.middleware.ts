@@ -1,8 +1,9 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 
 import { PUBLIC_ROUTES } from "../constants.js";
 import { ErrorResponse } from "../errors.js";
 import { getCurrentUser, verifyApiKey } from "../plugins/betterauth.plugin.js";
+import { getRequestPathname, isSEOPublicPath } from "../services/seo/routes.js";
 import { getRuntimeSettings } from "../services/settings.service.js";
 
 const TWO_FACTOR_ALLOWED = [
@@ -23,13 +24,13 @@ import type { ApiToken } from "../interfaces/fastify.interface.js";
 import type { Route } from "../interfaces/routes.interface.js";
 import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../services/oauthToken.service.js";
 
-export async function authHook(req: FastifyRequest, _: FastifyReply) {
+export async function authHook(req: FastifyRequest) {
   const route = req.routeOptions as unknown as Route;
   const url = req.url;
 
   const settings = getRuntimeSettings();
   if (settings.disabledRoutes.some((p) => url?.startsWith(p))) throw new ErrorResponse("FORBIDDEN");
-  const isPublicByStatic = PUBLIC_ROUTES.some((p) => url?.startsWith(p));
+  const isPublicByStatic = PUBLIC_ROUTES.some((p) => url?.startsWith(p)) || isSEOPublicPath(getRequestPathname(url));
   const isPublicByRuntime = settings.allowedUnauthenticatedRoutes.some((p) => url?.startsWith(p));
   if (isPublicByRuntime) return;
   if (isPublicByStatic && !settings.enforceAuthForAllRoutes) return;

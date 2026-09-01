@@ -9,8 +9,8 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
 import { createAuditLog } from "../../../../services/auditLog.service.ts";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
+import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
 import { validateCellARFCNsAgainstBands } from "../../../../utils/cellARFCNValidation.ts";
-import { queueStationCellsChangedNotification } from "../../../../utils/notifications/stationCellChanges.ts";
 import {
   type LTEInsertDetails,
   type LTEUpdateDetails,

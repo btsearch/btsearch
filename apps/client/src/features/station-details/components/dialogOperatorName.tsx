@@ -35,7 +35,7 @@ export function DialogOperatorName({ name, mnc, compact = false, labelClassName 
       {compact ? (
         <span className={cn("min-w-0 truncate text-xs font-medium text-foreground", labelClassName)}>{name}</span>
       ) : (
-        <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{name}</h2>
+        <h2 className={cn("min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground", labelClassName)}>{name}</h2>
       )}
     </Root>
   );

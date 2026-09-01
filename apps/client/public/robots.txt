@@ -1,14 +1,5 @@
 User-agent: *
 Allow: /
-Allow: /stations
-Allow: /statistics
-Allow: /about
-Allow: /contact
-Allow: /terms
-Allow: /changelog
-Allow: /analyzer
-Allow: /clf-export
-Allow: /deleted-entries
 
 Disallow: /admin/
 Disallow: /account/
@@ -16,3 +7,5 @@ Disallow: /preferences
 Disallow: /lists
 Disallow: /submission
 Disallow: /share-target
+
+Sitemap: https://btsearch.pl/sitemap.xml

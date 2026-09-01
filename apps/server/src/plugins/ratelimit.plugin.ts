@@ -41,6 +41,7 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/api/v1/auth/oauth2/authorize", max: 30, window: 60 },
       { url: "/api/v1/auth/oauth2/consent", max: 15, window: 60 },
       { url: "/api/v1/auth/oauth2/create-client", max: 10, window: 3600 },
+      { url: "/public/og/:resource/:file", max: 12, window: 60 },
       {
         url: "/api/v1/terrain-profile/analyses",
         max: 15,

@@ -93,7 +93,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseB
       } catch {}
     }
     if (error instanceof ErrorResponse) throw error;
-    throw (new ErrorResponse("INTERNAL_SERVER_ERROR"), { cause: error });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 
   if (!newImageFilename) throw new ErrorResponse("BAD_REQUEST", { message: "No file provided" });

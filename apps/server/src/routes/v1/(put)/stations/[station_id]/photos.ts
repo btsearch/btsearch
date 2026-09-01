@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
-import { createStationPhotoSelectionAuditLogs, loadStationPhotoSelectionSnapshots } from "../../../../../utils/stationPhotoHistory.js";
+import { createStationPhotoSelectionAuditLogs, loadStationPhotoSelectionSnapshots } from "../../../../../services/stations/photoSelectionHistory.js";
 
 const schemaRoute = {
   params: z.object({ station_id: z.coerce.number() }),

@@ -47,10 +47,13 @@ export function ShareButton({ title, text, url, size = "sm", className }: ShareB
 
   const iconSize = size === "sm" ? "size-3.5" : "size-4";
   const buttonPadding = size === "sm" ? "p-1" : "p-1.5";
+  const label = copied ? t("common:actions.copied") : t("common:actions.share");
 
   return (
     <Tooltip>
       <TooltipTrigger
+        type="button"
+        aria-label={label}
         onClick={handleShare}
         className={cn(
           buttonPadding,
@@ -60,12 +63,12 @@ export function ShareButton({ title, text, url, size = "sm", className }: ShareB
         )}
       >
         {copied ? (
-          <HugeiconsIcon icon={Tick02Icon} className={cn(iconSize, "text-emerald-500")} />
+          <HugeiconsIcon icon={Tick02Icon} className={cn(iconSize, "text-emerald-500")} aria-hidden="true" />
         ) : (
-          <HugeiconsIcon icon={Share08Icon} className={cn(iconSize, "text-muted-foreground")} />
+          <HugeiconsIcon icon={Share08Icon} className={cn(iconSize, "text-muted-foreground")} aria-hidden="true" />
         )}
       </TooltipTrigger>
-      <TooltipContent>{copied ? t("common:actions.copied") : t("common:actions.share")}</TooltipContent>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }

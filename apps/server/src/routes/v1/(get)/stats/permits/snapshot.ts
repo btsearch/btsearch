@@ -7,7 +7,7 @@ import { z } from "zod/v4";
 import redis from "../../../../../database/redis.ts";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.ts";
-import { statsBandSchema, statsOperatorSchema } from "../schemas.js";
+import { statsBandSchema, statsOperatorSchema } from "../../../../../services/stats/schemas.js";
 
 const CACHE_TTL = 86400;
 
