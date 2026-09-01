@@ -10,12 +10,12 @@ import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
 import { MAX_SITEMAP_CHUNK_PAGE, parseSitemapChunkFile } from "../../services/seo/routes.js";
 
-const CHUNK_SIZE = 40_000;
+const SITEMAP_CHUNK_SIZE = 20_000;
 const CACHE_TTL_SECONDS = 6 * 60 * 60;
 const MISSING_TTL_SECONDS = 5 * 60;
 const STATS_TTL_MS = 60_000;
 const MISSING = "__missing__";
-const CACHE_KEY_PREFIX = `sitemap:v2:${encodeURIComponent(baseUrl)}:${CHUNK_SIZE}:published-with-location-and-operator`;
+const CACHE_KEY_PREFIX = `sitemap:v3:${encodeURIComponent(baseUrl)}:${SITEMAP_CHUNK_SIZE}:published-with-location-and-operator`;
 const STATIC_PATHS = [
   "/",
   "/stations",
@@ -84,7 +84,7 @@ function renderSitemapIndex(urls: SitemapUrl[]): string {
 }
 
 function chunkCount(total: number): number {
-  const chunks = Math.ceil(total / CHUNK_SIZE);
+  const chunks = Math.ceil(total / SITEMAP_CHUNK_SIZE);
   if (chunks > MAX_SITEMAP_CHUNK_PAGE) throw new Error(`Sitemap requires ${chunks} chunks, exceeding the supported limit`);
   return chunks;
 }
@@ -144,8 +144,8 @@ async function buildStationsChunk(page: number): Promise<string | null> {
     .from(stations)
     .where(publishedSEOStations)
     .orderBy(asc(stations.id))
-    .limit(CHUNK_SIZE)
-    .offset((page - 1) * CHUNK_SIZE);
+    .limit(SITEMAP_CHUNK_SIZE)
+    .offset((page - 1) * SITEMAP_CHUNK_SIZE);
 
   if (rows.length === 0) return null;
   return renderUrlset(rows.map((row) => ({ loc: `${baseUrl}/stations/${row.id}`, lastmod: latestIso(row.updatedAt) })));
@@ -157,8 +157,8 @@ async function buildLocationsChunk(page: number): Promise<string | null> {
     .from(publishedLocationActivity)
     .innerJoin(locations, eq(publishedLocationActivity.locationId, locations.id))
     .orderBy(asc(locations.id))
-    .limit(CHUNK_SIZE)
-    .offset((page - 1) * CHUNK_SIZE);
+    .limit(SITEMAP_CHUNK_SIZE)
+    .offset((page - 1) * SITEMAP_CHUNK_SIZE);
 
   if (rows.length === 0) return null;
   return renderUrlset(
