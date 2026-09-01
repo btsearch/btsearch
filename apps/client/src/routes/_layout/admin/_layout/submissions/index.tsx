@@ -52,7 +52,7 @@ const DESKTOP_PAGINATION_CONFIG = {
   headerHeight: DATA_TABLE_HEADER_HEIGHT,
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
 };
-const MOBILE_ROW_HEIGHT_FALLBACK = 157;
+const MOBILE_ROW_HEIGHT_FALLBACK = 148;
 const MOBILE_PAGINATION_CONFIG = { headerHeight: DATA_TABLE_HEADER_HEIGHT, paginationHeight: 51, minRows: 1 };
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 const MOBILE_SUBMISSION_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => (
@@ -456,7 +456,7 @@ function AdminSubmissionsListPage() {
                             <SubmissionChangesSummary submission={submission} />
                             <SubmissionTimestamp value={submission.createdAt} />
                           </div>
-                          <div className="mt-3 border-t pt-2">
+                          <div className="mt-3">
                             <SubmissionSubmitterSummary submission={submission} />
                           </div>
                         </Link>

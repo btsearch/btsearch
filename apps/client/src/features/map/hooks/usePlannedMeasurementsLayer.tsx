@@ -14,10 +14,25 @@ import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
 const PEM_BOX_IMAGE_ID = "pem-box";
 
 type PopupState = { popup: Popup; root: ReturnType<typeof createRoot> };
+type PlannedMeasurementProperties = {
+  station_id: string | null;
+  color: string;
+  operator_name: string | null;
+  operator_mnc: number | null;
+  region_name: string | null;
+  status: PlannedPEMStation["status"];
+  disabled_date: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  lab_name: string | null;
+  lab_pca: string | null;
+  city: string;
+  address: string;
+};
 type PlannedMeasurementFeature = {
   type: "Feature";
   geometry: { type: "Point"; coordinates: [number, number] };
-  properties: Record<string, unknown>;
+  properties: PlannedMeasurementProperties;
 };
 type PlannedMeasurementFeatureCollection = { type: "FeatureCollection"; features: PlannedMeasurementFeature[] };
 
@@ -56,13 +71,16 @@ async function fetchMeasurements(bounds: string, operators: number[]): Promise<P
         station_id: f.station_id,
         color: getOperatorColor(f.operator?.mnc ?? 0),
         operator_name: f.operator?.name ?? null,
+        operator_mnc: f.operator?.mnc ?? null,
+        region_name: f.region?.name ?? null,
+        status: f.status,
+        disabled_date: f.disabled_date ?? null,
         date_from: f.date?.from ?? null,
         date_to: f.date?.to ?? null,
         lab_name: f.lab?.name ?? null,
         lab_pca: f.lab?.PCA ?? null,
         city: f.location.city,
         address: f.location.address,
-        status: f.status,
       },
     })),
   };
@@ -134,8 +152,8 @@ export function usePlannedMeasurementsLayer({
     };
 
     const handleClick = (e: MapLayerMouseEvent) => {
-      const p = e.features?.[0]?.properties;
-      if (!p) return;
+      const properties = e.features?.[0]?.properties as PlannedMeasurementProperties | undefined;
+      if (!properties) return;
 
       popupRef.current = destroyPopup(popupRef.current);
 
@@ -154,15 +172,18 @@ export function usePlannedMeasurementsLayer({
 
       root.render(
         <PemPopupContent
-          stationId={p.station_id}
-          operatorName={p.operator_name}
-          color={p.color}
-          dateFrom={p.date_from}
-          dateTo={p.date_to}
-          labName={p.lab_name}
-          labPca={p.lab_pca}
-          city={p.city}
-          address={p.address}
+          stationId={properties.station_id}
+          operatorName={properties.operator_name}
+          operatorMnc={properties.operator_mnc}
+          regionName={properties.region_name}
+          status={properties.status}
+          disabledDate={properties.disabled_date}
+          dateFrom={properties.date_from}
+          dateTo={properties.date_to}
+          labName={properties.lab_name}
+          labPca={properties.lab_pca}
+          city={properties.city}
+          address={properties.address}
         />,
       );
 

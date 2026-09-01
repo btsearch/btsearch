@@ -12,12 +12,11 @@ import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { StationTitle } from "@/features/station-details/components/stationTitle";
 import type { PaginationState } from "@/hooks/useTablePageSize";
-import { formatShortDate } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 
 import type { PlannedPEMStation } from "../api";
+import { MeasurementSummary, getMeasurementDate } from "./measurementSummary";
 
 type Props = {
   data: PlannedPEMStation[];
@@ -59,14 +58,6 @@ function getMeasurementKey(measurement: PlannedPEMStation) {
   ].join(":");
 }
 
-function getMeasurementDate(measurement: PlannedPEMStation, locale: string) {
-  if (measurement.status === "INACTIVE") return measurement.disabled_date ? formatShortDate(measurement.disabled_date, locale) : "-";
-
-  const from = measurement.date?.from ? formatShortDate(measurement.date.from, locale) : "-";
-  const to = measurement.date?.to ? formatShortDate(measurement.date.to, locale) : "-";
-  return from === to ? from : `${from}-${to}`;
-}
-
 function MeasurementMobileSkeleton({ rows }: { rows: number }) {
   return (
     <div className="divide-y" aria-hidden="true">
@@ -89,47 +80,24 @@ type MobileRowProps = {
 };
 
 function MeasurementMobileRow({ measurement, locale, t, tCommon }: MobileRowProps) {
-  const city = measurement.location.city || t("table.unknownCity");
-  const regionName = measurement.region?.name;
-  const address = measurement.location.address;
-  const labName = measurement.lab?.name;
-
   return (
     <a
       href={getMeasurementMapHref(measurement)}
       className="group block h-28 overflow-hidden px-3 py-2.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <StationTitle
-            stationId={measurement.station_id ?? "-"}
-            operator={measurement.operator ?? undefined}
-            stationIdClassName="underline-offset-2 group-hover:underline group-focus-visible:underline"
-          />
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground">
-          <HugeiconsIcon icon={MapsIcon} className="size-3.5" aria-hidden="true" />
-          {tCommon("labels.map")}
-        </span>
-      </div>
-
-      <div className="mt-2 flex min-w-0 items-start gap-2">
-        <HugeiconsIcon icon={Location01Icon} className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <div className="min-w-0">
-          <div className="truncate text-sm leading-tight">
-            <span className="font-medium text-foreground">{city}</span>
-            {regionName ? <span className="text-xs text-muted-foreground"> · {regionName}</span> : null}
-          </div>
-          <div className="truncate text-xs text-muted-foreground underline-offset-2 group-hover:underline group-focus-visible:underline">
-            {address || tCommon("notFound.address")}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-2 flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span className="shrink-0 tabular-nums">{getMeasurementDate(measurement, locale)}</span>
-        {labName ? <span className="truncate">{labName}</span> : null}
-      </div>
+      <MeasurementSummary
+        measurement={measurement}
+        locale={locale}
+        unknownCityLabel={t("table.unknownCity")}
+        noAddressLabel={tCommon("notFound.address")}
+        stationIdClassName="underline-offset-2 group-hover:underline group-focus-visible:underline"
+        action={
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-foreground">
+            <HugeiconsIcon icon={MapsIcon} className="size-3.5" aria-hidden="true" />
+            {tCommon("labels.map")}
+          </span>
+        }
+      />
     </a>
   );
 }

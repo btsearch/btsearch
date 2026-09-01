@@ -3,10 +3,10 @@ const MAX_POSTGRES_INTEGER = 2_147_483_647;
 const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
 
 export const DEFAULT_SEO_DESCRIPTION =
-  "BTSearch: baza stacji bazowych sieci komórkowych w Polsce; mapa lokalizacji stacji bazowych w oparciu o ogólnodostępny wykaz pozwoleń radiowych Urzędu Komunikacji Elektronicznej";
+  "Mapa stacji bazowych i radiolinii w Polsce. Sprawdź odległość od nadajnika oraz dane o operatorze, technologiach 2G–5G, pasmach i pozwoleniach UKE";
 
 export const DEFAULT_SOCIAL_DESCRIPTION =
-  "Baza stacji bazowych sieci komórkowych w Polsce. Mapa lokalizacji stacji bazowych w oparciu o ogólnodostępny wykaz pozwoleń radiowych UKE";
+  "Znajdź stację bazową lub radiolinię. Sprawdź odległość od nadajnika, dane o operatorze, technologie 2G–5G, pasma i pozwolenia UKE";
 
 export const DEFAULT_SOCIAL_IMAGE_PATH = "/btsearch.webp";
 export const SEO_IMAGE_WIDTH = 1200;
@@ -143,7 +143,7 @@ export function createStationSEOMetadata(site: SEOSite, station: StationSEOData)
   return {
     title: `${name} - ${city} | ${site.name}`,
     siteName: site.name,
-    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Zobacz Azymuty, pozwolenia UKE i zdjęcia w bazie ${site.name}`,
+    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Zobacz azymuty, pozwolenia UKE i zdjęcia w bazie ${site.name}`,
     canonicalUrl,
     imageUrl: absoluteSiteUrl(site.url, `/public/og/stations/${station.id}.png`),
     noindex: station.status !== "published",
