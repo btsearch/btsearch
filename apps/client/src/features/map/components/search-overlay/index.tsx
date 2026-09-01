@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils.js";
 import type { StationFilters, StationSource } from "@/types/station.js";
 
 import { FILTER_KEYWORDS } from "../../constants.js";
+import { changeFilterSource, getMapFilterKeybindUpdater, type StationFiltersUpdater } from "../../filterKeybinds.js";
 import { parseFilters } from "../../filters.js";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers.js";
 import { useSearchState } from "../../hooks/useSearchState.js";
@@ -53,9 +54,6 @@ import { useSearchNavigation } from "./useSearchNavigation.js";
 const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("map"));
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";
 const EMPTY_RESULTS: never[] = [];
-const OPERATOR_KEYBINDS: Record<string, number> = { "1": 26001, "2": 26002, "3": 26003, "4": 26006 };
-const RAT_KEYBINDS: Record<string, string> = { g: "GSM", u: "UMTS", l: "LTE", n: "NR", i: "iot" };
-
 type MapSearchMode = "results" | "map";
 
 function loadMapSearchMode(): MapSearchMode {
@@ -82,7 +80,7 @@ type MapSearchOverlayProps = {
   zoom?: number;
   activeMarker?: { latitude: number; longitude: number } | null;
   onActiveMarkerClear?: () => void;
-  onFiltersChange: (update: StationFilters | ((prev: StationFilters) => StationFilters)) => void;
+  onFiltersChange: (update: StationFilters | StationFiltersUpdater) => void;
   onLocationSelect?: (lat: number, lon: number) => void;
   onStationSelect?: (station: SearchStation) => void;
   onUkeStationSelect?: (station: UkeSearchPermitStation) => void;
@@ -174,12 +172,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     [closeOverlay, isFocused, isUkeSource, onFilterQueryChange, openOverlay, supportsMapMode],
   );
   const handleFiltersChange = useCallback(
-    (nextFilters: StationFilters) => {
+    (update: StationFilters | StationFiltersUpdater) => {
+      const nextFilters = typeof update === "function" ? update(filters) : update;
       if (supportsMapMode && nextFilters.source === "uke" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
       if (nextFilters.source === "uke" && isFocused && query.trim() !== "") openOverlay(true, false);
-      onFiltersChange(nextFilters);
+      onFiltersChange(update);
     },
-    [isFocused, onFilterQueryChange, onFiltersChange, openOverlay, query, storedSearchMode, supportsMapMode],
+    [filters, isFocused, onFilterQueryChange, onFiltersChange, openOverlay, query, storedSearchMode, supportsMapMode],
   );
   const showMobileMapContext = isMobile && mapContext !== undefined && !mobileExpanded && !isFocused;
 
@@ -427,33 +426,23 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     if (e.ctrlKey || e.metaKey) return;
     const key = e.key.toLowerCase();
 
-    if (key === "f") {
+    if (key === "f" && !e.shiftKey) {
       e.preventDefault();
-      if (e.shiftKey) handleClearFilters();
-      else {
-        (document.activeElement as HTMLElement)?.blur();
-        setShowFilters((prev) => !prev);
-      }
+      (document.activeElement as HTMLElement)?.blur();
+      setShowFilters((prev) => !prev);
       return;
     }
 
-    if (e.shiftKey) {
-      if (key in RAT_KEYBINDS) {
-        e.preventDefault();
-        handleToggleRat(RAT_KEYBINDS[key]);
-      }
+    const updateFilters = getMapFilterKeybindUpdater(key, e.shiftKey);
+    if (updateFilters !== undefined) {
+      e.preventDefault();
+      handleFiltersChange(updateFilters);
       return;
     }
+
+    if (e.shiftKey) return;
 
     switch (key) {
-      case "s":
-        e.preventDefault();
-        onFiltersChange((prev) => ({ ...prev, showStations: !prev.showStations }));
-        break;
-      case "r":
-        e.preventDefault();
-        onFiltersChange((prev) => ({ ...prev, showRadiolines: !prev.showRadiolines }));
-        break;
       case "a":
         e.preventDefault();
         updatePreferences({ showAzimuths: !preferences.showAzimuths });
@@ -466,19 +455,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         e.preventDefault();
         onTogglePlannedMeasurements?.();
         break;
-      case "z":
-        e.preventDefault();
-        handleFiltersChange({ ...filters, source: filters.source === "uke" ? "internal" : "uke" });
-        break;
-      case "n":
-        e.preventDefault();
-        handleFiltersChange({ ...filters, recentDays: filters.recentDays === null ? 30 : null });
-        break;
-      default:
-        if (e.key in OPERATOR_KEYBINDS) {
-          e.preventDefault();
-          handleToggleOperator(OPERATOR_KEYBINDS[e.key]);
-        }
     }
   });
 
@@ -499,7 +475,10 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
-  const handleSourceChange = useCallback((source: StationSource) => handleFiltersChange({ ...filters, source }), [filters, handleFiltersChange]);
+  const handleSourceChange = useCallback(
+    (source: StationSource) => handleFiltersChange((prev) => changeFilterSource(prev, source)),
+    [handleFiltersChange],
+  );
   const showFloatingMobileMapControls = isMobile && preferences.navMode === "floating";
   const mobileStatsPanel = (
     <MobileStatsPanel

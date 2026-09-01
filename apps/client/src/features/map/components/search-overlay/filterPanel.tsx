@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import type { Operator, StationFilters, StationSource, StationStatus } from "@/types/station";
 
 import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "../../constants";
+import { changeFilterSource } from "../../filterKeybinds";
 import { type DataStats, fetchStats } from "../../statsApi";
 import { Checkbox } from "./checkbox";
 
@@ -478,12 +479,7 @@ export function FilterPanel({
                 )}
                 onClick={() => {
                   const newSource = src.id as StationSource;
-                  const targetRatValues = new Set((newSource === "uke" ? UKE_RAT_OPTIONS : RAT_OPTIONS).map((r) => r.value as string));
-                  onFiltersChange({
-                    ...filters,
-                    source: newSource,
-                    rat: filters.rat.filter((r) => targetRatValues.has(r)),
-                  });
+                  onFiltersChange(changeFilterSource(filters, newSource));
                 }}
               >
                 <HugeiconsIcon icon={src.icon} className="size-4" />
