@@ -124,7 +124,7 @@ function createAttributionOverlay(): Buffer {
   return Buffer.from(
     `<svg width="${ATTRIBUTION_WIDTH}" height="${ATTRIBUTION_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${ATTRIBUTION_WIDTH}" height="${ATTRIBUTION_HEIGHT}" rx="4" fill="rgba(12,12,12,0.62)"/>
-      <text x="${ATTRIBUTION_WIDTH - 9}" y="15" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#cdd3d8">© BTSearch | © OpenStreetMap contributors © CARTO</text>
+      <text x="${ATTRIBUTION_WIDTH - 9}" y="15" text-anchor="end" font-family="Noto Sans, sans-serif" font-size="11" fill="#cdd3d8">© BTSearch | © OpenStreetMap contributors © CARTO</text>
     </svg>`,
   );
 }
@@ -283,8 +283,8 @@ export function createOGImageRenderer(options: OGImageRendererOptions = {}): OGI
         <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#glow)"/>
         <circle cx="${WIDTH / 2}" cy="${HEIGHT / 2 - 16}" r="116" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
         <circle cx="${WIDTH / 2}" cy="${HEIGHT / 2 - 16}" r="184" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="2"/>
-        <text x="48" y="548" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#ffffff">${escapeSVGText(rendererSiteName)}</text>
-        <text x="50" y="582" font-family="Arial, sans-serif" font-size="20" fill="#cdd3d8">Mapa stacji bazowych</text>
+        <text x="48" y="548" font-family="Noto Sans, sans-serif" font-size="42" font-weight="700" fill="#ffffff">${escapeSVGText(rendererSiteName)}</text>
+        <text x="50" y="582" font-family="Noto Sans, sans-serif" font-size="20" fill="#cdd3d8">Mapa stacji bazowych</text>
       </svg>`,
     );
 

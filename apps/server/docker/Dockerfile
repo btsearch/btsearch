@@ -53,6 +53,8 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
+RUN apk add --no-cache font-noto
+
 COPY --from=production-deps /app ./
 COPY --from=builder /app/packages/drizzle/dist ./packages/drizzle/dist
 COPY --from=builder /app/packages/drizzle/migrations ./packages/drizzle/migrations

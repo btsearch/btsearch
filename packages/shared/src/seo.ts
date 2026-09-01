@@ -143,7 +143,7 @@ export function createStationSEOMetadata(site: SEOSite, station: StationSEOData)
   return {
     title: `${name} - ${city} | ${site.name}`,
     siteName: site.name,
-    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Azymuty, pozwolenia UKE i zdjęcia w bazie ${site.name}.`,
+    description: `Stacja bazowa ${station.operatorName} w ${city}${address ? `, ${address}` : ""}.${bandsSummary ? ` Pasma: ${bandsSummary}.` : ""} Zobacz Azymuty, pozwolenia UKE i zdjęcia w bazie ${site.name}`,
     canonicalUrl,
     imageUrl: absoluteSiteUrl(site.url, `/public/og/stations/${station.id}.png`),
     noindex: station.status !== "published",
@@ -201,7 +201,7 @@ export function createLocationSEOMetadata(site: SEOSite, location: LocationSEODa
   return {
     title: `Stacje bazowe - ${label} | ${site.name}`,
     siteName: site.name,
-    description: `Lokalizacja stacji bazowych: ${label}${region}.${stationsSummary ? ` Stacje: ${stationsSummary}${suffix}.` : ""} Pasma i pozwolenia UKE w bazie ${site.name}.`,
+    description: `Lokalizacja stacji bazowych: ${label}${region}.${stationsSummary ? ` Stacje: ${stationsSummary}${suffix}.` : ""} Zobacz pasma i pozwolenia UKE w bazie ${site.name}`,
     canonicalUrl,
     imageUrl: absoluteSiteUrl(site.url, `/public/og/locations/${location.id}.png`),
     noindex: indexableStations.length === 0,
