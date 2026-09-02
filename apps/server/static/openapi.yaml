@@ -3719,7 +3719,6 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/PemItem" }
-        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -3843,7 +3842,6 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/PemReport" }
-        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 

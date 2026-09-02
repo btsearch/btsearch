@@ -85,11 +85,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       },
     });
 
-    if (!permitsLinks.length) throw new ErrorResponse("NOT_FOUND");
-
     const stationPermits = permitsLinks.map((link) => link.permit).filter((permit): permit is NonNullable<typeof permit> => permit !== null);
-    if (!stationPermits.length) throw new ErrorResponse("NOT_FOUND");
-
     return res.send({ data: stationPermits });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;

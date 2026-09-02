@@ -3,14 +3,7 @@ import db from "@openbts/drizzle/db";
 import { eq, inArray } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
-import {
-  SI2PEMClient,
-  type SI2PEMExtendedBaseStationProperties,
-  SI2PEM_ERROR_CODES,
-  SI2PEM_WFS_FEATURE_TYPES,
-  isSI2PEMError,
-  si2pemDateToISO,
-} from "si2pem-reader";
+import { SI2PEMClient, type SI2PEMExtendedBaseStationProperties, SI2PEM_WFS_FEATURE_TYPES, si2pemDateToISO } from "si2pem-reader";
 import z from "zod";
 
 import redis from "../../../../database/redis.ts";
@@ -152,10 +145,9 @@ async function handleBoundsMode(bbox: [number, number, number, number], mncs: nu
       bbox,
     });
   } catch (error) {
-    if (isSI2PEMError(error) && error.code === SI2PEM_ERROR_CODES.httpError && error.statusCode !== null) throw new ErrorResponse("NOT_FOUND");
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR");
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
-  if (!json.features?.length) throw new ErrorResponse("NOT_FOUND");
+  if (!json.features?.length) return { totalCount: 0, data: [] };
 
   const seen = new Set<string>();
   const parsed: ParsedWmsFeature[] = json.features.flatMap((feature) => {
@@ -185,7 +177,7 @@ async function handleBoundsMode(bbox: [number, number, number, number], mncs: nu
       },
     ];
   });
-  if (!parsed.length) throw new ErrorResponse("NOT_FOUND");
+  if (!parsed.length) return { totalCount: 0, data: [] };
 
   const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recent = parsed.filter((f) => f.date && new Date(f.date.to) >= oneMonthAgo);

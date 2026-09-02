@@ -56,14 +56,9 @@ const schemaRoute = {
   },
 };
 
-async function fetchInstallations(stationId: string, entityName: string): Promise<PemReport[] | null> {
-  let json;
-  try {
-    json = await si2pem.listInstallations({ baseStation: stationId, entity: entityName, page: 1, pageSize: 25 });
-  } catch {
-    return null;
-  }
-  if (!json.count || !json.results?.length) return null;
+async function fetchInstallations(stationId: string, entityName: string): Promise<PemReport[]> {
+  const json = await si2pem.listInstallations({ baseStation: stationId, entity: entityName, page: 1, pageSize: 25 });
+  if (!json.count || !json.results?.length) return [];
 
   const normalized = json.results.flatMap((result) => {
     const url = result.report_file;
@@ -93,7 +88,7 @@ async function fetchInstallations(stationId: string, entityName: string): Promis
     });
   }
 
-  return reports.length ? reports : null;
+  return reports;
 }
 
 type StationMeasureProperties = SI2PEMMeasureProperties & {
@@ -134,29 +129,20 @@ function parseWmsReports(features: { properties: StationMeasureProperties }[]): 
   return reports;
 }
 
-async function fetchWmsReports(identityName: string, lat: number, lng: number): Promise<PemReport[] | null> {
-  let json;
-  try {
-    json = await si2pem.getWmsFeatureInfo<StationMeasureProperties>({
-      layer: SI2PEM_WMS_LAYERS.measurementResults,
-      bbox: [lng - 0.02, lat - 0.02, lng + 0.02, lat + 0.02],
-      cqlFilter: `identity_names='${escapeCqlLiteral(identityName)}' AND url IS NOT NULL`,
-      featureCount: 200,
-      sortBy: "year D,date D",
-    });
-  } catch {
-    return null;
-  }
-  if (!json.features?.length) return null;
-  const data = parseWmsReports(json.features);
-  return data.length ? data : null;
+async function fetchWmsReports(identityName: string, lat: number, lng: number): Promise<PemReport[]> {
+  const json = await si2pem.getWmsFeatureInfo<StationMeasureProperties>({
+    layer: SI2PEM_WMS_LAYERS.measurementResults,
+    bbox: [lng - 0.02, lat - 0.02, lng + 0.02, lat + 0.02],
+    cqlFilter: `identity_names='${escapeCqlLiteral(identityName)}' AND url IS NOT NULL`,
+    featureCount: 200,
+    sortBy: "year D,date D",
+  });
+  if (!json.features?.length) return [];
+  return parseWmsReports(json.features);
 }
 
-function mergeAndSort(a: PemReport[] | null, b: PemReport[] | null): PemReport[] | null {
-  const combined = [...(a ?? []), ...(b ?? [])];
-  if (combined.length === 0) return null;
-
-  return combined.sort((x, y) => y.date.localeCompare(x.date));
+function mergeAndSort(reports: PemReport[][]): PemReport[] {
+  return reports.flat().sort((a, b) => b.date.localeCompare(a.date));
 }
 
 async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<PemReport[]>>) {
@@ -169,13 +155,13 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<P
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached) as { data: PemReport[] });
 
-  const [installationsResult, wmsResult] = await Promise.all([
-    entityName ? fetchInstallations(station_id, entityName) : Promise.resolve(null),
-    fetchWmsReports(station_id, lat, lng),
-  ]);
+  const reportRequests = [fetchWmsReports(station_id, lat, lng)];
+  if (entityName) reportRequests.push(fetchInstallations(station_id, entityName));
 
-  const data = mergeAndSort(installationsResult, wmsResult);
-  if (!data) throw new ErrorResponse("NOT_FOUND");
+  const reportResults = await Promise.allSettled(reportRequests);
+  const failure = reportResults.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  const data = mergeAndSort(reportResults.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])));
+  if (!data.length && failure) throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: failure.reason });
 
   const response = { data };
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
