@@ -25,6 +25,17 @@ const INTERACTIVE_CONTROL_SELECTOR = [
 
 const MAP_CANVAS_SELECTOR = ".maplibregl-canvas";
 
+type ModifierKeyEvent = {
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+};
+
+export function hasModifierKey(event: ModifierKeyEvent): boolean {
+  return event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
+}
+
 export function isInteractiveTarget(target: EventTarget | null, currentTarget?: EventTarget): boolean {
   if (!(target instanceof Element) || target === currentTarget) return false;
   const interactiveElement = target.closest(INTERACTIVE_CONTROL_SELECTOR);

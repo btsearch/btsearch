@@ -16,6 +16,7 @@ import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/d
 import type { DeletedEntry } from "@/features/deleted-entries/types";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
+import { buildStaticPageHead } from "@/lib/seo";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 
 function formatDeletedDate(dateString: string, locale: string): string {
@@ -427,6 +428,7 @@ function DeletedEntriesPage() {
 
 export const Route = createFileRoute("/_layout/deleted-entries")({
   component: DeletedEntriesPage,
+  head: () => buildStaticPageHead("/deleted-entries"),
   staticData: {
     titleKey: "deletedEntries.title",
     i18nNamespace: "main",

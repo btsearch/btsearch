@@ -8,6 +8,7 @@ import { useRegisterPageSections } from "@/contexts/pageSections";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { InternalKpiCards, UkeKpiCards } from "@/features/statistics/components/kpiCards";
 import { statsPermitsQueryOptions, statsSummaryQueryOptions, statsVoivodeshipsQueryOptions } from "@/features/statistics/queries";
+import { buildStaticPageHead } from "@/lib/seo";
 
 const UkeDistributionCharts = lazy(() =>
   import("@/features/statistics/components/distributionCharts").then((m) => ({ default: m.UkeDistributionCharts })),
@@ -198,6 +199,7 @@ function StatisticsPage() {
 
 export const Route = createFileRoute("/_layout/statistics")({
   component: StatisticsPage,
+  head: () => buildStaticPageHead("/statistics"),
   staticData: {
     titleKey: "items.statistics",
     i18nNamespace: "nav",

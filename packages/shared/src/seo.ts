@@ -3,10 +3,10 @@ const MAX_POSTGRES_INTEGER = 2_147_483_647;
 const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
 
 export const DEFAULT_SEO_DESCRIPTION =
-  "Mapa stacji bazowych i radiolinii w Polsce. Sprawdź odległość od nadajnika oraz dane o operatorze, technologiach 2G–5G, pasmach i pozwoleniach UKE";
+  "Największa i najstarsza mapa rzeczywistych stacji bazowych i radiolinii w Polsce. Sprawdź operatora, technologie 2G-5G, pasma, odległość i pozwolenia UKE";
 
 export const DEFAULT_SOCIAL_DESCRIPTION =
-  "Znajdź stację bazową lub radiolinię. Sprawdź odległość od nadajnika, dane o operatorze, technologie 2G–5G, pasma i pozwolenia UKE";
+  "Znajdź stację bazową lub radiolinię w swojej okolicy. Sprawdź odległość od nadajnika, operatora, technologie 2G-5G, wykorzystywane pasma oraz pozwolenia UKE";
 
 export const DEFAULT_SOCIAL_IMAGE_PATH = "/btsearch.webp";
 export const SEO_IMAGE_WIDTH = 1200;

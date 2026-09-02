@@ -1,7 +1,7 @@
 import { type HeaderGroup, type Header as HeaderType, type Row, type RowData, type Table as TableInstance, flexRender } from "@tanstack/react-table";
 import { type ReactNode, createContext, memo, useContext, useId, useMemo } from "react";
 
-import { isInteractiveTarget } from "@/lib/keyboard";
+import { hasModifierKey, isInteractiveTarget } from "@/lib/keyboard";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +132,7 @@ function TableRowInner<T extends RowData>({ row, onClick, getRowHref, getAriaLab
               aria-labelledby={ariaLabel ? undefined : primaryCellId}
               className={primaryActionClassName}
               onClick={(event) => {
-                if (!onClick || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (!onClick || hasModifierKey(event)) return;
                 event.preventDefault();
                 onClick(row.original);
               }}

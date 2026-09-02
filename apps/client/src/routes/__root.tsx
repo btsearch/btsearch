@@ -124,6 +124,14 @@ function AuthLink({ href, ...props }: AuthLinkProps) {
   return <RouterLink to={href} {...props} />;
 }
 
+function SeoHead() {
+  useEffect(() => {
+    for (const element of document.querySelectorAll("[data-seo-inject], [data-seo-fallback]")) element.remove();
+  }, []);
+
+  return <HeadContent />;
+}
+
 function AppProviders({ children }: AppProvidersProps) {
   const navigate = useNavigate();
   const { i18n: i18nInstance } = useTranslation();
@@ -170,7 +178,7 @@ function RootComponent() {
         <ThemeProvider defaultTheme="system" storageKey="ui-theme">
           <BackendStatusProvider queryClient={queryClient}>
             <AppProviders>
-              <HeadContent />
+              <SeoHead />
               <Outlet />
             </AppProviders>
           </BackendStatusProvider>

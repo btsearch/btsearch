@@ -2,6 +2,7 @@ export {
   RAT_ORDER,
   RAT_OPTIONS,
   compareRatCellDetails,
+  getCellDetailDefaultValue,
   findPreferredRatBand,
   ratToGenLabel,
   getRatDefaultBandDuplex,

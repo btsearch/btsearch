@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { APP_NAME } from "@/lib/api";
+import { buildStaticPageHead } from "@/lib/seo";
 
 const markdownClasses =
   "space-y-4 text-sm text-muted-foreground [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:pt-4 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6 [&_ul]:space-y-2 [&_p]:leading-relaxed [&_a]:text-primary [&_a]:underline [&_a:hover]:opacity-80 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_strong]:text-foreground";
@@ -217,6 +218,7 @@ function TosPage() {
 
 export const Route = createFileRoute("/_layout/terms")({
   component: TosPage,
+  head: () => buildStaticPageHead("/terms"),
   staticData: {
     title: "Regulamin",
   },

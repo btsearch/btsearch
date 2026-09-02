@@ -27,6 +27,7 @@ import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { TOP4_MNCS } from "@/lib/operatorUtils";
+import { buildStaticPageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 
@@ -573,6 +574,7 @@ function PEMMeasurementsPage() {
 
 export const Route = createFileRoute("/_layout/pem-measurements")({
   component: PEMMeasurementsPage,
+  head: () => buildStaticPageHead("/pem-measurements"),
   staticData: {
     mainClassName: "overflow-hidden",
   },

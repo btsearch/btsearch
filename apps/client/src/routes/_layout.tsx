@@ -16,8 +16,8 @@ import { PageSectionsProvider } from "@/contexts/pageSections";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
 import { usePreferences } from "@/hooks/usePreferences";
-import { useViewportObstruction } from "@/hooks/useViewportObstruction";
 import { useTwoFactorRedirect } from "@/hooks/useTwoFactorRedirect";
+import { useViewportObstruction } from "@/hooks/useViewportObstruction";
 import { useVirtualKeyboardScrollReset } from "@/hooks/useVirtualKeyboardScrollReset";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
@@ -66,6 +66,7 @@ function AppLayout() {
     .reverse()
     .find((match) => (match.staticData as RouteHandle)?.titleKey || (match.staticData as RouteHandle)?.title);
   const handle = currentRoute?.staticData as RouteHandle | undefined;
+  const hasRouteTitle = currentRoute?.meta?.some((descriptor) => descriptor !== undefined && "title" in descriptor) ?? false;
   const mainClassNameRoute = [...matches].reverse().find((match) => (match.staticData as RouteHandle)?.mainClassName)?.staticData as
     | RouteHandle
     | undefined;
@@ -74,7 +75,7 @@ function AppLayout() {
   const breadcrumbs = handle?.breadcrumbs ?? EMPTY_BREADCRUMBS;
 
   useEffect(() => {
-    if (!handle) return;
+    if (!handle || hasRouteTitle) return;
 
     const titleParts: string[] = [];
 
@@ -87,7 +88,7 @@ function AppLayout() {
     if (pageTitle) titleParts.push(pageTitle);
 
     document.title = titleParts.join(" · ");
-  }, [handle, pageTitle, breadcrumbs, t]);
+  }, [handle, hasRouteTitle, pageTitle, breadcrumbs, t]);
 
   return (
     <PageSectionsProvider>

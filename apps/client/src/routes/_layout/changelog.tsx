@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { buildStaticPageHead } from "@/lib/seo";
+
 const REMARK_PLUGINS = [remarkGfm];
 
 function ChangelogPage() {
@@ -45,6 +47,7 @@ function ChangelogPage() {
 
 export const Route = createFileRoute("/_layout/changelog")({
   component: ChangelogPage,
+  head: () => buildStaticPageHead("/changelog"),
   staticData: {
     titleKey: "items.changelog",
     i18nNamespace: "nav",

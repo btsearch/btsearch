@@ -32,6 +32,7 @@ import { StationTitle } from "@/features/station-details/components/stationTitle
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useIsMobile } from "@/hooks/useMobile";
+import { hasModifierKey } from "@/lib/keyboard";
 import { TOP4_MNCS } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
 import type { Operator, Region, StationStatus } from "@/types/station";
@@ -699,10 +700,14 @@ export function PhotosGallery() {
               className={cn("min-w-0 scroll-mt-6 [content-visibility:auto] [contain-intrinsic-size:auto_360px]", !sparse && "lg:col-span-2")}
             >
               <div className="mb-3 flex items-start gap-3 sm:items-center">
-                <button
-                  type="button"
+                <a
+                  href={`/stations/${group.stationId}`}
                   className="min-w-0 cursor-pointer rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => openStation(group.stationId)}
+                  onClick={(event) => {
+                    if (hasModifierKey(event)) return;
+                    event.preventDefault();
+                    openStation(group.stationId);
+                  }}
                 >
                   <span className="flex min-w-0 items-center gap-1.5 overflow-hidden sm:gap-2">
                     <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
@@ -727,7 +732,7 @@ export function PhotosGallery() {
                       </>
                     ) : null}
                   </span>
-                </button>
+                </a>
                 <div className="mt-2 hidden h-px min-w-6 flex-1 bg-border sm:block" />
                 <span className={cn("ml-auto shrink-0 pt-0.5 text-xs text-muted-foreground sm:pt-0", sparse && "max-sm:hidden")}>
                   {t("photos.stationPhotoCount", { count: group.items.length })}

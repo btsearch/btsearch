@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { getOperatorColor } from "@/lib/operatorUtils";
+import { buildStaticPageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 type Operator = "plus" | "t-mobile" | "play" | "orange";
@@ -511,6 +512,7 @@ function SpectrumPage() {
 
 export const Route = createFileRoute("/_layout/spectrum")({
   component: SpectrumPage,
+  head: () => buildStaticPageHead("/spectrum"),
   staticData: {
     titleKey: "items.spectrum",
     i18nNamespace: "nav",

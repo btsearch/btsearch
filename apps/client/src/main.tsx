@@ -39,13 +39,6 @@ function removeAppShell() {
   setTimeout(() => shell.remove(), 200);
 }
 
-const unsubscribeFromInitialResolve = router.subscribe("onResolved", () => {
-  unsubscribeFromInitialResolve();
-  requestAnimationFrame(() => {
-    for (const element of document.querySelectorAll("[data-seo-inject], [data-seo-fallback]")) element.remove();
-  });
-});
-
 function removeAppShellWhenMounted(rootElement: HTMLElement) {
   const tick = () => {
     if (rootElement.childElementCount > 0) removeAppShell();

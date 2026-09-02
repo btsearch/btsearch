@@ -53,6 +53,7 @@ import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFi
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
+import { buildStaticPageHead } from "@/lib/seo";
 import { cn, toggleValue } from "@/lib/utils";
 
 const FILE_EXTENSION_BY_FORMAT: Record<CLFExportFormat, string> = {
@@ -917,6 +918,7 @@ function ClfExportPage() {
 
 export const Route = createFileRoute("/_layout/clf-export")({
   component: ClfExportPage,
+  head: () => buildStaticPageHead("/clf-export"),
   staticData: {
     mainClassName: "overflow-hidden",
     titleKey: "items.clfExport",

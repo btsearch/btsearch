@@ -4,6 +4,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildStaticPageHead } from "@/lib/seo";
 
 interface ContactLink {
   icon: typeof Mail01Icon;
@@ -243,6 +244,7 @@ function ContactPage() {
 
 export const Route = createFileRoute("/_layout/contact")({
   component: ContactPage,
+  head: () => buildStaticPageHead("/contact"),
   staticData: {
     title: "Kontakt",
   },

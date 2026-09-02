@@ -21,6 +21,7 @@ import PlusIcon from "@/features/station-details/components/logos/plus.svg?react
 import TmobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { SI2PEMLogo } from "@/features/station-details/components/si2pemLogo";
 import { APP_NAME } from "@/lib/api";
+import { buildStaticPageHead } from "@/lib/seo";
 
 const markdownClasses =
   "space-y-4 text-sm text-muted-foreground [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:text-sm [&_h3]:font-medium [&_h3]:text-foreground [&_p]:leading-relaxed [&_a]:text-primary [&_a]:underline [&_a:hover]:opacity-80 [&_strong]:text-foreground";
@@ -200,6 +201,7 @@ function AboutPage() {
 
 export const Route = createFileRoute("/_layout/about")({
   component: AboutPage,
+  head: () => buildStaticPageHead("/about"),
   staticData: {
     title: "O serwisie",
   },

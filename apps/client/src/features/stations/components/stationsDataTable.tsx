@@ -19,6 +19,7 @@ import { StationTitle } from "@/features/station-details/components/stationTitle
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
+import { hasModifierKey } from "@/lib/keyboard";
 import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy, StationSortDirection } from "@/types/station";
@@ -141,7 +142,7 @@ function StationMobileRow({
         className={className}
         aria-label={ariaLabel}
         onClick={(event) => {
-          if (!onRowClick || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          if (!onRowClick || hasModifierKey(event)) return;
           event.preventDefault();
           onRowClick(station);
         }}

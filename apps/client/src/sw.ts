@@ -6,7 +6,9 @@ declare let self: ServiceWorkerGlobalScope & typeof globalThis;
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html"), { denylist: [/^\/api\//, /^\/uploads\//, /^\/kmz/] }));
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL("/index.html"), { denylist: [/^\/api\//, /^\/uploads\//, /^\/kmz/, /^\/szukaj\.php(?:\?|$)/] }),
+);
 
 const RUNTIME_ASSET_CACHE = "assets-runtime-v1";
 const RUNTIME_ASSET_CACHE_MAX_ENTRIES = 200;

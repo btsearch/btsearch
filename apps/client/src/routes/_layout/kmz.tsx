@@ -41,6 +41,7 @@ import { useKmzDates, useKmzList } from "@/features/kmz/hooks";
 import { regionsQueryOptions } from "@/features/shared/queries";
 import { useIsMobile } from "@/hooks/useMobile";
 import { formatDayMonthYear, formatFileSize } from "@/lib/format";
+import { buildStaticPageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import type { Region } from "@/types/station";
 
@@ -578,4 +579,5 @@ function KmzListPage() {
 
 export const Route = createFileRoute("/_layout/kmz")({
   component: KmzListPage,
+  head: () => buildStaticPageHead("/kmz"),
 });

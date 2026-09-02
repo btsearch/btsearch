@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { buildStaticPageHead } from "@/lib/seo";
+
 const markdownClasses =
   "space-y-4 text-sm text-muted-foreground [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:pt-4 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6 [&_ul]:space-y-2 [&_p]:leading-relaxed [&_a]:text-primary [&_a]:underline [&_a:hover]:opacity-80 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_strong]:text-foreground [&_table]:w-full [&_table]:border-collapse [&_table]:rounded-md [&_table]:border [&_table]:border-border [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_tr:nth-child(even)_td]:bg-muted/30";
 
@@ -154,6 +156,7 @@ function PrivacyPage() {
 
 export const Route = createFileRoute("/_layout/privacy")({
   component: PrivacyPage,
+  head: () => buildStaticPageHead("/privacy"),
   staticData: {
     title: "Polityka prywatności",
   },
