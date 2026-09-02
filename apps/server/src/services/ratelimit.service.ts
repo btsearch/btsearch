@@ -64,14 +64,14 @@ export class RateLimitService {
   private defaultTiers = DEFAULT_TIER_LIMITS;
 
   private defaultRoles: Required<NonNullable<RateLimitOptions["roles"]>> = {
-    guest: { max: 60, window: 60 },
-    user: { max: 250, window: 60 },
+    guest: { max: 150, window: 60 },
+    user: { max: 300, window: 60 },
     editor: { max: 500, window: 60 },
     admin: { max: Number.POSITIVE_INFINITY, window: 60 },
   };
 
   private defaultOptions: Required<RateLimitOptions> = {
-    window: 60,
+    window: 120,
     max: 60,
     tiers: this.defaultTiers,
     roles: this.defaultRoles,

@@ -172,6 +172,14 @@ export const ReadyTerrainProfileAnalysisSchema = AnalysisBaseSchema.extend({
     surface_status: AssessmentStatusSchema,
     line_of_sight: z.boolean(),
     azimuth_delta_deg: z.number().min(0).max(180).nullable(),
+    vertical_alignment: z
+      .object({
+        basis: z.enum(["si2pem_measured_resultant_tilt", "unavailable"]),
+        path_elevation_deg: z.number(),
+        main_beam_elevation_deg: z.number().nullable(),
+        vertical_offset_deg: z.number().nullable(),
+      })
+      .optional(),
     minimum_terrain_clearance_m: z.number().nullable(),
     minimum_surface_clearance_m: z.number().nullable(),
     warning_codes: z.array(TerrainWarningCodeSchema),

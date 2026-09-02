@@ -3,6 +3,7 @@ import {
   ArrowReloadHorizontalIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
+  InformationCircleIcon,
   LinkSquare02Icon,
   Location01Icon,
   MultiplicationSignCircleIcon,
@@ -14,6 +15,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -67,10 +69,11 @@ const VERDICT_TEXT: Record<TerrainProfileClearanceStatus, string> = {
   unavailable: "text-muted-foreground",
 };
 
-function candidateLabel(candidate: TerrainProfileAntennaCandidate) {
+function candidateLabel(candidate: TerrainProfileAntennaCandidate, tiltLabel: string | null) {
   const parts = [
     `${candidate.band?.value ?? candidate.frequencyMHz} MHz`,
     candidate.antenna.azimuth === null ? null : `${candidate.antenna.azimuth}°`,
+    tiltLabel,
     `${candidate.antenna.mountedHeight} m`,
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(" · ") : candidate.key;
@@ -85,8 +88,27 @@ function resolveSwatchColor(hasStation: boolean, operatorMnc: number | null, ope
 
 function InlineMetric({ label, value, description }: { label: string; value: string; description?: string }) {
   return (
-    <span className="flex items-baseline gap-1.5 whitespace-nowrap" title={description}>
-      <span>{label}</span>
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className="inline-flex items-center gap-0.5">
+        {description !== undefined ? (
+          <Popover>
+            <PopoverTrigger
+              openOnHover
+              delay={0}
+              type="button"
+              aria-label={description}
+              className="inline-flex size-6 shrink-0 cursor-help items-center justify-center text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent side="top" className="w-[min(18rem,calc(100vw-2rem))] gap-1.5 p-3">
+              <PopoverTitle className="text-xs">{label}</PopoverTitle>
+              <PopoverDescription className="text-xs leading-relaxed">{description}</PopoverDescription>
+            </PopoverContent>
+          </Popover>
+        ) : null}
+        <span>{label}</span>
+      </span>
       <span className="font-mono text-xs font-medium tabular-nums text-foreground">{value}</span>
     </span>
   );
@@ -170,8 +192,14 @@ export default function TerrainProfilePanel({
     () =>
       [...selectableCandidates]
         .sort((a, b) => (a.band?.value ?? a.frequencyMHz) - (b.band?.value ?? b.frequencyMHz))
-        .map((candidate) => ({ value: candidate.key, label: candidateLabel(candidate) })),
-    [selectableCandidates],
+        .map((candidate) => ({
+          value: candidate.key,
+          label: candidateLabel(
+            candidate,
+            candidate.source !== "si2pem_report" || candidate.measuredTilt === null ? null : t("selection.tilt", { value: candidate.measuredTilt }),
+          ),
+        })),
+    [selectableCandidates, t],
   );
   const selectedCandidate = candidates.find((candidate) => candidate.key === selectedKey);
   const stationLabel = resolved?.station.station_id ?? station?.stationId ?? t("station.selected");
@@ -186,6 +214,9 @@ export default function TerrainProfilePanel({
     ready.assessment.terrain_status === "clear" &&
     (ready.assessment.surface_status === "constrained" || ready.assessment.surface_status === "blocked");
   const outOfAzimuth = ready !== null && ready.assessment.warning_codes.includes("ANTENNA_AZIMUTH_MISMATCH");
+  const verticalAlignment = ready?.assessment.vertical_alignment;
+  const verticalOffsetDegrees = verticalAlignment?.vertical_offset_deg ?? null;
+  const verticalOffsetLabel = verticalOffsetDegrees === null ? "-" : `${verticalOffsetDegrees > 0 ? "+" : ""}${verticalOffsetDegrees.toFixed(1)}°`;
 
   const formatReportDate = (iso: string) => {
     const date = new Date(iso);
@@ -271,7 +302,12 @@ export default function TerrainProfilePanel({
                 <SelectContent className="min-w-56">
                   {selectableCandidates.map((candidate) => (
                     <SelectItem key={candidate.key} value={candidate.key}>
-                      {candidateLabel(candidate)}
+                      {candidateLabel(
+                        candidate,
+                        candidate.source !== "si2pem_report" || candidate.measuredTilt === null
+                          ? null
+                          : t("selection.tilt", { value: candidate.measuredTilt }),
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -357,7 +393,11 @@ export default function TerrainProfilePanel({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-3 py-1.5 text-[11px] leading-snug text-muted-foreground">
           {ready !== null ? (
             <>
-              <InlineMetric label={t("metrics.pathLoss")} value={`${ready.propagation.basic_transmission_loss_db.toFixed(1)} dB`} />
+              <InlineMetric
+                label={t("metrics.pathLoss")}
+                value={`${ready.propagation.basic_transmission_loss_db.toFixed(1)} dB`}
+                description={t("metrics.pathLossDescription")}
+              />
               <InlineMetric
                 label={t("metrics.fieldStrength")}
                 value={`${ready.propagation.field_strength_dbuvm.toFixed(1)} dBuV/m`}
@@ -367,6 +407,17 @@ export default function TerrainProfilePanel({
                 label={t("metrics.antennaHeight")}
                 value={selectedCandidate === undefined ? "-" : `${selectedCandidate.antenna.mountedHeight.toFixed(1)} m`}
               />
+              {verticalAlignment !== undefined ? (
+                <InlineMetric
+                  label={t("metrics.beamOffset")}
+                  value={verticalOffsetLabel}
+                  description={
+                    verticalAlignment.basis === "si2pem_measured_resultant_tilt"
+                      ? t("metrics.beamOffsetDescription")
+                      : t("metrics.beamOffsetUnavailableDescription")
+                  }
+                />
+              ) : null}
               <span className="ms-auto flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium">ITU-R P.1812-8</span>
                 <span title={ready.terrain.terrain_model.dataset}>{t("evidence.lidar", { source: "LiDAR GUGiK" })}</span>

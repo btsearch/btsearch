@@ -38,6 +38,7 @@ export type TerrainProfileAnalysisInput = {
   frequencyMHz: number;
   samples: readonly TerrainProfileSample[];
   sectorAzimuthDegrees?: number | null;
+  mainBeamElevationDegrees?: number | null;
   effectiveEarthRadiusFactor?: number;
   dn?: number;
   n0?: number;
@@ -66,6 +67,11 @@ export type TerrainProfileAnalysisResult = {
   bearingDegrees: number;
   sectorAzimuthDegrees: number | null;
   azimuthDeltaDegrees: number | null;
+  verticalAlignment: {
+    pathElevationDegrees: number;
+    mainBeamElevationDegrees: number | null;
+    verticalOffsetDegrees: number | null;
+  };
   transmitterAntennaElevationM: number;
   receiverAntennaElevationM: number;
   lineOfSight: {
@@ -99,6 +105,19 @@ function calculateEarthBulgeM(distanceM: number, totalDistanceM: number, effecti
 
 function calculateLineOfSightElevationM(distanceM: number, totalDistanceM: number, txElevationM: number, rxElevationM: number): number {
   return txElevationM + (distanceM / totalDistanceM) * (rxElevationM - txElevationM);
+}
+
+export function calculatePathElevationDegrees(
+  transmitterElevationM: number,
+  receiverElevationM: number,
+  distanceM: number,
+  effectiveEarthRadiusM: number,
+): number {
+  const centralAngleRadians = distanceM / effectiveEarthRadiusM;
+  const receiverRadiusM = effectiveEarthRadiusM + receiverElevationM;
+  const horizontalDistanceM = receiverRadiusM * Math.sin(centralAngleRadians);
+  const verticalDistanceM = receiverRadiusM * Math.cos(centralAngleRadians) - (effectiveEarthRadiusM + transmitterElevationM);
+  return (Math.atan2(verticalDistanceM, horizontalDistanceM) * 180) / Math.PI;
 }
 
 function effectiveSurfaceElevationM(sample: TerrainProfileSample): number {
@@ -148,6 +167,7 @@ export function analyzeTerrainProfile(input: TerrainProfileAnalysisInput): Terra
 
   const effectiveEarthRadiusFactor = input.effectiveEarthRadiusFactor ?? DEFAULT_EFFECTIVE_EARTH_RADIUS_FACTOR;
   const sectorAzimuthDegrees = input.sectorAzimuthDegrees ?? null;
+  const mainBeamElevationDegrees = input.mainBeamElevationDegrees ?? null;
   const dn = input.dn ?? DEFAULT_DN;
   const n0 = input.n0 ?? DEFAULT_N0;
 
@@ -157,6 +177,13 @@ export function analyzeTerrainProfile(input: TerrainProfileAnalysisInput): Terra
   const transmitterAntennaElevationM = transmitterGroundElevationM + input.transmitter.antennaHeightAglM;
   const receiverAntennaElevationM = receiverGroundElevationM + input.receiver.antennaHeightAglM;
   const effectiveEarthRadiusM = EARTH_RADIUS_M * effectiveEarthRadiusFactor;
+  const pathElevationDegrees = calculatePathElevationDegrees(
+    transmitterAntennaElevationM,
+    receiverAntennaElevationM,
+    totalDistanceM,
+    effectiveEarthRadiusM,
+  );
+  const verticalOffsetDegrees = mainBeamElevationDegrees === null ? null : pathElevationDegrees - mainBeamElevationDegrees;
 
   const distanceKm = input.samples.map((s) => s.distanceM / 1000);
   const terrainM = input.samples.map((s) => s.terrainElevationM);
@@ -231,6 +258,11 @@ export function analyzeTerrainProfile(input: TerrainProfileAnalysisInput): Terra
     bearingDegrees,
     sectorAzimuthDegrees,
     azimuthDeltaDegrees,
+    verticalAlignment: {
+      pathElevationDegrees,
+      mainBeamElevationDegrees,
+      verticalOffsetDegrees,
+    },
     transmitterAntennaElevationM,
     receiverAntennaElevationM,
     lineOfSight: {

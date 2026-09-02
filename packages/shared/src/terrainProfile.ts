@@ -105,6 +105,13 @@ export type P1812PathDiagnostics = {
   bullington_distance_km: number | null;
 };
 
+export type TerrainVerticalAlignment = {
+  basis: "si2pem_measured_resultant_tilt" | "unavailable";
+  path_elevation_deg: number;
+  main_beam_elevation_deg: number | null;
+  vertical_offset_deg: number | null;
+};
+
 type TerrainAnalysisBase = {
   analysis_id: string;
   createdAt: string;
@@ -149,6 +156,7 @@ export type ReadyTerrainAnalysis = TerrainAnalysisBase & {
     surface_status: TerrainClearanceStatus;
     line_of_sight: boolean;
     azimuth_delta_deg: number | null;
+    vertical_alignment?: TerrainVerticalAlignment;
     minimum_terrain_clearance_m: number | null;
     minimum_surface_clearance_m: number | null;
     warning_codes: TerrainWarningCode[];

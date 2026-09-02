@@ -6,6 +6,7 @@ import redis from "../../database/redis.js";
 import { ErrorResponse } from "../../errors.js";
 import { logger } from "../../utils/logger.js";
 import { acquireRedisLock, refreshOwnedRedisLock, releaseOwnedRedisLock } from "../../utils/redisLock.js";
+import { resolveAntennaMainBeam } from "./antennaAlignment.js";
 import { TERRAIN_PROFILE_MAX_DISTANCE_M } from "./config.js";
 import { fillReliableElevations } from "./elevationCoverage.js";
 import { analyzeTerrainProfile } from "./geometry.js";
@@ -172,6 +173,7 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
     if (surfaceModelStatus === "partial") warningCodes.push("SURFACE_MODEL_PARTIAL");
     if (surfaceModelStatus === "unavailable") warningCodes.push("SURFACE_MODEL_UNAVAILABLE");
     const surfaceElevations = reliableSurfaceElevations ?? terrainElevations;
+    const { basis: verticalAlignmentBasis, mainBeamElevationDegrees } = resolveAntennaMainBeam(selectedAntenna);
     const geometry = analyzeTerrainProfile({
       transmitter: {
         latitude: resolved.station.latitude,
@@ -185,6 +187,7 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
       },
       frequencyMHz: selectedAntenna.frequencyMHz,
       sectorAzimuthDegrees: selectedAntenna.antenna.azimuth,
+      mainBeamElevationDegrees,
       samples: terrain.samples.map((sample, index) => ({
         distanceM: sample.distanceM,
         latitude: sample.latitude,
@@ -268,6 +271,12 @@ async function runAnalysis(job: StoredTerrainProfileJob, preResolved?: ResolvedS
         surface_status: surfaceStatus,
         line_of_sight: surfaceModelStatus === "unavailable" ? geometry.lineOfSight.terrain : geometry.lineOfSight.surface,
         azimuth_delta_deg: geometry.azimuthDeltaDegrees,
+        vertical_alignment: {
+          basis: verticalAlignmentBasis,
+          path_elevation_deg: geometry.verticalAlignment.pathElevationDegrees,
+          main_beam_elevation_deg: geometry.verticalAlignment.mainBeamElevationDegrees,
+          vertical_offset_deg: geometry.verticalAlignment.verticalOffsetDegrees,
+        },
         minimum_terrain_clearance_m: geometry.clearance.minimumTerrainM,
         minimum_surface_clearance_m: surfaceModelStatus === "unavailable" ? null : geometry.clearance.minimumSurfaceM,
         warning_codes: uniqueWarnings(warningCodes),

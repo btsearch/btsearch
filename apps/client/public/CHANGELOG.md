@@ -10,6 +10,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The first visit downloads several megabytes less data, as offline files are now stored gradually while you browse instead of all at once
 - English translations are now downloaded only when English is selected, making the app start faster for Polish users
 - App updates after a new release re-download less data, as translations are now cached separately from the application code
+- Terrain profiles now show the receiver's vertical angle relative to the selected antenna's measured tilt, while keeping terrain visibility and antenna alignment as separate assessments
+- Path loss, reference field strength and estimated beam offset now include explanations of how to interpret their values
 
 # 2026-09-01
 
