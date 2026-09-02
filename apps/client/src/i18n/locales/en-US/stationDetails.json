@@ -87,7 +87,7 @@
     "locationUnavailableTitle": "Failed to load the location",
     "locationUnavailableDescription": "Please try again in a moment",
     "unknownLocation": "Unknown location",
-    "locationShareText": "{{location}} – base stations"
+    "locationShareText": "{{location}} ‐ base stations"
   },
   "dialog": {
     "hardwareLease": "Hardware lease from {{operator}} (RAN sharing)",

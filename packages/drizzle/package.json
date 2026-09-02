@@ -32,11 +32,11 @@
     "nanoid": "6.0.1",
     "postgres": "3.4.9",
     "redis": "6.2.1",
-    "tsx": "4.23.12"
+    "tsx": "4.23.13"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
-    "@types/node": "26.2.0",
+    "@types/node": "26.4.0",
     "drizzle-kit": "1.0.0-rc.4"
   }
 }

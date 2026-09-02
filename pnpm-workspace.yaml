@@ -24,3 +24,4 @@ minimumReleaseAgeExclude:
   - "@btsearch/rf-engine-darwin-arm64@0.1.5"
   - "@btsearch/rf-engine-linux-x64-gnu@0.1.5"
   - "@btsearch/rf-engine-linux-arm64-gnu@0.1.5"
+  - maplibre-gl@6.7.0

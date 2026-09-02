@@ -87,7 +87,7 @@
     "locationUnavailableTitle": "Nie udało się wczytać lokalizacji",
     "locationUnavailableDescription": "Spróbuj ponownie za chwilę",
     "unknownLocation": "Nieznana lokalizacja",
-    "locationShareText": "{{location}} – stacje bazowe"
+    "locationShareText": "{{location}} ‐ stacje bazowe"
   },
   "dialog": {
     "hardwareLease": "Dzierżawa sprzętu od {{operator}} (RAN sharing)",
