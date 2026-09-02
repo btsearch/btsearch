@@ -453,7 +453,7 @@ export function FilterPanel({
               <KbdHint>P</KbdHint>
             </Checkbox>
           ) : null}
-          <Checkbox checked={preferences.showAzimuths} onChange={() => updatePreferences({ showAzimuths: !preferences.showAzimuths })}>
+          <Checkbox checked={preferences.showAzimuths} onChange={() => updatePreferences((current) => ({ showAzimuths: !current.showAzimuths }))}>
             <HugeiconsIcon icon={Navigation03Icon} className="size-3.5 shrink-0" />
             <span className="flex-1 text-left">{t("filters.showAzimuths")}</span>
             <KbdHint>A</KbdHint>

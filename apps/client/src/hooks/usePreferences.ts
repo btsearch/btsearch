@@ -320,10 +320,13 @@ function replacePreferencesForProfile(profile: PreferenceProfile, preferences: P
   }
 }
 
-function setPreferences(update: Partial<UserPreferences>): UserPreferences | null {
+type PreferencesUpdate = Partial<UserPreferences> | ((current: UserPreferences) => Partial<UserPreferences>);
+
+function setPreferences(update: PreferencesUpdate): UserPreferences | null {
   const profile = resolveProfile();
   const current = getSnapshot();
-  const next = mergePreferences(profile, { ...current, ...update });
+  const patch = typeof update === "function" ? update(current) : update;
+  const next = mergePreferences(profile, { ...current, ...patch });
   const nextRaw = JSON.stringify(next);
   const stored = readProfileRawWithLegacyFallback(profile);
   const currentRaw = stored ?? JSON.stringify(current);
@@ -411,7 +414,7 @@ export function usePreferences() {
   }, [userId]);
 
   const updatePreferences = useCallback(
-    (update: Partial<UserPreferences>) => {
+    (update: PreferencesUpdate) => {
       const next = setPreferences(update);
       if (next === null || !syncEnabled) return;
       const cloudPreferences = getCloudProfilePreferences(next);

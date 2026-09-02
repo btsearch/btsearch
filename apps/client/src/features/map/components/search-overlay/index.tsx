@@ -445,7 +445,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     switch (key) {
       case "a":
         e.preventDefault();
-        updatePreferences({ showAzimuths: !preferences.showAzimuths });
+        updatePreferences((current) => ({ showAzimuths: !current.showAzimuths }));
         break;
       case "h":
         e.preventDefault();
