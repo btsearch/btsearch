@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import { RAT_OPTIONS } from "@/features/shared/rat";
+import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
 
 import type { RatType } from "../types";
@@ -45,7 +46,7 @@ export function RatSelector({ selectedRats, onRatsChange }: RatSelectorProps) {
                   : "border-border bg-background hover:bg-muted text-foreground dark:bg-input/30 dark:border-input",
               )}
             >
-              <span className="text-xs opacity-70">{rat.gen}</span>
+              <GenerationTag active={isSelected}>{rat.gen}</GenerationTag>
               <span>{rat.label}</span>
             </button>
           );

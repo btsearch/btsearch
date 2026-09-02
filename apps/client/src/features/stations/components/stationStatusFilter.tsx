@@ -5,6 +5,11 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { StationFilters, StationStatus } from "@/types/station";
 
+type StationStatusPillsProps = {
+  statuses: readonly StationStatus[];
+  onToggleStatus: (status: StationStatus) => void;
+};
+
 type StationStatusFilterProps = {
   filters: StationFilters;
   onToggleStatus: (status: StationStatus) => void;
@@ -28,35 +33,43 @@ const STATION_STATUS_OPTIONS: { status: StationStatus; icon: IconSvgElement; act
   },
 ];
 
+export function StationStatusPills({ statuses, onToggleStatus }: StationStatusPillsProps) {
+  const { t } = useTranslation("stations");
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {STATION_STATUS_OPTIONS.map(({ status, icon, activeClassName }) => {
+        const isActive = statuses.includes(status);
+        return (
+          <button
+            key={status}
+            type="button"
+            aria-pressed={isActive}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onToggleStatus(status)}
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+              isActive ? activeClassName : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
+            )}
+          >
+            <HugeiconsIcon icon={icon} className="size-3 shrink-0" />
+            <span>{t(`status.${status}`)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function StationStatusFilter({ filters, onToggleStatus }: StationStatusFilterProps) {
-  const { t } = useTranslation(["main", "stations"]);
+  const { t } = useTranslation("main");
 
   if (filters.source !== "internal") return null;
 
   return (
     <div className="pt-2">
-      <h4 className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("main:filters.stationStatus")}</h4>
-      <div className="flex flex-wrap gap-1">
-        {STATION_STATUS_OPTIONS.map(({ status, icon, activeClassName }) => {
-          const isActive = filters.status.includes(status);
-          return (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={isActive}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onToggleStatus(status)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium leading-5 transition-colors",
-                isActive ? activeClassName : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <HugeiconsIcon icon={icon} className="size-3 shrink-0" />
-              <span>{t(`stations:status.${status}`)}</span>
-            </button>
-          );
-        })}
-      </div>
+      <h4 className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("filters.stationStatus")}</h4>
+      <StationStatusPills statuses={filters.status} onToggleStatus={onToggleStatus} />
     </div>
   );
 }

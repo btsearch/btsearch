@@ -11,6 +11,11 @@
   "actions": {
     "newStation": "Utwórz nową stację"
   },
+  "database": {
+    "title": "Baza stacji bazowych",
+    "description": "Przeszukuj bazę stacji bazowych po ID stacji, Cell ID, eNB ID, mieście lub adresie. Wyniki możesz zawęzić według operatora, województwa, technologii, pasma i statusu.",
+    "searchPlaceholder": "Szukaj po ID stacji, mieście lub adresie..."
+  },
   "status": {
     "published": "Aktywna",
     "pending": "Oczekująca",

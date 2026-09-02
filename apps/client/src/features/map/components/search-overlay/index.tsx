@@ -42,7 +42,7 @@ import {
 import { MapCursorInfo } from "../mapCursorInfo.js";
 import { AutocompleteDropdown } from "./autocompleteDropdown.js";
 import { FilterButton } from "./filterButton.js";
-import { FilterPanel } from "./filterPanel.js";
+import { FilterPanel } from "./mapFilterPanel.js";
 import { MapStyleSwitcher } from "./mapStyleSwitcher.js";
 import { MobileStatsPanel } from "./mobileStatsPanel.js";
 import { SearchInput } from "./searchInput.js";
@@ -196,15 +196,13 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     handleToggleBand,
     handleToggleRat,
     handleToggleStatus,
-    handleSelectAllRats,
     handleClearAllRats,
-    handleSelectAllBands,
     handleClearAllBands,
     handleRecentDaysChange,
     handleRecentDateFieldChange,
     handleClearFilters,
     activeFilterCount,
-  } = useFilterHandlers({ filters, uniqueBandValues, onFiltersChange: handleFiltersChange });
+  } = useFilterHandlers({ filters, onFiltersChange: handleFiltersChange });
 
   const gpsCoords = useMemo(() => parseGpsCoordinates(debouncedQuery), [debouncedQuery]);
   const resultsQueryEnabled = searchMode === "results" && activeOverlay === "results" && debouncedQuery.trim().length > 0;
@@ -594,9 +592,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               onRecentDaysChange={handleRecentDaysChange}
               onRecentDateFieldChange={handleRecentDateFieldChange}
               onToggleStatus={handleToggleStatus}
-              onSelectAllRats={handleSelectAllRats}
               onClearAllRats={handleClearAllRats}
-              onSelectAllBands={handleSelectAllBands}
               onClearAllBands={handleClearAllBands}
               onClearFilters={handleClearFilters}
               hideSource={hideSource}
@@ -642,9 +638,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                 onRecentDaysChange={handleRecentDaysChange}
                 onRecentDateFieldChange={handleRecentDateFieldChange}
                 onToggleStatus={handleToggleStatus}
-                onSelectAllRats={handleSelectAllRats}
                 onClearAllRats={handleClearAllRats}
-                onSelectAllBands={handleSelectAllBands}
                 onClearAllBands={handleClearAllBands}
                 onClearFilters={handleClearFilters}
                 isSheet

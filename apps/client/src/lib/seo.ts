@@ -23,7 +23,7 @@ const STATIC_PAGE_METADATA = {
   "/stations": {
     title: "Baza stacji bazowych",
     description:
-      "Wyszukuj stacje bazowe w Polsce według operatora, technologii, pasma, lokalizacji i identyfikatora. Sprawdź komórki, pozwolenia UKE, azymuty i zdjęcia",
+      "Wyszukuj stacje bazowe w Polsce po ID stacji, Cell ID, eNB ID, mieście lub adresie. Sprawdź operatora, technologie, pasma, azymuty, pozwolenia UKE i zdjęcia",
   },
   "/statistics": {
     title: "Statystyki stacji bazowych i pozwoleń UKE",

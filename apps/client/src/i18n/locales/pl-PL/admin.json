@@ -189,7 +189,8 @@
     "deleteError": "Nie udało się usunąć listy"
   },
   "locations": {
-    "title": "Lokalizacje"
+    "title": "Lokalizacje",
+    "searchPlaceholder": "Szukaj po mieście lub adresie..."
   },
   "ukeImport": {
     "title": "Import UKE",

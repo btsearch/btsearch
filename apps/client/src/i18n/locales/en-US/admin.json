@@ -182,7 +182,8 @@
     "deleteError": "Failed to delete list"
   },
   "locations": {
-    "title": "Locations"
+    "title": "Locations",
+    "searchPlaceholder": "Search by city or address..."
   },
   "ukeImport": {
     "title": "UKE Import",

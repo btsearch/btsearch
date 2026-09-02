@@ -14,6 +14,7 @@ export function Checkbox({ checked, onChange, children, className }: CheckboxPro
   return (
     <button
       type="button"
+      aria-pressed={checked}
       className={cn(
         "flex items-center gap-1.5 px-2 py-1 rounded-md text-sm transition-all cursor-pointer border border-transparent",
         !checked && "hover:bg-muted dark:hover:bg-muted/50",

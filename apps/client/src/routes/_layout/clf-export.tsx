@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { fetchBands, fetchOperators, fetchRegions } from "@/features/shared/api";
 import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
+import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
@@ -598,7 +599,7 @@ function ClfExportPage() {
                               checked={field.state.value.includes(rat.value)}
                               onCheckedChange={() => field.handleChange(toggleValue(field.state.value, rat.value))}
                             />
-                            <span className="text-[10px] text-muted-foreground font-mono">{rat.gen}</span>
+                            <GenerationTag>{rat.gen}</GenerationTag>
                             <span>{rat.label}</span>
                           </label>
                         ))}

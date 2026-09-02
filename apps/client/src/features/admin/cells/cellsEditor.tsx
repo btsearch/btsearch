@@ -7,7 +7,7 @@ import { EmptyPanel } from "@/components/empty-panel";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RatCellsTableHeader } from "@/features/shared/RatCellsTableHeader";
-import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
+import { GenerationTag, RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { getKnownEARFCN } from "@/lib/earfcn-fill";
 import { cn } from "@/lib/utils";
@@ -210,7 +210,7 @@ export function CellsEditor<T extends CellDraftBase>({
                 ratPillsDisabled && "opacity-50 cursor-not-allowed",
               )}
             >
-              <span className={cn("text-xs", isSelected ? "text-primary-foreground/70" : "text-muted-foreground")}>{ratToGenLabel(rat)}</span>
+              <GenerationTag active={isSelected}>{ratToGenLabel(rat)}</GenerationTag>
               <span>{rat}</span>
             </button>
           );

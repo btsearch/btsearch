@@ -1,115 +1,101 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import { toggleValue } from "@/lib/utils.js";
 import type { StationFilters, StationStatus } from "@/types/station.js";
 
-import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "../constants.js";
+import type { StationFiltersUpdater } from "../filterKeybinds.js";
 
 type UseFilterHandlersArgs = {
   filters: StationFilters;
-  uniqueBandValues: number[];
-  onFiltersChange: (filters: StationFilters) => void;
+  onFiltersChange: (update: StationFilters | StationFiltersUpdater) => void;
 };
 
-export function useFilterHandlers({ filters, uniqueBandValues, onFiltersChange }: UseFilterHandlersArgs) {
+export function useFilterHandlers({ filters, onFiltersChange }: UseFilterHandlersArgs) {
   const handleToggleOperator = useCallback(
     (mnc: number) => {
-      onFiltersChange({ ...filters, operators: toggleValue(filters.operators, mnc) });
+      onFiltersChange((current) => ({ ...current, operators: toggleValue(current.operators, mnc) }));
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
   const handleToggleBand = useCallback(
     (value: number) => {
-      onFiltersChange({ ...filters, bands: toggleValue(filters.bands, value) });
+      onFiltersChange((current) => ({ ...current, bands: toggleValue(current.bands, value) }));
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
   const handleToggleRat = useCallback(
     (rat: string) => {
-      onFiltersChange({ ...filters, rat: toggleValue(filters.rat, rat) });
+      onFiltersChange((current) => ({ ...current, rat: toggleValue(current.rat, rat) }));
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
   const handleToggleStatus = useCallback(
     (status: StationStatus) => {
-      const nextStatus = toggleValue(filters.status, status);
-      if (nextStatus.length === 0) return;
-      onFiltersChange({ ...filters, status: nextStatus });
+      onFiltersChange((current) => {
+        const nextStatus = toggleValue(current.status, status);
+        if (nextStatus.length === 0) return current;
+        return { ...current, status: nextStatus };
+      });
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
-  const handleSelectAllRats = useCallback(() => {
-    const ratOptions = filters.source === "uke" ? UKE_RAT_OPTIONS : RAT_OPTIONS;
-    const allRats = ratOptions.map((r) => r.value as string);
-    onFiltersChange({ ...filters, rat: allRats });
-  }, [filters, onFiltersChange]);
-
   const handleClearAllRats = useCallback(() => {
-    onFiltersChange({ ...filters, rat: [] });
-  }, [filters, onFiltersChange]);
-
-  const handleSelectAllBands = useCallback(() => {
-    onFiltersChange({ ...filters, bands: uniqueBandValues });
-  }, [filters, onFiltersChange, uniqueBandValues]);
+    onFiltersChange((current) => ({ ...current, rat: [] }));
+  }, [onFiltersChange]);
 
   const handleClearAllBands = useCallback(() => {
-    onFiltersChange({ ...filters, bands: [] });
-  }, [filters, onFiltersChange]);
+    onFiltersChange((current) => ({ ...current, bands: [] }));
+  }, [onFiltersChange]);
 
   const handleRecentDaysChange = useCallback(
     (days: number | null) => {
-      onFiltersChange({ ...filters, recentDays: days });
+      onFiltersChange((current) => ({ ...current, recentDays: days }));
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
   const handleRecentDateFieldChange = useCallback(
     (fields: ("createdAt" | "updatedAt")[]) => {
-      onFiltersChange({ ...filters, recentDateFields: fields });
+      onFiltersChange((current) => ({ ...current, recentDateFields: fields }));
     },
-    [filters, onFiltersChange],
+    [onFiltersChange],
   );
 
   const handleClearFilters = useCallback(() => {
-    onFiltersChange({
+    onFiltersChange((current) => ({
       operators: [],
       bands: [],
       rat: [],
       status: ["published"],
-      source: filters.source,
+      source: current.source,
       recentDays: null,
       recentDateFields: ["createdAt"],
-      showStations: filters.showStations,
-      showRadiolines: filters.showRadiolines,
+      showStations: current.showStations,
+      showRadiolines: current.showRadiolines,
       radiolineOperators: [],
-      showHeatmap: filters.showHeatmap,
-      showPlannedMeasurements: filters.showPlannedMeasurements,
-    });
-  }, [filters.source, filters.showStations, filters.showRadiolines, filters.showHeatmap, filters.showPlannedMeasurements, onFiltersChange]);
+      showHeatmap: current.showHeatmap,
+      showPlannedMeasurements: current.showPlannedMeasurements,
+    }));
+  }, [onFiltersChange]);
 
-  const activeFilterCount = useMemo(() => {
-    return (
-      filters.operators.length +
-      filters.bands.length +
-      filters.rat.length +
-      (filters.status.length === 1 && filters.status.includes("published") ? 0 : filters.status.length) +
-      (filters.recentDays !== null ? 1 : 0) +
-      (filters.showRadiolines ? (filters.radiolineOperators?.length ?? 0) : 0)
-    );
-  }, [filters]);
+  const activeFilterCount =
+    filters.operators.length +
+    filters.bands.length +
+    filters.rat.length +
+    (filters.status.length === 1 && filters.status.includes("published") ? 0 : filters.status.length) +
+    (filters.recentDays !== null ? 1 : 0) +
+    (filters.showRadiolines ? (filters.radiolineOperators?.length ?? 0) : 0);
 
   return {
     handleToggleOperator,
     handleToggleBand,
     handleToggleRat,
     handleToggleStatus,
-    handleSelectAllRats,
     handleClearAllRats,
-    handleSelectAllBands,
     handleClearAllBands,
     handleRecentDaysChange,
     handleRecentDateFieldChange,

@@ -25,7 +25,7 @@ export const RatBadge = memo(({ rat, className, showTechName }: RatBadgeProps) =
   }
   return (
     <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium", color, className)}>
-      <RatGenerationLabel rat={rat} className="text-[10px] text-current opacity-70" />
+      <RatGenerationLabel rat={rat} className="bg-current/10 text-current" />
       {showTechName ? rat : null}
     </span>
   );
