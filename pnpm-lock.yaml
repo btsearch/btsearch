@@ -93,9 +93,9 @@ importers:
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
-      clsx:
-        specifier: 2.1.1
-        version: 2.1.1
+      cn:
+        specifier: 0.2.1
+        version: 0.2.1
       country-flag-icons:
         specifier: 1.6.20
         version: 1.6.20
@@ -147,9 +147,6 @@ importers:
       sonner:
         specifier: 2.0.8
         version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      tailwind-merge:
-        specifier: 3.6.0
-        version: 3.6.0
       web-push:
         specifier: 3.6.7
         version: 3.6.7
@@ -4537,6 +4534,11 @@ packages:
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
     engines: {node: '>=0.10.0'}
+
+  cn@0.2.1:
+    resolution: {integrity: sha512-nXkKvwTTpumfnYY3zmu4bd1b35LcuoHwHXnjJp78HYRd2Y/fMO4WvOm9m8/9VBIGZNdTzjw+yJSgpL8nJhnTSw==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   code-block-writer@13.0.3:
     resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
@@ -11449,6 +11451,8 @@ snapshots:
   clsx@2.1.1: {}
 
   cluster-key-slot@1.1.2: {}
+
+  cn@0.2.1: {}
 
   code-block-writer@13.0.3: {}
 
