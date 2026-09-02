@@ -92,7 +92,7 @@ export default defineConfig({
         },
       },
       injectManifest: {
-        globPatterns: ["index.html", "manifest.webmanifest", "assets/index-*.{js,css}", "assets/fonts/*.woff2", "favicon.ico", "btsearch.webp"],
+        globPatterns: ["index.html", "assets/index-*.{js,css}", "assets/fonts/*.woff2", "favicon.ico", "btsearch.webp"],
         globIgnores: ["sw.js"],
       },
       pwaAssets: { disabled: false, config: true },
