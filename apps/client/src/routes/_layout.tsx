@@ -16,7 +16,7 @@ import { PageSectionsProvider } from "@/contexts/pageSections";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
 import { usePreferences } from "@/hooks/usePreferences";
-import { useTopViewportObstruction } from "@/hooks/useTopViewportObstruction";
+import { useViewportObstruction } from "@/hooks/useViewportObstruction";
 import { useTwoFactorRedirect } from "@/hooks/useTwoFactorRedirect";
 import { useVirtualKeyboardScrollReset } from "@/hooks/useVirtualKeyboardScrollReset";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
@@ -57,7 +57,7 @@ function AppLayout() {
   useAppBadge();
   useTwoFactorRedirect();
   useVirtualKeyboardScrollReset();
-  useTopViewportObstruction();
+  useViewportObstruction();
   const { preferences } = usePreferences();
 
   const { visible: isWCO } = useWindowControlsOverlay();
@@ -94,7 +94,7 @@ function AppLayout() {
       <AuthGuard>
         <NavActionsProvider targetId={preferences.navMode === "floating" ? FLOATING_NAV_ACTION_TARGET_ID : "header-actions"}>
           {preferences.navMode === "floating" ? (
-            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-0 flex-col overflow-hidden bg-background">
+            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-0 flex-col overflow-hidden bg-background">
               {isWCO ? (
                 <div
                   className="shrink-0"
@@ -117,7 +117,7 @@ function AppLayout() {
             <SidebarProvider>
               <MobileSidebarAutoClose />
               <AppSidebar />
-              <SidebarInset className="max-h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-0 overflow-hidden">
+              <SidebarInset className="max-h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-0 overflow-hidden">
                 <header
                   className={cn("flex shrink-0 items-center gap-2 border-b bg-background", !isWCO && "h-12")}
                   style={
