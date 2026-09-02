@@ -61,7 +61,6 @@ export function loadAdsenseScript() {
   const s = document.createElement("script");
   s.async = true;
   s.crossOrigin = "anonymous";
-  s.dataset.overlays = "collapsed-bottom";
   s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`;
   document.head.appendChild(s);
 }
