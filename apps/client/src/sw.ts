@@ -8,6 +8,33 @@ precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html"), { denylist: [/^\/api\//, /^\/uploads\//, /^\/kmz/] }));
 
+const RUNTIME_ASSET_CACHE = "assets-runtime-v1";
+const RUNTIME_ASSET_CACHE_MAX_ENTRIES = 200;
+const runtimeAssetCache = caches.open(RUNTIME_ASSET_CACHE);
+
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && url.pathname.startsWith("/assets/"),
+  async ({ request }) => {
+    const cache = await runtimeAssetCache;
+    const cached = await cache.match(request);
+    if (cached) return cached;
+
+    const response = await fetch(request);
+    if (response.ok) void cache.put(request, response.clone());
+    return response;
+  },
+);
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    runtimeAssetCache.then(async (cache) => {
+      const keys = await cache.keys();
+      const excess = keys.length - RUNTIME_ASSET_CACHE_MAX_ENTRIES;
+      if (excess > 0) await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
+    }),
+  );
+});
+
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     event.waitUntil(self.skipWaiting().then(() => self.clients.claim()));

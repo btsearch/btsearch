@@ -41,7 +41,7 @@ import { NotificationsBell } from "@/features/notifications/components/Notificat
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
-import { type SupportedLanguage, supportedLanguages } from "@/i18n/config";
+import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
 import { authClient } from "@/lib/authClient";
 import { resolveAvatarUrl } from "@/lib/format";
 import {
@@ -601,15 +601,16 @@ function normalizeLanguage(value: string): SupportedLanguage {
   return supportedLanguages.find((lang) => lang.code === value)?.code ?? "pl-PL";
 }
 
+const preloadEnglishCatalog = () => void ensureLanguageResources("en-US");
+
 function FloatingLanguageMenuItems() {
   const { i18n } = useTranslation();
   const { data: session } = authClient.useSession();
-  const storedLanguage = typeof window === "undefined" ? i18n.language : window.localStorage.getItem("i18nextLng") || i18n.language;
-  const currentUserLang = normalizeLanguage(storedLanguage);
+  const currentUserLang = normalizeLanguage(i18n.language);
 
   const handleLanguageChange = (code: SupportedLanguage) => {
-    void i18n.changeLanguage(code);
-    if (typeof window !== "undefined") window.localStorage.setItem("i18nextLng", code);
+    void ensureLanguageResources(code).then(() => i18n.changeLanguage(code));
+    persistLanguage(code);
     if (session?.user) void authClient.updateUser({ locale: code });
   };
 
@@ -630,15 +631,23 @@ function FloatingLanguageMenuItems() {
 
 function FloatingLanguageControl() {
   const { i18n } = useTranslation();
-  const storedLanguage = typeof window === "undefined" ? i18n.language : window.localStorage.getItem("i18nextLng") || i18n.language;
-  const currentUserLang = normalizeLanguage(storedLanguage);
+  const currentUserLang = normalizeLanguage(i18n.language);
   const currentLanguage = supportedLanguages.find((lang) => lang.code === currentUserLang);
   const FlagComponent = currentLanguage ? flagComponents[currentLanguage.countryCode] : null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon" className={FLOATING_ICON_CONTROL_CLASS} aria-label={currentLanguage?.nativeName} />}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className={FLOATING_ICON_CONTROL_CLASS}
+            aria-label={currentLanguage?.nativeName}
+            onMouseEnter={preloadEnglishCatalog}
+            onFocus={preloadEnglishCatalog}
+          />
+        }
       >
         {FlagComponent ? <FlagComponent className="h-4 w-5 rounded-sm" /> : null}
       </DropdownMenuTrigger>

@@ -1,26 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-import enUSAdmin from "./locales/en-US/admin.json";
-import enUSAuth from "./locales/en-US/auth.json";
-import enUSCellAnalyzer from "./locales/en-US/cellAnalyzer.json";
-import enUSClfExport from "./locales/en-US/clfExport.json";
-import enUSCommon from "./locales/en-US/common.json";
-import enUSDeletedEntries from "./locales/en-US/deletedEntries.json";
-import enUSKMZ from "./locales/en-US/kmz.json";
-import enUSLists from "./locales/en-US/lists.json";
-import enUSMain from "./locales/en-US/main.json";
-import enUSNav from "./locales/en-US/nav.json";
-import enUSNotifications from "./locales/en-US/notifications.json";
-import enUSOAuth from "./locales/en-US/oauth.json";
-import enUSPem from "./locales/en-US/pem.json";
-import enUSSettings from "./locales/en-US/settings.json";
-import enUSSpectrum from "./locales/en-US/spectrum.json";
-import enUSStationDetails from "./locales/en-US/stationDetails.json";
-import enUSStations from "./locales/en-US/stations.json";
-import enUSStatistics from "./locales/en-US/statistics.json";
-import enUSSubmissions from "./locales/en-US/submissions.json";
-import enUSTerrainProfile from "./locales/en-US/terrainProfile.json";
 import plPLAdmin from "./locales/pl-PL/admin.json";
 import plPLAuth from "./locales/pl-PL/auth.json";
 import plPLCellAnalyzer from "./locales/pl-PL/cellAnalyzer.json";
@@ -44,28 +24,6 @@ import plPLTerrainProfile from "./locales/pl-PL/terrainProfile.json";
 
 export const defaultNS = "common";
 export const resources = {
-  "en-US": {
-    common: enUSCommon,
-    stations: enUSStations,
-    nav: enUSNav,
-    main: enUSMain,
-    stationDetails: enUSStationDetails,
-    submissions: enUSSubmissions,
-    clfExport: enUSClfExport,
-    auth: enUSAuth,
-    settings: enUSSettings,
-    admin: enUSAdmin,
-    deletedEntries: enUSDeletedEntries,
-    statistics: enUSStatistics,
-    notifications: enUSNotifications,
-    lists: enUSLists,
-    cellAnalyzer: enUSCellAnalyzer,
-    spectrum: enUSSpectrum,
-    pem: enUSPem,
-    kmz: enUSKMZ,
-    terrainProfile: enUSTerrainProfile,
-    oauth: enUSOAuth,
-  },
   "pl-PL": {
     common: plPLCommon,
     stations: plPLStations,
@@ -100,15 +58,29 @@ export type SupportedLanguage = (typeof supportedLanguages)[number]["code"];
 function getDefaultLanguage(): SupportedLanguage {
   if (typeof window === "undefined") return "pl-PL";
 
-  const stored = localStorage.getItem("i18nextLng");
-  if (stored && (stored === "en-US" || stored === "pl-PL")) return stored;
+  try {
+    const stored = localStorage.getItem("i18nextLng");
+    if (stored && (stored === "en-US" || stored === "pl-PL")) return stored;
+  } catch {
+    // Storage unavailable
+  }
 
   return "pl-PL";
 }
 
+export function persistLanguage(code: SupportedLanguage): void {
+  try {
+    localStorage.setItem("i18nextLng", code);
+  } catch {
+    // Storage unavailable
+  }
+}
+
+const initialLanguage = getDefaultLanguage();
+
 void i18n.use(initReactI18next).init({
   resources,
-  lng: getDefaultLanguage(),
+  lng: initialLanguage,
   fallbackLng: "pl-PL",
   defaultNS,
   ns: [
@@ -140,4 +112,22 @@ void i18n.use(initReactI18next).init({
   },
 });
 
+let englishBundle: Promise<void> | null = null;
+
+export function ensureLanguageResources(language: SupportedLanguage): Promise<void> {
+  if (language !== "en-US") return Promise.resolve();
+
+  englishBundle ??= import("./locales/en-US")
+    .then(({ enUSResources }) => {
+      for (const [namespace, bundle] of Object.entries(enUSResources)) i18n.addResourceBundle("en-US", namespace, bundle, true, true);
+    })
+    .catch((error: unknown) => {
+      englishBundle = null;
+      throw error;
+    });
+
+  return englishBundle;
+}
+
+export const i18nReady = ensureLanguageResources(initialLanguage);
 export default i18n;

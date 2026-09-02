@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
-import { type SupportedLanguage, supportedLanguages } from "@/i18n/config";
+import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
 import { authClient } from "@/lib/authClient";
 
 const flagComponents: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -11,23 +11,25 @@ const flagComponents: Record<string, React.ComponentType<{ className?: string }>
   PL,
 };
 
+const preloadEnglishCatalog = () => void ensureLanguageResources("en-US");
+
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const { data: session } = authClient.useSession();
-  const currentUserLang = localStorage.getItem("i18nextLng") || i18n.language;
+  const currentUserLang = i18n.language;
 
   const currentLanguage = supportedLanguages.find((lang) => lang.code === currentUserLang);
   const FlagComponent = currentLanguage ? flagComponents[currentLanguage.countryCode] : null;
 
   const handleLanguageChange = (code: SupportedLanguage) => {
-    void i18n.changeLanguage(code);
-    localStorage.setItem("i18nextLng", code);
+    void ensureLanguageResources(code).then(() => i18n.changeLanguage(code));
+    persistLanguage(code);
     if (session?.user) void authClient.updateUser({ locale: code });
   };
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<SidebarMenuButton />}>
+      <DropdownMenuTrigger render={<SidebarMenuButton onMouseEnter={preloadEnglishCatalog} onFocus={preloadEnglishCatalog} />}>
         {FlagComponent && <FlagComponent className="h-4 w-5 rounded-sm" />}
         <span className="text-sm font-semibold">{currentLanguage?.nativeName}</span>
       </DropdownMenuTrigger>

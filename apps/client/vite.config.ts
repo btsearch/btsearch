@@ -92,7 +92,7 @@ export default defineConfig({
         },
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,mjs,css,html,woff2,png,jpg,svg}"],
+        globPatterns: ["index.html", "manifest.webmanifest", "assets/index-*.{js,css}", "assets/fonts/*.woff2", "favicon.ico", "btsearch.webp"],
         globIgnores: ["sw.js"],
       },
       pwaAssets: { disabled: false, config: true },
@@ -113,6 +113,11 @@ export default defineConfig({
         },
         codeSplitting: {
           groups: [
+            {
+              name: "locale-pl",
+              test: /src[\\/]i18n[\\/]locales[\\/]pl-PL/,
+              priority: 35,
+            },
             {
               name: "maplibre",
               test: /node_modules[\\/]maplibre-gl/,

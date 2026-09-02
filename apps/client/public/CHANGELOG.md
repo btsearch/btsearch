@@ -1,6 +1,16 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-02
+
+### 🚀 Enhancements
+
+- The BTSearch logo now appears immediately while the app is loading instead of a blank screen
+- Dark mode no longer flashes a bright screen for a moment while the app starts
+- The first visit downloads several megabytes less data, as offline files are now stored gradually while you browse instead of all at once
+- English translations are now downloaded only when English is selected, making the app start faster for Polish users
+- App updates after a new release re-download less data, as translations are now cached separately from the application code
+
 # 2026-09-01
 
 ### 🚀 Enhancements

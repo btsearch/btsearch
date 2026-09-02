@@ -41,16 +41,71 @@
 
     <link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml" />
 
-    <link rel="preconnect" href="https://statistics.btsearch.pl" crossorigin />
+    <link rel="preconnect" href="https://statistics.btsearch.pl" />
     <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
     <link rel="dns-prefetch" href="https://fundingchoicesmessages.google.com" />
 
     <link rel="preload" href="/assets/fonts/nunito-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/assets/fonts/nunito-sans-latin-ext-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/btsearch.webp" as="image" type="image/webp" fetchpriority="high" />
+
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("ui-theme");
+          var theme = stored === "dark" || stored === "light" ? stored : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.classList.add(theme);
+        } catch (e) {
+          document.documentElement.classList.add("light");
+        }
+      })();
+    </script>
+
+    <style>
+      :root {
+        color-scheme: light;
+        --shell-background: #fafcfd;
+      }
+      html.dark {
+        color-scheme: dark;
+        --shell-background: #070b0d;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background-color: var(--shell-background);
+      }
+      #app-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--shell-background);
+        transition: opacity 150ms ease-out;
+      }
+      #app-shell[data-hiding] {
+        opacity: 0;
+      }
+      #app-shell img {
+        width: 148px;
+        height: 52px;
+        object-fit: contain;
+      }
+      html.dark #app-shell img {
+        filter: invert(1);
+      }
+    </style>
 
     <script src="https://statistics.btsearch.pl/api/script.js" data-site-id="dfe8098c887c" data-skip-patterns='["/admin/*"]' defer></script>
   </head>
   <body>
+    <div id="app-shell" aria-hidden="true">
+      <img src="/btsearch.webp" alt="BTSearch" width="185" height="65" fetchpriority="high" decoding="sync" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
