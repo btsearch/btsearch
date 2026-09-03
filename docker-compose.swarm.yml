@@ -28,8 +28,10 @@ x-server-common: &server-common
     - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
     - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
     - KMZ_OUTPUT_DIR=/app/kmz
+    - DISPOSABLE_EMAIL_BLOCKLIST_PATH=/app/data/disposable_email_blocklist.conf
   volumes:
     - uploads-volume:/app/uploads
+    - disposable-email-blocklist-volume:/app/data
     - type: bind
       source: /opt/btsearch/kmz
       target: /app/kmz
@@ -261,6 +263,9 @@ networks:
     attachable: true
 
 volumes:
+  disposable-email-blocklist-volume:
+    external: true
+    name: btsearch_disposable-email-blocklist-volume
   postgres-volume:
     external: true
     name: btsearch_postgres-volume

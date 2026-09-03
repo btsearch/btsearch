@@ -64,9 +64,11 @@ services:
       - AXIOM_DATASET=openbts
       - NTM_USERAGENT=
       - KMZ_OUTPUT_DIR=/app/kmz
+      - DISPOSABLE_EMAIL_BLOCKLIST_PATH=/app/data/disposable_email_blocklist.conf
     volumes:
       - uploads-volume:/app/uploads
       - /opt/btsearch/kmz:/app/kmz
+      - disposable-email-blocklist-volume:/app/data
     depends_on:
       - postgres
       - redis
@@ -132,6 +134,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  disposable-email-blocklist-volume:
   postgres-volume:
   uploads-volume:
   redis-volume:

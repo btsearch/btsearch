@@ -5,6 +5,7 @@ import { passkey } from "@better-auth/passkey";
 import { hash, verify } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import { type GenericEndpointContext, betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { fromNodeHeaders } from "better-auth/node";
 import { admin, jwt, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
 import type { FastifyRequest } from "fastify";
@@ -15,6 +16,7 @@ import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
+import { isDisposableEmail, isDisposableEmailBlocklistReady } from "../services/disposableEmailBlocklist.service.js";
 import { afterAuthHook, beforeAuthHook } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
 import { OAUTH_SCOPES } from "./auth/scopes.js";
@@ -143,6 +145,17 @@ export const auth = betterAuth({
       jwkss: schema.jwks,
     },
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          if (!isDisposableEmailBlocklistReady())
+            throw new APIError("SERVICE_UNAVAILABLE", { message: "Registration is temporarily unavailable. Please try again later" });
+          if (isDisposableEmail(user.email)) throw new APIError("BAD_REQUEST", { message: "Disposable email addresses are not allowed" });
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {

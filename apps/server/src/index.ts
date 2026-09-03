@@ -6,6 +6,7 @@ import App from "./app.js";
 import { port } from "./config.js";
 import redis from "./database/redis.js";
 import { takeContributionSnapshot } from "./services/contributionSnapshot.service.ts";
+import { refreshDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
 import { cleanupExpiredInactiveStations } from "./services/inactiveStationCleanup.service.js";
 import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./services/notifications/service.js";
 import { cleanupOrphanedSubmissions } from "./services/submissions/cleanup.js";
@@ -180,6 +181,7 @@ if (cluster.isPrimary) {
   console.log(await figlet("sora"));
   installProcessErrorHandlers();
   logger.info("primary_started", { pid: process.pid, workers: workerCount });
+  await refreshDisposableEmailBlocklist();
 
   const workerPorts = new Map<number, string>();
   for (let i = 0; i < workerCount; i++) {

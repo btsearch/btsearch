@@ -27,6 +27,7 @@ import { PreHandlerHook } from "./hooks/preHandler.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
 import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
+import { loadDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
 import { initRuntimeSettings } from "./services/settings.service.js";
 import { logger, serializeError } from "./utils/logger.js";
 
@@ -81,6 +82,7 @@ export default class App {
   private async initServices(): Promise<void> {
     await redisReady;
     await initRuntimeSettings();
+    await loadDisposableEmailBlocklist();
   }
 
   private initHooks(): void {
