@@ -15,7 +15,7 @@ import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
 import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
+import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "../services/disposableEmailBlocklist.service.js";
 import { afterAuthHook, beforeAuthHook } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
@@ -159,7 +159,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendPasswordResetEmail(user.email, url);
+      await sendPasswordResetEmail(user.email, url, getAuthEmailRecipient(user));
     },
     password: {
       hash: async (password) => {
@@ -175,7 +175,7 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail(user.email, url);
+      await sendVerificationEmail(user.email, url, getAuthEmailRecipient(user));
     },
     sendOnSignUp: true,
     autoSignInAfterVerification: true,

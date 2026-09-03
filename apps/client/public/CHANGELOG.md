@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-04
+
+### 🩹 Fixes
+
+- Cells created together with a new station now appear in the station's change history
+
 # 2026-09-02
 
 ### 🚀 Enhancements

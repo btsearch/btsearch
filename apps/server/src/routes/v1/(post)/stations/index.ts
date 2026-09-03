@@ -183,22 +183,39 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       });
 
       const response: ResponseData = { ...full, cells: cellsWithDetails } as ResponseData;
+
+      await createAuditLog(
+        {
+          action: "stations.create",
+          table_name: "stations",
+          record_id: response.id,
+          old_values: null,
+          new_values: response,
+        },
+        req,
+        tx,
+      );
+
+      if (response.cells.length > 0) {
+        const auditCells = response.cells.map(({ band, ...cell }) => ({ ...cell, band_id: band.id }));
+        await createAuditLog(
+          {
+            action: "cells.create",
+            table_name: "cells",
+            record_id: null,
+            new_values: { cells: auditCells },
+            metadata: { station_id: response.id },
+          },
+          req,
+          tx,
+        );
+      }
+
       return response;
     });
 
     void syncStationsPermitsAssociations().catch((e) =>
       logger.error("Failed to sync stations_permits after station creation", { error: e instanceof Error ? e.message : String(e) }),
-    );
-
-    await createAuditLog(
-      {
-        action: "stations.create",
-        table_name: "stations",
-        record_id: station.id,
-        old_values: null,
-        new_values: station,
-      },
-      req,
     );
 
     return res.send({ data: station });

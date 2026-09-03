@@ -16,6 +16,7 @@ import db from "../../database/psql.js";
 import redis from "../../database/redis.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
+import { escapeHtml } from "../../lib/html.js";
 
 const SHELL_TTL_MS = 60_000;
 const SHELL_MAX_STALE_MS = 5 * 60_000;
@@ -34,10 +35,6 @@ let shellFetchedAt = 0;
 
 const shellRequests = new SingleFlight<string, string | null>();
 const fragmentRequests = new SingleFlight<string, string | null>();
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
 
 function jsonLdScript(data: JsonLdObject): string {
   return `<script type="application/ld+json" data-seo-inject>${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
