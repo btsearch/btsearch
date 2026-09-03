@@ -44,7 +44,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
   const { t, i18n } = useTranslation("stationDetails");
   const queryClient = useQueryClient();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("asc");
+  const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("desc");
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ["station-photos", stationId],
@@ -56,10 +56,12 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
     const direction = sortOrder === "asc" ? 1 : -1;
 
     return [...(photos ?? [])].sort((a, b) => {
+      if (a.is_main !== b.is_main) return a.is_main ? -1 : 1;
+
       const createdAtComparison = a.createdAt.localeCompare(b.createdAt);
       if (createdAtComparison !== 0) return createdAtComparison * direction;
 
-      return (a.id - b.id) * direction;
+      return a.id - b.id;
     });
   }, [photos, sortOrder]);
 
