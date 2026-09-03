@@ -211,8 +211,7 @@
     "uploaded": "Dodano",
     "taken": "Wykonano",
     "recent": "Nowe",
-    "mainPhoto": "Główne zdjęcie stacji",
-    "imageUnavailable": "Zdjęcie niedostępne"
+    "mainPhoto": "Główne zdjęcie stacji"
   },
   "radiolines": {
     "title": "Radiolinia #{{id}}",

@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import { Spinner } from "@/components/ui/spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ type NavigationDirection = "left" | "right";
 export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const [imgAnimClass, setImgAnimClass] = useState("opacity-0");
+  const [failedAttachmentUuid, setFailedAttachmentUuid] = useState<string | null>(null);
   const loadedUuids = useRef<Set<string>>(new Set());
   const dialogRef = useRef<HTMLDivElement>(null);
   const navigationDirectionRef = useRef<NavigationDirection | null>(null);
@@ -41,7 +43,13 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
   const isOpen = activePhoto !== null;
   const hasMultiplePhotos = photos.length > 1;
 
+  function closeLightbox() {
+    setFailedAttachmentUuid(null);
+    onClose();
+  }
+
   function navigate(direction: NavigationDirection) {
+    setFailedAttachmentUuid(null);
     navigationDirectionRef.current = direction;
     if (direction === "left") onPrev();
     else onNext();
@@ -58,7 +66,7 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
     }
   });
 
-  useEscapeKey(onClose, isOpen);
+  useEscapeKey(closeLightbox, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -113,6 +121,7 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
 
   function handleImgLoad() {
     if (activePhoto) loadedUuids.current.add(activePhoto.attachment_uuid);
+    setFailedAttachmentUuid(null);
     const navigationDirection = navigationDirectionRef.current;
     navigationDirectionRef.current = null;
     const slide = navigationDirection === "left" ? " slide-in-from-left-8" : navigationDirection === "right" ? " slide-in-from-right-8" : "";
@@ -125,6 +134,7 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
   const photoAlt = activePhoto.note?.trim() || t("photos.photoAlt", { number: index + 1 });
   const uploadedDate = new Date(activePhoto.createdAt).toLocaleDateString(i18n.language, DATE_FORMAT);
   const takenDate = activePhoto.taken_at ? new Date(activePhoto.taken_at).toLocaleDateString(i18n.language, MONTH_FORMAT) : null;
+  const imageFailed = failedAttachmentUuid === activePhoto.attachment_uuid;
 
   return createPortal(
     <div
@@ -135,13 +145,13 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
       tabIndex={-1}
       className="fixed inset-0 z-200 flex animate-in items-center justify-center fade-in duration-200"
     >
-      <div className="absolute inset-0 bg-black/90 cursor-pointer" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/90 cursor-pointer" onClick={closeLightbox} />
 
       <button
         type="button"
         className="absolute top-3 right-3 z-10 p-2 text-white hover:bg-white/10 active:bg-white/20 active:scale-95 rounded-full transition-[colors,transform]"
         aria-label={t("common:actions.close")}
-        onClick={onClose}
+        onClick={closeLightbox}
       >
         <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
       </button>
@@ -185,13 +195,15 @@ export function Lightbox({ photos, index, onClose, onPrev, onNext }: Props) {
             else if (x > 0.67) navigate("right");
           }}
         >
-          {imgAnimClass === "opacity-0" ? <Spinner className="absolute text-white/60 size-6" /> : null}
-          <img
+          {!imageFailed && imgAnimClass === "opacity-0" ? <Spinner className="absolute text-white/60 size-6" /> : null}
+          <PhotoWithFallback
             key={activePhoto.attachment_uuid}
             src={`/uploads/${activePhoto.attachment_uuid}.webp`}
             alt={photoAlt}
             className={cn("max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg", imgAnimClass)}
+            fallbackClassName="min-h-40 min-w-64 bg-white/5 px-6 text-white/70 opacity-100"
             onLoad={handleImgLoad}
+            onError={() => setFailedAttachmentUuid(activePhoto.attachment_uuid)}
           />
         </div>
         <div className="flex flex-col items-center gap-1 text-white/80 text-xs">

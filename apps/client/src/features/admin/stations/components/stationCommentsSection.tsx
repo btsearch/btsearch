@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,7 +122,13 @@ export function StationCommentsSection({ stationId }: StationCommentsSectionProp
                           {comment.attachments.map((attachment) => (
                             <div key={attachment.uuid} className="relative size-16 rounded-md overflow-hidden border bg-muted">
                               {attachment.type.startsWith("image") ? (
-                                <img src={`/uploads/${attachment.uuid}.webp`} alt="" className="size-full object-cover" />
+                                <PhotoWithFallback
+                                  src={`/uploads/${attachment.uuid}.webp`}
+                                  alt=""
+                                  className="size-full object-cover"
+                                  fallbackClassName="[&_svg]:size-4"
+                                  fallbackLabelClassName="sr-only"
+                                />
                               ) : (
                                 <div className="flex items-center justify-center size-full">
                                   <HugeiconsIcon icon={Image01Icon} className="size-5 text-muted-foreground" />

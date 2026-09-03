@@ -125,7 +125,9 @@
     "noPhotosHint": "Photos are added when submissions are approved",
     "setAsMain": "Set as main",
     "uploadedBy": "Uploaded by {{username}}",
-    "unknownUser": "Unknown"
+    "unknownUser": "Unknown",
+    "sortOldestFirst": "Oldest first",
+    "sortNewestFirst": "Newest first"
   },
   "history": {
     "title": "Station change history",

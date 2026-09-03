@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -265,7 +266,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 {existingPhotos.map((photo, idx) => (
                   <div key={`existing-${photo.id}`} className="rounded-lg overflow-hidden border bg-muted">
                     <div className="relative aspect-square">
-                      <img
+                      <PhotoWithFallback
                         src={`/uploads/${photo.attachment_uuid}.webp`}
                         alt={photo.note ?? ""}
                         className="w-full h-full object-cover"
@@ -361,7 +362,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 {photos.map((file, idx) => (
                   <div key={`local-${file.name}-${idx}`} className="rounded-lg overflow-hidden border bg-muted">
                     <div className="relative aspect-square">
-                      <img src={previewUrls[idx]} alt={file.name} className="w-full h-full object-cover" />
+                      <PhotoWithFallback src={previewUrls[idx]} alt={file.name} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
@@ -522,10 +523,11 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 </>
               ) : null}
               <div role="presentation" className="flex flex-col items-center gap-3 max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                <img
+                <PhotoWithFallback
                   src={activeLightbox.type === "existing" ? `/uploads/${activeLightbox.photo.attachment_uuid}.webp` : activeLightbox.url}
                   alt={activeLightbox.type === "existing" ? (activeLightbox.photo.note ?? "") : activeLightbox.name}
                   className="max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg"
+                  fallbackClassName="min-h-40 min-w-64 bg-white/5 px-6 text-white/70"
                 />
                 <div className="flex flex-col items-center gap-1 text-white/80 text-xs">
                   {activeLightbox.type === "existing" ? (

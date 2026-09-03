@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Lightbox, type LightboxPhoto } from "@/components/lightbox";
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import type { AdminComment } from "@/features/admin/comments/types";
 import { API_BASE } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
@@ -445,9 +446,17 @@ function AdminDashboardPage() {
                                 key={att.uuid}
                                 type="button"
                                 className="size-8 rounded overflow-hidden border bg-muted hover:opacity-80 transition-opacity shrink-0"
+                                aria-label={t("actions.openPhoto", { ns: "common" })}
                                 onClick={() => setLightbox({ comment: c, index: i })}
                               >
-                                <img src={`/uploads/${att.uuid}.webp`} alt="" className="size-full object-cover" loading="lazy" />
+                                <PhotoWithFallback
+                                  src={`/uploads/${att.uuid}.webp`}
+                                  alt=""
+                                  className="size-full object-cover"
+                                  fallbackClassName="[&_svg]:size-3.5"
+                                  fallbackLabelClassName="sr-only"
+                                  loading="lazy"
+                                />
                               </button>
                             ))}
                           </div>

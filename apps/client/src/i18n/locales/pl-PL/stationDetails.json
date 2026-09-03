@@ -125,7 +125,9 @@
     "noPhotosHint": "Zdjęcia są dodawane po zatwierdzeniu zgłoszeń",
     "setAsMain": "Ustaw jako główne",
     "uploadedBy": "Przesłane przez {{username}}",
-    "unknownUser": "Nieznany"
+    "unknownUser": "Nieznany",
+    "sortOldestFirst": "Od najstarszych",
+    "sortNewestFirst": "Od najnowszych"
   },
   "history": {
     "title": "Historia zmian stacji",

@@ -1,9 +1,8 @@
-import { Camera01Icon, Image01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
 
-import { isRecentPhoto } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback, isRecentPhoto } from "@/components/photoGridPrimitives";
 import { cn } from "@/lib/utils";
 
 import type { GalleryPhoto } from "../api";
@@ -20,7 +19,6 @@ type PhotoTileLabels = {
   unknownUser: string;
   uploaded: string;
   viewStation: string;
-  imageUnavailable: string;
 };
 
 type Props = {
@@ -34,7 +32,6 @@ type Props = {
 
 export function PhotoTile({ photo, index, locale, labels, compact = false, onOpen }: Props) {
   const reduceMotion = useReducedMotion();
-  const [imageFailed, setImageFailed] = useState(false);
   const recent = isRecentPhoto(photo.createdAt);
   const author = photo.author?.username ?? labels.unknownUser;
   const uploadedDate = new Date(photo.createdAt).toLocaleDateString(locale, DATE_FORMAT);
@@ -55,21 +52,14 @@ export function PhotoTile({ photo, index, locale, labels, compact = false, onOpe
         aria-label={accessibleLabel}
         onClick={() => onOpen(index)}
       >
-        {imageFailed ? (
-          <span className="flex size-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <HugeiconsIcon icon={Image01Icon} className="size-7 opacity-55" />
-            {labels.imageUnavailable}
-          </span>
-        ) : (
-          <img
-            src={`/uploads/${photo.attachment_uuid}.webp`}
-            alt={alt}
-            loading="lazy"
-            decoding="async"
-            className="size-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:opacity-95 motion-reduce:transition-none"
-            onError={() => setImageFailed(true)}
-          />
-        )}
+        <PhotoWithFallback
+          src={`/uploads/${photo.attachment_uuid}.webp`}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className="size-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:opacity-95 motion-reduce:transition-none"
+          fallbackClassName="group-hover:scale-100 group-hover:opacity-100"
+        />
         <span className="pointer-events-none absolute left-2 top-2 flex items-center gap-1.5">
           {photo.is_main ? (
             <span className="rounded-full bg-black/70 p-1 text-yellow-300" title={labels.mainPhoto}>

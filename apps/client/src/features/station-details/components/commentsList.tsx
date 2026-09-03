@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Lightbox, type LightboxPhoto } from "@/components/lightbox";
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -206,7 +207,12 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
                             onClick={() => setLightbox({ commentId: comment.id, index: attachmentIndex })}
                             className="group relative rounded-lg overflow-hidden border bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer"
                           >
-                            <img src={`/uploads/${attachment.uuid}.webp`} alt="Attachment" className="size-20 object-cover" />
+                            <PhotoWithFallback
+                              src={`/uploads/${attachment.uuid}.webp`}
+                              alt="Attachment"
+                              className="size-20 object-cover"
+                              fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
+                            />
                           </button>
                         ) : (
                           <div

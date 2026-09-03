@@ -1,5 +1,6 @@
 {
   "and": "and",
+  "photoUnavailable": "Photo unavailable",
   "theme": {
     "title": "Theme",
     "light": "Light",
@@ -46,6 +47,7 @@
     "retry": "Try again",
     "resize": "Resize",
     "resizeHorizontally": "Resize horizontally",
+    "openPhoto": "Open photo",
     "showOnMap": "Show on map"
   },
   "labels": {

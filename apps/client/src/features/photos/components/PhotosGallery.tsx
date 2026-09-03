@@ -587,7 +587,6 @@ export function PhotosGallery() {
       unknownUser: t("photos.unknownUser"),
       uploaded: t("photos.uploaded"),
       viewStation: t("photos.viewStation"),
-      imageUnavailable: t("photos.imageUnavailable"),
     }),
     [t],
   );

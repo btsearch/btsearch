@@ -18,7 +18,15 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Lightbox } from "@/components/lightbox";
-import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, PhotoMeta, isRecentPhoto } from "@/components/photoGridPrimitives";
+import {
+  AddPhotoTile,
+  PhotoDeleteButton,
+  PhotoEditPopover,
+  PhotoImage,
+  PhotoMeta,
+  PhotoWithFallback,
+  isRecentPhoto,
+} from "@/components/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -900,7 +908,12 @@ function UploadLightboxBody({ activeItem, i18nLanguage }: { activeItem: UploadLi
   const alt = activeItem.type === "submission" ? (activeItem.photo.note ?? "") : activeItem.name;
   return (
     <div role="presentation" className="flex flex-col items-center gap-3 max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
-      <img src={src} alt={alt} className="max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg" />
+      <PhotoWithFallback
+        src={src}
+        alt={alt}
+        className="max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg"
+        fallbackClassName="min-h-40 min-w-64 bg-white/5 px-6 text-white/70"
+      />
       <div className="flex flex-col items-center gap-1 text-white/80 text-xs">
         {activeItem.type === "submission" ? (
           <>

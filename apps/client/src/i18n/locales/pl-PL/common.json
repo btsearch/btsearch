@@ -1,5 +1,6 @@
 {
   "and": "oraz",
+  "photoUnavailable": "Zdjęcie niedostępne",
   "theme": {
     "title": "Motyw",
     "light": "Jasny",
@@ -46,6 +47,7 @@
     "retry": "Spróbuj ponownie",
     "resize": "Zmień rozmiar",
     "resizeHorizontally": "Zmień szerokość",
+    "openPhoto": "Otwórz zdjęcie",
     "showOnMap": "Pokaż na mapie"
   },
   "labels": {

@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -138,12 +139,20 @@ export function createCommentsColumns({
                 key={att.uuid}
                 type="button"
                 className="size-10 rounded overflow-hidden border bg-muted hover:opacity-80 transition-opacity shrink-0"
+                aria-label={tCommon("actions.openPhoto")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenLightbox(row.original, i);
                 }}
               >
-                <img src={`/uploads/${att.uuid}.webp`} alt="" className="size-full object-cover" loading="lazy" />
+                <PhotoWithFallback
+                  src={`/uploads/${att.uuid}.webp`}
+                  alt=""
+                  className="size-full object-cover"
+                  fallbackClassName="[&_svg]:size-4"
+                  fallbackLabelClassName="sr-only"
+                  loading="lazy"
+                />
               </button>
             ))}
           </div>

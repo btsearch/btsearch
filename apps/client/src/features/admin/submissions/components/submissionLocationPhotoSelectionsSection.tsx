@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Lightbox } from "@/components/lightbox";
-import { PhotoMeta } from "@/components/photoGridPrimitives";
+import { PhotoMeta, PhotoWithFallback } from "@/components/photoGridPrimitives";
 import type { SubmissionLocationPhoto } from "@/features/admin/submissions/types";
 import type { LocationPhoto } from "@/features/station-details/api";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,12 @@ function PhotoSelectionTile({
           if (event.key === "Enter" || event.key === " ") onOpen();
         }}
       >
-        <img src={`/uploads/${photo.attachment_uuid}.webp`} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
+        <PhotoWithFallback
+          src={`/uploads/${photo.attachment_uuid}.webp`}
+          alt={photo.note ?? ""}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
         {photo.is_main ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5" title={mainTitle}>
             <HugeiconsIcon icon={StarIcon} className="size-3" />

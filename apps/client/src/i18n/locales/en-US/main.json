@@ -200,8 +200,7 @@
     "uploaded": "Uploaded",
     "taken": "Taken",
     "recent": "New",
-    "mainPhoto": "Main station photo",
-    "imageUnavailable": "Image unavailable"
+    "mainPhoto": "Main station photo"
   },
   "radiolines": {
     "title": "Radioline #{{id}}",

@@ -5,6 +5,7 @@ import { type ChangeEvent, type SubmitEvent, useCallback, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { PhotoWithFallback } from "@/components/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,7 +109,12 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
           <div className="flex flex-wrap gap-2">
             {images.map((image) => (
               <div key={image.id} className="relative group rounded-lg overflow-hidden border bg-muted/20">
-                <img src={image.previewUrl} alt="Preview" className="size-20 object-cover" />
+                <PhotoWithFallback
+                  src={image.previewUrl}
+                  alt="Preview"
+                  className="size-20 object-cover"
+                  fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
+                />
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(image.id)}

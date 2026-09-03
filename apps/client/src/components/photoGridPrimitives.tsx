@@ -1,6 +1,15 @@
-import { Camera01Icon, Cancel01Icon, Delete02Icon, PencilEdit02Icon, Tick02Icon, Upload04Icon, ZoomInAreaIcon } from "@hugeicons/core-free-icons";
+import {
+  Camera01Icon,
+  Cancel01Icon,
+  Delete02Icon,
+  Image01Icon,
+  PencilEdit02Icon,
+  Tick02Icon,
+  Upload04Icon,
+  ZoomInAreaIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +32,64 @@ export function isRecentPhoto(createdAt: string) {
   return Date.now() - new Date(createdAt).getTime() < RECENT_PHOTO_MS;
 }
 
+type PhotoWithFallbackProps = Omit<ComponentPropsWithoutRef<"img">, "src"> & {
+  fallbackClassName?: string;
+  fallbackLabelClassName?: string;
+  src: string;
+};
+
+function PhotoUnavailable({ className, labelClassName, title }: { className?: string; labelClassName?: string; title?: string }) {
+  const { t } = useTranslation("common");
+  const label = t("photoUnavailable");
+
+  return (
+    <span role="img" aria-label={label} title={title ?? label} className={className}>
+      <HugeiconsIcon icon={Image01Icon} className="size-7 opacity-55" aria-hidden="true" />
+      <span className={labelClassName}>{label}</span>
+    </span>
+  );
+}
+
+export function PhotoWithFallback({
+  alt,
+  className,
+  fallbackClassName,
+  fallbackLabelClassName,
+  onError,
+  src,
+  title,
+  ...props
+}: PhotoWithFallbackProps) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (src.trim().length === 0 || failedSrc === src)
+    return (
+      <PhotoUnavailable
+        title={title}
+        className={cn(
+          className,
+          "flex flex-col items-center justify-center gap-2 bg-muted text-center text-sm text-muted-foreground",
+          fallbackClassName,
+        )}
+        labelClassName={fallbackLabelClassName}
+      />
+    );
+
+  return (
+    <img
+      {...props}
+      src={src}
+      alt={alt}
+      title={title}
+      className={className}
+      onError={(event) => {
+        setFailedSrc(src);
+        onError?.(event);
+      }}
+    />
+  );
+}
+
 export function PhotoImage({
   alt,
   children,
@@ -40,7 +107,7 @@ export function PhotoImage({
 }) {
   return (
     <div className={cn("relative h-36", frameClassName)}>
-      <img src={src} alt={alt} className={cn("w-full h-full object-cover", imageClassName)} loading="lazy" />
+      <PhotoWithFallback src={src} alt={alt} className={cn("w-full h-full object-cover", imageClassName)} loading="lazy" />
       {children}
       <button
         type="button"

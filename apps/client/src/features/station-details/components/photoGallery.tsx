@@ -1,17 +1,19 @@
-import { Camera01Icon, Image01Icon, Note02Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowUp01Icon, Camera01Icon, Image01Icon, Note02Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Lightbox } from "@/components/lightbox";
-import { isRecentPhoto } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback, isRecentPhoto } from "@/components/photoGridPrimitives";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
 
 type Props = { stationId: number; isAdmin: boolean };
+type PhotoSortOrder = "asc" | "desc";
 
 function PhotoMeta({ photo, locale }: { photo: StationPhoto; locale: string }) {
   const { t } = useTranslation("stationDetails");
@@ -42,12 +44,24 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
   const { t, i18n } = useTranslation("stationDetails");
   const queryClient = useQueryClient();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("asc");
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ["station-photos", stationId],
     queryFn: () => fetchStationPhotos(stationId),
     staleTime: 1000 * 60 * 5,
   });
+
+  const sortedPhotos = useMemo(() => {
+    const direction = sortOrder === "asc" ? 1 : -1;
+
+    return [...(photos ?? [])].sort((a, b) => {
+      const createdAtComparison = a.createdAt.localeCompare(b.createdAt);
+      if (createdAtComparison !== 0) return createdAtComparison * direction;
+
+      return (a.id - b.id) * direction;
+    });
+  }, [photos, sortOrder]);
 
   const setMainMutation = useMutation({
     mutationFn: ({ photoId }: { photoId: number }) =>
@@ -81,31 +95,47 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
     );
   }
 
-  const prev = () => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null));
-  const next = () => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null));
+  const prev = () => setLightboxIndex((i) => (i !== null ? (i - 1 + sortedPhotos.length) % sortedPhotos.length : null));
+  const next = () => setLightboxIndex((i) => (i !== null ? (i + 1) % sortedPhotos.length : null));
+  const sortLabel = sortOrder === "asc" ? t("photos.sortOldestFirst") : t("photos.sortNewestFirst");
 
   return (
     <>
+      <div className="mb-2 flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setSortOrder((current) => (current === "asc" ? "desc" : "asc"))}
+          className="h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground"
+        >
+          <HugeiconsIcon icon={sortOrder === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-3.5" />
+          {sortLabel}
+        </Button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {photos.map((photo, idx) => (
+        {sortedPhotos.map((photo, idx) => (
           <div
             key={photo.id}
             className="relative group rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none"
             style={{ animationDelay: `${Math.min(idx * 50, 400)}ms`, animationFillMode: "both" }}
           >
-            <img
-              role="button"
-              tabIndex={0}
-              src={`/uploads/${photo.attachment_uuid}.webp`}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full aspect-square object-cover cursor-pointer transition-[transform,opacity] duration-200 group-hover:scale-[1.03] group-hover:opacity-90"
+            <button
+              type="button"
+              aria-label={t("photos.openPhoto", { number: idx + 1 })}
+              aria-haspopup="dialog"
               onClick={() => setLightboxIndex(idx)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setLightboxIndex(idx);
-              }}
-            />
+              className="block w-full cursor-zoom-in text-left"
+            >
+              <PhotoWithFallback
+                src={`/uploads/${photo.attachment_uuid}.webp`}
+                alt={t("photos.photoAlt", { number: idx + 1 })}
+                loading="lazy"
+                decoding="async"
+                className="block w-full aspect-square object-cover transition-[transform,opacity] duration-200 group-hover:scale-[1.03] group-hover:opacity-90"
+                fallbackClassName="group-hover:scale-100 group-hover:opacity-100"
+              />
+            </button>
             <span className="pointer-events-none absolute top-1.5 left-1.5 flex items-center gap-1.5">
               {photo.is_main ? (
                 <span className="bg-black/60 text-yellow-400 rounded-full p-1">
@@ -146,7 +176,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
         ))}
       </div>
 
-      <Lightbox photos={photos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
+      <Lightbox photos={sortedPhotos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
     </>
   );
 }
