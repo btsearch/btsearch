@@ -398,6 +398,7 @@
           VITE_MAPBOX_ACCESS_TOKEN=
           VITE_VAPID_PUBLIC_KEY=
           VITE_ADSENSE_CLIENT=
+          VITE_ADSENSE_MAP_MOBILE_SLOT=
         owner: root
         group: root
         mode: "0600"

@@ -1,7 +1,7 @@
 import { AirportTowerIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstack/react-router";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AnnouncementBanner } from "@/components/announcement-banner";
@@ -15,6 +15,7 @@ import { NavActionsProvider } from "@/contexts/navActions";
 import { PageSectionsProvider } from "@/contexts/pageSections";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
+import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useTwoFactorRedirect } from "@/hooks/useTwoFactorRedirect";
 import { useViewportObstruction } from "@/hooks/useViewportObstruction";
@@ -41,6 +42,8 @@ export interface RouteHandle {
 }
 
 const EMPTY_BREADCRUMBS: BreadcrumbSegment[] = [];
+const MobileTopAd = lazy(() => import("@/components/layout/mobile-top-ad"));
+const MOBILE_TOP_AD_SLOT = import.meta.env.VITE_ADSENSE_MAP_MOBILE_SLOT as string | undefined;
 
 function MobileSidebarAutoClose() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -59,6 +62,9 @@ function AppLayout() {
   useVirtualKeyboardScrollReset();
   useViewportObstruction();
   const { preferences } = usePreferences();
+  const isMobile = useIsMobile();
+  const [mobileTopAdDismissed, setMobileTopAdDismissed] = useState(false);
+  const mobileTopAdSlot = isMobile && !mobileTopAdDismissed ? MOBILE_TOP_AD_SLOT : undefined;
 
   const { visible: isWCO } = useWindowControlsOverlay();
   const [logoFailed, setLogoFailed] = useState(false);
@@ -73,6 +79,17 @@ function AppLayout() {
 
   const pageTitle = handle?.titleKey ? t(handle.titleKey, { ns: handle.i18nNamespace }) : (handle?.title ?? "");
   const breadcrumbs = handle?.breadcrumbs ?? EMPTY_BREADCRUMBS;
+  const pageContent = (
+    <>
+      <AnnouncementBanner />
+      {mobileTopAdSlot ? (
+        <Suspense fallback={null}>
+          <MobileTopAd adSlot={mobileTopAdSlot} onDismiss={() => setMobileTopAdDismissed(true)} />
+        </Suspense>
+      ) : null}
+      <Outlet />
+    </>
+  );
 
   useEffect(() => {
     if (!handle || hasRouteTitle) return;
@@ -95,7 +112,7 @@ function AppLayout() {
       <AuthGuard>
         <NavActionsProvider targetId={preferences.navMode === "floating" ? FLOATING_NAV_ACTION_TARGET_ID : "header-actions"}>
           {preferences.navMode === "floating" ? (
-            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-0 flex-col overflow-hidden bg-background">
+            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] flex-col overflow-hidden bg-background">
               {isWCO ? (
                 <div
                   className="shrink-0"
@@ -109,8 +126,7 @@ function AppLayout() {
                 />
               ) : null}
               <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto scroll-pb-32 max-md:pb-12", mainClassNameRoute?.mainClassName)}>
-                <AnnouncementBanner />
-                <Outlet />
+                {pageContent}
               </div>
               <FloatingNav />
             </div>
@@ -203,10 +219,7 @@ function AppLayout() {
                     </div>
                   </div>
                 </header>
-                <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto", mainClassNameRoute?.mainClassName)}>
-                  <AnnouncementBanner />
-                  <Outlet />
-                </div>
+                <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto", mainClassNameRoute?.mainClassName)}>{pageContent}</div>
               </SidebarInset>
             </SidebarProvider>
           )}

@@ -119,6 +119,9 @@
     "zoomForRadiolines": "Zoom in to see radiolines",
     "moreRadiolines": "Showing {{shown, number}} of {{total, number}} radiolines. Zoom in to see all"
   },
+  "ads": {
+    "dismiss": "Dismiss advertisement"
+  },
   "stats": {
     "dataInfo": "Data Information",
     "lastUpdated": "Last Updated",

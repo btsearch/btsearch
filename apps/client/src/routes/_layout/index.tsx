@@ -15,7 +15,7 @@ const mapFallback = (
 
 function Page() {
   return (
-    <div className="h-full min-h-0 flex-1">
+    <div className="grid h-full min-h-0 flex-1">
       <Suspense fallback={mapFallback}>
         <MapView />
       </Suspense>

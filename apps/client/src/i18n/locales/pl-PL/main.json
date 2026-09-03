@@ -120,6 +120,9 @@
     "zoomForRadiolines": "Przybliż, aby zobaczyć radiolinie",
     "moreRadiolines": "Pokazano {{shown, number}} z {{total, number}} linii radiowych. Przybliż, aby zobaczyć wszystkie"
   },
+  "ads": {
+    "dismiss": "Ukryj reklamę"
+  },
   "stats": {
     "dataInfo": "Informacje o danych",
     "lastUpdated": "Ostatnia aktualizacja",
