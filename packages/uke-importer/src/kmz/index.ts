@@ -1,8 +1,8 @@
-import { sql } from "@openbts/drizzle/db";
 import { config } from "dotenv";
 import path from "node:path";
 
 import { KMZ_OUTPUT_DIR } from "../config.js";
+import { sql } from "../database.js";
 import { generateRadiolinesKmz } from "./radiolines.ts";
 import { generateStationsKmz } from "./stations.ts";
 

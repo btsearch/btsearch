@@ -1,5 +1,4 @@
 import { ukeRadiolines } from "@openbts/drizzle";
-import { db } from "@openbts/drizzle/db";
 import { getOperatorColorByName } from "@openbts/shared/operatorUtils";
 import {
   calculateDistance,
@@ -14,6 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { KMZ_BATCH_SIZE, REGION_BY_TERYT_PREFIX } from "../config.ts";
+import { db } from "../database.js";
 import { createLogger } from "../utils.ts";
 import { buildKmz, escapeXml, folder, hexToKmlColor, lineStyle, placemark, wrapKml } from "./kml-utils.ts";
 

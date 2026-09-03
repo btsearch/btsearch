@@ -1,9 +1,9 @@
 import { stationsPermits, ukePermits, ukeStations } from "@openbts/drizzle";
-import { db } from "@openbts/drizzle/db";
 import { inArray, sql } from "drizzle-orm";
 /* eslint-disable no-await-in-loop */
 
 import { BATCH_SIZE } from "./config.js";
+import { db } from "./database.js";
 import { chunk } from "./utils.js";
 
 export interface UkeStationTuple {
@@ -39,7 +39,6 @@ export async function resolveUkeStationIds(stations: UkeStationTuple[]): Promise
   const unresolved = toInsert.filter((station) => !moved.has(getUkeStationKey(station)));
 
   for (const group of chunk(unresolved, BATCH_SIZE)) {
-    if (!group.length) continue;
     await db
       .insert(ukeStations)
       .values(group)
@@ -77,7 +76,6 @@ export async function refreshUkeStationActivity(stationIds: Iterable<number>): P
 export async function loadInternalStationIdByPermit(permitIds: number[]): Promise<Map<number, number>> {
   const byPermit = new Map<number, number>();
   for (const group of chunk(permitIds, BATCH_SIZE)) {
-    if (!group.length) continue;
     const rows = await db
       .select({ permitId: stationsPermits.permit_id, stationId: stationsPermits.station_id })
       .from(stationsPermits)
@@ -101,7 +99,6 @@ export async function cleanupOrphanedUkeStations(): Promise<number> {
 async function fetchUkeStations(stations: UkeStationTuple[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   for (const group of chunk(stations, BATCH_SIZE)) {
-    if (!group.length) continue;
     const rows = await db
       .select({
         id: ukeStations.id,
@@ -126,7 +123,6 @@ async function moveUnambiguousUkeStations(stations: UkeStationTuple[]): Promise<
   if (!stations.length) return moved;
 
   for (const group of chunk(stations, BATCH_SIZE)) {
-    if (!group.length) continue;
     const rows = await db
       .select({
         id: ukeStations.id,
@@ -157,7 +153,7 @@ async function moveUnambiguousUkeStations(stations: UkeStationTuple[]): Promise<
         if (existing === undefined || existing.location_id === station.location_id) return null;
         return { station, existing };
       })
-      .filter((move): move is NonNullable<typeof move> => move !== null && move !== undefined);
+      .filter((move): move is NonNullable<typeof move> => move !== null);
 
     if (!moves.length) continue;
 

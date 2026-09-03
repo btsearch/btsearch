@@ -1,27 +1,16 @@
 import { ukePermits } from "@openbts/drizzle";
-import { db } from "@openbts/drizzle/db";
 import { inArray } from "drizzle-orm";
 
 import { BATCH_SIZE } from "./config.js";
+import { db } from "./database.js";
+import { type UkePermitKeyInput, getUkePermitKey } from "./permit-key.js";
 import { chunk } from "./utils.js";
 
-type UkePermitActivityKeyInput = {
-  uke_station_id: number;
-  band_id: number;
-  decision_number: string;
-  decision_type: (typeof ukePermits.$inferSelect)["decision_type"];
-  expiry_date: Date;
-};
-
-function getUkePermitActivityKey(permit: UkePermitActivityKeyInput): string {
-  return `${permit.uke_station_id}|${permit.band_id}|${permit.decision_number}|${permit.decision_type}|${permit.expiry_date.toISOString()}`;
-}
-
-export async function findCreatedPermitStationIds(permits: UkePermitActivityKeyInput[]): Promise<number[]> {
+export async function findCreatedPermitStationIds(permits: UkePermitKeyInput[]): Promise<number[]> {
   if (permits.length === 0) return [];
 
-  const permitsByKey = new Map<string, UkePermitActivityKeyInput>();
-  for (const permit of permits) permitsByKey.set(getUkePermitActivityKey(permit), permit);
+  const permitsByKey = new Map<string, UkePermitKeyInput>();
+  for (const permit of permits) permitsByKey.set(getUkePermitKey(permit), permit);
 
   const stationIds = Array.from(new Set(Array.from(permitsByKey.values(), (permit) => permit.uke_station_id)));
   const existingKeys = new Set<string>();
@@ -42,7 +31,7 @@ export async function findCreatedPermitStationIds(permits: UkePermitActivityKeyI
   );
 
   for (const existing of existingGroups) {
-    for (const permit of existing) existingKeys.add(getUkePermitActivityKey(permit));
+    for (const permit of existing) existingKeys.add(getUkePermitKey(permit));
   }
 
   const createdStationIds = new Set<number>();

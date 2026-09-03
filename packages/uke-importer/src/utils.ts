@@ -1,9 +1,21 @@
-import { existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { createWriteStream, existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync } from "node:fs";
+import { rename, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { URL } from "node:url";
 import * as XLSX from "xlsx";
 
 import { DOWNLOAD_DIR } from "./config.js";
+
+interface Logger {
+  log: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  debug: (...args: unknown[]) => void;
+}
 
 export function convertDMSToDD(input: string): number | null {
   if (!input || typeof input !== "string") return null;
@@ -54,9 +66,19 @@ export function ensureDownloadDir(): void {
 }
 
 export async function downloadFile(fileUrl: string, outPath: string): Promise<void> {
-  const res = await fetch(fileUrl);
-  const ab = await res.arrayBuffer();
-  writeFileSync(outPath, Buffer.from(ab));
+  const response = await fetch(fileUrl);
+  const body = response.body ? Readable.fromWeb(response.body) : Readable.from([]);
+  const temporaryPath = `${outPath}.${randomUUID()}.download`;
+
+  try {
+    await pipeline(body, createWriteStream(temporaryPath));
+    await rename(temporaryPath, outPath);
+  } catch (error) {
+    try {
+      await rm(temporaryPath, { force: true });
+    } catch {}
+    throw error;
+  }
 }
 
 export function absolutize(base: string, href: string): string {
@@ -145,8 +167,11 @@ export async function cleanupDownloads(): Promise<void> {
   } catch {}
 }
 
-export function createLogger(prefix: string) {
-  const formatMessage = (args: unknown[]) => [`[${prefix}]`, ...args];
+export function createLogger(prefix: string): Logger {
+  function formatMessage(args: unknown[]): unknown[] {
+    return [`[${prefix}]`, ...args];
+  }
+
   return {
     log: (...args: unknown[]) => console.log(...formatMessage(args)),
     warn: (...args: unknown[]) => console.warn(...formatMessage(args)),

@@ -1,6 +1,5 @@
-import { sql } from "@openbts/drizzle/db";
-
-import { importDeviceRegistry } from "./device-registry.ts";
+import { sql } from "./database.js";
+import { importDeviceRegistry } from "./device-registry.js";
 import { importRadiolines } from "./radiolines.js";
 import { associateStationsWithPermits, importPermits } from "./stations.js";
 import { cleanupOrphanedUkeStations } from "./uke-stations.js";

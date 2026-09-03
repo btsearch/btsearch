@@ -1,5 +1,6 @@
 import { ukeImportMetadata } from "@openbts/drizzle";
-import { db } from "@openbts/drizzle/db";
+
+import { db } from "./database.js";
 
 type ImportType = "permits" | "radiolines" | "stations_permits" | "device_registry";
 

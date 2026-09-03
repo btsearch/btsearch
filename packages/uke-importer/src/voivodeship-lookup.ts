@@ -1,10 +1,12 @@
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { featureCollection, point, polygon } from "@turf/helpers";
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
+import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon } from "geojson";
 import geojsonRbush from "geojson-rbush";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
+
+const createGeojsonRbush = geojsonRbush as unknown as typeof import("geojson-rbush").default;
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const geojsonPath = path.join(__dirname, "..", "poland.voivodeships.max.json");
@@ -35,7 +37,7 @@ function createSpatialIndex() {
   const woj = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as FeatureCollection;
   const wojExploded = explodeMultiPolygons(woj);
 
-  const tree = (geojsonRbush as any)();
+  const tree = createGeojsonRbush<Geometry>();
   tree.load(wojExploded);
 
   return tree;

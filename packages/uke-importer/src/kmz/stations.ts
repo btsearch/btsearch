@@ -1,5 +1,4 @@
 import { ukePermits } from "@openbts/drizzle";
-import { db } from "@openbts/drizzle/db";
 import { getOperatorColor, resolveOperatorMnc } from "@openbts/shared/operatorUtils";
 import { destinationPoint } from "@openbts/shared/radiolinesUtils";
 import { count, max } from "drizzle-orm";
@@ -7,6 +6,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { KMZ_BATCH_SIZE } from "../config.ts";
+import { db } from "../database.js";
 import { createLogger } from "../utils.ts";
 import { buildKmz, escapeXml, folder, hexToKmlColor, iconStyle, lineStyle, placemark, wrapKml } from "./kml-utils.ts";
 

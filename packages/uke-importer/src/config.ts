@@ -3,8 +3,10 @@ import path from "node:path";
 
 config();
 
-export const DATABASE_URL = process.env.DATABASE_URL as string;
-if (!DATABASE_URL) throw new Error("DATABASE_URL is not set");
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL is not set");
+
+export const DATABASE_URL = databaseUrl;
 
 export const DOWNLOAD_DIR = path.join(process.cwd(), "downloads");
 
