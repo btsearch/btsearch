@@ -89,7 +89,7 @@ function renderMobileDialog(
           operatorMnc={dialog.operatorMnc}
           modal
           onClose={onClose}
-          className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-xl"
+          className="pointer-events-auto animate-in fade-in zoom-in-95 duration-200 w-full max-w-none"
           contentClassName="border border-border/70"
         />
       );
@@ -207,18 +207,18 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, o
   if (isMobile) {
     if (topDialog === undefined) return null;
 
-    if (topDialog.kind === "station-history")
+    if (topDialog.kind === "station-history") {
       return (
         <Dialog open modal onOpenChange={(open) => !open && onClose(topDialog.key)}>
           <DialogContent
             showCloseButton={false}
             overlayClassName="bg-black/50 backdrop-blur-sm"
-            className="pointer-events-none fixed inset-0 flex h-dvh w-full max-w-none translate-x-0 translate-y-0 items-start justify-center gap-0 overflow-y-auto rounded-none bg-transparent p-4 ring-0"
+            className="pointer-events-none fixed inset-0 flex h-dvh w-full max-w-none translate-x-0 translate-y-0 items-start justify-center gap-0 overflow-y-auto rounded-none bg-transparent p-4 ring-0 sm:max-w-none"
           >
             <DialogTitle render={<span className="sr-only" />}>{t("stationDetails:history.title")}</DialogTitle>
             <Suspense
               fallback={
-                <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 bg-background shadow-2xl">
+                <div className="pointer-events-auto w-full max-w-none overflow-hidden rounded-2xl border border-border/70 bg-background shadow-2xl">
                   <div className="space-y-2 border-b px-4 py-3">
                     <Skeleton className="h-5 w-48" />
                     <Skeleton className="h-4 w-28" />
@@ -236,6 +236,7 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, o
           </DialogContent>
         </Dialog>
       );
+    }
 
     return createPortal(
       <Suspense fallback={null}>
