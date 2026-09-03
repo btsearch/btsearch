@@ -10,8 +10,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -628,6 +630,14 @@ export function PhotosGallery() {
   const openPhoto = useCallback((index: number) => dispatch({ type: "OPEN_LIGHTBOX", index }), []);
   const closeLightbox = useCallback(() => dispatch({ type: "CLOSE_LIGHTBOX" }), []);
   const openStation = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
+  const handleStationLinkClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>, stationId: number) => {
+      if (hasModifierKey(event)) return;
+      event.preventDefault();
+      openStation(stationId);
+    },
+    [openStation],
+  );
   const retry = useCallback(() => void refetch(), [refetch]);
   const clearFilters = useCallback(() => dispatch({ type: "CLEAR_FILTERS" }), []);
   const handleOperatorChange = useCallback((value: string | null) => {
@@ -699,39 +709,54 @@ export function PhotosGallery() {
               className={cn("min-w-0 scroll-mt-6 [content-visibility:auto] [contain-intrinsic-size:auto_360px]", !sparse && "lg:col-span-2")}
             >
               <div className="mb-3 flex items-start gap-3 sm:items-center">
-                <a
-                  href={`/stations/${group.stationId}`}
-                  className="min-w-0 cursor-pointer rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={(event) => {
-                    if (hasModifierKey(event)) return;
-                    event.preventDefault();
-                    openStation(group.stationId);
-                  }}
-                >
+                <div className="min-w-0 text-left">
                   <span className="flex min-w-0 items-center gap-1.5 overflow-hidden sm:gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                      <StationTitle
-                        stationId={group.stationIdentifier}
-                        operator={group.operator ?? undefined}
-                        stationIdClassName={cn("underline-offset-2 hover:underline", sparse && "max-sm:text-xs")}
-                      />
-                    </span>
-                    {group.status !== "published" ? <StationStatusBadge status={group.status} /> : null}
-                    <span className="hidden max-w-80 truncate text-xs text-muted-foreground underline-offset-2 hover:underline sm:inline">
+                    <a
+                      href={`/stations/${group.stationId}`}
+                      className="group flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden focus-visible:outline-none"
+                      onClick={(event) => handleStationLinkClick(event, group.stationId)}
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                        <StationTitle
+                          stationId={group.stationIdentifier}
+                          operator={group.operator ?? undefined}
+                          stationIdClassName={cn(
+                            "underline-offset-2 group-hover:underline group-focus-visible:underline",
+                            sparse && "max-sm:text-xs",
+                          )}
+                        />
+                      </span>
+                      {group.status !== "published" ? <StationStatusBadge status={group.status} /> : null}
+                    </a>
+                    <Link
+                      to="/locations/$id"
+                      params={{ id: String(group.location.id) }}
+                      className="hidden max-w-80 truncate text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline sm:inline"
+                      onClick={(event) => handleStationLinkClick(event, group.stationId)}
+                    >
                       {group.location.label}
-                    </span>
+                    </Link>
                   </span>
-                  <span className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground sm:hidden">
-                    <HugeiconsIcon icon={Location01Icon} className="size-3.5 shrink-0" />
-                    <span className="truncate underline-offset-2 hover:underline">{group.location.label}</span>
+                  <span className="mt-1 flex min-w-0 items-center text-xs text-muted-foreground sm:hidden">
+                    <Link
+                      to="/locations/$id"
+                      params={{ id: String(group.location.id) }}
+                      className="flex min-w-0 items-center gap-1 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
+                      onClick={(event) => handleStationLinkClick(event, group.stationId)}
+                    >
+                      <HugeiconsIcon icon={Location01Icon} className="size-3.5 shrink-0" />
+                      <span className="truncate">{group.location.label}</span>
+                    </Link>
                     {sparse ? (
                       <>
-                        <span aria-hidden="true">·</span>
+                        <span className="mx-1" aria-hidden="true">
+                          ·
+                        </span>
                         <span className="shrink-0">{t("photos.stationPhotoCount", { count: group.items.length })}</span>
                       </>
                     ) : null}
                   </span>
-                </a>
+                </div>
                 <div className="mt-2 hidden h-px min-w-6 flex-1 bg-border sm:block" />
                 <span className={cn("ml-auto shrink-0 pt-0.5 text-xs text-muted-foreground sm:pt-0", sparse && "max-sm:hidden")}>
                   {t("photos.stationPhotoCount", { count: group.items.length })}
