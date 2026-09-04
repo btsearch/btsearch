@@ -24,6 +24,7 @@ import { type ErrorResponse, ValidationError } from "./errors.js";
 import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
+import { PreSerializationHook } from "./hooks/preSerialization.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
 import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
@@ -92,6 +93,7 @@ export default class App {
     this.fastify.decorateRequest(requestStartTime, 0);
     this.fastify.addHook("onRequest", OnRequestHook);
     this.fastify.addHook("preHandler", PreHandlerHook);
+    this.fastify.addHook("preSerialization", PreSerializationHook);
     this.fastify.addHook("onSend", OnSendHook);
     registerRateLimit(this.fastify);
     this.fastify.setErrorHandler((error, req, res) => {
