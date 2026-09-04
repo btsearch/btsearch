@@ -4,6 +4,7 @@ import { Cancel01Icon, CompassIcon, Location01Icon, MaximizeIcon, MinusSignIcon,
 import "maplibre-gl/dist/maplibre-gl.css";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  AttributionControl,
   type GeoJSONSource,
   type MapGeoJSONFeature,
   type MapMouseEvent,
@@ -391,9 +392,24 @@ function checkWebGL2Support(): boolean {
 }
 
 const webgl2Supported = checkWebGL2Support();
+const DEFAULT_ATTRIBUTION_CONTROL_OPTIONS = {
+  compact: true,
+  customAttribution: '&copy; <a href="https://btsearch.pl">BTSearch</a>',
+};
 
 const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
-  { children, theme: themeProp, className, styles, initialMapStyle = "carto", projection, viewport, onViewportChange, ...props },
+  {
+    children,
+    theme: themeProp,
+    className,
+    styles,
+    initialMapStyle = "carto",
+    projection,
+    viewport,
+    onViewportChange,
+    attributionControl = DEFAULT_ATTRIBUTION_CONTROL_OPTIONS,
+    ...props
+  },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -451,6 +467,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
   }, [styles, mapStyle]);
 
   const initialStyleRef = useRef({ dark: mapStyles.dark, light: mapStyles.light });
+  const initialAttributionControlRef = useRef(attributionControl);
 
   const handleSetMapStyle = useCallback((style: MapStyle) => {
     setMapStyle(style);
@@ -482,10 +499,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
       renderWorldCopies: false,
       pixelRatio: Math.min(window.devicePixelRatio, 2),
       maxTileCacheZoomLevels: 2,
-      attributionControl: {
-        compact: true,
-        customAttribution: '&copy; <a href="https://btsearch.pl">BTSearch</a>',
-      },
+      attributionControl: false,
       ...propsRef.current,
       ...viewport,
       ...restoredViewport,
@@ -551,7 +565,11 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
         }
       }, 100);
     };
-    const loadHandler = () => dispatchMap({ type: "SET_LOADED" });
+    const loadHandler = () => {
+      const attributionControlOptions = initialAttributionControlRef.current;
+      if (attributionControlOptions !== false) map.addControl(new AttributionControl(attributionControlOptions));
+      dispatchMap({ type: "SET_LOADED" });
+    };
     const handleMove = () => {
       if (internalUpdateRef.current) return;
       onViewportChangeRef.current?.(getViewport(map));

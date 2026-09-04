@@ -17,11 +17,13 @@ import { NotificationsBell } from "@/features/notifications/components/Notificat
 import { useAppBadge } from "@/features/notifications/useAppBadge";
 import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import { settingsQueryOptions } from "@/hooks/useSettings";
 import { useTwoFactorRedirect } from "@/hooks/useTwoFactorRedirect";
 import { useViewportObstruction } from "@/hooks/useViewportObstruction";
 import { useVirtualKeyboardScrollReset } from "@/hooks/useVirtualKeyboardScrollReset";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
 export interface BreadcrumbSegment {
@@ -43,7 +45,11 @@ export interface RouteHandle {
 
 const EMPTY_BREADCRUMBS: BreadcrumbSegment[] = [];
 const MobileTopAd = lazy(() => import("@/components/layout/mobile-top-ad"));
-const MOBILE_TOP_AD_SLOT = import.meta.env.VITE_ADSENSE_MAP_MOBILE_SLOT as string | undefined;
+const MOBILE_TOP_AD_SLOT = import.meta.env.VITE_ADSENSE_CLIENT ? (import.meta.env.VITE_ADSENSE_MAP_MOBILE_SLOT as string | undefined) : undefined;
+
+function MobileTopAdPlaceholder() {
+  return <div aria-hidden className="h-[87px] shrink-0 border-b bg-background min-[360px]:h-[51px]" />;
+}
 
 function MobileSidebarAutoClose() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -83,7 +89,7 @@ function AppLayout() {
     <>
       <AnnouncementBanner />
       {mobileTopAdSlot ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<MobileTopAdPlaceholder />}>
           <MobileTopAd adSlot={mobileTopAdSlot} onDismiss={() => setMobileTopAdDismissed(true)} />
         </Suspense>
       ) : null}
@@ -230,5 +236,6 @@ function AppLayout() {
 }
 
 export const Route = createFileRoute("/_layout")({
+  loader: () => queryClient.prefetchQuery({ ...settingsQueryOptions(), retry: false }),
   component: AppLayout,
 });
