@@ -1,10 +1,6 @@
-@import "tailwindcss" source(none);
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-@source "./";
-@source not "./routes/_layout/admin";
-@source not "./features/admin";
 
 @font-face {
   font-family: "Nunito Sans Variable";

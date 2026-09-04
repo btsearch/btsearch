@@ -19,7 +19,4 @@ function AdminLayout() {
 
 export const Route = createFileRoute("/_layout/admin/_layout")({
   component: AdminLayout,
-  loader: async () => {
-    await import("./admin.css");
-  },
 });
