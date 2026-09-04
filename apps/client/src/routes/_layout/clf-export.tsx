@@ -48,12 +48,13 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { fetchBands, fetchOperators, fetchRegions } from "@/features/shared/api";
 import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
-import { TOP4_MNCS, getOperatorColor } from "@/lib/operatorUtils";
+import { TOP4_MNCS } from "@/lib/operatorUtils";
 import { buildStaticPageHead } from "@/lib/seo";
 import { cn, toggleValue } from "@/lib/utils";
 
@@ -488,12 +489,7 @@ function ClfExportPage() {
                             const operator = operatorByMnc.get(mnc);
                             return operator ? (
                               <ComboboxChip key={mnc} className="h-8 rounded-md px-2 text-base font-normal md:text-sm">
-                                <span
-                                  className="size-2 shrink-0 rounded-[2px]"
-                                  style={{ backgroundColor: getOperatorColor(mnc) }}
-                                  aria-hidden="true"
-                                />
-                                {operator.name}
+                                <DialogOperatorName name={operator.name} mnc={mnc} compact labelClassName="text-base font-normal md:text-sm" />
                               </ComboboxChip>
                             ) : null;
                           })}
@@ -510,12 +506,7 @@ function ClfExportPage() {
                             <ComboboxEmpty>{t("common:placeholder.noOperatorsFound")}</ComboboxEmpty>
                             {sortedOperators.map((operator) => (
                               <ComboboxItem key={operator.mnc} value={operator}>
-                                <span
-                                  className="size-2.5 shrink-0 rounded-[2px]"
-                                  style={{ backgroundColor: getOperatorColor(operator.mnc) }}
-                                  aria-hidden="true"
-                                />
-                                <span>{operator.name}</span>
+                                <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm font-normal" />
                                 <span className="ml-auto text-xs text-muted-foreground">{operator.mnc}</span>
                               </ComboboxItem>
                             ))}

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Lightbox } from "@/components/lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
+import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/gpsUtils";
 import { getOperatorColor } from "@/lib/operatorUtils";
@@ -71,10 +72,8 @@ function PopupStationList({
             onClick={() => onOpenUkeStationDetails(station)}
             style={{ backgroundImage: getPopupOperatorGradient(color) }}
           >
-            <div className="flex items-center gap-1.5">
-              <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
-              <span className="font-medium text-xs">{operatorName}</span>
-              <span className="text-[10px] text-foreground/70 font-mono">{station.station_id}</span>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <StationTitle stationId={station.station_id} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
             </div>
             <TechnologySummary bands={bands} detail={permitCount} />
           </button>
@@ -109,10 +108,8 @@ function PopupStationList({
             onClick={() => onOpenStationDetails(station.id)}
             style={{ backgroundImage: getPopupOperatorGradient(color) }}
           >
-            <div className="flex items-center gap-1.5">
-              <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
-              <span className="font-medium text-xs">{operatorName}</span>
-              <span className="text-[11px] text-foreground/70">{stationId}</span>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <StationTitle stationId={stationId} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
               {station.extra_identificators?.networks_id && (
                 <span className="text-[11px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
               )}
