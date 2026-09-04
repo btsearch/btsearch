@@ -410,9 +410,17 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
                   <AvatarImage src={resolveAvatarUrl(entry.author.image)} />
                   <AvatarFallback className="text-[9px]">{(entry.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="max-w-48 truncate">
-                  {entry.author.name} (@{entry.author.username})
-                </span>
+                {entry.author.username ? (
+                  <Link
+                    to="/users/$username"
+                    params={{ username: entry.author.username }}
+                    className="max-w-48 cursor-pointer truncate underline underline-offset-2"
+                  >
+                    {entry.author.name} (@{entry.author.username})
+                  </Link>
+                ) : (
+                  <span className="max-w-48 truncate">{entry.author.name}</span>
+                )}
                 <span className="text-muted-foreground/50">·</span>
               </>
             ) : null}

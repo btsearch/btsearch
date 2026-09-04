@@ -3,9 +3,16 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 # 2026-09-04
 
+### 🚀 Enhancements
+
+- Station azimuths now use a clearer compass with the same degree labels as the map
+- Names in station change history now link to user profiles
+- NetMonitor exports now include sector azimuths when available
+
 ### 🩹 Fixes
 
 - Cells created together with a new station now appear in the station's change history
+- Photo cards now animate correctly after changing their order or main photo
 
 # 2026-09-02
 

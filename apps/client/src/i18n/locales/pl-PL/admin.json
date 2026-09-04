@@ -51,7 +51,8 @@
       "cleanup_orphaned_uke_locations": "Czyszczenie osieroconych",
       "associate": "Powiązanie",
       "cleanup": "Czyszczenie",
-      "snapshot": "Snapshot"
+      "snapshot": "Snapshot",
+      "refresh_statistics": "Odświeżenie statystyk"
     }
   },
   "comments": {
@@ -212,10 +213,11 @@
       "device_registry": "Import rejestru urządzeń",
       "prune_deleted_entries": "Usuwanie starych usuniętych wpisów",
       "prune_associations": "Czyszczenie powiązań stacji z pozwoleniami",
-      "cleanup_orphaned_uke_locations": "Usuwanie lokalizacji UKE bez powiązanych pozwoleń",
+      "cleanup_orphaned_uke_entities": "Usuwanie osieroconych stacji i lokalizacji UKE",
       "associate": "Powiązanie stacji z pozwoleniami",
       "cleanup": "Czyszczenie plików tymczasowych",
-      "snapshot": "Tworzenie snapshotu bazy danych"
+      "snapshot": "Tworzenie snapshotu bazy danych",
+      "refresh_statistics": "Odświeżanie statystyk"
     },
     "stepStatus": {
       "pending": "Oczekujące",

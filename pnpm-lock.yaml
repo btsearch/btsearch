@@ -88,7 +88,7 @@ importers:
         specifier: 1.7.2
         version: 1.7.2(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@types/pg@8.23.1)(postgres@3.4.9)(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       bowser:
-        specifier: ^2.14.1
+        specifier: 2.14.1
         version: 2.14.1
       class-variance-authority:
         specifier: 0.7.1

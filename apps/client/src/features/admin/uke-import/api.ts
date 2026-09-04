@@ -1,6 +1,16 @@
 import { API_BASE, fetchJson } from "@/lib/api";
 
-export type ImportStepKey = "permits" | "radiolines" | "device_registry" | "prune_associations" | "associate" | "cleanup";
+export type ImportStepKey =
+  | "permits"
+  | "radiolines"
+  | "device_registry"
+  | "prune_deleted_entries"
+  | "prune_associations"
+  | "cleanup_orphaned_uke_entities"
+  | "associate"
+  | "snapshot"
+  | "refresh_statistics"
+  | "cleanup";
 export type StepStatus = "pending" | "running" | "success" | "skipped" | "error";
 export type JobState = "idle" | "running" | "success" | "error";
 

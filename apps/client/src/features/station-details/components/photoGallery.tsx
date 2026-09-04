@@ -118,7 +118,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {sortedPhotos.map((photo, idx) => (
           <div
-            key={photo.id}
+            key={`${photo.id}-${photo.is_main ? "main" : sortOrder}`}
             className="relative group rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none"
             style={{ animationDelay: `${Math.min(idx * 50, 400)}ms`, animationFillMode: "both" }}
           >

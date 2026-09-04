@@ -569,6 +569,7 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
   const lat = cell.latitude ?? "";
   const lon = cell.longitude ?? "";
   const accuracy = 100;
+  const azimuth = cell.sector_azimuth ?? "";
 
   switch (cell.rat) {
     case "GSM": {
@@ -577,7 +578,7 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
       const bsic = "";
       const arfcn = "";
       const description = renderDescription(cell, options);
-      return `G;${mcc};${mnc};${lac};${cid};${bsic};${arfcn};${lat};${lon};${accuracy};${description}`;
+      return `G;${mcc};${mnc};${lac};${cid};${bsic};${arfcn};${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     case "UMTS": {
       const lac = cell.lac ?? 0;
@@ -585,7 +586,7 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
       const psc = "";
       const uarfcn = cell.arfcn ?? "";
       const description = renderDescription(cell, options);
-      return `W;${mcc};${mnc};${lac};${cid};${psc};${uarfcn};${lat};${lon};${accuracy};${description}`;
+      return `W;${mcc};${mnc};${lac};${cid};${psc};${uarfcn};${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     case "LTE": {
       const tac = cell.tac ?? 0;
@@ -593,7 +594,7 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
       const pci = cell.pci ?? "";
       const earfcn = getEARFCN(cell.operator_mnc, cell.band_value, cell.band_duplex);
       const description = renderDescription(cell, options);
-      return `L;${mcc};${mnc};${tac};${ci};${pci};${earfcn !== NTM_UNKNOWN ? earfcn : ""};${lat};${lon};${accuracy};${description}`;
+      return `L;${mcc};${mnc};${tac};${ci};${pci};${earfcn !== NTM_UNKNOWN ? earfcn : ""};${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     case "NR": {
       const tac = cell.nrtac ?? 0;
@@ -601,14 +602,14 @@ export function toNetMonitor(cell: CellExportData, options?: ConvertOptions): st
       const pci = cell.pci ?? "";
       const arfcn = cell.arfcn ?? "";
       const description = renderDescription(cell, options);
-      return `N;${mcc};${mnc};${tac};${nci};${pci};${arfcn};${lat};${lon};${accuracy};${description}`;
+      return `N;${mcc};${mnc};${tac};${nci};${pci};${arfcn};${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     case "CDMA": {
       const nid = 0;
       const bid = cell.cid ?? 0;
       const sid = 0;
       const description = renderDescription(cell, options);
-      return `C;${mcc};${mnc};${nid};${bid};${sid};;${lat};${lon};${accuracy};${description}`;
+      return `C;${mcc};${mnc};${nid};${bid};${sid};;${lat};${lon};${accuracy};${description};${azimuth}`;
     }
     default:
       return null;

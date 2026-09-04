@@ -46,7 +46,8 @@
       "cleanup_orphaned_uke_locations": "Cleanup orphaned",
       "associate": "Associate",
       "cleanup": "Cleanup",
-      "snapshot": "Snapshot"
+      "snapshot": "Snapshot",
+      "refresh_statistics": "Refresh statistics"
     }
   },
   "comments": {
@@ -205,10 +206,11 @@
       "device_registry": "Import device registry",
       "prune_deleted_entries": "Prune old deleted entries",
       "prune_associations": "Prune station-permit associations",
-      "cleanup_orphaned_uke_locations": "Clean up orphaned UKE locations",
+      "cleanup_orphaned_uke_entities": "Clean up orphaned UKE stations and locations",
       "associate": "Associate stations with permits",
       "cleanup": "Cleanup temporary files",
-      "snapshot": "Create database snapshot"
+      "snapshot": "Create database snapshot",
+      "refresh_statistics": "Refresh statistics"
     },
     "stepStatus": {
       "pending": "Pending",

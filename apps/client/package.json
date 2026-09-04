@@ -1,6 +1,6 @@
 {
   "name": "@openbts/client",
-  "version": "3.3.0",
+  "version": "3.4.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -30,7 +30,7 @@
     "@tanstack/react-table": "9.2.4",
     "@tanstack/react-virtual": "3.14.10",
     "better-auth": "1.7.2",
-    "bowser": "^2.14.1",
+    "bowser": "2.14.1",
     "class-variance-authority": "0.7.1",
     "cn": "0.2.1",
     "country-flag-icons": "1.6.20",

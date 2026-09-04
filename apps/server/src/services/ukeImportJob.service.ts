@@ -23,6 +23,7 @@ type ImportStepKey =
   | "cleanup_orphaned_uke_entities"
   | "associate"
   | "snapshot"
+  | "refresh_statistics"
   | "cleanup";
 type StepStatus = "pending" | "running" | "success" | "skipped" | "error";
 type JobState = "idle" | "running" | "success" | "error";
@@ -107,6 +108,7 @@ const STEP_KEYS: ImportStepKey[] = [
   "cleanup_orphaned_uke_entities",
   "associate",
   "snapshot",
+  "refresh_statistics",
   "cleanup",
 ];
 
@@ -114,6 +116,7 @@ const DELETED_ENTRIES_RETENTION_DAYS = Number(process.env.DELETED_ENTRIES_RETENT
 const REDIS_KEY = "uke:import:status";
 const REDIS_LOCK_KEY = "uke:import:lock";
 const LOCK_TTL_SECONDS = 3600;
+const STATISTICS_CACHE_PATTERNS = ["stats:summary:*", "stats:permits:*", "stats:voivodeships:*", "stats:stations:history:*"];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, "..", "workers", "ukeImport.worker.js");
@@ -381,6 +384,21 @@ async function saveJob(job: ImportJobStatus): Promise<void> {
   await redis.set(REDIS_KEY, JSON.stringify(job));
 }
 
+async function findStatisticsCacheKeyBatches(pattern: string): Promise<string[][]> {
+  const keyBatches: string[][] = [];
+
+  for await (const keys of redis.scanIterator({ MATCH: pattern })) {
+    if (keys.length > 0) keyBatches.push(keys);
+  }
+
+  return keyBatches;
+}
+
+async function invalidateStatisticsCache(): Promise<void> {
+  const keyBatches = (await Promise.all(STATISTICS_CACHE_PATTERNS.map(findStatisticsCacheKeyBatches))).flat();
+  await Promise.all(keyBatches.map((keys) => redis.del(keys)));
+}
+
 function updateStep(job: ImportJobStatus, key: ImportStepKey, update: Partial<ImportStep>): void {
   const step = job.steps.find((s) => s.key === key);
   if (step) Object.assign(step, update);
@@ -602,6 +620,23 @@ async function runJob(
       }
     } else {
       markSkipped(job, "snapshot");
+      await saveJob(job);
+    }
+
+    if (permitsChanged || deviceRegistryChanged) {
+      markRunning(job, "refresh_statistics");
+      await saveJob(job);
+      try {
+        await invalidateStatisticsCache();
+        markSuccess(job, "refresh_statistics");
+        await saveJob(job);
+      } catch (e) {
+        markError(job, "refresh_statistics");
+        await saveJob(job);
+        logger.error("Failed to refresh statistics cache", { error: e instanceof Error ? e.message : String(e) });
+      }
+    } else {
+      markSkipped(job, "refresh_statistics");
       await saveJob(job);
     }
 
