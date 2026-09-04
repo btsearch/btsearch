@@ -1,6 +1,12 @@
 {
   "title": "Statistics",
   "description": "Permit statistics, database coverage, contributions, and historical trends across operators and bands. Data is updated every 24 hours",
+  "refresh": {
+    "summary": "Summary",
+    "ukePermits": "UKE permits",
+    "lastUpdated": "Last updated:",
+    "next": "Next refresh in {{duration}}"
+  },
   "sections": {
     "quality": "Data quality",
     "permitSnapshot": "UKE by month"

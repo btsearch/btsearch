@@ -1,14 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import Clock01Icon from "@hugeicons/core-free-icons/Clock01Icon";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRegisterPageSections } from "@/contexts/pageSections";
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { InternalKpiCards, UkeKpiCards } from "@/features/statistics/components/kpiCards";
 import { statsPermitsQueryOptions, statsSummaryQueryOptions, statsVoivodeshipsQueryOptions } from "@/features/statistics/queries";
+import { formatFullDate } from "@/lib/format";
 import { buildStaticPageHead } from "@/lib/seo";
+
+const STATS_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SUMMARY_QUERY_KEY = ["stats", "summary", undefined] as const;
+const PERMITS_QUERY_KEY = ["stats", "permits", undefined] as const;
 
 const UkeDistributionCharts = lazy(() =>
   import("@/features/statistics/components/distributionCharts").then((m) => ({ default: m.UkeDistributionCharts })),
@@ -111,12 +119,55 @@ function LazyChart({ children, fallback }: { children: ReactNode; fallback: Reac
   );
 }
 
+function formatRefreshCountdown(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function StatisticsRefreshStatus({ label, lastUpdated, queryKey }: { label: string; lastUpdated: string; queryKey: readonly unknown[] }) {
+  const { i18n, t } = useTranslation("statistics");
+  const queryClient = useQueryClient();
+  const [now, setNow] = useState(() => Date.now());
+  const nextRefreshAt = Date.parse(lastUpdated) + STATS_REFRESH_INTERVAL_MS;
+  const remaining = nextRefreshAt - now;
+  const isExpired = remaining <= -1000;
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (!isExpired) return;
+    void queryClient.invalidateQueries({ queryKey, exact: true });
+  }, [isExpired, queryClient, queryKey]);
+
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+      <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="font-medium text-foreground">{label}</span>
+      <span>
+        {t("refresh.lastUpdated")} <time dateTime={lastUpdated}>{formatFullDate(lastUpdated, i18n.language)}</time>
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <Separator render={<span />} orientation="vertical" aria-hidden="true" className="h-3 data-vertical:self-center" />
+        <span className="tabular-nums">{t("refresh.next", { duration: formatRefreshCountdown(remaining) })}</span>
+      </span>
+    </p>
+  );
+}
+
 function StatisticsPage() {
   const { t } = useTranslation("statistics");
-  const { data: summary, isLoading: summaryLoading } = useQuery(statsSummaryQueryOptions());
-  const { data: permits, isLoading: permitsLoading } = useQuery(statsPermitsQueryOptions());
+  const { data: summaryResponse, isLoading: summaryLoading } = useQuery(statsSummaryQueryOptions());
+  const { data: permitsResponse, isLoading: permitsLoading } = useQuery(statsPermitsQueryOptions());
   const { data: voivodeships, isLoading: voivodeshipsLoading } = useQuery(statsVoivodeshipsQueryOptions());
   const { data: operators } = useQuery(operatorsQueryOptions());
+  const summary = summaryResponse?.data;
+  const permits = permitsResponse?.data;
 
   useRegisterPageSections([
     { id: "uke-permits", title: t("stationDetails:tabs.permits") },
@@ -132,6 +183,26 @@ function StatisticsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{t("description")}</p>
+          {summaryResponse || permitsResponse ? (
+            <div className="mt-3 flex flex-col gap-1.5">
+              {summaryResponse ? (
+                <StatisticsRefreshStatus
+                  key={`summary:${summaryResponse.lastUpdated}`}
+                  label={t("refresh.summary")}
+                  lastUpdated={summaryResponse.lastUpdated}
+                  queryKey={SUMMARY_QUERY_KEY}
+                />
+              ) : null}
+              {permitsResponse ? (
+                <StatisticsRefreshStatus
+                  key={`permits:${permitsResponse.lastUpdated}`}
+                  label={t("refresh.ukePermits")}
+                  lastUpdated={permitsResponse.lastUpdated}
+                  queryKey={PERMITS_QUERY_KEY}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <section id="uke-permits" className="space-y-4">

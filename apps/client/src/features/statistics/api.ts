@@ -1,4 +1,11 @@
-import { fetchApiData } from "@/lib/api";
+import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
+
+export interface StatsResponse<T> {
+  data: T;
+  lastUpdated: string;
+}
+
+const fetchStatsResponse = <T>(endpoint: string) => fetchJson<StatsResponse<T>>(`${API_BASE}/${endpoint}`);
 
 export interface StatsOperator {
   id: number;
@@ -122,10 +129,10 @@ export interface PermitSnapshot {
 }
 
 export const fetchStatsSummary = (operatorId?: number) =>
-  fetchApiData<StatsSummary>(`stats/summary${operatorId !== undefined ? `?operator_id=${operatorId}` : ""}`);
+  fetchStatsResponse<StatsSummary>(`stats/summary${operatorId !== undefined ? `?operator_id=${operatorId}` : ""}`);
 
 export const fetchStatsPermits = (operatorId?: number) =>
-  fetchApiData<StatsPermitsResponse>(`stats/permits${operatorId !== undefined ? `?operator_id=${operatorId}` : ""}`);
+  fetchStatsResponse<StatsPermitsResponse>(`stats/permits${operatorId !== undefined ? `?operator_id=${operatorId}` : ""}`);
 
 export const fetchStatsCompleteness = () => fetchApiData<CompletenessStats>("stats/completeness");
 

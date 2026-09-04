@@ -10,11 +10,14 @@ import {
   fetchStatsVoivodeships,
 } from "./api";
 
+const STATS_FRESHNESS_REFETCH_INTERVAL = 1000 * 60 * 5;
+
 export function statsSummaryQueryOptions(operatorId?: number) {
   return {
     queryKey: ["stats", "summary", operatorId] as const,
     queryFn: () => fetchStatsSummary(operatorId),
     staleTime: 1000 * 60 * 5,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
   };
 }
 
@@ -23,6 +26,7 @@ export function statsPermitsQueryOptions(operatorId?: number) {
     queryKey: ["stats", "permits", operatorId] as const,
     queryFn: () => fetchStatsPermits(operatorId),
     staleTime: 1000 * 60 * 5,
+    refetchInterval: STATS_FRESHNESS_REFETCH_INTERVAL,
   };
 }
 

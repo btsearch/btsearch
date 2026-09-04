@@ -1,6 +1,12 @@
 {
   "title": "Statystyki",
   "description": "Statystyki pozwoleń, kompletności bazy, kontrybucji i trendów historycznych w podziale na operatorów i pasma. Dane są aktualizowane co 24 godziny",
+  "refresh": {
+    "summary": "Podsumowanie",
+    "ukePermits": "Pozwolenia UKE",
+    "lastUpdated": "Ostatnia aktualizacja:",
+    "next": "Następne odświeżenie za {{duration}}"
+  },
   "sections": {
     "quality": "Jakość danych",
     "permitSnapshot": "UKE wg miesiąca"

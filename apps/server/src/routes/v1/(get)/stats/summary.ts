@@ -7,7 +7,13 @@ import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { type StatsOperator, statsOperatorSchema } from "../../../../services/stats/schemas.js";
+import {
+  type StatsOperator,
+  type StatsResponse,
+  createStatsResponse,
+  statsOperatorSchema,
+  statsResponseSchema,
+} from "../../../../services/stats/schemas.js";
 
 const CACHE_TTL = 86400; // 24h
 
@@ -36,8 +42,8 @@ const schemaRoute = {
     operator_id: z.coerce.number().int().optional(),
   }),
   response: {
-    200: z.object({
-      data: z.object({
+    200: statsResponseSchema(
+      z.object({
         total_permits: z.number(),
         total_unique_stations: z.number(),
         by_rat: z.array(
@@ -57,7 +63,7 @@ const schemaRoute = {
         ),
         internal: internalSchema,
       }),
-    }),
+    ),
   },
 };
 
@@ -78,9 +84,9 @@ interface Response {
   internal: InternalSummary;
 }
 
-async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<Response>>) {
+async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<StatsResponse<Response>>>) {
   const { operator_id } = req.query;
-  const cacheKey = `stats:summary:v2${operator_id ? `:op:${operator_id}` : ""}`;
+  const cacheKey = `stats:summary:v3${operator_id ? `:op:${operator_id}` : ""}`;
 
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached));
@@ -165,44 +171,42 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const totalInternalStations = internalTotals[0]?.total_stations ?? 0;
   const totalInternalCells = internalTotals[0]?.total_cells ?? 0;
 
-  const response = {
-    data: {
-      total_permits: totalPermits,
-      total_unique_stations: totalUniqueStations,
-      by_rat: byRatRows.map((r) => ({
+  const response = createStatsResponse({
+    total_permits: totalPermits,
+    total_unique_stations: totalUniqueStations,
+    by_rat: byRatRows.map((r) => ({
+      rat: r.rat,
+      unique_stations: r.unique_stations,
+      permits: r.permits,
+      share_pct: totalUniqueStations > 0 ? Math.round((r.unique_stations / totalUniqueStations) * 1000) / 10 : 0,
+    })),
+    by_operator: byOperatorRows.map((r) => ({
+      operator: { id: r.operator_id, name: r.operator_name, mnc: r.operator_mnc },
+      unique_stations: r.unique_stations,
+      permits: r.permits,
+    })),
+    internal: {
+      total_stations: totalInternalStations,
+      total_cells: totalInternalCells,
+      by_rat: internalByRat.map((r) => ({
         rat: r.rat,
-        unique_stations: r.unique_stations,
-        permits: r.permits,
-        share_pct: totalUniqueStations > 0 ? Math.round((r.unique_stations / totalUniqueStations) * 1000) / 10 : 0,
+        stations: r.stations,
+        cells: r.cells,
+        share_pct: totalInternalStations > 0 ? Math.round((r.stations / totalInternalStations) * 1000) / 10 : 0,
       })),
-      by_operator: byOperatorRows.map((r) => ({
+      by_operator: internalByOperator.map((r) => ({
         operator: { id: r.operator_id, name: r.operator_name, mnc: r.operator_mnc },
-        unique_stations: r.unique_stations,
-        permits: r.permits,
+        stations: r.stations,
+        cells: r.cells,
       })),
-      internal: {
-        total_stations: totalInternalStations,
-        total_cells: totalInternalCells,
-        by_rat: internalByRat.map((r) => ({
-          rat: r.rat,
-          stations: r.stations,
-          cells: r.cells,
-          share_pct: totalInternalStations > 0 ? Math.round((r.stations / totalInternalStations) * 1000) / 10 : 0,
-        })),
-        by_operator: internalByOperator.map((r) => ({
-          operator: { id: r.operator_id, name: r.operator_name, mnc: r.operator_mnc },
-          stations: r.stations,
-          cells: r.cells,
-        })),
-      },
     },
-  };
+  });
 
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
   res.send(response);
 }
 
-const getStatsSummary: Route<ReqQuery, Response> = {
+const getStatsSummary: Route<ReqQuery, StatsResponse<Response>> = {
   url: "/stats/summary",
   method: "GET",
   schema: schemaRoute,

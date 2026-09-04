@@ -414,7 +414,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
                   <Link
                     to="/users/$username"
                     params={{ username: entry.author.username }}
-                    className="max-w-48 cursor-pointer truncate underline underline-offset-2"
+                    className="max-w-48 cursor-pointer truncate underline-offset-2 hover:underline"
                   >
                     {entry.author.name} (@{entry.author.username})
                   </Link>

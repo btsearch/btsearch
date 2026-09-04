@@ -7,7 +7,14 @@ import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { type StatsOperator, statsBandSchema, statsOperatorSchema } from "../../../../../services/stats/schemas.js";
+import {
+  type StatsOperator,
+  type StatsResponse,
+  createStatsResponse,
+  statsBandSchema,
+  statsOperatorSchema,
+  statsResponseSchema,
+} from "../../../../../services/stats/schemas.js";
 
 const CACHE_TTL = 86400; // 24h
 
@@ -24,8 +31,8 @@ const schemaRoute = {
     operator_id: z.coerce.number().int().optional(),
   }),
   response: {
-    200: z.object({
-      data: z.object({
+    200: statsResponseSchema(
+      z.object({
         uke: z.array(
           z.object({
             operator: statsOperatorSchema,
@@ -37,7 +44,7 @@ const schemaRoute = {
         ),
         internal: z.array(internalRowSchema),
       }),
-    }),
+    ),
   },
 };
 
@@ -64,9 +71,9 @@ interface PermitsResponse {
   internal: InternalRow[];
 }
 
-async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<PermitsResponse>>) {
+async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<StatsResponse<PermitsResponse>>>) {
   const { operator_id } = req.query;
-  const cacheKey = `stats:permits:v2${operator_id ? `:op:${operator_id}` : ""}`;
+  const cacheKey = `stats:permits:v3${operator_id ? `:op:${operator_id}` : ""}`;
 
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached));
@@ -124,36 +131,34 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const calcSharePct = (numerator: number, denominator: number) => (denominator > 0 ? Math.round((numerator / denominator) * 1000) / 10 : 0);
 
-  const response = {
-    data: {
-      uke: ukeRows.map((row) => {
-        const total = ukeOperatorTotals.get(row.operator_id) ?? 0;
-        return {
-          operator: { id: row.operator_id, name: row.operator_name, mnc: row.operator_mnc },
-          band: { id: row.band_id, name: row.band_name, rat: row.band_rat },
-          unique_stations: row.unique_stations,
-          permits_count: row.permits_count,
-          share_pct: calcSharePct(row.unique_stations, total),
-        };
-      }),
-      internal: internalRows.map((row) => {
-        const total = internalOperatorTotals.get(row.operator_id) ?? 0;
-        return {
-          operator: { id: row.operator_id, name: row.operator_name, mnc: row.operator_mnc },
-          band: { id: row.band_id, name: row.band_name, rat: row.band_rat },
-          stations: row.stations,
-          cells: row.cells,
-          share_pct: calcSharePct(row.stations, total),
-        };
-      }),
-    },
-  };
+  const response = createStatsResponse({
+    uke: ukeRows.map((row) => {
+      const total = ukeOperatorTotals.get(row.operator_id) ?? 0;
+      return {
+        operator: { id: row.operator_id, name: row.operator_name, mnc: row.operator_mnc },
+        band: { id: row.band_id, name: row.band_name, rat: row.band_rat },
+        unique_stations: row.unique_stations,
+        permits_count: row.permits_count,
+        share_pct: calcSharePct(row.unique_stations, total),
+      };
+    }),
+    internal: internalRows.map((row) => {
+      const total = internalOperatorTotals.get(row.operator_id) ?? 0;
+      return {
+        operator: { id: row.operator_id, name: row.operator_name, mnc: row.operator_mnc },
+        band: { id: row.band_id, name: row.band_name, rat: row.band_rat },
+        stations: row.stations,
+        cells: row.cells,
+        share_pct: calcSharePct(row.stations, total),
+      };
+    }),
+  });
 
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
   res.send(response);
 }
 
-const getStatsPermits: Route<ReqQuery, PermitsResponse> = {
+const getStatsPermits: Route<ReqQuery, StatsResponse<PermitsResponse>> = {
   url: "/stats/permits",
   method: "GET",
   schema: schemaRoute,

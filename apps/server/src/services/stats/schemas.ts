@@ -13,3 +13,18 @@ export const statsBandSchema = z.object({
   name: z.string(),
   rat: z.string(),
 });
+
+export const statsResponseSchema = <T extends z.ZodType>(data: T) =>
+  z.object({
+    data,
+    lastUpdated: z.iso.datetime({ offset: true }),
+  });
+
+export interface StatsResponse<T> {
+  data: T;
+  lastUpdated: string;
+}
+
+export function createStatsResponse<T>(data: T): StatsResponse<T> {
+  return { data, lastUpdated: new Date().toISOString() };
+}

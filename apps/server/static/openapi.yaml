@@ -146,8 +146,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, lastUpdated]
                 properties:
+                  lastUpdated: { type: string, format: date-time }
                   data:
                     type: object
                     required: [total_permits, total_unique_stations, by_rat, by_operator, internal]
@@ -178,8 +179,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, lastUpdated]
                 properties:
+                  lastUpdated: { type: string, format: date-time }
                   data:
                     type: object
                     required: [uke, internal]
