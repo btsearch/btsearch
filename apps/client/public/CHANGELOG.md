@@ -8,6 +8,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Station azimuths now use a clearer compass with the same degree labels as the map
 - Names in station change history now link to user profiles
 - NetMonitor exports now include sector azimuths when available
+- Map layers (stations, radiolines, heatmap, PEM measurements, azimuths) are now a single row of icon tiles in the filter panel, with the keyboard shortcut shown in each tile
 
 ### 🩹 Fixes
 

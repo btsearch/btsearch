@@ -8,8 +8,9 @@ import {
   Navigation03Icon,
   Radar01Icon,
   Route02Icon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -45,6 +46,42 @@ const PRIORITY_RADIOLINE_OPERATORS = ["T-Mobile Polska", "Towerlink Poland", "P4
 const OPERATOR_KEYBINDS: Record<number, string> = { 26001: "1", 26002: "2", 26003: "3", 26006: "4" };
 const RECENT_DATE_FIELDS: ("updatedAt" | "createdAt")[] = ["updatedAt", "createdAt"];
 const RADIOLINE_CHIP_MAX_LENGTH = 12;
+
+type LayerTileConfig = {
+  key: string;
+  label: string;
+  icon: IconSvgElement;
+  active: boolean;
+  keybind: string;
+  onToggle: () => void;
+};
+
+function LayerTiles({ layers }: { layers: LayerTileConfig[] }) {
+  return (
+    <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${layers.length}, minmax(0, 1fr))` }}>
+      {layers.map((layer) => (
+        <button
+          key={layer.key}
+          type="button"
+          aria-pressed={layer.active}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={layer.onToggle}
+          className={cn(
+            "relative flex h-14 flex-col items-center justify-center gap-1.5 rounded-lg border px-0.5 text-[11px] font-medium leading-none outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+            layer.active
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30",
+          )}
+        >
+          <span className="absolute top-1 left-1.5 hidden font-mono text-[9px] text-muted-foreground md:inline">{layer.keybind}</span>
+          {layer.active ? <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="absolute top-1 right-1 size-3" aria-hidden="true" /> : null}
+          <HugeiconsIcon icon={layer.icon} className="size-4" aria-hidden="true" />
+          <span className="max-w-full truncate">{layer.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type RadiolineOperatorsSectionProps = {
   filters: StationFilters;
@@ -295,6 +332,44 @@ export function FilterPanel({
     { id: "uke", label: t("stationDetails:tabs.permits"), icon: File02Icon },
   ];
 
+  const layers = [
+    {
+      key: "stations",
+      label: t("main:filters.showStations"),
+      icon: AirportTowerIcon,
+      active: filters.showStations,
+      keybind: "S",
+      onToggle: () => onFiltersChange((current) => ({ ...current, showStations: !current.showStations })),
+    },
+    {
+      key: "radiolines",
+      label: t("main:filters.showRadiolines"),
+      icon: Route02Icon,
+      active: filters.showRadiolines,
+      keybind: "R",
+      onToggle: () => onFiltersChange((current) => ({ ...current, showRadiolines: !current.showRadiolines })),
+    },
+    onToggleHeatmap ? { key: "heatmap", label: "Heatmap", icon: Fire02Icon, active: showHeatmap, keybind: "H", onToggle: onToggleHeatmap } : null,
+    onTogglePlannedMeasurements
+      ? {
+          key: "pem",
+          label: t("main:filters.showPlannedPem"),
+          icon: Radar01Icon,
+          active: showPlannedMeasurements,
+          keybind: "P",
+          onToggle: onTogglePlannedMeasurements,
+        }
+      : null,
+    {
+      key: "azimuths",
+      label: t("main:filters.showAzimuths"),
+      icon: Navigation03Icon,
+      active: preferences.showAzimuths,
+      keybind: "A",
+      onToggle: () => updatePreferences((current) => ({ showAzimuths: !current.showAzimuths })),
+    },
+  ].filter((layer): layer is LayerTileConfig => layer !== null);
+
   const ratKeybindHint = (
     <span className="hidden items-center gap-px md:inline-flex">
       <KbdHint>Shift</KbdHint>
@@ -306,43 +381,7 @@ export function FilterPanel({
     <div className={cn("space-y-3 p-4", !isSheet ? "custom-scrollbar overflow-y-auto overscroll-contain" : null)}>
       <div className="space-y-3">
         <FilterPanelSection title={t("main:filters.layers")}>
-          <div className="grid grid-cols-2 gap-1">
-            <Checkbox
-              checked={filters.showStations}
-              onChange={() => onFiltersChange((current) => ({ ...current, showStations: !current.showStations }))}
-            >
-              <HugeiconsIcon icon={AirportTowerIcon} className="size-3.5 shrink-0" />
-              <span className="flex-1 text-left">{t("main:filters.showStations")}</span>
-              <KbdHint>S</KbdHint>
-            </Checkbox>
-            <Checkbox
-              checked={filters.showRadiolines}
-              onChange={() => onFiltersChange((current) => ({ ...current, showRadiolines: !current.showRadiolines }))}
-            >
-              <HugeiconsIcon icon={Route02Icon} className="size-3.5 shrink-0" />
-              <span className="flex-1 text-left">{t("main:filters.showRadiolines")}</span>
-              <KbdHint>R</KbdHint>
-            </Checkbox>
-            {onToggleHeatmap ? (
-              <Checkbox checked={showHeatmap} onChange={onToggleHeatmap}>
-                <HugeiconsIcon icon={Fire02Icon} className="size-3.5 shrink-0" />
-                <span className="flex-1 text-left">Heatmap</span>
-                <KbdHint>H</KbdHint>
-              </Checkbox>
-            ) : null}
-            {onTogglePlannedMeasurements ? (
-              <Checkbox checked={showPlannedMeasurements} onChange={onTogglePlannedMeasurements}>
-                <HugeiconsIcon icon={Radar01Icon} className="size-3.5 shrink-0" />
-                <span className="flex-1 text-left">{t("main:filters.showPlannedPem")}</span>
-                <KbdHint>P</KbdHint>
-              </Checkbox>
-            ) : null}
-            <Checkbox checked={preferences.showAzimuths} onChange={() => updatePreferences((current) => ({ showAzimuths: !current.showAzimuths }))}>
-              <HugeiconsIcon icon={Navigation03Icon} className="size-3.5 shrink-0" />
-              <span className="flex-1 text-left">{t("main:filters.showAzimuths")}</span>
-              <KbdHint>A</KbdHint>
-            </Checkbox>
-          </div>
+          <LayerTiles layers={layers} />
         </FilterPanelSection>
 
         {!hideSource ? (
