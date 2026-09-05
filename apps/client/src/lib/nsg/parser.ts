@@ -298,7 +298,8 @@ export class NsgStreamParser {
   }
 
   progress(): NsgProgress {
-    const bytesRead = this.finished ? this.source.size : Math.min(this.source.inputBytesRead?.() ?? this.offset, Math.max(0, this.source.size - 1));
+    const pendingLimit = Math.min(Math.max(0, this.source.size - 1), Math.floor(this.source.size * 0.99));
+    const bytesRead = this.finished ? this.source.size : Math.min(this.source.inputBytesRead?.() ?? this.offset, pendingLimit);
     return {
       bytesRead,
       totalBytes: this.source.size,

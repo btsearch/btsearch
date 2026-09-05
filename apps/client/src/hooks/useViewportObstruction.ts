@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const TOP_OBSTRUCTION_VAR = "--top-viewport-obstruction";
 const OBSTRUCTION_SETTLE_DELAY_MS = 400;
 
-// Keep fixed app chrome aligned if an external surface shifts the application root.
+// Keep fixed app chrome aligned if an external surface shifts the application root
 export function useViewportObstruction() {
   useEffect(() => {
     const root = document.getElementById("root");
