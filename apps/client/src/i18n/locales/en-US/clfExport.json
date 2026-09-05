@@ -1,16 +1,16 @@
 {
   "page": {
     "title": "CLF Export",
-    "description": "Export cell data to CLF (Cell List File) format. These files can be used in cellular network monitoring applications to identify base stations serving the phone."
+    "description": "Export cell data to CLF (Cell List File) format. These files can be used in cellular network monitoring applications to identify base stations serving the phone"
   },
   "workflow": {
     "dataset": {
       "title": "Dataset",
-      "description": "Choose the data scope. Leaving a group empty includes every available value."
+      "description": "Choose the data scope. Leaving a group empty includes every available value"
     },
     "format": {
       "title": "Format",
-      "description": "Choose the format supported by the app you will import the data into."
+      "description": "Choose the format supported by the app you will import the data into"
     }
   },
   "info": {
@@ -39,11 +39,11 @@
     "regions": "regions",
     "bands": "bands",
     "loading": "Loading {{source}}...",
-    "error": "Could not load {{source}}. The remaining settings are still available."
+    "error": "Could not load {{source}}. The remaining settings are still available"
   },
   "templates": {
     "title": "Description templates (advanced)",
-    "description": "Empty fields use the default description templates. Insert variables with the plus button.",
+    "description": "Empty fields use the default description templates. Insert variables with the plus button",
     "defaultSummary": "Default templates are in use",
     "editedSummary": "Edited templates: {{count}}",
     "autoSave": "Autosave",

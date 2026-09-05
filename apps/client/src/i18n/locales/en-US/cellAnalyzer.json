@@ -1,13 +1,17 @@
 {
   "page": {
-    "description": "Import a NetMonster (.ntm) or NetMonitor file and cross-check cells against the database"
+    "description": "Open a file from NetMonster, NetMonitor or NSG and compare its cells with the database"
   },
   "file": {
     "dropHint": "Drop a file here or click to select",
-    "constraints": "NetMonster (.ntm) or NetMonitor (.csv, .clf) · max 10 MB · up to 20 000 rows",
-    "format": "Format: {{format}}",
-    "rowCount": "{{count}} cells parsed",
-    "parsing": "Parsing...",
+    "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf) and NSG (.log) · up to 20 000 cells",
+    "rowCount_one": "{{count, number}} cell",
+    "rowCount_other": "{{count, number}} cells",
+    "uniqueRowCount_one": "{{count, number}} unique cell",
+    "uniqueRowCount_other": "{{count, number}} unique cells",
+    "skippedObservations_one": "Skipped {{count, number}} incomplete or unsupported reading",
+    "skippedObservations_other": "Skipped {{count, number}} incomplete or unsupported readings",
+    "parsing": "Reading file...",
     "changeFile": "Change file"
   },
   "button": {
@@ -16,9 +20,6 @@
     "analyzing": "Analyzing..."
   },
   "table": {
-    "identifiers": "Identifiers",
-    "description": "Description",
-    "location": "Station Location",
     "parsedCell": "Imported cell",
     "sourceDescription": "Source description",
     "matchResult": "Comparison result",
@@ -72,29 +73,27 @@
     "moreCandidates": "Show other possible UKE stations"
   },
   "errors": {
-    "fileTooLarge": "File too large (max 10 MB)",
-    "invalidFileType": "Unsupported file type",
-    "noValidRows": "No valid rows found in file",
-    "truncated": "File is large, only the first {{count}} rows were loaded",
+    "noValidRows": "The file contains no valid cell data",
+    "tooManyCells": "The file exceeds the {{count, number}}-cell limit",
+    "importFailed": "The file could not be read",
     "analysisFailed": "The file could not be analyzed",
-    "analysisFailedHint": "Check your connection and try again. The imported file and filters have been preserved."
+    "analysisFailedHint": "Check your connection and try again. The imported file and filters have been preserved"
   },
   "selection": {
     "rowsSelected_one": "row selected",
     "rowsSelected_other": "rows selected",
     "uniqueStationCount_one": "{{count, number}} station selected",
     "uniqueStationCount_other": "{{count, number}} stations selected",
-    "stationCapWarning": "You have exceeded the {{count, number}} station limit",
     "reviewBatch": "Review the selected batch",
     "clearSelection": "Clear selection",
     "selectAllVisible": "Select all visible rows",
     "selectRow": "Select row {{number, number}}",
-    "noStationsResolved": "No stations resolved",
     "reviewBatchDisabledNoStations": "No stations were resolved from the selected rows",
     "reviewBatchDisabledOverLimit": "Reduce to {{count, number}} or fewer stations to continue"
   },
   "statusAnnouncement": {
     "analyzing": "Analysis started",
-    "complete": "Analysis complete. Checked {{count, number}} cells"
+    "complete_one": "Analysis complete. Checked {{count, number}} cell",
+    "complete_other": "Analysis complete. Checked {{count, number}} cells"
   }
 }

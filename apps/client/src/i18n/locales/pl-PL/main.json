@@ -11,8 +11,8 @@
     "noResults": "Brak wyników",
     "noResultsHint": "Spróbuj innych słów kluczowych lub filtrów",
     "errorTitle": "Nie udało się wczytać wyników",
-    "errorHint": "Sprawdź połączenie i spróbuj ponownie.",
-    "partialError": "Nie udało się wczytać części źródeł wyników.",
+    "errorHint": "Sprawdź połączenie i spróbuj ponownie",
+    "partialError": "Nie udało się wczytać części źródeł wyników",
     "showingTop": "Pokazano {{shown, number}} z {{total, number}} stacji"
   },
   "autocomplete": {

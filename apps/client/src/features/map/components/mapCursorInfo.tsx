@@ -11,6 +11,7 @@ import { formatCoordinates } from "@/lib/gpsUtils";
 import { cn } from "@/lib/utils";
 
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";
+import { MapCoordinates } from "./mapCoordinates";
 
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
@@ -517,16 +518,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
 
   return (
     <div className={cn("select-none invisible md:visible", className)}>
-      <div className="flex items-stretch shadow-xl rounded-lg overflow-hidden border bg-background/95 backdrop-blur-md">
-        <div className="px-2.5 py-1.5 flex items-center gap-2 border-r border-border/50">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-none">GPS</span>
-            <span className="text-xs font-mono font-bold tabular-nums text-foreground leading-none">
-              {cursor ? formatCoordinates(cursor.lat, cursor.lng, preferences.gpsFormat) : "0.00000, 0.00000"}
-            </span>
-          </div>
-        </div>
-
+      <MapCoordinates position={cursor} gpsFormat={preferences.gpsFormat}>
         {metrics ? (
           <div className="bg-muted/30 px-2.5 py-1.5 flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -578,7 +570,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
             </div>
           </div>
         ) : null}
-      </div>
+      </MapCoordinates>
     </div>
   );
 }

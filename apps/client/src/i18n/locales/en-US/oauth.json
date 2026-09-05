@@ -64,7 +64,7 @@
       "redirectPlaceholderNative": "pl.example.myapp:/callback",
       "redirectHint": "One per line. Users are only ever redirected to these exact URIs",
       "redirectHintWeb": "Must use https://",
-      "redirectHintNative": "Use a reverse-domain scheme with a single slash (pl.example.myapp:/callback) or a loopback address (http://127.0.0.1).",
+      "redirectHintNative": "Use a reverse-domain scheme with a single slash (pl.example.myapp:/callback) or a loopback address (http://127.0.0.1)",
       "create": "Register",
       "creating": "Registering..."
     },

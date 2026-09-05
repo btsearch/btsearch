@@ -1,0 +1,118 @@
+{
+  "page": {
+    "title": "Podgląd logów NSG"
+  },
+  "import": {
+    "select": "Otwórz log NSG",
+    "drop": "Upuść tutaj log NSG",
+    "hint": "Wybierz plik .log, aby przejrzeć zapisane pomiary",
+    "clear": "Zamknij log",
+    "parsing": "Wczytywanie logu...",
+    "progress": "Postęp wczytywania logu",
+    "failed": "Nie udało się wczytać logu NSG",
+    "retry": "Wybierz nieskompresowany plik .log z NSG i spróbuj ponownie"
+  },
+  "filters": {
+    "sim": "Karta SIM",
+    "allSims": "Wszystkie karty SIM",
+    "technology": "Technologia",
+    "allTechnologies": "Wszystkie technologie"
+  },
+  "labels": {
+    "slot": "Slot",
+    "subscription": "Subskrypcja"
+  },
+  "export": {
+    "csv": "Eksportuj przefiltrowane dane do CSV",
+    "failed": "Nie udało się utworzyć pliku CSV. Zawęź filtry i spróbuj ponownie"
+  },
+  "chart": {
+    "title": "Historia sygnału",
+    "hint": "Wykres obejmuje tylko komórki oznaczone w logu jako główne. Wybierz punkt, aby zobaczyć pomiary z danego momentu",
+    "value": "Wartość",
+    "select": "Wybierz ten punkt, aby zobaczyć pomiary",
+    "metric": "Parametr sygnału",
+    "signal": "Sygnał (dBm)",
+    "time": "Czas",
+    "empty": "Brak danych dla wybranego parametru i filtrów. Wybierz inny parametr lub zmień filtry",
+    "count_one": "Zapisano {{count, number}} pomiar sygnału. Punkt pokazuje próbkę bez interpolacji",
+    "count_few": "Zapisano {{count, number}} pomiary sygnału. Punkty pokazują próbki bez interpolacji",
+    "count_many": "Zapisano {{count, number}} pomiarów sygnału. Punkty pokazują próbki bez interpolacji",
+    "count_other": "Zapisano {{count, number}} pomiaru sygnału. Punkty pokazują próbki bez interpolacji",
+    "sampled_one": "Wyświetlono {{plotted, number}} z {{count, number}} pomiaru",
+    "sampled_few": "Wyświetlono {{plotted, number}} z {{count, number}} pomiarów",
+    "sampled_many": "Wyświetlono {{plotted, number}} z {{count, number}} pomiarów",
+    "sampled_other": "Wyświetlono {{plotted, number}} z {{count, number}} pomiaru",
+    "sinrHint": "SINR jest pokazany w oryginalnej postaci; skala i jednostki nie są przeliczane"
+  },
+  "replay": {
+    "play": "Odtwórz",
+    "pause": "Wstrzymaj",
+    "speed": "Odtwórz z prędkością 5×"
+  },
+  "mobile": {
+    "detailsButton": "Szczegóły",
+    "details": "Szczegóły logu",
+    "close": "Zamknij szczegóły logu",
+    "cells": "Komórki",
+    "history": "Historia"
+  },
+  "snapshot": {
+    "serving": "Komórka główna (PC)",
+    "registeredCells_one": "{{count, number}} komórka główna",
+    "registeredCells_few": "{{count, number}} komórki główne",
+    "registeredCells_many": "{{count, number}} komórek głównych",
+    "registeredCells_other": "{{count, number}} komórki głównej",
+    "noServing": "Brak głównej komórki w tym momencie",
+    "neighboringCells_one": "{{count, number}} komórka sąsiednia",
+    "neighboringCells_few": "{{count, number}} komórki sąsiednie",
+    "neighboringCells_many": "{{count, number}} komórek sąsiednich",
+    "neighboringCells_other": "{{count, number}} komórki sąsiedniej",
+    "title": "Zestaw pomiarów",
+    "empty": "Brak pomiarów pasujących do wybranych filtrów",
+    "scrub": "Przeglądaj zestawy pomiarów"
+  },
+  "history": {
+    "cells_one": "{{count, number}} komórka",
+    "cells_few": "{{count, number}} komórki",
+    "cells_many": "{{count, number}} komórek",
+    "cells_other": "{{count, number}} komórki",
+    "title": "Historia pomiarów",
+    "empty": "Żadne pomiary komórek nie pasują do wybranych filtrów"
+  },
+  "events": {
+    "title": "Historia zdarzeń",
+    "allTypes": "Wszystkie typy zdarzeń",
+    "type": "Typ zdarzenia",
+    "empty": "W logu nie ma zdarzeń tego typu",
+    "offset": "Pozycja w pliku: {{value, number}} B"
+  },
+  "map": {
+    "signal": "Sygnał",
+    "signalSim": "Karta SIM: slot {{slot}} / subskrypcja {{subscription}}",
+    "signalNoSim": "Nie wybrano karty SIM z logu",
+    "signalLegend": "Skala kolorów",
+    "noSignalData": "Brak danych",
+    "fit": "Pokaż całą trasę",
+    "title": "Trasa z logu",
+    "empty": "W logu nie ma prawidłowych danych lokalizacji",
+    "selected": "Pozycja najbliższa wybranemu momentowi"
+  },
+  "metadata": {
+    "records_one": "Odczytano {{count, number}} zdarzenie Androida. Łączna liczba rekordów: {{records, number}}. Pozostałe typy rekordów obejmują nieodkodowane dane modemu",
+    "records_few": "Odczytano {{count, number}} zdarzenia Androida. Łączna liczba rekordów: {{records, number}}. Pozostałe typy rekordów obejmują nieodkodowane dane modemu",
+    "records_many": "Odczytano {{count, number}} zdarzeń Androida. Łączna liczba rekordów: {{records, number}}. Pozostałe typy rekordów obejmują nieodkodowane dane modemu",
+    "records_other": "Odczytano {{count, number}} zdarzenia Androida. Łączna liczba rekordów: {{records, number}}. Pozostałe typy rekordów obejmują nieodkodowane dane modemu",
+    "timeRegressions_one": "W {{count, number}} rekordzie znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
+    "timeRegressions_few": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
+    "timeRegressions_many": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
+    "timeRegressions_other": "W {{count, number}} rekordach znacznik czasu jest wcześniejszy niż w poprzednim rekordzie",
+    "header": "Oryginalny nagłówek logu",
+    "eventTypes": "Typy zdarzeń"
+  },
+  "tabs": {
+    "measurements": "Pomiary",
+    "events": "Zdarzenia",
+    "metadata": "Log"
+  }
+}

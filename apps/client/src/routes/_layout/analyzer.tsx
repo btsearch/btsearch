@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { useAnalyzerFileImport } from "@/features/analyzer/hooks/useAnalyzerFileImport";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
@@ -44,11 +45,12 @@ import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
-import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "@/lib/analyzer-parsers";
+import { ANALYZER_MAX_CELLS, isAnalyzerImportError } from "@/lib/analyzer-import";
+import type { FileFormat, ParsedRow } from "@/lib/analyzer-parsers";
 import { postApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/band-utils";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatFileSize } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Operator, Region, UkeStation } from "@/types/station";
@@ -128,15 +130,6 @@ type AnalyzerRow = {
   result?: AnalyzerResult;
 };
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_CELLS = 20_000;
-
 const MNC_NAMES: Record<number, string> = {
   26001: "Plus",
   26002: "T-Mobile",
@@ -144,6 +137,12 @@ const MNC_NAMES: Record<number, string> = {
   26006: "Play",
   26034: "NetWorks",
 };
+
+function getAnalyzerFormatLabel(format: FileFormat | null): string {
+  if (format === "nsg") return "NSG";
+  if (format === "netmonitor") return "NetMonitor";
+  return "NetMonster";
+}
 
 const ACTIONABLE_WARNINGS = new Set(["lac_mismatch", "tac_mismatch", "pci_mismatch", "pci_missing", "uarfcn_mismatch", "earfcn_mismatch"]);
 
@@ -272,7 +271,15 @@ function analyzerReducer(state: AnalyzerState, action: AnalyzerAction): Analyzer
     case "SET_DRAGGING":
       return { ...state, isDragging: action.payload };
     case "SET_FILE":
-      return { ...state, fileName: action.payload.name, fileSize: action.payload.size, results: null, rowSelection: {} };
+      return {
+        ...state,
+        fileName: action.payload.name,
+        fileSize: action.payload.size,
+        parsedRows: null,
+        fileFormat: null,
+        results: null,
+        rowSelection: {},
+      };
     case "SET_PARSED":
       return action.payload
         ? { ...state, parsedRows: action.payload.rows, fileFormat: action.payload.format, rowSelection: {} }
@@ -795,6 +802,9 @@ function AnalyzerPage() {
   const [elapsed, setElapsed] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
   const [hasAnalysisError, setHasAnalysisError] = useState(false);
+  const { importProgress, importFile, cancelImport } = useAnalyzerFileImport();
+  const [skippedObservations, setSkippedObservations] = useState(0);
+  const isImporting = importProgress !== null;
   const { isDragging, parsedRows, results, fileName, fileSize, fileFormat, statusFilter, ratFilter, warningFilter, operatorFilter, bandFilter } =
     state;
   const { data: session } = authClient.useSession();
@@ -812,35 +822,31 @@ function AnalyzerPage() {
   const resetPage = useCallback(() => setPagination((p) => ({ ...p, pageIndex: 0 })), [setPagination]);
 
   const handleFile = useCallback(
-    (file: File) => {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(t("errors.fileTooLarge"));
-        return;
-      }
-
+    async (file: File) => {
+      setSkippedObservations(0);
       setHasAnalysisError(false);
+      setFinalDuration(null);
       dispatch({ type: "SET_FILE", payload: { name: file.name, size: file.size } });
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const format = detectFormat(file.name, text);
-        const rows = parseFile(format, text);
-        if (rows.length === 0) {
+      try {
+        const imported = await importFile(file);
+        if (imported === null) return;
+        if (imported.rows.length === 0) {
           toast.error(t("errors.noValidRows"));
-          dispatch({ type: "SET_PARSED", payload: null });
           return;
         }
-        const truncated = rows.slice(0, MAX_CELLS);
-        if (rows.length > MAX_CELLS) {
-          toast.warning(t("errors.truncated", { count: MAX_CELLS }));
-        }
-        dispatch({ type: "SET_PARSED", payload: { rows: truncated, format } });
+        setSkippedObservations(imported.skippedObservations);
+        dispatch({ type: "SET_PARSED", payload: { rows: imported.rows, format: imported.format } });
         resetPage();
-      };
-      reader.readAsText(file, "utf-8");
+      } catch (error) {
+        toast.error(
+          isAnalyzerImportError(error) && error.code === "tooManyCells"
+            ? t("errors.tooManyCells", { count: ANALYZER_MAX_CELLS })
+            : t("errors.importFailed"),
+        );
+      }
     },
-    [t, resetPage],
+    [importFile, resetPage, t],
   );
 
   const handleDrop = useCallback(
@@ -848,7 +854,7 @@ function AnalyzerPage() {
       e.preventDefault();
       dispatch({ type: "SET_DRAGGING", payload: false });
       const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      if (file) void handleFile(file);
     },
     [handleFile],
   );
@@ -1390,7 +1396,8 @@ function AnalyzerPage() {
     ) : null;
 
   let statusAnnouncement = "";
-  if (isLoading) statusAnnouncement = t("statusAnnouncement.analyzing");
+  if (isImporting) statusAnnouncement = t("file.parsing");
+  else if (isLoading) statusAnnouncement = t("statusAnnouncement.analyzing");
   else if (results) statusAnnouncement = t("statusAnnouncement.complete", { count: results.length });
 
   return (
@@ -1405,15 +1412,17 @@ function AnalyzerPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".ntm,.csv,.txt,.clf"
+            accept=".ntm,.csv,.txt,.clf,.log"
             className="hidden"
+            disabled={isLoading}
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) handleFile(f);
+              e.currentTarget.value = "";
+              if (f) void handleFile(f);
             }}
           />
 
-          {parsedRows ? (
+          {parsedRows || isImporting ? (
             <div className="overflow-hidden rounded-lg border bg-card">
               <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1423,33 +1432,55 @@ function AnalyzerPage() {
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-semibold">{fileName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {t("file.rowCount", { count: parsedRows.length })} · {formatFileSize(fileSize)} ·{" "}
-                      {fileFormat === "netmonitor" ? "NetMonitor" : "NetMonster"}
+                      {isImporting ? (
+                        <span className="inline-flex items-center gap-1.5 tabular-nums">
+                          <Spinner className="size-3" />
+                          {t("file.parsing")} · {formatFileSize(importProgress.bytesRead)} / {formatFileSize(fileSize)}
+                        </span>
+                      ) : (
+                        <>
+                          {t(fileFormat === "nsg" ? "file.uniqueRowCount" : "file.rowCount", { count: parsedRows?.length ?? 0 })} ·{" "}
+                          {formatFileSize(fileSize)} · {getAnalyzerFormatLabel(fileFormat)}
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
                     {t("file.changeFile")}
                   </Button>
-                  <Button
-                    onClick={() => handleAnalyze()}
-                    disabled={isLoading || parsedRows.length === 0}
-                    size="sm"
-                    className="min-w-44 justify-center"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Spinner data-icon="inline-start" />
-                        {t("button.analyzing")}
-                        <span className="text-xs opacity-75 tabular-nums">{formatDuration(elapsed)}</span>
-                      </>
-                    ) : (
-                      t("button.analyze", { count: parsedRows.length })
-                    )}
-                  </Button>
+                  {isImporting ? (
+                    <Button variant="outline" size="sm" onClick={cancelImport}>
+                      {t("common:actions.cancel")}
+                    </Button>
+                  ) : (
+                    <Button onClick={() => handleAnalyze()} disabled={isLoading || !parsedRows?.length} size="sm" className="min-w-44 justify-center">
+                      {isLoading ? (
+                        <>
+                          <Spinner data-icon="inline-start" />
+                          {t("button.analyzing")}
+                          <span className="text-xs opacity-75 tabular-nums">{formatDuration(elapsed)}</span>
+                        </>
+                      ) : (
+                        t("button.analyze", { count: parsedRows?.length ?? 0 })
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
+              {isImporting ? (
+                <progress
+                  value={importProgress.bytesRead}
+                  max={Math.max(1, importProgress.totalBytes)}
+                  aria-label={t("file.parsing")}
+                  className="block h-1.5 w-full overflow-hidden bg-muted accent-primary [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary"
+                />
+              ) : skippedObservations > 0 ? (
+                <p className="border-t bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  {t("file.skippedObservations", { count: skippedObservations })}
+                </p>
+              ) : null}
               {stats ? (
                 <div className="flex flex-wrap items-center gap-1.5 border-t bg-muted/20 px-3 py-2" aria-label={t("stats.summary")}>
                   {(

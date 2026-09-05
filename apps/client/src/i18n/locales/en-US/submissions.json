@@ -188,7 +188,7 @@
   },
   "mySubmissions": {
     "reviewedBy": "Reviewed by",
-    "staleDataWarning": "Couldn't refresh submissions. Showing previously loaded data.",
+    "staleDataWarning": "Couldn't refresh submissions. Showing previously loaded data",
     "editTooltip": "Edit submission",
     "deleteTooltip": "Delete submission",
     "confirmDelete": "Are you sure you want to delete this submission?",

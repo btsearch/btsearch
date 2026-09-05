@@ -1,16 +1,16 @@
 {
   "page": {
     "title": "Eksport CLF",
-    "description": "Eksportuj dane komórek do formatu CLF (Cell List File). Pliki te można wykorzystać w aplikacjach do monitorowania sieci komórkowych, aby zidentyfikować stacje bazowe obsługujące telefon."
+    "description": "Eksportuj dane komórek do formatu CLF (Cell List File). Pliki te można wykorzystać w aplikacjach do monitorowania sieci komórkowych, aby zidentyfikować stacje bazowe obsługujące telefon"
   },
   "workflow": {
     "dataset": {
       "title": "Dane",
-      "description": "Wybierz zakres danych. Brak wyboru oznacza wszystkie dostępne wartości."
+      "description": "Wybierz zakres danych. Brak wyboru oznacza wszystkie dostępne wartości"
     },
     "format": {
       "title": "Format",
-      "description": "Wybierz format zgodny z aplikacją, do której importujesz dane."
+      "description": "Wybierz format zgodny z aplikacją, do której importujesz dane"
     }
   },
   "info": {
@@ -39,11 +39,11 @@
     "regions": "regionów",
     "bands": "pasm",
     "loading": "Ładowanie: {{source}}...",
-    "error": "Nie udało się wczytać: {{source}}. Pozostałe ustawienia są nadal dostępne."
+    "error": "Nie udało się wczytać: {{source}}. Pozostałe ustawienia są nadal dostępne"
   },
   "templates": {
     "title": "Szablony opisów (zaawansowane)",
-    "description": "Puste pola użyją domyślnych szablonów opisów. Zmienne możesz wstawić przyciskiem plus.",
+    "description": "Puste pola użyją domyślnych szablonów opisów. Zmienne możesz wstawić przyciskiem plus",
     "defaultSummary": "Używane są domyślne szablony",
     "editedSummary": "Własne szablony: {{count}}",
     "autoSave": "Autozapis",

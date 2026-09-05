@@ -1,0 +1,104 @@
+{
+  "page": {
+    "title": "NSG Explorer"
+  },
+  "import": {
+    "select": "Open NSG log",
+    "drop": "Drop an NSG log here",
+    "hint": "Choose a .log file to browse its recorded measurements",
+    "clear": "Close log",
+    "parsing": "Reading log...",
+    "progress": "Log import progress",
+    "failed": "Could not read this NSG log",
+    "retry": "Choose an uncompressed NSG .log file and try again"
+  },
+  "filters": {
+    "sim": "SIM card",
+    "allSims": "All SIM cards",
+    "technology": "Technology",
+    "allTechnologies": "All technologies"
+  },
+  "labels": {
+    "slot": "Slot",
+    "subscription": "Subscription"
+  },
+  "export": {
+    "csv": "Export filtered data to CSV",
+    "failed": "The CSV could not be created. Narrow the filters and try again"
+  },
+  "chart": {
+    "title": "Signal history",
+    "hint": "The chart includes only cells marked as primary in the log. Select a point to inspect the measurements recorded at that time",
+    "value": "Value",
+    "select": "Select this point to inspect its measurements",
+    "metric": "Signal metric",
+    "signal": "Signal (dBm)",
+    "time": "Time",
+    "empty": "No primary-cell data matches this metric and the current filters. Choose another metric or adjust the filters",
+    "count_one": "{{count, number}} signal measurement recorded. The point shows the sample without interpolation",
+    "count_other": "{{count, number}} signal measurements recorded. Points show samples without interpolation",
+    "sampled_one": "Showing {{plotted, number}} of {{count, number}} measurement",
+    "sampled_other": "Showing {{plotted, number}} of {{count, number}} measurements",
+    "sinrHint": "SINR is shown exactly as recorded; its scale and units are not converted"
+  },
+  "replay": {
+    "play": "Play",
+    "pause": "Pause",
+    "speed": "Play at 5× speed"
+  },
+  "mobile": {
+    "detailsButton": "Details",
+    "details": "Log details",
+    "close": "Close log details",
+    "cells": "Cells",
+    "history": "History"
+  },
+  "snapshot": {
+    "serving": "Primary cell (PC)",
+    "registeredCells_one": "{{count, number}} primary cell",
+    "registeredCells_other": "{{count, number}} primary cells",
+    "noServing": "No primary cell at this time",
+    "neighboringCells_one": "{{count, number}} neighboring cell",
+    "neighboringCells_other": "{{count, number}} neighboring cells",
+    "title": "Measurement snapshot",
+    "empty": "No measurements match the current filters",
+    "scrub": "Browse measurement snapshots"
+  },
+  "history": {
+    "cells_one": "{{count, number}} cell",
+    "cells_other": "{{count, number}} cells",
+    "title": "Measurement history",
+    "empty": "No cell measurements match the current filters"
+  },
+  "events": {
+    "title": "Event history",
+    "allTypes": "All event types",
+    "type": "Event type",
+    "empty": "No events of this type were recorded",
+    "offset": "Byte offset {{value, number}}"
+  },
+  "map": {
+    "signal": "Signal",
+    "signalSim": "SIM slot {{slot}} / subscription {{subscription}}",
+    "signalNoSim": "No SIM from this log is selected",
+    "signalLegend": "Color scale",
+    "noSignalData": "No data",
+    "fit": "Show entire route",
+    "title": "Route from log",
+    "empty": "This log contains no valid location data",
+    "selected": "Location closest to the selected time"
+  },
+  "metadata": {
+    "records_one": "{{count, number}} Android event decoded. Total records: {{records, number}}. Other record types include undecoded modem data",
+    "records_other": "{{count, number}} Android events decoded. Total records: {{records, number}}. Other record types include undecoded modem data",
+    "timeRegressions_one": "{{count, number}} record has a timestamp earlier than the previous record",
+    "timeRegressions_other": "{{count, number}} records have timestamps earlier than the previous record",
+    "header": "Original log header",
+    "eventTypes": "Event types"
+  },
+  "tabs": {
+    "measurements": "Measurements",
+    "events": "Events",
+    "metadata": "Log"
+  }
+}

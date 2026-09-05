@@ -701,7 +701,7 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
 
   return (
     <MapContext.Provider value={contextValue}>
-      <div ref={containerRef} className={cn("relative w-full h-full", className)}>
+      <div ref={containerRef} className={cn("maplibregl-map relative w-full h-full", className)}>
         {!isLoaded && <DefaultLoader />}
         {mapInstance && children}
       </div>

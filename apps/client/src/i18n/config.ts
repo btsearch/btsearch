@@ -12,6 +12,7 @@ import plPLLists from "./locales/pl-PL/lists.json";
 import plPLMain from "./locales/pl-PL/main.json";
 import plPLNav from "./locales/pl-PL/nav.json";
 import plPLNotifications from "./locales/pl-PL/notifications.json";
+import plPLNsg from "./locales/pl-PL/nsg.json";
 import plPLOAuth from "./locales/pl-PL/oauth.json";
 import plPLPem from "./locales/pl-PL/pem.json";
 import plPLSettings from "./locales/pl-PL/settings.json";
@@ -40,6 +41,7 @@ export const resources = {
     notifications: plPLNotifications,
     lists: plPLLists,
     cellAnalyzer: plPLCellAnalyzer,
+    nsg: plPLNsg,
     spectrum: plPLSpectrum,
     pem: plPLPem,
     kmz: plPLKMZ,
@@ -83,24 +85,7 @@ void i18n.use(initReactI18next).init({
   lng: initialLanguage,
   fallbackLng: "pl-PL",
   defaultNS,
-  ns: [
-    "common",
-    "stations",
-    "nav",
-    "map",
-    "stationDetails",
-    "submissions",
-    "clfExport",
-    "auth",
-    "settings",
-    "admin",
-    "statistics",
-    "notifications",
-    "lists",
-    "ntmAnalyzer",
-    "terrainProfile",
-    "oauth",
-  ],
+  ns: Object.keys(resources["pl-PL"]),
   interpolation: {
     escapeValue: false,
   },

@@ -19,13 +19,13 @@
   },
   "filters": {
     "controls": "Filtry pomiarów SI2PEM",
-    "stationIdPlaceholder": "ID stacji…",
+    "stationIdPlaceholder": "ID stacji",
     "allRegions": "Wszystkie województwa"
   },
   "states": {
     "loading": "Wczytywanie danych SI2PEM...",
     "errorTitle": "Nie udało się wczytać danych",
-    "errorDescription": "Spróbuj ponownie.",
+    "errorDescription": "Spróbuj ponownie",
     "emptyTitle": "Brak danych do wyświetlenia",
     "emptyFiltered": "Brak danych pasujących do wybranych filtrów"
   }

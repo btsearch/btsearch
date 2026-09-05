@@ -9,6 +9,7 @@ import enUSLists from "./lists.json";
 import enUSMain from "./main.json";
 import enUSNav from "./nav.json";
 import enUSNotifications from "./notifications.json";
+import enUSNsg from "./nsg.json";
 import enUSOAuth from "./oauth.json";
 import enUSPem from "./pem.json";
 import enUSSettings from "./settings.json";
@@ -35,6 +36,7 @@ export const enUSResources = {
   notifications: enUSNotifications,
   lists: enUSLists,
   cellAnalyzer: enUSCellAnalyzer,
+  nsg: enUSNsg,
   spectrum: enUSSpectrum,
   pem: enUSPem,
   kmz: enUSKMZ,

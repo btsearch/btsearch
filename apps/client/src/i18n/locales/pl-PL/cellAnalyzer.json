@@ -1,13 +1,23 @@
 {
   "page": {
-    "description": "Wczytaj eksport z NetMonster (.ntm) lub NetMonitor i porównaj komórki z bazą"
+    "description": "Wczytaj plik z aplikacji NetMonster, NetMonitor lub NSG i porównaj zapisane w nim komórki z bazą"
   },
   "file": {
     "dropHint": "Upuść plik tutaj lub kliknij, aby wybrać",
-    "constraints": "NetMonster (.ntm) lub NetMonitor (.csv, .clf) · maks. 10 MB · do 20 000 wierszy",
-    "format": "Format: {{format}}",
-    "rowCount": "{{count}} komórek",
-    "parsing": "Parsowanie...",
+    "constraints": "Obsługiwane formaty: NetMonster (.ntm), NetMonitor (.csv, .clf) i NSG (.log) · do 20 000 komórek",
+    "rowCount_one": "{{count, number}} komórka",
+    "rowCount_few": "{{count, number}} komórki",
+    "rowCount_many": "{{count, number}} komórek",
+    "rowCount_other": "{{count, number}} komórki",
+    "uniqueRowCount_one": "{{count, number}} unikalna komórka",
+    "uniqueRowCount_few": "{{count, number}} unikalne komórki",
+    "uniqueRowCount_many": "{{count, number}} unikalnych komórek",
+    "uniqueRowCount_other": "{{count, number}} unikalnej komórki",
+    "skippedObservations_one": "Pominięto {{count, number}} niepełny lub nieobsługiwany odczyt",
+    "skippedObservations_few": "Pominięto {{count, number}} niepełne lub nieobsługiwane odczyty",
+    "skippedObservations_many": "Pominięto {{count, number}} niepełnych lub nieobsługiwanych odczytów",
+    "skippedObservations_other": "Pominięto {{count, number}} niepełnego lub nieobsługiwanego odczytu",
+    "parsing": "Wczytywanie pliku...",
     "changeFile": "Zmień plik"
   },
   "button": {
@@ -17,9 +27,6 @@
     "analyzing": "Analizowanie..."
   },
   "table": {
-    "identifiers": "Identyfikatory",
-    "description": "Opis",
-    "location": "Lokalizacja stacji",
     "parsedCell": "Komórka z pliku",
     "sourceDescription": "Opis źródłowy",
     "matchResult": "Wynik porównania",
@@ -75,12 +82,11 @@
     "moreCandidates": "Pokaż pozostałe możliwe stacje UKE"
   },
   "errors": {
-    "fileTooLarge": "Plik zbyt duży (maks. 10 MB)",
-    "invalidFileType": "Nieobsługiwany typ pliku",
-    "noValidRows": "Brak poprawnych wierszy w pliku",
-    "truncated": "Plik jest duży, wczytano tylko pierwsze {{count}} wierszy",
+    "noValidRows": "Plik nie zawiera prawidłowych danych o komórkach",
+    "tooManyCells": "Plik przekracza limit {{count, number}} komórek",
+    "importFailed": "Nie udało się wczytać pliku",
     "analysisFailed": "Nie udało się przeanalizować pliku",
-    "analysisFailedHint": "Sprawdź połączenie i spróbuj ponownie. Wczytany plik oraz ustawienia pozostały bez zmian."
+    "analysisFailedHint": "Sprawdź połączenie i spróbuj ponownie. Wczytany plik i wybrane filtry pozostały bez zmian"
   },
   "selection": {
     "rowsSelected_one": "wybrany wiersz",
@@ -89,17 +95,18 @@
     "uniqueStationCount_one": "{{count, number}} wybrana stacja",
     "uniqueStationCount_few": "{{count, number}} wybrane stacje",
     "uniqueStationCount_many": "{{count, number}} wybranych stacji",
-    "stationCapWarning": "Przekroczono limit {{count, number}} stacji",
     "reviewBatch": "Przejrzyj wybraną partię",
     "clearSelection": "Wyczyść zaznaczenie",
     "selectAllVisible": "Zaznacz wszystkie widoczne wiersze",
     "selectRow": "Zaznacz wiersz {{number, number}}",
-    "noStationsResolved": "Brak rozwiązanych stacji",
-    "reviewBatchDisabledNoStations": "Żaden z wybranych wierszy nie dał stacji w bazie",
-    "reviewBatchDisabledOverLimit": "Zmniejsz zaznaczenie do {{count, number}} lub mniej stacji, aby kontynuować"
+    "reviewBatchDisabledNoStations": "Nie znaleziono stacji dla żadnego z wybranych wierszy",
+    "reviewBatchDisabledOverLimit": "Wybierz nie więcej niż {{count, number}} stacji, aby kontynuować"
   },
   "statusAnnouncement": {
     "analyzing": "Rozpoczęto analizę",
-    "complete": "Analiza zakończona. Sprawdzono {{count, number}} komórek"
+    "complete_one": "Analiza zakończona. Sprawdzono {{count, number}} komórkę",
+    "complete_few": "Analiza zakończona. Sprawdzono {{count, number}} komórki",
+    "complete_many": "Analiza zakończona. Sprawdzono {{count, number}} komórek",
+    "complete_other": "Analiza zakończona. Sprawdzono {{count, number}} komórki"
   }
 }
