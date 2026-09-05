@@ -1,6 +1,6 @@
 import { ANALYZER_MAX_CELLS, AnalyzerImportError, type AnalyzerImportErrorCode } from "../analyzer/analyzer-import";
 import type { AnalyzerCell, ParsedRow } from "../analyzer/analyzer-parsers";
-import { formatNsgTimestamp, parseNsgStream } from "./parser";
+import { type NsgSource, formatNsgTimestamp, parseNsgStream } from "./parser";
 import type { NsgCell, NsgProgress } from "./types";
 
 export type NsgAnalyzerImport = {
@@ -75,7 +75,7 @@ export function mapNsgAnalyzerCell(cell: NsgCell): AnalyzerCell | null {
 
 export async function parseNsgAnalyzerStream(
   stream: ReadableStream<Uint8Array>,
-  source: { name: string; size: number },
+  source: NsgSource,
   onProgress?: (progress: NsgProgress) => void,
 ): Promise<NsgAnalyzerImport> {
   const rows = new Map<string, ParsedRow>();

@@ -13,7 +13,7 @@ export function CookieConsentBanner() {
 
   return (
     <div
-      className="fixed bottom-[calc(1rem+var(--bottom-viewport-obstruction,0px))] left-4 right-4 z-50 mx-auto max-w-5xl rounded-xl border border-border bg-popover px-4 py-3 shadow-lg sm:px-5"
+      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-5xl rounded-xl border border-border bg-popover px-4 py-3 shadow-lg sm:px-5"
       role="dialog"
       aria-label={t("cookieConsent.title")}
     >

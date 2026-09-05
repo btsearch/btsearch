@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 
 const TOP_OBSTRUCTION_VAR = "--top-viewport-obstruction";
-const BOTTOM_OBSTRUCTION_VAR = "--bottom-viewport-obstruction";
 const OBSTRUCTION_SETTLE_DELAY_MS = 400;
 
-// Google anchor ads reserve their space by padding <body>
+// Keep fixed app chrome aligned if an external surface shifts the application root.
 export function useViewportObstruction() {
   useEffect(() => {
     const root = document.getElementById("root");
@@ -13,18 +12,12 @@ export function useViewportObstruction() {
     const html = document.documentElement;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
     let lastTop = -1;
-    let lastBottom = -1;
 
     const measure = () => {
       const top = Math.max(0, Math.round(root.getBoundingClientRect().top));
-      const bottom = Math.max(0, Math.round(Number.parseFloat(getComputedStyle(document.body).paddingBottom) || 0));
       if (top !== lastTop) {
         lastTop = top;
         html.style.setProperty(TOP_OBSTRUCTION_VAR, `${top}px`);
-      }
-      if (bottom !== lastBottom) {
-        lastBottom = bottom;
-        html.style.setProperty(BOTTOM_OBSTRUCTION_VAR, `${bottom}px`);
       }
     };
 
@@ -63,7 +56,6 @@ export function useViewportObstruction() {
       window.removeEventListener("resize", measureAndSettle);
       window.visualViewport?.removeEventListener("resize", measureAndSettle);
       html.style.removeProperty(TOP_OBSTRUCTION_VAR);
-      html.style.removeProperty(BOTTOM_OBSTRUCTION_VAR);
     };
   }, []);
 }

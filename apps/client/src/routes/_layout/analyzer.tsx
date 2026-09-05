@@ -1412,7 +1412,7 @@ function AnalyzerPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".ntm,.csv,.txt,.clf,.log"
+            accept=".ntm,.csv,.txt,.clf,.log,.gz,application/gzip,application/x-gzip"
             className="hidden"
             disabled={isLoading}
             onChange={(e) => {

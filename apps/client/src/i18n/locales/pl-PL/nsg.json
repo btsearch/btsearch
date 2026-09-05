@@ -5,12 +5,12 @@
   "import": {
     "select": "Otwórz log NSG",
     "drop": "Upuść tutaj log NSG",
-    "hint": "Wybierz plik .log, aby przejrzeć zapisane pomiary",
+    "hint": "Wybierz log NSG (.log lub skompresowany .gz), aby przejrzeć zapisane pomiary",
     "clear": "Zamknij log",
     "parsing": "Wczytywanie logu...",
     "progress": "Postęp wczytywania logu",
     "failed": "Nie udało się wczytać logu NSG",
-    "retry": "Wybierz nieskompresowany plik .log z NSG i spróbuj ponownie"
+    "retry": "Upewnij się, że to prawidłowy log NSG w formacie .log lub .gz, i spróbuj ponownie"
   },
   "filters": {
     "sim": "Karta SIM",

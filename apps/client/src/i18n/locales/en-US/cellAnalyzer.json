@@ -4,7 +4,7 @@
   },
   "file": {
     "dropHint": "Drop a file here or click to select",
-    "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf) and NSG (.log) · up to 20 000 cells",
+    "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf), and NSG (.log, .gz) · up to 20,000 cells",
     "rowCount_one": "{{count, number}} cell",
     "rowCount_other": "{{count, number}} cells",
     "uniqueRowCount_one": "{{count, number}} unique cell",

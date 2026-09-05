@@ -4,7 +4,7 @@
   },
   "file": {
     "dropHint": "Upuść plik tutaj lub kliknij, aby wybrać",
-    "constraints": "Obsługiwane formaty: NetMonster (.ntm), NetMonitor (.csv, .clf) i NSG (.log) · do 20 000 komórek",
+    "constraints": "Obsługiwane formaty: NetMonster (.ntm), NetMonitor (.csv, .clf) i NSG (.log, .gz) · do 20 000 komórek",
     "rowCount_one": "{{count, number}} komórka",
     "rowCount_few": "{{count, number}} komórki",
     "rowCount_many": "{{count, number}} komórek",

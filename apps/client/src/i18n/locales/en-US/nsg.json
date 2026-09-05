@@ -5,12 +5,12 @@
   "import": {
     "select": "Open NSG log",
     "drop": "Drop an NSG log here",
-    "hint": "Choose a .log file to browse its recorded measurements",
+    "hint": "Choose an NSG log (.log or compressed .gz) to browse its recorded measurements",
     "clear": "Close log",
     "parsing": "Reading log...",
     "progress": "Log import progress",
     "failed": "Could not read this NSG log",
-    "retry": "Choose an uncompressed NSG .log file and try again"
+    "retry": "Make sure it is a valid NSG log (.log or .gz), then try again"
   },
   "filters": {
     "sim": "SIM card",

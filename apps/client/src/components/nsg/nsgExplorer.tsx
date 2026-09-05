@@ -215,7 +215,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
       const url = URL.createObjectURL(new Blob([createNsgCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = log.sourceName.replace(/\.log$/i, "") + "-cells.csv";
+      link.download = log.sourceName.replace(/\.(?:log(?:\.gz)?|gz)$/i, "") + "-cells.csv";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
@@ -304,7 +304,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
           <input
             ref={inputRef}
             type="file"
-            accept=".log"
+            accept=".log,.gz,application/gzip,application/x-gzip"
             className="hidden"
             aria-label={t("import.select")}
             onChange={(event) => {

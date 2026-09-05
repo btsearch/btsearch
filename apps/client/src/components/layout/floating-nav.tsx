@@ -1022,7 +1022,7 @@ export function FloatingNav() {
   return (
     <>
       <LayoutGroup id="floating-nav-shell">
-        <div className="pointer-events-none fixed inset-x-0 bottom-[var(--bottom-viewport-obstruction,0px)] z-50 flex select-none flex-col items-center px-1 md:px-2">
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex select-none flex-col items-center px-1 md:px-2">
           <AnimatePresence initial={false} mode="popLayout">
             {hidden ? (
               <motion.div

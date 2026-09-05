@@ -128,7 +128,7 @@ function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn(
-          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] w-full overflow-hidden",
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-[calc(100dvh-var(--top-viewport-obstruction,0px))] w-full overflow-hidden",
           className,
         )}
         {...props}

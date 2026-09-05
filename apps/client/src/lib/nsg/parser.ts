@@ -1,11 +1,15 @@
+import { NSG_MAGIC } from "./fileStream";
 import { NsgStreamingOperatorResolver } from "./operator";
 import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgLog, NsgProgress, NsgTimestamp } from "./types";
 
 const MAX_HEADER_BYTES = 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
-const MAGIC = [0x21, 0x4e, 0x53, 0x47];
-
-type Source = { name: string; size: number };
+export type NsgSource = Readonly<{
+  name: string;
+  size: number;
+  decodedSize?: number | null;
+  inputBytesRead?: () => number;
+}>;
 type Phase = "magic" | "xmlLength" | "xml" | "header" | "prefix" | "payload";
 export type NsgParseOptions = { retainHistory?: boolean; onCell?: (cell: NsgCell) => void; onEvent?: (event: NsgEvent) => void };
 
@@ -55,6 +59,7 @@ export class NsgStreamParser {
   private timeRegressions = 0;
   private decodedBytes = 0;
   private servingCellCount = 0;
+  private finished = false;
   private readonly recordTypeCounts = new Map<number, number>();
   private readonly eventTypeCounts = new Map<string, number>();
   private readonly events: NsgEvent[] = [];
@@ -62,12 +67,16 @@ export class NsgStreamParser {
   private readonly locations: NsgLocation[] = [];
   private readonly decoder = new TextDecoder("utf-8", { fatal: true });
   private readonly operators = new NsgStreamingOperatorResolver();
+  private readonly expectedDecodedSize: number | null;
 
   constructor(
-    private readonly source: Source,
+    private readonly source: NsgSource,
     private readonly options: NsgParseOptions = {},
   ) {
     if (!Number.isSafeInteger(source.size) || source.size < 0) throw new Error("Invalid NSG file size.");
+    this.expectedDecodedSize = source.decodedSize === undefined ? source.size : source.decodedSize;
+    if (this.expectedDecodedSize !== null && (!Number.isSafeInteger(this.expectedDecodedSize) || this.expectedDecodedSize < 0))
+      throw new Error("Invalid decoded NSG file size.");
   }
 
   private fail(message: string): never {
@@ -75,12 +84,13 @@ export class NsgStreamParser {
   }
 
   push(chunk: Uint8Array): void {
-    if (chunk.length > this.source.size - this.offset) this.fail("NSG stream exceeds the declared file size");
+    if (this.expectedDecodedSize !== null && chunk.length > this.expectedDecodedSize - this.offset)
+      this.fail("NSG stream exceeds the declared file size");
     let position = 0;
     while (position < chunk.length) {
       if (this.phase === "magic") {
-        if (chunk[position++] !== MAGIC[this.offset++]) this.fail("Expected an uncompressed !NSG log; CLF, DLF and QMDL are not supported here");
-        if (this.offset === MAGIC.length) this.phase = "xmlLength";
+        if (chunk[position++] !== NSG_MAGIC[this.offset++]) this.fail("Expected an NSG !NSG log; CLF, DLF and QMDL are not supported here");
+        if (this.offset === NSG_MAGIC.length) this.phase = "xmlLength";
         continue;
       }
 
@@ -100,7 +110,7 @@ export class NsgStreamParser {
         this.varintFactor = 1;
         this.varintBytes = 0;
         if (this.phase === "xmlLength") {
-          if (value === 0 || value > MAX_HEADER_BYTES || value > this.source.size - this.offset)
+          if (value === 0 || value > MAX_HEADER_BYTES || (this.expectedDecodedSize !== null && value > this.expectedDecodedSize - this.offset))
             this.fail("Invalid or unsupported NSG XML header length");
           this.payload = new Uint8Array(value);
           this.payloadPosition = 0;
@@ -151,7 +161,7 @@ export class NsgStreamParser {
 
   private beginPayload(): void {
     const [, , elapsedUs, recordType, , length] = this.frame;
-    if (length > this.source.size - this.offset) this.fail("Truncated NSG record payload");
+    if (this.expectedDecodedSize !== null && length > this.expectedDecodedSize - this.offset) this.fail("Truncated NSG record payload");
     this.recordCount++;
     this.recordTypeCounts.set(recordType, (this.recordTypeCounts.get(recordType) ?? 0) + 1);
     this.maximumElapsedUs = Math.max(this.maximumElapsedUs, elapsedUs);
@@ -288,10 +298,11 @@ export class NsgStreamParser {
   }
 
   progress(): NsgProgress {
+    const bytesRead = this.finished ? this.source.size : Math.min(this.source.inputBytesRead?.() ?? this.offset, Math.max(0, this.source.size - 1));
     return {
-      bytesRead: this.offset,
+      bytesRead,
       totalBytes: this.source.size,
-      percent: this.source.size === 0 ? 0 : (this.offset / this.source.size) * 100,
+      percent: this.source.size === 0 ? 0 : (bytesRead / this.source.size) * 100,
       recordCount: this.recordCount,
       eventCount: this.eventCount,
       cellCount: this.cellCount,
@@ -299,10 +310,16 @@ export class NsgStreamParser {
   }
 
   finish(): NsgLog {
-    if (this.offset !== this.source.size || this.phase !== "header" || this.frame.length !== 0 || this.varintBytes !== 0)
+    if (
+      (this.expectedDecodedSize !== null && this.offset !== this.expectedDecodedSize) ||
+      this.phase !== "header" ||
+      this.frame.length !== 0 ||
+      this.varintBytes !== 0
+    )
       this.fail("Truncated NSG log");
     if (this.epochUs === null) this.fail("No supported NSG time anchor found");
     const end = this.timestamp(this.maximumElapsedUs);
+    this.finished = true;
     return {
       sourceName: this.source.name,
       sourceBytes: this.source.size,
@@ -326,7 +343,7 @@ export class NsgStreamParser {
 
 export async function parseNsgStream(
   stream: ReadableStream<Uint8Array>,
-  source: Source,
+  source: NsgSource,
   onProgress?: (progress: NsgProgress) => void,
   options?: NsgParseOptions,
 ): Promise<NsgLog> {

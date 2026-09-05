@@ -32,7 +32,7 @@ export function AutocompleteDropdown({ options, listboxId, activeKey, onActiveKe
   if (options.length === 0) return null;
 
   return (
-    <div className="custom-scrollbar mt-2 max-h-[min(24rem,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px)))] overflow-y-auto overscroll-contain rounded-xl bg-background/95 shadow-lg ring-1 ring-foreground/10 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-150">
+    <div className="custom-scrollbar mt-2 max-h-[min(24rem,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] overflow-y-auto overscroll-contain rounded-xl bg-background/95 shadow-lg ring-1 ring-foreground/10 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-150">
       <div className="p-1.5">
         <div
           id={usesActiveDescendantNavigation ? resolvedListboxId : undefined}
