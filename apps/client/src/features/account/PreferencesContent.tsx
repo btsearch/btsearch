@@ -15,7 +15,7 @@ import { usePushSubscription } from "@/features/notifications/usePushSubscriptio
 import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { type PreferenceProfile, type UserPreferences, usePreferences } from "@/hooks/usePreferences";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn, toggleValue } from "@/lib/utils";
 
 const PRIVILEGED_ROLES = new Set(["admin", "editor"]);

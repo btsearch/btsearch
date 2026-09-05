@@ -1,7 +1,7 @@
 import type { Feature } from "geojson";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 
 const PIE_IMAGE_SIZE = 34;
 const PIE_FILL_RADIUS = 13;

@@ -1,5 +1,5 @@
-import { ANALYZER_MAX_CELLS, AnalyzerImportError, type AnalyzerImportErrorCode } from "../analyzer-import";
-import type { AnalyzerCell, ParsedRow } from "../analyzer-parsers";
+import { ANALYZER_MAX_CELLS, AnalyzerImportError, type AnalyzerImportErrorCode } from "../analyzer/analyzer-import";
+import type { AnalyzerCell, ParsedRow } from "../analyzer/analyzer-parsers";
 import { formatNsgTimestamp, parseNsgStream } from "./parser";
 import type { NsgCell, NsgProgress } from "./types";
 

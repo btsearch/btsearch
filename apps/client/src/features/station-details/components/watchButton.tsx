@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 import { useStationWatch } from "../hooks/useStationWatch";

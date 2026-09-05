@@ -2,7 +2,7 @@ import { Alert02Icon, CheckmarkCircle02Icon, InformationCircleIcon, Multiplicati
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/preferences/theme-provider";
 import { useIsMobile } from "@/hooks/useMobile";
 
 import { Spinner } from "./spinner";

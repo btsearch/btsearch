@@ -20,7 +20,7 @@ import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 

@@ -20,7 +20,7 @@ import { RAT_ORDER } from "@/features/shared/rat";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData } from "@/lib/api";
-import { formatCoordinates } from "@/lib/gpsUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 import type { Station, StationComment } from "@/types/station";
 

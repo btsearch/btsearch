@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Lightbox } from "@/components/lightbox";
+import { Lightbox } from "@/components/photos/lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { usePreferences } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
 import { getPermitBands, getStationBands } from "../utils";

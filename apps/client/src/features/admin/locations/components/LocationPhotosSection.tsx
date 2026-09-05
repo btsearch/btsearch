@@ -1,4 +1,4 @@
-import { PhotosSection } from "@/components/photosSection";
+import { PhotosSection } from "@/components/photos/photosSection";
 import {
   deleteLocationPhoto,
   fetchLocationPhotos,

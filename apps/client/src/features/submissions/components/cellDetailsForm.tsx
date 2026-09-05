@@ -11,11 +11,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CellDetailsFields } from "@/features/admin/cells/cellDetailsFields";
 import { useBandSelection } from "@/features/admin/cells/hooks/useBandSelection";
 import { navigateRowHorizontal } from "@/features/admin/cells/rowNav";
+import { getKnownEARFCN } from "@/features/cells/lib/earfcn-fill";
 import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import { getBandName } from "@/features/station-details/frequencyCalc";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
-import { getKnownEARFCN } from "@/lib/earfcn-fill";
 import { cn } from "@/lib/utils";
 import type { Band, CellType, SectorDraft } from "@/types/station";
 

@@ -8,8 +8,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
-import type { LightboxPhoto } from "@/components/lightbox";
-import { Lightbox } from "@/components/lightbox";
+import type { LightboxPhoto } from "@/components/photos/lightbox";
+import { Lightbox } from "@/components/photos/lightbox";
 import {
   AlertDialog,
   AlertDialogAction,

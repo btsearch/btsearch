@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { MapMarker, MarkerContent } from "@/components/ui/map";
 import { getPermitBands } from "@/features/map/utils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import type { UkeStation } from "@/types/station";
 
 import type { UkeStationPanel } from "./useLocationPickerState";

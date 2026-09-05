@@ -1,7 +1,7 @@
 import type { SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/rat";
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
-import { type GeocodingResult, reverseGeocode as reverseGeocodeWithMapbox } from "@/lib/mapboxGeocoding";
+import { type GeocodingResult, reverseGeocode as reverseGeocodeWithMapbox } from "@/lib/geo/geocoding";
 import type {
   CellDetails,
   CellType,

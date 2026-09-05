@@ -6,11 +6,11 @@ import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 
+import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
 import { Button } from "@/components/ui/button";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UKESourceBadge } from "@/components/uke-source-badge";
 import { DatePickerButton } from "@/features/admin/audit-logs/components/date-picker-button";
 import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/deleted-entry-detail-sheet";
 import type { DeletedEntry } from "@/features/deleted-entries/types";

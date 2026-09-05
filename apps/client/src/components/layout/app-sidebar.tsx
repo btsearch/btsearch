@@ -5,14 +5,14 @@ import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/preferences/language-switcher";
+import { ThemeToggle } from "@/components/preferences/theme-toggle";
 import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { useSettings } from "@/hooks/useSettings";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { adminNavConfig, authNavConfig, infoNavConfig, navMainConfig, translateAdminNav, translateNav } from "@/lib/navConfig";
 import { cn } from "@/lib/utils";
 

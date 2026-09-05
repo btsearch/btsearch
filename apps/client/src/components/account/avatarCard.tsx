@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 
 const AvatarCropDialog = lazy(() => import("./avatarCropDialog").then((m) => ({ default: m.AvatarCropDialog })));

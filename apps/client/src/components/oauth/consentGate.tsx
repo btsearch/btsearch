@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 type PublicClient = {
   client_id: string;

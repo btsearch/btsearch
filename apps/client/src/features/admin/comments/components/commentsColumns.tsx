@@ -4,13 +4,13 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 
 import type { AdminComment } from "../types";

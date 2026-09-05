@@ -15,7 +15,7 @@ import { createRoot } from "react-dom/client";
 import { onBeforeStyleChange } from "@/components/ui/map";
 import zabkaLogoUrl from "@/features/station-details/components/logos/zabka.svg?url";
 import type { MapPointStyle } from "@/hooks/usePreferences";
-import { hasReliableHoverPointer } from "@/lib/pointer";
+import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 
 import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
 import { syncMarkerImages, syncPieImages } from "../pieChart";

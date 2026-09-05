@@ -1,4 +1,4 @@
-import { isAnalyzerImportError } from "../analyzer-import";
+import { isAnalyzerImportError } from "../analyzer/analyzer-import";
 import { parseNsgAnalyzerStream } from "./analyzer";
 import type { NsgAnalyzerWorkerRequest, NsgAnalyzerWorkerResponse } from "./analyzer";
 

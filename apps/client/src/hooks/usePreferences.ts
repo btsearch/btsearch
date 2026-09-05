@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 export type GpsFormat = "decimal" | "dms";
 export type NavigationApp = "google-maps" | "apple-maps" | "waze" | "osmand" | "organic-maps" | "openstreetmap";

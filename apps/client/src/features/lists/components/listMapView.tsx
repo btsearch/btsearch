@@ -19,8 +19,8 @@ import type { SearchStation } from "@/features/map/searchApi";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
-import { isEditableKeyboardTarget } from "@/lib/keyboard";
+import { authClient } from "@/lib/auth/client";
+import { isEditableKeyboardTarget } from "@/lib/dom/keyboard";
 import type { LocationWithStations, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));

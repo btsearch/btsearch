@@ -29,7 +29,7 @@ import { ukePermitsToCells } from "@/features/submissions/utils/cells";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData, showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { isRecent } from "@/lib/dateUtils";
 import { shallowEqual } from "@/lib/shallowEqual";
 import { type Band, type Cell, type SectorDraft, type Station, type StationStatus, type UkeStation } from "@/types/station";

@@ -4,7 +4,7 @@ import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstac
 import { Fragment, type ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AnnouncementBanner } from "@/components/announcement-banner";
+import { AnnouncementBanner } from "@/components/app/announcement-banner";
 import { AuthGuard } from "@/components/auth/authGuard";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { FLOATING_NAV_ACTION_TARGET_ID, FloatingNav } from "@/components/layout/floating-nav";

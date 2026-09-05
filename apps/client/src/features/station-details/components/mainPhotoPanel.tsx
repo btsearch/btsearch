@@ -2,7 +2,7 @@ import { Image01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 
 import { fetchStationPhotos } from "../api";
 

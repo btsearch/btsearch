@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getMnoBrand } from "@/lib/operatorUtils";
+import { getMnoBrand } from "@/lib/cellular/operators";
 import type { ExtraIdentificator } from "@/types/station";
 
 import { CopyButton } from "./copyButton";

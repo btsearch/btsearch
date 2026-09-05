@@ -2,7 +2,7 @@ import { ComputerIcon, Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/preferences/theme-provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 

@@ -17,7 +17,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox } from "@/components/lightbox";
+import { Lightbox } from "@/components/photos/lightbox";
 import {
   AddPhotoTile,
   PhotoDeleteButton,
@@ -26,7 +26,7 @@ import {
   PhotoMeta,
   PhotoWithFallback,
   isRecentPhoto,
-} from "@/components/photoGridPrimitives";
+} from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,

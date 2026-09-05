@@ -19,9 +19,9 @@ import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { CollapsibleSection } from "@/components/collapsibleSection";
-import { EntityPageMessage, entityPageChipClassName } from "@/components/entityPage";
-import { PhotoStrip } from "@/components/photoStrip";
+import { CollapsibleSection } from "@/components/content/collapsibleSection";
+import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
+import { PhotoStrip } from "@/components/photos/photoStrip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { RAT_ORDER } from "@/features/shared/rat";
@@ -52,13 +52,13 @@ import { StationStatusBadge } from "@/features/stations/components/StationStatus
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
-import { getHardwareLeaseOperator } from "@/lib/stationUtils";
 import type { Station } from "@/types/station";
 
 function stationHead(station: Station) {

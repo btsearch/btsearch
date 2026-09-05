@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
 
-import { getOperatorColor, resolveOperatorMnc } from "@/lib/operatorUtils";
+import { getOperatorColor, resolveOperatorMnc } from "@/lib/cellular/operators";
 import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPermits } from "@/types/station";
 
 import {

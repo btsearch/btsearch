@@ -37,10 +37,10 @@ import {
 } from "@/features/map/utils";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { isPermitExpired } from "@/lib/dateUtils";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/operatorUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 import { CopyButton } from "./copyButton";

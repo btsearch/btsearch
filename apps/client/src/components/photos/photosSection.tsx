@@ -5,8 +5,8 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox } from "@/components/lightbox";
-import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photoGridPrimitives";
+import { Lightbox } from "@/components/photos/lightbox";
+import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,

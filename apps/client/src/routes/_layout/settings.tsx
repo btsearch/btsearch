@@ -41,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PreferencesContent } from "@/features/account/PreferencesContent";
 import { fetchRegions } from "@/features/shared/api";
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 type SettingsTab = "account" | "profile" | "security" | "preferences";

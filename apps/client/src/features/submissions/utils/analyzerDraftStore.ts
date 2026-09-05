@@ -1,4 +1,4 @@
-import type { ParsedRow } from "@/lib/analyzer-parsers";
+import type { ParsedRow } from "@/lib/analyzer/analyzer-parsers";
 import type { AnalyzerResult } from "@/routes/_layout/analyzer";
 
 const DEFAULT_PREFIX = "analyzer:draft:";

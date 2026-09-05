@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/operatorUtils";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
 
 import type { SearchStation } from "../api";
 import { fetchSiblingExtraIds } from "../api";

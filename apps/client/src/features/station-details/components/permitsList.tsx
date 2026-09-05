@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { UKESourceBadge } from "@/components/uke-source-badge";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { fetchApiData } from "@/lib/api";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";

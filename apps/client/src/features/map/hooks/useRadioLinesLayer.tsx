@@ -12,8 +12,8 @@ import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { onBeforeStyleChange } from "@/components/ui/map";
-import { normalizeOperatorName } from "@/lib/operatorUtils";
-import { hasReliableHoverPointer } from "@/lib/pointer";
+import { normalizeOperatorName } from "@/lib/cellular/operators";
+import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 
 import { RadioLineTooltipContent } from "../components/radioLineTooltipContent";
 import {

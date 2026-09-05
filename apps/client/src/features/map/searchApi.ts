@@ -1,5 +1,5 @@
 import { postApiData } from "@/lib/api";
-import { forwardGeocode } from "@/lib/mapboxGeocoding";
+import { forwardGeocode } from "@/lib/geo/geocoding";
 import type { Location, Operator, Station } from "@/types/station";
 
 import { POLAND_BOUNDS } from "./constants";

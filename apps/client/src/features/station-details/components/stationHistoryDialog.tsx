@@ -22,9 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn } from "@/lib/utils";
 
 import { fetchStationHistory } from "../api";

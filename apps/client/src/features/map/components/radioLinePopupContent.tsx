@@ -4,8 +4,8 @@ import { Suspense, lazy, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePreferences } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/operatorUtils";
+import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 import type { DuplexRadioLink } from "../utils";

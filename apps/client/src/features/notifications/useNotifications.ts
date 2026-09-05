@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 import type { NotificationsResponse } from "./api";
 import { markAllRead as apiMarkAllRead, markRead as apiMarkRead, fetchNotifications } from "./api";

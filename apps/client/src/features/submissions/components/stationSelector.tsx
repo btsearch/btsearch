@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePreferences } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 import { type SearchStation, searchStations } from "../api";

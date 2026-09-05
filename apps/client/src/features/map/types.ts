@@ -1,4 +1,4 @@
-export type { GeocodingResult as OSMResult } from "@/lib/mapboxGeocoding";
+export type { GeocodingResult as OSMResult } from "@/lib/geo/geocoding";
 
 export type ParsedFilter = {
   key: string;

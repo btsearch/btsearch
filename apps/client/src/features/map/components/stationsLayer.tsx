@@ -6,7 +6,7 @@ import { useMap } from "@/components/ui/map";
 import { fetchStation, fetchUkePermit } from "@/features/station-details/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import type {
   LocationInfo,
   LocationWithStations,

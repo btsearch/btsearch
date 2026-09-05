@@ -2,7 +2,7 @@ import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, us
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { buildRemainingLteCells, createRemainingLteDetails } from "@/lib/remaining-lte-cells";
+import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
 import type { Band } from "@/types/station";
 
 import type { CellDraftBase } from "../cellEditRow";

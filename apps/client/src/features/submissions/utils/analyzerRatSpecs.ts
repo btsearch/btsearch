@@ -1,5 +1,5 @@
 import { findPreferredRatBand } from "@/features/shared/rat";
-import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/band-utils";
+import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/cellular/bands";
 import type { AnalyzerResult } from "@/routes/_layout/analyzer";
 import type { Band } from "@/types/station";
 

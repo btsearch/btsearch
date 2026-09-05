@@ -1,4 +1,4 @@
-import type { GeocodingResult } from "@/lib/mapboxGeocoding";
+import type { GeocodingResult } from "@/lib/geo/geocoding";
 
 import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../../searchApi";
 import type { FilterKeyword } from "../../types";

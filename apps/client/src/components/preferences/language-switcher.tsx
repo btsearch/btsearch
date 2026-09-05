@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 const flagComponents: Record<string, React.ComponentType<{ className?: string }>> = {
   US,

@@ -5,7 +5,7 @@ import { type ChangeEvent, type SubmitEvent, useCallback, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";

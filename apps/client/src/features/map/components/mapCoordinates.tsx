@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { GpsFormat } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 type MapCoordinatesProps = {

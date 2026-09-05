@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 import { fetchNotifications } from "./api";
 

@@ -7,7 +7,7 @@ import ZabkaIcon from "@/features/station-details/components/logos/zabka.svg?rea
 import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import type { LocationInfo, StationFilters, StationSource, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 import { fetchLocations, fetchRadioLines } from "../api";

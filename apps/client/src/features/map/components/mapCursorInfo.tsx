@@ -7,7 +7,7 @@ import { type ReactNode, useCallback, useEffect, useEffectEvent, useReducer, use
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
 import { Separator } from "@/components/ui/separator";
 import { usePreferences } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";

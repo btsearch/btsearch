@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { getDateFormatter } from "@/lib/dateFormat";
 import { cn } from "@/lib/utils";
 

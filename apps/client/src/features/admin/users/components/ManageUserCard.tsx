@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { AdminUser } from "@/features/admin/users/types";
 import { showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 import { SectionHeader } from "./common";

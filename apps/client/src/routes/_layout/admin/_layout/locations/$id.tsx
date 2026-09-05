@@ -43,7 +43,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useScrolled } from "@/hooks/useScrolled";
 import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 function AdminLocationDetailPage() {

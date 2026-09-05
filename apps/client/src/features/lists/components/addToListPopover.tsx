@@ -13,7 +13,7 @@ import type { UserListSummary } from "@/features/lists/api";
 import { updateList } from "@/features/lists/api";
 import { useUserLists } from "@/features/lists/hooks/useUserLists";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 const CreateListDialog = lazy(() => import("./createListDialog").then((m) => ({ default: m.CreateListDialog })));

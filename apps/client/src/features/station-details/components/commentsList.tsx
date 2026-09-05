@@ -6,8 +6,8 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox, type LightboxPhoto } from "@/components/lightbox";
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 import type { StationComment } from "@/types/station";
 

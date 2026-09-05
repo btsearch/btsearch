@@ -1,4 +1,4 @@
-import { AnalyzerImportError } from "../analyzer-import";
+import { AnalyzerImportError } from "../analyzer/analyzer-import";
 import type { NsgAnalyzerImport, NsgAnalyzerWorkerRequest, NsgAnalyzerWorkerResponse } from "./analyzer";
 import type { NsgProgress } from "./types";
 

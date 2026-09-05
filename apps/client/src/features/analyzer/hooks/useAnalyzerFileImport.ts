@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { FileFormat, ParsedRow } from "@/lib/analyzer-parsers";
+import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
 
 export type AnalyzerFileImportProgress = Readonly<{
   bytesRead: number;
@@ -69,7 +69,7 @@ export function useAnalyzerFileImport(): {
         };
       }
 
-      const { importAnalyzerTextFile } = await import("@/lib/analyzer-text-import");
+      const { importAnalyzerTextFile } = await import("@/lib/analyzer/analyzer-text-import");
       if (controller.signal.aborted || controllerRef.current !== controller) return null;
       const imported = await importAnalyzerTextFile(file, { signal: controller.signal, onProgress: updateProgress });
       if (controller.signal.aborted || controllerRef.current !== controller) return null;

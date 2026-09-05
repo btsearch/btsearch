@@ -20,8 +20,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
 import { useIsMobile } from "@/hooks/useMobile.js";
 import { usePreferences } from "@/hooks/usePreferences.js";
-import { isEditableKeyboardTarget } from "@/lib/keyboard.js";
-import { reverseGeocode } from "@/lib/mapboxGeocoding.js";
+import { isEditableKeyboardTarget } from "@/lib/dom/keyboard.js";
+import { reverseGeocode } from "@/lib/geo/geocoding.js";
 import { cn } from "@/lib/utils.js";
 import type { StationFilters, StationSource } from "@/types/station.js";
 

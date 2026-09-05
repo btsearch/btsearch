@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { EmptyPanel } from "@/components/empty-panel";
+import { EmptyPanel } from "@/components/content/empty-panel";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
@@ -13,7 +13,7 @@ import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { useSettings } from "@/hooks/useSettings";
-import { EXTRA_IDENTIFICATORS_MNCS, getMnoBrand } from "@/lib/operatorUtils";
+import { EXTRA_IDENTIFICATORS_MNCS, getMnoBrand } from "@/lib/cellular/operators";
 import type { SectorDraft } from "@/types/station";
 
 import { type SearchStation, fetchSiblingSectors } from "../api";

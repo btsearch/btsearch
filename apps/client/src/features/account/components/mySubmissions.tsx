@@ -58,9 +58,9 @@ import { SubmissionTypeBadge } from "@/features/submissions/components/submissio
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatShortDate } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator } from "@/types/station";
 

@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { Spinner } from "@/components/ui/spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";

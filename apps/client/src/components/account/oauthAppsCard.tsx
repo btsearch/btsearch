@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { getDateFormatter } from "@/lib/dateFormat";
 import { cn } from "@/lib/utils";
 
