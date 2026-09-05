@@ -3,8 +3,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Lightbox } from "@/components/lightbox";
-import { PhotoMeta, PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { Lightbox } from "@/components/photos/lightbox";
+import { PhotoMeta, PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import type { SubmissionLocationPhoto } from "@/features/admin/submissions/types";
 import type { LocationPhoto } from "@/features/station-details/api";
 import { cn } from "@/lib/utils";

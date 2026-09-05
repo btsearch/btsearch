@@ -10,7 +10,7 @@ import { UserDetailHeader } from "@/features/admin/users/components/UserDetailHe
 import { UserInfoCard } from "@/features/admin/users/components/UserInfoCard";
 import type { AdminUser, Session } from "@/features/admin/users/types";
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 function AdminUserDetailPage() {
   const { id: userId } = Route.useParams();

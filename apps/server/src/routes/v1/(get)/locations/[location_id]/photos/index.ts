@@ -1,5 +1,5 @@
 import { attachments, locationPhotos, users } from "@openbts/drizzle";
-import { asc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -60,7 +60,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
     .leftJoin(users, eq(locationPhotos.uploaded_by, users.id))
     .where(eq(locationPhotos.location_id, location_id))
-    .orderBy(asc(locationPhotos.createdAt));
+    .orderBy(desc(locationPhotos.createdAt));
 
   return res.send({
     data: rows.map((r) => ({

@@ -17,10 +17,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 import type { UkeStation } from "@/types/station";
 

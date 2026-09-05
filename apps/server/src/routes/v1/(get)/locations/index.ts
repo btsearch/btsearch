@@ -257,6 +257,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const regionIds = regionsRows.map((r) => r.id);
 
   if (bandValues?.length && !bandIds.length) return res.send({ data: [], totalCount: 0 });
+  if (operatorMncs?.length && !operatorIds.length) return res.send({ data: [], totalCount: 0 });
 
   const requestedRats = rat ?? [];
   type NonIotRat = "GSM" | "UMTS" | "LTE" | "NR";

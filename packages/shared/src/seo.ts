@@ -195,7 +195,7 @@ export function createLocationSEOMetadata(site: SEOSite, location: LocationSEODa
     .slice(0, 8)
     .map((station) => `${station.operatorName} ${station.stationCode}`)
     .join(", ");
-  const suffix = indexableStations.length > 8 ? "…" : "";
+  const suffix = indexableStations.length > 8 ? "..." : "";
   const region = regionName ? ` (woj. ${regionName.toLowerCase()})` : "";
 
   return {

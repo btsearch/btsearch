@@ -1,8 +1,8 @@
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.6 --activate
+RUN npm install --global pnpm@12.3.4
 
 # Copy workspace config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

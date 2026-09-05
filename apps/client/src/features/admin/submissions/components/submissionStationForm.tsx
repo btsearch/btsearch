@@ -19,7 +19,7 @@ import OrangeIcon from "@/features/station-details/components/logos/orange.svg?r
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/operatorUtils";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { Operator, SectorDraft, Station } from "@/types/station";
 

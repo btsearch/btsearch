@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ElipsisIcon } from "@/components/ui/elipsis-icon";
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 
 export function NavUser({ data: session }: { data: ReturnType<typeof authClient.useSession>["data"] }) {

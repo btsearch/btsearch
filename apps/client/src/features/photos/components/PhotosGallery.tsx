@@ -18,7 +18,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
-import { Lightbox } from "@/components/lightbox";
+import { Lightbox } from "@/components/photos/lightbox";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -34,8 +34,8 @@ import { StationTitle } from "@/features/station-details/components/stationTitle
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useIsMobile } from "@/hooks/useMobile";
-import { hasModifierKey } from "@/lib/keyboard";
-import { TOP4_MNCS } from "@/lib/operatorUtils";
+import { TOP4_MNCS } from "@/lib/cellular/operators";
+import { hasModifierKey } from "@/lib/dom/keyboard";
 import { cn } from "@/lib/utils";
 import type { Operator, Region, StationStatus } from "@/types/station";
 

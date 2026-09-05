@@ -15,6 +15,7 @@ export type RouteRateLimit = {
   max: number;
   window: number;
   countSuccessfulOnly?: boolean;
+  keyParam?: string;
   roles?: Partial<Record<UserRole, RateLimitTier>>;
 };
 
@@ -101,31 +102,38 @@ export class RateLimitService {
    * Generate a rate limit key based on the request
    * @param req FastifyRequest object
    * @param useRouteKey Whether to include the route in the key
+   * @param keyParam Route parameter whose value scopes a route-specific key
    * @returns Rate limit key or null if fingerprint generation fails
    */
-  generateKey(req: FastifyRequest, useRouteKey = false): string | null {
-    const route = useRouteKey ? (req.routeOptions.url ?? req.url ?? "unknown").split("?")[0] : "";
+  generateKey(req: FastifyRequest, useRouteKey = false, keyParam?: string): string | null {
+    let route = useRouteKey ? (req.routeOptions.url ?? req.url ?? "unknown").split("?")[0] : "";
+
+    if (useRouteKey && keyParam && typeof req.params === "object" && req.params !== null) {
+      const paramValue = Reflect.get(req.params, keyParam);
+      if (typeof paramValue === "string") route = `${route}:${encodeURIComponent(paramValue)}`;
+    }
+    const routeSuffix = useRouteKey ? `:${route}` : "";
 
     if (req.apiToken) {
       const tokenId = req.apiToken.id;
-      return `${this.prefix}api:${tokenId}${useRouteKey ? `:${route}` : ""}`;
+      return `${this.prefix}api:${tokenId}${routeSuffix}`;
     }
 
     if (req.userSession) {
       const userId = req.userSession.user.id;
-      return `${this.prefix}user:${userId}${useRouteKey ? `:${route}` : ""}`;
+      return `${this.prefix}user:${userId}${routeSuffix}`;
     }
 
     if (req.publishableKey) {
       const keyId = req.publishableKey.id;
-      return `${this.prefix}pk:${keyId}${useRouteKey ? `:${route}` : ""}`;
+      return `${this.prefix}pk:${keyId}${routeSuffix}`;
     }
 
     const fingerprint = generateFingerprint(req);
-    if (fingerprint) return `${this.prefix}unauth:${fingerprint}${useRouteKey ? `:${route}` : ""}`;
+    if (fingerprint) return `${this.prefix}unauth:${fingerprint}${routeSuffix}`;
 
     const ip = req.ip;
-    if (ip && ip !== "unknown") return `${this.prefix}ip:${ip}${useRouteKey ? `:${route}` : ""}`;
+    if (ip && ip !== "unknown") return `${this.prefix}ip:${ip}${routeSuffix}`;
 
     return null;
   }
@@ -284,7 +292,7 @@ export class RateLimitService {
       const routeLimit = this.getRouteRateLimit(req);
       const useRouteKey = routeLimit !== null;
 
-      const key = this.generateKey(req, useRouteKey);
+      const key = this.generateKey(req, useRouteKey, routeLimit?.keyParam);
       if (!key) return null;
 
       return await this.check(key, rateLimit, { countSuccessfulOnly: routeLimit?.countSuccessfulOnly === true });

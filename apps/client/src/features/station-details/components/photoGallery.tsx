@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Lightbox } from "@/components/lightbox";
-import { PhotoWithFallback, isRecentPhoto } from "@/components/photoGridPrimitives";
+import { Lightbox } from "@/components/photos/lightbox";
+import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";

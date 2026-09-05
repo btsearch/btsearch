@@ -4,7 +4,8 @@ export type AnalyzerCell =
   | { rat: "LTE"; mnc: number; tac: number; enbid: number; clid: number; pci: number; earfcn?: number }
   | { rat: "NR"; mnc: number; arfcn?: number };
 export type ParsedRow = AnalyzerCell & { description: string; rawLine: string };
-export type FileFormat = "ntm" | "netmonitor";
+export type AnalyzerTextFormat = "ntm" | "netmonitor";
+export type FileFormat = AnalyzerTextFormat | "nsg";
 
 const NTM_RAT_MAP: Record<string, AnalyzerCell["rat"]> = {
   "2G": "GSM",
@@ -137,7 +138,7 @@ export function parseNetMonitorFile(text: string): ParsedRow[] {
   return rows;
 }
 
-export function detectFormat(fileName: string, text: string): FileFormat {
+export function detectFormat(fileName: string, text: string): AnalyzerTextFormat {
   if (fileName.endsWith(".ntm")) return "ntm";
   if (fileName.endsWith(".clf")) return "netmonitor";
 
@@ -154,7 +155,7 @@ export function detectFormat(fileName: string, text: string): FileFormat {
   return "ntm";
 }
 
-export function parseFile(format: FileFormat, text: string): ParsedRow[] {
+export function parseFile(format: AnalyzerTextFormat, text: string): ParsedRow[] {
   if (format === "netmonitor") return parseNetMonitorFile(text);
   return parseNtmFile(text);
 }

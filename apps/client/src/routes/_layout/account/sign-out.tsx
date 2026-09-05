@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/_layout/account/sign-out")({
   component: SignOutPage,

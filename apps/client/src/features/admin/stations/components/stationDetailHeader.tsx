@@ -27,7 +27,7 @@ import { DialogOperatorName } from "@/features/station-details/components/dialog
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useScrolled } from "@/hooks/useScrolled";
 import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { Operator, Station } from "@/types/station";
 

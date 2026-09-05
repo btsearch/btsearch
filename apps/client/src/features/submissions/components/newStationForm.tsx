@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { OperatorSelect } from "@/components/operator-select";
+import { OperatorSelect } from "@/components/cellular/operator-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
 import { operatorsQueryOptions } from "@/features/shared/queries";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand } from "@/lib/operatorUtils";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 import type { ProposedStationForm } from "../types";

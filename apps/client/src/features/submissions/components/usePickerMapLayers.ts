@@ -14,7 +14,7 @@ import {
   PICKER_UKE_SYMBOL_LAYER_ID,
 } from "@/features/map/constants";
 import { syncPieImages } from "@/features/map/pieChart";
-import { hasReliableHoverPointer } from "@/lib/pointer";
+import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 
 type LayerConfig = {
   sourceId: string;

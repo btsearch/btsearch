@@ -2,15 +2,17 @@ import { Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-ico
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
-import { type ReactNode, useCallback, useEffect, useEffectEvent, useReducer, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useReducer, useRef } from "react";
 
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
 import { Separator } from "@/components/ui/separator";
 import { usePreferences } from "@/hooks/usePreferences";
-import { formatCoordinates } from "@/lib/gpsUtils";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
+import { useMapKeybinds } from "../hooks/useMapKeybinds";
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";
+import { MapCoordinates } from "./mapCoordinates";
 
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
@@ -265,24 +267,22 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
     updateLiveSources(activeMarkerRef.current, cursorRef.current);
   }, [updateSavedSources, updateLiveSources]);
 
-  const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
-    if (e.key === " ") {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      e.preventDefault();
+  useMapKeybinds(({ key }) => {
+    if (variant === "mobile") return false;
+    if (key === " ") {
       saveCurrentMeasurement();
-    } else if (e.key?.toLowerCase() === "c") {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      toggleCircleVisibility();
-    } else if (e.key === "Escape") {
-      clearSavedMeasurements();
+      return true;
     }
+    if (key === "c") {
+      toggleCircleVisibility();
+      return false;
+    }
+    if (key === "escape") {
+      clearSavedMeasurements();
+      return false;
+    }
+    return false;
   });
-
-  useEffect(() => {
-    if (variant === "mobile") return;
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [variant]);
 
   useEffect(() => {
     if (!map || !shouldRenderMeasurements) return;
@@ -517,16 +517,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
 
   return (
     <div className={cn("select-none invisible md:visible", className)}>
-      <div className="flex items-stretch shadow-xl rounded-lg overflow-hidden border bg-background/95 backdrop-blur-md">
-        <div className="px-2.5 py-1.5 flex items-center gap-2 border-r border-border/50">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-none">GPS</span>
-            <span className="text-xs font-mono font-bold tabular-nums text-foreground leading-none">
-              {cursor ? formatCoordinates(cursor.lat, cursor.lng, preferences.gpsFormat) : "0.00000, 0.00000"}
-            </span>
-          </div>
-        </div>
-
+      <MapCoordinates position={cursor} gpsFormat={preferences.gpsFormat}>
         {metrics ? (
           <div className="bg-muted/30 px-2.5 py-1.5 flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -578,7 +569,7 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
             </div>
           </div>
         ) : null}
-      </div>
+      </MapCoordinates>
     </div>
   );
 }

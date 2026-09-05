@@ -7,6 +7,7 @@ type UseUrlSyncArgs = {
   map: MapLibreMap | null;
   isLoaded: boolean;
   filters: StationFilters;
+  enabled?: boolean;
   onInitialize: (data: {
     filters?: StationFilters;
     center?: [number, number];
@@ -261,23 +262,23 @@ function buildUrlHash(filters: StationFilters, map: MapLibreMap, zoomOverride?: 
   return `#${mapPart}${tokens.length > 0 ? `~${tokens.join("~")}` : ""}`;
 }
 
-function replaceMapHash(pathname: string, hash: string) {
+function replaceMapHash(pathname: string, hash: string): void {
   if (window.location.pathname !== pathname) return;
 
   const newUrl = `${pathname}${window.location.search}${hash}`;
   window.history.replaceState(window.history.state, "", newUrl);
 }
 
-export function useUrlSync({ map, isLoaded, filters, onInitialize }: UseUrlSyncArgs) {
+export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitialize }: UseUrlSyncArgs): void {
   const isInitialized = useRef(false);
-  const pathname = useRef(window.location.pathname);
+  const pathnameRef = useRef(window.location.pathname);
   const filtersRef = useRef(filters);
   useEffect(() => {
     filtersRef.current = filters;
   }, [filters]);
 
   useEffect(() => {
-    if (!isLoaded || !map || isInitialized.current) return;
+    if (!enabled || !isLoaded || !map || isInitialized.current) return;
 
     const { filters: urlFilters, center, zoom: urlZoom, stationId, locationId, radiolineId } = parseUrlHash();
 
@@ -315,25 +316,25 @@ export function useUrlSync({ map, isLoaded, filters, onInitialize }: UseUrlSyncA
     });
 
     isInitialized.current = true;
-  }, [isLoaded, map, onInitialize]);
+  }, [enabled, isLoaded, map, onInitialize]);
 
   useEffect(() => {
-    if (!isLoaded || !map) return;
+    if (!enabled || !isLoaded || !map) return;
 
     const handleMoveEnd = () => {
       if (!isInitialized.current) return;
-      replaceMapHash(pathname.current, buildUrlHash(filtersRef.current, map));
+      replaceMapHash(pathnameRef.current, buildUrlHash(filtersRef.current, map));
     };
 
     map.on("moveend", handleMoveEnd);
     return () => {
       map.off("moveend", handleMoveEnd);
     };
-  }, [isLoaded, map]);
+  }, [enabled, isLoaded, map]);
 
   useEffect(() => {
-    if (!isLoaded || !map || !isInitialized.current) return;
+    if (!enabled || !isLoaded || !map || !isInitialized.current) return;
 
-    replaceMapHash(pathname.current, buildUrlHash(filters, map));
-  }, [filters, isLoaded, map]);
+    replaceMapHash(pathnameRef.current, buildUrlHash(filters, map));
+  }, [enabled, filters, isLoaded, map]);
 }

@@ -21,7 +21,7 @@ import { type ComponentType, type PointerEvent, type TouchEvent, useEffect, useL
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/preferences/theme-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +42,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
 import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 import {
   type TranslatedNavItem,
@@ -1022,7 +1022,7 @@ export function FloatingNav() {
   return (
     <>
       <LayoutGroup id="floating-nav-shell">
-        <div className="pointer-events-none fixed inset-x-0 bottom-[var(--bottom-viewport-obstruction,0px)] z-50 flex select-none flex-col items-center px-1 md:px-2">
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex select-none flex-col items-center px-1 md:px-2">
           <AnimatePresence initial={false} mode="popLayout">
             {hidden ? (
               <motion.div

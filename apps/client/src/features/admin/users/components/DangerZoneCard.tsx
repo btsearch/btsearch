@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import type { AdminUser } from "@/features/admin/users/types";
 import { API_BASE, fetchJson, showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 import { SectionHeader } from "./common";
 

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { AuthDialog } from "@/components/auth/authDialog";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 interface AuthGuardProps {
   children: ReactNode;

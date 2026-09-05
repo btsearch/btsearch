@@ -1,10 +1,10 @@
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.6 --activate
+RUN npm install --global pnpm@12.3.4
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
@@ -18,13 +18,13 @@ COPY apps/discord-bot ./apps/discord-bot
 
 RUN pnpm --filter @openbts/discord-bot build
 
-FROM node:24-alpine
+FROM node:26-alpine
 
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.0.6 --activate
+RUN npm install --global pnpm@12.3.4
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages/typescript-configs/package.json ./packages/typescript-configs/

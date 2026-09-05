@@ -53,8 +53,8 @@ import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
 import { API_BASE } from "@/lib/api";
+import { TOP4_MNCS } from "@/lib/cellular/operators";
 import { formatDuration } from "@/lib/format";
-import { TOP4_MNCS } from "@/lib/operatorUtils";
 import { buildStaticPageHead } from "@/lib/seo";
 import { cn, toggleValue } from "@/lib/utils";
 

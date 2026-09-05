@@ -1,4 +1,4 @@
-import { getMnoBrand, getOperatorColor } from "@/lib/operatorUtils";
+import { getMnoBrand, getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 import OrangeIcon from "./logos/orange.svg?react";

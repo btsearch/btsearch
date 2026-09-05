@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { TOP4_MNCS } from "@/lib/operatorUtils";
+import { TOP4_MNCS } from "@/lib/cellular/operators";
 import type { Operator } from "@/types/station";
 
 type OperatorSelectProps = {

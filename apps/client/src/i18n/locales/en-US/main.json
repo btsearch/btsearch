@@ -11,8 +11,8 @@
     "noResults": "No results",
     "noResultsHint": "Try other keywords or filters",
     "errorTitle": "Could not load search results",
-    "errorHint": "Check your connection and try again.",
-    "partialError": "Some result sources could not be loaded.",
+    "errorHint": "Check your connection and try again",
+    "partialError": "Some result sources could not be loaded",
     "showingTop": "Showing {{shown, number}} of {{total, number}} stations"
   },
   "autocomplete": {

@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Lightbox, type LightboxPhoto } from "@/components/lightbox";
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 
 type PhotoStripPhoto = LightboxPhoto & { id: number };
 

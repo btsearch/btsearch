@@ -14,7 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

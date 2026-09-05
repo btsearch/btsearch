@@ -18,12 +18,12 @@ import { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox, type LightboxPhoto } from "@/components/lightbox";
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import type { AdminComment } from "@/features/admin/comments/types";
 import { API_BASE } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 

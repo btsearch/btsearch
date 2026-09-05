@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { PhotoWithFallback } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,

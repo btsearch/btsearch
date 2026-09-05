@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
+import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { getCellDetailDefaultValue, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
-import { buildRemainingLteCells, createRemainingLteDetails } from "@/lib/remaining-lte-cells";
 
 import type { ProposedCellForm, RatType } from "../../types";
 import { buildOriginalCellsMap, generateCellId, getCellDiffStatus } from "../../utils/cells";

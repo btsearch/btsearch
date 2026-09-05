@@ -18,9 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
 import { resolveAvatarUrl } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
 
 type ProfilePrivate = {
   isPrivate: true;

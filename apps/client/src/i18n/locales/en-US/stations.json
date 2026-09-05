@@ -13,7 +13,7 @@
   },
   "database": {
     "title": "Base station database",
-    "description": "Search the base station database by station ID, Cell ID, eNB ID, city, or address. Narrow results by operator, region, technology, band, and status.",
+    "description": "Search the base station database by station ID, Cell ID, eNB ID, city, or address. Narrow results by operator, region, technology, band, and status",
     "searchPlaceholder": "Search by station ID, city or address..."
   },
   "status": {

@@ -19,13 +19,13 @@
   },
   "filters": {
     "controls": "EMF measurement filters",
-    "stationIdPlaceholder": "Station ID…",
+    "stationIdPlaceholder": "Station ID",
     "allRegions": "All regions"
   },
   "states": {
     "loading": "Loading EMF measurements...",
     "errorTitle": "Couldn't load EMF measurements",
-    "errorDescription": "Please try again.",
+    "errorDescription": "Please try again",
     "emptyTitle": "No records to display",
     "emptyFiltered": "No records match the selected filters"
   }

@@ -5,8 +5,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox } from "@/components/lightbox";
-import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photoGridPrimitives";
+import { Lightbox } from "@/components/photos/lightbox";
+import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { LocationPhoto } from "@/features/station-details/api";

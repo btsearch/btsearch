@@ -3,13 +3,13 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Fragment, type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { EmptyPanel } from "@/components/empty-panel";
+import { EmptyPanel } from "@/components/content/empty-panel";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getKnownEARFCN } from "@/features/cells/lib/earfcn-fill";
 import { RatCellsTableHeader } from "@/features/shared/RatCellsTableHeader";
 import { GenerationTag, RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
-import { getKnownEARFCN } from "@/lib/earfcn-fill";
 import { cn } from "@/lib/utils";
 import type { Band, SectorDraft } from "@/types/station";
 

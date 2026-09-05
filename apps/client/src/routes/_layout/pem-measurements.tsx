@@ -26,7 +26,7 @@ import { DialogOperatorName } from "@/features/station-details/components/dialog
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
-import { TOP4_MNCS } from "@/lib/operatorUtils";
+import { TOP4_MNCS } from "@/lib/cellular/operators";
 import { buildStaticPageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";

@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -40,6 +41,7 @@ export default defineConfig({
       target: "react",
       autoCodeSplitting: true,
     }),
+    react({ compiler: true }),
     tailwindcss(),
     {
       name: "react-scan",

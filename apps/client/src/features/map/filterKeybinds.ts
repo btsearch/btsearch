@@ -11,6 +11,17 @@ const VALID_RATS_BY_SOURCE: Record<StationSource, ReadonlySet<string>> = {
 };
 
 export type StationFiltersUpdater = (filters: StationFilters) => StationFilters;
+export type MapVisibilityKeybind = "azimuths" | "stations";
+
+const MAP_VISIBILITY_KEYBINDS: ReadonlyMap<string, MapVisibilityKeybind> = new Map([
+  ["a", "azimuths"],
+  ["s", "stations"],
+]);
+
+export function getMapVisibilityKeybind(key: string, shiftKey: boolean): MapVisibilityKeybind | undefined {
+  if (shiftKey) return undefined;
+  return MAP_VISIBILITY_KEYBINDS.get(key.toLowerCase());
+}
 
 export function changeFilterSource(filters: StationFilters, source: StationSource): StationFilters {
   const validRats = VALID_RATS_BY_SOURCE[source];
@@ -45,8 +56,6 @@ export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean): Stat
   }
 
   switch (normalizedKey) {
-    case "s":
-      return (filters) => ({ ...filters, showStations: !filters.showStations });
     case "r":
       return (filters) => ({ ...filters, showRadiolines: !filters.showRadiolines });
     case "z":

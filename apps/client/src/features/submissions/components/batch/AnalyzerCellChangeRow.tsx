@@ -2,7 +2,7 @@ import { AlertCircleIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import { RatBadge } from "@/components/rat-badge";
+import { RatBadge } from "@/components/cellular/rat-badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getRatChannelField } from "@/features/shared/rat";

@@ -43,7 +43,7 @@ import type { UserListSummary } from "@/features/lists/api";
 import { deleteList, updateList } from "@/features/lists/api";
 import { useUserLists } from "@/features/lists/hooks/useUserLists";
 import { useFavoriteLists } from "@/hooks/useFavoriteLists";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 const CreateListDialog = lazy(() => import("./createListDialog").then((m) => ({ default: m.CreateListDialog })));

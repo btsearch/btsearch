@@ -2,7 +2,7 @@ import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { PhotoWithFallback, isRecentPhoto } from "@/components/photoGridPrimitives";
+import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { cn } from "@/lib/utils";
 
 import type { GalleryPhoto } from "../api";

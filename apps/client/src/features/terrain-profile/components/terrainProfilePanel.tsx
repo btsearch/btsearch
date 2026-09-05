@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@/lib/operatorUtils";
+import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 import { filterTerrainProfileCandidatesByBearing } from "../antennaSelection";

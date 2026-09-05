@@ -5,9 +5,9 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { CollapsibleSection } from "@/components/collapsibleSection";
-import { EntityPageMessage, entityPageChipClassName } from "@/components/entityPage";
-import { PhotoStrip } from "@/components/photoStrip";
+import { CollapsibleSection } from "@/components/content/collapsibleSection";
+import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
+import { PhotoStrip } from "@/components/photos/photoStrip";
 import { fetchLocationWithStations, locationQueryKey } from "@/features/map/api";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { getStationBands } from "@/features/map/utils";
@@ -20,8 +20,8 @@ import { StationInfoItem } from "@/features/station-details/components/stationIn
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { usePreferences } from "@/hooks/usePreferences";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
-import { formatCoordinates } from "@/lib/gpsUtils";
-import { getOperatorColor } from "@/lib/operatorUtils";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
 import type { LocationWithStations } from "@/types/station";

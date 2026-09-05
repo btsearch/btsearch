@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { type UserListSummary, fetchUserLists } from "@/features/lists/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 import { useFavoriteLists } from "./useFavoriteLists";
 

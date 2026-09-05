@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { queryClient } from "@/lib/queryClient";
 
 interface AuthDialogProps {

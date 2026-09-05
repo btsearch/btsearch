@@ -64,7 +64,7 @@
       "redirectPlaceholderNative": "pl.example.myapp:/callback",
       "redirectHint": "Jeden na linię. Użytkownicy będą przekierowywani wyłącznie na dokładnie te adresy",
       "redirectHintWeb": "Wymagany jest protokół https://",
-      "redirectHintNative": "Użyj schematu w notacji odwróconej domeny z pojedynczym ukośnikiem (pl.example.myapp:/callback) lub adresu loopback (http://127.0.0.1).",
+      "redirectHintNative": "Użyj schematu w notacji odwróconej domeny z pojedynczym ukośnikiem (pl.example.myapp:/callback) lub adresu loopback (http://127.0.0.1)",
       "create": "Zarejestruj",
       "creating": "Rejestrowanie..."
     },

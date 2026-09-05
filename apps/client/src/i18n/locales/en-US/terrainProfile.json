@@ -53,13 +53,13 @@
   },
   "metrics": {
     "pathLoss": "Path loss",
-    "pathLossDescription": "Signal attenuation along the modeled path according to ITU-R P.1812. Lower values mean less loss. This estimate does not include the station's actual transmit power or directional antenna pattern.",
+    "pathLossDescription": "Signal attenuation along the modeled path according to ITU-R P.1812. Lower values mean less loss. This estimate does not include the station's actual transmit power or directional antenna pattern",
     "antennaHeight": "Antenna height",
     "beamOffset": "Beam offset (est.)",
-    "beamOffsetDescription": "Vertical angle between the receiver direction and the estimated beam center. Closer to 0° means the receiver is closer to the beam axis, \"+\" means above it and \"-\" means below it.",
-    "beamOffsetUnavailableDescription": "The offset cannot be calculated because this data source does not provide a reliable antenna tilt.",
+    "beamOffsetDescription": "Vertical angle between the receiver direction and the estimated beam center. Closer to 0° means the receiver is closer to the beam axis, \"+\" means above it and \"-\" means below it",
+    "beamOffsetUnavailableDescription": "The offset cannot be calculated because this data source does not provide a reliable antenna tilt",
     "fieldStrength": "Reference field strength (1 kW ERP)",
-    "fieldStrengthDescription": "Field strength describes how strong the electromagnetic field is at the receiver location and is expressed in dBµV/m. Here it is calculated by ITU-R P.1812 for 1 kW ERP. Higher values mean a stronger reference field. It is not the phone's actual signal level and does not predict data speed."
+    "fieldStrengthDescription": "Field strength describes how strong the electromagnetic field is at the receiver location and is expressed in dBµV/m. Here it is calculated by ITU-R P.1812 for 1 kW ERP. Higher values mean a stronger reference field. It is not the phone's actual signal level and does not predict data speed"
   },
   "chart": {
     "label": "Terrain and line-of-sight profile",

@@ -16,7 +16,7 @@ import {
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Checkbox } from "@/features/map/components/search-overlay/checkbox";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { partitionOperators } from "@/lib/operatorUtils";
+import { partitionOperators } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 

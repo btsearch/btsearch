@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AuthDialog } from "@/components/auth/authDialog";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 interface RequireAuthProps {
   children: ReactNode;

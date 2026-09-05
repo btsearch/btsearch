@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef } from "react";
 
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 declare global {

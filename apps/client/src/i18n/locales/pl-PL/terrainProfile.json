@@ -53,13 +53,13 @@
   },
   "metrics": {
     "pathLoss": "Tłumienie trasy",
-    "pathLossDescription": "Tłumienie sygnału na modelowanej trasie według ITU-R P.1812. Im niższa wartość, tym mniejsze straty. Wynik nie uwzględnia rzeczywistej mocy stacji ani charakterystyki kierunkowej anteny.",
+    "pathLossDescription": "Tłumienie sygnału na modelowanej trasie według ITU-R P.1812. Im niższa wartość, tym mniejsze straty. Wynik nie uwzględnia rzeczywistej mocy stacji ani charakterystyki kierunkowej anteny",
     "antennaHeight": "Wysokość anteny",
     "beamOffset": "Odchylenie od wiązki (szac.)",
-    "beamOffsetDescription": "Pionowa różnica między kierunkiem do odbiornika a szacowaną osią wiązki. Im bliżej 0°, tym odbiornik znajduje się bliżej osi, \"+\" oznacza położenie powyżej osi, a \"-\" poniżej.",
-    "beamOffsetUnavailableDescription": "Nie można obliczyć odchylenia, ponieważ to źródło nie podaje wiarygodnego kąta pochylenia anteny.",
+    "beamOffsetDescription": "Pionowa różnica między kierunkiem do odbiornika a szacowaną osią wiązki. Im bliżej 0°, tym odbiornik znajduje się bliżej osi, \"+\" oznacza położenie powyżej osi, a \"-\" poniżej",
+    "beamOffsetUnavailableDescription": "Nie można obliczyć odchylenia, ponieważ to źródło nie podaje wiarygodnego kąta pochylenia anteny",
     "fieldStrength": "Referencyjne natężenie pola (1 kW ERP)",
-    "fieldStrengthDescription": "Natężenie pola opisuje siłę pola elektromagnetycznego w punkcie odbioru i jest podawane w dBµV/m. Tutaj obliczono je według ITU-R P.1812 dla mocy 1 kW ERP. Wyższa wartość oznacza silniejsze pole referencyjne. Nie jest to rzeczywisty poziom sygnału odbierany przez telefon i nie pozwala przewidzieć prędkości transmisji."
+    "fieldStrengthDescription": "Natężenie pola opisuje siłę pola elektromagnetycznego w punkcie odbioru i jest podawane w dBµV/m. Tutaj obliczono je według ITU-R P.1812 dla mocy 1 kW ERP. Wyższa wartość oznacza silniejsze pole referencyjne. Nie jest to rzeczywisty poziom sygnału odbierany przez telefon i nie pozwala przewidzieć prędkości transmisji"
   },
   "chart": {
     "label": "Profil terenu i widoczności optycznej",

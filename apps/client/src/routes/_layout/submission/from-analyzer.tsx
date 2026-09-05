@@ -27,7 +27,7 @@ import { clearDraft, loadDraft } from "@/features/submissions/utils/analyzerDraf
 import { buildAnalyzerBatchDraft, buildSubmissionPayloads } from "@/features/submissions/utils/fromAnalyzer";
 import { useSettings } from "@/hooks/useSettings";
 import { showApiError } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
 
 export const Route = createFileRoute("/_layout/submission/from-analyzer")({
   validateSearch: (search: Record<string, unknown>) => ({

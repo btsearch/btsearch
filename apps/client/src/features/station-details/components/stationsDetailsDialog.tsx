@@ -12,10 +12,10 @@ import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/componen
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/authClient";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { getOperatorColor } from "@/lib/operatorUtils";
-import { getHardwareLeaseOperator } from "@/lib/stationUtils";
 import { cn } from "@/lib/utils";
 
 import { stationQueryOptions } from "../queries";

@@ -4,7 +4,7 @@ import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstac
 import { Fragment, type ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AnnouncementBanner } from "@/components/announcement-banner";
+import { AnnouncementBanner } from "@/components/app/announcement-banner";
 import { AuthGuard } from "@/components/auth/authGuard";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { FLOATING_NAV_ACTION_TARGET_ID, FloatingNav } from "@/components/layout/floating-nav";
@@ -118,7 +118,7 @@ function AppLayout() {
       <AuthGuard>
         <NavActionsProvider targetId={preferences.navMode === "floating" ? FLOATING_NAV_ACTION_TARGET_ID : "header-actions"}>
           {preferences.navMode === "floating" ? (
-            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] flex-col overflow-hidden bg-background">
+            <div className="flex h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-[calc(100dvh-var(--top-viewport-obstruction,0px))] flex-col overflow-hidden bg-background">
               {isWCO ? (
                 <div
                   className="shrink-0"
@@ -140,7 +140,7 @@ function AppLayout() {
             <SidebarProvider>
               <MobileSidebarAutoClose />
               <AppSidebar />
-              <SidebarInset className="max-h-[calc(100dvh-var(--top-viewport-obstruction,0px)-var(--bottom-viewport-obstruction,0px))] min-h-0 overflow-hidden">
+              <SidebarInset className="max-h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-0 overflow-hidden">
                 <header
                   className={cn("flex shrink-0 items-center gap-2 border-b bg-background", !isWCO && "h-12")}
                   style={

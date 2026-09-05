@@ -1,7 +1,7 @@
 import { type HeaderGroup, type Header as HeaderType, type Row, type RowData, type Table as TableInstance, flexRender } from "@tanstack/react-table";
 import { type ReactNode, createContext, memo, useContext, useId, useMemo } from "react";
 
-import { hasModifierKey, isInteractiveTarget } from "@/lib/keyboard";
+import { hasModifierKey, isInteractiveTarget } from "@/lib/dom/keyboard";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
