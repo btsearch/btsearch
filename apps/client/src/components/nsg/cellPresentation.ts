@@ -3,27 +3,27 @@ import type { NsgCell } from "@/lib/nsg/types";
 
 import { formatValue } from "./display";
 
-export type NsgDisplayValue = number | string | null;
+export type DisplayValue = number | string | null;
 
-export type NsgDisplayField = Readonly<{
+export type DisplayField = Readonly<{
   key: string;
   label: string;
-  value: NsgDisplayValue;
+  value: DisplayValue;
   unit?: string;
 }>;
 
-export type NsgTableColumn = Readonly<{
+export type TableColumn = Readonly<{
   key: string;
   label: string;
   unit?: string;
-  getValue: (cell: NsgCell) => NsgDisplayValue;
+  getValue: (cell: NsgCell) => DisplayValue;
 }>;
 
-type NsgRatFamily = "gsm" | "umts" | "lte" | "nr" | "other";
+type RatFamily = "gsm" | "umts" | "lte" | "nr" | "other";
 
 const MAX_LTE_ECI = 268_435_455;
 
-function getRatFamily(rat: string): NsgRatFamily {
+function getRatFamily(rat: string): RatFamily {
   if (rat === "GSM") return "gsm";
   if (rat === "UMTS" || rat === "WCDMA") return "umts";
   if (rat === "LTE") return "lte";
@@ -31,7 +31,7 @@ function getRatFamily(rat: string): NsgRatFamily {
   return "other";
 }
 
-export function getNsgDisplayRat(rat: string): string {
+export function getDisplayRat(rat: string): string {
   return rat === "WCDMA" ? "UMTS" : rat;
 }
 
@@ -60,11 +60,11 @@ function getGenericChannel(cell: NsgCell): number | null {
   return cell.earfcn ?? cell.uarfcn ?? cell.arfcn;
 }
 
-function identityField(cell: NsgCell, key: string, value: number | null): NsgDisplayField {
-  return { key, label: getRatDetailFieldLabel(getNsgDisplayRat(cell.rat), key, "station"), value };
+function identityField(cell: NsgCell, key: string, value: number | null): DisplayField {
+  return { key, label: getRatDetailFieldLabel(getDisplayRat(cell.rat), key, "station"), value };
 }
 
-export function formatNsgCellIdentity(cell: NsgCell): string {
+export function formatCellIdentity(cell: NsgCell): string {
   const family = getRatFamily(cell.rat);
   if (family === "lte") {
     const identity = getValidLteIdentity(cell);
@@ -78,7 +78,7 @@ export function formatNsgCellIdentity(cell: NsgCell): string {
   return `ID ${formatValue(getGenericIdentity(cell))} · Channel ${formatValue(getGenericChannel(cell))}`;
 }
 
-export function getNsgCellIdentityFields(cell: NsgCell): readonly NsgDisplayField[] {
+export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
   const family = getRatFamily(cell.rat);
   if (family === "lte") {
     const identity = getValidLteIdentity(cell);
@@ -122,8 +122,8 @@ export function getNsgCellIdentityFields(cell: NsgCell): readonly NsgDisplayFiel
   ];
 }
 
-export function getNsgCellMeasurementFields(cell: NsgCell): readonly NsgDisplayField[] {
-  const fields: NsgDisplayField[] = [
+export function getCellMeasurementFields(cell: NsgCell): readonly DisplayField[] {
+  const fields: DisplayField[] = [
     { key: "rsrp", label: "RSRP", value: cell.rsrp, unit: "dBm" },
     { key: "rsrq", label: "RSRQ", value: cell.rsrq, unit: "dB" },
     { key: "rssi", label: "RSSI", value: cell.rssi, unit: "dBm" },
@@ -134,7 +134,7 @@ export function getNsgCellMeasurementFields(cell: NsgCell): readonly NsgDisplayF
   return fields;
 }
 
-export function getNsgMobileSummaryFields(cell: NsgCell): readonly NsgDisplayField[] {
+export function getMobileSummaryFields(cell: NsgCell): readonly DisplayField[] {
   const family = getRatFamily(cell.rat);
   if (family === "lte") {
     const identity = getValidLteIdentity(cell);
@@ -149,8 +149,8 @@ export function getNsgMobileSummaryFields(cell: NsgCell): readonly NsgDisplayFie
       { key: "ta", label: "TA", value: cell.ta },
     ];
   }
-  if (family === "gsm") return getNsgCellIdentityFields(cell);
-  if (family === "umts") return getNsgCellIdentityFields(cell);
+  if (family === "gsm") return getCellIdentityFields(cell);
+  if (family === "umts") return getCellIdentityFields(cell);
   if (family === "nr")
     return [
       identityField(cell, "nrtac", getNrTac(cell)),
@@ -169,7 +169,7 @@ export function getNsgMobileSummaryFields(cell: NsgCell): readonly NsgDisplayFie
   ];
 }
 
-export function getNsgSignalIdentityFields(cell: NsgCell): readonly NsgDisplayField[] {
+export function getSignalIdentityFields(cell: NsgCell): readonly DisplayField[] {
   const family = getRatFamily(cell.rat);
   if (family === "lte") return [identityField(cell, "ecid", cell.eci), identityField(cell, "earfcn", cell.earfcn)];
   if (family === "gsm") return [identityField(cell, "cid", cell.cid), identityField(cell, "arfcn", cell.arfcn)];
@@ -181,7 +181,7 @@ export function getNsgSignalIdentityFields(cell: NsgCell): readonly NsgDisplayFi
   ];
 }
 
-export function getNsgReportedCellColumns(rat: string): readonly NsgTableColumn[] {
+export function getReportedCellColumns(rat: string): readonly TableColumn[] {
   const family = getRatFamily(rat);
   if (family === "lte")
     return [

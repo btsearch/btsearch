@@ -120,7 +120,7 @@ function RadiolineOperatorsSection({ filters, operators, onFiltersChange }: Radi
         <ComboboxChips ref={chipsRef} className="custom-scrollbar max-h-24 min-h-8 overflow-x-hidden overflow-y-auto overscroll-contain text-sm">
           {selectedOperators.map((operator) => (
             <ComboboxChip key={operator.id} title={operator.name}>
-              {operator.name.length > RADIOLINE_CHIP_MAX_LENGTH ? `${operator.name.slice(0, RADIOLINE_CHIP_MAX_LENGTH)}…` : operator.name}
+              {operator.name.length > RADIOLINE_CHIP_MAX_LENGTH ? `${operator.name.slice(0, RADIOLINE_CHIP_MAX_LENGTH)}...` : operator.name}
             </ComboboxChip>
           ))}
           <ComboboxChipsInput className="text-sm" placeholder={selectedOperators.length === 0 ? t("main:filters.searchRadiolineOperators") : ""} />

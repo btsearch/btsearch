@@ -5,13 +5,13 @@ import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import type { NsgSnapshot } from "@/lib/nsg/snapshots";
 import type { NsgCell } from "@/lib/nsg/types";
 
+import { getDisplayRat, getReportedCellColumns } from "./cellPresentation";
 import { formatValue } from "./display";
-import { getNsgDisplayRat, getNsgReportedCellColumns } from "./nsgCellPresentation";
-import { NsgCellDetails } from "./nsgMeasurements";
+import { CellDetails } from "./measurements";
 
 function ReportedCellTable({ cells }: { cells: NsgCell[] }) {
   const rat = cells[0].rat;
-  const columns = getNsgReportedCellColumns(rat);
+  const columns = getReportedCellColumns(rat);
 
   return (
     <Table>
@@ -45,7 +45,7 @@ function ReportedCellTable({ cells }: { cells: NsgCell[] }) {
   );
 }
 
-export function NsgSnapshotDetails({ snapshot }: { snapshot: NsgSnapshot }) {
+export function SnapshotDetails({ snapshot }: { snapshot: NsgSnapshot }) {
   const { t } = useTranslation("nsg");
   const registered = snapshot.cells.filter((cell) => cell.registered === true);
   const otherGroups = new Map<string, NsgCell[]>();
@@ -71,7 +71,7 @@ export function NsgSnapshotDetails({ snapshot }: { snapshot: NsgSnapshot }) {
                   {formatValue(cell.dbm)} <span className="text-xs font-normal text-muted-foreground">dBm</span>
                 </p>
               </div>
-              <NsgCellDetails cell={cell} />
+              <CellDetails cell={cell} />
             </div>
           ))}
         </section>
@@ -82,7 +82,7 @@ export function NsgSnapshotDetails({ snapshot }: { snapshot: NsgSnapshot }) {
         {[...otherGroups].map(([key, cells]) => (
           <section key={key} className="border-t">
             <header className="flex items-center gap-2 px-4 py-2.5">
-              <RatGenerationLabel rat={getNsgDisplayRat(cells[0].rat)} />
+              <RatGenerationLabel rat={getDisplayRat(cells[0].rat)} />
               <h3 className="min-w-0 flex-1 text-sm font-semibold">
                 {t("snapshot.neighboringCells", { count: cells.length })} · {cells[0].rat}
               </h3>

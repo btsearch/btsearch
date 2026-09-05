@@ -8,6 +8,7 @@ import { MapCoordinates } from "@/features/map/components/mapCoordinates";
 import { MapStyleSwitcher } from "@/features/map/components/search-overlay/mapStyleSwitcher";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "@/features/map/constants";
 import { usePreferences } from "@/hooks/usePreferences";
+import { findClosestNsgRoutePoint } from "@/lib/nsg/geometry";
 import { type NsgResolvedOperator, getNsgCellOperator } from "@/lib/nsg/operator";
 import { getNsgReplayPosition } from "@/lib/nsg/replayPosition";
 import {
@@ -21,27 +22,27 @@ import {
 import type { NsgCell, NsgLocation } from "@/lib/nsg/types";
 
 import { formatValue } from "./display";
-import { NsgOperatorName } from "./nsgOperatorName";
-import type { NsgReplayClock } from "./nsgReplayClock";
-import { NsgSelectedMarker } from "./nsgSelectedMarker";
-import { NSG_SIGNAL_ROUTE_LAYER_ID, NsgSignalRoute } from "./nsgSignalRoute";
+import { OperatorName } from "./operatorName";
+import type { ReplayClock } from "./replayClock";
+import { SelectedMarker } from "./selectedMarker";
+import { NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID, SignalRoute } from "./signalRoute";
 
 function formatSignalBandRange(minimumDbm: number | null, maximumDbm: number | null): string {
   if (minimumDbm === null) return `< ${maximumDbm}`;
   if (maximumDbm === null) return `≥ ${minimumDbm}`;
-  return `${minimumDbm}…<${maximumDbm}`;
+  return `${minimumDbm} <${maximumDbm}`;
 }
 
 function RouteController({
   coordinates,
-  points,
+  routePoints,
   selected,
   fitRequest,
   replayActive,
   onSelectLocation,
 }: {
   coordinates: [number, number][];
-  points: NsgLocation[];
+  routePoints: readonly NsgSignalPoint[];
   selected: NsgLocation | null;
   fitRequest: number;
   replayActive: boolean;
@@ -50,6 +51,11 @@ function RouteController({
   const { map, isLoaded } = useMap();
   const lastFit = useRef<{ map: typeof map; coordinates: typeof coordinates; request: number } | null>(null);
   const previousSelection = useRef<number | null>(null);
+  const selection = useRef({ routePoints, onSelectLocation });
+
+  useEffect(() => {
+    selection.current = { routePoints, onSelectLocation };
+  }, [routePoints, onSelectLocation]);
 
   useEffect(() => {
     if (!map || !isLoaded || coordinates.length === 0) return;
@@ -85,32 +91,25 @@ function RouteController({
   }, [map, isLoaded, selected, replayActive]);
 
   useEffect(() => {
-    if (!map || !isLoaded || points.length === 0) return;
-    const selectRoutePoint = (event: { point: { x: number; y: number }; lngLat: { lng: number; lat: number } }) => {
-      if (!map.getLayer(NSG_SIGNAL_ROUTE_LAYER_ID)) return;
-      if (map.queryRenderedFeatures([event.point.x, event.point.y], { layers: [NSG_SIGNAL_ROUTE_LAYER_ID] }).length === 0) return;
-      let nearest = points[0];
-      let shortestDistance = Infinity;
-      for (const point of points) {
-        const projected = map.project([point.longitude, point.latitude]);
-        const distance = (projected.x - event.point.x) ** 2 + (projected.y - event.point.y) ** 2;
-        if (distance < shortestDistance) {
-          nearest = point;
-          shortestDistance = distance;
-        }
-      }
-      onSelectLocation(nearest);
+    if (!map || !isLoaded) return;
+    const selectRoutePoint = (event: { point: { x: number; y: number } }) => {
+      const { routePoints, onSelectLocation } = selection.current;
+      if (routePoints.length < 2) return;
+      if (!map.getLayer(NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID)) return;
+      if (map.queryRenderedFeatures([event.point.x, event.point.y], { layers: [NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID] }).length === 0) return;
+      const nearest = findClosestNsgRoutePoint(routePoints, event.point, (location) => map.project([location.longitude, location.latitude]));
+      if (nearest) onSelectLocation(nearest.location);
     };
     map.on("click", selectRoutePoint);
     return () => {
       map.off("click", selectRoutePoint);
     };
-  }, [map, isLoaded, points, onSelectLocation]);
+  }, [map, isLoaded]);
 
   return null;
 }
 
-export default function NsgRouteMap({
+export default function RouteMap({
   compact,
   points,
   selected,
@@ -128,7 +127,7 @@ export default function NsgRouteMap({
   signalTrail: NsgSignalTrail;
   selectedOperator: NsgResolvedOperator | null;
   playheadMs: number | null;
-  replayClock: NsgReplayClock;
+  replayClock: ReplayClock;
   replayCells: readonly NsgCell[];
   onSelectLocation: (location: NsgLocation) => void;
   hasLog: boolean;
@@ -147,7 +146,7 @@ export default function NsgRouteMap({
   const legendContent = (
     <>
       <div className="mb-1.5">
-        <NsgOperatorName operator={operator} />
+        <OperatorName operator={operator} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("map.signal")}</span>
@@ -182,16 +181,16 @@ export default function NsgRouteMap({
       zoom={7}
       className={preferences.navMode === "floating" && !(compact && hasLog) ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}
     >
-      <NsgSignalRoute points={signalTrail.points} />
+      <SignalRoute points={signalTrail.points} />
       <RouteController
         coordinates={coordinates}
-        points={points}
+        routePoints={signalTrail.points}
         selected={selected}
         fitRequest={fitRequest}
         replayActive={playheadMs !== null}
         onSelectLocation={onSelectLocation}
       />
-      <NsgSelectedMarker
+      <SelectedMarker
         points={points}
         selected={selected}
         playheadMs={playheadMs}

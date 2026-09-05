@@ -5,19 +5,19 @@ import type { NsgSnapshot } from "@/lib/nsg/snapshots";
 import type { NsgCell, NsgLog } from "@/lib/nsg/types";
 
 import { formatTime } from "./display";
-import { NsgEvents } from "./nsgEvents";
-import { NsgMeasurementHistory } from "./nsgMeasurements";
-import { NsgSnapshotDetails } from "./nsgSnapshot";
-import { NsgTimeline } from "./nsgTimeline";
+import { Events } from "./events";
+import { MeasurementHistory } from "./measurements";
+import { SnapshotDetails } from "./snapshot";
+import { Timeline } from "./timeline";
 
-export type NsgDetailView = "cells" | "history" | "events" | "recording";
+export type DetailView = "cells" | "history" | "events" | "recording";
 
-function isNsgDetailView(value: string): value is NsgDetailView {
+function isDetailView(value: string): value is DetailView {
   return value === "cells" || value === "history" || value === "events" || value === "recording";
 }
 
-type NsgDetailPanelsProps = {
-  activeView: NsgDetailView;
+type DetailPanelsProps = {
+  activeView: DetailView;
   compact: boolean;
   filterKey: string;
   log: NsgLog;
@@ -26,12 +26,12 @@ type NsgDetailPanelsProps = {
   snapshot: NsgSnapshot | null;
   selectedIndex: number;
   selectedTimestamp: number | null;
-  onViewChange: (view: NsgDetailView) => void;
+  onViewChange: (view: DetailView) => void;
   onSelectEvent: (eventIndex: number) => void;
   onPauseReplay: () => void;
 };
 
-export function NsgDetailPanels({
+export function DetailPanels({
   activeView,
   compact,
   filterKey,
@@ -44,7 +44,7 @@ export function NsgDetailPanels({
   onViewChange,
   onSelectEvent,
   onPauseReplay,
-}: NsgDetailPanelsProps) {
+}: DetailPanelsProps) {
   const { t } = useTranslation("nsg");
 
   return (
@@ -52,7 +52,7 @@ export function NsgDetailPanels({
       <Tabs
         value={activeView}
         onValueChange={(value) => {
-          if (isNsgDetailView(value)) onViewChange(value);
+          if (isDetailView(value)) onViewChange(value);
         }}
         className="shrink-0 border-b px-3 py-1"
       >
@@ -65,13 +65,13 @@ export function NsgDetailPanels({
       </Tabs>
       {activeView === "cells" ? (
         <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {snapshot ? <NsgSnapshotDetails snapshot={snapshot} /> : <p className="px-4 py-3 text-sm text-muted-foreground">{t("snapshot.empty")}</p>}
+          {snapshot ? <SnapshotDetails snapshot={snapshot} /> : <p className="px-4 py-3 text-sm text-muted-foreground">{t("snapshot.empty")}</p>}
         </div>
       ) : null}
       {activeView === "history" ? (
-        <NsgMeasurementHistory key={filterKey} snapshots={snapshots} selectedIndex={selectedIndex} onSelect={onSelectEvent} />
+        <MeasurementHistory key={filterKey} snapshots={snapshots} selectedIndex={selectedIndex} onSelect={onSelectEvent} />
       ) : null}
-      {activeView === "events" ? <NsgEvents events={log.events} onSelectEvent={onSelectEvent} onFilterChange={onPauseReplay} /> : null}
+      {activeView === "events" ? <Events events={log.events} onSelectEvent={onSelectEvent} onFilterChange={onPauseReplay} /> : null}
       {activeView === "recording" ? (
         <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 text-xs">
           <p className="font-mono">
@@ -83,7 +83,7 @@ export function NsgDetailPanels({
           <details className="border-t pt-3">
             <summary className="cursor-pointer font-medium">{t("chart.title")}</summary>
             <div className="mt-2">
-              <NsgTimeline cells={cells} selectedTimestamp={selectedTimestamp} onSelectEvent={onSelectEvent} />
+              <Timeline cells={cells} selectedTimestamp={selectedTimestamp} onSelectEvent={onSelectEvent} />
             </div>
           </details>
           <details className="border-t pt-3">

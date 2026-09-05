@@ -18,19 +18,19 @@ import { createNsgSnapshotCollection, findNearestNsgSnapshotIndex, getPrimaryNsg
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
+import { Filter } from "./controls";
+import { DetailPanels, type DetailView } from "./detailPanels";
 import { formatBytes, formatDuration, formatTime, formatValue } from "./display";
-import { NsgFilter } from "./nsgControls";
-import { NsgDetailPanels, type NsgDetailView } from "./nsgDetailPanels";
-import { NsgMobileSummary } from "./nsgMobileSummary";
-import { NsgOperatorName } from "./nsgOperatorName";
-import { NsgReplayControls } from "./nsgReplayControls";
-import { NsgSnapshotDetails } from "./nsgSnapshot";
-import { useNsgReplay } from "./useNsgReplay";
+import { MobileSummary } from "./mobileSummary";
+import { OperatorName } from "./operatorName";
+import { ReplayControls } from "./replayControls";
+import { SnapshotDetails } from "./snapshot";
+import { useReplay } from "./useReplay";
 
-const NsgRouteMap = lazy(() => import("./nsgRouteMap"));
+const RouteMap = lazy(() => import("./routeMap"));
 const EMPTY_LOCATIONS: NsgLog["locations"] = [];
 
-type NsgExplorerProps = {
+type ExplorerProps = {
   log: NsgLog | null;
   progress: NsgProgress | null;
   error: string | null;
@@ -56,7 +56,7 @@ function latestRegisteredCell(cells: NsgCell[], elapsedUs: number, eventIndex: n
   return cells[low - 1];
 }
 
-export default function NsgExplorer({ log, progress, error, onSelectFile, onCancel, onClear, isParsing }: NsgExplorerProps) {
+export default function Explorer({ log, progress, error, onSelectFile, onCancel, onClear, isParsing }: ExplorerProps) {
   const { t } = useTranslation(["nsg", "common"]);
   const { preferences } = usePreferences();
   const isMobile = useIsMobile();
@@ -66,7 +66,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
   const detailsButtonRef = useRef<HTMLButtonElement>(null);
   const [sim, setSim] = useState("all");
   const [rat, setRat] = useState("all");
-  const [view, setView] = useState<NsgDetailView>("history");
+  const [view, setView] = useState<DetailView>("history");
   const [isExporting, setIsExporting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [loadedLog, setLoadedLog] = useState(log);
@@ -137,7 +137,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
     pause: pauseReplay,
     toggle: toggleReplay,
     stop: resetReplay,
-  } = useNsgReplay({ log, snapshotCollection, isParsing });
+  } = useReplay({ log, snapshotCollection, isParsing });
   const primary = snapshot ? getPrimaryNsgCell(snapshot.cells) : undefined;
   const operatorMoment = log?.events[selectedEventIndex ?? snapshot?.eventIndex ?? 0];
   const simOptions = [
@@ -159,7 +159,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
         label: t("labels.slot") + " " + formatValue(cell.slotId) + " / " + formatValue(cell.subId),
         content: (
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <NsgOperatorName operator={operator} labelClassName="text-sm leading-5" />
+            <OperatorName operator={operator} labelClassName="text-sm leading-5" />
             <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
               {formatValue(cell.slotId)} / {formatValue(cell.subId)}
             </span>
@@ -228,12 +228,12 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
   const activeView = !isCompact && view === "cells" ? "history" : view;
   const filters = (
     <div className={cn("grid shrink-0 grid-cols-2 gap-2 border-b px-4", isCompact ? "py-1.5" : "py-2")}>
-      <NsgFilter label={t("filters.sim")} value={sim} options={simOptions} onChange={(value) => updateFilter(setSim, value)} />
-      <NsgFilter label={t("filters.technology")} value={rat} options={ratOptions} onChange={(value) => updateFilter(setRat, value)} />
+      <Filter label={t("filters.sim")} value={sim} options={simOptions} onChange={(value) => updateFilter(setSim, value)} />
+      <Filter label={t("filters.technology")} value={rat} options={ratOptions} onChange={(value) => updateFilter(setRat, value)} />
     </div>
   );
   const replayControls = (
-    <NsgReplayControls
+    <ReplayControls
       compact={isCompact}
       parsing={isParsing}
       playing={isPlaying}
@@ -251,7 +251,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
     />
   );
   const detailPanels = log ? (
-    <NsgDetailPanels
+    <DetailPanels
       activeView={activeView}
       compact={isCompact}
       filterKey={sim + ":" + rat}
@@ -412,7 +412,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
               </div>
             </div>
           ) : isCompact ? (
-            <NsgMobileSummary snapshot={snapshot} />
+            <MobileSummary snapshot={snapshot} />
           ) : (
             <>
               {filters}
@@ -420,7 +420,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
                 {replayControls}
                 {snapshot ? (
                   <div className="custom-scrollbar max-h-60 overflow-y-auto overscroll-contain @min-[1000px]:h-[min(52dvh,32rem)] @min-[1000px]:max-h-none @min-[1000px]:overflow-hidden">
-                    <NsgSnapshotDetails snapshot={snapshot} />
+                    <SnapshotDetails snapshot={snapshot} />
                   </div>
                 ) : (
                   <p className="px-4 py-2 text-xs text-muted-foreground">{t("snapshot.empty")}</p>
@@ -436,7 +436,7 @@ export default function NsgExplorer({ log, progress, error, onSelectFile, onCanc
           aria-label={t("map.title")}
         >
           <Suspense fallback={<Skeleton className="h-full w-full rounded-none" />}>
-            <NsgRouteMap
+            <RouteMap
               compact={isCompact}
               points={locations}
               selected={selectedLocation}

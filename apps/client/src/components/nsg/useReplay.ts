@@ -4,7 +4,7 @@ import { advanceNsgReplay } from "@/lib/nsg/replay";
 import { type NsgSnapshot, type NsgSnapshotCollection, findNearestNsgSnapshotIndex } from "@/lib/nsg/snapshots";
 import type { NsgLog } from "@/lib/nsg/types";
 
-import { type NsgReplayClock, createNsgReplayClock } from "./nsgReplayClock";
+import { type ReplayClock, createReplayClock } from "./replayClock";
 
 type ReplayState = {
   sourceLog: NsgLog | null;
@@ -43,8 +43,8 @@ function replayReducer(state: ReplayState, action: ReplayAction): ReplayState {
   }
 }
 
-export type NsgReplayController = Readonly<{
-  clock: NsgReplayClock;
+export type ReplayController = Readonly<{
+  clock: ReplayClock;
   selectedEventIndex: number | null;
   selectedIndex: number;
   snapshot: NsgSnapshot | null;
@@ -58,14 +58,14 @@ export type NsgReplayController = Readonly<{
   stop: () => void;
 }>;
 
-type NsgReplayOptions = {
+type ReplayOptions = {
   log: NsgLog | null;
   snapshotCollection: NsgSnapshotCollection;
   isParsing: boolean;
 };
 
-export function useNsgReplay({ log, snapshotCollection, isParsing }: NsgReplayOptions): NsgReplayController {
-  const [clock] = useState(createNsgReplayClock);
+export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions): ReplayController {
+  const [clock] = useState(createReplayClock);
   const runRef = useRef(0);
   const [state, dispatch] = useReducer(replayReducer, {
     sourceLog: log,

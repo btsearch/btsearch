@@ -4,11 +4,11 @@ import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { getNsgCellOperator } from "@/lib/nsg/operator";
 import type { NsgSnapshot } from "@/lib/nsg/snapshots";
 
+import { getDisplayRat, getMobileSummaryFields } from "./cellPresentation";
 import { formatValue } from "./display";
-import { getNsgDisplayRat, getNsgMobileSummaryFields } from "./nsgCellPresentation";
-import { NsgOperatorName } from "./nsgOperatorName";
+import { OperatorName } from "./operatorName";
 
-export function NsgMobileSummary({ snapshot }: { snapshot: NsgSnapshot | null }) {
+export function MobileSummary({ snapshot }: { snapshot: NsgSnapshot | null }) {
   const { t } = useTranslation("nsg");
   if (!snapshot) return null;
 
@@ -27,10 +27,10 @@ export function NsgMobileSummary({ snapshot }: { snapshot: NsgSnapshot | null })
   return (
     <section className="shrink-0 border-b bg-background px-3 py-2" aria-label={t("snapshot.serving")} data-testid="nsg-mobile-summary">
       <div className="mb-2 flex min-w-0 items-center gap-2">
-        <RatGenerationLabel rat={getNsgDisplayRat(cell.rat)} />
+        <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
         <span className="text-sm font-semibold">{cell.rat}</span>
         <div className="min-w-0 flex-1 overflow-hidden">
-          <NsgOperatorName operator={getNsgCellOperator(cell)} labelClassName="truncate text-sm" />
+          <OperatorName operator={getNsgCellOperator(cell)} labelClassName="truncate text-sm" />
         </div>
         <p className="shrink-0 font-mono text-base font-semibold tabular-nums">
           {signal}
@@ -38,7 +38,7 @@ export function NsgMobileSummary({ snapshot }: { snapshot: NsgSnapshot | null })
         </p>
       </div>
       <dl className="grid grid-cols-4 gap-x-3 gap-y-1.5 [@media(min-width:640px)_and_(max-height:500px)]:grid-cols-8">
-        {getNsgMobileSummaryFields(cell).map(({ key, label, value, unit }) => {
+        {getMobileSummaryFields(cell).map(({ key, label, value, unit }) => {
           const formatted = formatValue(value);
           return (
             <div key={key} className="min-w-0">

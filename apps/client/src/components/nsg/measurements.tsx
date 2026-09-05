@@ -8,22 +8,22 @@ import { type NsgSnapshot, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
 import type { NsgCell } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
+import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat } from "./cellPresentation";
 import { formatTime, formatValue } from "./display";
-import { formatNsgCellIdentity, getNsgCellIdentityFields, getNsgCellMeasurementFields, getNsgDisplayRat } from "./nsgCellPresentation";
-import { NsgOperatorName } from "./nsgOperatorName";
+import { OperatorName } from "./operatorName";
 
-export function NsgCellDetails({ cell }: { cell: NsgCell }) {
+export function CellDetails({ cell }: { cell: NsgCell }) {
   const { t } = useTranslation("nsg");
   const operator = getNsgCellOperator(cell);
-  const identityFields = getNsgCellIdentityFields(cell);
-  const measurementFields = getNsgCellMeasurementFields(cell);
+  const identityFields = getCellIdentityFields(cell);
+  const measurementFields = getCellMeasurementFields(cell);
 
   return (
     <div className="space-y-3 py-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <RatGenerationLabel rat={getNsgDisplayRat(cell.rat)} />
+        <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
         <span className="font-semibold">{cell.rat}</span>
-        <NsgOperatorName operator={operator} labelClassName="text-sm" />
+        <OperatorName operator={operator} labelClassName="text-sm" />
         <span className="ml-auto text-muted-foreground">
           {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
         </span>
@@ -50,7 +50,7 @@ export function NsgCellDetails({ cell }: { cell: NsgCell }) {
   );
 }
 
-export function NsgMeasurementHistory({
+export function MeasurementHistory({
   snapshots,
   selectedIndex,
   onSelect,
@@ -105,11 +105,11 @@ export function NsgMeasurementHistory({
                 >
                   <span className="flex items-center gap-2 text-xs">
                     <span className="font-mono font-semibold tabular-nums">{formatTime(snapshot.timestampMs)}</span>
-                    <RatGenerationLabel rat={getNsgDisplayRat(cell.rat)} />
+                    <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
                     <span className="text-muted-foreground">{cell.rat}</span>
                     <span className="ml-auto font-mono font-medium">{formatValue(cell.dbm ?? cell.rsrp)} dBm</span>
                   </span>
-                  <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{formatNsgCellIdentity(cell)}</span>
+                  <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{formatCellIdentity(cell)}</span>
                   <span className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">
                     <span>
                       {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}

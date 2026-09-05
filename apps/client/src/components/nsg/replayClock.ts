@@ -1,4 +1,4 @@
-export function createNsgReplayClock() {
+export function createReplayClock() {
   let playheadMs: number | null = null;
   const listeners = new Set<(value: number | null) => void>();
 
@@ -17,4 +17,4 @@ export function createNsgReplayClock() {
   };
 }
 
-export type NsgReplayClock = ReturnType<typeof createNsgReplayClock>;
+export type ReplayClock = ReturnType<typeof createReplayClock>;

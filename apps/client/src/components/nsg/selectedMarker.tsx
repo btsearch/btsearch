@@ -5,11 +5,11 @@ import { useMap } from "@/components/ui/map";
 import { getNsgReplayPosition } from "@/lib/nsg/replayPosition";
 import type { NsgLocation } from "@/lib/nsg/types";
 
-import type { NsgReplayClock } from "./nsgReplayClock";
+import type { ReplayClock } from "./replayClock";
 
 const SELECTED_DOT_CLASS = "relative h-3.5 w-3.5 rounded-full border-2 border-white shadow-md";
 
-export function NsgSelectedMarker({
+export function SelectedMarker({
   points,
   selected,
   playheadMs,
@@ -20,7 +20,7 @@ export function NsgSelectedMarker({
   points: NsgLocation[];
   selected: NsgLocation | null;
   playheadMs: number | null;
-  clock: NsgReplayClock;
+  clock: ReplayClock;
   color: string;
   title: string;
 }) {

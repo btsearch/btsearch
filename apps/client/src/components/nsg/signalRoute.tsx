@@ -2,14 +2,16 @@ import type { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo } from "react";
 
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
+import { hasCoarsePointer } from "@/lib/dom/pointer";
 import { type NsgRouteGeometry, createNsgRouteGeometry } from "@/lib/nsg/geometry";
 import type { NsgSignalPoint } from "@/lib/nsg/signal";
 
 export const NSG_SIGNAL_ROUTE_LAYER_ID = "route-layer-nsg-track";
+export const NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID = "route-layer-nsg-track-hitbox";
 const SOURCE_ID = "nsg-signal-route";
 const EMPTY_ROUTE: NsgRouteGeometry = { type: "FeatureCollection", features: [] };
 
-export function NsgSignalRoute({ points }: { points: readonly NsgSignalPoint[] }) {
+export function SignalRoute({ points }: { points: readonly NsgSignalPoint[] }) {
   const { map, isLoaded } = useMap();
   const data = useMemo(() => createNsgRouteGeometry(points), [points]);
 
@@ -17,6 +19,17 @@ export function NsgSignalRoute({ points }: { points: readonly NsgSignalPoint[] }
     if (!map || !isLoaded) return;
 
     if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID, { type: "geojson", data: EMPTY_ROUTE });
+    if (!map.getLayer(NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID))
+      map.addLayer(
+        {
+          id: NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID,
+          type: "line",
+          source: SOURCE_ID,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-width": hasCoarsePointer() ? 32 : 16, "line-opacity": 0 },
+        },
+        map.getLayer(NSG_SIGNAL_ROUTE_LAYER_ID) ? NSG_SIGNAL_ROUTE_LAYER_ID : undefined,
+      );
     if (!map.getLayer(NSG_SIGNAL_ROUTE_LAYER_ID))
       map.addLayer({
         id: NSG_SIGNAL_ROUTE_LAYER_ID,
@@ -28,6 +41,7 @@ export function NsgSignalRoute({ points }: { points: readonly NsgSignalPoint[] }
 
     const removeRoute = () => {
       try {
+        if (map.getLayer(NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID)) map.removeLayer(NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID);
         if (map.getLayer(NSG_SIGNAL_ROUTE_LAYER_ID)) map.removeLayer(NSG_SIGNAL_ROUTE_LAYER_ID);
         if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
       } catch {}

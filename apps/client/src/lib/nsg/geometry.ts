@@ -5,6 +5,11 @@ import { NSG_SIGNAL_UNKNOWN_COLOR, type NsgSignalPoint } from "./signal";
 export const NSG_ROUTE_MAX_GAP_MS = 60_000;
 export type NsgRouteGeometry = FeatureCollection<LineString, { color: string }>;
 type NsgRoutePosition = Pick<NsgSignalPoint, "location" | "timestampMs">;
+type ScreenPoint = { x: number; y: number };
+
+function isFiniteScreenPoint(point: ScreenPoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
+}
 
 function hasValidPosition(point: NsgRoutePosition): boolean {
   const { latitude, longitude } = point.location;
@@ -25,6 +30,47 @@ export function canConnectNsgRoutePositions(previous: NsgRoutePosition, current:
   if (previous.timestampMs === null || current.timestampMs === null) return false;
   const elapsedMs = current.timestampMs - previous.timestampMs;
   return Number.isFinite(elapsedMs) && elapsedMs > 0 && elapsedMs <= NSG_ROUTE_MAX_GAP_MS && !isNetworkTransition(previous, current);
+}
+
+function getSegmentProgress(target: ScreenPoint, start: ScreenPoint, end: ScreenPoint): number {
+  const segmentX = end.x - start.x;
+  const segmentY = end.y - start.y;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSquared === 0) return 0;
+  return Math.max(0, Math.min(1, ((target.x - start.x) * segmentX + (target.y - start.y) * segmentY) / lengthSquared));
+}
+
+export function findClosestNsgRoutePoint(
+  points: readonly NsgSignalPoint[],
+  target: ScreenPoint,
+  project: (location: NsgSignalPoint["location"]) => ScreenPoint,
+): NsgSignalPoint | null {
+  if (!isFiniteScreenPoint(target)) return null;
+  let closest: NsgSignalPoint | null = null;
+  let shortestDistance = Infinity;
+  let previousProjection: ScreenPoint | null = null;
+  const pointCount = points.length;
+  for (let index = 1; index < pointCount; index++) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (!canConnectNsgRoutePositions(previous, current)) {
+      previousProjection = null;
+      continue;
+    }
+    const start = previousProjection ?? project(previous.location);
+    const end = project(current.location);
+    const hasFiniteEnd = isFiniteScreenPoint(end);
+    previousProjection = hasFiniteEnd ? end : null;
+    if (!isFiniteScreenPoint(start) || !hasFiniteEnd) continue;
+    const progress = getSegmentProgress(target, start, end);
+    const offsetX = target.x - (start.x + progress * (end.x - start.x));
+    const offsetY = target.y - (start.y + progress * (end.y - start.y));
+    const distanceSquared = offsetX * offsetX + offsetY * offsetY;
+    if (distanceSquared >= shortestDistance) continue;
+    closest = progress <= 0.5 ? previous : current;
+    shortestDistance = distanceSquared;
+  }
+  return closest;
 }
 
 export function createNsgRouteGeometry(points: readonly NsgSignalPoint[]): NsgRouteGeometry {

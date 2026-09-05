@@ -5,7 +5,7 @@ import { operatorsQueryOptions } from "@/features/shared/queries";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import type { NsgResolvedOperator } from "@/lib/nsg/operator";
 
-export function NsgOperatorName({ operator, labelClassName }: { operator: NsgResolvedOperator | null; labelClassName?: string }) {
+export function OperatorName({ operator, labelClassName }: { operator: NsgResolvedOperator | null; labelClassName?: string }) {
   const { t } = useTranslation("main");
   const { data: operators } = useQuery(operatorsQueryOptions());
   const plmn = operator === null ? null : Number(operator.plmn);

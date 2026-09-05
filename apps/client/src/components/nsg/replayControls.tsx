@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { formatTime } from "./display";
 
-type NsgReplayControlsProps = {
+type ReplayControlsProps = {
   compact: boolean;
   parsing: boolean;
   playing: boolean;
@@ -24,7 +24,7 @@ type NsgReplayControlsProps = {
   onOpenDetails: () => void;
 };
 
-export function NsgReplayControls({
+export function ReplayControls({
   compact,
   parsing,
   playing,
@@ -36,7 +36,7 @@ export function NsgReplayControls({
   onToggle,
   onSelectEvent,
   onOpenDetails,
-}: NsgReplayControlsProps) {
+}: ReplayControlsProps) {
   const { t } = useTranslation(["nsg", "common"]);
   const selectedTime = playheadMs ?? snapshot?.timestampMs ?? null;
 

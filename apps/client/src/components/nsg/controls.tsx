@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type NsgFilterProps = {
+type FilterProps = {
   label: string;
   value: string;
   options: { value: string; label: string; content?: ReactNode }[];
   onChange: (value: string) => void;
 };
 
-export function NsgFilter({ label, value, options, onChange }: NsgFilterProps) {
+export function Filter({ label, value, options, onChange }: FilterProps) {
   const selected = options.find((option) => option.value === value);
 
   return (

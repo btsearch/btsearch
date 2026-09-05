@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import type { NsgEvent, NsgJsonValue } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
+import { Filter } from "./controls";
 import { formatTime, formatValue } from "./display";
-import { NsgFilter } from "./nsgControls";
 
 const SKIP_SUMMARY_KEYS = new Set(["event", "name", "type", "timestamp", "time", "subId", "slotId", "default"]);
 type EventViewState = { source: readonly NsgEvent[]; type: string; selectedId: number | null };
@@ -25,7 +25,7 @@ function eventSummary(event: NsgEvent): string {
     .join(" · ");
 }
 
-export const NsgEvents = memo(function NsgEvents({
+export const Events = memo(function Events({
   events,
   onSelectEvent,
   onFilterChange,
@@ -60,7 +60,7 @@ export const NsgEvents = memo(function NsgEvents({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b px-4 py-2">
-        <NsgFilter
+        <Filter
           label={t("events.type")}
           value={type}
           options={options}

@@ -6,8 +6,8 @@ import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NsgCell } from "@/lib/nsg/types";
 
+import { getSignalIdentityFields } from "./cellPresentation";
 import { formatTime, formatValue } from "./display";
-import { getNsgSignalIdentityFields } from "./nsgCellPresentation";
 
 type Metric = "dbm" | "rsrp" | "rssi" | "rsrq" | "sinr";
 type SignalPoint = { timestamp: number; value: number; eventIndex: number; cell: NsgCell; series: string };
@@ -24,7 +24,7 @@ function SignalTooltip({ active, payload, unit }: Partial<TooltipContentProps> &
   const { t } = useTranslation("nsg");
   const point = payload?.map((entry) => entry.payload).find(isSignalPoint);
   if (!active || !point) return null;
-  const identityFields = getNsgSignalIdentityFields(point.cell);
+  const identityFields = getSignalIdentityFields(point.cell);
 
   return (
     <div className="space-y-1.5 rounded-lg border bg-background px-3 py-2 text-xs shadow-lg">
@@ -71,7 +71,7 @@ function downsample(points: SignalPoint[]): SignalPoint[] {
   return sampled;
 }
 
-export function NsgTimeline({
+export function Timeline({
   cells,
   selectedTimestamp,
   onSelectEvent,
