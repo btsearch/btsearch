@@ -47,7 +47,7 @@
     "redis": "6.2.1",
     "resend": "6.25.0",
     "sharp": "0.35.4",
-    "si2pem-reader": "0.3.7",
+    "si2pem-reader": "0.3.8",
     "web-push": "3.6.7",
     "zod": "4.5.4"
   },
