@@ -30,7 +30,7 @@ type AuthEmailCopy = {
 };
 
 type SharedAuthEmailCopy = Pick<AuthEmailCopy, "expiry" | "fallback" | "footer" | "greeting">;
-type AuthEmailKindCopy = Omit<AuthEmailCopy, keyof SharedAuthEmailCopy>;
+type AuthEmailKindCopy = Omit<AuthEmailCopy, keyof SharedAuthEmailCopy> & { expiry?: string };
 type LocalizedAuthEmailCopy = Record<AuthEmailKind, AuthEmailKindCopy> & { shared: SharedAuthEmailCopy };
 
 const copy: Record<AuthEmailLocale, LocalizedAuthEmailCopy> = {
@@ -42,6 +42,7 @@ const copy: Record<AuthEmailLocale, LocalizedAuthEmailCopy> = {
       footer: "Ta wiadomość została wysłana automatycznie przez BTSearch",
     },
     verification: {
+      expiry: "Link jest ważny przez 24 godziny",
       subject: "Potwierdź adres e-mail",
       preheader: "Potwierdź adres e-mail używany w BTSearch",
       heading: "Potwierdź adres e-mail",
@@ -66,6 +67,7 @@ const copy: Record<AuthEmailLocale, LocalizedAuthEmailCopy> = {
       footer: "This email was sent automatically by BTSearch",
     },
     verification: {
+      expiry: "This link is valid for 24 hours",
       subject: "Confirm your email address",
       preheader: "Confirm the email address used with BTSearch",
       heading: "Confirm your email address",

@@ -22,8 +22,19 @@ interface AuthDialogProps {
 }
 
 const BLOCKED_REASONS = new Set(["escape-key", "close-press", "outside-press", "focus-out"]);
+const VERIFICATION_EMAIL_RATE_LIMIT_CODE = "VERIFICATION_EMAIL_RATE_LIMITED";
 
 type OAuthProvider = "google" | "github";
+
+interface AuthRequestError {
+  code?: string;
+  message?: string;
+}
+
+function getErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
+}
 
 const OAUTH_PROVIDERS = [
   { id: "google" as OAuthProvider, label: "Google", icon: GoogleIcon },
@@ -202,6 +213,8 @@ function SignInForm({
 }) {
   const { t } = useTranslation("auth");
   const [error, setError] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -209,6 +222,7 @@ function SignInForm({
     defaultValues: { email: "", password: "" },
     onSubmit: async ({ value }) => {
       setError(null);
+      setVerificationEmail(null);
 
       await authClient.signIn.email(
         { email: value.email, password: value.password },
@@ -221,8 +235,9 @@ function SignInForm({
             toast.success(t("signIn.success"));
             onSuccess();
           },
-          onError(ctx: { error: Error }) {
+          onError(ctx: { error: AuthRequestError }) {
             setError(ctx.error.message ?? "An unexpected error occurred");
+            if (ctx.error.code === "EMAIL_NOT_VERIFIED") setVerificationEmail(value.email);
           },
         },
       );
@@ -243,6 +258,37 @@ function SignInForm({
 
     setResetSent(true);
     toast.success(t("resetPassword.requestSuccess"));
+  }
+
+  async function handleResendVerification() {
+    if (verificationEmail === null) return;
+
+    setResendLoading(true);
+
+    try {
+      const { error: resendError } = await authClient.sendVerificationEmail({
+        email: verificationEmail,
+      });
+
+      if (resendError === null) {
+        setVerificationEmail(null);
+        toast.success(t("signIn.verificationResendSuccess"));
+        return;
+      }
+
+      const rateLimited = resendError.status === 429 || getErrorCode(resendError) === VERIFICATION_EMAIL_RATE_LIMIT_CODE;
+      if (rateLimited) {
+        setVerificationEmail(null);
+        toast.error(t("signIn.verificationResendRateLimited"));
+        return;
+      }
+
+      toast.error(t("signIn.verificationResendError"));
+    } catch {
+      toast.error(t("signIn.verificationResendError"));
+    } finally {
+      setResendLoading(false);
+    }
   }
 
   return (
@@ -314,7 +360,24 @@ function SignInForm({
               </div>
             )}
           </form.Field>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error ? (
+            <div className="space-y-1.5">
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+              {verificationEmail !== null ? (
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-primary underline-offset-4 transition-colors hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground"
+                  disabled={resendLoading}
+                  onClick={() => void handleResendVerification()}
+                >
+                  {resendLoading ? <Spinner className="size-3" /> : null}
+                  <span>{t(resendLoading ? "signIn.verificationResending" : "signIn.verificationResend")}</span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
               <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>

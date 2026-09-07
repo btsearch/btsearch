@@ -17,7 +17,7 @@ import { redis } from "../database/redis.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "../services/disposableEmailBlocklist.service.js";
-import { afterAuthHook, beforeAuthHook } from "./auth/hooks.js";
+import { afterAuthHook, beforeAuthHook, releaseVerificationResendCooldown } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
 import { OAUTH_SCOPES } from "./auth/scopes.js";
 
@@ -175,8 +175,14 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail(user.email, url, getAuthEmailRecipient(user));
+    expiresIn: 60 * 60 * 24,
+    sendVerificationEmail: async ({ user, url }, request) => {
+      try {
+        await sendVerificationEmail(user.email, url, getAuthEmailRecipient(user));
+      } catch (error) {
+        await releaseVerificationResendCooldown(user.email, request);
+        throw error;
+      }
     },
     sendOnSignUp: true,
     autoSignInAfterVerification: true,

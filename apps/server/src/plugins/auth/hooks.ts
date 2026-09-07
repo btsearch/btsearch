@@ -3,16 +3,43 @@ import { hash } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import type { GenericEndpointContext } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { createHash } from "node:crypto";
 
 import { API_KEYS_LIMIT, API_KEY_COOLDOWN_SECONDS, ARGON2_OPTIONS } from "../../constants.js";
 import { db } from "../../database/psql.js";
 import { redis } from "../../database/redis.js";
 import { generateFingerprintFromWebRequest } from "../../utils/fingerprint.js";
+import { logger } from "../../utils/logger.js";
 
 type HookCtx = GenericEndpointContext;
 
 const MAX_ACCOUNTS_PER_FINGERPRINT = 3;
 const ACCOUNT_LIMIT_WINDOW = 30 * 24 * 3600;
+const VERIFICATION_RESEND_PATH = "/send-verification-email";
+export const VERIFICATION_RESEND_COOLDOWN_SECONDS = 12 * 60 * 60;
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function verificationResendKey(email: string): string {
+  const recipientHash = createHash("sha256").update(normalizeEmail(email)).digest("hex");
+  return `auth:verification-resend:${recipientHash}`;
+}
+
+function isVerificationResendRequest(request: Request | undefined): request is Request {
+  return request !== undefined && new URL(request.url).pathname.endsWith(VERIFICATION_RESEND_PATH);
+}
+
+export async function releaseVerificationResendCooldown(email: string, request: Request | undefined): Promise<void> {
+  if (!isVerificationResendRequest(request)) return;
+
+  try {
+    await redis.del(verificationResendKey(email));
+  } catch (error) {
+    logger.error("auth.verificationResend.release", { error });
+  }
+}
 
 function getRegistrationKey(ctx: HookCtx): string | null {
   if (!ctx.request) return null;
@@ -110,6 +137,35 @@ async function handleSocialSignIn(ctx: HookCtx) {
   if (key) await checkAccountLimit(key);
 }
 
+async function handleVerificationResend(ctx: HookCtx) {
+  if (!ctx.request) return;
+
+  const email = ctx.body?.email;
+  if (typeof email !== "string") return;
+
+  const normalizedEmail = normalizeEmail(email);
+  const session = await getSessionFromCtx(ctx);
+  if (session && (normalizeEmail(session.user.email) !== normalizedEmail || session.user.emailVerified)) return;
+
+  const key = verificationResendKey(normalizedEmail);
+  const reserved = await redis.set(key, "1", {
+    expiration: { type: "EX", value: VERIFICATION_RESEND_COOLDOWN_SECONDS },
+    condition: "NX",
+  });
+  if (reserved) return;
+
+  const ttl = await redis.ttl(key);
+  const retryAfter = ttl > 0 ? ttl : VERIFICATION_RESEND_COOLDOWN_SECONDS;
+  throw new APIError(
+    "TOO_MANY_REQUESTS",
+    {
+      code: "VERIFICATION_EMAIL_RATE_LIMITED",
+      message: "A verification email can only be requested once every 12 hours.",
+    },
+    { "Retry-After": String(retryAfter), "X-Retry-After": String(retryAfter) },
+  );
+}
+
 async function handleOAuthClientWrite(ctx: HookCtx) {
   const body = ctx.body as { logo_uri?: unknown; update?: { logo_uri?: unknown } } | undefined;
   if (body?.logo_uri !== undefined || body?.update?.logo_uri !== undefined)
@@ -119,6 +175,7 @@ async function handleOAuthClientWrite(ctx: HookCtx) {
 const beforeHandlers: Array<{ path: string; handler: (ctx: HookCtx) => Promise<unknown> }> = [
   { path: "/sign-up/email", handler: handleSignUp },
   { path: "/sign-in/social", handler: handleSocialSignIn },
+  { path: VERIFICATION_RESEND_PATH, handler: handleVerificationResend },
   { path: "/admin/set-user-password", handler: handleSetUserPassword },
   { path: "/api-key/create", handler: handleApiKeyCreate },
   { path: "/oauth2/create-client", handler: handleOAuthClientWrite },
