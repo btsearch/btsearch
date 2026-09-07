@@ -8,7 +8,7 @@ import { type NsgSnapshot, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
 import type { NsgCell } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
-import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat } from "./cellPresentation";
+import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat, getHeadlineSignal } from "./cellPresentation";
 import { formatDecibelValue, formatTime, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
 
@@ -86,6 +86,7 @@ export function MeasurementHistory({
             const snapshot = snapshots[item.index];
             const cell = getPrimaryNsgCell(snapshot.cells);
             if (!cell) return null;
+            const signal = getHeadlineSignal(cell);
             return (
               <div
                 key={snapshot.eventIndex}
@@ -108,7 +109,9 @@ export function MeasurementHistory({
                     <span className="font-mono font-semibold tabular-nums">{formatTime(snapshot.timestampMs)}</span>
                     <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
                     <span className="text-muted-foreground">{cell.rat}</span>
-                    <span className="ml-auto font-mono font-medium">{formatDecibelValue(cell.dbm ?? cell.rsrp)} dBm</span>
+                    <span className="ml-auto font-mono font-medium">
+                      {formatDecibelValue(signal.value)} {signal.suffix}
+                    </span>
                   </span>
                   <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{formatCellIdentity(cell)}</span>
                   <span className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">

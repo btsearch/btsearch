@@ -54,14 +54,13 @@ export function mapNsgAnalyzerCell(cell: NsgCell): AnalyzerCell | null {
   }
 
   if (cell.rat === "UMTS" || cell.rat === "WCDMA") {
-    const rnc = cell.raw.rnc;
-    if (!integerInRange(cell.cid, 0xffff) || !integerInRange(cell.lac, 0xffff) || !integerInRange(rnc, 0xfff)) return null;
+    if (!integerInRange(cell.cid, 0xffff) || !integerInRange(cell.lac, 0xffff) || !integerInRange(cell.rnc, 0xfff)) return null;
     return {
       rat: "UMTS",
       mnc,
       cid: cell.cid,
       lac: cell.lac,
-      rnc,
+      rnc: cell.rnc,
       ...(integerInRange(cell.uarfcn, 16383) ? { uarfcn: cell.uarfcn } : {}),
     };
   }

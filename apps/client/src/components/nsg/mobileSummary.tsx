@@ -6,12 +6,13 @@ import { getNsgCellOperator } from "@/lib/nsg/operator";
 import type { NsgSnapshot } from "@/lib/nsg/snapshots";
 import type { NsgCell } from "@/lib/nsg/types";
 
-import { getDisplayRat, getMobileSummaryFields } from "./cellPresentation";
+import { getDisplayRat, getHeadlineSignal, getMobileSummaryFields } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
 
 function MobileCellSummary({ cell, label }: { cell: NsgSnapshot["cells"][number]; label: string }) {
-  const signal = formatDecibelValue(cell.dbm ?? cell.rsrp);
+  const headlineSignal = getHeadlineSignal(cell);
+  const signal = formatDecibelValue(headlineSignal.value);
 
   return (
     <div className="border-t px-3 py-2 first:border-t-0">
@@ -24,7 +25,7 @@ function MobileCellSummary({ cell, label }: { cell: NsgSnapshot["cells"][number]
         </div>
         <p className="shrink-0 font-mono text-base font-semibold tabular-nums">
           {signal}
-          {signal !== "-" ? <span className="ml-1 text-xs font-normal text-muted-foreground">dBm</span> : null}
+          {signal !== "-" ? <span className="ml-1 text-xs font-normal text-muted-foreground">{headlineSignal.suffix}</span> : null}
         </p>
       </div>
       <dl className="grid grid-cols-4 gap-x-3 gap-y-1.5 [@media(min-width:640px)_and_(max-height:500px)]:grid-cols-8">

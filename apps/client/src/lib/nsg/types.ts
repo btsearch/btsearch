@@ -35,6 +35,7 @@ export type NsgCell = NsgTimestamp & {
   mcc: string | null;
   mnc: string | null;
   lac: number | null;
+  rnc: number | null;
   cid: number | null;
   tac: number | null;
   eci: number | null;
@@ -49,6 +50,7 @@ export type NsgCell = NsgTimestamp & {
   rsrp: number | null;
   rsrq: number | null;
   sinr: number | null;
+  ecno: number | null;
   ta: number | null;
   ber: number | null;
   raw: NsgJsonObject;

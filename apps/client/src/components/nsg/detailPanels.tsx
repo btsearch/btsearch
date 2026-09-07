@@ -125,7 +125,12 @@ export function DetailPanels({
             <details className="border-t pt-3">
               <summary className="cursor-pointer font-medium">{t("chart.title")}</summary>
               <div className="mt-2">
-                <Timeline cells={cells} selectedTimestamp={selectedTimestamp} onSelectEvent={onSelectEvent} />
+                <Timeline
+                  key={`${log.sourceName}:${log.sourceBytes}:${log.startTimestampUs}:${filterKey}`}
+                  cells={cells}
+                  selectedTimestamp={selectedTimestamp}
+                  onSelectEvent={onSelectEvent}
+                />
               </div>
             </details>
             <details className="border-t pt-3">

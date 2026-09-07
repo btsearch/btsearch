@@ -15,6 +15,8 @@ import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgLog, NsgProgress
 
 const MAX_HEADER_BYTES = 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
+const MAX_UMTS_CI = 0x0fffffff;
+const UMTS_CID_RADIX = 0x10000;
 const QUALCOMM_PREFIX_BYTES = 4;
 export const MAX_RETAINED_NSG_SIGNALING_RECORDS = 10_000;
 const MAX_RETAINED_NSG_SIGNALING_PAYLOAD_BYTES = 16 * 1024 * 1024;
@@ -29,7 +31,25 @@ export type NsgParseOptions = { retainHistory?: boolean; onCell?: (cell: NsgCell
 
 type NsgRadioFields = Pick<
   NsgCell,
-  "lac" | "cid" | "tac" | "eci" | "pci" | "earfcn" | "arfcn" | "uarfcn" | "psc" | "bsic" | "dbm" | "rssi" | "rsrp" | "rsrq" | "sinr" | "ta" | "ber"
+  | "lac"
+  | "rnc"
+  | "cid"
+  | "tac"
+  | "eci"
+  | "pci"
+  | "earfcn"
+  | "arfcn"
+  | "uarfcn"
+  | "psc"
+  | "bsic"
+  | "dbm"
+  | "rssi"
+  | "rsrp"
+  | "rsrq"
+  | "sinr"
+  | "ecno"
+  | "ta"
+  | "ber"
 >;
 
 function isObject(value: unknown): value is NsgJsonObject {
@@ -50,10 +70,21 @@ function boolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
-function radioFields(raw: NsgJsonObject): NsgRadioFields {
+function umtsIdentity(raw: NsgJsonObject, rat: string): Pick<NsgRadioFields, "rnc" | "cid"> {
+  const rnc = numeric(raw.rnc);
+  const cid = numeric(raw.cid);
+  const ci = numeric(raw.ci);
+  if ((rat !== "UMTS" && rat !== "WCDMA") || ci === null || !Number.isInteger(ci) || ci < 0 || ci > MAX_UMTS_CI) return { rnc, cid };
+  return {
+    rnc: rnc ?? Math.floor(ci / UMTS_CID_RADIX),
+    cid: cid ?? ci % UMTS_CID_RADIX,
+  };
+}
+
+function radioFields(raw: NsgJsonObject, rat: string): NsgRadioFields {
   return {
     lac: numeric(raw.lac),
-    cid: numeric(raw.cid),
+    ...umtsIdentity(raw, rat),
     tac: numeric(raw.tac),
     eci: numeric(raw.eci),
     pci: numeric(raw.pci),
@@ -67,6 +98,7 @@ function radioFields(raw: NsgJsonObject): NsgRadioFields {
     rsrp: numeric(raw.rsrp),
     rsrq: numeric(raw.rsrq),
     sinr: numeric(raw.sinr),
+    ecno: numeric(raw.ecno),
     ta: numeric(raw.ta),
     ber: numeric(raw.ber),
   };
@@ -374,6 +406,7 @@ export class NsgStreamParser {
     for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
       const raw = cells[cellIndex];
       if (!isObject(raw)) this.fail("Expected an NSG cell object");
+      const rat = (text(raw.type) ?? "unknown").toUpperCase();
       const cell: NsgCell = {
         eventIndex: event.id,
         cellIndex,
@@ -381,14 +414,14 @@ export class NsgStreamParser {
         elapsedUs: event.elapsedUs,
         timestampUs: event.timestampUs,
         timestampMs: event.timestampMs,
-        rat: (text(raw.type) ?? "unknown").toUpperCase(),
+        rat,
         registered: boolean(raw.registered),
         subId: numeric(event.data.subId),
         slotId: numeric(event.data.slotId),
         isDefault: boolean(event.data.default),
         mcc: text(raw.mcc),
         mnc: text(raw.mnc),
-        ...radioFields(raw),
+        ...radioFields(raw, rat),
         raw,
       };
       const operator = cell.registered === true ? this.operators.get(cell) : null;

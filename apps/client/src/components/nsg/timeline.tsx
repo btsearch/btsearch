@@ -9,10 +9,10 @@ import type { NsgCell } from "@/lib/nsg/types";
 import { getSignalIdentityFields } from "./cellPresentation";
 import { formatDecibelValue, formatTime, formatValue } from "./display";
 
-type Metric = "dbm" | "rsrp" | "rssi" | "rsrq" | "sinr";
 type SignalPoint = { timestamp: number; value: number; eventIndex: number; cell: NsgCell; series: string };
 const COLORS = ["var(--primary)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-const METRICS: Metric[] = ["dbm", "rsrp", "rssi", "rsrq", "sinr"];
+const METRICS = ["dbm", "rsrp", "rssi", "rsrq", "sinr", "ecno"] as const;
+export type NsgTimelineMetric = (typeof METRICS)[number];
 const chartConfig = { signal: { color: "var(--primary)" } } satisfies ChartConfig;
 const MAX_POINTS_PER_SERIES = 1200;
 
@@ -47,10 +47,24 @@ function SignalTooltip({ active, payload, unit }: Partial<TooltipContentProps> &
   );
 }
 
-function getMetricUnit(metric: Metric): string {
+function getMetricUnit(metric: NsgTimelineMetric): string {
   if (metric === "sinr") return "";
-  if (metric === "rsrq") return "dB";
+  if (metric === "rsrq" || metric === "ecno") return "dB";
   return "dBm";
+}
+
+function getMetricValue(cell: NsgCell, metric: NsgTimelineMetric): number | null {
+  if (cell.registered !== true && cell.measurementRole !== "nr-primary") return null;
+  const value = cell[metric];
+  return value !== null && Number.isFinite(value) && Math.abs(value) < 2_147_483_647 ? value : null;
+}
+
+export function getInitialNsgTimelineMetric(cells: readonly NsgCell[]): NsgTimelineMetric {
+  return METRICS.find((metric) => cells.some((cell) => getMetricValue(cell, metric) !== null)) ?? "dbm";
+}
+
+function isNsgTimelineMetric(value: string | null): value is NsgTimelineMetric {
+  return value !== null && METRICS.some((metric) => metric === value);
 }
 
 function downsample(points: SignalPoint[]): SignalPoint[] {
@@ -81,18 +95,12 @@ export function Timeline({
   onSelectEvent: (index: number) => void;
 }) {
   const { t } = useTranslation("nsg");
-  const [metric, setMetric] = useState<Metric>("dbm");
+  const [metric, setMetric] = useState<NsgTimelineMetric>(() => getInitialNsgTimelineMetric(cells));
   const series = useMemo(() => {
     const groups = new Map<string, SignalPoint[]>();
     for (const cell of cells) {
-      const value = cell[metric];
-      if (
-        (cell.registered !== true && cell.measurementRole !== "nr-primary") ||
-        value === null ||
-        !Number.isFinite(value) ||
-        Math.abs(value) >= 2_147_483_647
-      )
-        continue;
+      const value = getMetricValue(cell, metric);
+      if (value === null) continue;
       const name = `${cell.rat} · ${t("labels.slot")} ${formatValue(cell.slotId)} · ${t("labels.subscription")} ${formatValue(cell.subId)}`;
       const group = groups.get(name) ?? [];
       group.push({ timestamp: cell.timestampMs, value, eventIndex: cell.eventIndex, cell, series: name });
@@ -108,7 +116,10 @@ export function Timeline({
   const count = series.reduce((total, item) => total + item.count, 0);
   const plottedCount = series.reduce((total, item) => total + item.points.length, 0);
   const unit = getMetricUnit(metric);
-  const options = METRICS.map((value) => ({ value, label: value === "dbm" ? t("chart.signal") : value.toUpperCase() }));
+  const options = METRICS.map((value) => ({
+    value,
+    label: value === "dbm" ? t("chart.signal") : value === "ecno" ? "Ec/No" : value.toUpperCase(),
+  }));
 
   return (
     <section className="min-w-0 overflow-hidden rounded-lg border bg-card" aria-labelledby="nsg-signal-heading">
@@ -123,7 +134,7 @@ export function Timeline({
           value={metric}
           items={options}
           onValueChange={(value) => {
-            if (METRICS.some((item) => item === value)) setMetric(value as Metric);
+            if (isNsgTimelineMetric(value)) setMetric(value);
           }}
         >
           <SelectTrigger size="sm" aria-label={t("chart.metric")} className="w-24 text-xs">

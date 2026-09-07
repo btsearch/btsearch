@@ -20,8 +20,10 @@ export type TableColumn = Readonly<{
 }>;
 
 type RatFamily = "gsm" | "umts" | "lte" | "nr" | "other";
+export type HeadlineSignal = Readonly<{ value: number | null; suffix: "dBm" | "dBm RSRP" | "dB Ec/No" }>;
 
 const MAX_LTE_ECI = 268_435_455;
+const UNAVAILABLE_SIGNAL_MAGNITUDE = 2_147_483_647;
 
 function getRatFamily(rat: string): RatFamily {
   if (rat === "GSM") return "gsm";
@@ -37,6 +39,18 @@ export function isNrNsaCell(cell: NsgCell): boolean {
 
 export function getDisplayRat(rat: string): string {
   return rat === "WCDMA" ? "UMTS" : rat;
+}
+
+function isUsableSignal(value: number | null): value is number {
+  return value !== null && Number.isFinite(value) && Math.abs(value) < UNAVAILABLE_SIGNAL_MAGNITUDE;
+}
+
+export function getHeadlineSignal(cell: NsgCell): HeadlineSignal {
+  if (isUsableSignal(cell.dbm)) return { value: cell.dbm, suffix: "dBm" };
+  const family = getRatFamily(cell.rat);
+  if (family === "umts") return isUsableSignal(cell.ecno) ? { value: cell.ecno, suffix: "dB Ec/No" } : { value: null, suffix: "dBm" };
+  if (isUsableSignal(cell.rsrp)) return { value: cell.rsrp, suffix: "dBm RSRP" };
+  return { value: null, suffix: family === "lte" || family === "nr" ? "dBm RSRP" : "dBm" };
 }
 
 function getValidLteIdentity(cell: NsgCell): number | null {
@@ -133,6 +147,13 @@ export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
 }
 
 export function getCellMeasurementFields(cell: NsgCell): readonly DisplayField[] {
+  const family = getRatFamily(cell.rat);
+  if (family === "umts")
+    return [
+      { key: "dbm", label: "Signal", value: cell.dbm, unit: "dBm" },
+      { key: "ecno", label: "Ec/No", value: cell.ecno, unit: "dB" },
+      { key: "rssi", label: "RSSI", value: cell.rssi, unit: "dBm" },
+    ];
   const fields: DisplayField[] = [
     { key: "rsrp", label: "RSRP", value: cell.rsrp, unit: "dBm" },
     { key: "rsrq", label: "RSRQ", value: cell.rsrq, unit: "dB" },
@@ -140,7 +161,7 @@ export function getCellMeasurementFields(cell: NsgCell): readonly DisplayField[]
     { key: "sinr", label: "SINR", value: cell.sinr },
   ];
   if (!isNrNsaCell(cell)) fields.push({ key: "ta", label: "TA", value: cell.ta });
-  if (getRatFamily(cell.rat) === "gsm") fields.push({ key: "ber", label: "BER", value: cell.ber });
+  if (family === "gsm") fields.push({ key: "ber", label: "BER", value: cell.ber });
   return fields;
 }
 
@@ -160,7 +181,7 @@ export function getMobileSummaryFields(cell: NsgCell): readonly DisplayField[] {
     ];
   }
   if (family === "gsm") return getCellIdentityFields(cell);
-  if (family === "umts") return getCellIdentityFields(cell);
+  if (family === "umts") return [...getCellIdentityFields(cell), { key: "ecno", label: "Ec/No", value: cell.ecno, unit: "dB" }];
   if (family === "nr") {
     if (isNrNsaCell(cell))
       return [
@@ -235,9 +256,9 @@ export function getReportedCellColumns(rat: string, sample?: NsgCell): readonly 
       { key: "cid", label: "CID", getValue: (cell) => cell.cid },
       { key: "psc", label: "PSC", getValue: (cell) => cell.psc },
       { key: "uarfcn", label: "UARFCN", getValue: (cell) => cell.uarfcn },
-      { key: "dbm", label: "dBm", getValue: (cell) => cell.dbm },
+      { key: "dbm", label: "Signal", unit: "dBm", getValue: (cell) => cell.dbm },
       { key: "rssi", label: "RSSI", unit: "dBm", getValue: (cell) => cell.rssi },
-      { key: "ta", label: "TA", getValue: (cell) => cell.ta },
+      { key: "ecno", label: "Ec/No", unit: "dB", getValue: (cell) => cell.ecno },
     ];
   if (family === "nr") {
     if (sample && isNrNsaCell(sample))

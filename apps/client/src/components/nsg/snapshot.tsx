@@ -6,7 +6,7 @@ import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import type { NsgSnapshot } from "@/lib/nsg/snapshots";
 import type { NsgCell } from "@/lib/nsg/types";
 
-import { getDisplayRat, getReportedCellColumns, isNrNsaCell } from "./cellPresentation";
+import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNsaCell } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { CellDetails } from "./measurements";
 
@@ -14,14 +14,13 @@ function PrimaryCellSection({ cells, label }: { cells: readonly NsgCell[]; label
   return (
     <section className="shrink-0" aria-label={label}>
       {cells.map((cell) => {
-        const signal = cell.dbm ?? cell.rsrp;
+        const signal = getHeadlineSignal(cell);
         return (
           <div key={cell.recordOffset + ":" + cell.cellIndex} className="border-t px-4">
             <div className="flex items-center justify-between gap-3 pt-3">
               <h2 className="text-sm font-semibold">{label}</h2>
               <p className="font-mono text-base font-semibold tabular-nums">
-                {formatDecibelValue(signal)}{" "}
-                <span className="text-xs font-normal text-muted-foreground">{cell.dbm === null ? "dBm RSRP" : "dBm"}</span>
+                {formatDecibelValue(signal.value)} <span className="text-xs font-normal text-muted-foreground">{signal.suffix}</span>
               </p>
             </div>
             <CellDetails cell={cell} />
