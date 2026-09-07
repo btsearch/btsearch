@@ -4,11 +4,16 @@ export const QUALCOMM_NR_MEASUREMENT_LOG_CODE = 0xb97f;
 export const MAX_QUALCOMM_NR_MEASUREMENT_BYTES = 0xffff;
 
 const MEASUREMENT_HEADER_BYTES = 32;
-const CARRIER_BYTES = 32;
 const CELL_BYTES = 16;
-const BEAM_BYTES = 44;
-const VERSION_MINOR = 9;
-const VERSION_MAJOR = 2;
+
+type QualcommNrLayout = Readonly<{
+  carrierBytes: number;
+  beamBytes: number;
+  servingIdentity: "index" | "pci";
+}>;
+
+const VERSION_2_9_LAYOUT: QualcommNrLayout = { carrierBytes: 32, beamBytes: 44, servingIdentity: "index" };
+const VERSION_3_0_LAYOUT: QualcommNrLayout = { carrierBytes: 40, beamBytes: 84, servingIdentity: "pci" };
 
 export type QualcommNrMeasurementCell = Readonly<{
   carrierIndex: number;
@@ -37,6 +42,12 @@ function hasBytes(offset: number, size: number, limit: number): boolean {
   return offset >= 0 && size >= 0 && offset <= limit - size;
 }
 
+function layoutForVersion(versionMajor: number, versionMinor: number): QualcommNrLayout | null {
+  if (versionMajor === 2 && versionMinor === 9) return VERSION_2_9_LAYOUT;
+  if (versionMajor === 3 && versionMinor === 0) return VERSION_3_0_LAYOUT;
+  return null;
+}
+
 export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: QualcommDiagHeader): QualcommNrMeasurement | null {
   const header = parsedHeader ?? readDiagHeader(payload, MAX_QUALCOMM_NR_MEASUREMENT_BYTES);
   if (header === null || header.packetLength < MEASUREMENT_HEADER_BYTES || header.logCode !== QUALCOMM_NR_MEASUREMENT_LOG_CODE) return null;
@@ -44,14 +55,15 @@ export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: 
 
   const versionMinor = view.getUint16(12, true);
   const versionMajor = view.getUint16(14, true);
-  if (versionMinor !== VERSION_MINOR || versionMajor !== VERSION_MAJOR) return null;
+  const layout = layoutForVersion(versionMajor, versionMinor);
+  if (layout === null) return null;
 
   const layerCount = view.getUint8(20);
   const cells: QualcommNrMeasurementCell[] = [];
   let offset = MEASUREMENT_HEADER_BYTES;
 
   for (let carrierIndex = 0; carrierIndex < layerCount; carrierIndex++) {
-    if (!hasBytes(offset, CARRIER_BYTES, packetLength)) return null;
+    if (!hasBytes(offset, layout.carrierBytes, packetLength)) return null;
     const arfcn = view.getUint32(offset, true);
     const ccId = view.getUint8(offset + 4);
     const cellCount = view.getUint8(offset + 5);
@@ -59,14 +71,14 @@ export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: 
     const servingIndex = view.getUint8(offset + 8);
     const servingSsb = view.getUint8(offset + 9);
     const hasServingIndex = servingIndex < cellCount;
-    offset += CARRIER_BYTES;
+    offset += layout.carrierBytes;
 
     for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
       if (!hasBytes(offset, CELL_BYTES, packetLength)) return null;
       const pci = view.getUint16(offset, true);
       const sfn = view.getUint16(offset + 2, true);
-      const beamCount = view.getUint8(offset + 4);
-      const cellLength = CELL_BYTES + beamCount * BEAM_BYTES;
+      const beamCount = view.getUint32(offset + 4, true);
+      const cellLength = CELL_BYTES + beamCount * layout.beamBytes;
       if (!hasBytes(offset, cellLength, packetLength)) return null;
 
       cells.push({
@@ -79,7 +91,7 @@ export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: 
         beamCount,
         rsrp: view.getInt32(offset + 8, true) / 128,
         rsrq: view.getInt32(offset + 12, true) / 128,
-        serving: hasServingIndex && cellIndex === servingIndex,
+        serving: layout.servingIdentity === "pci" ? servingPci !== 0xffff && pci === servingPci : hasServingIndex && cellIndex === servingIndex,
         servingPci,
         servingSsb,
       });
