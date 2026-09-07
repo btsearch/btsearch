@@ -3,23 +3,64 @@ import { type QualcommDiagHeader, readDiagHeader } from "./qualcommDiag";
 export const QUALCOMM_NR_MEASUREMENT_LOG_CODE = 0xb97f;
 export const MAX_QUALCOMM_NR_MEASUREMENT_BYTES = 0xffff;
 
-const MEASUREMENT_HEADER_BYTES = 32;
+const VERSION_HEADER_BYTES = 16;
 const CELL_BYTES = 16;
 
 type QualcommNrLayout = Readonly<{
+  measurementHeaderBytes: number;
+  layerCountOffset: number;
   carrierBytes: number;
+  ccIdOffset: number | null;
+  cellCountOffset: number;
+  servingIndexOffset: number;
+  servingSsbOffset: number;
   beamBytes: number;
+  beamCountBytes: 1 | 4;
   servingIdentity: "index" | "pci";
 }>;
 
-const VERSION_2_9_LAYOUT: QualcommNrLayout = { carrierBytes: 32, beamBytes: 44, servingIdentity: "index" };
-const VERSION_3_0_LAYOUT: QualcommNrLayout = { carrierBytes: 40, beamBytes: 84, servingIdentity: "pci" };
+const LEGACY_CARRIER_LAYOUT = {
+  carrierBytes: 32,
+  ccIdOffset: null,
+  cellCountOffset: 4,
+  servingIndexOffset: 5,
+  servingSsbOffset: 8,
+} as const;
+const MODERN_CARRIER_LAYOUT = {
+  carrierBytes: 32,
+  ccIdOffset: 4,
+  cellCountOffset: 5,
+  servingIndexOffset: 8,
+  servingSsbOffset: 9,
+} as const;
+
+const QUALCOMM_NR_LAYOUTS: ReadonlyMap<string, QualcommNrLayout> = new Map([
+  ["2.6", { ...LEGACY_CARRIER_LAYOUT, measurementHeaderBytes: 20, layerCountOffset: 16, beamBytes: 44, beamCountBytes: 1, servingIdentity: "index" }],
+  ["2.7", { ...LEGACY_CARRIER_LAYOUT, measurementHeaderBytes: 28, layerCountOffset: 16, beamBytes: 44, beamCountBytes: 1, servingIdentity: "index" }],
+  ["2.9", { ...MODERN_CARRIER_LAYOUT, measurementHeaderBytes: 32, layerCountOffset: 20, beamBytes: 44, beamCountBytes: 1, servingIdentity: "index" }],
+  [
+    "2.10",
+    { ...MODERN_CARRIER_LAYOUT, measurementHeaderBytes: 32, layerCountOffset: 20, beamBytes: 84, beamCountBytes: 4, servingIdentity: "index" },
+  ],
+  [
+    "3.0",
+    {
+      ...MODERN_CARRIER_LAYOUT,
+      carrierBytes: 40,
+      measurementHeaderBytes: 32,
+      layerCountOffset: 20,
+      beamBytes: 84,
+      beamCountBytes: 4,
+      servingIdentity: "pci",
+    },
+  ],
+]);
 
 export type QualcommNrMeasurementCell = Readonly<{
   carrierIndex: number;
   cellIndex: number;
   arfcn: number;
-  ccId: number;
+  ccId: number | null;
   pci: number;
   sfn: number;
   beamCount: number;
@@ -43,45 +84,61 @@ function hasBytes(offset: number, size: number, limit: number): boolean {
 }
 
 function layoutForVersion(versionMajor: number, versionMinor: number): QualcommNrLayout | null {
-  if (versionMajor === 2 && versionMinor === 9) return VERSION_2_9_LAYOUT;
-  if (versionMajor === 3 && versionMinor === 0) return VERSION_3_0_LAYOUT;
-  return null;
+  return QUALCOMM_NR_LAYOUTS.get(`${versionMajor}.${versionMinor}`) ?? null;
+}
+
+function servingCellIndex(
+  layout: QualcommNrLayout,
+  cells: readonly QualcommNrMeasurementCell[],
+  servingIndex: number,
+  servingPci: number,
+): number | null {
+  if (layout.servingIdentity === "index") return servingIndex < cells.length ? servingIndex : null;
+  if (servingPci === 0xffff) return null;
+  let match: number | null = null;
+  for (let index = 0; index < cells.length; index++) {
+    if (cells[index].pci !== servingPci) continue;
+    if (match !== null) return null;
+    match = index;
+  }
+  return match;
 }
 
 export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: QualcommDiagHeader): QualcommNrMeasurement | null {
   const header = parsedHeader ?? readDiagHeader(payload, MAX_QUALCOMM_NR_MEASUREMENT_BYTES);
-  if (header === null || header.packetLength < MEASUREMENT_HEADER_BYTES || header.logCode !== QUALCOMM_NR_MEASUREMENT_LOG_CODE) return null;
+  if (header === null || header.packetLength < VERSION_HEADER_BYTES || header.logCode !== QUALCOMM_NR_MEASUREMENT_LOG_CODE) return null;
   const { packetLength, view } = header;
 
   const versionMinor = view.getUint16(12, true);
   const versionMajor = view.getUint16(14, true);
   const layout = layoutForVersion(versionMajor, versionMinor);
-  if (layout === null) return null;
+  if (layout === null || packetLength < layout.measurementHeaderBytes) return null;
 
-  const layerCount = view.getUint8(20);
+  const layerCount = view.getUint8(layout.layerCountOffset);
   const cells: QualcommNrMeasurementCell[] = [];
-  let offset = MEASUREMENT_HEADER_BYTES;
+  let offset = layout.measurementHeaderBytes;
 
   for (let carrierIndex = 0; carrierIndex < layerCount; carrierIndex++) {
     if (!hasBytes(offset, layout.carrierBytes, packetLength)) return null;
     const arfcn = view.getUint32(offset, true);
-    const ccId = view.getUint8(offset + 4);
-    const cellCount = view.getUint8(offset + 5);
+    const ccId = layout.ccIdOffset === null ? null : view.getUint8(offset + layout.ccIdOffset);
+    const cellCount = view.getUint8(offset + layout.cellCountOffset);
     const servingPci = view.getUint16(offset + 6, true);
-    const servingIndex = view.getUint8(offset + 8);
-    const servingSsb = view.getUint8(offset + 9);
-    const hasServingIndex = servingIndex < cellCount;
+    const servingIndex = view.getUint8(offset + layout.servingIndexOffset);
+    const servingSsb = view.getUint8(offset + layout.servingSsbOffset);
     offset += layout.carrierBytes;
+    const carrierCells: QualcommNrMeasurementCell[] = [];
 
     for (let cellIndex = 0; cellIndex < cellCount; cellIndex++) {
       if (!hasBytes(offset, CELL_BYTES, packetLength)) return null;
       const pci = view.getUint16(offset, true);
       const sfn = view.getUint16(offset + 2, true);
-      const beamCount = view.getUint32(offset + 4, true);
+      const beamCount = layout.beamCountBytes === 1 ? view.getUint8(offset + 4) : view.getUint32(offset + 4, true);
+      if (beamCount > Math.floor((packetLength - offset - CELL_BYTES) / layout.beamBytes)) return null;
       const cellLength = CELL_BYTES + beamCount * layout.beamBytes;
       if (!hasBytes(offset, cellLength, packetLength)) return null;
 
-      cells.push({
+      carrierCells.push({
         carrierIndex,
         cellIndex,
         arfcn,
@@ -91,12 +148,15 @@ export function decodeQualcommNrMeasurement(payload: Uint8Array, parsedHeader?: 
         beamCount,
         rsrp: view.getInt32(offset + 8, true) / 128,
         rsrq: view.getInt32(offset + 12, true) / 128,
-        serving: layout.servingIdentity === "pci" ? servingPci !== 0xffff && pci === servingPci : hasServingIndex && cellIndex === servingIndex,
+        serving: false,
         servingPci,
         servingSsb,
       });
       offset += cellLength;
     }
+    const resolvedServingIndex = servingCellIndex(layout, carrierCells, servingIndex, servingPci);
+    if (resolvedServingIndex !== null) carrierCells[resolvedServingIndex] = { ...carrierCells[resolvedServingIndex], serving: true };
+    cells.push(...carrierCells);
   }
 
   for (; offset < packetLength; offset++) if (payload[offset] !== 0) return null;
