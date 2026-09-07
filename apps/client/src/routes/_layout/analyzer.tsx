@@ -674,12 +674,14 @@ function StationActionsCell({
 
 function AnalyzerMobileRow({
   row,
+  selected,
   warningLabels,
   t,
   openStationDialog,
   openUkePermitDialog,
 }: {
   row: Row<AppTableFeatures, AnalyzerRow>;
+  selected: boolean;
   warningLabels: Record<string, string>;
   t: AnalyzerTranslation;
   openStationDialog: (stationId: number, source: "internal") => void;
@@ -691,7 +693,7 @@ function AnalyzerMobileRow({
     <article className={cn("space-y-2 p-2.5 transition-colors", rowBg(analyzerRow.result))}>
       <div className="flex items-start gap-3">
         <Checkbox
-          checked={row.getIsSelected()}
+          checked={selected}
           disabled={!row.getCanSelect()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label={t("selection.selectRow", { number: analyzerRow.index + 1 })}
@@ -1706,6 +1708,7 @@ function AnalyzerPage() {
                       <li key={row.id}>
                         <AnalyzerMobileRow
                           row={row}
+                          selected={state.rowSelection[row.id] === true}
                           warningLabels={warningLabels}
                           t={t}
                           openStationDialog={openStationDialog}
