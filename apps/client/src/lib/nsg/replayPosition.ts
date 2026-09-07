@@ -1,4 +1,4 @@
-import { canConnectNsgRoutePositions } from "./geometry";
+import { canConnectNsgRoutePositions, isValidLatLng } from "./geometry";
 import { getNsgLocationTimeMs } from "./locations";
 import { getNsgReplayLocationIndex } from "./replay";
 import type { NsgLocation } from "./types";
@@ -10,15 +10,7 @@ export function getNsgReplayPosition(locations: readonly NsgLocation[], playhead
   if (index < 0) return null;
   const location = locations[index];
   const timestampMs = getNsgLocationTimeMs(location);
-  if (
-    timestampMs === null ||
-    !Number.isFinite(timestampMs) ||
-    !Number.isFinite(location.latitude) ||
-    Math.abs(location.latitude) > 90 ||
-    !Number.isFinite(location.longitude) ||
-    Math.abs(location.longitude) > 180
-  )
-    return null;
+  if (timestampMs === null || !Number.isFinite(timestampMs) || !isValidLatLng(location.latitude, location.longitude)) return null;
   const position = { latitude: location.latitude, longitude: location.longitude, location };
   const next = locations[index + 1];
   if (!next || playheadMs === timestampMs) return position;

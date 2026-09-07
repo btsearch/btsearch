@@ -31,6 +31,10 @@ function getRatFamily(rat: string): RatFamily {
   return "other";
 }
 
+export function isNrNsaCell(cell: NsgCell): boolean {
+  return getRatFamily(cell.rat) === "nr" && (cell.measurementRole === "nr-primary" || cell.measurementRole === "nr-neighbor");
+}
+
 export function getDisplayRat(rat: string): string {
   return rat === "WCDMA" ? "UMTS" : rat;
 }
@@ -74,7 +78,11 @@ export function formatCellIdentity(cell: NsgCell): string {
   }
   if (family === "gsm") return `CID ${formatValue(cell.cid)} · ARFCN ${formatValue(cell.arfcn)}`;
   if (family === "umts") return `CID ${formatValue(cell.cid)} · UARFCN ${formatValue(cell.uarfcn)}`;
-  if (family === "nr") return `NCI ${formatValue(getNrIdentity(cell))} · ARFCN ${formatValue(cell.arfcn)}`;
+  if (family === "nr") {
+    const identity = getNrIdentity(cell);
+    if (isNrNsaCell(cell)) return `PCI ${formatValue(cell.pci)} · ARFCN ${formatValue(cell.arfcn)}`;
+    return `NCI ${formatValue(identity)} · ARFCN ${formatValue(cell.arfcn)}`;
+  }
   return `ID ${formatValue(getGenericIdentity(cell))} · Channel ${formatValue(getGenericChannel(cell))}`;
 }
 
@@ -105,7 +113,8 @@ export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
       identityField(cell, "uarfcn", cell.uarfcn),
       identityField(cell, "psc", cell.psc),
     ];
-  if (family === "nr")
+  if (family === "nr") {
+    if (isNrNsaCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
     return [
       identityField(cell, "nrtac", getNrTac(cell)),
       identityField(cell, "gnbid", getRawNumber(cell, "gnbid")),
@@ -114,6 +123,7 @@ export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
       identityField(cell, "pci", cell.pci),
       identityField(cell, "arfcn", cell.arfcn),
     ];
+  }
   return [
     { key: "area", label: "Area", value: cell.tac ?? cell.lac },
     { key: "identity", label: "Cell ID", value: getGenericIdentity(cell) },
@@ -128,8 +138,8 @@ export function getCellMeasurementFields(cell: NsgCell): readonly DisplayField[]
     { key: "rsrq", label: "RSRQ", value: cell.rsrq, unit: "dB" },
     { key: "rssi", label: "RSSI", value: cell.rssi, unit: "dBm" },
     { key: "sinr", label: "SINR", value: cell.sinr },
-    { key: "ta", label: "TA", value: cell.ta },
   ];
+  if (!isNrNsaCell(cell)) fields.push({ key: "ta", label: "TA", value: cell.ta });
   if (getRatFamily(cell.rat) === "gsm") fields.push({ key: "ber", label: "BER", value: cell.ber });
   return fields;
 }
@@ -151,7 +161,14 @@ export function getMobileSummaryFields(cell: NsgCell): readonly DisplayField[] {
   }
   if (family === "gsm") return getCellIdentityFields(cell);
   if (family === "umts") return getCellIdentityFields(cell);
-  if (family === "nr")
+  if (family === "nr") {
+    if (isNrNsaCell(cell))
+      return [
+        identityField(cell, "pci", cell.pci),
+        identityField(cell, "arfcn", cell.arfcn),
+        { key: "rsrq", label: "RSRQ", value: cell.rsrq, unit: "dB" },
+        { key: "sinr", label: "SINR", value: cell.sinr },
+      ];
     return [
       identityField(cell, "nrtac", getNrTac(cell)),
       identityField(cell, "nci", getNrIdentity(cell)),
@@ -161,6 +178,7 @@ export function getMobileSummaryFields(cell: NsgCell): readonly DisplayField[] {
       { key: "sinr", label: "SINR", value: cell.sinr },
       { key: "ta", label: "TA", value: cell.ta },
     ];
+  }
   return [
     { key: "rssi", label: "RSSI", value: cell.rssi, unit: "dBm" },
     { key: "rsrp", label: "RSRP", value: cell.rsrp, unit: "dBm" },
@@ -174,14 +192,18 @@ export function getSignalIdentityFields(cell: NsgCell): readonly DisplayField[] 
   if (family === "lte") return [identityField(cell, "ecid", cell.eci), identityField(cell, "earfcn", cell.earfcn)];
   if (family === "gsm") return [identityField(cell, "cid", cell.cid), identityField(cell, "arfcn", cell.arfcn)];
   if (family === "umts") return [identityField(cell, "cid", cell.cid), identityField(cell, "uarfcn", cell.uarfcn)];
-  if (family === "nr") return [identityField(cell, "nci", getNrIdentity(cell)), identityField(cell, "arfcn", cell.arfcn)];
+  if (family === "nr") {
+    const identity = getNrIdentity(cell);
+    if (isNrNsaCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
+    return [identityField(cell, "nci", identity), identityField(cell, "arfcn", cell.arfcn)];
+  }
   return [
     { key: "identity", label: "Cell ID", value: getGenericIdentity(cell) },
     { key: "channel", label: "Channel", value: getGenericChannel(cell) },
   ];
 }
 
-export function getReportedCellColumns(rat: string): readonly TableColumn[] {
+export function getReportedCellColumns(rat: string, sample?: NsgCell): readonly TableColumn[] {
   const family = getRatFamily(rat);
   if (family === "lte")
     return [
@@ -195,7 +217,6 @@ export function getReportedCellColumns(rat: string): readonly TableColumn[] {
       },
       { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
       { key: "earfcn", label: "EARFCN", getValue: (cell) => cell.earfcn },
-      { key: "dbm", label: "dBm", getValue: (cell) => cell.dbm },
       { key: "rsrp", label: "RSRP", unit: "dBm", getValue: (cell) => cell.rsrp },
       { key: "rsrq", label: "RSRQ", unit: "dB", getValue: (cell) => cell.rsrq },
       { key: "sinr", label: "SINR", getValue: (cell) => cell.sinr },
@@ -218,16 +239,24 @@ export function getReportedCellColumns(rat: string): readonly TableColumn[] {
       { key: "rssi", label: "RSSI", unit: "dBm", getValue: (cell) => cell.rssi },
       { key: "ta", label: "TA", getValue: (cell) => cell.ta },
     ];
-  if (family === "nr")
+  if (family === "nr") {
+    if (sample && isNrNsaCell(sample))
+      return [
+        { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
+        { key: "arfcn", label: "ARFCN", getValue: (cell) => cell.arfcn },
+        { key: "rsrp", label: "RSRP", unit: "dBm", getValue: (cell) => cell.rsrp },
+        { key: "rsrq", label: "RSRQ", unit: "dB", getValue: (cell) => cell.rsrq },
+        { key: "sinr", label: "SINR", getValue: (cell) => cell.sinr },
+      ];
     return [
       { key: "nci", label: "NCI", getValue: getNrIdentity },
       { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
       { key: "arfcn", label: "ARFCN", getValue: (cell) => cell.arfcn },
-      { key: "dbm", label: "dBm", getValue: (cell) => cell.dbm },
       { key: "rsrp", label: "RSRP", unit: "dBm", getValue: (cell) => cell.rsrp },
       { key: "rsrq", label: "RSRQ", unit: "dB", getValue: (cell) => cell.rsrq },
       { key: "sinr", label: "SINR", getValue: (cell) => cell.sinr },
     ];
+  }
   return [
     { key: "identity", label: "ID", getValue: getGenericIdentity },
     { key: "pci", label: "PCI", getValue: (cell) => cell.pci },

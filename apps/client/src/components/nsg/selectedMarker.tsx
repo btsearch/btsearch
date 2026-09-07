@@ -44,7 +44,7 @@ export function SelectedMarker({
     if (!map) return;
     const element = document.createElement("div");
     element.dataset.testid = "nsg-selected-marker";
-    element.className = "cursor-pointer";
+    element.className = "pointer-events-none";
     element.style.visibility = "hidden";
     const dot = document.createElement("div");
     dot.className = SELECTED_DOT_CLASS;

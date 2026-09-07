@@ -26,9 +26,14 @@
     "csv": "Export filtered data to CSV",
     "failed": "The CSV could not be created. Narrow the filters and try again"
   },
+  "analysis": {
+    "run": "Analyze stations",
+    "running": "Analyzing stations...",
+    "retry": "Retry station analysis"
+  },
   "chart": {
     "title": "Signal history",
-    "hint": "The chart includes only cells marked as primary in the log. Select a point to inspect the measurements recorded at that time",
+    "hint": "The chart includes serving cells and decoded other primary cells. Select a point to inspect the measurements recorded at that time",
     "value": "Value",
     "select": "Select this point to inspect its measurements",
     "metric": "Signal metric",
@@ -58,6 +63,10 @@
     "registeredCells_one": "{{count, number}} primary cell",
     "registeredCells_other": "{{count, number}} primary cells",
     "noServing": "No primary cell at this time",
+    "nrPrimaryCells_one": "NR NSA primary cell (PC)",
+    "nrPrimaryCells_other": "{{count, number}} NR NSA primary cells (PC)",
+    "lteSecondaryCells_one": "LTE secondary cell (SC)",
+    "lteSecondaryCells_other": "{{count, number}} LTE secondary cells (SC)",
     "neighboringCells_one": "{{count, number}} neighboring cell",
     "neighboringCells_other": "{{count, number}} neighboring cells",
     "title": "Measurement snapshot",
@@ -76,6 +85,29 @@
     "type": "Event type",
     "empty": "No events of this type were recorded",
     "offset": "Byte offset {{value, number}}"
+  },
+  "signaling": {
+    "title": "Modem signaling",
+    "technology": "Technology",
+    "layer": "Layer",
+    "allLayers": "All layers",
+    "empty": "No supported signaling messages match these filters",
+    "truncated": "Showing {{shown, number}} of {{count, number}} decoded messages retained from this log",
+    "channel": "Channel",
+    "pdu": "PDU",
+    "bytes": "{{count, number}} B",
+    "logCode": "Log code",
+    "version": "Version",
+    "recordOffset": "Record offset",
+    "transportMessage": "{{rat}} {{layer}} message",
+    "transportFallback": "Full protocol decoding is unavailable for this message. Transport metadata and the raw PDU are shown below.",
+    "direction": {
+      "UL": "Uplink",
+      "DL": "Downlink",
+      "unknown": "Unknown direction"
+    },
+    "metadata": "Decoder metadata",
+    "rawPayload": "Raw PDU"
   },
   "map": {
     "signal": "Signal",
@@ -99,6 +131,9 @@
   "tabs": {
     "measurements": "Measurements",
     "events": "Events",
-    "metadata": "Log"
+    "signaling": "Signaling",
+    "metadata": "Log",
+    "expand": "Expand details panel",
+    "collapse": "Collapse details panel"
   }
 }

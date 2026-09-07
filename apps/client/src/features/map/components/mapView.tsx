@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
@@ -8,13 +8,16 @@ import { useTerrainProfileController } from "@/features/terrain-profile/hooks/us
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import type { LocationInfo, StationFilters, StationSource, UkeLocationWithPermits, UkeStation } from "@/types/station";
+import { isNsgStationsQueryScope } from "@/lib/nsg/stationQuery";
+import type { LocationInfo, StationFilters, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
 import { useMapBounds } from "../hooks/useMapBounds";
-import { useMapPopup } from "../hooks/useMapPopup";
+import { useMapKeybinds } from "../hooks/useMapKeybinds";
 import { loadMapPosition, useMapPositionPersistence } from "../hooks/useMapPositionPersistence";
+import { useMapQueryHousekeeping } from "../hooks/useMapQueryHousekeeping";
+import { useStationPopupActions } from "../hooks/useStationPopupActions";
 import { useWakeLock } from "../hooks/useWakeLock";
 import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
 import { attachUkeLocationToStations } from "../utils";
@@ -26,6 +29,11 @@ const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/comp
 
 const ZABKA_EASTER_EGG_SEQUENCE = "ZABKA";
 const ZABKA_EASTER_EGG_TIMEOUT_MS = 3000;
+const MAP_QUERY_FAMILIES = new Set(["locations", "radiolines"]);
+
+function isMainMapQuery(queryKey: readonly unknown[]): boolean {
+  return !isNsgStationsQueryScope(queryKey.at(-1));
+}
 
 function MapViewInner() {
   useWakeLock();
@@ -40,10 +48,8 @@ function MapViewInner() {
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapQuery, setMapQuery] = useState<string | undefined>(undefined);
   const [useZabkaMarkers, setUseZabkaMarkers] = useState(false);
-
-  const handleFilterQueryChange = useCallback((q: string | undefined) => {
-    setMapQuery((prev) => (prev === q ? prev : q));
-  }, []);
+  const zabkaSequenceRef = useRef("");
+  const zabkaLastKeyAtRef = useRef(0);
 
   const setFilters = useCallback((update: StationFilters | ((prev: StationFilters) => StationFilters)) => {
     setFiltersState((prev) => {
@@ -53,59 +59,43 @@ function MapViewInner() {
     });
   }, []);
 
-  useEffect(() => {
-    let sequence = "";
-    let lastKeyAt = 0;
-
-    function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
-      if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || !event.code.startsWith("Key")) {
-        sequence = "";
-        return;
+  useMapKeybinds(
+    ({ altKey, code, ctrlKey, metaKey, shiftKey }) => {
+      if (!shiftKey || ctrlKey || metaKey || altKey || !code.startsWith("Key")) {
+        zabkaSequenceRef.current = "";
+        return false;
       }
 
       const now = Date.now();
-      if (now - lastKeyAt > ZABKA_EASTER_EGG_TIMEOUT_MS) sequence = "";
-      lastKeyAt = now;
+      if (now - zabkaLastKeyAtRef.current > ZABKA_EASTER_EGG_TIMEOUT_MS) zabkaSequenceRef.current = "";
+      zabkaLastKeyAtRef.current = now;
 
-      sequence = `${sequence}${event.code.slice(3)}`.slice(-ZABKA_EASTER_EGG_SEQUENCE.length);
-      if (sequence !== ZABKA_EASTER_EGG_SEQUENCE) return;
+      zabkaSequenceRef.current = `${zabkaSequenceRef.current}${code.slice(3)}`.slice(-ZABKA_EASTER_EGG_SEQUENCE.length);
+      if (zabkaSequenceRef.current !== ZABKA_EASTER_EGG_SEQUENCE) return false;
 
-      event.preventDefault();
-      sequence = "";
+      zabkaSequenceRef.current = "";
       setUseZabkaMarkers((prev) => !prev);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+      return true;
+    },
+    { includeModifiedKeys: true },
+  );
 
   const terrainProfile = useTerrainProfileController({ map, isLoaded });
 
   const [pendingRadiolineId, setPendingRadiolineId] = useState<number | null>(null);
-  const { openStationDialog, openUkePermitDialog, setTerrainProfileStartHandler } = useFloatingDialogStack();
+  const { setTerrainProfileStartHandler } = useFloatingDialogStack();
 
   useEffect(() => {
     setTerrainProfileStartHandler(terrainProfile.start);
     return () => setTerrainProfileStartHandler(null);
   }, [setTerrainProfileStartHandler, terrainProfile.start]);
 
-  const handleOpenStationDetails = useCallback((id: number, source: StationSource) => openStationDialog(id, source), [openStationDialog]);
-  const handleOpenUkeStationDetails = useCallback((station: UkeStation) => openUkePermitDialog(station), [openUkePermitDialog]);
-
-  const {
-    showPopup,
-    openLocations,
-    closePopups,
-    cleanup: cleanupPopup,
-  } = useMapPopup({
+  const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
     detailsFilters: filters,
-    onOpenStationDetails: handleOpenStationDetails,
-    onOpenUkeStationDetails: handleOpenUkeStationDetails,
   });
 
   useEffect(() => {
@@ -114,7 +104,7 @@ function MapViewInner() {
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const effectiveMapQuery = filters.source === "internal" ? mapQuery : undefined;
-  const queryClient = useQueryClient();
+  useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: MAP_QUERY_FAMILIES, isInScope: isMainMapQuery });
 
   const { data: locationsResponse } = useQuery({
     queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, effectiveMapQuery],
@@ -156,25 +146,6 @@ function MapViewInner() {
   const radioLines = radioLinesResponse?.data ?? [];
   const radioLineCount = radioLines.length;
   const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
-
-  useEffect(() => {
-    if (!isMoving || !bounds) return;
-    void queryClient.cancelQueries({
-      predicate: (query) => (query.queryKey[0] === "locations" || query.queryKey[0] === "radiolines") && query.queryKey[1] === bounds,
-    });
-  }, [bounds, isMoving, queryClient]);
-
-  useEffect(() => {
-    if (!bounds) return;
-    queryClient.removeQueries({
-      predicate: (query) =>
-        (query.queryKey[0] === "locations" || query.queryKey[0] === "radiolines") &&
-        typeof query.queryKey[1] === "string" &&
-        query.queryKey[1].includes(",") &&
-        query.queryKey[1] !== bounds &&
-        query.getObserversCount() === 0,
-    });
-  }, [bounds, queryClient]);
 
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -276,16 +247,6 @@ function MapViewInner() {
     [handleLocationSelect],
   );
 
-  const popupActions = useMemo(() => ({ show: showPopup, cleanup: cleanupPopup }), [showPopup, cleanupPopup]);
-
-  const stationActions = useMemo(
-    () => ({
-      openDetails: handleOpenStationDetails,
-      openUkeDetails: handleOpenUkeStationDetails,
-    }),
-    [handleOpenStationDetails, handleOpenUkeStationDetails],
-  );
-
   return (
     <>
       <MapSearchOverlay
@@ -307,7 +268,7 @@ function MapViewInner() {
         onToggleHeatmap={handleToggleHeatmap}
         showPlannedMeasurements={filters.showPlannedMeasurements}
         onTogglePlannedMeasurements={handleTogglePlannedMeasurements}
-        onFilterQueryChange={handleFilterQueryChange}
+        onFilterQueryChange={setMapQuery}
       />
       {showSelectedDot && selectedLocation && (
         <MapMarker longitude={selectedLocation.lng} latitude={selectedLocation.lat}>

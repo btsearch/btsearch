@@ -26,9 +26,14 @@
     "csv": "Eksportuj przefiltrowane dane do CSV",
     "failed": "Nie udało się utworzyć pliku CSV. Zawęź filtry i spróbuj ponownie"
   },
+  "analysis": {
+    "run": "Analizuj stacje",
+    "running": "Analizowanie stacji...",
+    "retry": "Ponów analizę stacji"
+  },
   "chart": {
     "title": "Historia sygnału",
-    "hint": "Wykres obejmuje tylko komórki oznaczone w logu jako główne. Wybierz punkt, aby zobaczyć pomiary z danego momentu",
+    "hint": "Wykres obejmuje komórki w eterze oraz odkodowane komórki. Wybierz punkt, aby zobaczyć pomiary z danego momentu",
     "value": "Wartość",
     "select": "Wybierz ten punkt, aby zobaczyć pomiary",
     "metric": "Parametr sygnału",
@@ -64,6 +69,14 @@
     "registeredCells_many": "{{count, number}} komórek głównych",
     "registeredCells_other": "{{count, number}} komórki głównej",
     "noServing": "Brak głównej komórki w tym momencie",
+    "nrPrimaryCells_one": "Główna komórka NR NSA (PC)",
+    "nrPrimaryCells_few": "{{count, number}} główne komórki NR NSA (PC)",
+    "nrPrimaryCells_many": "{{count, number}} głównych komórek NR NSA (PC)",
+    "nrPrimaryCells_other": "{{count, number}} głównej komórki NR NSA (PC)",
+    "lteSecondaryCells_one": "Dodatkowa komórka LTE (SC)",
+    "lteSecondaryCells_few": "{{count, number}} dodatkowe komórki LTE (SC)",
+    "lteSecondaryCells_many": "{{count, number}} dodatkowych komórek LTE (SC)",
+    "lteSecondaryCells_other": "{{count, number}} dodatkowej komórki LTE (SC)",
     "neighboringCells_one": "{{count, number}} komórka sąsiednia",
     "neighboringCells_few": "{{count, number}} komórki sąsiednie",
     "neighboringCells_many": "{{count, number}} komórek sąsiednich",
@@ -86,6 +99,29 @@
     "type": "Typ zdarzenia",
     "empty": "W logu nie ma zdarzeń tego typu",
     "offset": "Pozycja w pliku: {{value, number}} B"
+  },
+  "signaling": {
+    "title": "Sygnalizacja modemu",
+    "technology": "Technologia",
+    "layer": "Warstwa",
+    "allLayers": "Wszystkie warstwy",
+    "empty": "Brak obsługiwanych komunikatów sygnalizacyjnych pasujących do filtrów",
+    "truncated": "Wyświetlono {{shown, number}} z {{count, number}} odkodowanych komunikatów zachowanych z tego logu",
+    "channel": "Kanał",
+    "pdu": "PDU",
+    "bytes": "{{count, number}} B",
+    "logCode": "Kod logu",
+    "version": "Wersja",
+    "recordOffset": "Pozycja rekordu",
+    "transportMessage": "Komunikat {{rat}} {{layer}}",
+    "transportFallback": "Pełne dekodowanie protokołu jest niedostępne dla tego komunikatu. Poniżej pokazano metadane transportowe i surowy PDU.",
+    "direction": {
+      "UL": "Łącze w górę",
+      "DL": "Łącze w dół",
+      "unknown": "Nieznany kierunek"
+    },
+    "metadata": "Metadane dekodera",
+    "rawPayload": "Surowy PDU"
   },
   "map": {
     "signal": "Sygnał",
@@ -113,6 +149,9 @@
   "tabs": {
     "measurements": "Pomiary",
     "events": "Zdarzenia",
-    "metadata": "Log"
+    "signaling": "Sygnalizacja",
+    "metadata": "Log",
+    "expand": "Rozwiń panel szczegółów",
+    "collapse": "Zwiń panel szczegółów"
   }
 }

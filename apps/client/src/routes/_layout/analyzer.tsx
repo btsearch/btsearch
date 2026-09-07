@@ -47,82 +47,14 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { ANALYZER_MAX_CELLS, isAnalyzerImportError } from "@/lib/analyzer/analyzer-import";
 import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
-import { postApiData, showApiError } from "@/lib/api";
+import { type AnalyzerMatchedCell, type AnalyzerResult, analyzeCells } from "@/lib/analyzer/api";
+import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/cellular/bands";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
-import type { Operator, Region, UkeStation } from "@/types/station";
-
-type AnalyzerLocation = {
-  id: number;
-  city: string | null;
-  address: string | null;
-  longitude: number;
-  latitude: number;
-  updatedAt: string;
-  createdAt: string;
-  region: Region | null;
-};
-
-type AnalyzerStation = {
-  id: number;
-  station_id: string;
-  notes: string | null;
-  extra_address: string | null;
-  updatedAt: string;
-  createdAt: string;
-  is_confirmed: boolean | null;
-  operator: Operator;
-  location: AnalyzerLocation;
-};
-
-type MatchedCell =
-  | {
-      rat: "GSM";
-      cell_id: number;
-      sector_id: number | null;
-      band_id: number;
-      notes: string | null;
-      lac: number;
-      cid: number;
-      is_confirmed: boolean | undefined;
-    }
-  | {
-      rat: "UMTS";
-      cell_id: number;
-      sector_id: number | null;
-      band_id: number;
-      notes: string | null;
-      rnc: number;
-      cid: number;
-      lac: number | null;
-      arfcn: number | null;
-      is_confirmed: boolean | undefined;
-    }
-  | {
-      rat: "LTE";
-      cell_id: number;
-      sector_id: number | null;
-      band_id: number;
-      notes: string | null;
-      enbid: number;
-      clid: number | null;
-      tac: number | null;
-      pci: number | null;
-      earfcn: number | null;
-      is_confirmed: boolean | undefined;
-    }
-  | { rat: "NR"; cell_id: number; band_id: number };
-
-export type AnalyzerResult = {
-  status: "found" | "probable" | "not_found" | "unsupported";
-  station?: AnalyzerStation;
-  cell?: MatchedCell;
-  warnings: string[];
-  uke_stations?: UkeStation[];
-};
+import type { UkeStation } from "@/types/station";
 
 type AnalyzerRow = {
   parsedRow: ParsedRow;
@@ -181,7 +113,7 @@ function isNotFoundCell(result: AnalyzerResult | undefined): boolean {
   return result?.status === "not_found";
 }
 
-function getMatchedCellNote(cell: MatchedCell | undefined): string | null {
+function getMatchedCellNote(cell: AnalyzerMatchedCell | undefined): string | null {
   if (!cell || cell.rat === "NR") return null;
   const note = cell.notes?.trim();
   return note ? note : null;
@@ -861,7 +793,7 @@ function AnalyzerPage() {
 
   const mutationFn = useCallback(async () => {
     const cells = parsedRows!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
-    return postApiData<AnalyzerResult[], { cells: typeof cells }>("analyzer", { cells });
+    return analyzeCells(cells);
   }, [parsedRows]);
 
   const onAnalyzeSuccess = useCallback(

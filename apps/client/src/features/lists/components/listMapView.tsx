@@ -13,15 +13,15 @@ import { MapSearchOverlay } from "@/features/map/components/search-overlay";
 import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "@/features/map/components/stationsLayer";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/features/map/constants";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
-import { type MapPopupLocation, useMapPopup } from "@/features/map/hooks/useMapPopup";
+import { useMapKeybinds } from "@/features/map/hooks/useMapKeybinds";
+import type { MapPopupLocation } from "@/features/map/hooks/useMapPopup";
 import { useMapPositionPersistence } from "@/features/map/hooks/useMapPositionPersistence";
+import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActions";
 import type { SearchStation } from "@/features/map/searchApi";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import { isEditableKeyboardTarget } from "@/lib/dom/keyboard";
-import type { LocationWithStations, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
+import type { LocationWithStations, StationFilters, StationWithoutCells } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
 
@@ -90,7 +90,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   });
   const radioLines = radioLinesResponse?.data;
 
-  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [tempLocations, setTempLocations] = useState<LocationWithStations[]>([]);
 
@@ -122,8 +121,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     map.fitBounds(bounds, { padding: 80, maxZoom: 14 });
   }, [map, isLoaded, fetchedLocations, radioLines]);
 
-  const handleOpenStationDetails = useCallback((id: number, source: StationSource) => openStationDialog(id, source), [openStationDialog]);
-  const handleOpenUkeStationDetails = useCallback((station: UkeStation) => openUkePermitDialog(station), [openUkePermitDialog]);
   const handlePopupClose = useCallback((closedLocation: MapPopupLocation) => {
     if (closedLocation.source !== "internal") return;
     setTempLocations((locations) => locations.filter((location) => location.id !== closedLocation.locationId));
@@ -137,20 +134,13 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     [listStationIds],
   );
 
-  const {
-    showPopup,
-    openLocations,
-    closePopups,
-    cleanup: cleanupPopup,
-  } = useMapPopup({
+  const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
     detailsFilters: filters,
     filterStations: filterListStations,
-    onOpenStationDetails: handleOpenStationDetails,
-    onOpenUkeStationDetails: handleOpenUkeStationDetails,
     onClose: handlePopupClose,
   });
 
@@ -160,20 +150,11 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const handleActiveMarkerClear = useCallback(() => setActiveMarker(null), []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isEditableKeyboardTarget(event.target)) return;
-      if (event.key.toLowerCase() !== "m") return;
-
-      event.preventDefault();
-      void navigate({ to: "/" });
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  useMapKeybinds(({ key }) => {
+    if (key !== "m") return false;
+    void navigate({ to: "/" });
+    return true;
+  });
 
   const handleLocationSelect = useCallback(
     (lat: number, lng: number) => {
@@ -219,16 +200,6 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       });
     },
     [map, fetchedLocations, showPopup],
-  );
-
-  const popupActions = useMemo(() => ({ show: showPopup, cleanup: cleanupPopup }), [showPopup, cleanupPopup]);
-
-  const stationActions = useMemo(
-    () => ({
-      openDetails: handleOpenStationDetails,
-      openUkeDetails: handleOpenUkeStationDetails,
-    }),
-    [handleOpenStationDetails, handleOpenUkeStationDetails],
   );
 
   const locationCount = locationsResponse?.data.length ?? 0;

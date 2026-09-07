@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 
 import { advanceNsgReplay } from "@/lib/nsg/replay";
 import { type NsgSnapshot, type NsgSnapshotCollection, findNearestNsgSnapshotIndex } from "@/lib/nsg/snapshots";
@@ -16,7 +16,6 @@ type ReplayState = {
 type ReplayAction =
   | { type: "logChanged"; log: NsgLog | null }
   | { type: "select"; eventIndex: number }
-  | { type: "clear" }
   | { type: "stop" }
   | { type: "play"; eventIndex: number; playheadMs: number }
   | { type: "position"; eventIndex: number | null; playheadMs: number; finished: boolean };
@@ -27,8 +26,6 @@ function replayReducer(state: ReplayState, action: ReplayAction): ReplayState {
       return { sourceLog: action.log, selectedEventIndex: null, isPlaying: false, playheadMs: null };
     case "select":
       return { ...state, selectedEventIndex: action.eventIndex, isPlaying: false, playheadMs: null };
-    case "clear":
-      return { ...state, selectedEventIndex: null, isPlaying: false, playheadMs: null };
     case "stop":
       return { ...state, isPlaying: false, playheadMs: null };
     case "play":
@@ -52,7 +49,6 @@ export type ReplayController = Readonly<{
   playheadMs: number | null;
   isPlaying: boolean;
   selectEvent: (eventIndex: number) => void;
-  clearSelection: () => void;
   pause: () => void;
   toggle: () => void;
   stop: () => void;
@@ -93,11 +89,6 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
     dispatch({ type: "stop" });
   }, [resetClock]);
 
-  const clearSelection = useCallback(() => {
-    resetClock();
-    dispatch({ type: "clear" });
-  }, [resetClock]);
-
   const selectEvent = useCallback(
     (eventIndex: number) => {
       resetClock();
@@ -116,7 +107,9 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
     clock.set(next.playheadMs);
     const nextSnapshot = snapshots[next.index];
     if (publish || next.finished)
-      dispatch({ type: "position", eventIndex: nextSnapshot?.eventIndex ?? null, playheadMs: next.playheadMs, finished: next.finished });
+      startTransition(() =>
+        dispatch({ type: "position", eventIndex: nextSnapshot?.eventIndex ?? null, playheadMs: next.playheadMs, finished: next.finished }),
+      );
     return !next.finished;
   });
 
@@ -181,7 +174,6 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
     playheadMs,
     isPlaying,
     selectEvent,
-    clearSelection,
     pause,
     toggle,
     stop,

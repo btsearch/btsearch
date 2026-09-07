@@ -28,7 +28,7 @@ export function createNsgSnapshotCollection(cells: readonly NsgCell[]): NsgSnaps
 }
 
 export function getPrimaryNsgCell(cells: readonly NsgCell[]): NsgCell | undefined {
-  return cells.find((cell) => cell.registered === true) ?? cells[0];
+  return cells.find((cell) => cell.measurementRole === "nr-primary") ?? cells.find((cell) => cell.registered === true) ?? cells[0];
 }
 
 export function findNearestNsgSnapshotIndex(snapshots: readonly NsgSnapshot[], timestampMs: number | null): number {

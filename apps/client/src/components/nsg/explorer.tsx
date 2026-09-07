@@ -1,4 +1,4 @@
-import { Cancel01Icon, Download04Icon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, Cancel01Icon, Download04Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import { showApiError } from "@/lib/api";
 import { getClosestNsgRouteLocation, getNsgLocationTimeMs, prepareNsgRouteLocations } from "@/lib/nsg/locations";
-import { createNsgOperatorResolver, getNsgCellOperator } from "@/lib/nsg/operator";
+import { collectNsgRegisteredOperatorMncs, createNsgOperatorResolver, getNsgCellOperator } from "@/lib/nsg/operator";
 import { getNsgReplayLocationIndex } from "@/lib/nsg/replay";
-import { associateNsgSignals } from "@/lib/nsg/signal";
-import { createNsgSnapshotCollection, findNearestNsgSnapshotIndex, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
+import { type NsgSignalTrail, associateNsgSignals, parseNsgTimestampMs } from "@/lib/nsg/signal";
+import { type NsgSnapshot, createNsgSnapshotCollection, findNearestNsgSnapshotIndex, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
+import { collectMatchedNsgStations, createNsgServingCellTimeline } from "@/lib/nsg/stationCorrelation";
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +28,12 @@ import { OperatorName } from "./operatorName";
 import { ReplayControls } from "./replayControls";
 import { SnapshotDetails } from "./snapshot";
 import { useReplay } from "./useReplay";
+import { useStationCorrelation } from "./useStationCorrelation";
 
 const RouteMap = lazy(() => import("./routeMap"));
+const EMPTY_CELLS: NsgLog["cells"] = [];
 const EMPTY_LOCATIONS: NsgLog["locations"] = [];
+const EMPTY_SNAPSHOTS: readonly NsgSnapshot[] = [];
 
 type ExplorerProps = {
   log: NsgLog | null;
@@ -42,6 +47,17 @@ type ExplorerProps = {
 
 function simKey(cell: NsgCell): string {
   return String(cell.slotId ?? "?") + ":" + String(cell.subId ?? "?");
+}
+
+function getSignalSimKey(selectedSim: string, primary: NsgCell | undefined): string {
+  if (selectedSim !== "all") return selectedSim;
+  return primary ? simKey(primary) : "?:?";
+}
+
+function getActiveTimestamp(snapshot: NsgSnapshot | null, selectedTimestamp: number | null, selectedLocation: NsgLocation | null): number | null {
+  if (snapshot) return parseNsgTimestampMs(snapshot.cells[0].timestampUs);
+  if (selectedTimestamp !== null) return selectedTimestamp;
+  return selectedLocation ? getNsgLocationTimeMs(selectedLocation) : null;
 }
 
 function latestRegisteredCell(cells: NsgCell[], elapsedUs: number, eventIndex: number): NsgCell | undefined {
@@ -68,9 +84,11 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   const [rat, setRat] = useState("all");
   const [view, setView] = useState<DetailView>("history");
   const [isExporting, setIsExporting] = useState(false);
+  const [stationAnalysisRequested, setStationAnalysisRequested] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [loadedLog, setLoadedLog] = useState(log);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [panelsExpanded, setPanelsExpanded] = useState(true);
 
   if (detailsOpen && !isCompact) setDetailsOpen(false);
 
@@ -79,7 +97,9 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     setSim("all");
     setRat("all");
     setView("history");
+    setStationAnalysisRequested(false);
     setDetailsOpen(false);
+    setPanelsExpanded(true);
   }
 
   useEffect(() => {
@@ -94,6 +114,8 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   }, []);
 
   const operatorResolver = useMemo(() => createNsgOperatorResolver(log?.events ?? []), [log]);
+  const operatorMncs = useMemo(() => collectNsgRegisteredOperatorMncs(log?.cells ?? []), [log]);
+  const stationCorrelation = useStationCorrelation(log, stationAnalysisRequested && loadedLog === log);
   const { simCells, registeredBySim } = useMemo(() => {
     const sims = new Map<string, NsgCell>();
     const registered = new Map<string, NsgCell[]>();
@@ -118,10 +140,8 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     ],
     [log, t],
   );
-  const cells = useMemo(
-    () => (log?.cells ?? []).filter((cell) => (sim === "all" || simKey(cell) === sim) && (rat === "all" || cell.rat === rat)),
-    [log, sim, rat],
-  );
+  const selectedSimCells = useMemo(() => (log?.cells ?? []).filter((cell) => sim === "all" || simKey(cell) === sim), [log, sim]);
+  const cells = useMemo(() => selectedSimCells.filter((cell) => rat === "all" || cell.rat === rat), [selectedSimCells, rat]);
   const snapshotCollection = useMemo(() => createNsgSnapshotCollection(cells), [cells]);
   const { snapshots } = snapshotCollection;
   const {
@@ -133,7 +153,6 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     playheadMs,
     isPlaying,
     selectEvent,
-    clearSelection,
     pause: pauseReplay,
     toggle: toggleReplay,
     stop: resetReplay,
@@ -174,38 +193,68 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     if (playheadMs !== null) return locations[getNsgReplayLocationIndex(locations, playheadMs)] ?? null;
     return selectedTimestamp === null ? (locations[0] ?? null) : getClosestNsgRouteLocation(locations, selectedTimestamp);
   }, [locations, selectedTimestamp, playheadMs]);
-  const signalSimKey = sim === "all" ? String(primary ? simKey(primary) : "?:?") : sim;
+  const signalSimKey = getSignalSimKey(sim, primary);
   const selectedOperator = simOptions.find((option) => option.value === signalSimKey)?.operator ?? null;
-  const signalTrail = useMemo(() => {
-    const [slot, subscription] = signalSimKey.split(":");
-    const signalSim =
-      slot === "?" && subscription === "?"
-        ? null
-        : {
-            slotId: slot === "?" ? null : Number(slot),
-            subId: subscription === "?" ? null : Number(subscription),
-          };
-    return associateNsgSignals(locations, cells, signalSim);
-  }, [locations, cells, signalSimKey]);
-  const signalSnapshots = useMemo(
-    () => snapshots.filter((item) => item.cells.some((cell) => simKey(cell) === signalSimKey)),
-    [snapshots, signalSimKey],
+  const signalTrails = useMemo(() => {
+    const cellsBySim = new Map<string, NsgCell[]>();
+    for (const cell of cells) {
+      const key = simKey(cell);
+      if (key === "?:?") continue;
+      const group = cellsBySim.get(key);
+      if (group) group.push(cell);
+      else cellsBySim.set(key, [cell]);
+    }
+    const trails = new Map<string, NsgSignalTrail>();
+    for (const [key, cell] of simCells) {
+      if (key === "?:?" || (sim !== "all" && sim !== key)) continue;
+      const { slotId, subId } = cell;
+      trails.set(key, associateNsgSignals(locations, cellsBySim.get(key) ?? EMPTY_CELLS, { slotId, subId }));
+    }
+    trails.set("?:?", associateNsgSignals(locations, EMPTY_CELLS, null));
+    return trails;
+  }, [locations, cells, simCells, sim]);
+  const signalTrail = signalTrails.get(signalSimKey) ?? signalTrails.get("?:?")!;
+  const servingTimeline = useMemo(
+    () => createNsgServingCellTimeline(selectedSimCells, sim === "all" ? "all" : (simCells.get(sim) ?? null)),
+    [selectedSimCells, simCells, sim],
   );
+  const activeTimestampMs = playheadMs === null ? getActiveTimestamp(snapshot, selectedTimestamp, selectedLocation) : null;
+  const stationSourceMatches = useMemo(
+    () => collectMatchedNsgStations(selectedSimCells, stationCorrelation.resultsByKey),
+    [selectedSimCells, stationCorrelation.resultsByKey],
+  );
+  const matchedStations = useMemo(
+    () => (rat === "all" ? stationSourceMatches : collectMatchedNsgStations(cells, stationCorrelation.resultsByKey)),
+    [cells, rat, stationCorrelation.resultsByKey, stationSourceMatches],
+  );
+  const snapshotsBySim = useMemo(() => {
+    const groups = new Map<string, (typeof snapshots)[number][]>();
+    for (const item of snapshots)
+      for (const key of new Set(item.cells.map(simKey))) {
+        const group = groups.get(key);
+        if (group) group.push(item);
+        else groups.set(key, [item]);
+      }
+    return groups;
+  }, [snapshots]);
+  const signalSnapshots = snapshotsBySim.get(signalSimKey) ?? EMPTY_SNAPSHOTS;
   const selectMapLocation = useCallback(
     (location: NsgLocation) => {
       const timestamp = getNsgLocationTimeMs(location);
       if (timestamp === null) return;
-      const candidates = signalSnapshots.length > 0 ? signalSnapshots : snapshots;
-      const nearest = candidates[findNearestNsgSnapshotIndex(candidates, timestamp)];
+      const nearest = signalSnapshots[findNearestNsgSnapshotIndex(signalSnapshots, timestamp)];
       selectEvent(nearest?.eventIndex ?? location.eventIndex);
     },
-    [signalSnapshots, snapshots, selectEvent],
+    [signalSnapshots, selectEvent],
   );
-
-  function updateFilter(setter: (value: string) => void, value: string) {
-    clearSelection();
-    setter(value);
-  }
+  const selectTimestamp = useCallback(
+    (timestampMs: number) => {
+      if (snapshots.length === 0) return;
+      const nearest = snapshots[findNearestNsgSnapshotIndex(snapshots, timestampMs)];
+      if (nearest) selectEvent(nearest.eventIndex);
+    },
+    [snapshots, selectEvent],
+  );
 
   async function exportCsv() {
     if (!log) return;
@@ -226,12 +275,22 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   }
 
   const activeView = !isCompact && view === "cells" ? "history" : view;
+  const stationAnalysisLabel =
+    stationCorrelation.status === "error" ? t("analysis.retry") : stationCorrelation.status === "pending" ? t("analysis.running") : t("analysis.run");
+  const showStationAnalysisAction = stationCorrelation.status !== "unavailable" && stationCorrelation.status !== "success";
   const filters = (
     <div className={cn("grid shrink-0 grid-cols-2 gap-2 border-b px-4", isCompact ? "py-1.5" : "py-2")}>
-      <Filter label={t("filters.sim")} value={sim} options={simOptions} onChange={(value) => updateFilter(setSim, value)} />
-      <Filter label={t("filters.technology")} value={rat} options={ratOptions} onChange={(value) => updateFilter(setRat, value)} />
+      <Filter label={t("filters.sim")} value={sim} options={simOptions} onChange={setSim} />
+      <Filter label={t("filters.technology")} value={rat} options={ratOptions} onChange={setRat} />
     </div>
   );
+
+  async function analyzeStations() {
+    setStationAnalysisRequested(true);
+    const analysisError = await stationCorrelation.analyze();
+    if (analysisError !== null) showApiError(analysisError);
+  }
+
   const replayControls = (
     <ReplayControls
       compact={isCompact}
@@ -261,8 +320,11 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
       snapshot={snapshot}
       selectedIndex={selectedIndex}
       selectedTimestamp={selectedTimestamp}
+      expanded={isCompact || panelsExpanded}
       onViewChange={setView}
+      onExpandedChange={setPanelsExpanded}
       onSelectEvent={selectEvent}
+      onSelectTimestamp={selectTimestamp}
       onPauseReplay={pauseReplay}
     />
   ) : null;
@@ -328,6 +390,24 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
                   </p>
                 ) : null}
               </div>
+              {showStationAnalysisAction ? (
+                <Button
+                  variant="ghost"
+                  size={isCompact ? "icon-sm" : "sm"}
+                  className={cn("cursor-pointer", isCompact ? "size-11" : "shrink-0")}
+                  aria-label={stationAnalysisLabel}
+                  title={stationAnalysisLabel}
+                  disabled={stationCorrelation.status === "pending"}
+                  onClick={() => void analyzeStations()}
+                >
+                  {stationCorrelation.status === "pending" ? (
+                    <Spinner />
+                  ) : (
+                    <HugeiconsIcon icon={AirportTowerIcon} data-icon={isCompact ? undefined : "inline-start"} />
+                  )}
+                  {!isCompact ? stationAnalysisLabel : null}
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -400,7 +480,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
             </div>
           ) : null}
 
-          {!log ? (
+          {!log && (
             <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
               <div className="space-y-2">
                 <h2 className="text-sm font-semibold">{t("import.drop")}</h2>
@@ -411,22 +491,29 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
                 </Button>
               </div>
             </div>
-          ) : isCompact ? (
-            <MobileSummary snapshot={snapshot} />
-          ) : (
+          )}
+          {log && isCompact && <MobileSummary snapshot={snapshot} />}
+          {log && !isCompact && (
             <>
               {filters}
-              <section className="shrink-0 border-b" aria-label={t("snapshot.title")}>
-                {replayControls}
-                {snapshot ? (
-                  <div className="custom-scrollbar max-h-60 overflow-y-auto overscroll-contain @min-[1000px]:h-[min(52dvh,32rem)] @min-[1000px]:max-h-none @min-[1000px]:overflow-hidden">
-                    <SnapshotDetails snapshot={snapshot} />
-                  </div>
-                ) : (
-                  <p className="px-4 py-2 text-xs text-muted-foreground">{t("snapshot.empty")}</p>
+              <div
+                className={cn(
+                  "grid min-h-0 flex-1",
+                  panelsExpanded ? "grid-rows-[minmax(0,1fr)_minmax(10rem,1fr)]" : "grid-rows-[minmax(0,1fr)_auto]",
                 )}
-              </section>
-              {detailPanels}
+              >
+                <section className="flex min-h-0 flex-col border-b" aria-label={t("snapshot.title")}>
+                  <div className="shrink-0">{replayControls}</div>
+                  {snapshot ? (
+                    <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                      <SnapshotDetails snapshot={snapshot} />
+                    </div>
+                  ) : (
+                    <p className="px-4 py-2 text-xs text-muted-foreground">{t("snapshot.empty")}</p>
+                  )}
+                </section>
+                {detailPanels}
+              </div>
             </>
           )}
         </aside>
@@ -441,12 +528,21 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
               points={locations}
               selected={selectedLocation}
               signalTrail={signalTrail}
+              signalTrails={signalTrails}
+              signalSimKey={signalSimKey}
               selectedOperator={selectedOperator}
               playheadMs={playheadMs}
               replayClock={replayClock}
-              replayCells={snapshot?.cells ?? []}
+              replayCells={snapshot?.cells ?? EMPTY_CELLS}
               onSelectLocation={selectMapLocation}
               hasLog={log !== null}
+              operatorMncs={operatorMncs}
+              stationCorrelationKey={stationCorrelation.correlationKey}
+              stationCorrelationResults={stationCorrelation.resultsByKey}
+              matchedStations={matchedStations}
+              stationSourceMatches={stationSourceMatches}
+              servingTimeline={servingTimeline}
+              servingFallbackTimestampMs={activeTimestampMs}
             />
           </Suspense>
         </section>

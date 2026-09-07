@@ -1,11 +1,17 @@
-export type NsgJsonValue = string | number | boolean | null | NsgJsonValue[] | NsgJsonObject;
-export type NsgJsonObject = { [key: string]: NsgJsonValue };
+import type { NsgJsonObject } from "./json";
+import type { DecodedQualcommSignaling } from "./qualcommSignaling";
+
+export type { NsgJsonObject, NsgJsonValue } from "./json";
 
 export type NsgTimestamp = {
   elapsedUs: number;
   timestampUs: string;
   timestampMs: number;
 };
+
+export type NsgCellMeasurementRole = "nr-primary" | "nr-neighbor" | "lte-secondary";
+
+export type NsgSignalingRecord = NsgTimestamp & DecodedQualcommSignaling & { id: number; recordOffset: number };
 
 export type NsgEvent = NsgTimestamp & {
   id: number;
@@ -22,6 +28,7 @@ export type NsgCell = NsgTimestamp & {
   recordOffset: number;
   rat: string;
   registered: boolean | null;
+  measurementRole?: NsgCellMeasurementRole;
   subId: number | null;
   slotId: number | null;
   isDefault: boolean | null;
@@ -81,8 +88,11 @@ export type NsgLog = {
   timeRegressions: number;
   decodedBytes: number;
   servingCellCount: number;
+  signalingRecordCount: number;
+  signalingTruncated: boolean;
   events: NsgEvent[];
   cells: NsgCell[];
+  signaling: NsgSignalingRecord[];
   locations: NsgLocation[];
 };
 

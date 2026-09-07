@@ -1,34 +1,22 @@
 import { FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  type FocusEvent,
-  type KeyboardEvent,
-  type ReactElement,
-  memo,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type FocusEvent, type KeyboardEvent, type ReactElement, memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet.js";
 import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
 import { useIsMobile } from "@/hooks/useMobile.js";
 import { usePreferences } from "@/hooks/usePreferences.js";
-import { isEditableKeyboardTarget } from "@/lib/dom/keyboard.js";
 import { reverseGeocode } from "@/lib/geo/geocoding.js";
 import { cn } from "@/lib/utils.js";
 import type { StationFilters, StationSource } from "@/types/station.js";
 
 import { FILTER_KEYWORDS } from "../../constants.js";
-import { type StationFiltersUpdater, changeFilterSource, getMapFilterKeybindUpdater } from "../../filterKeybinds.js";
+import { type StationFiltersUpdater, changeFilterSource, getMapFilterKeybindUpdater, getMapVisibilityKeybind } from "../../filterKeybinds.js";
 import { parseFilters } from "../../filters.js";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers.js";
+import { useMapKeybinds } from "../../hooks/useMapKeybinds.js";
 import { useSearchState } from "../../hooks/useSearchState.js";
 import {
   type SearchStation,
@@ -419,40 +407,40 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     setShowFilters((prev) => !prev);
   }
 
-  const handleGlobalKeyDown = useEffectEvent((e: globalThis.KeyboardEvent) => {
-    if (isEditableKeyboardTarget(e.target)) return;
-    if (e.ctrlKey || e.metaKey) return;
-    const key = e.key.toLowerCase();
-
-    if (key === "f" && !e.shiftKey) {
-      e.preventDefault();
+  useMapKeybinds(({ key, shiftKey }) => {
+    if (key === "f" && !shiftKey) {
       (document.activeElement as HTMLElement)?.blur();
       setShowFilters((prev) => !prev);
-      return;
+      return true;
     }
 
-    const updateFilters = getMapFilterKeybindUpdater(key, e.shiftKey);
+    const visibility = getMapVisibilityKeybind(key, shiftKey);
+    if (visibility === "stations") {
+      handleFiltersChange((current) => ({ ...current, showStations: !current.showStations }));
+      return true;
+    }
+    if (visibility === "azimuths") {
+      updatePreferences((current) => ({ showAzimuths: !current.showAzimuths }));
+      return true;
+    }
+
+    const updateFilters = getMapFilterKeybindUpdater(key, shiftKey);
     if (updateFilters !== undefined) {
-      e.preventDefault();
       handleFiltersChange(updateFilters);
-      return;
+      return true;
     }
 
-    if (e.shiftKey) return;
+    if (shiftKey) return false;
 
     switch (key) {
-      case "a":
-        e.preventDefault();
-        updatePreferences((current) => ({ showAzimuths: !current.showAzimuths }));
-        break;
       case "h":
-        e.preventDefault();
         onToggleHeatmap?.();
-        break;
+        return true;
       case "p":
-        e.preventDefault();
         onTogglePlannedMeasurements?.();
-        break;
+        return true;
+      default:
+        return false;
     }
   });
 
@@ -467,11 +455,6 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [preferences.hideFiltersOnMapClick, showFilters]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, []);
 
   const handleSourceChange = useCallback(
     (source: StationSource) => handleFiltersChange((prev) => changeFilterSource(prev, source)),

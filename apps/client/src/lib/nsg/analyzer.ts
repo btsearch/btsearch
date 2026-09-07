@@ -1,5 +1,6 @@
 import { ANALYZER_MAX_CELLS, AnalyzerImportError, type AnalyzerImportErrorCode } from "../analyzer/analyzer-import";
 import type { AnalyzerCell, ParsedRow } from "../analyzer/analyzer-parsers";
+import { getNsgPlmnNumber } from "./operator";
 import { type NsgSource, formatNsgTimestamp, parseNsgStream } from "./parser";
 import type { NsgCell, NsgProgress } from "./types";
 
@@ -30,13 +31,8 @@ function integerInRange(value: unknown, maximum: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= maximum;
 }
 
-function combinedPlmn(mcc: string | null, mnc: string | null): number | null {
-  if (mcc === null || mnc === null || !/^\d{3}$/.test(mcc) || !/^\d{1,2}$/.test(mnc) || Number(mcc) === 0) return null;
-  return Number(mcc) * 100 + Number(mnc);
-}
-
 export function mapNsgAnalyzerCell(cell: NsgCell): AnalyzerCell | null {
-  const mnc = combinedPlmn(cell.mcc, cell.mnc);
+  const mnc = getNsgPlmnNumber(cell);
   if (mnc === null) return null;
 
   if (cell.rat === "LTE") {

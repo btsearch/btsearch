@@ -11,9 +11,12 @@ function isFiniteScreenPoint(point: ScreenPoint): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
-function hasValidPosition(point: NsgRoutePosition): boolean {
-  const { latitude, longitude } = point.location;
+export function isValidLatLng(latitude: number, longitude: number): boolean {
   return Number.isFinite(latitude) && Math.abs(latitude) <= 90 && Number.isFinite(longitude) && Math.abs(longitude) <= 180;
+}
+
+function hasValidPosition(point: NsgRoutePosition): boolean {
+  return isValidLatLng(point.location.latitude, point.location.longitude);
 }
 
 function isNetworkTransition(previous: NsgRoutePosition, current: NsgRoutePosition): boolean {

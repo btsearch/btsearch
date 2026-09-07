@@ -1,5 +1,5 @@
 import type { ParsedRow } from "@/lib/analyzer/analyzer-parsers";
-import type { AnalyzerResult } from "@/routes/_layout/analyzer";
+import type { AnalyzerResult } from "@/lib/analyzer/api";
 
 const DEFAULT_PREFIX = "analyzer:draft:";
 const DRAFT_TTL_MS = 60 * 60 * 1000;

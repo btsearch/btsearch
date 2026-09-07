@@ -9,7 +9,7 @@ import type { NsgCell } from "@/lib/nsg/types";
 import { cn } from "@/lib/utils";
 
 import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat } from "./cellPresentation";
-import { formatTime, formatValue } from "./display";
+import { formatDecibelValue, formatTime, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
 
 export function CellDetails({ cell }: { cell: NsgCell }) {
@@ -41,7 +41,8 @@ export function CellDetails({ cell }: { cell: NsgCell }) {
           <div key={key}>
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="font-mono text-sm font-semibold tabular-nums">
-              {formatValue(value)} {unit ? <span className="text-[11px] font-normal text-muted-foreground">{unit}</span> : null}
+              {unit === "dBm" || unit === "dB" ? formatDecibelValue(value) : formatValue(value)}{" "}
+              {unit ? <span className="text-[11px] font-normal text-muted-foreground">{unit}</span> : null}
             </dd>
           </div>
         ))}
@@ -107,7 +108,7 @@ export function MeasurementHistory({
                     <span className="font-mono font-semibold tabular-nums">{formatTime(snapshot.timestampMs)}</span>
                     <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
                     <span className="text-muted-foreground">{cell.rat}</span>
-                    <span className="ml-auto font-mono font-medium">{formatValue(cell.dbm ?? cell.rsrp)} dBm</span>
+                    <span className="ml-auto font-mono font-medium">{formatDecibelValue(cell.dbm ?? cell.rsrp)} dBm</span>
                   </span>
                   <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{formatCellIdentity(cell)}</span>
                   <span className="mt-0.5 flex gap-2 text-[10px] text-muted-foreground">

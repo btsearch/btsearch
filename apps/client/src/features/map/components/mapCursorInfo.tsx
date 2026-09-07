@@ -2,7 +2,7 @@ import { Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-ico
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
-import { type ReactNode, useCallback, useEffect, useEffectEvent, useReducer, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useReducer, useRef } from "react";
 
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +10,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
+import { useMapKeybinds } from "../hooks/useMapKeybinds";
 import { calculateBearing, calculateDistance, calculateTA } from "../utils";
 import { MapCoordinates } from "./mapCoordinates";
 
@@ -266,24 +267,22 @@ export function MapCursorInfo({ activeMarker, onActiveMarkerClear, className, va
     updateLiveSources(activeMarkerRef.current, cursorRef.current);
   }, [updateSavedSources, updateLiveSources]);
 
-  const handleKeyDown = useEffectEvent((e: KeyboardEvent) => {
-    if (e.key === " ") {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      e.preventDefault();
+  useMapKeybinds(({ key }) => {
+    if (variant === "mobile") return false;
+    if (key === " ") {
       saveCurrentMeasurement();
-    } else if (e.key?.toLowerCase() === "c") {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      toggleCircleVisibility();
-    } else if (e.key === "Escape") {
-      clearSavedMeasurements();
+      return true;
     }
+    if (key === "c") {
+      toggleCircleVisibility();
+      return false;
+    }
+    if (key === "escape") {
+      clearSavedMeasurements();
+      return false;
+    }
+    return false;
   });
-
-  useEffect(() => {
-    if (variant === "mobile") return;
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [variant]);
 
   useEffect(() => {
     if (!map || !shouldRenderMeasurements) return;

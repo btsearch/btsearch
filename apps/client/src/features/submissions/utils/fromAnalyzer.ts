@@ -71,9 +71,11 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
 
     if (result.status === "found" && result.cell) {
       const cell = result.cell;
-      target_cell_id = result.cell.cell_id;
-      target_sector_id = cell.rat !== "NR" ? (cell.sector_id ?? undefined) : undefined;
-      band_id = result.cell.band_id ?? null;
+      if (cell.rat !== "NR") {
+        target_cell_id = cell.cell_id;
+        target_sector_id = cell.sector_id ?? undefined;
+        band_id = cell.band_id ?? null;
+      }
 
       if (cell.rat === row.rat) {
         baseDetails = buildAnalyzerBaseDetails(cell.rat, cell);

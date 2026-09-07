@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { NsgCell } from "@/lib/nsg/types";
 
 import { getSignalIdentityFields } from "./cellPresentation";
-import { formatTime, formatValue } from "./display";
+import { formatDecibelValue, formatTime, formatValue } from "./display";
 
 type Metric = "dbm" | "rsrp" | "rssi" | "rsrq" | "sinr";
 type SignalPoint = { timestamp: number; value: number; eventIndex: number; cell: NsgCell; series: string };
@@ -33,7 +33,7 @@ function SignalTooltip({ active, payload, unit }: Partial<TooltipContentProps> &
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         <dt>{t("chart.value")}</dt>
         <dd className="text-right font-mono">
-          {point.value} {unit}
+          {unit ? formatDecibelValue(point.value) : formatValue(point.value)} {unit}
         </dd>
         {identityFields.map((field) => (
           <div key={field.key} className="contents">
@@ -86,7 +86,13 @@ export function Timeline({
     const groups = new Map<string, SignalPoint[]>();
     for (const cell of cells) {
       const value = cell[metric];
-      if (cell.registered !== true || value === null || !Number.isFinite(value) || Math.abs(value) >= 2_147_483_647) continue;
+      if (
+        (cell.registered !== true && cell.measurementRole !== "nr-primary") ||
+        value === null ||
+        !Number.isFinite(value) ||
+        Math.abs(value) >= 2_147_483_647
+      )
+        continue;
       const name = `${cell.rat} · ${t("labels.slot")} ${formatValue(cell.slotId)} · ${t("labels.subscription")} ${formatValue(cell.subId)}`;
       const group = groups.get(name) ?? [];
       group.push({ timestamp: cell.timestampMs, value, eventIndex: cell.eventIndex, cell, series: name });
@@ -173,7 +179,7 @@ export function Timeline({
                 tickLine={false}
                 axisLine={false}
                 width={48}
-                tickFormatter={(value: number) => String(value)}
+                tickFormatter={(value: number) => (unit ? formatDecibelValue(value) : String(value))}
                 label={unit ? { value: unit, position: "insideTopLeft", offset: -2, fontSize: 10 } : undefined}
               />
               <ZAxis range={[8, 8]} />

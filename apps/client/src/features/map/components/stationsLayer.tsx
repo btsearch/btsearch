@@ -23,6 +23,7 @@ import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
 import { locationsToGeoJSON, ukeLocationsToGeoJSON } from "../geojson";
 import { useAzimuthLayer } from "../hooks/useAzimuthLayer";
 import { useHeatmapLayer } from "../hooks/useHeatmapLayer";
+import { useMapKeybinds } from "../hooks/useMapKeybinds";
 import { useMapLayer } from "../hooks/useMapLayer";
 import type { MapPopupLocation } from "../hooks/useMapPopup";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
@@ -107,18 +108,20 @@ type StationActions = {
   openUkeDetails: (station: UkeStation) => boolean | void;
 };
 
-type StationsLayerProps = {
+type CommonStationsLayerProps = {
   filters: StationFilters;
-  onFiltersChange: (filters: StationFilters) => void;
   locationsResponse: LocationsResponse | undefined;
   zoom: number;
-  onActiveMarkerChange: (marker: { latitude: number; longitude: number } | null) => void;
+  onActiveMarkerChange?: (marker: { latitude: number; longitude: number } | null) => void;
   stationActions: StationActions;
   popupActions: PopupActions;
   onRadiolineIdFromUrl?: (id: number) => void;
   activePopupLocations?: MapPopupLocation[];
   useZabkaMarkers?: boolean;
 };
+
+type StationsLayerProps = CommonStationsLayerProps &
+  ({ urlSyncEnabled?: true; onFiltersChange: (filters: StationFilters) => void } | { urlSyncEnabled: false; onFiltersChange?: never });
 
 export function StationsLayer({
   filters,
@@ -131,6 +134,7 @@ export function StationsLayer({
   onRadiolineIdFromUrl,
   activePopupLocations,
   useZabkaMarkers = false,
+  urlSyncEnabled = true,
 }: StationsLayerProps) {
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
@@ -154,9 +158,7 @@ export function StationsLayer({
       locationId?: number;
       radiolineId?: number;
     }) => {
-      if (urlFilters) {
-        onFiltersChange(urlFilters);
-      }
+      if (urlFilters) onFiltersChange?.(urlFilters);
       const activeFilters = urlFilters ?? filters;
 
       if (stationId && map) {
@@ -238,6 +240,7 @@ export function StationsLayer({
     map,
     isLoaded,
     filters,
+    enabled: urlSyncEnabled,
     onInitialize: handleUrlInitialize,
   });
 
@@ -347,7 +350,7 @@ export function StationsLayer({
     async (data: { coordinates: [number, number]; locationId: number; city?: string; address?: string; source: string }) => {
       const { coordinates } = data;
       const [lng, lat] = coordinates;
-      onActiveMarkerChange({ latitude: lat, longitude: lng });
+      onActiveMarkerChange?.({ latitude: lat, longitude: lng });
     },
     [onActiveMarkerChange],
   );
@@ -393,7 +396,7 @@ export function StationsLayer({
     isLoaded,
     geoJSON,
     onFeatureClick: handleFeatureClick,
-    onFeatureContextMenu: handleFeatureContextMenu,
+    onFeatureContextMenu: onActiveMarkerChange ? handleFeatureContextMenu : undefined,
     onFeatureMouseDown: handleFeatureMouseDown,
     renderHoverTooltip: preferences.showMapHoverTooltip ? renderHoverTooltip : undefined,
     pointStyle: preferences.mapPointStyle,
@@ -427,16 +430,13 @@ export function StationsLayer({
     mapRightClickMeasureRef.current = preferences.mapRightClickMeasure;
   }, [preferences.mapRightClickMeasure]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onActiveMarkerChangeRef.current(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  useMapKeybinds(({ key }) => {
+    if (key === "escape") onActiveMarkerChangeRef.current?.(null);
+    return false;
+  });
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || onActiveMarkerChange === undefined) return;
 
     let longPressTimer: number | null = null;
     let longPressStartPoint: { x: number; y: number } | null = null;
@@ -454,9 +454,9 @@ export function StationsLayer({
       const features = map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`] });
       if (features.length === 0) {
         if (mapRightClickMeasureRef.current) {
-          onActiveMarkerChangeRef.current({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+          onActiveMarkerChangeRef.current?.({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
         } else {
-          onActiveMarkerChangeRef.current(null);
+          onActiveMarkerChangeRef.current?.(null);
         }
       }
     };
@@ -476,7 +476,7 @@ export function StationsLayer({
         clearLongPressTimer();
         if (!lngLat) return;
         e.preventDefault();
-        onActiveMarkerChangeRef.current({ latitude: lngLat.lat, longitude: lngLat.lng });
+        onActiveMarkerChangeRef.current?.({ latitude: lngLat.lat, longitude: lngLat.lng });
       }, MAP_TOUCH_LONG_PRESS_MS);
     };
 
@@ -508,7 +508,7 @@ export function StationsLayer({
       map.off("touchcancel", handleTouchEnd);
       clearLongPressTimer();
     };
-  }, [map]);
+  }, [map, onActiveMarkerChange]);
 
   if (!isLoaded) return null;
 

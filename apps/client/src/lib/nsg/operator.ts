@@ -63,6 +63,21 @@ export function getNsgCellOperator(cell: Pick<NsgCell, "mcc" | "mnc">): NsgResol
   return cellPlmn(cell.mcc, cell.mnc);
 }
 
+export function getNsgPlmnNumber(cell: Pick<NsgCell, "mcc" | "mnc">): number | null {
+  const operator = getNsgCellOperator(cell);
+  return operator === null ? null : Number(operator.plmn);
+}
+
+export function collectNsgRegisteredOperatorMncs(cells: readonly Pick<NsgCell, "registered" | "mcc" | "mnc">[]): number[] {
+  const operatorMncs = new Set<number>();
+  for (const cell of cells) {
+    if (cell.registered !== true) continue;
+    const plmn = getNsgPlmnNumber(cell);
+    if (plmn !== null) operatorMncs.add(plmn);
+  }
+  return [...operatorMncs].sort((left, right) => left - right);
+}
+
 function operatorsFromService(data: NsgJsonObject): Map<string, NsgResolvedOperator> {
   const operators = new Map<string, NsgResolvedOperator>();
   const ambiguous = new Set<string>();

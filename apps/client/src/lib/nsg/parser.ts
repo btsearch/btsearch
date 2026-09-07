@@ -1,17 +1,36 @@
 import { NSG_MAGIC } from "./fileStream";
+import { isValidLatLng } from "./geometry";
+import { type LteAnchor, type TimedNrMeasurement, associateQualcommNsaMeasurements, mergeAssociatedNsaCells } from "./nsaAssociation";
 import { NsgStreamingOperatorResolver } from "./operator";
-import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgLog, NsgProgress, NsgTimestamp } from "./types";
+import { type QualcommDiagHeader, type QualcommDiagPrefix, readDiagHeader, readDiagPrefix } from "./qualcommDiag";
+import { MAX_QUALCOMM_NR_MEASUREMENT_BYTES, QUALCOMM_NR_MEASUREMENT_LOG_CODE, decodeQualcommNrMeasurement } from "./qualcommNr";
+import {
+  MAX_QUALCOMM_SIGNALING_BYTES,
+  QUALCOMM_SIGNALING_ENVELOPE_BYTES,
+  decodeQualcommSignaling,
+  isQualcommSignalingLogCode,
+  isValidQualcommSignalingEnvelope,
+} from "./qualcommSignaling";
+import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgLog, NsgProgress, NsgSignalingRecord, NsgTimestamp } from "./types";
 
 const MAX_HEADER_BYTES = 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
+const QUALCOMM_PREFIX_BYTES = 4;
+export const MAX_RETAINED_NSG_SIGNALING_RECORDS = 10_000;
+const MAX_RETAINED_NSG_SIGNALING_PAYLOAD_BYTES = 16 * 1024 * 1024;
 export type NsgSource = Readonly<{
   name: string;
   size: number;
   decodedSize?: number | null;
   inputBytesRead?: () => number;
 }>;
-type Phase = "magic" | "xmlLength" | "xml" | "header" | "prefix" | "payload";
+type Phase = "magic" | "xmlLength" | "xml" | "header" | "prefix" | "qualcommPrefix" | "payload";
 export type NsgParseOptions = { retainHistory?: boolean; onCell?: (cell: NsgCell) => void; onEvent?: (event: NsgEvent) => void };
+
+type NsgRadioFields = Pick<
+  NsgCell,
+  "lac" | "cid" | "tac" | "eci" | "pci" | "earfcn" | "arfcn" | "uarfcn" | "psc" | "bsic" | "dbm" | "rssi" | "rsrp" | "rsrq" | "sinr" | "ta" | "ber"
+>;
 
 function isObject(value: unknown): value is NsgJsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,6 +50,28 @@ function boolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
+function radioFields(raw: NsgJsonObject): NsgRadioFields {
+  return {
+    lac: numeric(raw.lac),
+    cid: numeric(raw.cid),
+    tac: numeric(raw.tac),
+    eci: numeric(raw.eci),
+    pci: numeric(raw.pci),
+    earfcn: numeric(raw.earfcn),
+    arfcn: numeric(raw.arfcn),
+    uarfcn: numeric(raw.uarfcn),
+    psc: numeric(raw.psc),
+    bsic: numeric(raw.bsic),
+    dbm: numeric(raw.dbm),
+    rssi: numeric(raw.rssi),
+    rsrp: numeric(raw.rsrp),
+    rsrq: numeric(raw.rsrq),
+    sinr: numeric(raw.sinr),
+    ta: numeric(raw.ta),
+    ber: numeric(raw.ber),
+  };
+}
+
 export function formatNsgTimestamp(timestampUs: string): string {
   const epochUs = BigInt(timestampUs);
   const date = new Date(Number(epochUs / 1000n));
@@ -48,6 +89,9 @@ export class NsgStreamParser {
   private remaining = 0;
   private payload: Uint8Array | null = null;
   private payloadPosition = 0;
+  private readonly qualcommPrefix = new Uint8Array(QUALCOMM_PREFIX_BYTES);
+  private qualcommPrefixPosition = 0;
+  private signalingValidationPrefix: QualcommDiagPrefix | null = null;
   private marker: number | null = null;
   private headerXml = "";
   private epochUs: bigint | null = null;
@@ -59,21 +103,30 @@ export class NsgStreamParser {
   private timeRegressions = 0;
   private decodedBytes = 0;
   private servingCellCount = 0;
+  private signalingRecordCount = 0;
+  private signalingPayloadBytes = 0;
+  private signalingTruncated = false;
   private finished = false;
+  private result: NsgLog | null = null;
   private readonly recordTypeCounts = new Map<number, number>();
   private readonly eventTypeCounts = new Map<string, number>();
   private readonly events: NsgEvent[] = [];
   private readonly cells: NsgCell[] = [];
+  private readonly signaling: NsgSignalingRecord[] = [];
   private readonly locations: NsgLocation[] = [];
+  private readonly lteAnchors: LteAnchor[] = [];
+  private readonly nrMeasurements: TimedNrMeasurement[] = [];
   private readonly decoder = new TextDecoder("utf-8", { fatal: true });
   private readonly operators = new NsgStreamingOperatorResolver();
   private readonly expectedDecodedSize: number | null;
+  private readonly retainHistory: boolean;
 
   constructor(
     private readonly source: NsgSource,
     private readonly options: NsgParseOptions = {},
   ) {
     if (!Number.isSafeInteger(source.size) || source.size < 0) throw new Error("Invalid NSG file size.");
+    this.retainHistory = options.retainHistory !== false;
     this.expectedDecodedSize = source.decodedSize === undefined ? source.size : source.decodedSize;
     if (this.expectedDecodedSize !== null && (!Number.isSafeInteger(this.expectedDecodedSize) || this.expectedDecodedSize < 0))
       throw new Error("Invalid decoded NSG file size.");
@@ -84,6 +137,7 @@ export class NsgStreamParser {
   }
 
   push(chunk: Uint8Array): void {
+    if (this.finished) this.fail("Cannot append to a finished NSG log");
     if (this.expectedDecodedSize !== null && chunk.length > this.expectedDecodedSize - this.offset)
       this.fail("NSG stream exceeds the declared file size");
     let position = 0;
@@ -137,10 +191,54 @@ export class NsgStreamParser {
         continue;
       }
 
+      if (this.phase === "qualcommPrefix") {
+        const length = Math.min(this.remaining, QUALCOMM_PREFIX_BYTES - this.qualcommPrefixPosition, chunk.length - position);
+        this.qualcommPrefix.set(chunk.subarray(position, position + length), this.qualcommPrefixPosition);
+        this.qualcommPrefixPosition += length;
+        position += length;
+        this.offset += length;
+        this.remaining -= length;
+        if (this.qualcommPrefixPosition < QUALCOMM_PREFIX_BYTES) continue;
+
+        const payloadLength = this.remaining + QUALCOMM_PREFIX_BYTES;
+        const prefix = readDiagPrefix(this.qualcommPrefix);
+        if (prefix === null) this.fail("Invalid Qualcomm DIAG prefix");
+        const { logCode, packetLength } = prefix;
+        const isSignaling = isQualcommSignalingLogCode(logCode);
+        const supportedLength =
+          packetLength >= 12 &&
+          packetLength <= payloadLength &&
+          ((logCode === QUALCOMM_NR_MEASUREMENT_LOG_CODE && packetLength <= MAX_QUALCOMM_NR_MEASUREMENT_BYTES) ||
+            (isSignaling && packetLength <= MAX_QUALCOMM_SIGNALING_BYTES));
+        if (this.retainHistory && supportedLength) {
+          const signalingAtCapacity =
+            isSignaling &&
+            (this.signalingTruncated ||
+              this.signaling.length >= MAX_RETAINED_NSG_SIGNALING_RECORDS ||
+              this.signalingPayloadBytes + packetLength > MAX_RETAINED_NSG_SIGNALING_PAYLOAD_BYTES);
+          if (signalingAtCapacity) {
+            this.payload = new Uint8Array(Math.min(packetLength, QUALCOMM_SIGNALING_ENVELOPE_BYTES));
+            this.payload.set(this.qualcommPrefix);
+            this.payloadPosition = QUALCOMM_PREFIX_BYTES;
+            this.signalingValidationPrefix = prefix;
+          } else {
+            this.payload = new Uint8Array(packetLength);
+            this.payload.set(this.qualcommPrefix);
+            this.payloadPosition = QUALCOMM_PREFIX_BYTES;
+          }
+        }
+        this.phase = "payload";
+        if (this.remaining === 0) this.completePayload();
+        continue;
+      }
+
       const length = Math.min(this.remaining, chunk.length - position);
       if (this.payload !== null) {
-        this.payload.set(chunk.subarray(position, position + length), this.payloadPosition);
-        this.payloadPosition += length;
+        const retainedLength = Math.min(length, this.payload.length - this.payloadPosition);
+        if (retainedLength > 0) {
+          this.payload.set(chunk.subarray(position, position + retainedLength), this.payloadPosition);
+          this.payloadPosition += retainedLength;
+        }
       }
       position += length;
       this.offset += length;
@@ -170,12 +268,17 @@ export class NsgStreamParser {
     this.remaining = length;
     this.payload = null;
     this.payloadPosition = 0;
+    this.signalingValidationPrefix = null;
     this.marker = null;
     this.phase = "payload";
     if (recordType === 0) {
       if (this.epochUs !== null || elapsedUs !== 0 || length !== 8) this.fail("Unsupported NSG time anchor");
       this.payload = new Uint8Array(8);
     } else if (recordType === 53 && length > 0) this.phase = "prefix";
+    else if (recordType === 16 && length >= QUALCOMM_PREFIX_BYTES) {
+      this.qualcommPrefixPosition = 0;
+      this.phase = "qualcommPrefix";
+    }
     if (length === 0) this.completePayload();
   }
 
@@ -183,11 +286,51 @@ export class NsgStreamParser {
     if (this.frame[3] === 0) {
       this.epochUs = new DataView(this.payload!.buffer).getBigUint64(0, true);
       if (!Number.isFinite(new Date(Number(this.epochUs / 1000n)).getTime())) this.fail("NSG time anchor is outside the supported date range");
+    } else if (this.frame[3] === 16 && this.payload !== null) {
+      if (this.signalingValidationPrefix !== null) this.countTruncatedSignaling(this.payload, this.signalingValidationPrefix);
+      else this.decodeQualcommPayload(this.payload);
     } else if (this.payload !== null && this.marker !== null) this.decodeEvent(this.payload, this.marker);
     this.payload = null;
     this.frame.length = 0;
     this.phase = "header";
     this.frameOffset = this.offset;
+  }
+
+  private decodeQualcommPayload(payload: Uint8Array): void {
+    const prefix = readDiagPrefix(payload);
+    if (prefix === null) return;
+    if (prefix.logCode === QUALCOMM_NR_MEASUREMENT_LOG_CODE) {
+      const header = readDiagHeader(payload, MAX_QUALCOMM_NR_MEASUREMENT_BYTES, prefix);
+      if (header !== null) this.decodeNrMeasurement(payload, header);
+    } else if (isQualcommSignalingLogCode(prefix.logCode)) {
+      const header = readDiagHeader(payload, MAX_QUALCOMM_SIGNALING_BYTES, prefix);
+      if (header !== null) this.decodeSignaling(payload, header);
+    }
+  }
+
+  private countTruncatedSignaling(payloadPrefix: Uint8Array, prefix: QualcommDiagPrefix): void {
+    if (!isValidQualcommSignalingEnvelope(payloadPrefix, prefix)) return;
+    this.signalingRecordCount++;
+    this.decodedBytes += prefix.packetLength;
+    this.signalingTruncated = true;
+  }
+
+  private decodeNrMeasurement(payload: Uint8Array, header: QualcommDiagHeader): void {
+    if (!this.retainHistory) return;
+    const measurement = decodeQualcommNrMeasurement(payload, header);
+    if (measurement === null || !measurement.cells.some((cell) => cell.serving)) return;
+    this.decodedBytes += measurement.packetLength;
+    this.nrMeasurements.push({ recordOffset: this.frameOffset, measurement, ...this.timestamp(this.frame[2]) });
+  }
+
+  private decodeSignaling(payload: Uint8Array, header: QualcommDiagHeader): void {
+    if (!this.retainHistory) return;
+    const decoded = decodeQualcommSignaling(payload, header);
+    if (decoded === null) return;
+    const id = this.signalingRecordCount++;
+    this.decodedBytes += decoded.packetLength;
+    this.signalingPayloadBytes += decoded.packetLength;
+    this.signaling.push({ id, recordOffset: this.frameOffset, ...this.timestamp(this.frame[2]), ...decoded });
   }
 
   private timestamp(elapsedUs: number): NsgTimestamp {
@@ -215,18 +358,19 @@ export class NsgStreamParser {
       ...this.timestamp(this.frame[2]),
       data,
     };
-    if (this.options.retainHistory !== false) this.events.push(event);
+    if (this.retainHistory) this.events.push(event);
     this.decodedBytes += payload.length;
     this.eventTypeCounts.set(event.name, (this.eventTypeCounts.get(event.name) ?? 0) + 1);
     this.operators.observe(event);
     if (event.name === "ScheduleCellInfo") this.decodeCells(event);
-    if (event.name === "change" && this.options.retainHistory !== false) this.decodeLocation(event);
+    if (event.name === "change" && this.retainHistory) this.decodeLocation(event);
     this.options.onEvent?.(event);
   }
 
   private decodeCells(event: NsgEvent): void {
     const cells = event.data.cells;
     if (!Array.isArray(cells)) this.fail("Expected a cells array in an NSG measurement event");
+    let lteAnchor: NsgCell | null = null;
     for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
       const raw = cells[cellIndex];
       if (!isObject(raw)) this.fail("Expected an NSG cell object");
@@ -244,23 +388,7 @@ export class NsgStreamParser {
         isDefault: boolean(event.data.default),
         mcc: text(raw.mcc),
         mnc: text(raw.mnc),
-        lac: numeric(raw.lac),
-        cid: numeric(raw.cid),
-        tac: numeric(raw.tac),
-        eci: numeric(raw.eci),
-        pci: numeric(raw.pci),
-        earfcn: numeric(raw.earfcn),
-        arfcn: numeric(raw.arfcn),
-        uarfcn: numeric(raw.uarfcn),
-        psc: numeric(raw.psc),
-        bsic: numeric(raw.bsic),
-        dbm: numeric(raw.dbm),
-        rssi: numeric(raw.rssi),
-        rsrp: numeric(raw.rsrp),
-        rsrq: numeric(raw.rsrq),
-        sinr: numeric(raw.sinr),
-        ta: numeric(raw.ta),
-        ber: numeric(raw.ber),
+        ...radioFields(raw),
         raw,
       };
       const operator = cell.registered === true ? this.operators.get(cell) : null;
@@ -270,17 +398,53 @@ export class NsgStreamParser {
         raw.mcc = operator.mcc;
         raw.mnc = operator.mnc;
       }
-      this.cellCount++;
-      if (this.options.retainHistory !== false) this.cells.push(cell);
-      if (cell.registered === true) this.servingCellCount++;
-      this.options.onCell?.(cell);
+      if (lteAnchor === null && cell.rat === "LTE" && cell.registered === true) lteAnchor = cell;
+      this.emitCell(cell);
     }
+    if (lteAnchor !== null && this.retainHistory)
+      this.lteAnchors.push({
+        cell: lteAnchor,
+        derivedCellIndexOffset: cells.length,
+      });
+  }
+
+  private emitCell(cell: NsgCell): void {
+    this.cellCount++;
+    if (this.retainHistory) this.cells.push(cell);
+    if (cell.registered === true) this.servingCellCount++;
+    if (!this.retainHistory) this.options.onCell?.(cell);
+  }
+
+  private emitRetainedCellCallbacks(): void {
+    const { onCell } = this.options;
+    if (!this.retainHistory || onCell === undefined) return;
+    // Retained callbacks run after NSA association so observers see final roles and ordering.
+    for (const cell of this.cells) onCell(cell);
+  }
+
+  private emitAssociatedNrCells(): void {
+    const associations = associateQualcommNsaMeasurements(this.lteAnchors, this.nrMeasurements);
+    for (const { anchor, derivedCells } of associations) {
+      anchor.measurementRole = "lte-secondary";
+      anchor.raw.measurementRole = "lte-secondary";
+      for (const cell of derivedCells) {
+        this.cellCount++;
+        if (cell.registered === true) this.servingCellCount++;
+      }
+    }
+    if (associations.length > 0) {
+      const mergedCells = mergeAssociatedNsaCells(this.cells, associations);
+      this.cells.length = 0;
+      for (const cell of mergedCells) this.cells.push(cell);
+    }
+    this.lteAnchors.length = 0;
+    this.nrMeasurements.length = 0;
   }
 
   private decodeLocation(event: NsgEvent): void {
     const latitude = numeric(event.data.latitude);
     const longitude = numeric(event.data.longitude);
-    if (latitude === null || longitude === null || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return;
+    if (latitude === null || longitude === null || !isValidLatLng(latitude, longitude)) return;
     const fixSeconds = numeric(event.data.time);
     this.locations.push({
       eventIndex: event.id,
@@ -311,6 +475,7 @@ export class NsgStreamParser {
   }
 
   finish(): NsgLog {
+    if (this.result !== null) return this.result;
     if (
       (this.expectedDecodedSize !== null && this.offset !== this.expectedDecodedSize) ||
       this.phase !== "header" ||
@@ -319,9 +484,10 @@ export class NsgStreamParser {
     )
       this.fail("Truncated NSG log");
     if (this.epochUs === null) this.fail("No supported NSG time anchor found");
+    this.emitAssociatedNrCells();
     const end = this.timestamp(this.maximumElapsedUs);
     this.finished = true;
-    return {
+    this.result = {
       sourceName: this.source.name,
       sourceBytes: this.source.size,
       headerXml: this.headerXml,
@@ -335,10 +501,15 @@ export class NsgStreamParser {
       timeRegressions: this.timeRegressions,
       decodedBytes: this.decodedBytes,
       servingCellCount: this.servingCellCount,
+      signalingRecordCount: this.signalingRecordCount,
+      signalingTruncated: this.signalingTruncated,
       events: this.events,
       cells: this.cells,
+      signaling: this.signaling,
       locations: this.locations,
     };
+    this.emitRetainedCellCallbacks();
+    return this.result;
   }
 }
 

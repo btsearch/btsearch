@@ -1,3 +1,4 @@
+import { isValidLatLng } from "./geometry";
 import type { NsgLocation } from "./types";
 
 const GPS_PREFERENCE_WINDOW_MS = 1000;
@@ -52,8 +53,7 @@ export function prepareNsgRouteLocations(locations: readonly NsgLocation[]): Nsg
   const ordered: TimedLocation[] = [];
   for (const location of locations) {
     const timestampUs = getNsgLocationTimeUs(location);
-    if (timestampUs === null || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) continue;
-    if (Math.abs(location.latitude) > 90 || Math.abs(location.longitude) > 180) continue;
+    if (timestampUs === null || !isValidLatLng(location.latitude, location.longitude)) continue;
     ordered.push({ location, timestampUs });
   }
   ordered.sort((left, right) => {
