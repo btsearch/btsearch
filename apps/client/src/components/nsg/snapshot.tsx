@@ -10,14 +10,17 @@ import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNsaCell }
 import { formatDecibelValue, formatValue } from "./display";
 import { CellDetails } from "./measurements";
 import {
+  type NrDeploymentMode,
   type NsaAggregation,
-  type NsaCarrierGroup,
   createNsaAggregation,
+  createNsaPresentationSections,
+  getNeighborTechnologySuffix,
+  getNsaCarrierRoleAbbreviation,
   getNsaCarrierRoleLabelKey,
   isNsaAggregationCell,
 } from "./snapshotPresentation";
 
-function PrimaryCellSection({ cells, label }: { cells: readonly NsgCell[]; label: string }) {
+function PrimaryCellSection({ cells, label, showRadioContext = true }: { cells: readonly NsgCell[]; label: string; showRadioContext?: boolean }) {
   return (
     <section className="shrink-0" aria-label={label}>
       {cells.map((cell) => {
@@ -30,7 +33,7 @@ function PrimaryCellSection({ cells, label }: { cells: readonly NsgCell[]; label
                 {formatDecibelValue(signal.value)} <span className="text-xs font-normal text-muted-foreground">{signal.suffix}</span>
               </p>
             </div>
-            <CellDetails cell={cell} />
+            <CellDetails cell={cell} showRadioContext={showRadioContext} />
           </div>
         );
       })}
@@ -76,15 +79,25 @@ function ReportedCellTable({ cells }: { cells: readonly NsgCell[] }) {
   );
 }
 
-function NeighborCellSection({ cells }: { cells: readonly NsgCell[] }) {
+type NeighborCellSectionProps = {
+  cells: readonly NsgCell[];
+  nrMode?: NrDeploymentMode;
+  roleAbbreviation?: "PC" | "SC" | null;
+};
+
+function NeighborCellSection({ cells, nrMode, roleAbbreviation }: NeighborCellSectionProps) {
   const { t } = useTranslation("nsg");
+  const rat = cells[0].rat;
+  const technologySuffix = getNeighborTechnologySuffix(rat, nrMode);
 
   return (
     <section className="border-t [contain-intrinsic-size:auto_12rem] [content-visibility:auto]">
       <header className="flex items-center gap-2 px-4 py-2.5">
-        <RatGenerationLabel rat={getDisplayRat(cells[0].rat)} />
+        <RatGenerationLabel rat={getDisplayRat(rat)} />
         <h3 className="min-w-0 flex-1 text-sm font-semibold">
-          {t("snapshot.neighboringCells", { count: cells.length })} · {cells[0].rat}
+          {t("snapshot.neighboringCells", { count: cells.length })}
+          {technologySuffix ? ` · ${technologySuffix}` : null}
+          {roleAbbreviation ? ` · ${roleAbbreviation}` : null}
         </h3>
       </header>
       <ReportedCellTable cells={cells} />
@@ -92,69 +105,39 @@ function NeighborCellSection({ cells }: { cells: readonly NsgCell[] }) {
   );
 }
 
-function AggregatedCellDetails({ cell, label }: { cell: NsgCell; label: string }) {
-  const signal = getHeadlineSignal(cell);
-
-  return (
-    <div className="px-4">
-      <div className="flex items-center justify-between gap-3 pt-3">
-        <h3 className="text-sm font-semibold">{label}</h3>
-        <p className="font-mono text-base font-semibold tabular-nums">
-          {formatDecibelValue(signal.value)} <span className="text-xs font-normal text-muted-foreground">{signal.suffix}</span>
-        </p>
-      </div>
-      <CellDetails cell={cell} />
-    </div>
-  );
-}
-
-function NsaCarrierSection({ carrier }: { carrier: NsaCarrierGroup }) {
+function NsaAggregationRows({ aggregation }: { aggregation: NsaAggregation }) {
   const { t } = useTranslation("nsg");
-  const label = t(getNsaCarrierRoleLabelKey(carrier.role));
+  const sections = createNsaPresentationSections(aggregation);
+  const hasServingCells = sections.some((section) => section.kind === "nr-serving" || section.kind === "lte-anchor");
 
   return (
-    <section className="border-t" aria-label={label}>
-      {carrier.serving.map((cell) => (
-        <AggregatedCellDetails key={`${cell.recordOffset}:${cell.cellIndex}:${cell.rat}:${cell.measurementRole}`} cell={cell} label={label} />
-      ))}
-      {carrier.serving.length === 0 ? (
-        <header className="flex items-center gap-2 bg-muted/20 px-4 py-2.5">
-          <RatGenerationLabel rat="NR" />
-          <h3 className="min-w-0 flex-1 text-sm font-semibold">{label}</h3>
-        </header>
-      ) : null}
-      {carrier.neighbors.length > 0 ? (
-        <div className="border-t">
-          <h4 className="px-4 py-2.5 text-sm font-semibold">{t("snapshot.neighboringCells", { count: carrier.neighbors.length })}</h4>
-          <ReportedCellTable cells={carrier.neighbors} />
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function NsaAggregationSection({ aggregation }: { aggregation: NsaAggregation }) {
-  const { t } = useTranslation("nsg");
-  const hasServingCells = aggregation.anchors.length > 0 || aggregation.carriers.some((carrier) => carrier.serving.length > 0);
-
-  return (
-    <section className="border-t" aria-label={t("snapshot.nsaGroup")}>
-      <header className="flex items-center gap-2 bg-muted/30 px-4 py-2.5">
-        <RatGenerationLabel rat="NR" />
-        <h2 className="min-w-0 flex-1 text-sm font-semibold">{t("snapshot.nsaGroup")}</h2>
-      </header>
+    <>
       {!hasServingCells ? <p className="border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p> : null}
-      {aggregation.carriers.map((carrier) => (
-        <NsaCarrierSection key={carrier.key} carrier={carrier} />
-      ))}
-      {aggregation.anchors.map((cell) => (
-        <AggregatedCellDetails
-          key={`${cell.recordOffset}:${cell.cellIndex}:${cell.rat}:${cell.measurementRole}`}
-          cell={cell}
-          label={t("snapshot.ltePrimaryCell")}
-        />
-      ))}
-    </section>
+      {sections.map((section) => {
+        switch (section.kind) {
+          case "nr-serving":
+            return (
+              <PrimaryCellSection
+                key={section.key}
+                cells={[section.cell]}
+                label={t(getNsaCarrierRoleLabelKey(section.role), { mode: "NSA" })}
+                showRadioContext={section.showRadioContext}
+              />
+            );
+          case "nr-neighbors":
+            return (
+              <NeighborCellSection
+                key={section.key}
+                cells={section.cells}
+                nrMode="NSA"
+                roleAbbreviation={getNsaCarrierRoleAbbreviation(section.role)}
+              />
+            );
+          case "lte-anchor":
+            return <PrimaryCellSection key={section.key} cells={section.cells} label={t("snapshot.ltePrimaryCell")} />;
+        }
+      })}
+    </>
   );
 }
 
@@ -207,7 +190,7 @@ export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { sna
 
   return (
     <div>
-      {nsaAggregation ? <NsaAggregationSection aggregation={nsaAggregation} /> : null}
+      {nsaAggregation ? <NsaAggregationRows aggregation={nsaAggregation} /> : null}
       {primaryGroups.length === 0 && nsaAggregation === null ? (
         <p className="shrink-0 border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p>
       ) : null}

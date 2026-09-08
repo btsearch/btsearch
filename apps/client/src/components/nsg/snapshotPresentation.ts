@@ -1,9 +1,12 @@
 import type { NsgCell } from "@/lib/nsg-parser/model";
 
+export type NsaCarrierRole = "primary" | "secondary" | "unknown";
+export type NrDeploymentMode = "NSA" | "SA";
+
 export type NsaCarrierGroup = Readonly<{
   key: string;
   carrierIndex: number | null;
-  role: "primary" | "secondary" | "unknown";
+  role: NsaCarrierRole;
   serving: readonly NsgCell[];
   neighbors: readonly NsgCell[];
 }>;
@@ -13,10 +16,32 @@ export type NsaAggregation = Readonly<{
   carriers: readonly NsaCarrierGroup[];
 }>;
 
+export type NsaPresentationSection =
+  | Readonly<{
+      kind: "nr-serving";
+      key: string;
+      carrierKey: string;
+      role: NsaCarrierRole;
+      cell: NsgCell;
+      showRadioContext: boolean;
+    }>
+  | Readonly<{
+      kind: "nr-neighbors";
+      key: string;
+      carrierKey: string;
+      role: NsaCarrierRole;
+      cells: readonly NsgCell[];
+    }>
+  | Readonly<{
+      kind: "lte-anchor";
+      key: "lte-anchor";
+      cells: readonly NsgCell[];
+    }>;
+
 type MutableCarrierGroup = {
   key: string;
   carrierIndex: number | null;
-  role: "primary" | "secondary" | "unknown";
+  role: NsaCarrierRole;
   serving: NsgCell[];
   neighbors: NsgCell[];
 };
@@ -34,12 +59,12 @@ function compareCarrierGroups(left: NsaCarrierGroup, right: NsaCarrierGroup): nu
   return left.carrierIndex - right.carrierIndex;
 }
 
-function carrierRole(carrierIndex: number | null): NsaCarrierGroup["role"] {
+function carrierRole(carrierIndex: number | null): NsaCarrierRole {
   if (carrierIndex === null) return "unknown";
   return carrierIndex === 0 ? "primary" : "secondary";
 }
 
-export function getNsaCarrierRoleLabelKey(role: NsaCarrierGroup["role"]): NsaCarrierRoleLabelKey {
+export function getNsaCarrierRoleLabelKey(role: NsaCarrierRole): NsaCarrierRoleLabelKey {
   switch (role) {
     case "primary":
       return "snapshot.nrPrimaryCell";
@@ -48,6 +73,23 @@ export function getNsaCarrierRoleLabelKey(role: NsaCarrierGroup["role"]): NsaCar
     case "unknown":
       return "snapshot.nrCell";
   }
+}
+
+export function getNsaCarrierRoleAbbreviation(role: NsaCarrierRole): "PC" | "SC" | null {
+  switch (role) {
+    case "primary":
+      return "PC";
+    case "secondary":
+      return "SC";
+    case "unknown":
+      return null;
+  }
+}
+
+export function getNeighborTechnologySuffix(rat: string, nrMode?: NrDeploymentMode): string | null {
+  if (rat === "NR") return nrMode ?? null;
+  if (rat === "LTE") return null;
+  return rat;
 }
 
 export function createNsaAggregation(cells: readonly NsgCell[]): NsaAggregation | null {
@@ -74,6 +116,37 @@ export function createNsaAggregation(cells: readonly NsgCell[]): NsaAggregation 
 
   const carriers = [...carriersByKey.values()].sort(compareCarrierGroups);
   return anchors.length === 0 && carriers.length === 0 ? null : { anchors, carriers };
+}
+
+export function createNsaPresentationSections(aggregation: NsaAggregation): readonly NsaPresentationSection[] {
+  const sections: NsaPresentationSection[] = [];
+
+  for (const carrier of aggregation.carriers) {
+    for (const cell of carrier.serving) {
+      sections.push({
+        kind: "nr-serving",
+        key: `nr-serving:${carrier.key}:${cell.recordOffset}:${cell.cellIndex}`,
+        carrierKey: carrier.key,
+        role: carrier.role,
+        cell,
+        showRadioContext: sections.length === 0,
+      });
+    }
+  }
+
+  for (const carrier of aggregation.carriers) {
+    if (carrier.neighbors.length === 0) continue;
+    sections.push({
+      kind: "nr-neighbors",
+      key: `nr-neighbors:${carrier.key}`,
+      carrierKey: carrier.key,
+      role: carrier.role,
+      cells: carrier.neighbors,
+    });
+  }
+
+  if (aggregation.anchors.length > 0) sections.push({ kind: "lte-anchor", key: "lte-anchor", cells: aggregation.anchors });
+  return sections;
 }
 
 export function isNsaAggregationCell(cell: NsgCell): boolean {

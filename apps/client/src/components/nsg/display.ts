@@ -39,7 +39,10 @@ export function formatTimeWithMilliseconds(timestamp: number): string {
     fractionalSecondDigits: 3,
     hourCycle: "h23",
   });
-  return formatter.format(date);
+  return formatter
+    .formatToParts(date)
+    .map((part, index, parts) => (part.type === "literal" && parts[index + 1]?.type === "fractionalSecond" ? "." : part.value))
+    .join("");
 }
 
 export function formatValue(value: unknown): string {

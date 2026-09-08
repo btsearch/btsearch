@@ -12,7 +12,7 @@ import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, ge
 import { formatDecibelValue, formatTime, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
 
-export function CellDetails({ cell }: { cell: NsgCell }) {
+export function CellDetails({ cell, showRadioContext = true }: { cell: NsgCell; showRadioContext?: boolean }) {
   const { t } = useTranslation("nsg");
   const operator = getCellOperator(cell);
   const identityFields = getCellIdentityFields(cell);
@@ -20,14 +20,16 @@ export function CellDetails({ cell }: { cell: NsgCell }) {
 
   return (
     <div className="space-y-3 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
-        <span className="font-semibold">{cell.rat}</span>
-        <OperatorName operator={operator} labelClassName="text-sm" />
-        <span className="ml-auto text-muted-foreground">
-          {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
-        </span>
-      </div>
+      {showRadioContext ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <RatGenerationLabel rat={getDisplayRat(cell.rat)} />
+          <span className="font-semibold">{cell.rat}</span>
+          <OperatorName operator={operator} labelClassName="text-sm" />
+          <span className="ml-auto text-muted-foreground">
+            {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
+          </span>
+        </div>
+      ) : null}
       <dl className="grid grid-cols-3 gap-x-4 gap-y-3">
         {identityFields.map(({ key, label, value }) => (
           <div key={key}>
