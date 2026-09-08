@@ -4,7 +4,7 @@ import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, type TooltipConten
 
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { NsgCell } from "@/lib/nsg/types";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 import { getSignalIdentityFields } from "./cellPresentation";
 import { formatDecibelValue, formatTime, formatValue } from "./display";

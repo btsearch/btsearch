@@ -9,20 +9,22 @@ import { MapStyleSwitcher } from "@/features/map/components/search-overlay/mapSt
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POINT_LAYER_ID, POLAND_CENTER } from "@/features/map/constants";
 import { getMapVisibilityKeybind } from "@/features/map/filterKeybinds";
 import { useMapKeybinds } from "@/features/map/hooks/useMapKeybinds";
-import { usePreferences } from "@/hooks/usePreferences";
-import { findClosestNsgRoutePoint, isValidLatLng } from "@/lib/nsg/geometry";
-import { type NsgResolvedOperator, getNsgCellOperator } from "@/lib/nsg/operator";
-import { getNsgReplayPosition } from "@/lib/nsg/replayPosition";
+import { type ResolvedOperator, getCellOperator } from "@/features/nsg-explorer/cells/operators";
+import type { ServingCellSnapshot } from "@/features/nsg-explorer/cells/servingTimeline";
+import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
+import { findClosestRoutePoint } from "@/features/nsg-explorer/map/routeGeometry";
 import {
-  NSG_SIGNAL_BANDS,
-  NSG_SIGNAL_UNKNOWN_COLOR,
-  type NsgReplaySignal,
-  type NsgSignalPoint,
-  type NsgSignalTrail,
-  getNsgReplaySignal,
-} from "@/lib/nsg/signal";
-import type { NsgAnalyzerResultsByKey, NsgMatchedStation, NsgServingCellSnapshot } from "@/lib/nsg/stationCorrelation";
-import type { NsgCell, NsgLocation } from "@/lib/nsg/types";
+  type ReplaySignal,
+  SIGNAL_BANDS,
+  SIGNAL_UNKNOWN_COLOR,
+  type SignalPoint,
+  type SignalTrail,
+  getReplaySignal,
+} from "@/features/nsg-explorer/map/signalTrail";
+import type { AnalyzerResultsByKey, MatchedStation } from "@/features/nsg-explorer/stations/correlation";
+import { usePreferences } from "@/hooks/usePreferences";
+import { isValidLatLng } from "@/lib/nsg-parser";
+import type { NsgCell, NsgLocation } from "@/lib/nsg-parser/model";
 
 import { formatDecibelValue, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
@@ -54,8 +56,8 @@ type SignalLegendProps = {
   compact: boolean;
   dbm: number | null | undefined;
   color: string;
-  operator: NsgResolvedOperator | null;
-  signalSim: NsgSignalTrail["sim"];
+  operator: ResolvedOperator | null;
+  signalSim: SignalTrail["sim"];
 };
 
 function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegendProps) {
@@ -73,14 +75,14 @@ function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegend
         {signalSim ? t("map.signalSim", { slot: formatValue(signalSim.slotId), subscription: formatValue(signalSim.subId) }) : t("map.signalNoSim")}
       </p>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-foreground tabular-nums">
-        {NSG_SIGNAL_BANDS.map((band) => (
+        {SIGNAL_BANDS.map((band) => (
           <div key={band.color} className="flex items-center gap-1.5 whitespace-nowrap font-mono">
             <span className="h-2.5 w-4 shrink-0 rounded-xs" style={{ backgroundColor: band.color }} />
             {formatSignalBandRange(band.minimumDbm, band.maximumDbm)}
           </div>
         ))}
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-4 shrink-0 rounded-xs" style={{ backgroundColor: NSG_SIGNAL_UNKNOWN_COLOR }} />
+          <span className="h-2.5 w-4 shrink-0 rounded-xs" style={{ backgroundColor: SIGNAL_UNKNOWN_COLOR }} />
           {t("map.noSignalData")}
         </div>
       </div>
@@ -120,7 +122,7 @@ function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegend
 type RouteControllerProps = {
   coordinates: [number, number][];
   fitCoordinates: [number, number][];
-  routePoints: readonly NsgSignalPoint[];
+  routePoints: readonly SignalPoint[];
   routeSimKey: string;
   selected: NsgLocation | null;
   fitRequest: number;
@@ -197,7 +199,7 @@ function RouteController({
         }).length === 0
       )
         return;
-      const nearest = findClosestNsgRoutePoint(routePoints, event.point, (location) => map.project([location.longitude, location.latitude]));
+      const nearest = findClosestRoutePoint(routePoints, event.point, (location) => map.project([location.longitude, location.latitude]));
       if (nearest) onSelectLocation(nearest.location);
     };
     map.on("click", selectRoutePoint);
@@ -213,10 +215,10 @@ type RouteMapProps = {
   compact: boolean;
   points: NsgLocation[];
   selected: NsgLocation | null;
-  signalTrail: NsgSignalTrail;
-  signalTrails: ReadonlyMap<string, NsgSignalTrail>;
+  signalTrail: SignalTrail;
+  signalTrails: ReadonlyMap<string, SignalTrail>;
   signalSimKey: string;
-  selectedOperator: NsgResolvedOperator | null;
+  selectedOperator: ResolvedOperator | null;
   playheadMs: number | null;
   replayClock: ReplayClock;
   replayCells: readonly NsgCell[];
@@ -224,10 +226,10 @@ type RouteMapProps = {
   hasLog: boolean;
   operatorMncs: readonly number[];
   stationCorrelationKey: string | null;
-  stationCorrelationResults: NsgAnalyzerResultsByKey;
-  matchedStations: readonly NsgMatchedStation[];
-  stationSourceMatches: readonly NsgMatchedStation[];
-  servingTimeline: readonly NsgServingCellSnapshot[];
+  stationCorrelationResults: AnalyzerResultsByKey;
+  matchedStations: readonly MatchedStation[];
+  stationSourceMatches: readonly MatchedStation[];
+  servingTimeline: readonly ServingCellSnapshot[];
   servingFallbackTimestampMs: number | null;
 };
 
@@ -255,9 +257,9 @@ export default function RouteMap({
   const { t } = useTranslation("nsg");
   const { preferences, updatePreferences } = usePreferences();
   const [fitRequest, setFitRequest] = useState(0);
-  const [fitStation, setFitStation] = useState<NsgMatchedStation | null>(null);
+  const [fitStation, setFitStation] = useState<MatchedStation | null>(null);
   const [showStations, setShowStations] = useState(true);
-  const activeStationRef = useRef<NsgMatchedStation | null>(null);
+  const activeStationRef = useRef<MatchedStation | null>(null);
   useMapKeybinds(({ key, shiftKey }) => {
     const visibility = getMapVisibilityKeybind(key, shiftKey);
     if (visibility === "stations") {
@@ -285,14 +287,14 @@ export default function RouteMap({
     return result;
   }, [coordinates, fitStation, matchedStations, showStations]);
   const pointIndex = useMemo(() => new Map(points.map((point, index) => [point, index])), [points]);
-  let selectedSignal: NsgSignalPoint | NsgReplaySignal | undefined;
-  if (playheadMs !== null) selectedSignal = getNsgReplaySignal(replayCells, playheadMs);
+  let selectedSignal: SignalPoint | ReplaySignal | undefined;
+  if (playheadMs !== null) selectedSignal = getReplaySignal(replayCells, playheadMs);
   else if (selected !== null) {
     const selectedIndex = pointIndex.get(selected);
     if (selectedIndex !== undefined) selectedSignal = signalTrail.points[selectedIndex];
   }
-  const selectedPosition = playheadMs === null ? selected : getNsgReplayPosition(points, playheadMs);
-  const operator = selectedSignal?.measurement ? getNsgCellOperator(selectedSignal.measurement) : selectedOperator;
+  const selectedPosition = playheadMs === null ? selected : getReplayPosition(points, playheadMs);
+  const operator = selectedSignal?.measurement ? getCellOperator(selectedSignal.measurement) : selectedOperator;
   const activeRouteSimKey = signalTrails.has(signalSimKey) ? signalSimKey : "?:?";
 
   return (
@@ -333,7 +335,7 @@ export default function RouteMap({
         selected={selected}
         playheadMs={playheadMs}
         clock={replayClock}
-        color={selectedSignal?.color ?? NSG_SIGNAL_UNKNOWN_COLOR}
+        color={selectedSignal?.color ?? SIGNAL_UNKNOWN_COLOR}
         title={t("map.selected")}
       />
       <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-1.5">
@@ -372,7 +374,7 @@ export default function RouteMap({
           <SignalLegend
             compact={compact}
             dbm={selectedSignal?.dbm}
-            color={selectedSignal?.color ?? NSG_SIGNAL_UNKNOWN_COLOR}
+            color={selectedSignal?.color ?? SIGNAL_UNKNOWN_COLOR}
             operator={operator}
             signalSim={signalTrail.sim}
           />

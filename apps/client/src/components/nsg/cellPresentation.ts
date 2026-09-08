@@ -1,5 +1,5 @@
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
-import type { NsgCell } from "@/lib/nsg/types";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 import { formatValue } from "./display";
 

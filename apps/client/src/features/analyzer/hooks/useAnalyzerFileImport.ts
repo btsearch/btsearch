@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
-import { isNsgFileHeader } from "@/lib/nsg/fileStream";
+import { isNsgFileHeader } from "@/lib/nsg-parser/browser";
 
 export type AnalyzerFileImportProgress = Readonly<{
   bytesRead: number;
@@ -55,7 +55,7 @@ export function useAnalyzerFileImport(): {
       if (controller.signal.aborted || controllerRef.current !== controller) return null;
 
       if (isNsgFileHeader(header)) {
-        const { importNsgAnalyzerFile } = await import("@/lib/nsg/analyzerImport");
+        const { importNsgAnalyzerFile } = await import("@/features/analyzer/nsg/importFile");
         if (controller.signal.aborted || controllerRef.current !== controller) return null;
         const imported = await importNsgAnalyzerFile(file, {
           signal: controller.signal,

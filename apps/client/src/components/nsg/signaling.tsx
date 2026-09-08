@@ -4,9 +4,9 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { type ReactNode, memo, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { bytesToHex } from "@/features/nsg-explorer/presentation/formatBytes";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
-import { bytesToHex } from "@/lib/nsg/qualcommSignaling";
-import type { NsgJsonValue, NsgSignalingRecord } from "@/lib/nsg/types";
+import type { NsgJsonValue, NsgSignalingRecord } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
 
 import { Filter } from "./controls";
@@ -21,6 +21,10 @@ function channelLabel(record: NsgSignalingRecord): string {
 
 function pduValue(record: NsgSignalingRecord): string | number | null {
   return record.pduType ?? record.pduId;
+}
+
+function logCodeLabel(logCode: number): string {
+  return `0x${logCode.toString(16).padStart(4, "0").toUpperCase()}`;
 }
 
 function treeLeaf(value: NsgJsonValue): string {
@@ -103,7 +107,7 @@ const SignalingDetails = memo(function SignalingDetails({ record, id }: { record
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
         <div>
           <dt className="text-[10px] text-muted-foreground">{t("signaling.logCode")}</dt>
-          <dd className="font-mono">{formatValue(record.logCode)}</dd>
+          <dd className="font-mono">{logCodeLabel(record.logCode)}</dd>
         </div>
         <div>
           <dt className="text-[10px] text-muted-foreground">{t("signaling.version")}</dt>

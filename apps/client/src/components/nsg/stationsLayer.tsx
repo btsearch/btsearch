@@ -7,24 +7,24 @@ import { DEFAULT_FILTERS, StationsLayer as MapStationsLayer } from "@/features/m
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { useMapQueryHousekeeping } from "@/features/map/hooks/useMapQueryHousekeeping";
 import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActions";
+import type { MatchedStation } from "@/features/nsg-explorer/stations/correlation";
+import { mergeMatchedStationLocations } from "@/features/nsg-explorer/stations/locations";
+import { createStationsQueryScope, isStationsQueryScope, retainStationsPlaceholder } from "@/features/nsg-explorer/stations/queryScope";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import type { NsgMatchedStation } from "@/lib/nsg/stationCorrelation";
-import { mergeNsgMatchedStationLocations } from "@/lib/nsg/stationLocations";
-import { createNsgStationsQueryScope, isNsgStationsQueryScope, retainNsgStationsPlaceholder } from "@/lib/nsg/stationQuery";
 import type { StationFilters } from "@/types/station";
 
 const LOCATION_QUERY_FAMILIES = new Set(["locations"]);
 
-function isNsgLocationsQuery(queryKey: readonly unknown[]): boolean {
-  return isNsgStationsQueryScope(queryKey.at(-1));
+function isStationsLayerQuery(queryKey: readonly unknown[]): boolean {
+  return isStationsQueryScope(queryKey.at(-1));
 }
 
 type StationsLayerProps = {
   operatorMncs: readonly number[];
   correlationKey: string | null;
-  stationSourceMatches: readonly NsgMatchedStation[];
+  stationSourceMatches: readonly MatchedStation[];
   visible: boolean;
 };
 
@@ -40,8 +40,8 @@ export const StationsLayer = memo(function StationsLayer({ operatorMncs, correla
     () => ({ ...DEFAULT_FILTERS, operators: [...operatorMncs], showStations: visible }),
     [operatorMncs, visible],
   );
-  const queryScope = useMemo(() => createNsgStationsQueryScope(correlationKey, operatorMncs), [correlationKey, operatorMncs]);
-  useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LOCATION_QUERY_FAMILIES, isInScope: isNsgLocationsQuery });
+  const queryScope = useMemo(() => createStationsQueryScope(correlationKey, operatorMncs), [correlationKey, operatorMncs]);
+  useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LOCATION_QUERY_FAMILIES, isInScope: isStationsLayerQuery });
 
   const { data: queriedLocationsResponse } = useQuery({
     queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, queryScope],
@@ -53,10 +53,10 @@ export const StationsLayer = memo(function StationsLayer({ operatorMncs, correla
     enabled: visible && isLoaded && bounds.length > 0 && !isMoving && operatorMncs.length > 0,
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60,
-    placeholderData: (previous, previousQuery) => retainNsgStationsPlaceholder(previous, previousQuery?.queryKey, queryScope),
+    placeholderData: (previous, previousQuery) => retainStationsPlaceholder(previous, previousQuery?.queryKey, queryScope),
   });
   const locationsResponse = useMemo<LocationsResponse>(() => {
-    const data = mergeNsgMatchedStationLocations(queriedLocationsResponse?.data ?? [], stationSourceMatches);
+    const data = mergeMatchedStationLocations(queriedLocationsResponse?.data ?? [], stationSourceMatches);
     return {
       data,
       totalCount: Math.max(queriedLocationsResponse?.totalCount ?? 0, data.length),

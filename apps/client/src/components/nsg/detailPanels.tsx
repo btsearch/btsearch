@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { NsgSnapshot } from "@/lib/nsg/snapshots";
-import type { NsgCell, NsgLog } from "@/lib/nsg/types";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
+import type { NsgCell, NsgLog } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
 
 import { formatTime } from "./display";
@@ -27,8 +27,8 @@ type DetailPanelsProps = {
   filterKey: string;
   log: NsgLog;
   cells: readonly NsgCell[];
-  snapshots: readonly NsgSnapshot[];
-  snapshot: NsgSnapshot | null;
+  snapshots: readonly Snapshot[];
+  snapshot: Snapshot | null;
   selectedIndex: number;
   selectedTimestamp: number | null;
   expanded: boolean;
@@ -60,7 +60,7 @@ export function DetailPanels({
   const expansionLabel = t(expanded ? "tabs.collapse" : "tabs.expand");
 
   return (
-    <Collapsible open={expanded} onOpenChange={onExpandedChange} className="flex min-h-0 flex-1 flex-col">
+    <Collapsible open={expanded} onOpenChange={onExpandedChange} className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center border-b">
         <Tabs
           value={activeView}
@@ -94,7 +94,7 @@ export function DetailPanels({
           </CollapsibleTrigger>
         ) : null}
       </div>
-      <CollapsibleContent className="flex min-h-0 flex-1 flex-col [&[hidden]:not([hidden='until-found'])]:hidden">
+      <CollapsibleContent className="flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]:not([hidden='until-found'])]:hidden">
         {activeView === "cells" ? (
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {snapshot ? <SnapshotDetails snapshot={snapshot} /> : <p className="px-4 py-3 text-sm text-muted-foreground">{t("snapshot.empty")}</p>}
@@ -115,7 +115,7 @@ export function DetailPanels({
           />
         ) : null}
         {activeView === "recording" ? (
-          <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 text-xs">
+          <div className="custom-scrollbar min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 text-xs">
             <p className="font-mono">
               {formatTime(log.startTimestampMs, true)}
               <br />
@@ -133,9 +133,9 @@ export function DetailPanels({
                 />
               </div>
             </details>
-            <details className="border-t pt-3">
+            <details className="min-w-0 border-t pt-3">
               <summary className="cursor-pointer font-medium">{t("metadata.header")}</summary>
-              <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted/30 p-2 text-[10px]">{log.headerXml}</pre>
+              <pre className="mt-2 max-h-64 w-full max-w-full overflow-auto rounded-md bg-muted/30 p-2 text-[10px]">{log.headerXml}</pre>
             </details>
             <details className="border-t pt-3">
               <summary className="cursor-pointer font-medium">{t("metadata.eventTypes")}</summary>

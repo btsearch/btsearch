@@ -3,9 +3,9 @@ import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import { memo, useEffect, useMemo, useRef } from "react";
 
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
+import { createRouteGeometry } from "@/features/nsg-explorer/map/routeGeometry";
+import type { SignalTrail } from "@/features/nsg-explorer/map/signalTrail";
 import { hasCoarsePointer } from "@/lib/dom/pointer";
-import { createNsgRouteGeometry } from "@/lib/nsg/geometry";
-import type { NsgSignalTrail } from "@/lib/nsg/signal";
 
 export const NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID = "route-layer-nsg-track-hitbox";
 export const NSG_SIGNAL_ROUTE_SOURCE_ID = "nsg-signal-route";
@@ -18,10 +18,10 @@ type SignalRouteGeometry = FeatureCollection<LineString, { color: string; simKey
 
 const EMPTY_ROUTE: SignalRouteGeometry = { type: "FeatureCollection", features: [] };
 
-function createSignalRouteGeometry(trails: ReadonlyMap<string, NsgSignalTrail>): SignalRouteGeometry {
+function createSignalRouteGeometry(trails: ReadonlyMap<string, SignalTrail>): SignalRouteGeometry {
   const features: SignalRouteGeometry["features"] = [];
   for (const [simKey, trail] of trails)
-    for (const feature of createNsgRouteGeometry(trail.points).features) features.push({ ...feature, properties: { ...feature.properties, simKey } });
+    for (const feature of createRouteGeometry(trail.points).features) features.push({ ...feature, properties: { ...feature.properties, simKey } });
   return { type: "FeatureCollection", features };
 }
 
@@ -30,7 +30,7 @@ export const SignalRoute = memo(function SignalRoute({
   activeSimKey,
   beforeLayerIds = EMPTY_LAYER_IDS,
 }: {
-  trails: ReadonlyMap<string, NsgSignalTrail>;
+  trails: ReadonlyMap<string, SignalTrail>;
   activeSimKey: string;
   beforeLayerIds?: readonly string[];
 }) {

@@ -2,13 +2,20 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
-import type { NsgSnapshot } from "@/lib/nsg/snapshots";
-import type { NsgCell } from "@/lib/nsg/types";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNsaCell } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { CellDetails } from "./measurements";
+import {
+  type NsaAggregation,
+  type NsaCarrierGroup,
+  createNsaAggregation,
+  getNsaCarrierRoleLabelKey,
+  isNsaAggregationCell,
+} from "./snapshotPresentation";
 
 function PrimaryCellSection({ cells, label }: { cells: readonly NsgCell[]; label: string }) {
   return (
@@ -85,6 +92,72 @@ function NeighborCellSection({ cells }: { cells: readonly NsgCell[] }) {
   );
 }
 
+function AggregatedCellDetails({ cell, label }: { cell: NsgCell; label: string }) {
+  const signal = getHeadlineSignal(cell);
+
+  return (
+    <div className="px-4">
+      <div className="flex items-center justify-between gap-3 pt-3">
+        <h3 className="text-sm font-semibold">{label}</h3>
+        <p className="font-mono text-base font-semibold tabular-nums">
+          {formatDecibelValue(signal.value)} <span className="text-xs font-normal text-muted-foreground">{signal.suffix}</span>
+        </p>
+      </div>
+      <CellDetails cell={cell} />
+    </div>
+  );
+}
+
+function NsaCarrierSection({ carrier }: { carrier: NsaCarrierGroup }) {
+  const { t } = useTranslation("nsg");
+  const label = t(getNsaCarrierRoleLabelKey(carrier.role));
+
+  return (
+    <section className="border-t" aria-label={label}>
+      {carrier.serving.map((cell) => (
+        <AggregatedCellDetails key={`${cell.recordOffset}:${cell.cellIndex}:${cell.rat}:${cell.measurementRole}`} cell={cell} label={label} />
+      ))}
+      {carrier.serving.length === 0 ? (
+        <header className="flex items-center gap-2 bg-muted/20 px-4 py-2.5">
+          <RatGenerationLabel rat="NR" />
+          <h3 className="min-w-0 flex-1 text-sm font-semibold">{label}</h3>
+        </header>
+      ) : null}
+      {carrier.neighbors.length > 0 ? (
+        <div className="border-t">
+          <h4 className="px-4 py-2.5 text-sm font-semibold">{t("snapshot.neighboringCells", { count: carrier.neighbors.length })}</h4>
+          <ReportedCellTable cells={carrier.neighbors} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function NsaAggregationSection({ aggregation }: { aggregation: NsaAggregation }) {
+  const { t } = useTranslation("nsg");
+  const hasServingCells = aggregation.anchors.length > 0 || aggregation.carriers.some((carrier) => carrier.serving.length > 0);
+
+  return (
+    <section className="border-t" aria-label={t("snapshot.nsaGroup")}>
+      <header className="flex items-center gap-2 bg-muted/30 px-4 py-2.5">
+        <RatGenerationLabel rat="NR" />
+        <h2 className="min-w-0 flex-1 text-sm font-semibold">{t("snapshot.nsaGroup")}</h2>
+      </header>
+      {!hasServingCells ? <p className="border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p> : null}
+      {aggregation.carriers.map((carrier) => (
+        <NsaCarrierSection key={carrier.key} carrier={carrier} />
+      ))}
+      {aggregation.anchors.map((cell) => (
+        <AggregatedCellDetails
+          key={`${cell.recordOffset}:${cell.cellIndex}:${cell.rat}:${cell.measurementRole}`}
+          cell={cell}
+          label={t("snapshot.ltePrimaryCell")}
+        />
+      ))}
+    </section>
+  );
+}
+
 function presentationGroupKey(cell: NsgCell): string {
   return `${cell.rat}:${isNrNsaCell(cell) ? "nsa" : "other"}`;
 }
@@ -98,24 +171,19 @@ function addGroupedCell(groups: Map<string, NsgCell[]>, key: string, cell: NsgCe
   else groups.set(key, [cell]);
 }
 
-export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { snapshot: NsgSnapshot }) {
+export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { snapshot: Snapshot }) {
   const { t } = useTranslation("nsg");
-  const primaryRegistered = snapshot.cells.filter((cell) => cell.registered === true && cell.measurementRole !== "lte-secondary");
-  const lteSecondary = snapshot.cells.filter((cell) => cell.measurementRole === "lte-secondary");
-  const nrPrimary = snapshot.cells.filter((cell) => cell.measurementRole === "nr-primary");
+  const nsaAggregation = createNsaAggregation(snapshot.cells);
+  const primaryRegistered = snapshot.cells.filter((cell) => cell.registered === true && !isNsaAggregationCell(cell));
   const registeredGroups = new Map<string, NsgCell[]>();
   for (const cell of primaryRegistered) addGroupedCell(registeredGroups, presentationGroupKey(cell), cell);
   const otherGroups = new Map<string, NsgCell[]>();
   for (const cell of snapshot.cells) {
-    if (cell.registered === true || cell.measurementRole === "nr-primary") continue;
+    if (cell.registered === true || isNsaAggregationCell(cell)) continue;
     const key = `${presentationGroupKey(cell)}:${cell.registered === false ? "no" : "unknown"}`;
     addGroupedCell(otherGroups, key, cell);
   }
   const primaryGroups: PrimaryCellGroup[] = [];
-  if (nrPrimary.length > 0)
-    primaryGroups.push({ key: "nr-primary", cells: nrPrimary, label: t("snapshot.nrPrimaryCells", { count: nrPrimary.length }) });
-  if (lteSecondary.length > 0)
-    primaryGroups.push({ key: "lte-secondary", cells: lteSecondary, label: t("snapshot.lteSecondaryCells", { count: lteSecondary.length }) });
   for (const [key, cells] of registeredGroups)
     primaryGroups.push({
       key: `registered:${key}`,
@@ -139,7 +207,10 @@ export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { sna
 
   return (
     <div>
-      {primaryGroups.length === 0 ? <p className="shrink-0 border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p> : null}
+      {nsaAggregation ? <NsaAggregationSection aggregation={nsaAggregation} /> : null}
+      {primaryGroups.length === 0 && nsaAggregation === null ? (
+        <p className="shrink-0 border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p>
+      ) : null}
       {blocks.map((block) =>
         block.kind === "primary" ? (
           <PrimaryCellSection key={block.key} cells={block.cells} label={block.label} />

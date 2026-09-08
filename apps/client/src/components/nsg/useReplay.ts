@@ -1,8 +1,8 @@
 import { startTransition, useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 
-import { advanceNsgReplay } from "@/lib/nsg/replay";
-import { type NsgSnapshot, type NsgSnapshotCollection, findNearestNsgSnapshotIndex } from "@/lib/nsg/snapshots";
-import type { NsgLog } from "@/lib/nsg/types";
+import { type Snapshot, type SnapshotCollection, findNearestSnapshotIndex } from "@/features/nsg-explorer/cells/snapshots";
+import { advanceReplayClock } from "@/features/nsg-explorer/replay/replayClock";
+import type { NsgLog } from "@/lib/nsg-parser/model";
 
 import { type ReplayClock, createReplayClock } from "./replayClock";
 
@@ -44,7 +44,7 @@ export type ReplayController = Readonly<{
   clock: ReplayClock;
   selectedEventIndex: number | null;
   selectedIndex: number;
-  snapshot: NsgSnapshot | null;
+  snapshot: Snapshot | null;
   selectedTimestamp: number | null;
   playheadMs: number | null;
   isPlaying: boolean;
@@ -56,7 +56,7 @@ export type ReplayController = Readonly<{
 
 type ReplayOptions = {
   log: NsgLog | null;
-  snapshotCollection: NsgSnapshotCollection;
+  snapshotCollection: SnapshotCollection;
   isParsing: boolean;
 };
 
@@ -75,7 +75,7 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
   const { selectedEventIndex, isPlaying, playheadMs } = state;
   const requestedTimestamp = selectedEventIndex === null ? null : (log?.events[selectedEventIndex]?.timestampMs ?? null);
   const exactIndex = selectedEventIndex === null ? undefined : indexByEvent.get(selectedEventIndex);
-  const selectedIndex = exactIndex ?? findNearestNsgSnapshotIndex(snapshots, requestedTimestamp);
+  const selectedIndex = exactIndex ?? findNearestSnapshotIndex(snapshots, requestedTimestamp);
   const snapshot = snapshots[selectedIndex] ?? null;
   const selectedTimestamp = playheadMs ?? requestedTimestamp ?? snapshot?.timestampMs ?? null;
 
@@ -103,7 +103,7 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
       dispatch({ type: "stop" });
       return false;
     }
-    const next = advanceNsgReplay(snapshots, currentPlayhead, elapsedWallMs);
+    const next = advanceReplayClock(snapshots, currentPlayhead, elapsedWallMs);
     clock.set(next.playheadMs);
     const nextSnapshot = snapshots[next.index];
     if (publish || next.finished)
@@ -143,7 +143,7 @@ export function useReplay({ log, snapshotCollection, isParsing }: ReplayOptions)
       dispatch({ type: "stop" });
       return;
     }
-    const paused = advanceNsgReplay(snapshots, current, 0);
+    const paused = advanceReplayClock(snapshots, current, 0);
     dispatch({
       type: "position",
       eventIndex: snapshots[paused.index]?.eventIndex ?? null,

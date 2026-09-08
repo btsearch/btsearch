@@ -1,32 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
+import {
+  type AnalyzerResultsByKey,
+  collectAnalyzerRequests,
+  getAnalyzerRequestsIdentity,
+  mapAnalyzerResults,
+} from "@/features/nsg-explorer/stations/correlation";
 import { analyzeCellsInChunks } from "@/lib/analyzer/api";
 import { authClient } from "@/lib/auth/client";
-import {
-  type NsgAnalyzerResultsByKey,
-  collectNsgAnalyzerRequests,
-  getNsgAnalyzerRequestsIdentity,
-  mapNsgAnalyzerResults,
-} from "@/lib/nsg/stationCorrelation";
-import type { NsgLog } from "@/lib/nsg/types";
+import type { NsgLog } from "@/lib/nsg-parser/model";
 
 export type StationCorrelation = {
   correlationKey: string | null;
-  resultsByKey: NsgAnalyzerResultsByKey;
+  resultsByKey: AnalyzerResultsByKey;
   status: "unavailable" | "idle" | "pending" | "success" | "error";
   analyze: () => Promise<Error | null>;
 };
 
-const EMPTY_RESULTS: NsgAnalyzerResultsByKey = new Map();
+const EMPTY_RESULTS: AnalyzerResultsByKey = new Map();
 export function useStationCorrelation(log: NsgLog | null, requested: boolean): StationCorrelation {
   const { data: session, isPending: isAuthPending } = authClient.useSession();
-  const requests = useMemo(() => collectNsgAnalyzerRequests(log?.cells ?? []), [log]);
+  const requests = useMemo(() => collectAnalyzerRequests(log?.cells ?? []), [log]);
   const correlationKey = useMemo(
     () =>
       log === null
         ? null
-        : JSON.stringify([log.sourceName, log.sourceBytes, log.startTimestampUs, log.endTimestampMs, getNsgAnalyzerRequestsIdentity(requests)]),
+        : JSON.stringify([log.sourceName, log.sourceBytes, log.startTimestampUs, log.endTimestampMs, getAnalyzerRequestsIdentity(requests)]),
     [log, requests],
   );
   const isSignedIn = !!session?.user;
@@ -38,7 +38,7 @@ export function useStationCorrelation(log: NsgLog | null, requested: boolean): S
         requests.map(({ input }) => input),
         signal,
       );
-      return { correlationKey, resultsByKey: mapNsgAnalyzerResults(requests, results) };
+      return { correlationKey, resultsByKey: mapAnalyzerResults(requests, results) };
     },
     enabled: false,
     retry: false,

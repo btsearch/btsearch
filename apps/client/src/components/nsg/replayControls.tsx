@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import type { NsgSnapshot } from "@/lib/nsg/snapshots";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
 import { cn } from "@/lib/utils";
 
 import { formatTime } from "./display";
@@ -15,9 +15,9 @@ type ReplayControlsProps = {
   parsing: boolean;
   playing: boolean;
   playheadMs: number | null;
-  snapshots: readonly NsgSnapshot[];
+  snapshots: readonly Snapshot[];
   selectedIndex: number;
-  snapshot: NsgSnapshot | null;
+  snapshot: Snapshot | null;
   detailsButtonRef: RefObject<HTMLButtonElement | null>;
   onToggle: () => void;
   onSelectEvent: (eventIndex: number) => void;

@@ -2,10 +2,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
+import { type Snapshot, getPrimaryCell } from "@/features/nsg-explorer/cells/snapshots";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
-import { getNsgCellOperator } from "@/lib/nsg/operator";
-import { type NsgSnapshot, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
-import type { NsgCell } from "@/lib/nsg/types";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
 
 import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat, getHeadlineSignal } from "./cellPresentation";
@@ -14,7 +14,7 @@ import { OperatorName } from "./operatorName";
 
 export function CellDetails({ cell }: { cell: NsgCell }) {
   const { t } = useTranslation("nsg");
-  const operator = getNsgCellOperator(cell);
+  const operator = getCellOperator(cell);
   const identityFields = getCellIdentityFields(cell);
   const measurementFields = getCellMeasurementFields(cell);
 
@@ -56,7 +56,7 @@ export function MeasurementHistory({
   selectedIndex,
   onSelect,
 }: {
-  snapshots: readonly NsgSnapshot[];
+  snapshots: readonly Snapshot[];
   selectedIndex: number;
   onSelect: (eventIndex: number) => void;
 }) {
@@ -84,7 +84,7 @@ export function MeasurementHistory({
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((item) => {
             const snapshot = snapshots[item.index];
-            const cell = getPrimaryNsgCell(snapshot.cells);
+            const cell = getPrimaryCell(snapshot.cells);
             if (!cell) return null;
             const signal = getHeadlineSignal(cell);
             return (

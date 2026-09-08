@@ -2,8 +2,8 @@ import { Marker } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 
 import { useMap } from "@/components/ui/map";
-import { getNsgReplayPosition } from "@/lib/nsg/replayPosition";
-import type { NsgLocation } from "@/lib/nsg/types";
+import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
+import type { NsgLocation } from "@/lib/nsg-parser/model";
 
 import type { ReplayClock } from "./replayClock";
 
@@ -31,7 +31,7 @@ export function SelectedMarker({
     const marker = markerRef.current;
     if (!marker) return;
     let position: Pick<NsgLocation, "latitude" | "longitude"> | null = selected;
-    if (playheadMs !== null) position = time === null ? null : getNsgReplayPosition(points, time);
+    if (playheadMs !== null) position = time === null ? null : getReplayPosition(points, time);
     marker.getElement().style.visibility = position ? "visible" : "hidden";
     if (position) marker.setLngLat([position.longitude, position.latitude]);
     if (dotRef.current) {

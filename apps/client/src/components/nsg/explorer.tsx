@@ -8,16 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { collectRegisteredOperatorMncs, createOperatorResolver, getCellOperator } from "@/features/nsg-explorer/cells/operators";
+import { createServingCellTimeline } from "@/features/nsg-explorer/cells/servingTimeline";
+import { type Snapshot, createSnapshotCollection, findNearestSnapshotIndex, getPrimaryCell } from "@/features/nsg-explorer/cells/snapshots";
+import { findClosestRouteLocation, getLocationTimeMs, prepareRouteLocations } from "@/features/nsg-explorer/map/routeLocations";
+import { type SignalTrail, createSignalTrail } from "@/features/nsg-explorer/map/signalTrail";
+import { findReplayLocationIndex } from "@/features/nsg-explorer/replay/replayClock";
+import { collectMatchedStations } from "@/features/nsg-explorer/stations/correlation";
 import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
-import { getClosestNsgRouteLocation, getNsgLocationTimeMs, prepareNsgRouteLocations } from "@/lib/nsg/locations";
-import { collectNsgRegisteredOperatorMncs, createNsgOperatorResolver, getNsgCellOperator } from "@/lib/nsg/operator";
-import { getNsgReplayLocationIndex } from "@/lib/nsg/replay";
-import { type NsgSignalTrail, associateNsgSignals, parseNsgTimestampMs } from "@/lib/nsg/signal";
-import { type NsgSnapshot, createNsgSnapshotCollection, findNearestNsgSnapshotIndex, getPrimaryNsgCell } from "@/lib/nsg/snapshots";
-import { collectMatchedNsgStations, createNsgServingCellTimeline } from "@/lib/nsg/stationCorrelation";
-import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg/types";
+import { parseNsgTimestampMs } from "@/lib/nsg-parser";
+import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
 
 import { Filter } from "./controls";
@@ -33,7 +35,7 @@ import { useStationCorrelation } from "./useStationCorrelation";
 const RouteMap = lazy(() => import("./routeMap"));
 const EMPTY_CELLS: NsgLog["cells"] = [];
 const EMPTY_LOCATIONS: NsgLog["locations"] = [];
-const EMPTY_SNAPSHOTS: readonly NsgSnapshot[] = [];
+const EMPTY_SNAPSHOTS: readonly Snapshot[] = [];
 
 type ExplorerProps = {
   log: NsgLog | null;
@@ -54,10 +56,10 @@ function getSignalSimKey(selectedSim: string, primary: NsgCell | undefined): str
   return primary ? simKey(primary) : "?:?";
 }
 
-function getActiveTimestamp(snapshot: NsgSnapshot | null, selectedTimestamp: number | null, selectedLocation: NsgLocation | null): number | null {
+function getActiveTimestamp(snapshot: Snapshot | null, selectedTimestamp: number | null, selectedLocation: NsgLocation | null): number | null {
   if (snapshot) return parseNsgTimestampMs(snapshot.cells[0].timestampUs);
   if (selectedTimestamp !== null) return selectedTimestamp;
-  return selectedLocation ? getNsgLocationTimeMs(selectedLocation) : null;
+  return selectedLocation ? getLocationTimeMs(selectedLocation) : null;
 }
 
 function latestRegisteredCell(cells: NsgCell[], elapsedUs: number, eventIndex: number): NsgCell | undefined {
@@ -113,8 +115,8 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     return () => observer.disconnect();
   }, []);
 
-  const operatorResolver = useMemo(() => createNsgOperatorResolver(log?.events ?? []), [log]);
-  const operatorMncs = useMemo(() => collectNsgRegisteredOperatorMncs(log?.cells ?? []), [log]);
+  const operatorResolver = useMemo(() => createOperatorResolver(log?.events ?? []), [log]);
+  const operatorMncs = useMemo(() => collectRegisteredOperatorMncs(log?.cells ?? []), [log]);
   const stationCorrelation = useStationCorrelation(log, stationAnalysisRequested && loadedLog === log);
   const { simCells, registeredBySim } = useMemo(() => {
     const sims = new Map<string, NsgCell>();
@@ -142,7 +144,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   );
   const selectedSimCells = useMemo(() => (log?.cells ?? []).filter((cell) => sim === "all" || simKey(cell) === sim), [log, sim]);
   const cells = useMemo(() => selectedSimCells.filter((cell) => rat === "all" || cell.rat === rat), [selectedSimCells, rat]);
-  const snapshotCollection = useMemo(() => createNsgSnapshotCollection(cells), [cells]);
+  const snapshotCollection = useMemo(() => createSnapshotCollection(cells), [cells]);
   const { snapshots } = snapshotCollection;
   const {
     clock: replayClock,
@@ -157,7 +159,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     toggle: toggleReplay,
     stop: resetReplay,
   } = useReplay({ log, snapshotCollection, isParsing });
-  const primary = snapshot ? getPrimaryNsgCell(snapshot.cells) : undefined;
+  const primary = snapshot ? getPrimaryCell(snapshot.cells) : undefined;
   const operatorMoment = log?.events[selectedEventIndex ?? snapshot?.eventIndex ?? 0];
   const simOptions = [
     { value: "all", label: t("filters.allSims"), operator: null },
@@ -170,7 +172,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
           ? primary
           : latestRegisteredCell(registeredBySim.get(value) ?? [], elapsedUs, eventIndex);
       const operator = measured
-        ? getNsgCellOperator(measured)
+        ? getCellOperator(measured)
         : operatorResolver.get({ slotId: cell.slotId, subId: cell.subId, rat: cell.rat, elapsedUs, eventIndex });
       return {
         value,
@@ -188,10 +190,10 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     }),
   ];
   const recordedLocations = log?.locations ?? EMPTY_LOCATIONS;
-  const locations = useMemo(() => prepareNsgRouteLocations(recordedLocations), [recordedLocations]);
+  const locations = useMemo(() => prepareRouteLocations(recordedLocations), [recordedLocations]);
   const selectedLocation = useMemo(() => {
-    if (playheadMs !== null) return locations[getNsgReplayLocationIndex(locations, playheadMs)] ?? null;
-    return selectedTimestamp === null ? (locations[0] ?? null) : getClosestNsgRouteLocation(locations, selectedTimestamp);
+    if (playheadMs !== null) return locations[findReplayLocationIndex(locations, playheadMs)] ?? null;
+    return selectedTimestamp === null ? (locations[0] ?? null) : findClosestRouteLocation(locations, selectedTimestamp);
   }, [locations, selectedTimestamp, playheadMs]);
   const signalSimKey = getSignalSimKey(sim, primary);
   const selectedOperator = simOptions.find((option) => option.value === signalSimKey)?.operator ?? null;
@@ -204,27 +206,27 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
       if (group) group.push(cell);
       else cellsBySim.set(key, [cell]);
     }
-    const trails = new Map<string, NsgSignalTrail>();
+    const trails = new Map<string, SignalTrail>();
     for (const [key, cell] of simCells) {
       if (key === "?:?" || (sim !== "all" && sim !== key)) continue;
       const { slotId, subId } = cell;
-      trails.set(key, associateNsgSignals(locations, cellsBySim.get(key) ?? EMPTY_CELLS, { slotId, subId }));
+      trails.set(key, createSignalTrail(locations, cellsBySim.get(key) ?? EMPTY_CELLS, { slotId, subId }));
     }
-    trails.set("?:?", associateNsgSignals(locations, EMPTY_CELLS, null));
+    trails.set("?:?", createSignalTrail(locations, EMPTY_CELLS, null));
     return trails;
   }, [locations, cells, simCells, sim]);
   const signalTrail = signalTrails.get(signalSimKey) ?? signalTrails.get("?:?")!;
   const servingTimeline = useMemo(
-    () => createNsgServingCellTimeline(selectedSimCells, sim === "all" ? "all" : (simCells.get(sim) ?? null)),
+    () => createServingCellTimeline(selectedSimCells, sim === "all" ? "all" : (simCells.get(sim) ?? null)),
     [selectedSimCells, simCells, sim],
   );
   const activeTimestampMs = playheadMs === null ? getActiveTimestamp(snapshot, selectedTimestamp, selectedLocation) : null;
   const stationSourceMatches = useMemo(
-    () => collectMatchedNsgStations(selectedSimCells, stationCorrelation.resultsByKey),
+    () => collectMatchedStations(selectedSimCells, stationCorrelation.resultsByKey),
     [selectedSimCells, stationCorrelation.resultsByKey],
   );
   const matchedStations = useMemo(
-    () => (rat === "all" ? stationSourceMatches : collectMatchedNsgStations(cells, stationCorrelation.resultsByKey)),
+    () => (rat === "all" ? stationSourceMatches : collectMatchedStations(cells, stationCorrelation.resultsByKey)),
     [cells, rat, stationCorrelation.resultsByKey, stationSourceMatches],
   );
   const snapshotsBySim = useMemo(() => {
@@ -240,9 +242,9 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   const signalSnapshots = snapshotsBySim.get(signalSimKey) ?? EMPTY_SNAPSHOTS;
   const selectMapLocation = useCallback(
     (location: NsgLocation) => {
-      const timestamp = getNsgLocationTimeMs(location);
+      const timestamp = getLocationTimeMs(location);
       if (timestamp === null) return;
-      const nearest = signalSnapshots[findNearestNsgSnapshotIndex(signalSnapshots, timestamp)];
+      const nearest = signalSnapshots[findNearestSnapshotIndex(signalSnapshots, timestamp)];
       selectEvent(nearest?.eventIndex ?? location.eventIndex);
     },
     [signalSnapshots, selectEvent],
@@ -250,7 +252,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
   const selectTimestamp = useCallback(
     (timestampMs: number) => {
       if (snapshots.length === 0) return;
-      const nearest = snapshots[findNearestNsgSnapshotIndex(snapshots, timestampMs)];
+      const nearest = snapshots[findNearestSnapshotIndex(snapshots, timestampMs)];
       if (nearest) selectEvent(nearest.eventIndex);
     },
     [snapshots, selectEvent],
@@ -260,8 +262,8 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     if (!log) return;
     setIsExporting(true);
     try {
-      const { createNsgCellsCsv } = await import("@/lib/nsg/csv");
-      const url = URL.createObjectURL(new Blob([createNsgCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" }));
+      const { createCellsCsv } = await import("@/features/nsg-explorer/export/cellsCsv");
+      const url = URL.createObjectURL(new Blob([createCellsCsv(log, cells)], { type: "text/csv;charset=utf-8" }));
       const link = document.createElement("a");
       link.href = url;
       link.download = log.sourceName.replace(/\.(?:log(?:\.gz)?|gz)$/i, "") + "-cells.csv";

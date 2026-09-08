@@ -2,16 +2,12 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { memo, useCallback, useEffect, useRef } from "react";
 
 import { useMap } from "@/components/ui/map";
+import type { ServingCellSnapshot } from "@/features/nsg-explorer/cells/servingTimeline";
+import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
+import { type AnalyzerResultsByKey, type MatchedStation, resolveReplayServingStation } from "@/features/nsg-explorer/stations/correlation";
 import { getOperatorColor } from "@/lib/cellular/operators";
-import { isValidLatLng } from "@/lib/nsg/geometry";
-import { getNsgReplayPosition } from "@/lib/nsg/replayPosition";
-import {
-  type NsgAnalyzerResultsByKey,
-  type NsgMatchedStation,
-  type NsgServingCellSnapshot,
-  resolveNsgReplayServingStation,
-} from "@/lib/nsg/stationCorrelation";
-import type { NsgLocation } from "@/lib/nsg/types";
+import { isValidLatLng } from "@/lib/nsg-parser";
+import type { NsgLocation } from "@/lib/nsg-parser/model";
 
 import type { ReplayClock } from "./replayClock";
 
@@ -19,7 +15,7 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 type Connector = Readonly<{
   stationId: number;
-  confidence: NsgMatchedStation["confidence"];
+  confidence: MatchedStation["confidence"];
   color: string;
   station: [number, number];
   device: [number, number];
@@ -31,10 +27,10 @@ type ServingConnectorLayerProps = {
   points: readonly NsgLocation[];
   selected: NsgLocation | null;
   clock: ReplayClock;
-  servingTimeline: readonly NsgServingCellSnapshot[];
+  servingTimeline: readonly ServingCellSnapshot[];
   fallbackTimestampMs: number | null;
-  resultsByKey: NsgAnalyzerResultsByKey;
-  activeStationRef: { current: NsgMatchedStation | null };
+  resultsByKey: AnalyzerResultsByKey;
+  activeStationRef: { current: MatchedStation | null };
   visible: boolean;
 };
 
@@ -50,7 +46,7 @@ function isSameConnector(previous: Connector | null, next: Connector | null): bo
   );
 }
 
-function resolveConnector(activeStation: NsgMatchedStation | null, position: Pick<NsgLocation, "latitude" | "longitude"> | null): Connector | null {
+function resolveConnector(activeStation: MatchedStation | null, position: Pick<NsgLocation, "latitude" | "longitude"> | null): Connector | null {
   if (!activeStation || !position) return null;
   if (!isValidLatLng(position.latitude, position.longitude)) return null;
   const { longitude, latitude } = activeStation.station.location;
@@ -127,9 +123,9 @@ export const ServingConnectorLayer = memo(function ServingConnectorLayer({
   const updateConnector = useCallback(
     (time: number | null) => {
       const timestampMs = time ?? fallbackTimestampMs;
-      const activeStation = timestampMs === null ? null : resolveNsgReplayServingStation(servingTimeline, timestampMs, resultsByKey);
+      const activeStation = timestampMs === null ? null : resolveReplayServingStation(servingTimeline, timestampMs, resultsByKey);
       activeStationRef.current = activeStation;
-      const position = time === null ? selected : getNsgReplayPosition(points, time);
+      const position = time === null ? selected : getReplayPosition(points, time);
       const connector = visible ? resolveConnector(activeStation, position) : null;
       if (isSameConnector(connectorRef.current, connector)) return;
       connectorRef.current = connector;

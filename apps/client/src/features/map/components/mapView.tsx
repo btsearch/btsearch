@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
+import { isStationsQueryScope } from "@/features/nsg-explorer/stations/queryScope";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import { isNsgStationsQueryScope } from "@/lib/nsg/stationQuery";
 import type { LocationInfo, StationFilters, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 import { fetchLocations, fetchRadioLines } from "../api";
@@ -28,7 +28,7 @@ const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/comp
 const MAP_QUERY_FAMILIES = new Set(["locations", "radiolines"]);
 
 function isMainMapQuery(queryKey: readonly unknown[]): boolean {
-  return !isNsgStationsQueryScope(queryKey.at(-1));
+  return !isStationsQueryScope(queryKey.at(-1));
 }
 
 function MapViewInner() {

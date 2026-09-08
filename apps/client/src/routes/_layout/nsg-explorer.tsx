@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import Explorer from "@/components/nsg/explorer";
-import { clearNsgSession, importNsgFile, useNsgSession } from "@/lib/nsg/session";
+import { clearNsgSession, importNsgFile, useNsgSession } from "@/features/nsg-explorer/import/session";
 
 function NsgPage() {
   const { log, progress, error, status } = useNsgSession();
