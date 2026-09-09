@@ -45,6 +45,11 @@ function isRecordedDbm(value: number | null): value is number {
   return value !== null && Number.isFinite(value) && value >= -200 && value <= 0;
 }
 
+function getCellSignalDbm(cell: NsgCell): number | null {
+  if (cell.rat === "NR" && cell.sources[0] === "qualcomm-diag" && isRecordedDbm(cell.rsrp)) return cell.rsrp;
+  return cell.dbm;
+}
+
 export function getSignalColor(dbm: number | null): string {
   if (!isRecordedDbm(dbm)) return SIGNAL_UNKNOWN_COLOR;
   return SIGNAL_BANDS.find((band) => band.minimumDbm === null || dbm >= band.minimumDbm)?.color ?? SIGNAL_UNKNOWN_COLOR;
@@ -60,12 +65,14 @@ export function getReplaySignal(cells: readonly NsgCell[], playheadMs: number): 
     if (measurement !== null) return unavailable;
     measurement = cell;
   }
-  if (measurement === null || !isRecordedDbm(measurement.dbm)) return unavailable;
+  if (measurement === null) return unavailable;
+  const dbm = getCellSignalDbm(measurement);
+  if (!isRecordedDbm(dbm)) return unavailable;
   const timestampUs = parseNsgTimestampUs(measurement.timestampUs);
   if (timestampUs === null) return unavailable;
   const ageUs = BigInt(playheadUs) - timestampUs;
   if (ageUs < 0n || ageUs > BigInt(MAX_SIGNAL_AGE_MS * 1000)) return unavailable;
-  return { measurement, dbm: measurement.dbm, color: getSignalColor(measurement.dbm) };
+  return { measurement, dbm, color: getSignalColor(dbm) };
 }
 
 function locationTime(location: NsgLocation): { timestampUs: bigint | null; timestampMs: number | null; basis: SignalPoint["timeBasis"] } {
@@ -85,9 +92,10 @@ export function createSignalTrail(locations: readonly NsgLocation[], cells: read
     const lookup = timestampMs === null ? null : resolveServingCellAt(snapshots, timestampMs, timestampUs ?? undefined);
     const ageMs = lookup?.ageMs ?? null;
     const measurement = lookup?.resolution.measurement ?? null;
+    const signalDbm = measurement === null ? null : getCellSignalDbm(measurement);
     let status: SignalStatus = basis === "unavailable" ? "invalid" : (lookup?.resolution.status ?? "missing");
-    if (status === "available" && !isRecordedDbm(measurement?.dbm ?? null)) status = "invalid";
-    const dbm = status === "available" && measurement !== null ? measurement.dbm : null;
+    if (status === "available" && !isRecordedDbm(signalDbm)) status = "invalid";
+    const dbm = status === "available" ? signalDbm : null;
     if (status === "available") availableCount++;
     if (status === "stale") staleCount++;
     return {

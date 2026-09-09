@@ -14,7 +14,10 @@ scope.addEventListener("message", async (event: MessageEvent<NsgWorkerRequest>) 
   const { file } = event.data;
   try {
     const { stream, source } = await openNsgFile(file);
-    const log = await parseNsg({ stream, source }, { onProgress: (progress) => send({ type: "progress", progress }) });
+    const log = await parseNsg(
+      { stream, source },
+      { allowIncompleteFinalRecord: true, onProgress: (progress) => send({ type: "progress", progress }) },
+    );
     send({ type: "complete", log });
   } catch (error) {
     send({ type: "error", message: error instanceof Error ? error.message : "Unable to read this NSG log." });

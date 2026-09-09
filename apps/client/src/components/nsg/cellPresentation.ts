@@ -4,12 +4,14 @@ import type { NsgCell } from "@/lib/nsg-parser/model";
 import { formatValue } from "./display";
 
 export type DisplayValue = number | string | null;
+export type DisplayHint = "derived-default-24";
 
 export type DisplayField = Readonly<{
   key: string;
   label: string;
   value: DisplayValue;
   unit?: string;
+  hint?: DisplayHint;
 }>;
 
 export type TableColumn = Readonly<{
@@ -46,8 +48,9 @@ function isUsableSignal(value: number | null): value is number {
 }
 
 export function getHeadlineSignal(cell: NsgCell): HeadlineSignal {
-  if (isUsableSignal(cell.dbm)) return { value: cell.dbm, suffix: "dBm" };
   const family = getRatFamily(cell.rat);
+  if (family === "nr" && cell.sources[0] === "qualcomm-diag" && isUsableSignal(cell.rsrp)) return { value: cell.rsrp, suffix: "dBm RSRP" };
+  if (isUsableSignal(cell.dbm)) return { value: cell.dbm, suffix: "dBm" };
   if (family === "umts") return isUsableSignal(cell.ecno) ? { value: cell.ecno, suffix: "dB Ec/No" } : { value: null, suffix: "dBm" };
   if (isUsableSignal(cell.rsrp)) return { value: cell.rsrp, suffix: "dBm RSRP" };
   return { value: null, suffix: family === "lte" || family === "nr" ? "dBm RSRP" : "dBm" };
@@ -67,11 +70,16 @@ function getNrTac(cell: NsgCell): number | null {
 }
 
 function getNrIdentity(cell: NsgCell): number | null {
-  return getRawNumber(cell, "nci");
+  return cell.nci ?? getRawNumber(cell, "nci");
+}
+
+function getReportedNrIdentity(cell: NsgCell): number | null {
+  const identity = getNrIdentity(cell);
+  return identity === 0 && cell.registered !== true ? null : identity;
 }
 
 function getGenericIdentity(cell: NsgCell): number | null {
-  return getRawNumber(cell, "nci") ?? cell.eci ?? cell.cid;
+  return cell.nci ?? getRawNumber(cell, "nci") ?? cell.eci ?? cell.cid;
 }
 
 function getGenericChannel(cell: NsgCell): number | null {
@@ -80,6 +88,13 @@ function getGenericChannel(cell: NsgCell): number | null {
 
 function identityField(cell: NsgCell, key: string, value: number | null): DisplayField {
   return { key, label: getRatDetailFieldLabel(getDisplayRat(cell.rat), key, "station"), value };
+}
+
+function nrIdentityField(cell: NsgCell, key: "gnbid" | "clid", value: number | null): DisplayField {
+  return {
+    ...identityField(cell, key, value),
+    ...(cell.nrIdentitySource === "derived-default-24" ? { hint: "derived-default-24" as const } : {}),
+  };
 }
 
 export function formatCellIdentity(cell: NsgCell): string {
@@ -131,8 +146,8 @@ export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
     if (isNrNsaCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
     return [
       identityField(cell, "nrtac", getNrTac(cell)),
-      identityField(cell, "gnbid", getRawNumber(cell, "gnbid")),
-      identityField(cell, "clid", getRawNumber(cell, "clid")),
+      nrIdentityField(cell, "gnbid", cell.gnbid),
+      nrIdentityField(cell, "clid", cell.clid),
       identityField(cell, "nci", getNrIdentity(cell)),
       identityField(cell, "pci", cell.pci),
       identityField(cell, "arfcn", cell.arfcn),
@@ -224,7 +239,7 @@ export function getSignalIdentityFields(cell: NsgCell): readonly DisplayField[] 
   ];
 }
 
-export function getReportedCellColumns(rat: string, sample?: NsgCell): readonly TableColumn[] {
+export function getReportedCellColumns(rat: string, samples?: readonly NsgCell[]): readonly TableColumn[] {
   const family = getRatFamily(rat);
   if (family === "lte")
     return [
@@ -261,6 +276,7 @@ export function getReportedCellColumns(rat: string, sample?: NsgCell): readonly 
       { key: "ecno", label: "Ec/No", unit: "dB", getValue: (cell) => cell.ecno },
     ];
   if (family === "nr") {
+    const sample = samples?.[0];
     if (sample && isNrNsaCell(sample))
       return [
         { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
@@ -269,14 +285,16 @@ export function getReportedCellColumns(rat: string, sample?: NsgCell): readonly 
         { key: "rsrq", label: "RSRQ", unit: "dB", getValue: (cell) => cell.rsrq },
         { key: "sinr", label: "SINR", getValue: (cell) => cell.sinr },
       ];
-    return [
-      { key: "nci", label: "NCI", getValue: getNrIdentity },
+    const columns: TableColumn[] = [
       { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
       { key: "arfcn", label: "ARFCN", getValue: (cell) => cell.arfcn },
       { key: "rsrp", label: "RSRP", unit: "dBm", getValue: (cell) => cell.rsrp },
       { key: "rsrq", label: "RSRQ", unit: "dB", getValue: (cell) => cell.rsrq },
       { key: "sinr", label: "SINR", getValue: (cell) => cell.sinr },
     ];
+    if (samples === undefined || samples.some((cell) => getReportedNrIdentity(cell) !== null))
+      columns.unshift({ key: "nci", label: "NCI", getValue: getReportedNrIdentity });
+    return columns;
   }
   return [
     { key: "identity", label: "ID", getValue: getGenericIdentity },

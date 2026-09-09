@@ -43,7 +43,7 @@ function PrimaryCellSection({ cells, label, showRadioContext = true }: { cells: 
 
 function ReportedCellTable({ cells }: { cells: readonly NsgCell[] }) {
   const rat = cells[0].rat;
-  const columns = getReportedCellColumns(rat, cells[0]);
+  const columns = getReportedCellColumns(rat, cells);
 
   return (
     <Table>

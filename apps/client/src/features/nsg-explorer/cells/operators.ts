@@ -13,7 +13,7 @@ export type OperatorResolver = {
   resolveCell: (cell: NsgCell) => ResolvedOperator | null;
 };
 
-export function getCellOperator(cell: Pick<NsgCell, "mcc" | "mnc">): ResolvedOperator | null {
+export function getCellOperator(cell: Pick<NsgCell, "mcc" | "mnc"> & Partial<Pick<NsgCell, "operatorName">>): ResolvedOperator | null {
   return resolveCellOperator(cell);
 }
 

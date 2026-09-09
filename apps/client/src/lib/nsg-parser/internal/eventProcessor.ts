@@ -1,10 +1,12 @@
-import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgParseMode } from "../model";
+import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgNrMode, NsgParseMode } from "../model";
 import { isValidLatLng } from "./coordinates";
+import { resolveNrIdentity } from "./nrIdentity";
 import type { DefaultDataSubscriptionChange, LteAnchor } from "./nsa/model";
-import { StreamingOperatorState } from "./operatorState";
+import { StreamingOperatorState, resolveCellOperator } from "./operatorState";
 
 const MAX_UMTS_CI = 0x0fffffff;
 const UMTS_CID_RADIX = 0x10000;
+const MAX_NR_NCI = 0x0fffffffff;
 
 type NsgRadioFields = Pick<
   NsgCell,
@@ -12,6 +14,7 @@ type NsgRadioFields = Pick<
   | "rnc"
   | "cid"
   | "tac"
+  | "nci"
   | "eci"
   | "pci"
   | "earfcn"
@@ -27,6 +30,7 @@ type NsgRadioFields = Pick<
   | "ecno"
   | "ta"
   | "ber"
+  | "bands"
 >;
 
 export type EventProcessorSink = Readonly<{
@@ -56,6 +60,32 @@ function boolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
+function normalizeRat(value: unknown): string {
+  const rat = (text(value) ?? "unknown").toUpperCase();
+  return rat === "NR5G" ? "NR" : rat;
+}
+
+function nrIdentity(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= MAX_NR_NCI ? value : null;
+}
+
+function bands(value: unknown): readonly number[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((band) => typeof band === "number" && Number.isSafeInteger(band) && band > 0)) return null;
+  return value;
+}
+
+function scheduleNrMode(cells: readonly unknown[]): NsgNrMode | null {
+  let hasRegisteredNr = false;
+  let hasRegisteredOtherRat = false;
+  for (const raw of cells) {
+    if (!isObject(raw) || boolean(raw.registered) !== true) continue;
+    if (normalizeRat(raw.type) === "NR") hasRegisteredNr = true;
+    else hasRegisteredOtherRat = true;
+  }
+  return hasRegisteredNr && !hasRegisteredOtherRat ? "SA" : null;
+}
+
 function umtsIdentity(raw: NsgJsonObject, rat: string): Pick<NsgRadioFields, "rnc" | "cid"> {
   const rnc = numeric(raw.rnc);
   const cid = numeric(raw.cid);
@@ -68,10 +98,12 @@ function umtsIdentity(raw: NsgJsonObject, rat: string): Pick<NsgRadioFields, "rn
 }
 
 function radioFields(raw: NsgJsonObject, rat: string): NsgRadioFields {
+  const nr = rat === "NR";
   return {
     lac: numeric(raw.lac),
     ...umtsIdentity(raw, rat),
     tac: numeric(raw.tac),
+    nci: nr ? nrIdentity(raw.nci) : null,
     eci: numeric(raw.eci),
     pci: numeric(raw.pci),
     earfcn: numeric(raw.earfcn),
@@ -81,12 +113,13 @@ function radioFields(raw: NsgJsonObject, rat: string): NsgRadioFields {
     bsic: numeric(raw.bsic),
     dbm: numeric(raw.dbm),
     rssi: numeric(raw.rssi),
-    rsrp: numeric(raw.rsrp),
-    rsrq: numeric(raw.rsrq),
-    sinr: numeric(raw.sinr),
+    rsrp: numeric(raw.rsrp) ?? (nr ? numeric(raw["ss-rsrp"]) : null),
+    rsrq: numeric(raw.rsrq) ?? (nr ? numeric(raw["ss-rsrq"]) : null),
+    sinr: numeric(raw.sinr) ?? (nr ? (numeric(raw["ss-sinr"]) ?? numeric(raw["csi-sinr"])) : null),
     ecno: numeric(raw.ecno),
     ta: numeric(raw.ta),
     ber: numeric(raw.ber),
+    bands: nr ? bands(raw.bands) : null,
   };
 }
 
@@ -126,11 +159,14 @@ export class EventProcessor {
   private projectCells(event: NsgEvent, mode: NsgParseMode, sink: EventProcessorSink): void {
     const cells = event.data.cells;
     if (!Array.isArray(cells)) this.fail("Expected a cells array in an NSG measurement event");
+    const nrMode = scheduleNrMode(cells);
     let lteAnchor: NsgCell | null = null;
     for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
       const raw = cells[cellIndex];
       if (!isObject(raw)) this.fail("Expected an NSG cell object");
-      const rat = (text(raw.type) ?? "unknown").toUpperCase();
+      const rat = normalizeRat(raw.type);
+      const normalizedRadioFields = radioFields(raw, rat);
+      const nrIdentity = rat === "NR" ? resolveNrIdentity(raw, normalizedRadioFields.nci) : null;
       const cell: NsgCell = {
         eventIndex: event.id,
         cellIndex,
@@ -140,16 +176,22 @@ export class EventProcessor {
         timestampMs: event.timestampMs,
         rat,
         registered: boolean(raw.registered),
+        nrMode: rat === "NR" ? nrMode : null,
+        sources: ["android-telephony"],
         subId: numeric(event.data.subId),
         slotId: numeric(event.data.slotId),
         isDefaultSubscription: boolean(event.data.default),
         mcc: text(raw.mcc),
         mnc: text(raw.mnc),
-        ...radioFields(raw, rat),
+        operatorName: null,
+        ...normalizedRadioFields,
+        ...(nrIdentity ?? { gnbid: null, gnbidLength: null, clid: null, nrIdentitySource: null }),
         raw,
       };
-      const operator = cell.registered === true ? this.operators.get(cell) : null;
-      if (operator !== null) {
+      const reportedOperator = resolveCellOperator(cell);
+      const operator = this.operators.get(cell);
+      if (operator !== null && (cell.registered === true || reportedOperator?.plmn === operator.plmn)) cell.operatorName = operator.name;
+      if (cell.registered === true && operator !== null) {
         cell.mcc = operator.mcc;
         cell.mnc = operator.mnc;
         raw.mcc = operator.mcc;

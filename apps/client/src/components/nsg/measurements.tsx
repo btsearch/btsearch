@@ -31,9 +31,12 @@ export function CellDetails({ cell, showRadioContext = true }: { cell: NsgCell; 
         </div>
       ) : null}
       <dl className="grid grid-cols-3 gap-x-4 gap-y-3">
-        {identityFields.map(({ key, label, value }) => (
+        {identityFields.map(({ key, label, value, hint }) => (
           <div key={key}>
-            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dt className="text-xs text-muted-foreground">
+              {label}
+              {hint === "derived-default-24" ? <span className="ml-1 whitespace-nowrap">({t("labels.default24Bit")})</span> : null}
+            </dt>
             <dd className="font-mono text-sm font-semibold tabular-nums">{formatValue(value)}</dd>
           </div>
         ))}

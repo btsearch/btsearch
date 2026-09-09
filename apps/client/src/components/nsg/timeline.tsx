@@ -60,6 +60,7 @@ function getMetricValue(cell: NsgCell, metric: NsgTimelineMetric): number | null
 }
 
 export function getInitialNsgTimelineMetric(cells: readonly NsgCell[]): NsgTimelineMetric {
+  if (cells.some((cell) => cell.rat === "NR" && cell.sources[0] === "qualcomm-diag" && getMetricValue(cell, "rsrp") !== null)) return "rsrp";
   return METRICS.find((metric) => cells.some((cell) => getMetricValue(cell, metric) !== null)) ?? "dbm";
 }
 

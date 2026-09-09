@@ -4,6 +4,14 @@ export { QUALCOMM_LTE_SERVING_CELL_INFO_LOG_CODE } from "./internal/qualcomm/lte
 export type { QualcommLteServingCellInfo } from "./internal/qualcomm/lteServingCell";
 export { QUALCOMM_NR_MEASUREMENT_LOG_CODE } from "./internal/qualcomm/nrMeasurement";
 export type { QualcommNrMeasurement, QualcommNrMeasurementCell } from "./internal/qualcomm/nrMeasurement";
+export {
+  QUALCOMM_NR_CONFIGURATION_INFO_LOG_CODE,
+  decodeQualcommNrConfigurationInfo,
+  isConnectedQualcommNrSa,
+} from "./internal/qualcomm/nrConfiguration";
+export type { QualcommNrActiveCarrier, QualcommNrConfigurationInfo } from "./internal/qualcomm/nrConfiguration";
+export { QUALCOMM_NR_SERVING_CELL_INFO_LOG_CODE, decodeQualcommNrServingCellInfo } from "./internal/qualcomm/nrServingCell";
+export type { QualcommNrServingCellInfo } from "./internal/qualcomm/nrServingCell";
 export { classifyQualcommRecord, decodeQualcommRecord } from "./internal/qualcomm/record";
 export type { DecodedQualcommRecord, QualcommRecordPolicy } from "./internal/qualcomm/record";
 export { QUALCOMM_LTE_NAS_PLAIN_INCOMING_LOG_CODE, QUALCOMM_LTE_NAS_PLAIN_OUTGOING_LOG_CODE } from "./internal/qualcomm/signaling/lteNas";

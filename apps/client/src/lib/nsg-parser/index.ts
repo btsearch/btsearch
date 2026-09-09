@@ -9,6 +9,7 @@ export type { NsgLog, NsgParseInput, NsgParseMode, NsgParseOptions, NsgProgress,
 export async function parseNsg({ stream, source }: NsgParseInput, options: NsgParseOptions = {}): Promise<NsgLog> {
   const decoder = new StreamDecoder(source, {
     mode: options.mode,
+    allowIncompleteFinalRecord: options.allowIncompleteFinalRecord,
     onCell: options.onCell,
     onEvent: options.onEvent,
   });

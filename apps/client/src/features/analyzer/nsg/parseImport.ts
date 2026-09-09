@@ -34,6 +34,7 @@ export async function parseNsgAnalyzerStream(
     {
       onProgress,
       mode: "streaming",
+      allowIncompleteFinalRecord: true,
       onCell(cell) {
         counts.totalCells++;
         if (cell.rat !== "LTE" && cell.rat !== "GSM" && cell.rat !== "UMTS" && cell.rat !== "WCDMA") {

@@ -7,7 +7,7 @@ import { type RecordContext, RecordingBuilder, type RecordingOptions } from "./r
 const MAX_HEADER_BYTES = 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
 
-type Phase = "magic" | "xmlLength" | "xml" | "header" | "prefix" | "qualcommPrefix" | "payload";
+type Phase = "magic" | "xmlLength" | "xml" | "header" | "prefix" | "qualcommPrefix" | "payload" | "truncatedTail";
 
 export class StreamDecoder {
   private phase: Phase = "magic";
@@ -26,6 +26,7 @@ export class StreamDecoder {
   private marker: number | null = null;
   private readonly decoder = new TextDecoder("utf-8", { fatal: true });
   private readonly expectedDecodedSize: number | null;
+  private readonly allowIncompleteFinalRecord: boolean;
   private readonly recording: RecordingBuilder;
 
   constructor(source: NsgSource, options: RecordingOptions = {}) {
@@ -33,6 +34,7 @@ export class StreamDecoder {
     this.expectedDecodedSize = source.decodedSize === undefined ? source.size : source.decodedSize;
     if (this.expectedDecodedSize !== null && (!Number.isSafeInteger(this.expectedDecodedSize) || this.expectedDecodedSize < 0))
       throw new Error("Invalid decoded NSG file size.");
+    this.allowIncompleteFinalRecord = options.allowIncompleteFinalRecord ?? false;
     this.recording = new RecordingBuilder(source, options, this.decoder, (message) => this.fail(message));
   }
 
@@ -115,6 +117,14 @@ export class StreamDecoder {
         continue;
       }
 
+      if (this.phase === "truncatedTail") {
+        const length = Math.min(this.remaining, chunk.length - position);
+        position += length;
+        this.offset += length;
+        this.remaining -= length;
+        continue;
+      }
+
       const length = Math.min(this.remaining, chunk.length - position);
       if (this.payload !== null) {
         const retainedLength = Math.min(length, this.payload.length - this.payloadPosition);
@@ -146,9 +156,10 @@ export class StreamDecoder {
 
   finish(): NsgLog {
     if (this.recording.isFinished) return this.recording.finish();
+    if (this.allowIncompleteFinalRecord && this.hasIncompleteFinalRecord()) this.discardIncompleteFinalRecord();
     if (
       (this.expectedDecodedSize !== null && this.offset !== this.expectedDecodedSize) ||
-      this.phase !== "header" ||
+      (this.phase !== "header" && this.phase !== "truncatedTail") ||
       this.frame.length !== 0 ||
       this.varintBytes !== 0
     )
@@ -162,8 +173,15 @@ export class StreamDecoder {
 
   private beginPayload(): void {
     const [, , elapsedUs, recordType, , length] = this.frame;
-    if (this.expectedDecodedSize !== null && length > this.expectedDecodedSize - this.offset) this.fail("Truncated NSG record payload");
-    this.recording.observeRecord(elapsedUs, recordType);
+    if (recordType === 0) this.recording.validateTimeAnchor(elapsedUs, length);
+    if (this.expectedDecodedSize !== null && length > this.expectedDecodedSize - this.offset) {
+      if (!this.allowIncompleteFinalRecord) this.fail("Truncated NSG record payload");
+      this.remaining = this.expectedDecodedSize - this.offset;
+      this.phase = "truncatedTail";
+      this.recording.markInputTruncated();
+      this.frame.length = 0;
+      return;
+    }
     this.remaining = length;
     this.payload = null;
     this.payloadPosition = 0;
@@ -171,7 +189,6 @@ export class StreamDecoder {
     this.marker = null;
     this.phase = "payload";
     if (recordType === 0) {
-      this.recording.validateTimeAnchor(elapsedUs, length);
       this.payload = new Uint8Array(8);
     } else if (recordType === 53 && length > 0) this.phase = "prefix";
     else if (recordType === 16 && length >= QUALCOMM_DIAG_PREFIX_BYTES) {
@@ -183,6 +200,7 @@ export class StreamDecoder {
 
   private completePayload(): void {
     const recordType = this.frame[3];
+    this.recording.observeRecord(this.frame[2], recordType);
     if (recordType === 0) this.recording.setTimeAnchor(this.payload!);
     else if (recordType === 16 && this.payload !== null)
       this.recording.recordQualcommPayload(this.payload, this.recordContext(), this.signalingValidationPrefix);
@@ -199,5 +217,22 @@ export class StreamDecoder {
       streamIndex: this.frame[1],
       elapsedUs: this.frame[2],
     };
+  }
+
+  private discardIncompleteFinalRecord(): void {
+    this.recording.markInputTruncated();
+    this.payload = null;
+    this.frame.length = 0;
+    this.varintValue = 0;
+    this.varintFactor = 1;
+    this.varintBytes = 0;
+    this.remaining = 0;
+    this.phase = "header";
+  }
+
+  private hasIncompleteFinalRecord(): boolean {
+    if (this.expectedDecodedSize !== null && this.offset !== this.expectedDecodedSize) return false;
+    if (this.phase === "header") return this.frame.length > 0 || this.varintBytes > 0;
+    return this.expectedDecodedSize === null && this.frame.length === 6 && ["prefix", "qualcommPrefix", "payload"].includes(this.phase);
   }
 }

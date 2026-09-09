@@ -17,6 +17,8 @@ import type { QualcommDiagPrefix } from "./qualcomm/diag";
 import type { DecodedQualcommRecord, QualcommRecordPolicy } from "./qualcomm/record";
 import { decodeQualcommRecord } from "./qualcomm/record";
 import { isValidQualcommSignalingEnvelope } from "./qualcomm/signaling/decoder";
+import { fuseQualcommSaCells } from "./sa/association";
+import type { TimedNrConfigurationInfo, TimedNrServingCellInfo } from "./sa/model";
 
 export const MAX_RETAINED_SIGNALING_RECORDS = 10_000;
 const MAX_RETAINED_SIGNALING_PAYLOAD_BYTES = 16 * 1024 * 1024;
@@ -34,7 +36,7 @@ export type QualcommPayloadCapture = Readonly<{
 
 type Fail = (message: string) => never;
 
-export type RecordingOptions = Pick<NsgParseOptions, "mode" | "onCell" | "onEvent">;
+export type RecordingOptions = Pick<NsgParseOptions, "mode" | "allowIncompleteFinalRecord" | "onCell" | "onEvent">;
 
 export class RecordingBuilder {
   private headerXml = "";
@@ -50,6 +52,7 @@ export class RecordingBuilder {
   private signalingRecordCount = 0;
   private signalingPayloadBytes = 0;
   private signalingTruncated = false;
+  private inputTruncated = false;
   private finished = false;
   private result: NsgLog | null = null;
   private readonly recordTypeCounts = new Map<number, number>();
@@ -62,6 +65,8 @@ export class RecordingBuilder {
   private readonly lteServingCellInfos: TimedLteServingCellInfo[] = [];
   private readonly defaultDataSubscriptions: DefaultDataSubscriptionChange[] = [];
   private readonly nrMeasurements: TimedNrMeasurement[] = [];
+  private readonly nrConfigurations: TimedNrConfigurationInfo[] = [];
+  private readonly nrServingCellInfos: TimedNrServingCellInfo[] = [];
   private readonly eventProcessor: EventProcessor;
   private readonly eventSink: EventProcessorSink;
   private readonly mode: NsgParseMode;
@@ -96,6 +101,10 @@ export class RecordingBuilder {
     this.maximumElapsedUs = Math.max(this.maximumElapsedUs, elapsedUs);
     if (this.previousElapsedUs !== null && elapsedUs < this.previousElapsedUs) this.timeRegressions++;
     this.previousElapsedUs = elapsedUs;
+  }
+
+  markInputTruncated(): void {
+    this.inputTruncated = true;
   }
 
   validateTimeAnchor(elapsedUs: number, payloadLength: number): void {
@@ -133,6 +142,12 @@ export class RecordingBuilder {
       case "nrMeasurement":
         this.decodeNrMeasurement(record, context);
         break;
+      case "nrConfiguration":
+        this.decodeNrConfiguration(record, context);
+        break;
+      case "nrServingCell":
+        this.decodeNrServingCell(record, context);
+        break;
       case "lteServingCell":
         this.decodeLteServingCell(record, context);
         break;
@@ -149,6 +164,7 @@ export class RecordingBuilder {
       name: typeof data.event === "string" ? data.event : "<missing>",
       marker,
       recordOffset: context.recordOffset,
+      streamIndex: context.streamIndex,
       ...this.timestamp(context.elapsedUs),
       data,
     };
@@ -194,6 +210,7 @@ export class RecordingBuilder {
       servingCellCount: this.servingCellCount,
       signalingRecordCount: this.signalingRecordCount,
       signalingTruncated: this.signalingTruncated,
+      inputTruncated: this.inputTruncated,
       events: this.events,
       cells: this.cells,
       signaling: this.signaling,
@@ -213,12 +230,33 @@ export class RecordingBuilder {
   private decodeNrMeasurement(record: Extract<DecodedQualcommRecord, { kind: "nrMeasurement" }>, context: RecordContext): void {
     if (this.mode === "streaming") return;
     const measurement = record.value;
-    if (!measurement.cells.some((cell) => cell.serving)) return;
     this.recognizedPayloadBytes += measurement.packetLength;
     this.nrMeasurements.push({
       recordOffset: context.recordOffset,
       streamIndex: context.streamIndex,
       measurement,
+      ...this.timestamp(context.elapsedUs),
+    });
+  }
+
+  private decodeNrConfiguration(record: Extract<DecodedQualcommRecord, { kind: "nrConfiguration" }>, context: RecordContext): void {
+    if (this.mode === "streaming") return;
+    this.recognizedPayloadBytes += record.packetLength;
+    this.nrConfigurations.push({
+      recordOffset: context.recordOffset,
+      streamIndex: context.streamIndex,
+      configuration: record.value,
+      ...this.timestamp(context.elapsedUs),
+    });
+  }
+
+  private decodeNrServingCell(record: Extract<DecodedQualcommRecord, { kind: "nrServingCell" }>, context: RecordContext): void {
+    if (this.mode === "streaming") return;
+    this.recognizedPayloadBytes += record.packetLength;
+    this.nrServingCellInfos.push({
+      recordOffset: context.recordOffset,
+      streamIndex: context.streamIndex,
+      info: record.value,
       ...this.timestamp(context.elapsedUs),
     });
   }
@@ -275,28 +313,43 @@ export class RecordingBuilder {
   }
 
   private emitAssociatedNrCells(): void {
-    const associations = associateQualcommNsaMeasurements(
-      this.lteAnchors,
+    if (this.mode === "streaming") return;
+    const sa = fuseQualcommSaCells(
+      this.cells,
+      this.events,
+      this.nrConfigurations,
+      this.nrServingCellInfos,
       this.nrMeasurements,
+      this.lteAnchors,
       this.lteServingCellInfos,
       this.defaultDataSubscriptions,
     );
-    for (const { anchor, derivedCells } of associations) {
+    for (const event of sa.syntheticEvents) {
+      this.events.push(event);
+      this.eventCount++;
+      this.eventTypeCounts.set(event.name, (this.eventTypeCounts.get(event.name) ?? 0) + 1);
+      this.options.onEvent?.(event);
+    }
+    const associations = associateQualcommNsaMeasurements(
+      this.lteAnchors,
+      sa.remainingMeasurements.filter((observation) => observation.measurement.cells.some((cell) => cell.serving)),
+      this.lteServingCellInfos,
+      this.defaultDataSubscriptions,
+    );
+    for (const { anchor } of associations) {
       anchor.measurementRole = "lte-secondary";
       anchor.raw.measurementRole = "lte-secondary";
-      for (const cell of derivedCells) {
-        this.cellCount++;
-        if (cell.registered === true) this.servingCellCount++;
-      }
     }
-    if (associations.length > 0) {
-      const mergedCells = mergeAssociatedNsaCells(this.cells, associations);
-      this.cells.length = 0;
-      for (const cell of mergedCells) this.cells.push(cell);
-    }
+    const mergedCells = mergeAssociatedNsaCells(sa.cells, associations);
+    this.cells.length = 0;
+    for (const cell of mergedCells) this.cells.push(cell);
+    this.cellCount = this.cells.length;
+    this.servingCellCount = this.cells.reduce((count, cell) => count + (cell.registered === true ? 1 : 0), 0);
     this.lteAnchors.length = 0;
     this.lteServingCellInfos.length = 0;
     this.defaultDataSubscriptions.length = 0;
     this.nrMeasurements.length = 0;
+    this.nrConfigurations.length = 0;
+    this.nrServingCellInfos.length = 0;
   }
 }

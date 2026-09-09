@@ -35,6 +35,9 @@ export type NsgSource = Readonly<{
 }>;
 
 export type NsgCellMeasurementRole = "nr-primary" | "nr-neighbor" | "lte-secondary";
+export type NsgCellSource = "android-telephony" | "qualcomm-diag";
+export type NsgNrMode = "SA" | "NSA";
+export type NsgNrIdentitySource = "reported" | "derived-reported-length" | "derived-default-24";
 
 export type NsgSignalingRecord = NsgTimestamp &
   NsgSignalingMessage & {
@@ -46,8 +49,9 @@ export type NsgSignalingRecord = NsgTimestamp &
 export type NsgEvent = NsgTimestamp & {
   id: number;
   name: string;
-  marker: number;
+  marker: number | null;
   recordOffset: number;
+  streamIndex: number;
   data: NsgJsonObject;
 };
 
@@ -58,15 +62,23 @@ export type NsgCell = NsgTimestamp & {
   rat: string;
   registered: boolean | null;
   measurementRole?: NsgCellMeasurementRole;
+  nrMode: NsgNrMode | null;
+  sources: readonly NsgCellSource[];
   subId: number | null;
   slotId: number | null;
   isDefaultSubscription: boolean | null;
   mcc: string | null;
   mnc: string | null;
+  operatorName: string | null;
   lac: number | null;
   rnc: number | null;
   cid: number | null;
   tac: number | null;
+  nci: number | null;
+  gnbid: number | null;
+  gnbidLength: number | null;
+  clid: number | null;
+  nrIdentitySource: NsgNrIdentitySource | null;
   eci: number | null;
   pci: number | null;
   earfcn: number | null;
@@ -82,6 +94,7 @@ export type NsgCell = NsgTimestamp & {
   ecno: number | null;
   ta: number | null;
   ber: number | null;
+  bands: readonly number[] | null;
   raw: NsgJsonObject;
 };
 
@@ -121,6 +134,7 @@ export type NsgLog = {
   servingCellCount: number;
   signalingRecordCount: number;
   signalingTruncated: boolean;
+  inputTruncated: boolean;
   events: NsgEvent[];
   cells: NsgCell[];
   signaling: NsgSignalingRecord[];
@@ -136,6 +150,7 @@ export type NsgParseMode = "complete" | "streaming";
 
 export type NsgParseOptions = {
   mode?: NsgParseMode;
+  allowIncompleteFinalRecord?: boolean;
   onCell?: (cell: NsgCell) => void;
   onEvent?: (event: NsgEvent) => void;
   onProgress?: (progress: NsgProgress) => void;

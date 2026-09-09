@@ -44,10 +44,10 @@ function contextKey(slotId: number, subId: number): string {
   return `${slotId}:${subId}`;
 }
 
-function cellOperator(mcc: unknown, mnc: unknown): ResolvedOperator | null {
+function cellOperator(mcc: unknown, mnc: unknown, name: unknown = null): ResolvedOperator | null {
   if (typeof mcc !== "string" || typeof mnc !== "string" || !/^\d{3}$/.test(mcc) || !/^\d{1,3}$/.test(mnc) || mcc === "000") return null;
   const normalizedMnc = mnc.padStart(2, "0");
-  return { mcc, mnc: normalizedMnc, plmn: mcc + normalizedMnc, name: null, source: "cell" };
+  return { mcc, mnc: normalizedMnc, plmn: mcc + normalizedMnc, name: typeof name === "string" ? name : null, source: "cell" };
 }
 
 function numericOperator(value: unknown): ResolvedOperator | null {
@@ -55,8 +55,8 @@ function numericOperator(value: unknown): ResolvedOperator | null {
   return cellOperator(value.slice(0, 3), value.slice(3));
 }
 
-export function resolveCellOperator(cell: Pick<NsgCell, "mcc" | "mnc">): ResolvedOperator | null {
-  return cellOperator(cell.mcc, cell.mnc);
+export function resolveCellOperator(cell: Pick<NsgCell, "mcc" | "mnc"> & Partial<Pick<NsgCell, "operatorName">>): ResolvedOperator | null {
+  return cellOperator(cell.mcc, cell.mnc, cell.operatorName);
 }
 
 function operatorsFromService(data: NsgJsonObject): Map<string, ResolvedOperator> {

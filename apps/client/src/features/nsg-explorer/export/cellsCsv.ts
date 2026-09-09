@@ -24,7 +24,30 @@ const CELL_FIELDS = [
   "ta",
   "ber",
 ] as const;
-const COLUMNS = ["timestamp_utc", "elapsed_us", "subId", "slotId", "default", "cell_index", ...CELL_FIELDS, "record_offset", "raw_cell_json"];
+const ADDITIONAL_FIELDS = ["nci", "bands", "operator_name", "gnbid", "gnbid_length", "clid", "nr_identity_source"] as const;
+const COLUMNS = [
+  "timestamp_utc",
+  "elapsed_us",
+  "subId",
+  "slotId",
+  "default",
+  "cell_index",
+  ...CELL_FIELDS,
+  "record_offset",
+  "raw_cell_json",
+  ...ADDITIONAL_FIELDS,
+];
+
+function getCellFieldValue(cell: NsgCell, field: (typeof CELL_FIELDS)[number] | (typeof ADDITIONAL_FIELDS)[number]): NsgJsonValue | undefined {
+  if (field === "type") return cell.raw.type;
+  if (field === "operator_name") return cell.operatorName;
+  if (field === "gnbid") return cell.rat === "NR" ? cell.gnbid : null;
+  if (field === "gnbid_length") return cell.rat === "NR" ? cell.gnbidLength : null;
+  if (field === "clid") return cell.rat === "NR" ? cell.clid : null;
+  if (field === "nr_identity_source") return cell.rat === "NR" ? cell.nrIdentitySource : null;
+  if (field === "bands") return cell.bands === null ? null : [...cell.bands];
+  return cell[field];
+}
 
 function escapeCsv(value: NsgJsonValue | undefined): string {
   if (value === null || value === undefined) return "";
@@ -44,9 +67,10 @@ export function createCellsCsv(log: NsgLog, cells: NsgCell[] = log.cells): strin
       event.data.slotId,
       event.data.default,
       cell.cellIndex,
-      ...CELL_FIELDS.map((field) => cell.raw[field]),
+      ...CELL_FIELDS.map((field) => getCellFieldValue(cell, field)),
       cell.recordOffset,
       cell.raw,
+      ...ADDITIONAL_FIELDS.map((field) => getCellFieldValue(cell, field)),
     ];
     lines.push(values.map(escapeCsv).join(","));
   }

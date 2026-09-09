@@ -20,7 +20,8 @@
   },
   "labels": {
     "slot": "Slot",
-    "subscription": "Subskrypcja"
+    "subscription": "Subskrypcja",
+    "default24Bit": "założono 24 bity"
   },
   "export": {
     "csv": "Eksportuj przefiltrowane dane do CSV",

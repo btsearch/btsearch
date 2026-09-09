@@ -20,7 +20,8 @@
   },
   "labels": {
     "slot": "Slot",
-    "subscription": "Subscription"
+    "subscription": "Subscription",
+    "default24Bit": "24-bit assumed"
   },
   "export": {
     "csv": "Export filtered data to CSV",

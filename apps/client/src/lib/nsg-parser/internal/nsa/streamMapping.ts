@@ -119,6 +119,7 @@ export function createNsaAnchorResolver(
   anchors: readonly LteAnchor[],
   infos: readonly TimedLteServingCellInfo[],
   defaultDataSubscriptions: readonly DefaultDataSubscriptionChange[],
+  options: Readonly<{ allowFallbacks?: boolean }> = {},
 ): (streamIndex: number, elapsedUs: number) => readonly LteAnchor[] | null {
   const groups = createSubscriptionGroups(anchors);
   const votesByStream = collectStreamVotes(groups, infos);
@@ -127,6 +128,7 @@ export function createNsaAnchorResolver(
   return (streamIndex, elapsedUs) => {
     const votes = votesByStream.get(streamIndex);
     if (votes && votes.length > 0) return nearestVote(votes, elapsedUs)?.group.anchors ?? null;
+    if (options.allowFallbacks === false) return null;
 
     const defaultDataSubId = defaultDataSubscriptionAt(orderedDefaultDataSubscriptions, elapsedUs);
     if (defaultDataSubId !== null) {
