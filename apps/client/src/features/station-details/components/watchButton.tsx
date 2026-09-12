@@ -2,13 +2,12 @@ import { Notification01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import { useStationWatch } from "../hooks/useStationWatch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
-
-import { useStationWatch } from "../hooks/useStationWatch";
 
 type WatchButtonProps = {
   stationId: number;

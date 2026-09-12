@@ -7,6 +7,8 @@ import { type ColumnDef, useTable } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useCallback, useMemo } from "react";
 
+import type { PlannedPEMStation } from "../api";
+import { MeasurementSummary, getMeasurementDate } from "./measurementSummary";
 import { Button } from "@/components/ui/button";
 import { DataTable, getDataTableViewState } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -14,9 +16,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import type { PaginationState } from "@/hooks/useTablePageSize";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
-
-import type { PlannedPEMStation } from "../api";
-import { MeasurementSummary, getMeasurementDate } from "./measurementSummary";
 
 type Props = {
   data: PlannedPEMStation[];

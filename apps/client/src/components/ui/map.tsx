@@ -37,6 +37,7 @@ import {
 import { createPortal, preconnect } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { Spinner } from "./spinner";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -44,8 +45,6 @@ import { type GpsFormat, usePreferences } from "@/hooks/usePreferences";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
-
-import { Spinner } from "./spinner";
 
 setWorkerUrl(maplibreWorkerUrl);
 

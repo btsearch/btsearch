@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
+import { type CloudPreferences, getCloudPreferencesQueryKey, patchCloudPreferences } from "./usePreferences";
 import { fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-
-import { type CloudPreferences, getCloudPreferencesQueryKey, patchCloudPreferences } from "./usePreferences";
 
 type FavoriteListsMutationContext = {
   previous: CloudPreferences | undefined;

@@ -2,12 +2,11 @@ import { AirportTowerIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { DraftStation } from "../../utils/fromAnalyzer";
+import { AnalyzerCellChangeRow } from "./AnalyzerCellChangeRow";
 import { Button } from "@/components/ui/button";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
-
-import type { DraftStation } from "../../utils/fromAnalyzer";
-import { AnalyzerCellChangeRow } from "./AnalyzerCellChangeRow";
 
 interface Props {
   station: DraftStation;

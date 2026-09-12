@@ -5,12 +5,11 @@ import { Cancel01Icon, Edit03Icon, FingerprintPatternIcon } from "@hugeicons/cor
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 
+import { DeletePasskeyDialog, type ListedPasskey } from "./delete-passkey-dialog";
+import { RenamePasskeyDialog } from "./rename-passkey-dialog";
 import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
-
-import { DeletePasskeyDialog, type ListedPasskey } from "./delete-passkey-dialog";
-import { RenamePasskeyDialog } from "./rename-passkey-dialog";
 
 export type PasskeyProps = {
   passkey: ListedPasskey;

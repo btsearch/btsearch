@@ -1,3 +1,4 @@
+import type { CellFormDetails, RatType, SubmissionFormData } from "./types";
 import type { SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/rat";
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
@@ -13,8 +14,6 @@ import type {
   Station,
   UkeLocationWithPermits,
 } from "@/types/station";
-
-import type { CellFormDetails, RatType, SubmissionFormData } from "./types";
 
 export { fetchOperators, fetchBands, fetchRegions } from "@/features/shared/api";
 

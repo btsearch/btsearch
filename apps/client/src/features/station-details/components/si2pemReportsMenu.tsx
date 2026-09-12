@@ -3,6 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { PemReport } from "../api";
+import { useFloatingDialogStack } from "./floatingDialogStackProvider";
+import { SI2PEMLogo } from "./si2pemLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-import type { PemReport } from "../api";
-import { useFloatingDialogStack } from "./floatingDialogStackProvider";
-import { SI2PEMLogo } from "./si2pemLogo";
 
 type ReportItem = {
   report: PemReport;

@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { AddCommentForm } from "./addCommentForm";
 import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import {
@@ -26,8 +27,6 @@ import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 import type { StationComment } from "@/types/station";
-
-import { AddCommentForm } from "./addCommentForm";
 
 const fetchComments = (stationId: number) =>
   fetchApiData<StationComment[]>(`stations/${stationId}/comments`, {

@@ -4,6 +4,7 @@ import { useAuth, useSession, useUpdateUser } from "@better-auth-ui/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { AdditionalField } from "../../additional-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -11,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-
-import { AdditionalField } from "../../additional-field";
 
 export type UserProfileProps = {
   className?: string;

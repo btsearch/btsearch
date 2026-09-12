@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 
+import { CELL_TYPES, CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "./cellTypes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CellType } from "@/types/station";
-
-import { CELL_TYPES, CELL_TYPE_I18N_KEY, CELL_TYPE_LABELS } from "./cellTypes";
 
 type CellTypeSelectProps = {
   value: CellType | null;

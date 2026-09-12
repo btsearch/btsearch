@@ -1,6 +1,5 @@
-import type { LocationWithStations, StationWithoutCells } from "@/types/station";
-
 import type { MatchedStation } from "./correlation";
+import type { LocationWithStations, StationWithoutCells } from "@/types/station";
 
 function toStation(match: MatchedStation): StationWithoutCells {
   const { station } = match;

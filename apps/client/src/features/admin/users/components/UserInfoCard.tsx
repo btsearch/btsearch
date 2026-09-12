@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { InfoRow, SectionHeader } from "./common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +11,6 @@ import { Spinner } from "@/components/ui/spinner";
 import type { AdminUser } from "@/features/admin/users/types";
 import { fetchApiData, showApiError } from "@/lib/api";
 import { useResendCooldown } from "@/lib/auth/use-resend-cooldown";
-
-import { InfoRow, SectionHeader } from "./common";
 
 function getResendButtonLabel(isPending: boolean, isCoolingDown: boolean, cooldown: number): string {
   if (isPending) return "Sending...";

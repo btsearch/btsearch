@@ -1,8 +1,5 @@
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 
-import { isARFCNValidForBand } from "@/features/station-details/frequencyCalc";
-import type { Band } from "@/types/station";
-
 import type { SearchStation } from "../api";
 import type {
   GSMCellDetails,
@@ -17,6 +14,8 @@ import type {
 } from "../types";
 import { type CellLike, findDuplicateIdentityGroups } from "./cellDuplicates";
 import { buildOriginalCellsMap, getCellDiffStatus } from "./cells";
+import { isARFCNValidForBand } from "@/features/station-details/frequencyCalc";
+import type { Band } from "@/types/station";
 export type StationErrors = {
   station_id?: string;
   operator_id?: string;

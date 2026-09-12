@@ -3,6 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CellDetailsFields } from "./cellDetailsFields";
+import { useBandSelection } from "./hooks/useBandSelection";
+import { type RAT_ORDER, getRatShowsBandDuplex } from "./rat";
+import { navigateRowHorizontal } from "./rowNav";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -11,11 +15,6 @@ import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getBandName } from "@/features/station-details/frequencyCalc";
 import { cn } from "@/lib/utils";
 import type { Band, CellType, SectorDraft } from "@/types/station";
-
-import { CellDetailsFields } from "./cellDetailsFields";
-import { useBandSelection } from "./hooks/useBandSelection";
-import { type RAT_ORDER, getRatShowsBandDuplex } from "./rat";
-import { navigateRowHorizontal } from "./rowNav";
 
 export type CellDraftBase = {
   _localId: string;

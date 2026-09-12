@@ -2,13 +2,12 @@ import { useReducedMotion } from "motion/react";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ChartType } from "./chartTypeContext";
 import * as AreaChartImport from "@/components/evilcharts/charts/area-chart";
 import * as BarChartImport from "@/components/evilcharts/charts/bar-chart";
 import * as LineChartImport from "@/components/evilcharts/charts/line-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import type { ChartLegendVariant } from "@/components/evilcharts/ui/legend";
-
-import type { ChartType } from "./chartTypeContext";
 
 export interface Series {
   key: string;

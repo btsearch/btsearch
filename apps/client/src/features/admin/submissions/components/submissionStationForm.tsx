@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { ChangeBadge } from "./common";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +23,6 @@ import type { ProposedLocationForm } from "@/features/submissions/types";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { Operator, SectorDraft, Station } from "@/types/station";
-
-import { ChangeBadge } from "./common";
 
 type ExtraIdentificatorsType = {
   networks_id: number | null;

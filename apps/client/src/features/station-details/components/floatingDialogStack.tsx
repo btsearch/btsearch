@@ -2,16 +2,15 @@ import { type ReactNode, Suspense, lazy, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
-import { useIsMobile } from "@/hooks/useMobile";
-
 import { assertNever, getStationHistoryTriggerId } from "./floatingDialogStackTypes";
 import type { FloatingDialogItem } from "./floatingDialogStackTypes";
 import type { FloatingStationDialogRenderProps } from "./floatingStationDialogFrame";
 import { FloatingStationDialogFrame } from "./floatingStationDialogFrame";
 import type { StationDialogRect } from "./stationDialogGeometry";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
+import { useIsMobile } from "@/hooks/useMobile";
 
 const StationDetailsDialogPanel = lazy(() => import("./stationsDetailsDialog").then((module) => ({ default: module.StationDetailsDialogPanel })));
 const UkePermitDetailsDialogPanel = lazy(() =>

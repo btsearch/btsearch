@@ -5,11 +5,10 @@ import { renderProviderIcon, useAuth, useSignInSocial } from "@better-auth-ui/re
 import { useIsMutating } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 
+import { LastUsedBadge } from "./last-login-method/last-used-badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-
-import { LastUsedBadge } from "./last-login-method/last-used-badge";
 
 export type ProviderButtonProps = {
   provider: AuthSocialProvider;

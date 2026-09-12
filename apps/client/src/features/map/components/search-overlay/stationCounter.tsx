@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { fetchStats } from "../../statsApi.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
 import i18n from "@/i18n/config.js";
 import { formatFullDate, formatRelativeTime } from "@/lib/format.js";
 import { cn } from "@/lib/utils.js";
 import type { StationSource } from "@/types/station.js";
-
-import { fetchStats } from "../../statsApi.js";
 
 type StationCounterProps = {
   locationCount: number;

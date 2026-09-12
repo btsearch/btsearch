@@ -4,14 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import type { SubmissionDetail } from "@/features/admin/submissions/types";
-import { fetchUkePermitsByStationId } from "@/features/map/api";
-import { groupPermitsByStation } from "@/features/map/utils";
-import { bandsQueryOptions } from "@/features/shared/queries";
-import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
-import { showApiError } from "@/lib/api";
-import type { SectorDraft, UkeStation } from "@/types/station";
-
 import {
   type SearchStation,
   createSubmission,
@@ -25,6 +17,13 @@ import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatTy
 import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
 import { type OriginalState, hasFormChanges, isEqualLocation, isEqualStation } from "../utils/equality";
 import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
+import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { fetchUkePermitsByStationId } from "@/features/map/api";
+import { groupPermitsByStation } from "@/features/map/utils";
+import { bandsQueryOptions } from "@/features/shared/queries";
+import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
+import { showApiError } from "@/lib/api";
+import type { SectorDraft, UkeStation } from "@/types/station";
 
 export type FormValues = {
   mode: SubmissionMode;

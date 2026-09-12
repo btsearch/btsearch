@@ -3,16 +3,15 @@ import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useListPasskeys } from "@better-auth-ui/react/plugins/passkey";
 import { Fragment, useState } from "react";
 
+import { AddPasskeyDialog } from "./add-passkey-dialog";
+import { Passkey } from "./passkey";
+import { PasskeySkeleton } from "./passkey-skeleton";
+import { PasskeysEmpty } from "./passkeys-empty";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
 import { cn } from "@/lib/utils";
-
-import { AddPasskeyDialog } from "./add-passkey-dialog";
-import { Passkey } from "./passkey";
-import { PasskeySkeleton } from "./passkey-skeleton";
-import { PasskeysEmpty } from "./passkeys-empty";
 
 export type PasskeysProps = {
   className?: string;

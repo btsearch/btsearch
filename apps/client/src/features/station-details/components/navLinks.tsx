@@ -3,11 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 import type { JSX } from "react/jsx-runtime";
 
+import OsmSvg from "../../../components/ui/osm.svg?react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type NavigationApp, usePreferences } from "@/hooks/usePreferences";
-
-import OsmSvg from "../../../components/ui/osm.svg?react";
 
 type NavIconComponent = (props: { className?: string }) => JSX.Element;
 

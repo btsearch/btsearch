@@ -5,19 +5,6 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AddToListPopover } from "@/features/lists/components/addToListPopover";
-import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
-import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
-import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
-import { usePreferences } from "@/hooks/usePreferences";
-import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
-import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
-import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
-
 import { stationQueryOptions } from "../queries";
 import type { TabId } from "../tabs";
 import { StationDetailsBody } from "./dialogBody";
@@ -30,6 +17,18 @@ import { ShareButton } from "./shareButton";
 import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { WatchButton } from "./watchButton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AddToListPopover } from "@/features/lists/components/addToListPopover";
+import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
+import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
+import { usePreferences } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
+import { formatFullDate, formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;

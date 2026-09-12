@@ -2,9 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import type { DuplexRadioLink } from "@/features/map/utils";
-import type { StationSource, UkeStation } from "@/types/station";
-
 import { assertNever } from "./floatingDialogStackTypes";
 import type {
   FloatingDialogItem,
@@ -13,6 +10,8 @@ import type {
   StationHistoryDialogPayload,
 } from "./floatingDialogStackTypes";
 import { type StationDialogRect, areStationDialogRectsEqual, createInitialStationDialogRect } from "./stationDialogGeometry";
+import type { DuplexRadioLink } from "@/features/map/utils";
+import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
 const MAX_DIALOGS_PER_KIND = 2;

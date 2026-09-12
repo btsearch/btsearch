@@ -1,8 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import type { StationSource } from "@/types/station";
-
 import { fetchStation } from "./api";
+import type { StationSource } from "@/types/station";
 
 export function stationQueryOptions(stationId: number, source: StationSource = "internal") {
   return queryOptions({

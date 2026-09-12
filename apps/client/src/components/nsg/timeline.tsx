@@ -2,12 +2,11 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, type TooltipContentProps, XAxis, YAxis, ZAxis } from "recharts";
 
+import { getSignalIdentityFields } from "./cellPresentation";
+import { formatDecibelValue, formatTime, formatValue } from "./display";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NsgCell } from "@/lib/nsg-parser/model";
-
-import { getSignalIdentityFields } from "./cellPresentation";
-import { formatDecibelValue, formatTime, formatValue } from "./display";
 
 type SignalPoint = { timestamp: number; value: number; eventIndex: number; cell: NsgCell; series: string };
 const COLORS = ["var(--primary)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];

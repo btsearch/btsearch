@@ -1,11 +1,10 @@
 import { Marker } from "maplibre-gl";
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import type { ReplayClock } from "./replayClock";
 import { useMap } from "@/components/ui/map";
 import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
-
-import type { ReplayClock } from "./replayClock";
 
 const SELECTED_DOT_CLASS = "relative h-3.5 w-3.5 rounded-full border-2 border-white shadow-md";
 

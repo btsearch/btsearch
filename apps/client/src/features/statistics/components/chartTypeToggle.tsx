@@ -2,10 +2,9 @@ import { ChartAverageIcon, ChartHistogramIcon, ChartLineData01Icon } from "@huge
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { ChartType } from "./chartTypeContext";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-
-import type { ChartType } from "./chartTypeContext";
 
 const TYPES: { key: ChartType; icon: typeof ChartAverageIcon }[] = [
   { key: "area", icon: ChartAverageIcon },

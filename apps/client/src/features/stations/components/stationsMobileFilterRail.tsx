@@ -3,6 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
+import { STATIONS_FILTER_KEYWORDS, type StationsFilterControlProps } from "./stationFilterOptions";
+import { StationStatusFilter } from "./stationStatusFilter";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { AutocompleteDropdown } from "@/features/map/components/search-overlay/autocompleteDropdown";
 import { RAT_OPTIONS } from "@/features/map/constants";
@@ -11,10 +14,6 @@ import { MobileOperatorFilterChip, MobileRegionFilterChip, sortBandsUnknownLast 
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { cn, toggleValue } from "@/lib/utils";
 import type { StationStatus } from "@/types/station";
-
-import { getStationStatusFilterCount, toggleStationStatusSelection } from "../stationStatus";
-import { STATIONS_FILTER_KEYWORDS, type StationsFilterControlProps } from "./stationFilterOptions";
-import { StationStatusFilter } from "./stationStatusFilter";
 
 type StationsMobileFilterRailProps = StationsFilterControlProps & {
   hasActiveFilters: boolean;

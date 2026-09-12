@@ -1,10 +1,9 @@
-import { getMnoBrand, getOperatorColor } from "@/lib/cellular/operators";
-import { cn } from "@/lib/utils";
-
 import OrangeIcon from "./logos/orange.svg?react";
 import PlayIcon from "./logos/play-square.svg?react";
 import PlusIcon from "./logos/plus.svg?react";
 import TmobileIcon from "./logos/t-mobile.svg?react";
+import { getMnoBrand, getOperatorColor } from "@/lib/cellular/operators";
+import { cn } from "@/lib/utils";
 
 const MNO_LOGO: Partial<Record<string, typeof OrangeIcon>> = {
   OPL: OrangeIcon,

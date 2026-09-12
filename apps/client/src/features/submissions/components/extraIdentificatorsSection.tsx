@@ -4,15 +4,14 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import type { SearchStation } from "../api";
+import { fetchSiblingExtraIds } from "../api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
-
-import type { SearchStation } from "../api";
-import { fetchSiblingExtraIds } from "../api";
 
 export interface ExtraIdentificatorsSectionProps {
   selectedStation: SearchStation | null;

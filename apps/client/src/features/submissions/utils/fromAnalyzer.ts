@@ -1,6 +1,3 @@
-import { getCellDetailKeys } from "@/features/shared/rat";
-import type { Band } from "@/types/station";
-
 import type { CellFormDetails, SubmissionFormData } from "../types";
 import type { AnalyzerDraft } from "./analyzerDraftStore";
 import {
@@ -12,6 +9,8 @@ import {
   buildAnalyzerWarningDetails,
   resolveAnalyzerBandChoices,
 } from "./analyzerRatSpecs";
+import { getCellDetailKeys } from "@/features/shared/rat";
+import type { Band } from "@/types/station";
 
 export interface DraftCell {
   _rowIndex: number;

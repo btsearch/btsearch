@@ -2,11 +2,10 @@ import { SignalFull02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { RatType } from "../types";
 import { RAT_OPTIONS } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
-
-import type { RatType } from "../types";
 
 type RatSelectorProps = {
   selectedRats: RatType[];

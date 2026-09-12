@@ -11,10 +11,6 @@ import {
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
-import { onBeforeStyleChange } from "@/components/ui/map";
-import { normalizeOperatorName } from "@/lib/cellular/operators";
-import { hasReliableHoverPointer } from "@/lib/dom/pointer";
-
 import { RadioLineTooltipContent } from "../components/radioLineTooltipContent";
 import {
   POINT_LAYER_ID,
@@ -26,6 +22,9 @@ import {
 } from "../constants";
 import type { DuplexRadioLink, RadioLinkType } from "../utils";
 import { findDuplexLinkByRadioLineId } from "../utils";
+import { onBeforeStyleChange } from "@/components/ui/map";
+import { normalizeOperatorName } from "@/lib/cellular/operators";
+import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
 

@@ -1,7 +1,6 @@
+import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "./constants.js";
 import { toggleValue } from "@/lib/utils.js";
 import type { StationFilters, StationSource } from "@/types/station.js";
-
-import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "./constants.js";
 
 const OPERATOR_KEYBINDS: Record<string, number> = { "1": 26001, "2": 26002, "3": 26003, "4": 26006 };
 const RAT_KEYBINDS: Record<string, string> = { g: "GSM", u: "UMTS", l: "LTE", n: "NR", i: "iot" };

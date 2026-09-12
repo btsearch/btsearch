@@ -1,6 +1,5 @@
-import type { NsgLocation } from "@/lib/nsg-parser/model";
-
 import { getLocationTimeMs } from "../map/routeLocations";
+import type { NsgLocation } from "@/lib/nsg-parser/model";
 
 const PLAYBACK_RATE = 5;
 

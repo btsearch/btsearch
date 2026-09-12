@@ -1,15 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
-import { isStationsQueryScope } from "@/features/nsg-explorer/stations/queryScope";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
-import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
-import { usePreferences } from "@/hooks/usePreferences";
-import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
-import type { LocationInfo, StationFilters, UkeLocationWithPermits, UkeStation } from "@/types/station";
-
 import { fetchLocations, fetchRadioLines } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
 import { useMapBounds } from "../hooks/useMapBounds";
@@ -21,6 +12,14 @@ import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "
 import { attachUkeLocationToStations } from "../utils";
 import { MapSearchOverlay } from "./search-overlay";
 import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "./stationsLayer";
+import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
+import { isStationsQueryScope } from "@/features/nsg-explorer/stations/queryScope";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
+import { usePreferences } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
+import { authClient } from "@/lib/auth/client";
+import type { LocationInfo, StationFilters, UkeLocationWithPermits, UkeStation } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
 const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/components/terrainProfileSurface"));

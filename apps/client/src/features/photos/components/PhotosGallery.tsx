@@ -17,6 +17,10 @@ import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import type { GalleryPhoto, PhotosGalleryFilters, PhotosGalleryOrder, PhotosGallerySortBy } from "../api";
+import { usePhotosGallery } from "../hooks";
+import { GallerySkeleton } from "./GallerySkeleton";
+import { PhotoTile } from "./PhotoTile";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { Lightbox } from "@/components/photos/lightbox";
 import { Button } from "@/components/ui/button";
@@ -38,11 +42,6 @@ import { TOP4_MNCS } from "@/lib/cellular/operators";
 import { hasModifierKey } from "@/lib/dom/keyboard";
 import { cn } from "@/lib/utils";
 import type { Operator, Region, StationStatus } from "@/types/station";
-
-import type { GalleryPhoto, PhotosGalleryFilters, PhotosGalleryOrder, PhotosGallerySortBy } from "../api";
-import { usePhotosGallery } from "../hooks";
-import { GallerySkeleton } from "./GallerySkeleton";
-import { PhotoTile } from "./PhotoTile";
 
 const ALL_FILTER_VALUE = "__all__";
 const STORAGE_KEY = "photos:filters";

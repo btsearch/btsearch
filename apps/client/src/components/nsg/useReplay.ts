@@ -1,10 +1,9 @@
 import { startTransition, useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 
+import { type ReplayClock, createReplayClock } from "./replayClock";
 import { type Snapshot, type SnapshotCollection, findNearestSnapshotIndex } from "@/features/nsg-explorer/cells/snapshots";
 import { advanceReplayClock } from "@/features/nsg-explorer/replay/replayClock";
 import type { NsgLog } from "@/lib/nsg-parser/model";
-
-import { type ReplayClock, createReplayClock } from "./replayClock";
 
 type ReplayState = {
   sourceLog: NsgLog | null;

@@ -1,8 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-import type { NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
-
 import type { NsgWorkerRequest, NsgWorkerResponse } from "./protocol";
+import type { NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
 
 type NsgSession = {
   status: "idle" | "parsing" | "ready" | "error";

@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
 
+import type { DeletedEntry } from "../types";
 import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatFullDate } from "@/lib/format";
-
-import type { DeletedEntry } from "../types";
 
 const SOURCE_TABLE_LABELS: Record<string, string> = {
   uke_permits: "UKE Permits",

@@ -2,10 +2,9 @@ import { Add01Icon, Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { SubmissionFormData } from "../types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-import type { SubmissionFormData } from "../types";
 
 type SubmissionType = SubmissionFormData["type"];
 

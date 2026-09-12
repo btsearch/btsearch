@@ -2,8 +2,6 @@ import { getOperatorColor } from "@openbts/shared/operatorUtils";
 import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 
-import type { LocationWithStations, UkeLocationWithPermits } from "@/types/station";
-
 import {
   INTERNAL_AZIMUTHS_FILL_LAYER_ID,
   INTERNAL_AZIMUTHS_LABEL_LAYER_ID,
@@ -21,6 +19,7 @@ import {
 } from "../constants";
 import { DEFAULT_COLOR } from "../geojson";
 import { destinationPoint } from "../utils";
+import type { LocationWithStations, UkeLocationWithPermits } from "@/types/station";
 
 type GeoJsonGeometry =
   | { type: "Point"; coordinates: [number, number] }

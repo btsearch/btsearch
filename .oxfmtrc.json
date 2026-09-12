@@ -7,7 +7,7 @@
   "arrowParens": "always",
   "ignorePatterns": ["*.gen.ts", "packages/proto/src/gen/**/*"],
   "sortImports": {
-    "newlinesBetwenen": true,
-    "groups": ["type-import", ["builtin", "external"], "internal", ["parent", "sibling", "index"], "unknown"]
+    "newlinesBetween": true,
+    "groups": [["builtin", "external"], ["internal", "parent", "sibling", "index", "unknown"], "type-import"]
   }
 }

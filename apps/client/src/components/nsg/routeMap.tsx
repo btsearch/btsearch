@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { formatDecibelValue, formatValue } from "./display";
+import { OperatorName } from "./operatorName";
+import type { ReplayClock } from "./replayClock";
+import { SelectedMarker } from "./selectedMarker";
+import { ServingConnectorLayer } from "./servingConnectorLayer";
+import { NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID, SignalRoute } from "./signalRoute";
+import { StationsLayer } from "./stationsLayer";
 import { Button } from "@/components/ui/button";
 import { MapControls, Map as MapView, useMap } from "@/components/ui/map";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -25,14 +32,6 @@ import type { AnalyzerResultsByKey, MatchedStation } from "@/features/nsg-explor
 import { usePreferences } from "@/hooks/usePreferences";
 import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgCell, NsgLocation } from "@/lib/nsg-parser/model";
-
-import { formatDecibelValue, formatValue } from "./display";
-import { OperatorName } from "./operatorName";
-import type { ReplayClock } from "./replayClock";
-import { SelectedMarker } from "./selectedMarker";
-import { ServingConnectorLayer } from "./servingConnectorLayer";
-import { NSG_SIGNAL_ROUTE_HITBOX_LAYER_ID, SignalRoute } from "./signalRoute";
-import { StationsLayer } from "./stationsLayer";
 
 const STATION_SYMBOL_LAYER_ID = `${POINT_LAYER_ID}-symbol`;
 const STATION_LAYER_IDS = [POINT_LAYER_ID, STATION_SYMBOL_LAYER_ID] as const;

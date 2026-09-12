@@ -3,11 +3,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { usePreferences } from "@/hooks/usePreferences";
-import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
-import { formatCoordinates } from "@/lib/geo/coordinates";
-import { cn } from "@/lib/utils";
-
 import type { DuplexRadioLink } from "../utils";
 import {
   buildRadiolineShareUrl,
@@ -21,6 +16,10 @@ import {
   getLinkTypeStyle,
 } from "../utils";
 import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
+import { usePreferences } from "@/hooks/usePreferences";
+import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { formatCoordinates } from "@/lib/geo/coordinates";
+import { cn } from "@/lib/utils";
 
 const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 

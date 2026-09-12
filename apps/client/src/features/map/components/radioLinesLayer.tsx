@@ -6,17 +6,16 @@ import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { useMap } from "@/components/ui/map";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
-import { usePreferences } from "@/hooks/usePreferences";
-import { queryClient } from "@/lib/queryClient";
-import type { RadioLine } from "@/types/station";
-
 import { fetchRadioLineGroup } from "../api";
 import { radioLinesToGeoJSON } from "../geojson";
 import { useRadioLinesLayer } from "../hooks/useRadioLinesLayer";
 import { type DuplexRadioLink, findDuplexLinkByRadioLineId, groupRadioLinesIntoLinks } from "../utils";
 import { RadioLineFooter, RadioLinePopupContent } from "./radioLinePopupContent";
+import { useMap } from "@/components/ui/map";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { usePreferences } from "@/hooks/usePreferences";
+import { queryClient } from "@/lib/queryClient";
+import type { RadioLine } from "@/types/station";
 
 const EMPTY_LINES: FeatureCollection = { type: "FeatureCollection", features: [] };
 const EMPTY_ENDPOINTS: FeatureCollection = { type: "FeatureCollection", features: [] };

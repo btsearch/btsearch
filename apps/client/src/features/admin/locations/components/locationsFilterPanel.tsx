@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import type { LocationFilters } from "../hooks/useLocationsData";
 import {
   FilterPanelFooter,
   FilterPanelHeader,
@@ -12,8 +13,6 @@ import {
 } from "@/features/shared/filterPanel";
 import { toggleValue } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
-
-import type { LocationFilters } from "../hooks/useLocationsData";
 
 export type LocationsFilterControlProps = {
   filters: LocationFilters;

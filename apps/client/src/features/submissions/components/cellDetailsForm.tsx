@@ -3,6 +3,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ProposedCellForm, RatType } from "../types";
+import { type CellDiffStatus, getCellDiffStatus } from "../utils/cells";
+import type { CellError } from "../utils/validation";
+import { useCellDetailsForm } from "./hooks/useCellDetailsForm";
+import { CellsTableHeaders } from "./subcomponents/CellsTableHeaders";
+import { CollapsibleHeader } from "./subcomponents/CollapsibleHeader";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -18,13 +24,6 @@ import { getBandName } from "@/features/station-details/frequencyCalc";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { cn } from "@/lib/utils";
 import type { Band, CellType, SectorDraft } from "@/types/station";
-
-import type { ProposedCellForm, RatType } from "../types";
-import { type CellDiffStatus, getCellDiffStatus } from "../utils/cells";
-import type { CellError } from "../utils/validation";
-import { useCellDetailsForm } from "./hooks/useCellDetailsForm";
-import { CellsTableHeaders } from "./subcomponents/CellsTableHeaders";
-import { CollapsibleHeader } from "./subcomponents/CollapsibleHeader";
 
 type CellDetailsFormProps = {
   rat: RatType;

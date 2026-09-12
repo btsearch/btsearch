@@ -2,10 +2,9 @@ import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine, type TooltipContentProps, XAxis, YAxis } from "recharts";
 
+import type { TerrainProfileSample } from "../types";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-
-import type { TerrainProfileSample } from "../types";
 
 type TerrainProfileChartProps = {
   samples: TerrainProfileSample[];

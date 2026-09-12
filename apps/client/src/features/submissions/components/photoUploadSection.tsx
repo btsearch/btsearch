@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { type SubmissionPhoto, deleteSubmissionPhoto, fetchSubmissionPhotos, updateSubmissionPhotoNote, updateSubmissionPhotoTakenAt } from "../api";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
@@ -37,8 +38,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Spinner } from "@/components/ui/spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";
-
-import { type SubmissionPhoto, deleteSubmissionPhoto, fetchSubmissionPhotos, updateSubmissionPhotoNote, updateSubmissionPhotoTakenAt } from "../api";
 
 const MAX_FILES = 5;
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;

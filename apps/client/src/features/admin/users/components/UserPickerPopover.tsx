@@ -3,10 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { UserPicker } from "./UserPicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-import { UserPicker } from "./UserPicker";
 
 interface UserPickerPopoverProps {
   selectedUserIds: string[];

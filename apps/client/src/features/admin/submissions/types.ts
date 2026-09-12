@@ -1,7 +1,6 @@
+import type { RAT_ORDER } from "../cells/rat";
 import type { LocationPhoto } from "@/features/station-details/api";
 import type { CellType } from "@/types/station";
-
-import type { RAT_ORDER } from "../cells/rat";
 
 export type SubmissionLocationPhoto = LocationPhoto & { is_main: boolean };
 

@@ -4,13 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
 import { Lightbox } from "@/components/photos/lightbox";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
 
 type Props = { stationId: number; isAdmin: boolean };
 type PhotoSortOrder = "asc" | "desc";

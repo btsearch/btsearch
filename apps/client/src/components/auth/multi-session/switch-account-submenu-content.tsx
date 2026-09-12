@@ -4,11 +4,10 @@ import { useListDeviceSessions } from "@better-auth-ui/react/plugins/multi-sessi
 import { AddCircleIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { SwitchAccountSubmenuItem } from "./switch-account-submenu-item";
 import { UserView } from "@/components/auth/user/user-view";
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
-
-import { SwitchAccountSubmenuItem } from "./switch-account-submenu-item";
 
 /**
  * Render the submenu content for switching between multiple authenticated sessions.

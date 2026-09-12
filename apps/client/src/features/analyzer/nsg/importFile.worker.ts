@@ -1,8 +1,7 @@
-import { isAnalyzerImportError } from "@/lib/analyzer/analyzer-import";
-import { openNsgFile } from "@/lib/nsg-parser/browser";
-
 import { parseNsgAnalyzerStream } from "./parseImport";
 import type { NsgAnalyzerWorkerRequest, NsgAnalyzerWorkerResponse } from "./protocol";
+import { isAnalyzerImportError } from "@/lib/analyzer/analyzer-import";
+import { openNsgFile } from "@/lib/nsg-parser/browser";
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 

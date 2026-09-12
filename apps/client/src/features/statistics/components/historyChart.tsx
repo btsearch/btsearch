@@ -2,10 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Operator } from "@/types/station";
-
 import type { StatsHistoryRow, StatsOperator, StatsStationsHistoryRow } from "../api";
 import { compareBandNames } from "../lib/bandOrder";
 import { operatorDataKey, operatorSeries } from "../lib/series";
@@ -14,6 +10,9 @@ import type { ChartType } from "./chartTypeContext";
 import { ChartTypeToggle } from "./chartTypeToggle";
 import type { Series } from "./statChart";
 import { StatChartCard } from "./statChartCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Operator } from "@/types/station";
 
 type ViewMode = "by-band" | "by-operator";
 

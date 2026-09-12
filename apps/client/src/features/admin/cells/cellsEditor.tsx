@@ -3,6 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Fragment, type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { CellDraftBase } from "./cellEditRow";
+import { CellEditRow } from "./cellEditRow";
+import { RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
+import { isNRSyncTarget } from "./sectorAssignmentSync";
 import { EmptyPanel } from "@/components/content/empty-panel";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -12,11 +16,6 @@ import { GenerationTag, RatGenerationLabel } from "@/features/shared/RatGenerati
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { cn } from "@/lib/utils";
 import type { Band, SectorDraft } from "@/types/station";
-
-import type { CellDraftBase } from "./cellEditRow";
-import { CellEditRow } from "./cellEditRow";
-import { RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
-import { isNRSyncTarget } from "./sectorAssignmentSync";
 
 export type DiffBadges = {
   added?: number;

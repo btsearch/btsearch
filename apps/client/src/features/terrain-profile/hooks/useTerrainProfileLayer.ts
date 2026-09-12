@@ -1,8 +1,6 @@
 import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { POINT_LAYER_ID } from "@/features/map/constants";
-
 import {
   type TerrainProfileAnalysis,
   type TerrainProfileReceiver,
@@ -10,6 +8,7 @@ import {
   type TerrainProfileStationTarget,
   samplesFromArrays,
 } from "../types";
+import { POINT_LAYER_ID } from "@/features/map/constants";
 
 const SOURCE_ID = "terrain-profile-path-source";
 const LINE_LAYER_ID = "terrain-profile-path-line";

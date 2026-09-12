@@ -1,8 +1,7 @@
-import { AnalyzerImportError } from "@/lib/analyzer/analyzer-import";
-import type { NsgProgress } from "@/lib/nsg-parser/model";
-
 import type { NsgAnalyzerImport } from "./parseImport";
 import type { NsgAnalyzerWorkerRequest, NsgAnalyzerWorkerResponse } from "./protocol";
+import { AnalyzerImportError } from "@/lib/analyzer/analyzer-import";
+import type { NsgProgress } from "@/lib/nsg-parser/model";
 
 type ImportOptions = { signal?: AbortSignal; onProgress?: (progress: NsgProgress) => void };
 

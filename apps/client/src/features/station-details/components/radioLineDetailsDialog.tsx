@@ -20,6 +20,14 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CopyButton } from "./copyButton";
+import { DialogOperatorName } from "./dialogOperatorName";
+import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
+import { ShareButton } from "./shareButton";
+import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
+import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
+import { StationInfoItem } from "./stationInfoItem";
+import { UKELogo } from "./ukeLogo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { DirectionalSpeedBadge } from "@/features/map/components/directionalSpeedBadge";
@@ -42,15 +50,6 @@ import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/l
 import { isPermitExpired } from "@/lib/dateUtils";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
-
-import { CopyButton } from "./copyButton";
-import { DialogOperatorName } from "./dialogOperatorName";
-import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
-import { ShareButton } from "./shareButton";
-import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
-import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
-import { StationInfoItem } from "./stationInfoItem";
-import { UKELogo } from "./ukeLogo";
 
 type RadioLineDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   link: DuplexRadioLink;

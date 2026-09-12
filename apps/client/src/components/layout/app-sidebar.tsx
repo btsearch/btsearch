@@ -4,6 +4,9 @@ import { Link, useLocation } from "@tanstack/react-router";
 import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { NavLists } from "./nav-lists";
+import { NavMain } from "./nav-main";
+import { NavUser } from "./nav-user";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { LanguageSwitcher } from "@/components/preferences/language-switcher";
 import { ThemeToggle } from "@/components/preferences/theme-toggle";
@@ -15,10 +18,6 @@ import { APP_NAME } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { adminNavConfig, authNavConfig, infoNavConfig, navMainConfig, translateAdminNav, translateNav } from "@/lib/navConfig";
 import { cn } from "@/lib/utils";
-
-import { NavLists } from "./nav-lists";
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
 
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation("nav");

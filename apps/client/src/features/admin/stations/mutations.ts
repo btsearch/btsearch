@@ -1,10 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
-import { pickCellDetails } from "@/features/submissions/api";
-import { shallowEqual } from "@/lib/shallowEqual";
-import type { Cell, Sector, SectorDraft, Station, StationStatus } from "@/types/station";
-
 import { patchLocation } from "../locations/api";
 import {
   createCells,
@@ -18,6 +13,10 @@ import {
   putStationSectors,
   updateExtraIds,
 } from "./api";
+import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
+import { pickCellDetails } from "@/features/submissions/api";
+import { shallowEqual } from "@/lib/shallowEqual";
+import type { Cell, Sector, SectorDraft, Station, StationStatus } from "@/types/station";
 
 export type LocalCell = CellDraftBase & {
   _serverId?: number;

@@ -13,16 +13,6 @@ import { TERRAIN_RECEIVER_BOUNDS } from "@openbts/shared/terrainProfile";
 import { type HTMLAttributes, Suspense, lazy, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@/lib/cellular/operators";
-import { cn } from "@/lib/utils";
-
 import { filterTerrainProfileCandidatesByBearing } from "../antennaSelection";
 import {
   type TerrainProfileAnalysis,
@@ -34,6 +24,15 @@ import {
   type TerrainProfileStationTarget,
   samplesFromArrays,
 } from "../types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
+import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { cn } from "@/lib/utils";
 
 const TerrainProfileChart = lazy(() => import("./terrainProfileChart"));
 

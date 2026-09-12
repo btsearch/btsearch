@@ -1,10 +1,9 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
-import { cn } from "@/lib/utils";
-
 import type { FilterKeyword } from "../../types";
 import { getSearchOptionId } from "./searchOptions";
+import { cn } from "@/lib/utils";
 
 const FILTER_GROUP_ORDER: FilterKeyword["group"][] = ["common", "location", "cell", "gsm", "umts", "lte", "nr", "identifiers", "date"];
 

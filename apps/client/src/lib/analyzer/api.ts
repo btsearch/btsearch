@@ -1,8 +1,7 @@
-import type { Operator, Region, UkeStation } from "@/types/station";
-
 import { fetchApiData } from "../api";
 import type { AnalyzerCell } from "./analyzer-parsers";
 import { ANALYZER_CHUNK_CONCURRENCY, chunkAnalyzerCells } from "./chunks";
+import type { Operator, Region, UkeStation } from "@/types/station";
 
 export type AnalyzerLocation = {
   id: number;

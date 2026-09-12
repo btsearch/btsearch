@@ -5,6 +5,9 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { permitSnapshotQueryOptions } from "../queries";
+import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric, buildSnapshotBands } from "./permitSnapshotBandChart";
+import { PermitSnapshotImage, exportPermitSnapshotImage } from "./permitSnapshotImage";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
@@ -12,10 +15,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-
-import { permitSnapshotQueryOptions } from "../queries";
-import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric, buildSnapshotBands } from "./permitSnapshotBandChart";
-import { PermitSnapshotImage, exportPermitSnapshotImage } from "./permitSnapshotImage";
 
 const SNAPSHOT_GRID_CLASS = "grid grid-cols-[repeat(auto-fill,minmax(min(100%,420px),1fr))] divide-x divide-y divide-border border-t border-border";
 

@@ -2,13 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ProposedCellForm, RatType } from "../../types";
+import { buildOriginalCellsMap, generateCellId, getCellDiffStatus } from "../../utils/cells";
 import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
 import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { getCellDetailDefaultValue, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
-
-import type { ProposedCellForm, RatType } from "../../types";
-import { buildOriginalCellsMap, generateCellId, getCellDiffStatus } from "../../utils/cells";
 
 function getDefaultCellDetails(rat: RatType): ProposedCellForm["details"] {
   const type = getCellDetailDefaultValue(rat, "type");

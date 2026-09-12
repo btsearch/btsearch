@@ -1,9 +1,8 @@
 import { useAuth } from "@better-auth-ui/react";
 import type { ComponentProps } from "react";
 
-import { cn } from "@/lib/utils";
-
 import { DeleteAccount } from "./delete-account";
+import { cn } from "@/lib/utils";
 
 export type DangerZoneProps = {
   className?: string;

@@ -1,11 +1,10 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { fetchLocationsList } from "../api";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { LocationSortBy, LocationSortDirection } from "@/types/station";
-
-import { fetchLocationsList } from "../api";
 
 const FETCH_LIMIT = 100;
 const STORAGE_KEY = "admin:locations:filters";

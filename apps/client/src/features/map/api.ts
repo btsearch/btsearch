@@ -1,10 +1,9 @@
 import { LocationResponseSchema, LocationsResponseSchema } from "@openbts/proto/gen/locations_pb";
 import { PermitsResponseSchema as UKEPermitsResponseSchema } from "@openbts/proto/gen/uke_pb";
 
+import { endpointPairKey } from "./utils";
 import { API_BASE, fetchJson } from "@/lib/api";
 import type { LocationWithStations, RadioLine, StationFilters, UkeLocationWithPermits, UkePermit } from "@/types/station";
-
-import { endpointPairKey } from "./utils";
 
 export type LocationsResponse = {
   data: LocationWithStations[];

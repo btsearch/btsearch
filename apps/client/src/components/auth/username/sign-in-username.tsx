@@ -9,6 +9,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useIsMutating } from "@tanstack/react-query";
 import { type SyntheticEvent, useState } from "react";
 
+import { LastUsedBadge } from "../last-login-method/last-used-badge";
 import { ProviderButtons, type SocialLayout } from "@/components/auth/provider-buttons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +21,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSignInContinuation } from "@/lib/auth/use-sign-in-continuation";
 import { usernamePlugin } from "@/lib/auth/username-plugin";
 import { cn } from "@/lib/utils";
-
-import { LastUsedBadge } from "../last-login-method/last-used-badge";
 
 export type SignInUsernameProps = {
   className?: string;

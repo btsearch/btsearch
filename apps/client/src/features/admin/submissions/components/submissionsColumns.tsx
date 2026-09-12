@@ -4,10 +4,6 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { SubmissionListItem } from "@/features/admin/submissions/types";
-import type { AppTableFeatures } from "@/lib/tableFeatures";
-import type { Operator } from "@/types/station";
-
 import {
   SubmissionChangesSummary,
   SubmissionStationSummary,
@@ -15,6 +11,9 @@ import {
   SubmissionSubmitterSummary,
   SubmissionTimestamp,
 } from "./submissionListParts";
+import type { SubmissionListItem } from "@/features/admin/submissions/types";
+import type { AppTableFeatures } from "@/lib/tableFeatures";
+import type { Operator } from "@/types/station";
 
 const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListItem>();
 

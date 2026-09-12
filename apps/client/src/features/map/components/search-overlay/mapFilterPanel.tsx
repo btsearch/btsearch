@@ -15,6 +15,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
+import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "../../constants";
+import { type StationFiltersUpdater, changeFilterSource } from "../../filterKeybinds";
+import { type DataStats, fetchStats } from "../../statsApi";
+import { Checkbox } from "./checkbox";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -36,11 +40,6 @@ import { StationStatusPills } from "@/features/stations/components/stationStatus
 import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
 import type { Operator, StationFilters, StationSource, StationStatus } from "@/types/station";
-
-import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "../../constants";
-import { type StationFiltersUpdater, changeFilterSource } from "../../filterKeybinds";
-import { type DataStats, fetchStats } from "../../statsApi";
-import { Checkbox } from "./checkbox";
 
 const PRIORITY_RADIOLINE_OPERATORS = ["T-Mobile Polska", "Towerlink Poland", "P4", "ORANGE POLSKA"];
 const OPERATOR_KEYBINDS: Record<number, string> = { 26001: "1", 26002: "2", 26003: "3", 26006: "4" };

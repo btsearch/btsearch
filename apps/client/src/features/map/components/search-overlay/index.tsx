@@ -4,14 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { type FocusEvent, type KeyboardEvent, type ReactElement, memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet.js";
-import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
-import { useIsMobile } from "@/hooks/useMobile.js";
-import { usePreferences } from "@/hooks/usePreferences.js";
-import { reverseGeocode } from "@/lib/geo/geocoding.js";
-import { cn } from "@/lib/utils.js";
-import type { StationFilters, StationSource } from "@/types/station.js";
-
 import { FILTER_KEYWORDS } from "../../constants.js";
 import { type StationFiltersUpdater, changeFilterSource, getMapFilterKeybindUpdater, getMapVisibilityKeybind } from "../../filterKeybinds.js";
 import { parseFilters } from "../../filters.js";
@@ -38,6 +30,13 @@ import { type SearchOption, buildAutocompleteOptions, buildSearchResultOptions }
 import { type SearchFailureSource, SearchResults, type SearchSurfaceState } from "./searchResults.js";
 import { StationCounter } from "./stationCounter.js";
 import { useSearchNavigation } from "./useSearchNavigation.js";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet.js";
+import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
+import { useIsMobile } from "@/hooks/useMobile.js";
+import { usePreferences } from "@/hooks/usePreferences.js";
+import { reverseGeocode } from "@/lib/geo/geocoding.js";
+import { cn } from "@/lib/utils.js";
+import type { StationFilters, StationSource } from "@/types/station.js";
 
 const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("map"));
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";

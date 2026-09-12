@@ -4,15 +4,14 @@ import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { type ReactNode, useCallback, useEffect, useReducer, useRef } from "react";
 
+import { useMapKeybinds } from "../hooks/useMapKeybinds";
+import { calculateBearing, calculateDistance, calculateTA } from "../utils";
+import { MapCoordinates } from "./mapCoordinates";
 import { onBeforeStyleChange, useMap } from "@/components/ui/map";
 import { Separator } from "@/components/ui/separator";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
-
-import { useMapKeybinds } from "../hooks/useMapKeybinds";
-import { calculateBearing, calculateDistance, calculateTA } from "../utils";
-import { MapCoordinates } from "./mapCoordinates";
 
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];

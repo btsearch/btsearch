@@ -14,16 +14,6 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { type Ref, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { RAT_ORDER } from "@/features/shared/rat";
-import { usePreferences } from "@/hooks/usePreferences";
-import { useSettings } from "@/hooks/useSettings";
-import { fetchApiData } from "@/lib/api";
-import { formatCoordinates } from "@/lib/geo/coordinates";
-import { cn } from "@/lib/utils";
-import type { Station, StationComment } from "@/types/station";
-
 import { fetchElevation, fetchPemReports, fetchStationPhotos } from "../api";
 import { TAB_OPTIONS, type TabId } from "../tabs";
 import { groupCellsByRat } from "../utils";
@@ -37,6 +27,15 @@ import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
 import { StationInfoItem } from "./stationInfoItem";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RAT_ORDER } from "@/features/shared/rat";
+import { usePreferences } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
+import { fetchApiData } from "@/lib/api";
+import { formatCoordinates } from "@/lib/geo/coordinates";
+import { cn } from "@/lib/utils";
+import type { Station, StationComment } from "@/types/station";
 
 type StationDetailsBodyProps = {
   stationId: number;

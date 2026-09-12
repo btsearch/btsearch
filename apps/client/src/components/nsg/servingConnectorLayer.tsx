@@ -1,6 +1,7 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { memo, useCallback, useEffect, useRef } from "react";
 
+import type { ReplayClock } from "./replayClock";
 import { useMap } from "@/components/ui/map";
 import type { ServingCellSnapshot } from "@/features/nsg-explorer/cells/servingTimeline";
 import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
@@ -8,8 +9,6 @@ import { type AnalyzerResultsByKey, type MatchedStation, resolveReplayServingSta
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
-
-import type { ReplayClock } from "./replayClock";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 

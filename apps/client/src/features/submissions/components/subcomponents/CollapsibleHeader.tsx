@@ -1,12 +1,11 @@
 import { Add01Icon, ArrowDown01Icon, Copy01Icon, FlashIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import type { RatType } from "../../types";
 import { Button } from "@/components/ui/button";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
-
-import type { RatType } from "../../types";
 
 type DiffCounts = {
   added: number;

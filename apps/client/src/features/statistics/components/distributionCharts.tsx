@@ -1,11 +1,10 @@
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { EvilPieChart, Label, Legend, Pie, Tooltip } from "@/components/evilcharts/charts/pie-chart";
-import type { ChartConfig } from "@/components/evilcharts/ui/chart";
-
 import type { StatsOperator, StatsSummary } from "../api";
 import { operatorColor, operatorDataKey } from "../lib/series";
+import { EvilPieChart, Label, Legend, Pie, Tooltip } from "@/components/evilcharts/charts/pie-chart";
+import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 
 const RAT_COLORS: Record<string, string> = {
   LTE: "var(--chart-1)",

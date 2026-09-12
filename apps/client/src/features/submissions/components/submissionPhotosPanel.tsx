@@ -17,6 +17,15 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import {
+  type SearchStation,
+  type SubmissionPhoto,
+  deleteSubmissionPhoto,
+  fetchSubmissionPhotos,
+  updateSubmissionPhotoNote,
+  updateSubmissionPhotoTakenAt,
+} from "../api";
+import type { ProposedLocationForm, StationAction, SubmissionMode } from "../types";
 import { Lightbox } from "@/components/photos/lightbox";
 import {
   AddPhotoTile,
@@ -43,16 +52,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { type LocationPhoto, fetchLocationPhotos, fetchStationPhotos } from "@/features/station-details/api";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";
-
-import {
-  type SearchStation,
-  type SubmissionPhoto,
-  deleteSubmissionPhoto,
-  fetchSubmissionPhotos,
-  updateSubmissionPhotoNote,
-  updateSubmissionPhotoTakenAt,
-} from "../api";
-import type { ProposedLocationForm, StationAction, SubmissionMode } from "../types";
 
 const MAX_FILES = 5;
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;

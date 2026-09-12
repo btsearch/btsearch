@@ -1,7 +1,6 @@
+import type { CellFormDetails, CellPayload, ProposedCellForm, SectorPayload } from "../types";
 import { RAT_ORDER } from "@/features/shared/rat";
 import type { SectorDraft } from "@/types/station";
-
-import type { CellFormDetails, CellPayload, ProposedCellForm, SectorPayload } from "../types";
 
 export function generateCellId(): string {
   return crypto.randomUUID();

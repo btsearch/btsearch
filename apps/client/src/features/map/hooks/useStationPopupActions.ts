@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
-
 import { useMapPopup } from "./useMapPopup";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 
 type StationPopupArgs = Omit<Parameters<typeof useMapPopup>[0], "onOpenStationDetails" | "onOpenUkeStationDetails">;
 

@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import { useFavoriteLists } from "./useFavoriteLists";
 import { type UserListSummary, fetchUserLists } from "@/features/lists/api";
 import { authClient } from "@/lib/auth/client";
-
-import { useFavoriteLists } from "./useFavoriteLists";
 
 export const NAV_LIST_FETCH_LIMIT = 10;
 export const NAV_RECENT_LIST_LIMIT = 5;

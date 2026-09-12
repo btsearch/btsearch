@@ -1,9 +1,8 @@
 import { type ChangeEvent, type FocusEvent, type KeyboardEvent, useMemo, useRef, useState } from "react";
 
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-
 import { getAutocompleteMatches, replaceLastSearchToken } from "../searchAutocomplete";
 import type { FilterKeyword, ParsedFilter } from "../types";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 type OverlayType = "autocomplete" | "results" | null;
 

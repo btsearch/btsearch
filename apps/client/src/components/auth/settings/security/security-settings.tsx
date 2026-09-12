@@ -2,11 +2,10 @@
 
 import { useAuth } from "@better-auth-ui/react";
 
-import { cn } from "@/lib/utils";
-
 import { ActiveSessions } from "./active-sessions";
 import { ChangePassword } from "./change-password";
 import { LinkedAccounts } from "./linked-accounts";
+import { cn } from "@/lib/utils";
 
 export type SecuritySettingsProps = {
   className?: string;

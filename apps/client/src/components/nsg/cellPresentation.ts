@@ -1,7 +1,6 @@
+import { formatValue } from "./display";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import type { NsgCell } from "@/lib/nsg-parser/model";
-
-import { formatValue } from "./display";
 
 export type DisplayValue = number | string | null;
 export type DisplayHint = "derived-default-24";

@@ -2,18 +2,17 @@ import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
-import type { NsgCell, NsgLog } from "@/lib/nsg-parser/model";
-import { cn } from "@/lib/utils";
-
 import { formatTime } from "./display";
 import { Events } from "./events";
 import { MeasurementHistory } from "./measurements";
 import { Signaling } from "./signaling";
 import { SnapshotDetails } from "./snapshot";
 import { Timeline } from "./timeline";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
+import type { NsgCell, NsgLog } from "@/lib/nsg-parser/model";
+import { cn } from "@/lib/utils";
 
 export type DetailView = "cells" | "history" | "events" | "signaling" | "recording";
 

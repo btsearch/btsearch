@@ -4,10 +4,9 @@ import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { ArrowLeftRightIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { SwitchAccountSubmenuContent } from "./switch-account-submenu-content";
 import { DropdownMenuSub, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
-
-import { SwitchAccountSubmenuContent } from "./switch-account-submenu-content";
 
 export type SwitchAccountSubmenuProps = {
   className?: string;

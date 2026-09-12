@@ -3,10 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ParsedFilter } from "../../types.js";
 import { Spinner } from "@/components/ui/spinner.js";
 import { cn } from "@/lib/utils.js";
-
-import type { ParsedFilter } from "../../types.js";
 
 type SearchInputProps = {
   inputRef: RefObject<HTMLInputElement | null>;

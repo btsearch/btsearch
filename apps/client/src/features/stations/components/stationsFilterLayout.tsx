@@ -1,6 +1,8 @@
 import { type ReactNode, useCallback } from "react";
 import { createPortal } from "react-dom";
 
+import { StationsFilterPanel } from "./stationsFilterPanel";
+import { StationsMobileFilterRail } from "./stationsMobileFilterRail";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { MobileFilterRailInline } from "@/features/shared/filterPanel";
@@ -9,9 +11,6 @@ import type { useStationsData } from "@/features/stations/hooks/useStationsData"
 import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy } from "@/types/station";
-
-import { StationsFilterPanel } from "./stationsFilterPanel";
-import { StationsMobileFilterRail } from "./stationsMobileFilterRail";
 
 interface StationsListLayoutProps {
   data: ReturnType<typeof useStationsData>;

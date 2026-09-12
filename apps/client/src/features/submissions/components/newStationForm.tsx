@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ProposedStationForm } from "../types";
+import type { StationErrors } from "../utils/validation";
 import { OperatorSelect } from "@/components/cellular/operator-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +14,6 @@ import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice
 import { operatorsQueryOptions } from "@/features/shared/queries";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
-
-import type { ProposedStationForm } from "../types";
-import type { StationErrors } from "../utils/validation";
 
 type NewStationFormProps = {
   station: ProposedStationForm;

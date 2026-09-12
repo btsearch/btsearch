@@ -1,6 +1,3 @@
-import { convertNsgTimestampUsToMs, parseNsgTimestampUs } from "@/lib/nsg-parser";
-import type { NsgCell, NsgLocation } from "@/lib/nsg-parser/model";
-
 import {
   MAX_SIGNAL_AGE_MS,
   type ServingCellResolution,
@@ -9,6 +6,8 @@ import {
   resolveServingCellAt,
 } from "../cells/servingTimeline";
 import { getLocationTimeUs } from "./routeLocations";
+import { convertNsgTimestampUsToMs, parseNsgTimestampUs } from "@/lib/nsg-parser";
+import type { NsgCell, NsgLocation } from "@/lib/nsg-parser/model";
 
 export const SIGNAL_UNKNOWN_COLOR = "#94a3b8";
 export const SIGNAL_BANDS: { minimumDbm: number | null; maximumDbm: number | null; color: string }[] = [

@@ -1,9 +1,8 @@
+import { POLAND_BOUNDS } from "./constants";
+import type { OSMResult } from "./types";
 import { postApiData } from "@/lib/api";
 import { forwardGeocode } from "@/lib/geo/geocoding";
 import type { Location, Operator, Station } from "@/types/station";
-
-import { POLAND_BOUNDS } from "./constants";
-import type { OSMResult } from "./types";
 
 const GPS_REGEX = /([+-]?\d+\.\d+)[,\s]+\s*([+-]?\d+\.\d+)/;
 

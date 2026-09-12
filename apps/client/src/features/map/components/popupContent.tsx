@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { getPermitBands, getStationBands } from "../utils";
+import { TechnologySummary } from "./technologySummary";
 import { Lightbox } from "@/components/photos/lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
@@ -12,9 +14,6 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
-
-import { getPermitBands, getStationBands } from "../utils";
-import { TechnologySummary } from "./technologySummary";
 
 const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 

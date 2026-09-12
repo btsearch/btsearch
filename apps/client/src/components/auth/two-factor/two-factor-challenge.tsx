@@ -5,6 +5,8 @@ import { useSendTwoFactorOtp, useVerifyBackupCode, useVerifyTotp, useVerifyTwoFa
 import { useQueryClient } from "@tanstack/react-query";
 import { type SyntheticEvent, useEffect, useState } from "react";
 
+import { OtpField } from "../otp-field";
+import { useIsHydrated } from "../use-is-hydrated";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,9 +17,6 @@ import { clearTwoFactorMethods, readTwoFactorMethods, type TwoFactorMethod } fro
 import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
 import { RESEND_COOLDOWN_SECONDS, useResendCooldown } from "@/lib/auth/use-resend-cooldown";
 import { cn } from "@/lib/utils";
-
-import { OtpField } from "../otp-field";
-import { useIsHydrated } from "../use-is-hydrated";
 
 /** Challenge surfaces the view can render, in the order they are offered. */
 type ChallengeMethod = TwoFactorMethod | "backup";

@@ -2,11 +2,10 @@ import Location01Icon from "@hugeicons/core-free-icons/Location01Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
+import type { PlannedStatus } from "../api";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-import type { PlannedStatus } from "../api";
 
 export type MeasurementSummaryData = {
   station_id: string | null;

@@ -1,6 +1,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import { StationIdentityCell } from "./stationIdentityCell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
@@ -10,8 +11,6 @@ import { SubmissionTypeBadge } from "@/features/submissions/components/submissio
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Operator } from "@/types/station";
-
-import { StationIdentityCell } from "./stationIdentityCell";
 
 type GetOperatorById = (operatorId: number | null | undefined) => Operator | undefined;
 

@@ -2,13 +2,12 @@ import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import { STATIONS_FILTER_KEYWORDS } from "./stationFilterOptions";
 import { AutocompleteDropdown } from "@/features/map/components/search-overlay/autocompleteDropdown";
 import { parseFilters } from "@/features/map/filters";
 import { useSearchState } from "@/features/map/hooks/useSearchState";
 import { FilterSearchInput, FilterSearchShell } from "@/features/shared/filterPanel";
 import { cn } from "@/lib/utils";
-
-import { STATIONS_FILTER_KEYWORDS } from "./stationFilterOptions";
 
 type StationsSearchControlProps = {
   searchQuery: string;

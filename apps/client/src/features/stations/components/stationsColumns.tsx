@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
+import { StationStatusBadge } from "./StationStatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { getStationBands } from "@/features/map/utils";
@@ -11,8 +12,6 @@ import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Station, StationSortBy, StationSortDirection } from "@/types/station";
-
-import { StationStatusBadge } from "./StationStatusBadge";
 
 interface SortableHeaderProps {
   label: string;

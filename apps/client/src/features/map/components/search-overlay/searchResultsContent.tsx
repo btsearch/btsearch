@@ -3,16 +3,15 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { SearchStation, UkeSearchPermitStation } from "../../searchApi";
+import { getStationBands } from "../../utils";
+import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { cn } from "@/lib/utils";
-
-import type { SearchStation, UkeSearchPermitStation } from "../../searchApi";
-import { getStationBands } from "../../utils";
-import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
 
 export type SearchFailureSource = "locations" | "stations" | "uke";
 

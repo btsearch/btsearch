@@ -2,12 +2,11 @@ import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, us
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
-import type { Band } from "@/types/station";
-
 import type { CellDraftBase } from "../cellEditRow";
 import { RAT_ORDER, compareRatCellDetails, findPreferredRatBand, getCellDetailDefaultValue, getSharedDetailFields } from "../rat";
 import { syncByPCI, syncNRByPCI } from "../sectorAssignmentSync";
+import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
+import type { Band } from "@/types/station";
 
 type UseCellDraftsOptions<T extends CellDraftBase> = {
   initialCells: T[];

@@ -1,9 +1,5 @@
 import { useTranslation } from "react-i18next";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getMnoBrand } from "@/lib/cellular/operators";
-import type { ExtraIdentificator } from "@/types/station";
-
 import { CopyButton } from "./copyButton";
 import NetWorksIcon from "./logos/networks.svg?react";
 import OrangeIcon from "./logos/orange.svg?react";
@@ -11,6 +7,9 @@ import PlayIcon from "./logos/play.svg?react";
 import PlusIcon from "./logos/plus.svg?react";
 import TmobileIcon from "./logos/t-mobile.svg?react";
 import { StationInfoItem } from "./stationInfoItem";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getMnoBrand } from "@/lib/cellular/operators";
+import type { ExtraIdentificator } from "@/types/station";
 
 type ExtraIdentificatorsDisplayProps = {
   data: ExtraIdentificator;

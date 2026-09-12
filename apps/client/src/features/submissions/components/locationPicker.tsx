@@ -7,6 +7,13 @@ import type { MapMouseEvent } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { type GeocodingResult, fetchLocationsInViewport, fetchUkeLocationsInViewport, reverseGeocode } from "../api";
+import type { ProposedLocationForm } from "../types";
+import type { LocationErrors } from "../utils/validation";
+import { NearbyLocationsPanel } from "./NearbyLocationsPanel";
+import { UkeStationPanelOverlay } from "./UkeStationPanelOverlay";
+import { useLocationPickerState } from "./useLocationPickerState";
+import { usePickerMapLayers } from "./usePickerMapLayers";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,14 +31,6 @@ import { regionsQueryOptions } from "@/features/shared/queries";
 import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
 import type { Location, LocationWithStations, Region, UkeLocationWithPermits, UkeStation } from "@/types/station";
-
-import { type GeocodingResult, fetchLocationsInViewport, fetchUkeLocationsInViewport, reverseGeocode } from "../api";
-import type { ProposedLocationForm } from "../types";
-import type { LocationErrors } from "../utils/validation";
-import { NearbyLocationsPanel } from "./NearbyLocationsPanel";
-import { UkeStationPanelOverlay } from "./UkeStationPanelOverlay";
-import { useLocationPickerState } from "./useLocationPickerState";
-import { usePickerMapLayers } from "./usePickerMapLayers";
 
 function roundCoord(value: number): number {
   return Math.round(value * 1000000) / 1000000;

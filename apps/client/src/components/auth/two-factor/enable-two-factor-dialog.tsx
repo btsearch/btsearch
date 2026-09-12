@@ -7,6 +7,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { OtpField } from "../otp-field";
+import { BackupCodes } from "./backup-codes";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -15,9 +17,6 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Spinner } from "@/components/ui/spinner";
 import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
 import { useTwoFactorPasswordRequirement } from "@/lib/auth/use-two-factor-password";
-
-import { OtpField } from "../otp-field";
-import { BackupCodes } from "./backup-codes";
 
 type EnrollmentStep = "password" | "verify" | "backupCodes";
 

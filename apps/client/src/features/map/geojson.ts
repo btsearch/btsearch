@@ -1,8 +1,5 @@
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
 
-import { getOperatorColor, resolveOperatorMnc } from "@/lib/cellular/operators";
-import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPermits } from "@/types/station";
-
 import {
   calculateDistance,
   calculateLinkDirectionalSpeeds,
@@ -13,6 +10,8 @@ import {
   formatSpeed,
   groupRadioLinesIntoLinks,
 } from "./utils";
+import { getOperatorColor, resolveOperatorMnc } from "@/lib/cellular/operators";
+import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPermits } from "@/types/station";
 
 export const DEFAULT_COLOR = "#3b82f6";
 

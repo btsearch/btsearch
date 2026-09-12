@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { OpenEmailButton } from "../../open-email-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -13,8 +14,6 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-
-import { OpenEmailButton } from "../../open-email-button";
 
 export type ChangePasswordProps = {
   className?: string;

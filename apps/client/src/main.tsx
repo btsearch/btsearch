@@ -2,10 +2,9 @@ import { RouterProvider, createRouter, stringifySearchWith } from "@tanstack/rea
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { routeTree } from "./routeTree.gen";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 import { i18nReady } from "@/i18n/config";
-
-import { routeTree } from "./routeTree.gen";
 
 const I18N_READY_TIMEOUT_MS = 2000;
 

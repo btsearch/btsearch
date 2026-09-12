@@ -17,6 +17,10 @@ import { Link } from "@tanstack/react-router";
 import { memo, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { fetchStationHistory } from "../api";
+import type { StationHistoryChange, StationHistoryChangeValue, StationHistoryEntry, StationHistoryPhotoReference, StationHistoryValue } from "../api";
+import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
+import { StationTitle } from "./stationTitle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,11 +30,6 @@ import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-import { fetchStationHistory } from "../api";
-import type { StationHistoryChange, StationHistoryChangeValue, StationHistoryEntry, StationHistoryPhotoReference, StationHistoryValue } from "../api";
-import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
-import { StationTitle } from "./stationTitle";
 
 type StationHistoryDialogPanelProps = FloatingDialogPanelFrameProps & StationHistoryDialogPayload;
 

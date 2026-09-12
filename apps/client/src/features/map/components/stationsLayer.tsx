@@ -2,21 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { useMap } from "@/components/ui/map";
-import { fetchStation, fetchUkePermit } from "@/features/station-details/api";
-import { usePreferences } from "@/hooks/usePreferences";
-import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
-import type {
-  LocationInfo,
-  LocationWithStations,
-  StationFilters,
-  StationSource,
-  StationWithoutCells,
-  UkeLocationWithPermits,
-  UkeStation,
-} from "@/types/station";
-
 import type { LocationsResponse } from "../api";
 import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
@@ -31,6 +16,20 @@ import { useUrlSync } from "../hooks/useURLSync";
 import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } from "../utils";
 import type { StationHoverEntry } from "./stationHoverTooltipContent";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
+import { useMap } from "@/components/ui/map";
+import { fetchStation, fetchUkePermit } from "@/features/station-details/api";
+import { usePreferences } from "@/hooks/usePreferences";
+import { showApiError } from "@/lib/api";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import type {
+  LocationInfo,
+  LocationWithStations,
+  StationFilters,
+  StationSource,
+  StationWithoutCells,
+  UkeLocationWithPermits,
+  UkeStation,
+} from "@/types/station";
 
 const EMPTY_GEOJSON = { type: "FeatureCollection" as const, features: [] };
 const EMPTY_UKE_LOCATIONS: UkeLocationWithPermits[] = [];

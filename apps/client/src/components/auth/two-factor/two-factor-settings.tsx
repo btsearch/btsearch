@@ -3,15 +3,14 @@
 import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useState } from "react";
 
+import { DisableTwoFactorDialog } from "./disable-two-factor-dialog";
+import { EnableTwoFactorDialog } from "./enable-two-factor-dialog";
+import { RegenerateBackupCodesDialog } from "./regenerate-backup-codes-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
 import { cn } from "@/lib/utils";
-
-import { DisableTwoFactorDialog } from "./disable-two-factor-dialog";
-import { EnableTwoFactorDialog } from "./enable-two-factor-dialog";
-import { RegenerateBackupCodesDialog } from "./regenerate-backup-codes-dialog";
 
 export type TwoFactorSettingsProps = {
   className?: string;

@@ -2,10 +2,9 @@ import { Add01Icon, Cancel01Icon, Location01Icon } from "@hugeicons/core-free-ic
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { NearbyPanel } from "./useLocationPickerState";
 import { MapMarker, MarkerContent } from "@/components/ui/map";
 import type { LocationWithStations } from "@/types/station";
-
-import type { NearbyPanel } from "./useLocationPickerState";
 
 type NearbyLocationsPanelProps = {
   nearbyPanel: NearbyPanel;

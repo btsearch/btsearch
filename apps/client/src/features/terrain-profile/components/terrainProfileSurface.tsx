@@ -1,9 +1,8 @@
 import { type ComponentProps, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import { useIsMobile } from "@/hooks/useMobile";
-
 import TerrainProfilePanel from "./terrainProfilePanel";
+import { useIsMobile } from "@/hooks/useMobile";
 
 type TerrainProfileSurfaceProps = Omit<ComponentProps<typeof TerrainProfilePanel>, "headerDragProps">;
 

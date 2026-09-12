@@ -2,6 +2,7 @@ import { AlertCircleIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { DraftCell } from "../../utils/fromAnalyzer";
 import { RatBadge } from "@/components/cellular/rat-badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,8 +10,6 @@ import { getRatChannelField } from "@/features/shared/rat";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { type AnalyzerDetailKey, getAnalyzerBandMhz, getAnalyzerBandNumber } from "@/features/submissions/utils/analyzerRatSpecs";
 import { cn } from "@/lib/utils";
-
-import type { DraftCell } from "../../utils/fromAnalyzer";
 
 type AnalyzerFieldValue = number | boolean | string | undefined;
 

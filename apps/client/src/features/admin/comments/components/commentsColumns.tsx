@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
+import type { AdminComment } from "../types";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
-
-import type { AdminComment } from "../types";
 
 type CreateColumnsOptions = {
   t: TFunction;

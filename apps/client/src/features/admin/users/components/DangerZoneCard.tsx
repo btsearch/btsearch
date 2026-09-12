@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SectionHeader } from "./common";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,8 +26,6 @@ import { Spinner } from "@/components/ui/spinner";
 import type { AdminUser } from "@/features/admin/users/types";
 import { API_BASE, fetchJson, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-
-import { SectionHeader } from "./common";
 
 const BAN_DURATIONS = [
   { label: "1 day", value: 60 * 60 * 24 },

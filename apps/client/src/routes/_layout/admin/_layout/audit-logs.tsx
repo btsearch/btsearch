@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { ACTION_GROUPS, type AuditLogEntry, TABLE_LABELS, TABLE_OPTIONS, getActionStyle } from "../../../../features/admin/audit-logs/constants";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,6 @@ import { API_BASE, fetchJson } from "@/lib/api";
 import { resolveAvatarUrl } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
-
-import { ACTION_GROUPS, type AuditLogEntry, TABLE_LABELS, TABLE_OPTIONS, getActionStyle } from "../../../../features/admin/audit-logs/constants";
 
 const TABLE_PAGINATION_CONFIG = {
   rowHeight: DATA_TABLE_ROW_HEIGHT,

@@ -2,15 +2,14 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat, getHeadlineSignal } from "./cellPresentation";
+import { formatDecibelValue, formatTime, formatValue } from "./display";
+import { OperatorName } from "./operatorName";
 import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
 import { type Snapshot, getPrimaryCell } from "@/features/nsg-explorer/cells/snapshots";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import type { NsgCell } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
-
-import { formatCellIdentity, getCellIdentityFields, getCellMeasurementFields, getDisplayRat, getHeadlineSignal } from "./cellPresentation";
-import { formatDecibelValue, formatTime, formatValue } from "./display";
-import { OperatorName } from "./operatorName";
 
 export function CellDetails({ cell, showRadioContext = true }: { cell: NsgCell; showRadioContext?: boolean }) {
   const { t } = useTranslation("nsg");

@@ -4,6 +4,15 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { Filter } from "./controls";
+import { DetailPanels, type DetailView } from "./detailPanels";
+import { formatBytes, formatDuration, formatTime, formatValue } from "./display";
+import { MobileSummary } from "./mobileSummary";
+import { OperatorName } from "./operatorName";
+import { ReplayControls } from "./replayControls";
+import { SnapshotDetails } from "./snapshot";
+import { useReplay } from "./useReplay";
+import { useStationCorrelation } from "./useStationCorrelation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,16 +30,6 @@ import { showApiError } from "@/lib/api";
 import { parseNsgTimestampMs } from "@/lib/nsg-parser";
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
 import { cn } from "@/lib/utils";
-
-import { Filter } from "./controls";
-import { DetailPanels, type DetailView } from "./detailPanels";
-import { formatBytes, formatDuration, formatTime, formatValue } from "./display";
-import { MobileSummary } from "./mobileSummary";
-import { OperatorName } from "./operatorName";
-import { ReplayControls } from "./replayControls";
-import { SnapshotDetails } from "./snapshot";
-import { useReplay } from "./useReplay";
-import { useStationCorrelation } from "./useStationCorrelation";
 
 const RouteMap = lazy(() => import("./routeMap"));
 const EMPTY_CELLS: NsgLog["cells"] = [];

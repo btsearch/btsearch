@@ -3,12 +3,11 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 
+import { formatTime } from "./display";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
 import { cn } from "@/lib/utils";
-
-import { formatTime } from "./display";
 
 type ReplayControlsProps = {
   compact: boolean;

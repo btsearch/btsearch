@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { BackupCodes } from "./backup-codes";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,8 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
 import { useTwoFactorPasswordRequirement } from "@/lib/auth/use-two-factor-password";
-
-import { BackupCodes } from "./backup-codes";
 
 export type RegenerateBackupCodesDialogProps = {
   open: boolean;

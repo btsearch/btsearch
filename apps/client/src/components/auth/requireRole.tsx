@@ -4,10 +4,9 @@ import { useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { RequireAuth } from "./requireAuth";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
-
-import { RequireAuth } from "./requireAuth";
 
 interface RequireRoleProps {
   children: ReactNode;

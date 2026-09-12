@@ -2,9 +2,8 @@ import NumberFlow, { continuous } from "@number-flow/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Skeleton } from "@/components/ui/skeleton";
-
 import type { StatsSummary } from "../api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const RAT_ORDER = ["NR", "LTE", "UMTS", "CDMA", "GSM", "IOT"];
 

@@ -3,14 +3,13 @@ import { type MapMouseEvent, type Map as MaplibreMap, Popup } from "maplibre-gl"
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
-import { showApiError } from "@/lib/api";
-import { queryClient } from "@/lib/queryClient";
-import type { LocationInfo, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
-
 import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PopupContent } from "../components/popupContent";
 import { POINT_LAYER_ID } from "../constants";
 import { toLocationInfo } from "../utils";
+import { showApiError } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
+import type { LocationInfo, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
 type UseMapPopupArgs = {
   map: MaplibreMap | null;

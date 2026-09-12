@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { calcExactFrequency, getBandName } from "../frequencyCalc";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -14,8 +15,6 @@ import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import type { Cell } from "@/types/station";
-
-import { calcExactFrequency, getBandName } from "../frequencyCalc";
 type CellTableProps = {
   rat: string;
   cells: Cell[];

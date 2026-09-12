@@ -2,14 +2,13 @@ import { ComputerIcon } from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { SectionHeader } from "./common";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { Session } from "@/features/admin/users/types";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-
-import { SectionHeader } from "./common";
 
 export function SessionsCard({ userId, sessions }: { userId: string; sessions: Session[] }) {
   const queryClient = useQueryClient();

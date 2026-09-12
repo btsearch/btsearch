@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 
+import type { StationFiltersUpdater } from "../filterKeybinds.js";
 import { toggleValue } from "@/lib/utils.js";
 import type { StationFilters, StationStatus } from "@/types/station.js";
-
-import type { StationFiltersUpdater } from "../filterKeybinds.js";
 
 type UseFilterHandlersArgs = {
   filters: StationFilters;

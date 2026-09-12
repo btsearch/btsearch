@@ -13,17 +13,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AddToListPopover } from "@/features/lists/components/addToListPopover";
-import { usePreferences } from "@/hooks/usePreferences";
-import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
-import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { formatCoordinates } from "@/lib/geo/coordinates";
-import { cn } from "@/lib/utils";
-import type { UkeStation } from "@/types/station";
-
 import { fetchElevation, fetchPemReports, fetchUkeStation } from "../api";
 import { CopyButton } from "./copyButton";
 import { DialogOperatorName } from "./dialogOperatorName";
@@ -37,6 +26,16 @@ import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderSty
 import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
 import { WatchButton } from "./watchButton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AddToListPopover } from "@/features/lists/components/addToListPopover";
+import { usePreferences } from "@/hooks/usePreferences";
+import { useSettings } from "@/hooks/useSettings";
+import { authClient } from "@/lib/auth/client";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { formatFullDate, formatRelativeTime } from "@/lib/format";
+import { formatCoordinates } from "@/lib/geo/coordinates";
+import { cn } from "@/lib/utils";
+import type { UkeStation } from "@/types/station";
 
 type UkePermitDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   station: UkeStation;

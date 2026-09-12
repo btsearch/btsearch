@@ -4,17 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Fragment, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getOperatorColor } from "@/lib/cellular/operators";
-import { cn } from "@/lib/utils";
-
 import { fetchSI2PEMAntennas } from "../api";
 import type { PemReport, SI2PEMAntenna } from "../api";
 import { DialogOperatorName } from "./dialogOperatorName";
 import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { SI2PEMLogo } from "./si2pemLogo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import { cn } from "@/lib/utils";
 
 type SI2PEMAntennaDialogPanelProps = FloatingDialogPanelFrameProps & {
   report: PemReport;

@@ -2,10 +2,9 @@ import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, useReducedMotion } from "motion/react";
 
+import type { GalleryPhoto } from "../api";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { cn } from "@/lib/utils";
-
-import type { GalleryPhoto } from "../api";
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
 const MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short" };

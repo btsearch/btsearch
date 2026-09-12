@@ -1,10 +1,9 @@
+import type { GSMCellDetails, LTECellDetails, NRCellDetails, UMTSCellDetails } from "../types";
+import type { StoredParsedRow } from "./analyzerDraftStore";
 import { findPreferredRatBand } from "@/features/shared/rat";
 import type { AnalyzerMatchedCell } from "@/lib/analyzer/api";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/cellular/bands";
 import type { Band } from "@/types/station";
-
-import type { GSMCellDetails, LTECellDetails, NRCellDetails, UMTSCellDetails } from "../types";
-import type { StoredParsedRow } from "./analyzerDraftStore";
 
 export type AnalyzerRat = "GSM" | "UMTS" | "LTE" | "NR";
 export type MismatchDetails = Partial<GSMCellDetails & UMTSCellDetails & LTECellDetails & NRCellDetails>;

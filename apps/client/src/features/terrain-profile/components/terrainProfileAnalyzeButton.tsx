@@ -2,10 +2,9 @@ import { MountainIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { TerrainProfileStationTarget } from "../types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-
-import type { TerrainProfileStationTarget } from "../types";
 
 type TerrainProfileAnalyzeButtonProps = {
   target: TerrainProfileStationTarget;

@@ -1,6 +1,5 @@
-import { RAT_ORDER } from "@/features/shared/rat";
-
 import type { FilterKeyword } from "./types";
+import { RAT_ORDER } from "@/features/shared/rat";
 
 export { RAT_ORDER };
 

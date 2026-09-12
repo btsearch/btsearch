@@ -1,11 +1,6 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
-import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
-import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
-import type { NsgCell } from "@/lib/nsg-parser/model";
-
 import { getDisplayRat, getHeadlineSignal, getMobileSummaryFields } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
@@ -17,6 +12,10 @@ import {
   getNsaCarrierRoleLabelKey,
   isNsaAggregationCell,
 } from "./snapshotPresentation";
+import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 const MOBILE_AGGREGATE_FIELD_KEYS = new Set(["pci", "arfcn", "earfcn", "rsrq", "sinr"]);
 

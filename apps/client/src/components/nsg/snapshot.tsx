@@ -1,11 +1,6 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
-import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
-import type { NsgCell } from "@/lib/nsg-parser/model";
-
 import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNsaCell } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { CellDetails } from "./measurements";
@@ -19,6 +14,10 @@ import {
   getNsaCarrierRoleLabelKey,
   isNsaAggregationCell,
 } from "./snapshotPresentation";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
+import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 function PrimaryCellSection({ cells, label, showRadioContext = true }: { cells: readonly NsgCell[]; label: string; showRadioContext?: boolean }) {
   return (

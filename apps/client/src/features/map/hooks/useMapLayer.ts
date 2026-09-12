@@ -12,12 +12,11 @@ import {
 import { type ReactNode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
+import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
+import { syncMarkerImages, syncPieImages } from "../pieChart";
 import { onBeforeStyleChange } from "@/components/ui/map";
 import type { MapPointStyle } from "@/hooks/usePreferences";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
-
-import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
-import { syncMarkerImages, syncPieImages } from "../pieChart";
 
 type FeatureClickData = {
   coordinates: [number, number];

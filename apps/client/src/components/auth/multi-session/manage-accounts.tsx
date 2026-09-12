@@ -5,12 +5,11 @@ import { useAuth, useAuthPlugin, useSession } from "@better-auth-ui/react";
 import { useListDeviceSessions } from "@better-auth-ui/react/plugins/multi-session";
 import { Fragment } from "react";
 
+import { ManageAccount } from "./manage-account";
 import { Card, CardContent } from "@/components/ui/card";
 import { ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
 import { cn } from "@/lib/utils";
-
-import { ManageAccount } from "./manage-account";
 
 export type ManageAccountsProps = {
   className?: string;

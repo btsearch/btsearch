@@ -3,12 +3,11 @@ import { memo, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { LabelList, Rectangle } from "recharts";
 
-import * as BarChartImport from "@/components/evilcharts/charts/bar-chart";
-import type { ChartConfig } from "@/components/evilcharts/ui/chart";
-
 import type { PermitSnapshot } from "../api";
 import { compareBandNames } from "../lib/bandOrder";
 import { operatorColor, operatorDataKey, operatorSeries } from "../lib/series";
+import * as BarChartImport from "@/components/evilcharts/charts/bar-chart";
+import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 
 export type SnapshotMetric = "permits" | "stations";
 export type SnapshotBand = {

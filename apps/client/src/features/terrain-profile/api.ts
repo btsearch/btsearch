@@ -1,6 +1,5 @@
-import { API_BASE, fetchJson } from "@/lib/api";
-
 import type { TerrainProfileAnalysis, TerrainProfileAnalysisRequest } from "./types";
+import { API_BASE, fetchJson } from "@/lib/api";
 
 type TerrainProfileEnvelope = { data: TerrainProfileAnalysis };
 

@@ -1,12 +1,11 @@
 import { type ReactNode, memo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ChartLegendVariant } from "@/components/evilcharts/ui/legend";
-import { cn } from "@/lib/utils";
-
 import type { ChartType } from "./chartTypeContext";
 import type { Series } from "./statChart";
 import { StatChart } from "./statChart";
+import type { ChartLegendVariant } from "@/components/evilcharts/ui/legend";
+import { cn } from "@/lib/utils";
 
 interface Props {
   title: ReactNode;

@@ -1,11 +1,10 @@
+import { navigateRowHorizontal } from "./rowNav";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DetailComputedCell, DetailInputCell } from "@/features/admin/cells/components/detailFieldCells";
 import { type RatDetailField, getRatDetailFields } from "@/features/shared/ratCellFields";
 import { calculateComputedValues } from "@/features/shared/ratComputedValues";
 import { cn } from "@/lib/utils";
-
-import { navigateRowHorizontal } from "./rowNav";
 
 const NR_TYPE_OPTIONS = [
   { value: "nsa", label: "NSA (Non-Standalone)" },

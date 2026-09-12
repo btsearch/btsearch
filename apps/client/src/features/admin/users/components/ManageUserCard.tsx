@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { SectionHeader } from "./common";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +16,6 @@ import type { AdminUser } from "@/features/admin/users/types";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
-
-import { SectionHeader } from "./common";
 
 const ROLES = ["user", "editor", "admin"] as const;
 const NO_LINKS_RE = /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;

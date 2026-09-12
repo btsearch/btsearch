@@ -2,11 +2,10 @@ import { Cancel01Icon, Location01Icon, Search01Icon } from "@hugeicons/core-free
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
+import type { LocationsFilterControlProps } from "./locationsFilterPanel";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { MobileOperatorFilterChip, MobileRegionFilterChip } from "@/features/shared/filterPanel";
 import { toggleValue } from "@/lib/utils";
-
-import type { LocationsFilterControlProps } from "./locationsFilterPanel";
 
 type LocationsMobileFilterRailProps = LocationsFilterControlProps & {
   hasActiveFilters: boolean;

@@ -1,10 +1,9 @@
 import type { CSSProperties, HTMLAttributes, Ref } from "react";
 
-import type { DuplexRadioLink } from "@/features/map/utils";
-import type { StationSource, UkeStation } from "@/types/station";
-
 import type { PemReport } from "../api";
 import type { StationDialogRect } from "./stationDialogGeometry";
+import type { DuplexRadioLink } from "@/features/map/utils";
+import type { StationSource, UkeStation } from "@/types/station";
 
 export function assertNever(value: never): never {
   throw new Error(`Unexpected floating dialog value: ${String(value)}`);

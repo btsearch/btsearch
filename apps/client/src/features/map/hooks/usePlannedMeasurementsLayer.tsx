@@ -2,14 +2,13 @@ import { type GeoJSONSource, type MapLayerMouseEvent, type Map as MapLibreMap, P
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
+import { PemPopupContent } from "../components/pemPopupContent";
+import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
 import { onBeforeStyleChange } from "@/components/ui/map";
 import type { PlannedPEMStation } from "@/features/si2pem/api";
 import { API_BASE } from "@/lib/api";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
-
-import { PemPopupContent } from "../components/pemPopupContent";
-import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
 
 const PEM_BOX_IMAGE_ID = "pem-box";
 

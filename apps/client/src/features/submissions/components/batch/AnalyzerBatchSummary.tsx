@@ -1,8 +1,7 @@
 import { useTranslation } from "react-i18next";
 
-import { Textarea } from "@/components/ui/textarea";
-
 import type { AnalyzerBatchDraft } from "../../utils/fromAnalyzer";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   draft: AnalyzerBatchDraft;

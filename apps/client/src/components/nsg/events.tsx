@@ -2,11 +2,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { memo, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { NsgEvent, NsgJsonValue } from "@/lib/nsg-parser/model";
-import { cn } from "@/lib/utils";
-
 import { Filter } from "./controls";
 import { formatTime, formatValue } from "./display";
+import type { NsgEvent, NsgJsonValue } from "@/lib/nsg-parser/model";
+import { cn } from "@/lib/utils";
 
 const SKIP_SUMMARY_KEYS = new Set(["event", "name", "type", "timestamp", "time", "subId", "slotId", "default"]);
 type EventViewState = { source: readonly NsgEvent[]; type: string; selectedId: number | null };

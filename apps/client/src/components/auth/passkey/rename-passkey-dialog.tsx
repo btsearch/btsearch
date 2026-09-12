@@ -3,14 +3,13 @@ import { useAuth, useAuthPlugin } from "@better-auth-ui/react";
 import { useUpdatePasskey } from "@better-auth-ui/react/plugins/passkey";
 import { type FormEvent, useEffect, useState } from "react";
 
+import type { ListedPasskey } from "./delete-passkey-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
-
-import type { ListedPasskey } from "./delete-passkey-dialog";
 
 export function RenamePasskeyDialog({
   open,

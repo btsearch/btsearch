@@ -4,6 +4,7 @@ import { useTable } from "@tanstack/react-table";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { createLocationsColumns, getLocationOperators } from "./locationsColumns";
 import { Button } from "@/components/ui/button";
 import {
   DATA_TABLE_HEADER_HEIGHT,
@@ -21,8 +22,6 @@ import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { LocationSortBy, LocationSortDirection, LocationWithStations } from "@/types/station";
-
-import { createLocationsColumns, getLocationOperators } from "./locationsColumns";
 
 const DESKTOP_PAGINATION_CONFIG = {
   rowHeight: DATA_TABLE_ROW_HEIGHT,
