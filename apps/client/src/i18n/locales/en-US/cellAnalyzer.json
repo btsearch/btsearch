@@ -77,7 +77,8 @@
     "tooManyCells": "The file exceeds the {{count, number}}-cell limit",
     "importFailed": "The file could not be read",
     "analysisFailed": "The file could not be analyzed",
-    "analysisFailedHint": "Check your connection and try again. The imported file and filters have been preserved"
+    "analysisFailedHint": "Check your connection and try again. The imported file and filters have been preserved",
+    "draftSaveFailed": "The review could not be opened because the draft could not be saved"
   },
   "selection": {
     "rowsSelected_one": "row selected",

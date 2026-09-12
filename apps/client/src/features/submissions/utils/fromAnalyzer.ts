@@ -29,6 +29,7 @@ export interface DraftCell {
 export interface DraftStation {
   stationInternalId: number;
   station_id: string;
+  operatorName: string | null;
   operatorMnc: number | null;
   cells: DraftCell[];
   hasConflicts: boolean;
@@ -42,6 +43,22 @@ export interface AnalyzerBatchDraft {
     parsedRows: number;
   };
   unresolvedBandRows: number[];
+}
+
+export function recalculateAnalyzerCellConflicts(cells: DraftCell[]): DraftCell[] {
+  const detailsByTargetCell = new Map<number, MismatchDetails>();
+
+  return cells.map((cell) => {
+    if (cell.target_cell_id === undefined) return cell.conflict ? { ...cell, conflict: false } : cell;
+
+    const seenDetails = detailsByTargetCell.get(cell.target_cell_id);
+    const conflict =
+      seenDetails !== undefined &&
+      (Object.keys(cell.details) as (keyof MismatchDetails)[]).some((key) => key in seenDetails && seenDetails[key] !== cell.details[key]);
+
+    detailsByTargetCell.set(cell.target_cell_id, { ...seenDetails, ...cell.details });
+    return cell.conflict === conflict ? cell : { ...cell, conflict };
+  });
 }
 
 function pickMismatchDetails(rat: AnalyzerRat, details: MismatchDetails) {
@@ -127,6 +144,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
       stationMap.set(stationInternalId, {
         stationInternalId,
         station_id: result.station.station_id,
+        operatorName: result.station.operator.name,
         operatorMnc: result.station.operator?.mnc ?? null,
         cells: [changedCell],
         hasConflicts: conflict,

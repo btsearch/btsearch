@@ -3,11 +3,10 @@ import type { ReactNode } from "react";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { authClient } from "@/lib/auth/client";
 
-interface RequireAuthProps {
-  children: ReactNode;
-}
+type AuthenticatedSession = NonNullable<ReturnType<typeof authClient.useSession>["data"]>;
+type RequireAuthProps = { children: ReactNode; render?: never } | { children?: never; render: (session: AuthenticatedSession) => ReactNode };
 
-export function RequireAuth({ children }: RequireAuthProps) {
+export function RequireAuth(props: RequireAuthProps) {
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
@@ -20,5 +19,5 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   if (!session?.user) return <AuthDialog open forced onOpenChange={() => {}} />;
 
-  return <>{children}</>;
+  return <>{props.render ? props.render(session) : props.children}</>;
 }

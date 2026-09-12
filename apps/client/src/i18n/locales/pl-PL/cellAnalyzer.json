@@ -86,7 +86,8 @@
     "tooManyCells": "Plik przekracza limit {{count, number}} komórek",
     "importFailed": "Nie udało się wczytać pliku",
     "analysisFailed": "Nie udało się przeanalizować pliku",
-    "analysisFailedHint": "Sprawdź połączenie i spróbuj ponownie. Wczytany plik i wybrane filtry pozostały bez zmian"
+    "analysisFailedHint": "Sprawdź połączenie i spróbuj ponownie. Wczytany plik i wybrane filtry pozostały bez zmian",
+    "draftSaveFailed": "Nie udało się otworzyć przeglądu, ponieważ nie zapisano szkicu"
   },
   "selection": {
     "rowsSelected_one": "wybrany wiersz",

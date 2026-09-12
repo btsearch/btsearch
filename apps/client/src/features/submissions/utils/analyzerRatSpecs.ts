@@ -1,7 +1,6 @@
 import type { GSMCellDetails, LTECellDetails, NRCellDetails, UMTSCellDetails } from "../types";
 import type { StoredParsedRow } from "./analyzerDraftStore";
 import { findPreferredRatBand } from "@/features/shared/rat";
-import type { AnalyzerMatchedCell } from "@/lib/analyzer/api";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/cellular/bands";
 import type { Band } from "@/types/station";
 
@@ -79,7 +78,7 @@ function assignDetail(details: MismatchDetails, key: AnalyzerDetailKey, value: n
   Object.assign(details, { [key]: value });
 }
 
-export function buildAnalyzerBaseDetails(rat: AnalyzerRat, cell: AnalyzerMatchedCell): MismatchDetails {
+export function buildAnalyzerBaseDetails(rat: AnalyzerRat, cell: object): MismatchDetails {
   const details: MismatchDetails = {};
   for (const field of ANALYZER_RAT_SPECS[rat].baseDetails) assignDetail(details, field.detailKey, readValue(cell, field.sourceKey));
   return details;

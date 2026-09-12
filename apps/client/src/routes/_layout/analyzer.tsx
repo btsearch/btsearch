@@ -46,7 +46,7 @@ import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { ANALYZER_MAX_CELLS, isAnalyzerImportError } from "@/lib/analyzer/analyzer-import";
-import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
+import { type FileFormat, type ParsedRow, getAnalyzerFormatLabel } from "@/lib/analyzer/analyzer-parsers";
 import { type AnalyzerMatchedCell, type AnalyzerResult, analyzeCells } from "@/lib/analyzer/api";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -69,12 +69,6 @@ const MNC_NAMES: Record<number, string> = {
   26006: "Play",
   26034: "NetWorks",
 };
-
-function getAnalyzerFormatLabel(format: FileFormat | null): string {
-  if (format === "nsg") return "NSG";
-  if (format === "netmonitor") return "NetMonitor";
-  return "NetMonster";
-}
 
 const ACTIONABLE_WARNINGS = new Set(["lac_mismatch", "tac_mismatch", "pci_mismatch", "pci_missing", "uarfcn_mismatch", "earfcn_mismatch"]);
 
@@ -1100,6 +1094,10 @@ function AnalyzerPage() {
       },
       parsedCount: state.parsedRows?.length ?? 0,
     });
+    if (draftId === null) {
+      toast.error(t("errors.draftSaveFailed"));
+      return;
+    }
     const href = router.buildLocation({ to: "/submission/from-analyzer", search: { draft: draftId } }).href;
     window.open(href, "_blank", "noopener,noreferrer");
   }

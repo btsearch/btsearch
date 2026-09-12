@@ -7,6 +7,12 @@ export type ParsedRow = AnalyzerCell & { description: string; rawLine: string };
 export type AnalyzerTextFormat = "ntm" | "netmonitor";
 export type FileFormat = AnalyzerTextFormat | "nsg";
 
+export function getAnalyzerFormatLabel(format: FileFormat | null): string {
+  if (format === "nsg") return "NSG";
+  if (format === "netmonitor") return "NetMonitor";
+  return "NetMonster";
+}
+
 const NTM_RAT_MAP: Record<string, AnalyzerCell["rat"]> = {
   "2G": "GSM",
   "3G": "UMTS",
