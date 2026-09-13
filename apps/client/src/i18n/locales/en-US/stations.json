@@ -38,8 +38,15 @@
       "macrocell": "Macrocell",
       "microcell": "Microcell",
       "picocell": "Picocell",
-      "femtocell": "Femtocell",
-      "smallcell": "Smallcell"
+      "femtocell": "Femtocell"
+    },
+    "cellTypeInfo": {
+      "label": "About cell types",
+      "title": "Choosing a cell type",
+      "macrocell": "Wide coverage; tower, mast, pole or rooftop",
+      "microcell": "Local coverage; between macro and pico",
+      "picocell": "Small area; often indoors or in public spaces",
+      "femtocell": "Very small, low-power; home or small office"
     },
     "addCell": "Add Cell",
     "fillEarfcn": "Fill EARFCN",

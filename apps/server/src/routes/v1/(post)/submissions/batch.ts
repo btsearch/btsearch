@@ -75,6 +75,7 @@ async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSu
       stationId: cells.station_id,
       cellId: cells.id,
       bandId: cells.band_id,
+      type: cells.type,
       enbid: lteCells.enbid,
       clid: lteCells.clid,
       tac: lteCells.tac,
@@ -113,6 +114,7 @@ async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSu
         station_id: input.station_id,
         band_id: cell.bandId,
         rat: "LTE",
+        type: cell.type,
         details: {
           enbid: cell.enbid,
           clid: cell.clid,

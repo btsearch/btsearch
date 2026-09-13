@@ -319,9 +319,9 @@ function regionCodeForRow(row: RadiolineRow): string {
 export async function generateRadiolinesKmz(outputDir: string, dateStr: string): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
 
-  logger.log("Fetching radiolines from database...");
+  logger.log("Fetching microwave links from database...");
   const rows = await fetchAllRadiolines();
-  logger.log(`Fetched ${rows.length} radiolines`);
+  logger.log(`Fetched ${rows.length} microwave links`);
 
   const links = groupIntoLinks(rows);
   logger.log(`Grouped into ${links.length} duplex links`);
@@ -336,17 +336,17 @@ export async function generateRadiolinesKmz(outputDir: string, dateStr: string):
     writeKmz(path.join(outputDir, `radiolines_${dateStr}_${code}.kmz`), kmz);
   }
 
-  logger.log(`Generated ${byRegion.size} regional radiolines KMZ files`);
+  logger.log(`Generated ${byRegion.size} regional microwave links KMZ files`);
 
-  logger.log("Fetching radiolines created on the latest day...");
+  logger.log("Fetching microwave links created on the latest day...");
   const { rows: latestRows, day } = await fetchLatestDayRadiolines();
   if (!day || latestRows.length === 0) {
-    logger.log("No radiolines found for the latest createdAt day");
+    logger.log("No microwave links found for the latest createdAt day");
     return;
   }
 
   const dayStr = day.toISOString().slice(0, 10);
-  logger.log(`Latest createdAt day: ${dayStr} (${latestRows.length} radiolines)`);
+  logger.log(`Latest createdAt day: ${dayStr} (${latestRows.length} microwave links)`);
 
   const newLinks = groupIntoLinks(latestRows);
   const newKmz = buildRadiolinesKmz(newLinks, `Radiolinie UKE - nowe (${dayStr})`);

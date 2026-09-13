@@ -180,7 +180,7 @@ function buildSubmissionPayload(data: SubmissionFormData): Record<string, unknow
       sector_unassigned: cell.sector_unassigned,
       band_id: cell.band_id,
       rat: cell.rat,
-      type: cell.type ?? null,
+      ...(cell.type === undefined ? {} : { type: cell.type }),
       notes: cell.notes,
       details: pickCellDetails(cell.rat, cell.details),
     }));
@@ -295,6 +295,7 @@ export async function applyAnalyzerBatch(payload: SubmissionFormData[]): Promise
         target_cell_id: cell.target_cell_id,
         band_id: cell.band_id,
         rat: cell.rat,
+        ...(cell.type === undefined ? {} : { type: cell.type }),
         details: pickCellDetails(cell.rat, cell.details),
       })),
     })),

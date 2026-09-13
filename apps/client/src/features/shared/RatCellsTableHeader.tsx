@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 
+import { CellTypeInfoPopover } from "./CellTypeInfoPopover";
 import { getRatSectorColumnIndex, getRatShowsBandDuplex } from "./rat";
 import { getRatDetailFields } from "./ratCellFields";
 
@@ -27,13 +28,21 @@ export function RatCellsTableHeader({ rat, t, showSectors, showConfirmed }: RatC
   const headers = getRatCellsTableHeaders(rat, t, { showConfirmed });
   const sectorHeaderIndex = getRatSectorColumnIndex(rat);
   const displayedHeaders = showSectors ? [...headers.slice(0, sectorHeaderIndex), "AZ", ...headers.slice(sectorHeaderIndex)] : headers;
+  const cellTypeHeader = t("stations:cells.cellType");
 
   return (
     <thead>
       <tr className="border-b bg-muted/30">
         {displayedHeaders.map((header) => (
           <th key={header} className="px-4 py-2 text-left font-medium text-muted-foreground text-xs whitespace-nowrap">
-            {header}
+            {header === cellTypeHeader ? (
+              <span className="inline-flex items-center gap-0.5">
+                {header}
+                <CellTypeInfoPopover />
+              </span>
+            ) : (
+              header
+            )}
           </th>
         ))}
       </tr>

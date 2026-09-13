@@ -39,7 +39,7 @@
     "openImportPage": "Open import page",
     "importSteps": {
       "permits": "Permits",
-      "radiolines": "Radiolines",
+      "radiolines": "Microwave links",
       "device_registry": "Device Registry",
       "prune_deleted_entries": "Prune deleted",
       "prune_associations": "Prune associations",
@@ -172,7 +172,7 @@
       "public": "Public",
       "private": "Private",
       "stations": "Stations",
-      "radiolines": "Radiolines",
+      "radiolines": "Microwave links",
       "created": "Created",
       "empty": "No lists found",
       "emptyHint": "No lists matching your search"
@@ -190,7 +190,7 @@
     "title": "UKE Import",
     "subtitle": "Import data from UKE (Urząd Komunikacji Elektronicznej)",
     "importPermits": "Import permits",
-    "importRadiolines": "Import radiolines",
+    "importRadiolines": "Import microwave links",
     "importDeviceRegistry": "Import device registry",
     "startImport": "Start Import",
     "alreadyRunning": "Import is already in progress",
@@ -202,7 +202,7 @@
     },
     "steps": {
       "permits": "Import permits",
-      "radiolines": "Import radiolines",
+      "radiolines": "Import microwave links",
       "device_registry": "Import device registry",
       "prune_deleted_entries": "Prune old deleted entries",
       "prune_associations": "Prune station-permit associations",

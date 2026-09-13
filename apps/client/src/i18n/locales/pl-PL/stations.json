@@ -37,8 +37,15 @@
       "macrocell": "Makrokomórka",
       "microcell": "Mikrokomórka",
       "picocell": "Pikokomórka",
-      "femtocell": "Femtokomórka",
-      "smallcell": "Mała komórka"
+      "femtocell": "Femtokomórka"
+    },
+    "cellTypeInfo": {
+      "label": "Informacje o rodzajach komórek",
+      "title": "Jak wybrać rodzaj komórki",
+      "macrocell": "Duży zasięg; wieża, maszt, słup lub dach",
+      "microcell": "Zasięg lokalny; między makro i piko",
+      "picocell": "Mały obszar; często wnętrze lub przestrzeń publiczna",
+      "femtocell": "Bardzo mała, niskiej mocy; dom lub małe biuro"
     },
     "addCell": "Dodaj komórkę",
     "fillEarfcn": "Wstaw EARFCN",

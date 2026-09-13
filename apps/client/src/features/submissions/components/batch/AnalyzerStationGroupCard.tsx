@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { cn } from "@/lib/utils";
+import type { CellType } from "@/types/station";
 
 interface Props {
   station: DraftStation;
   duplexSelections: ReadonlyMap<number, string | null>;
   onDuplexChange: (stationInternalId: number, rowIndex: number, duplex: string | null) => void;
+  onCellTypeChange: (stationInternalId: number, rowIndex: number, cellType: CellType | null) => void;
   onRemoveCell: (stationInternalId: number, rowIndex: number) => void;
   onRemoveStation: (stationInternalId: number) => void;
 }
@@ -23,6 +25,7 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
   station,
   duplexSelections,
   onDuplexChange,
+  onCellTypeChange,
   onRemoveCell,
   onRemoveStation,
 }: Props) {
@@ -78,6 +81,7 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
                 change={cell}
                 selectedDuplex={duplexSelections.get(cell._rowIndex)}
                 onDuplexChange={(duplex) => onDuplexChange(station.stationInternalId, cell._rowIndex, duplex)}
+                onCellTypeChange={(cellType) => onCellTypeChange(station.stationInternalId, cell._rowIndex, cellType)}
                 onRemove={() => onRemoveCell(station.stationInternalId, cell._rowIndex)}
               />
             ))}

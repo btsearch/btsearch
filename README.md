@@ -5,7 +5,7 @@ BTSearch to Polska mapa stacji bazowych w całej Polsce wraz z łatwym dostępem
 ## Features
 
 - View stations on simple to use map
-- See UKE (Urząd Komunikacji Elektronicznej) permits and radiolines
+- See UKE (Urząd Komunikacji Elektronicznej) permits and microwave links
 - Very powerful & public REST API
 - Create private or public lists with your favorite stations
 - Fast & beautiful interface

@@ -36,7 +36,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useSettings } from "@/hooks/useSettings";
 import { getAnalyzerFormatLabel } from "@/lib/analyzer/analyzer-parsers";
 import { showApiError } from "@/lib/api";
-import type { Band } from "@/types/station";
+import type { Band, CellType } from "@/types/station";
 
 export const Route = createFileRoute("/_layout/submission/from-analyzer")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -119,6 +119,10 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
 
   const onDuplexChange = useCallback((stationId: number, rowIndex: number, duplex: string | null) => {
     dispatch({ type: "set-duplex", stationId, rowIndex, duplex });
+  }, []);
+
+  const onCellTypeChange = useCallback((stationId: number, rowIndex: number, cellType: CellType | null) => {
+    dispatch({ type: "set-cell-type", stationId, rowIndex, cellType });
   }, []);
 
   const removeCellFromSubmission = useCallback((stationId: number, rowIndex: number) => {
@@ -238,6 +242,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
                     station={station}
                     duplexSelections={duplexSelections}
                     onDuplexChange={onDuplexChange}
+                    onCellTypeChange={onCellTypeChange}
                     onRemoveCell={removeCellFromSubmission}
                     onRemoveStation={removeStation}
                   />

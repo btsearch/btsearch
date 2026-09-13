@@ -1,6 +1,19 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-13
+
+### 🚀 Enhancements
+
+- Newly created cells now default to macrocell in submission and admin station forms, while editing an existing cell keeps its saved type
+- Cell analyzer review now has a compact cell type selector for every change, keeps the database type for updates, defaults additions to macrocell and saves the selected type through both submissions and direct apply
+- Cell editor and analyzer review now include contextual help explaining each available cell type
+- Removed the unused smallcell classification from cell forms, search and API contracts
+
+### 🩹 Fixes
+
+- New NR cells now keep their default NSA selection in form state, so submission no longer intermittently asks for an NR type that is already shown as selected
+
 # 2026-09-04
 
 ### 🚀 Enhancements
@@ -8,7 +21,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Station azimuths now use a clearer compass with the same degree labels as the map
 - Names in station change history now link to user profiles
 - NetMonitor exports now include sector azimuths when available
-- Map layers (stations, radiolines, heatmap, PEM measurements, azimuths) are now a single row of icon tiles in the filter panel, with the keyboard shortcut shown in each tile
+- Map layers (stations, microwave links, heatmap, PEM measurements, azimuths) are now a single row of icon tiles in the filter panel, with the keyboard shortcut shown in each tile
 
 ### 🩹 Fixes
 
@@ -122,7 +135,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Pages render more smoothly: user preferences are no longer re-read from the browser on every UI update
 - Station search now also finds inactive stations instead of silently hiding them, so the duplicate-station warning detects stations of every status
 - Exact station ID matches now appear first in station search results
-- Movable station, UKE permit and radioline dialogs on desktop now fit their height to their content instead of opening at nearly full-screen height
+- Movable station, UKE permit and microwave link dialogs on desktop now fit their height to their content instead of opening at nearly full-screen height
 
 ### 🏡 Chore
 
@@ -165,7 +178,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Submission forms and existing admin station editors can now fetch azimuths from UKE or the latest SI2PEM laboratory report
 - Generated SI2PEM laboratory reports in station and UKE permit dialogs now open their antenna data in a movable, resizable window
-- The official UKE logo now marks permit data sources in station and radio line dialogs, and both UKE and SI2PEM logos appear in the azimuth fetch menu
+- The official UKE logo now marks permit data sources in station and microwave link dialogs, and both UKE and SI2PEM logos appear in the azimuth fetch menu
 - The CLF export page can now copy a ready-to-use `/api/v1/cells/export` URL containing the selected filters, output settings, and custom description templates
 
 ### 🩹 Fixes
@@ -224,15 +237,15 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🚀 Enhancements
 
 - Keyboard shortcut hints in the map filter panel are now hidden on mobile
-- Copy buttons in station, UKE permit and radioline dialogs now appear only when hovering over the value they copy; on touch devices they stay always visible
-- Radioline popup text on the map is now slightly larger for better readability
+- Copy buttons in station, UKE permit and microwave link dialogs now appear only when hovering over the value they copy; on touch devices they stay always visible
+- Microwave link popup text on the map is now slightly larger for better readability
 - The address in station map popups is now slightly larger for better readability
-- Station, UKE permit and radioline dialog headers now show the operator's logo next to the name, and the name uses the standard text color for WCAG AA contrast in both themes
+- Station, UKE permit and microwave link dialog headers now show the operator's logo next to the name, and the name uses the standard text color for WCAG AA contrast in both themes
 - Sectors are now called azimuths everywhere: `S1` labels became `A1`, the cell table sector column is now `AZ`, and CLF/NTM export descriptions now emit `[A1: 120°]`
 - SI2PEM reports moved out of the station ID row into their own "PEM Reports" row in station and UKE permit dialogs, showing the SI2PEM logo with a report count; the report list is now grouped by year, sorted newest first with a "latest" tag, and marks entries as external links
 - Station and UKE permit dialogs no longer show the redundant "Basic Information" heading above the specs section
 - The "Add to list" icon button now shows a tooltip in dialog headers and map popups
-- Expired radiolines now show a red warning icon instead of the "EXPIRED" text in the map popup and next to the link type in the radioline dialog header; the per-direction expired dots were removed
+- Expired microwave links now show a red warning icon instead of the "EXPIRED" text in the map popup and next to the link type in the microwave link dialog header; the per-direction expired dots were removed
 
 ### 🩹 Fixes
 
@@ -243,7 +256,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Approving a submission that both moves a station and keeps existing photos now assigns those photos at the new location instead of leaving broken references
 - Map popups, the search overlay and map controls now use the app font instead of the MapLibre default
 - Search-sourced SI2PEM reports show up again; SI2PEM removed their old installations API, so report search now uses their new `all_installation_info` endpoint
-- The "Add to list" button no longer shows in station and radioline dialog headers when user lists are disabled in site settings or the user is not signed in
+- The "Add to list" button no longer shows in station and microwave link dialog headers when user lists are disabled in site settings or the user is not signed in
 - The floating navigation no longer gets stuck invisible when it is reopened before the hide animation finishes
 - The floating navigation section rails no longer flicker when switching between pages
 - The floating navigation no longer has excessive bottom spacing on phones when installed as an app; map controls follow the corrected position
@@ -321,8 +334,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Station and UKE permit dialogs now use a cleaner, card-free basic information layout
 - Station and UKE permit dialogs now use cleaner, more compact headers with consistent quick-action controls; station dialogs also use rounded tab navigation
 - Cell and permit tables in station and UKE permit dialogs now resize smoothly when expanded or collapsed
-- Radioline details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
-- On desktop, up to two radioline detail dialogs can now be opened, moved, resized and focused independently
+- Microwave link details now use the same compact header style, a clearer direction selector and a flatter layout with denser link, endpoint and permit sections
+- On desktop, up to two microwave link detail dialogs can now be opened, moved, resized and focused independently
 - Floating navigation is now the default for new mobile preference profiles
 - CLF description templates now support `{city}`, `{address}` and `{notes}` placeholders, resolving to the station’s city, address and cell notes; empty optional placeholders remove their enclosing template fragments
 
@@ -524,7 +537,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Added `ctrl+s` shortcut to save submission and/or station
 - Changed RAT order from `GSM` -> `UMTS` -> `LTE` -> `NR` to `NR` -> `LTE` -> `UMTS` -> `GSM`
 - Automatic UKE import now runs every 6 hours starting from midnight
-- Station & radioline dialog now includes `add to list` button
+- Station & microwave link dialog now includes `add to list` button
 
 # 2026-05-29
 
@@ -654,7 +667,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🩹 Fixes
 
 - Potentially fixed map crash (`Cannot read properties of null (reading 'getLayer')`) occurring when moving the mouse during a map style change
-- Fixed radioline operator combobox crashing with `Cannot read properties of undefined (reading 'toLowerCase')` when an operator has no name (somehow?)
+- Fixed microwave link operator combobox crashing with `Cannot read properties of undefined (reading 'toLowerCase')` when an operator has no name (somehow?)
 
 # 2026-04-27
 
@@ -698,7 +711,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - PCI duplicates checks now take EARFCN/ARFCN into account before determining if the PCI is duplicated on the same band (e.g. on band with TDD duplex)
 - Fixed map crash when switching map styles while layer event listeners (click, hover) were still attached
 - Fullscreen button is now hidden on devices that don't support the Fullscreen API (e.g. iOS Safari)
-- Radioline tooltip is no longer shown on touch devices, which was preventing the popup from opening on tap
+- Microwave link tooltip is no longer shown on touch devices, which was preventing the popup from opening on tap
 
 # 2026-04-20
 
@@ -713,7 +726,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🩹 Fixes
 
-- Radioline endpoint dots now shows the full tooltip info like before
+- Microwave link endpoint dots now shows the full tooltip info like before
 - Map URL and localStorage now update when panning, not only when zooming
 - UKE permits endpoint now returns region object with location instead of region_id
 - `?uke=` param no longer coerces station_id to a number on `/submission` page
@@ -722,7 +735,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🩹 Fixes
 
-- All radiolines are now properly shown in the tooltip and popup when they overlap
+- All microwave links are now properly shown in the tooltip and popup when they overlap
 
 # 2026-04-15
 
@@ -897,7 +910,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- Map filter state is now encoded in a compact token format in the URL (e.g. `~fr` for radiolines on) instead of verbose query params; old-style URLs remain supported
+- Map filter state is now encoded in a compact token format in the URL (e.g. `~fr` for microwave links on) instead of verbose query params; old-style URLs remain supported
 - Azimuths are now shown on the user list map view when UKE source is active and the azimuth preference is enabled
 - Weekly quota is now enforced for API key requests only; session-authenticated and unauthenticated users are no longer subject to the weekly quota
 
@@ -929,7 +942,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Coverage circle tip in preferences now mentions `Space` to save the current circle and `Esc` to clear all saved circles
 - Map style switcher now supports Carto light/dark/auto variant selection
 - Azimuth toggle moved from `/preferences` to the filter panel layers section (only visible when UKE source is active); the standalone preference card has been removed
-- Map layer toggles (stations, radiolines, heatmap) can now be switched independently, the previous constraint that at least one layer must stay active has been removed
+- Map layer toggles (stations, microwave links, heatmap) can now be switched independently, the previous constraint that at least one layer must stay active has been removed
 - Users can update their own username from `/account/settings`
 - Admins can update a user's username from the user detail page
 - Submitter column in `/admin/submissions` now shows `@username` below the display name, matching the style in `/admin/lists` and `/admin/audit-logs`
@@ -938,8 +951,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🩹 Fixes
 
-- Made the heatmap checkbox logic follow the same principle like for stations & radiolines layers checkboxes in FilterPanel. You must have at least one layer active
-- `rl_operators` is no longer appended to the URL when the radiolines layer is disabled
+- Made the heatmap checkbox logic follow the same principle like for stations & microwave links layer checkboxes in FilterPanel. You must have at least one layer active
+- `rl_operators` is no longer appended to the URL when the microwave links layer is disabled
 - Non-logged-in users can now read station comments but the add comment form is hidden
 - Username is now required on sign-up at the server level
 - Fixed multiple WCAG AA contrast failures across the app
@@ -1058,7 +1071,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- **UKE source search** - searching on the map while UKE is selected as the source now queries permits and radiolines by permit ID or station ID
+- **UKE source search** - searching on the map while UKE is selected as the source now queries permits and microwave links by permit ID or station ID
 
 # 2026-03-18
 
@@ -1156,7 +1169,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- UKE importer now uses the date from the imported file name as `createdAt` and `updatedAt` for permits and radiolines instead of the current timestamp
+- UKE importer now uses the date from the imported file name as `createdAt` and `updatedAt` for permits and microwave links instead of the current timestamp
 
 # 2026-03-10
 
@@ -1224,10 +1237,10 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- Added **User Lists** - create and manage curated collections of stations and radiolines
+- Added **User Lists** - create and manage curated collections of stations and microwave links
   - Lists can be public or private; public lists are shareable via a link and have a dedicated map view at `/lists/$uuid`
   - Lists appear in the sidebar with collapsible quick-access navigation; create new lists directly from there
-  - "Add to list" button now appears in station and radioline map popups
+  - "Add to list" button now appears in station and microwave link map popups
   - Admins can view and manage all user lists at `/admin/lists` (requires `enableUserLists` setting to be enabled)
 - My Submissions page now uses virtualised rendering with paginated API fetching instead of loading all submissions at once
 - Accepted submissions are now fully locked. Photos can no longer be edited or deleted once a submission is approved
@@ -1318,7 +1331,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 - Made the stroke line for new markers a little wider
 - Added chart with stations per operator on `/statistics` for internal db
-- The "new" filter also works for radiolines now
+- The "new" filter also works for microwave links now
 - Various rendering optimizations - O(1) operator lookups, memoized date formatters, shared query options
 - Station popup now opens immediately with basic data and updates in the background once station details are loaded
 - Added in-app notification system with bell icon in the header
@@ -1375,8 +1388,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 
 ### 🚀 Enhancements
 
-- Redesigned radioline dialog
-- Redesigned headers of station, UKE station & radioline dialogs
+- Redesigned microwave link dialog
+- Redesigned headers of station, UKE station & microwave link dialogs
 - Changed operator dots to rounded boxes
 - Added option to enable tooltips for station "dots" in the preferences
 - Added icons for all items on navbar
@@ -1406,7 +1419,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 ### 🚀 Enhancements
 
 - You can now quickly add new station from existing UKE station by using `Create` button from the dialog
-- Do not show the "radiolines" amount when its layer is disabled
+- Do not show the "Microwave links" amount when its layer is disabled
 - Add submissions cleanup option for admins
 - Map can be opened in the fullscreen mode
 - Added support for adding NetWorks ID & name & internal operator's name for T-Mobile & Orange
@@ -1449,7 +1462,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Added checking for duplicated CID in GSM/UMTS
 - Added checking for duplicated enBID + CLID in LTE
 - Added `editor` role
-- Calculate the speed of radiolines and show total speed
+- Calculate the speed of microwave links and show total speed
 - Added more checks on the server for duplicates per operator etc
 - Optimized `/uke/locations` even more
 - Added support for searching via city
@@ -1484,8 +1497,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Notes field on each cell on `/submission` is now properly debounced which fixes lag while typing
 - Making small changes (like adding notes etc.) on `/submission` is not a problem anymore since `unique` check on `submissions.proposed_cells` has been simplified from `submission_id`, `station_id`, `band_id`, `rat` to just `submission_id`, `target_cell_id`
 - The table on `/stations`, `/admin/stations` & `/admin/locations` will no longer reset to page `1` when fetching more stations (after viewing ~80 records)
-- Fixed showing XPIC radiolines in `tooltip`, `popup` & `dialog` (2 with diff polarization TX -> 2 RX)
-- Fixed grouping FDD radiolines in the dialog
+- Fixed showing XPIC microwave links in `tooltip`, `popup` & `dialog` (2 with diff polarization TX -> 2 RX)
+- Fixed grouping FDD microwave links in the dialog
 - Reject & Approve route of submissions now properly save old submission value(s)
 - Fixed applying `new` status on new cells/permits
 
@@ -1497,7 +1510,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Orphaned locations are now included for admins, editors & moderators in LocationPicker and `/admin/locations`
 - Added more checks on `POST /submissions` regarding changed station & location
 - Added support for NR Type (NSA, SA) everywhere
-- Added support for sharing radiolines (opens the dialog)
+- Added support for sharing microwave links (opens the dialog)
 - Added page with deleted records from `device-registry`, `radiolines` & `permits`
 - Admin on `/admin/stations/$id` when adding new cell(s) will have it automatically confirmed
 - Added more audit logging to `POST /submissions/$id/approve`
@@ -1515,15 +1528,15 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Made `gnBID` optional on `/submission` page
 - Fixed checking the `existingLocation` on the server on submission submit
 - Fixed sending `details` object in the cells on admin station edit page
-- Fixed overlapping radiolines tooltip hovers by unmouting the container on `onMouseLeave`
+- Fixed overlapping microwave link tooltip hovers by unmouting the container on `onMouseLeave`
 - Fixed setting `operator` on admin station edit page
 
 ### 🚀 Enhancements
 
 - Added ability to see new cells or permits in the last 30 days
 - Added support for PCI in LTE
-- Redesigned radiolines tooltip and popup
-- Properly started to identify and group radiolines (XPIC, FDD, FDD 2+0)
+- Redesigned microwave links tooltip and popup
+- Properly started to identify and group microwave links (XPIC, FDD, FDD 2+0)
 - Added antenna height from `device-registry` in sectors
 - Added a check for any changes on admin station edit page
 

@@ -21,6 +21,7 @@ import { StationPhotoSelector } from "@/features/admin/stations/components/Stati
 import { type LocalCell, isCellModified, useSaveStationMutation } from "@/features/admin/stations/mutations";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { groupPermitsByStation } from "@/features/map/utils";
+import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { uploadAndAssignStationPhotos } from "@/features/station-details/api";
 import { PhotoUploadSection } from "@/features/submissions/components/photoUploadSection";
 import type { ProposedLocationForm } from "@/features/submissions/types";
@@ -296,7 +297,7 @@ function StationDetailForm({
       _sectorLocalId: null,
       rat: rat as (typeof RAT_ORDER)[number],
       band_id: defaultBand.id,
-      type: null,
+      type: DEFAULT_CELL_TYPE,
       is_confirmed: isAdmin ?? false,
       notes: "",
       details: {},
@@ -385,10 +386,10 @@ function StationDetailForm({
         _sectorLocalId: null,
         rat: cell.rat,
         band_id: cell.band_id!,
-        type: null,
+        type: cell.type ?? DEFAULT_CELL_TYPE,
         is_confirmed: false,
         notes: "",
-        details: {},
+        details: { ...cell.details },
       }));
       setLocalCells(newCells);
       setEnabledRats([...new Set(newCells.map((c) => c.rat))]);

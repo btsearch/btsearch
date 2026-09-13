@@ -7,10 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
+import { CellTypeInfoPopover } from "@/features/shared/CellTypeInfoPopover";
+import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getCellDetailKeys, getRatChannelField } from "@/features/shared/rat";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { type AnalyzerDetailKey, getAnalyzerBandMhz, getAnalyzerBandNumber } from "@/features/submissions/utils/analyzerRatSpecs";
 import { cn } from "@/lib/utils";
+import type { CellType } from "@/types/station";
 
 type AnalyzerFieldValue = number | boolean | string | undefined;
 
@@ -18,11 +21,12 @@ interface Props {
   change: DraftCell;
   selectedDuplex: string | null | undefined;
   onDuplexChange: (duplex: string | null) => void;
+  onCellTypeChange: (cellType: CellType | null) => void;
   onRemove: () => void;
 }
 
-export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, onRemove }: Props) {
-  const { t } = useTranslation(["submissions", "common"]);
+export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, onCellTypeChange, onRemove }: Props) {
+  const { t } = useTranslation(["submissions", "common", "stations"]);
   const isAddOperation = change.operation === "add";
 
   const channelField = getRatChannelField(change.rat);
@@ -76,6 +80,15 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
             {showBandNumber && band !== null ? <span className="opacity-75">{mhz !== null ? ` (b${band})` : `(b${band})`}</span> : null}
           </span>
         ) : null}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <CellTypeSelect
+            value={change.type ?? null}
+            onChange={onCellTypeChange}
+            ariaLabel={t("stations:cells.cellType")}
+            className="h-11 w-20 shrink-0 text-xs focus:border-ring focus:ring-[3px] focus:ring-ring/50 sm:h-8"
+          />
+          <CellTypeInfoPopover align="center" className="size-8 sm:size-6" />
+        </div>
       </div>
 
       <dl className="col-start-1 row-start-2 flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-2 @4xl:col-start-2 @4xl:row-start-1 @4xl:gap-x-6 @4xl:border-l @4xl:pl-2">

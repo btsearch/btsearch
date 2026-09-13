@@ -35,13 +35,13 @@ const SOURCE_TYPE_OPTIONS = ["permits", "device_registry", "radiolines"] as cons
 
 const SOURCE_TABLE_LABELS: Record<string, string> = {
   uke_permits: "UKE Permits",
-  uke_radiolines: "UKE Radiolines",
+  uke_radiolines: "UKE Microwave links",
 };
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   permits: "Permits",
   device_registry: "Device Registry",
-  radiolines: "Radiolines",
+  radiolines: "Microwave links",
 };
 
 const TABLE_PAGINATION_CONFIG = {

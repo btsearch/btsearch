@@ -6,7 +6,7 @@
   "type": {
     "label": "File type",
     "stations": "Stations",
-    "radiolines": "Radiolines"
+    "radiolines": "Microwave links"
   },
   "source": {
     "label": "Source",
@@ -44,7 +44,7 @@
   },
   "file": {
     "new_stations": "New stations",
-    "new_radiolines": "New radiolines"
+    "new_radiolines": "New microwave links"
   },
   "downloadError": "Couldn't download the file. Please try again"
 }

@@ -3,16 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProposedCellForm, RatType } from "../../types";
-import { buildOriginalCellsMap, generateCellId, getCellDiffStatus } from "../../utils/cells";
+import { buildOriginalCellsMap, generateCellId, getCellDiffStatus, getDefaultCellDetails } from "../../utils/cells";
 import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
 import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
+import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { bandsQueryOptions } from "@/features/shared/queries";
-import { getCellDetailDefaultValue, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
-
-function getDefaultCellDetails(rat: RatType): ProposedCellForm["details"] {
-  const type = getCellDetailDefaultValue(rat, "type");
-  return type === null ? {} : ({ type } as ProposedCellForm["details"]);
-}
+import { getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
 
 function getEditableSortDetailField(rat: RatType): string {
   if (rat === "GSM" || rat === "UMTS") return "cid";
@@ -119,6 +115,7 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
       id: generateCellId(),
       rat,
       band_id: null,
+      type: DEFAULT_CELL_TYPE,
       details: defaults,
     };
     onCellsChange(rat, [...cells, newCell]);
@@ -134,6 +131,7 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
         id: generateCellId(),
         rat,
         band_id: source.band_id,
+        type: source.type ?? DEFAULT_CELL_TYPE,
         notes: source.notes,
         is_confirmed: source.is_confirmed,
         details: createRemainingLteDetails(source.details as Record<string, unknown>, clid),
@@ -158,7 +156,7 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
       const cell = cells.find((c) => c.id === id);
       if (!cell) return;
       const newId = generateCellId();
-      const cloned: ProposedCellForm = { ...cell, id: newId, existingCellId: undefined };
+      const cloned: ProposedCellForm = { ...cell, id: newId, existingCellId: undefined, type: cell.type ?? DEFAULT_CELL_TYPE };
       const idx = cells.findIndex((c) => c.id === id);
       const next = [...cells];
       next.splice(idx + 1, 0, cloned);

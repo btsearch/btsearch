@@ -17,7 +17,7 @@ import { upsertUkeOperators } from "./upserts.js";
 import { downloadFile, ensureDownloadDir, parseFileDateWithImportTime, readSheetAsJson } from "./utils.js";
 
 export async function importRadiolines(): Promise<boolean> {
-  console.log("[radiolines] Starting radiolines import...");
+  console.log("[radiolines] Starting microwave links import...");
   console.log("[radiolines] Scraping file links from:", RADIOLINES_URL);
   const links = await scrapeXlsxLinks(RADIOLINES_URL);
   if (!links[0]) {
@@ -74,24 +74,24 @@ export async function importRadiolines(): Promise<boolean> {
   console.log(`[radiolines] Found ${operatorNames.length} unique operators`);
   const operatorIdByName = await upsertUkeOperators(operatorNames);
 
-  console.log("[radiolines] Preparing radioline records...");
+  console.log("[radiolines] Preparing microwave link records...");
   const values = prepareRadiolineRecords(rows, { antennaTypeIdByName, transmitterTypeIdByName }, operatorIdByName, fileDate);
 
-  console.log("[radiolines] Loading existing radiolines...");
+  console.log("[radiolines] Loading existing microwave links...");
   const { toInsert, toUpdate, staleRadiolines } = await loadRadiolineChanges(values);
 
-  console.log(`[radiolines] Inserting ${toInsert.length} new radiolines...`);
+  console.log(`[radiolines] Inserting ${toInsert.length} new microwave links...`);
   await insertRadiolines(toInsert);
 
-  console.log(`[radiolines] Updating ${toUpdate.length} changed radiolines...`);
+  console.log(`[radiolines] Updating ${toUpdate.length} changed microwave links...`);
   await updateRadiolines(toUpdate);
 
   const importMetadataId = await recordImportMetadata("radiolines", links, "success");
 
-  console.log("[radiolines] Archiving and deleting stale radiolines...");
+  console.log("[radiolines] Archiving and deleting stale microwave links...");
   await archiveAndDeleteRadiolines(staleRadiolines, importMetadataId);
 
-  console.log(`[radiolines] Deleted ${staleRadiolines.length} stale radiolines`);
+  console.log(`[radiolines] Deleted ${staleRadiolines.length} stale microwave links`);
 
   console.log("[radiolines] Import completed successfully");
   return true;

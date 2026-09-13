@@ -1,4 +1,5 @@
 import { bands, locations, operators, regions, stations, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
+import { CELL_TYPES } from "@openbts/shared/cellTypes";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -93,6 +94,7 @@ const matchedCellSchema = z.union([
     cell_id: z.number(),
     sector_id: z.number().nullable(),
     band_id: z.number().nullable(),
+    type: z.enum(CELL_TYPES).nullable(),
     notes: z.string().nullable().optional(),
     lac: z.number(),
     cid: z.number(),
@@ -103,6 +105,7 @@ const matchedCellSchema = z.union([
     cell_id: z.number(),
     sector_id: z.number().nullable(),
     band_id: z.number().nullable(),
+    type: z.enum(CELL_TYPES).nullable(),
     notes: z.string().nullable().optional(),
     rnc: z.number(),
     cid: z.number(),
@@ -115,6 +118,7 @@ const matchedCellSchema = z.union([
     cell_id: z.number(),
     sector_id: z.number().nullable(),
     band_id: z.number().nullable(),
+    type: z.enum(CELL_TYPES).nullable(),
     notes: z.string().nullable().optional(),
     enbid: z.number(),
     clid: z.number().nullable(),
@@ -250,6 +254,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
           band_id: row.cell.band_id,
+          type: row.cell.type,
           notes: row.cell.notes ?? null,
           lac: row.lac,
           cid: row.cid,
@@ -274,6 +279,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
           band_id: row.cell.band_id,
+          type: row.cell.type,
           notes: row.cell.notes ?? null,
           rnc: row.rnc,
           cid: row.cid,
@@ -307,6 +313,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
           band_id: row.cell.band_id,
+          type: row.cell.type,
           notes: row.cell.notes ?? null,
           enbid: row.enbid,
           clid: row.clid,
@@ -342,6 +349,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
           band_id: row.cell.band_id,
+          type: row.cell.type,
           notes: row.cell.notes ?? null,
           rnc: row.rnc,
           cid: row.cid,
@@ -376,6 +384,7 @@ async function executeLookups(inputCells: CellInput[], groups: CellGroups): Prom
           cell_id: row.cell_id,
           sector_id: row.cell.sector_id,
           band_id: row.cell.band_id,
+          type: row.cell.type,
           notes: row.cell.notes ?? null,
           enbid: row.enbid,
           sibling,
@@ -510,7 +519,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 
   void recordAnalyzerUsage();
 
-  const key = `analyzer:${createHash("sha256").update(JSON.stringify(inputCells)).digest("hex")}`;
+  const key = `analyzer:v3:${createHash("sha256").update(JSON.stringify(inputCells)).digest("hex")}`;
   const cached = await redis.get(key);
   if (cached) return res.send({ data: JSON.parse(cached) });
 

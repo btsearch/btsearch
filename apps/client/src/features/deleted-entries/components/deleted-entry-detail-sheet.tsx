@@ -7,7 +7,7 @@ import { formatFullDate } from "@/lib/format";
 
 const SOURCE_TABLE_LABELS: Record<string, string> = {
   uke_permits: "UKE Permits",
-  uke_radiolines: "UKE Radiolines",
+  uke_radiolines: "UKE Microwave links",
 };
 
 function Value({ value }: { value: unknown }): React.ReactNode {

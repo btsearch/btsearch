@@ -57,7 +57,7 @@ export type CellDetails = {
   supports_nr_redcap?: boolean;
 } | null;
 
-export type CellType = "MACROCELL" | "MICROCELL" | "PICOCELL" | "FEMTOCELL" | "SMALLCELL";
+export type CellType = "MACROCELL" | "MICROCELL" | "PICOCELL" | "FEMTOCELL";
 
 export type Cell = {
   id: number;

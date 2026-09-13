@@ -27,7 +27,7 @@ export const BandVariant = pgEnum("band_variant", ["commercial", "railway"]);
 export const StationStatus = pgEnum("station_status", ["published", "inactive", "pending"]);
 export const PermitsSource = pgEnum("permits_source", ["permits", "device_registry"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
-export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL", "SMALLCELL"]);
+export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
 export const UkeSchema = pgSchema("uke");
 export const StatisticsSchema = pgSchema("statistics");
 
@@ -487,7 +487,7 @@ export const bands = pgTable(
 );
 
 /**
- * radioLinesManufacturers table. For UKE radiolines table
+ * radioLinesManufacturers table. For UKE microwave links table
  * @example
  * { id: 1, name: "Ericsson" }
  */
@@ -497,7 +497,7 @@ export const radioLinesManufacturers = UkeSchema.table("radiolines_manufacturers
 });
 
 /**
- * Antenna types table. For UKE radiolines table
+ * Antenna types table. For UKE microwave links table
  * @example
  * { id: 1, name: "Antenna Type 1", manufacturer_id: 1 }
  */
@@ -508,7 +508,7 @@ export const radiolinesAntennaTypes = UkeSchema.table("radiolines_antenna_types"
 });
 
 /**
- * Transmitter types table. For UKE radiolines table
+ * Transmitter types table. For UKE microwave links table
  * @example
  * { id: 1, name: "Transmitter Type 1", manufacturer_id: 1 }
  */
@@ -525,7 +525,7 @@ export const ukeOperators = UkeSchema.table("uke_operators", {
 });
 
 /**
- * UKE radiolines table
+ * UKE microwave links table
  */
 export const ukeRadiolines = UkeSchema.table(
   "uke_radiolines",

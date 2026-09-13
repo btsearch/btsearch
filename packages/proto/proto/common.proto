@@ -51,7 +51,6 @@ enum CellType {
   MICROCELL = 2;
   PICOCELL = 3;
   FEMTOCELL = 4;
-  SMALLCELL = 5;
 }
 
 message Band {

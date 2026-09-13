@@ -1,5 +1,6 @@
 import { cells, lteCells, stations } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
+import { CELL_TYPES } from "@openbts/shared/cellTypes";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 import z from "zod";
@@ -30,6 +31,7 @@ const cellSchema = z.discriminatedUnion("operation", [
       target_cell_id: z.number().optional(),
       band_id: z.number(),
       rat: z.enum(["GSM", "UMTS", "LTE", "NR"]),
+      type: z.enum(CELL_TYPES).nullable().optional(),
       details: z.unknown().optional(),
     })
     .superRefine(makeDetailsRatRefine(normalRatInsertSchemaMap)),
@@ -39,6 +41,7 @@ const cellSchema = z.discriminatedUnion("operation", [
       target_cell_id: z.number().optional(),
       band_id: z.number(),
       rat: z.enum(["GSM", "UMTS", "LTE", "NR"]),
+      type: z.enum(CELL_TYPES).nullable().optional(),
       details: z.unknown().optional(),
     })
     .superRefine(makeDetailsRatRefine(normalRatUpdateSchemaMap)),
@@ -220,7 +223,15 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       for (const cell of item.cells) {
         if (cell.operation === "update" && cell.target_cell_id !== undefined) {
           // oxlint-disable-next-line no-await-in-loop
-          await tx.update(cells).set({ band_id: cell.band_id, is_confirmed: true, updatedAt: new Date() }).where(eq(cells.id, cell.target_cell_id));
+          await tx
+            .update(cells)
+            .set({
+              band_id: cell.band_id,
+              ...(cell.type === undefined ? {} : { type: cell.type }),
+              is_confirmed: true,
+              updatedAt: new Date(),
+            })
+            .where(eq(cells.id, cell.target_cell_id));
           // oxlint-disable-next-line no-await-in-loop
           await updateRATCellDetails(tx, cell.rat, cell.target_cell_id, cell.details as RATUpdateDetails);
           updatedCellIds.push(cell.target_cell_id);
@@ -228,7 +239,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           // oxlint-disable-next-line no-await-in-loop
           const [newCell] = await tx
             .insert(cells)
-            .values({ station_id: station.id, band_id: cell.band_id, rat: cell.rat, is_confirmed: true })
+            .values({ station_id: station.id, band_id: cell.band_id, rat: cell.rat, type: cell.type ?? null, is_confirmed: true })
             .returning();
           if (newCell) {
             // oxlint-disable-next-line no-await-in-loop

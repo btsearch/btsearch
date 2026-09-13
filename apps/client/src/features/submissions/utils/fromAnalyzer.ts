@@ -9,8 +9,9 @@ import {
   buildAnalyzerWarningDetails,
   resolveAnalyzerBandChoices,
 } from "./analyzerRatSpecs";
+import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { getCellDetailKeys } from "@/features/shared/rat";
-import type { Band } from "@/types/station";
+import type { Band, CellType } from "@/types/station";
 
 export interface DraftCell {
   _rowIndex: number;
@@ -19,6 +20,7 @@ export interface DraftCell {
   target_cell_id: number | undefined;
   target_sector_id: number | undefined;
   band_id: number | null;
+  type?: CellType | null;
   duplexChoices: AnalyzerBandChoice[];
   details: MismatchDetails;
   baseDetails?: MismatchDetails;
@@ -45,18 +47,34 @@ export interface AnalyzerBatchDraft {
   unresolvedBandRows: number[];
 }
 
+type AnalyzerCellConflictState = Pick<DraftCell, "details" | "type">;
+
+function hasAnalyzerCellConflict(seen: AnalyzerCellConflictState, cell: AnalyzerCellConflictState): boolean {
+  const hasTypeConflict = seen.type !== undefined && cell.type !== undefined && seen.type !== cell.type;
+  return (
+    hasTypeConflict ||
+    (Object.keys(cell.details) as (keyof MismatchDetails)[]).some((key) => key in seen.details && seen.details[key] !== cell.details[key])
+  );
+}
+
+function mergeAnalyzerCellConflictState(seen: AnalyzerCellConflictState, cell: AnalyzerCellConflictState): AnalyzerCellConflictState {
+  return {
+    details: { ...seen.details, ...cell.details },
+    type: cell.type === undefined ? seen.type : cell.type,
+  };
+}
+
 export function recalculateAnalyzerCellConflicts(cells: DraftCell[]): DraftCell[] {
-  const detailsByTargetCell = new Map<number, MismatchDetails>();
+  const stateByTargetCell = new Map<number, AnalyzerCellConflictState>();
 
   return cells.map((cell) => {
     if (cell.target_cell_id === undefined) return cell.conflict ? { ...cell, conflict: false } : cell;
 
-    const seenDetails = detailsByTargetCell.get(cell.target_cell_id);
-    const conflict =
-      seenDetails !== undefined &&
-      (Object.keys(cell.details) as (keyof MismatchDetails)[]).some((key) => key in seenDetails && seenDetails[key] !== cell.details[key]);
+    const seen = stateByTargetCell.get(cell.target_cell_id);
+    const current = { details: cell.details, type: cell.type };
+    const conflict = seen !== undefined && hasAnalyzerCellConflict(seen, current);
 
-    detailsByTargetCell.set(cell.target_cell_id, { ...seenDetails, ...cell.details });
+    stateByTargetCell.set(cell.target_cell_id, seen === undefined ? current : mergeAnalyzerCellConflictState(seen, current));
     return cell.conflict === conflict ? cell : { ...cell, conflict };
   });
 }
@@ -68,7 +86,7 @@ function pickMismatchDetails(rat: AnalyzerRat, details: MismatchDetails) {
 
 export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []): AnalyzerBatchDraft {
   const stationMap = new Map<number, DraftStation>();
-  const cellConflictTracker = new Map<string, MismatchDetails>();
+  const cellConflictTracker = new Map<string, AnalyzerCellConflictState>();
   const unresolvedBandRows: number[] = [];
 
   for (const { index: idx, parsedRow: row, result } of draft.selectedRows) {
@@ -83,6 +101,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
     let target_cell_id: number | undefined;
     let target_sector_id: number | undefined;
     let band_id: number | null = null;
+    let type: CellType | null | undefined;
     let duplexChoices: AnalyzerBandChoice[] = [];
 
     if (result.status === "found" && result.cell) {
@@ -91,6 +110,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
         target_cell_id = cell.cell_id;
         target_sector_id = cell.sector_id ?? undefined;
         band_id = cell.band_id ?? null;
+        type = cell.type;
       }
 
       if (cell.rat === row.rat) {
@@ -99,6 +119,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
       }
     } else if (result.status === "probable" && warnings.includes("enbid_only") && row.rat === "LTE" && result.cell) {
       operation = "add";
+      type = DEFAULT_CELL_TYPE;
       Object.assign(details, buildAnalyzerProbableAddDetails(row.rat, row));
       const resolvedBand = resolveAnalyzerBandChoices(row.rat, details, bands);
       band_id = resolvedBand.band_id;
@@ -109,6 +130,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
       target_cell_id = cell?.cell_id;
       target_sector_id = cell?.sector_id ?? undefined;
       band_id = cell?.band_id ?? null;
+      type = cell.type;
       baseDetails = buildAnalyzerBaseDetails(cell.rat, cell);
       Object.assign(details, buildAnalyzerWarningDetails(row.rat, row, warnings));
     }
@@ -117,10 +139,11 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
     if (target_cell_id !== undefined) {
       const conflictKey = `${stationInternalId}:${target_cell_id}`;
       const seen = cellConflictTracker.get(conflictKey);
+      const current = { details, type };
       if (seen) {
-        conflict = (Object.keys(details) as (keyof MismatchDetails)[]).some((k) => k in seen && seen[k] !== details[k]);
-        Object.assign(seen, details);
-      } else cellConflictTracker.set(conflictKey, details);
+        conflict = hasAnalyzerCellConflict(seen, current);
+        cellConflictTracker.set(conflictKey, mergeAnalyzerCellConflictState(seen, current));
+      } else cellConflictTracker.set(conflictKey, current);
     }
     const changedCell: DraftCell = {
       _rowIndex: idx,
@@ -129,6 +152,7 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
       target_cell_id,
       target_sector_id,
       band_id,
+      type,
       duplexChoices,
       details,
       baseDetails,
@@ -173,6 +197,7 @@ export function buildSubmissionPayloads(draft: AnalyzerBatchDraft): SubmissionFo
       target_sector_id: cell.target_sector_id,
       band_id: cell.band_id,
       rat: cell.rat,
+      type: cell.type,
       details: {
         ...pickMismatchDetails(cell.rat, cell.baseDetails ?? {}),
         ...pickMismatchDetails(cell.rat, cell.details),

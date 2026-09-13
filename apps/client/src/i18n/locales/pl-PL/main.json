@@ -50,7 +50,7 @@
       "rat": "Standard (GSM, UMTS, LTE, NR)",
       "isConfirmed": "Stan potwierdzenia (true, false)",
       "cellNotes": "Notatki komórki",
-      "cellType": "Typ komórki (macro, micro, pico, femto, small)",
+      "cellType": "Typ komórki (macro, micro, pico, femto)",
       "lac": "Kod obszaru lokalizacji GSM",
       "cid": "Identyfikator komórki GSM",
       "rnc": "Identyfikator kontrolera sieci radiowej UMTS",

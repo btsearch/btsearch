@@ -3,7 +3,7 @@ info:
   title: BTSearch API
   description: |
     API for BTSearch Backend
-    Last updated: 2026-08-27
+    Last updated: 2026-09-13
   version: 1.2.0
 
 servers:
@@ -2827,25 +2827,28 @@ paths:
                         cell:
                           oneOf:
                             - type: object
-                              required: [rat, lac, cid]
+                              required: [rat, type, lac, cid]
                               properties:
                                 rat: { type: string, enum: [GSM] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 notes: { type: string, nullable: true }
                                 lac: { type: integer }
                                 cid: { type: integer }
                             - type: object
-                              required: [rat, rnc, cid]
+                              required: [rat, type, rnc, cid]
                               properties:
                                 rat: { type: string, enum: [UMTS] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 notes: { type: string, nullable: true }
                                 rnc: { type: integer, minimum: 0, maximum: 65535 }
                                 cid: { type: integer, minimum: 0, maximum: 65535 }
                                 lac: { type: integer, minimum: 0, maximum: 65535, nullable: true }
                                 arfcn: { type: integer, minimum: 0, maximum: 16383, nullable: true }
                             - type: object
-                              required: [rat, enbid]
+                              required: [rat, type, enbid]
                               properties:
                                 rat: { type: string, enum: [LTE] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 notes: { type: string, nullable: true }
                                 enbid: { type: integer, minimum: 0, maximum: 1048575 }
                                 clid: { type: integer, minimum: 0, maximum: 255, nullable: true }
@@ -2901,6 +2904,7 @@ paths:
                                 operation: { type: string, enum: [add] }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [GSM] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/GsmCellDetails" }
                             - description: Add a new UMTS cell
                               type: object
@@ -2909,6 +2913,7 @@ paths:
                                 operation: { type: string, enum: [add] }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [UMTS] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/UmtsCellDetailsInsert" }
                             - description: Add a new LTE cell
                               type: object
@@ -2917,6 +2922,7 @@ paths:
                                 operation: { type: string, enum: [add] }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [LTE] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/LteCellDetailsInsert" }
                             - description: Add a new NR cell
                               type: object
@@ -2925,6 +2931,7 @@ paths:
                                 operation: { type: string, enum: [add] }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [NR] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/NrCellDetailsInsert" }
                             - description: Update an existing GSM cell
                               type: object
@@ -2934,6 +2941,7 @@ paths:
                                 target_cell_id: { type: integer }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [GSM] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/GsmCellDetails" }
                             - description: Update an existing UMTS cell
                               type: object
@@ -2943,6 +2951,7 @@ paths:
                                 target_cell_id: { type: integer }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [UMTS] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/UmtsCellDetailsInsert" }
                             - description: Update an existing LTE cell
                               type: object
@@ -2952,6 +2961,7 @@ paths:
                                 target_cell_id: { type: integer }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [LTE] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/LteCellDetailsInsert" }
                             - description: Update an existing NR cell
                               type: object
@@ -2961,6 +2971,7 @@ paths:
                                 target_cell_id: { type: integer }
                                 band_id: { type: integer }
                                 rat: { type: string, enum: [NR] }
+                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
                                 details: { $ref: "#/components/schemas/NrCellDetailsInsert" }
       responses:
         "200":
@@ -2995,7 +3006,7 @@ paths:
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
         - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false)
-        - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed, cell_type (macro/MACROCELL, micro/MICROCELL, pico/PICOCELL, femto/FEMTOCELL, small/SMALLCELL)
+        - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed, cell_type (macro/MACROCELL, micro/MICROCELL, pico/PICOCELL, femto/FEMTOCELL)
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
         - **lteCells**: enbid, ecid, lte_clid, tac, lte_pci, earfcn, supports_iot
@@ -3354,7 +3365,7 @@ paths:
   /uke/radiolines:
     get:
       tags: [UKE]
-      summary: List UKE radiolines
+      summary: List UKE microwave links
       parameters:
         - name: bounds
           in: query
@@ -3376,11 +3387,11 @@ paths:
           schema: { type: string, enum: [zmP, P] }
         - name: new
           in: query
-          description: Only return radiolines updated within the last N days (1-30). Pass `true` for 30 days
+          description: Only return microwave links updated within the last N days (1-30). Pass `true` for 30 days
           schema: { type: string }
         - name: list
           in: query
-          description: User list UUID. Only radiolines belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          description: User list UUID. Only microwave links belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -3439,8 +3450,8 @@ paths:
   /uke/search:
     post:
       tags: [UKE]
-      summary: Search UKE permits and radiolines
-      description: Searches UKE permits by decision_number or station_id and radiolines by permit_number. Results are grouped by station_id for permits and by permit_number for radiolines
+      summary: Search UKE permits and microwave links
+      description: Searches UKE permits by decision_number or station_id and microwave links by permit_number. Results are grouped by station_id for permits and by permit_number for microwave links
       requestBody:
         required: true
         content:
@@ -3594,7 +3605,7 @@ paths:
     get:
       tags: [Lists]
       summary: Get list metadata and member IDs
-      description: "Returns the list's metadata plus the IDs of its member stations and radiolines. To fetch the member objects (optionally filtered and paginated), pass the list UUID as the `list` query parameter to `/stations`, `/locations`, `/uke/locations` or `/uke/radiolines`. Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `user_lists:read` permission)"
+      description: "Returns the list's metadata plus the IDs of its member stations and microwave links. To fetch the member objects (optionally filtered and paginated), pass the list UUID as the `list` query parameter to `/stations`, `/locations`, `/uke/locations` or `/uke/radiolines`. Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `user_lists:read` permission)"
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3852,7 +3863,7 @@ paths:
       tags: [KMZ]
       summary: List generated KMZ files
       description: |
-        Returns pre-generated KMZ (Google Earth) files from our UKE imports, for both stations and radiolines. Each file's `region` is a full region object (or `null` for combined, new-stations, or unknown-region files). Use `/kmz/dates` to discover which dates have data for a given `type`/`source` combination before filtering here
+        Returns pre-generated KMZ (Google Earth) files from our UKE imports, for both stations and microwave links. Each file's `region` is a full region object (or `null` for combined, new-stations, or unknown-region files). Use `/kmz/dates` to discover which dates have data for a given `type`/`source` combination before filtering here
       parameters:
         - name: date
           in: query
@@ -4628,7 +4639,7 @@ components:
         id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         updatedAt: { type: string, format: date-time }
@@ -4641,7 +4652,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         updatedAt: { type: string, format: date-time }
@@ -4780,7 +4791,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details: { $ref: "#/components/schemas/CellDetailsInsert" }
@@ -4790,7 +4801,7 @@ components:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details: { $ref: "#/components/schemas/CellDetailsInsert" }
@@ -4908,7 +4919,7 @@ components:
         sector_local_id: { type: string, nullable: true, description: "Local ID of a proposed sector to assign to the proposed cell" }
         sector_unassigned: { type: boolean, nullable: true, description: "When true, approval clears the cell sector assignment" }
         rat: { type: string, enum: [GSM, UMTS, LTE, NR], nullable: true }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed:
           { type: boolean, nullable: true, description: "Only respected when sent by an admin; regular submitters cannot self-confirm cells" }
@@ -5029,7 +5040,7 @@ components:
         sector_local_id: { type: string, nullable: true }
         sector_unassigned: { type: boolean, nullable: true }
         rat: { type: string, nullable: true }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details:
@@ -5592,7 +5603,7 @@ components:
         cell_id: { type: integer }
         band_id: { type: integer }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL, SMALLCELL], nullable: true }
+        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         details:
@@ -5670,7 +5681,7 @@ components:
         is_public: { type: boolean, nullable: true }
         notificationsEnabled: { type: boolean }
         stations: { $ref: "#/components/schemas/UserListStations" }
-        radiolines: { type: array, items: { type: integer }, description: Array of radioline IDs }
+        radiolines: { type: array, items: { type: integer }, description: Array of microwave link IDs }
         stationCount: { type: integer, description: "Total count: internal stations + UKE locations" }
         radiolineCount: { type: integer }
         createdBy:
@@ -5694,7 +5705,7 @@ components:
         is_public: { type: boolean, nullable: true }
         notificationsEnabled: { type: boolean }
         stations: { $ref: "#/components/schemas/UserListStations" }
-        radiolines: { type: array, items: { type: integer }, description: Array of radioline IDs }
+        radiolines: { type: array, items: { type: integer }, description: Array of microwave link IDs }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 

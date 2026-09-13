@@ -1,3 +1,4 @@
+import { isCellType } from "@/features/shared/cellTypes";
 import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
 import type { AnalyzerMatchedCell, AnalyzerResult } from "@/lib/analyzer/api";
 
@@ -20,9 +21,9 @@ type StoredAnalyzerStation = {
 };
 
 type StoredAnalyzerMatchedCell =
-  | Pick<AnalyzerMatchedCell & { rat: "GSM" }, "rat" | "cell_id" | "sector_id" | "band_id" | "lac" | "cid">
-  | Pick<AnalyzerMatchedCell & { rat: "UMTS" }, "rat" | "cell_id" | "sector_id" | "band_id" | "rnc" | "cid" | "lac" | "arfcn">
-  | Pick<AnalyzerMatchedCell & { rat: "LTE" }, "rat" | "cell_id" | "sector_id" | "band_id" | "enbid" | "clid" | "tac" | "pci" | "earfcn">
+  | Pick<AnalyzerMatchedCell & { rat: "GSM" }, "rat" | "cell_id" | "sector_id" | "band_id" | "type" | "lac" | "cid">
+  | Pick<AnalyzerMatchedCell & { rat: "UMTS" }, "rat" | "cell_id" | "sector_id" | "band_id" | "type" | "rnc" | "cid" | "lac" | "arfcn">
+  | Pick<AnalyzerMatchedCell & { rat: "LTE" }, "rat" | "cell_id" | "sector_id" | "band_id" | "type" | "enbid" | "clid" | "tac" | "pci" | "earfcn">
   | { rat: "NR" };
 
 type StoredAnalyzerResult = Pick<AnalyzerResult, "status" | "warnings"> & {
@@ -123,6 +124,8 @@ function parseStoredMatchedCell(value: unknown): StoredAnalyzerMatchedCell | nul
   if (!isRecord(value) || typeof value.rat !== "string") return null;
   if (value.rat === "NR") return { rat: value.rat };
   if (!isInteger(value.cell_id) || !isNullableInteger(value.sector_id) || !isNullableInteger(value.band_id)) return null;
+  const type = value.type;
+  if (type !== undefined && type !== null && !isCellType(type)) return null;
 
   switch (value.rat) {
     case "GSM":
@@ -132,6 +135,7 @@ function parseStoredMatchedCell(value: unknown): StoredAnalyzerMatchedCell | nul
         cell_id: value.cell_id,
         sector_id: value.sector_id,
         band_id: value.band_id,
+        ...(type === undefined ? {} : { type }),
         lac: value.lac,
         cid: value.cid,
       };
@@ -142,6 +146,7 @@ function parseStoredMatchedCell(value: unknown): StoredAnalyzerMatchedCell | nul
         cell_id: value.cell_id,
         sector_id: value.sector_id,
         band_id: value.band_id,
+        ...(type === undefined ? {} : { type }),
         rnc: value.rnc,
         cid: value.cid,
         lac: value.lac,
@@ -161,6 +166,7 @@ function parseStoredMatchedCell(value: unknown): StoredAnalyzerMatchedCell | nul
         cell_id: value.cell_id,
         sector_id: value.sector_id,
         band_id: value.band_id,
+        ...(type === undefined ? {} : { type }),
         enbid: value.enbid,
         clid: value.clid,
         tac: value.tac,
@@ -228,6 +234,7 @@ function normalizeMatchedCell(cell: StoredAnalyzerMatchedCell): StoredAnalyzerMa
         cell_id: cell.cell_id,
         sector_id: cell.sector_id,
         band_id: cell.band_id,
+        ...(cell.type === undefined ? {} : { type: cell.type }),
         lac: cell.lac,
         cid: cell.cid,
       };
@@ -237,6 +244,7 @@ function normalizeMatchedCell(cell: StoredAnalyzerMatchedCell): StoredAnalyzerMa
         cell_id: cell.cell_id,
         sector_id: cell.sector_id,
         band_id: cell.band_id,
+        ...(cell.type === undefined ? {} : { type: cell.type }),
         rnc: cell.rnc,
         cid: cell.cid,
         lac: cell.lac,
@@ -248,6 +256,7 @@ function normalizeMatchedCell(cell: StoredAnalyzerMatchedCell): StoredAnalyzerMa
         cell_id: cell.cell_id,
         sector_id: cell.sector_id,
         band_id: cell.band_id,
+        ...(cell.type === undefined ? {} : { type: cell.type }),
         enbid: cell.enbid,
         clid: cell.clid,
         tac: cell.tac,

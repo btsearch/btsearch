@@ -1,9 +1,15 @@
 import type { CellFormDetails, CellPayload, ProposedCellForm, SectorPayload } from "../types";
-import { RAT_ORDER } from "@/features/shared/rat";
+import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
+import { RAT_ORDER, getCellDetailDefaultValue } from "@/features/shared/rat";
 import type { SectorDraft } from "@/types/station";
 
 export function generateCellId(): string {
   return crypto.randomUUID();
+}
+
+export function getDefaultCellDetails(rat: ProposedCellForm["rat"]): ProposedCellForm["details"] {
+  const type = getCellDetailDefaultValue(rat, "type");
+  return type === null ? {} : ({ type } as ProposedCellForm["details"]);
 }
 
 function areDetailsEqual(a: Partial<CellFormDetails>, b: Partial<CellFormDetails>): boolean {
@@ -185,7 +191,8 @@ export function ukePermitsToCells(permits: UkePermitForCells[]): ProposedCellFor
         id: generateCellId(),
         rat: band.rat,
         band_id: band.id,
-        details: {},
+        type: DEFAULT_CELL_TYPE,
+        details: getDefaultCellDetails(band.rat),
       });
     }
   }

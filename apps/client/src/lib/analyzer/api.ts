@@ -1,7 +1,7 @@
 import { fetchApiData } from "../api";
 import type { AnalyzerCell } from "./analyzer-parsers";
 import { ANALYZER_CHUNK_CONCURRENCY, chunkAnalyzerCells } from "./chunks";
-import type { Operator, Region, UkeStation } from "@/types/station";
+import type { CellType, Operator, Region, UkeStation } from "@/types/station";
 
 export type AnalyzerLocation = {
   id: number;
@@ -33,6 +33,7 @@ export type AnalyzerMatchedCell =
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      type?: CellType | null;
       notes?: string | null;
       lac: number;
       cid: number;
@@ -43,6 +44,7 @@ export type AnalyzerMatchedCell =
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      type?: CellType | null;
       notes?: string | null;
       rnc: number;
       cid: number;
@@ -55,6 +57,7 @@ export type AnalyzerMatchedCell =
       cell_id: number;
       sector_id: number | null;
       band_id: number | null;
+      type?: CellType | null;
       notes?: string | null;
       enbid: number;
       clid: number | null;
