@@ -49,12 +49,14 @@ export async function createStationPhotoSelectionAuditLogs({
   previousSnapshots,
   req,
   metadata = {},
+  invokedBy,
 }: {
   handle: StationPhotoDatabase;
   stationIds: readonly number[];
   previousSnapshots: StationPhotoSelectionSnapshots;
   req: FastifyRequest;
   metadata?: Record<string, unknown>;
+  invokedBy?: string | null;
 }): Promise<void> {
   const uniqueStationIds = [...new Set(stationIds)];
   const nextSnapshots = await loadStationPhotoSelectionSnapshots(handle, uniqueStationIds);
@@ -72,6 +74,7 @@ export async function createStationPhotoSelectionAuditLogs({
         old_values: oldValues,
         new_values: newValues,
         metadata: { ...metadata, station_id: stationId },
+        invoked_by: invokedBy,
       },
       req,
       handle,

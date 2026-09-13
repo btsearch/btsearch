@@ -49,6 +49,7 @@ async function upsertLocation(
   proposedLocation: { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number },
   req: FastifyRequest,
   submissionId: string,
+  auditActorId: string | null,
   knownLocationAtCoords?: LocationRow | null,
 ): Promise<number> {
   const existingLocation =
@@ -85,6 +86,7 @@ async function upsertLocation(
           old_values: { region_id: existingLocation.region_id, city: existingLocation.city, address: existingLocation.address },
           new_values: { region_id: proposedLocation.region_id, city: proposedLocation.city, address: proposedLocation.address },
           metadata: { submission_id: submissionId },
+          invoked_by: auditActorId,
         },
         req,
         tx,
@@ -111,6 +113,7 @@ async function upsertLocation(
       record_id: newLocation.id,
       new_values: newLocation,
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -221,6 +224,7 @@ async function createExtraIdentifierForNewStation(
   stationId: number,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   if (!proposedStation.networks_id && !proposedStation.mno_name) return;
 
@@ -244,6 +248,7 @@ async function createExtraIdentifierForNewStation(
       old_values: null,
       new_values: newIdentifier,
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -257,6 +262,7 @@ async function createStationFromProposal(
   submissionId: string,
   req: FastifyRequest,
   proposedCellCount: number,
+  auditActorId: string | null,
 ): Promise<number> {
   const [newStation] = await tx
     .insert(stations)
@@ -279,12 +285,13 @@ async function createStationFromProposal(
       record_id: newStation.id,
       new_values: newStation,
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
   );
 
-  await createExtraIdentifierForNewStation(tx, proposedStation, newStation.id, submissionId, req);
+  await createExtraIdentifierForNewStation(tx, proposedStation, newStation.id, submissionId, req, auditActorId);
   return newStation.id;
 }
 
@@ -293,19 +300,34 @@ async function applyNewSubmission(
   draft: ApprovalDraft,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<{ stationId: number | null; resolvedLocationId: number | null }> {
   let locationId: number | null = null;
 
-  if (draft.proposedLocation) locationId = await upsertLocation(tx, draft.proposedLocation, req, submissionId);
+  if (draft.proposedLocation) locationId = await upsertLocation(tx, draft.proposedLocation, req, submissionId, auditActorId);
 
   let stationId: number | null = null;
   if (draft.proposedStation)
-    stationId = await createStationFromProposal(tx, draft.proposedStation, locationId, submissionId, req, draft.proposedCellRows.length);
+    stationId = await createStationFromProposal(
+      tx,
+      draft.proposedStation,
+      locationId,
+      submissionId,
+      req,
+      draft.proposedCellRows.length,
+      auditActorId,
+    );
 
   return { stationId, resolvedLocationId: locationId };
 }
 
-async function deleteEmptiedLocation(tx: DbTx, currentLocation: LocationRow, submissionId: string, req: FastifyRequest): Promise<void> {
+async function deleteEmptiedLocation(
+  tx: DbTx,
+  currentLocation: LocationRow,
+  submissionId: string,
+  req: FastifyRequest,
+  auditActorId: string | null,
+): Promise<void> {
   await tx.delete(locations).where(eq(locations.id, currentLocation.id));
   await createAuditLog(
     {
@@ -314,13 +336,21 @@ async function deleteEmptiedLocation(tx: DbTx, currentLocation: LocationRow, sub
       record_id: currentLocation.id,
       old_values: { longitude: currentLocation.longitude, latitude: currentLocation.latitude },
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
   );
 }
 
-async function updateStationLocation(tx: DbTx, stationId: number, locationId: number, submissionId: string, req: FastifyRequest): Promise<void> {
+async function updateStationLocation(
+  tx: DbTx,
+  stationId: number,
+  locationId: number,
+  submissionId: string,
+  req: FastifyRequest,
+  auditActorId: string | null,
+): Promise<void> {
   await tx.update(stations).set({ location_id: locationId, updatedAt: new Date() }).where(eq(stations.id, stationId));
   await createAuditLog(
     {
@@ -329,6 +359,7 @@ async function updateStationLocation(tx: DbTx, stationId: number, locationId: nu
       record_id: stationId,
       new_values: { location_id: locationId },
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -341,6 +372,7 @@ async function updateLocationMetadata(
   proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   const metadataChanged =
     currentLocation.region_id !== proposedLocation.region_id ||
@@ -361,6 +393,7 @@ async function updateLocationMetadata(
       old_values: { region_id: currentLocation.region_id, city: currentLocation.city, address: currentLocation.address },
       new_values: { region_id: proposedLocation.region_id, city: proposedLocation.city, address: proposedLocation.address },
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -375,6 +408,7 @@ async function applyUpdatedLocation(
   stationId: number,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<UpdatedLocationResult> {
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
@@ -386,7 +420,7 @@ async function applyUpdatedLocation(
     currentLocation && currentLocation.longitude === proposedLocation.longitude && currentLocation.latitude === proposedLocation.latitude;
 
   if (coordsUnchanged) {
-    await updateLocationMetadata(tx, currentLocation, proposedLocation, submissionId, req);
+    await updateLocationMetadata(tx, currentLocation, proposedLocation, submissionId, req, auditActorId);
     return { locationId: currentLocation.id, migratedPhotoIds: new Map() };
   }
 
@@ -394,15 +428,15 @@ async function applyUpdatedLocation(
     where: { AND: [{ longitude: proposedLocation.longitude }, { latitude: proposedLocation.latitude }] },
   });
 
-  const locationId = await upsertLocation(tx, proposedLocation, req, submissionId, locationAtNewCoords ?? null);
-  await updateStationLocation(tx, stationId, locationId, submissionId, req);
+  const locationId = await upsertLocation(tx, proposedLocation, req, submissionId, auditActorId, locationAtNewCoords ?? null);
+  await updateStationLocation(tx, stationId, locationId, submissionId, req, auditActorId);
   if (!currentLocation) return { locationId, migratedPhotoIds: new Map() };
 
   const [remainingResult] = await tx.select({ remaining: count() }).from(stations).where(eq(stations.location_id, currentLocation.id));
   const oldLocationOrphaned = Number(remainingResult?.remaining ?? 0) === 0;
 
   const migratedPhotoIds = await migrateStationPhotosToLocation(tx, stationId, currentLocation.id, locationId, oldLocationOrphaned);
-  if (oldLocationOrphaned) await deleteEmptiedLocation(tx, currentLocation, submissionId, req);
+  if (oldLocationOrphaned) await deleteEmptiedLocation(tx, currentLocation, submissionId, req, auditActorId);
 
   return { locationId, migratedPhotoIds };
 }
@@ -413,6 +447,7 @@ async function applyStationIdentityUpdate(
   stationId: number,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
@@ -470,6 +505,7 @@ async function applyStationIdentityUpdate(
       old_values: oldValues,
       new_values: newValues,
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -482,6 +518,7 @@ async function applyExtraIdentifierUpdate(
   stationId: number,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   const existingIdentifier = await tx.query.extraIdentificators.findFirst({ where: { station_id: stationId } });
   const proposedNetworksId = proposedStation.networks_id ?? null;
@@ -499,6 +536,7 @@ async function applyExtraIdentifierUpdate(
         old_values: existingIdentifier,
         new_values: null,
         metadata: { submission_id: submissionId },
+        invoked_by: auditActorId,
       },
       req,
       tx,
@@ -545,13 +583,20 @@ async function applyExtraIdentifierUpdate(
       old_values: existingIdentifier ?? null,
       new_values: updatedIdentifier,
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
   );
 }
 
-async function applyDeletedSubmission(tx: DbTx, stationId: number | null, submissionId: string, req: FastifyRequest): Promise<void> {
+async function applyDeletedSubmission(
+  tx: DbTx,
+  stationId: number | null,
+  submissionId: string,
+  req: FastifyRequest,
+  auditActorId: string | null,
+): Promise<void> {
   if (!stationId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete without a station" });
 
   await tx.update(stations).set(stationStatusUpdate("inactive")).where(eq(stations.id, stationId));
@@ -562,6 +607,7 @@ async function applyDeletedSubmission(tx: DbTx, stationId: number | null, submis
       record_id: stationId,
       new_values: { status: "inactive" },
       metadata: { submission_id: submissionId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -855,6 +901,7 @@ async function createSectorAuditLog(
   nextSectors: Array<{ id: number; azimuth: number }>,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   if (!stationId || proposedSectorRows.length === 0) return;
 
@@ -866,6 +913,7 @@ async function createSectorAuditLog(
       old_values: previousSectors,
       new_values: nextSectors,
       metadata: { submission_id: submissionId, station_id: stationId },
+      invoked_by: auditActorId,
     },
     req,
     tx,
@@ -878,6 +926,7 @@ async function createCellAuditLogs(
   stationId: number | null,
   submissionId: string,
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<void> {
   if (changes.added.length > 0)
     await createAuditLog(
@@ -887,6 +936,7 @@ async function createCellAuditLogs(
         record_id: null,
         new_values: { cells: changes.added },
         metadata: { submission_id: submissionId, station_id: stationId },
+        invoked_by: auditActorId,
       },
       req,
       tx,
@@ -900,6 +950,7 @@ async function createCellAuditLogs(
         old_values: { cells: changes.updated.map((cell) => cell.old) },
         new_values: { cells: changes.updated.map((cell) => cell.new) },
         metadata: { submission_id: submissionId, station_id: stationId },
+        invoked_by: auditActorId,
       },
       req,
       tx,
@@ -912,6 +963,7 @@ async function createCellAuditLogs(
         record_id: null,
         old_values: { cells: changes.deleted },
         metadata: { submission_id: submissionId, station_id: stationId },
+        invoked_by: auditActorId,
       },
       req,
       tx,
@@ -1211,6 +1263,7 @@ async function applySubmissionPhotos(
   migratedPhotoIds: Map<number, number>,
   locationPhotoSelections: SubmissionLocationPhotoSelectionRow[],
   req: FastifyRequest,
+  auditActorId: string | null,
 ): Promise<{ attachmentUuidsToDelete: string[]; photosAdded: boolean }> {
   if (!stationId || submission.type === "delete") return { attachmentUuidsToDelete: [], photosAdded: false };
 
@@ -1246,6 +1299,7 @@ async function applySubmissionPhotos(
     previousSnapshots: previousSelections,
     req,
     metadata: { submission_id: submissionId },
+    invokedBy: auditActorId,
   });
   return { attachmentUuidsToDelete, photosAdded: photos.length > 0 || locationPhotoAdditions.length > 0 };
 }
@@ -1315,9 +1369,10 @@ async function runApprovalTransaction({
   const targetCellsPromise = loadTargetCells(tx, draft.proposedCellRows);
   let stationId = submission.station_id;
   let resolvedLocationId: number | null = null;
+  const auditActorId = submission.submitter_id;
 
   if (submission.type === "new") {
-    const result = await applyNewSubmission(tx, draft, submissionId, req);
+    const result = await applyNewSubmission(tx, draft, submissionId, req, auditActorId);
     stationId = result.stationId;
     resolvedLocationId = result.resolvedLocationId;
   }
@@ -1329,17 +1384,17 @@ async function runApprovalTransaction({
 
   let migratedPhotoIds = new Map<number, number>();
   if (submission.type === "update" && draft.proposedLocation && stationId) {
-    const locationResult = await applyUpdatedLocation(tx, draft.proposedLocation, stationId, submissionId, req);
+    const locationResult = await applyUpdatedLocation(tx, draft.proposedLocation, stationId, submissionId, req, auditActorId);
     resolvedLocationId = locationResult.locationId;
     migratedPhotoIds = locationResult.migratedPhotoIds;
   }
 
   if (submission.type === "update" && draft.proposedStation && stationId) {
-    await applyStationIdentityUpdate(tx, draft.proposedStation, stationId, submissionId, req);
-    await applyExtraIdentifierUpdate(tx, draft.proposedStation, stationId, submissionId, req);
+    await applyStationIdentityUpdate(tx, draft.proposedStation, stationId, submissionId, req, auditActorId);
+    await applyExtraIdentifierUpdate(tx, draft.proposedStation, stationId, submissionId, req, auditActorId);
   }
 
-  if (submission.type === "delete") await applyDeletedSubmission(tx, stationId, submissionId, req);
+  if (submission.type === "delete") await applyDeletedSubmission(tx, stationId, submissionId, req, auditActorId);
 
   const { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors, nextSectors } = await applyProposedSectors(
     tx,
@@ -1370,6 +1425,7 @@ async function runApprovalTransaction({
           old_values: { status: "pending" },
           new_values: { status: "published" },
           metadata: { submission_id: submissionId },
+          invoked_by: auditActorId,
         },
         req,
         tx,
@@ -1377,8 +1433,8 @@ async function runApprovalTransaction({
   }
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
-  await createSectorAuditLog(tx, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId, req);
-  await createCellAuditLogs(tx, cellChanges, stationId, submissionId, req);
+  await createSectorAuditLog(tx, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId, req, auditActorId);
+  await createCellAuditLogs(tx, cellChanges, stationId, submissionId, req, auditActorId);
 
   if (submission.type === "update" && stationId && !publishedPendingStation)
     await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
@@ -1392,6 +1448,7 @@ async function runApprovalTransaction({
     migratedPhotoIds,
     submissionPhotoSelectionRows,
     req,
+    auditActorId,
   );
 
   const updated = await finalizeApprovedSubmission(tx, submission, submissionId, reviewerId, reviewerNotes);

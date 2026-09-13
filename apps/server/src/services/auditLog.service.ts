@@ -15,13 +15,14 @@ export interface AuditLogEntry {
   new_values?: unknown;
   metadata?: unknown;
   source?: AuditSourceType;
+  invoked_by?: string | null;
 }
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export async function createAuditLog(entry: AuditLogEntry, req: FastifyRequest, tx?: Database | Transaction) {
   const handle = tx ?? db;
-  const userId = req.userSession?.user?.id ?? null;
+  const invokedBy = entry.invoked_by === undefined ? (req.userSession?.user?.id ?? null) : entry.invoked_by;
 
   await handle.insert(auditLogs).values({
     action: entry.action,
@@ -33,6 +34,6 @@ export async function createAuditLog(entry: AuditLogEntry, req: FastifyRequest, 
     source: entry.source ?? "api",
     ip_address: req.ip ?? null,
     user_agent: req.headers["user-agent"] ?? null,
-    invoked_by: userId,
+    invoked_by: invokedBy,
   });
 }
