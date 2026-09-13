@@ -130,7 +130,7 @@ function getLteBandName(bandValue: number | null | undefined, duplex: "FDD" | "T
 }
 
 function getCellTypeLabel(cell: CellExportData): string {
-  if (!cell.cell_type) return "";
+  if (!cell.cell_type || cell.cell_type === "MACROCELL") return "";
   return CELL_TYPE_SHORT_LABELS[cell.cell_type as keyof typeof CELL_TYPE_SHORT_LABELS] ?? "";
 }
 
