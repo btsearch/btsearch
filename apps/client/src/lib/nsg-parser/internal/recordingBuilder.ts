@@ -14,6 +14,7 @@ import { EventProcessor, type EventProcessorSink } from "./eventProcessor";
 import { associateQualcommNsaMeasurements, mergeAssociatedNsaCells } from "./nsa/association";
 import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo, TimedNrMeasurement } from "./nsa/model";
 import type { QualcommDiagPrefix } from "./qualcomm/diag";
+import { isConnectedQualcommNrSa } from "./qualcomm/nrConfiguration";
 import type { DecodedQualcommRecord, QualcommRecordPolicy } from "./qualcomm/record";
 import { decodeQualcommRecord } from "./qualcomm/record";
 import { isValidQualcommSignalingEnvelope } from "./qualcomm/signaling/decoder";
@@ -270,9 +271,6 @@ export class RecordingBuilder {
       elapsedUs: context.elapsedUs,
       cellIdentity: info.cellIdentity,
       earfcn: info.earfcn,
-      pci: info.pci,
-      mcc: info.mcc,
-      mnc: info.mnc,
     });
   }
 
@@ -314,16 +312,21 @@ export class RecordingBuilder {
 
   private emitAssociatedNrCells(): void {
     if (this.mode === "streaming") return;
-    const sa = fuseQualcommSaCells(
-      this.cells,
-      this.events,
-      this.nrConfigurations,
-      this.nrServingCellInfos,
-      this.nrMeasurements,
-      this.lteAnchors,
-      this.lteServingCellInfos,
-      this.defaultDataSubscriptions,
-    );
+    const shouldFuseSa =
+      this.nrConfigurations.some(({ configuration }) => isConnectedQualcommNrSa(configuration)) ||
+      (this.nrMeasurements.length > 0 && this.cells.some((cell) => cell.rat === "NR" && cell.nrMode === "SA"));
+    const sa = shouldFuseSa
+      ? fuseQualcommSaCells(
+          this.cells,
+          this.events,
+          this.nrConfigurations,
+          this.nrServingCellInfos,
+          this.nrMeasurements,
+          this.lteAnchors,
+          this.lteServingCellInfos,
+          this.defaultDataSubscriptions,
+        )
+      : { cells: this.cells, syntheticEvents: [], remainingMeasurements: this.nrMeasurements };
     for (const event of sa.syntheticEvents) {
       this.events.push(event);
       this.eventCount++;

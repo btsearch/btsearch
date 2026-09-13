@@ -1,16 +1,12 @@
-import { Gunzip } from "fflate";
+import { AsyncGunzip } from "fflate";
 
 import { NSG_MAGIC } from "./internal/container";
 import type { NsgParseInput } from "./model";
 
 const GZIP_MAGIC = [0x1f, 0x8b] as const;
 const GZIP_INPUT_BATCH_BYTES = 256 * 1024;
+const GZIP_MAX_QUEUED_BYTES = 2 * GZIP_INPUT_BATCH_BYTES;
 const GZIP_TRAILER_BYTES = 8;
-const CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, byte) => {
-  let crc = byte;
-  for (let bit = 0; bit < 8; bit++) crc = (crc & 1) === 0 ? crc >>> 1 : 0xedb88320 ^ (crc >>> 1);
-  return crc >>> 0;
-});
 const GZIP_BOUNDARY_SENTINEL = Uint8Array.of(
   0x1f,
   0x8b,
@@ -37,20 +33,87 @@ const GZIP_BOUNDARY_SENTINEL = Uint8Array.of(
 type GzipMember = Readonly<{
   endOffset: number;
   size: number;
-  crc32: number;
+}>;
+
+type PendingPush = Readonly<{
+  resolve: () => void;
+  reject: (reason?: unknown) => void;
+}>;
+
+type StreamingGunzip = Readonly<{
+  push: (chunk: Uint8Array, final?: boolean) => Promise<void>;
+  terminate: (reason?: unknown) => void;
 }>;
 
 function hasMagic(header: Uint8Array, magic: readonly number[]): boolean {
   return magic.every((byte, index) => header[index] === byte);
 }
 
-function updateCrc32(crc: number, bytes: Uint8Array): number {
-  let next = crc;
-  for (const byte of bytes) next = CRC32_TABLE[(next ^ byte) & 0xff] ^ (next >>> 8);
-  return next >>> 0;
+function createAsyncGunzip(onData: (chunk: Uint8Array) => void, onMember: (offset: number) => void): StreamingGunzip {
+  let failure: unknown = null;
+  let pendingDrain: PendingPush | null = null;
+  let pendingFinal: PendingPush | null = null;
+  let gunzip: AsyncGunzip | null = null;
+
+  function fail(reason: unknown): void {
+    if (failure !== null) return;
+    failure = reason;
+    pendingDrain?.reject(reason);
+    pendingFinal?.reject(reason);
+    pendingDrain = null;
+    pendingFinal = null;
+    gunzip?.terminate();
+  }
+
+  gunzip = new AsyncGunzip((error, chunk, final) => {
+    if (error !== null) {
+      fail(error);
+      return;
+    }
+    if (failure !== null) return;
+    try {
+      onData(chunk);
+    } catch (error) {
+      fail(error);
+      return;
+    }
+    if (!final) return;
+    pendingFinal?.resolve();
+    pendingFinal = null;
+  });
+  gunzip.onmember = onMember;
+  gunzip.ondrain = () => {
+    if (gunzip !== null && gunzip.queuedSize >= GZIP_MAX_QUEUED_BYTES) return;
+    pendingDrain?.resolve();
+    pendingDrain = null;
+  };
+
+  return {
+    push(chunk, final = false) {
+      if (failure !== null) return Promise.reject(failure);
+      return new Promise<void>((resolve, reject) => {
+        if (final) pendingFinal = { resolve, reject };
+        try {
+          gunzip?.push(chunk, final);
+          if (!final && (gunzip?.queuedSize ?? 0) < GZIP_MAX_QUEUED_BYTES) resolve();
+          else if (!final) pendingDrain = { resolve, reject };
+        } catch (error) {
+          reject(error);
+          fail(error);
+        }
+      });
+    },
+    terminate(reason = new DOMException("The gzip stream was cancelled.", "AbortError")) {
+      fail(reason);
+    },
+  };
 }
 
-async function validateGzipMembers(file: File, members: readonly GzipMember[]): Promise<void> {
+function createStreamingGunzip(onData: (chunk: Uint8Array) => void, onMember: (offset: number) => void): StreamingGunzip {
+  return createAsyncGunzip(onData, onMember);
+}
+
+async function validateGzipMemberSizes(file: File, members: readonly GzipMember[]): Promise<void> {
   const trailers = await Promise.all(
     members.map((member) => {
       if (member.endOffset < GZIP_TRAILER_BYTES || member.endOffset > file.size) throw new Error("Invalid gzip member boundary.");
@@ -62,7 +125,6 @@ async function validateGzipMembers(file: File, members: readonly GzipMember[]): 
     const trailer = trailers[index];
     if (trailer.byteLength !== GZIP_TRAILER_BYTES) throw new Error("Truncated gzip member trailer.");
     const view = new DataView(trailer);
-    if (view.getUint32(0, true) !== member.crc32) throw new Error("Invalid gzip member checksum.");
     if (view.getUint32(4, true) !== member.size) throw new Error("Invalid gzip member size.");
   }
 }
@@ -82,20 +144,18 @@ export async function openNsgFile(file: File): Promise<NsgParseInput> {
   let bytesRead = 0;
   let finalMemberCompleted = false;
   let memberSize = 0;
-  let memberCrc32 = 0xffffffff;
-  let gunzip: Gunzip | null = null;
+  let gunzip: StreamingGunzip | null = null;
   const members: GzipMember[] = [];
   let pendingChunks: Uint8Array[] = [];
   let pendingBytes = 0;
 
   function completeMember(endOffset: number): void {
-    members.push({ endOffset, size: memberSize, crc32: (memberCrc32 ^ 0xffffffff) >>> 0 });
+    members.push({ endOffset, size: memberSize });
     memberSize = 0;
-    memberCrc32 = 0xffffffff;
     if (endOffset === file.size) finalMemberCompleted = true;
   }
 
-  function pushPendingChunks(): void {
+  async function pushPendingChunks(): Promise<void> {
     if (pendingBytes === 0) return;
     if (gunzip === null) throw new Error("The gzip decoder was not initialized.");
     let chunk = pendingChunks[0];
@@ -109,36 +169,50 @@ export async function openNsgFile(file: File): Promise<NsgParseInput> {
     }
     pendingChunks = [];
     pendingBytes = 0;
-    gunzip.push(chunk);
+    await gunzip.push(chunk);
   }
 
-  const stream = file.stream().pipeThrough(
+  const transformedStream = file.stream().pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       start(controller) {
-        gunzip = new Gunzip((chunk) => {
+        gunzip = createStreamingGunzip((chunk) => {
           if (chunk.byteLength === 0) return;
           memberSize = (memberSize + chunk.byteLength) >>> 0;
-          memberCrc32 = updateCrc32(memberCrc32, chunk);
           controller.enqueue(chunk);
-        });
-        gunzip.onmember = completeMember;
+        }, completeMember);
       },
-      transform(chunk) {
+      async transform(chunk) {
         if (chunk.byteLength === 0) return;
         bytesRead += chunk.byteLength;
         pendingChunks.push(chunk);
         pendingBytes += chunk.byteLength;
-        if (pendingBytes >= GZIP_INPUT_BATCH_BYTES) pushPendingChunks();
+        if (pendingBytes >= GZIP_INPUT_BATCH_BYTES) await pushPendingChunks();
       },
       async flush() {
         if (gunzip === null) throw new Error("The gzip decoder was not initialized.");
-        pushPendingChunks();
-        gunzip.push(GZIP_BOUNDARY_SENTINEL, true);
+        await pushPendingChunks();
+        await gunzip.push(GZIP_BOUNDARY_SENTINEL.slice(), true);
         if (!finalMemberCompleted) throw new Error("Truncated gzip member trailer.");
-        await validateGzipMembers(file, members);
+        await validateGzipMemberSizes(file, members);
       },
     }),
   );
+  const reader = transformedStream.getReader();
+  const stream = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const result = await reader.read();
+        if (result.done) controller.close();
+        else controller.enqueue(result.value);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      gunzip?.terminate(reason);
+      await reader.cancel(reason);
+    },
+  });
 
   function inputBytesRead(): number {
     return bytesRead;

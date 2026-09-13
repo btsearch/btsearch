@@ -18,9 +18,6 @@ export type TimedLteServingCellInfo = Readonly<{
   elapsedUs: number;
   cellIdentity: number;
   earfcn: number;
-  pci: number;
-  mcc: string;
-  mnc: string;
 }>;
 
 export type DefaultDataSubscriptionChange = Readonly<{
