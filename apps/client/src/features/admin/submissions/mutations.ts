@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
+import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { sectorAssignmentPayload, sectorsToPayloads } from "@/features/submissions/utils/cells";
 import { API_BASE, fetchJson } from "@/lib/api";
@@ -28,6 +29,14 @@ export interface SaveSubmissionPayload {
   locationForm: ProposedLocationForm;
   sectors: SectorDraft[];
   localCells: LocalCell[];
+}
+
+function invalidateSubmissionQueries(queryClient: QueryClient, submissionId: string): void {
+  void Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["admin", "submission", submissionId] }),
+    queryClient.invalidateQueries({ queryKey: ["submission-edit", submissionId] }),
+    queryClient.invalidateQueries({ queryKey: submissionDetailQueryOptions(submissionId).queryKey }),
+  ]);
 }
 
 export function useSaveSubmissionMutation() {
@@ -72,7 +81,7 @@ export function useSaveSubmissionMutation() {
       });
     },
     onSuccess: (_data, payload) => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "submission", payload.submissionId] });
+      invalidateSubmissionQueries(queryClient, payload.submissionId);
     },
   });
 }
@@ -88,7 +97,7 @@ export function useApproveSubmissionMutation() {
       });
     },
     onSuccess: (_data, payload) => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "submission", payload.submissionId] });
+      invalidateSubmissionQueries(queryClient, payload.submissionId);
     },
   });
 }
@@ -104,7 +113,7 @@ export function useRejectSubmissionMutation() {
       });
     },
     onSuccess: (_data, payload) => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "submission", payload.submissionId] });
+      invalidateSubmissionQueries(queryClient, payload.submissionId);
     },
   });
 }

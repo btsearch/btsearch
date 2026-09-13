@@ -88,6 +88,7 @@
     "addressOwnWordForbidden": "Use the real address instead of variants of \"własna\", e.g. \"wieża T-Mobile\"",
     "cellsSaved": "Cells have been saved",
     "saved": "Station has been saved",
+    "refreshFailed": "The station was saved, but its latest data could not be loaded",
     "noBands": "No available bands for {{rat}}",
     "duplicateCid": "Duplicate CID found in {{rat}} cells",
     "duplicateEnbidClid": "Duplicate eNBID+CLID combination found in LTE cells",

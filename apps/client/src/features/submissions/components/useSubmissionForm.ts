@@ -13,6 +13,7 @@ import {
   updateSubmission,
   uploadSubmissionPhotos,
 } from "../api";
+import { submissionDetailQueryOptions } from "../queries";
 import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, StationAction, SubmissionMode } from "../types";
 import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
 import { type OriginalState, hasFormChanges, isEqualLocation, isEqualStation } from "../utils/equality";
@@ -290,9 +291,10 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       }
       toast.success(t(isEditMode ? "toast.updated" : "toast.submitted"));
       clearLocationPhotoDraft();
-      if (isEditMode && submittedValues) {
+      if (isEditMode && editSubmissionId && submittedValues) {
         setOriginalState(buildOriginalState(submittedValues));
         void queryClient.invalidateQueries({ queryKey: ["submission-edit", editSubmissionId] });
+        void queryClient.invalidateQueries({ queryKey: submissionDetailQueryOptions(editSubmissionId).queryKey });
       } else {
         form.reset();
         setOriginalState({});

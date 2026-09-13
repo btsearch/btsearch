@@ -149,8 +149,6 @@
     "openAuditLog": "Logi w dzienniku",
     "openSubmissions": "Zgłoszenia",
     "values": {
-      "yes": "Tak",
-      "no": "Nie",
       "previous": "Poprzednia wartość",
       "current": "Aktualna wartość",
       "photoReference": "Zdjęcie #{{id}}",

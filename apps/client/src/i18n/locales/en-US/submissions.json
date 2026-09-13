@@ -189,10 +189,25 @@
   "mySubmissions": {
     "reviewedBy": "Reviewed by",
     "staleDataWarning": "Couldn't refresh submissions. Showing previously loaded data",
+    "openChanges": "View submitted changes for {{stationId}}",
     "editTooltip": "Edit submission",
     "deleteTooltip": "Delete submission",
     "confirmDelete": "Are you sure you want to delete this submission?",
     "confirmDeleteDesc": "This can't be undone. The submission will be permanently deleted"
+  },
+  "changesSheet": {
+    "title": "Submission changes",
+    "loading": "Loading submission changes",
+    "stationAdd": "New station details",
+    "stationUpdate": "Station changes",
+    "stationDelete": "Station to delete",
+    "sectors": "Sector layout",
+    "cells": "Cell changes",
+    "cellId": "Cell #{{id}}",
+    "sector": "Sector",
+    "sectorId": "Sector #{{id}}",
+    "deletedCell": "This cell is marked for removal from the station",
+    "loadError": "Couldn't load the submitted changes"
   },
   "batch": {
     "stationCount_one": "{{count}} station",

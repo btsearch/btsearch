@@ -191,10 +191,25 @@
   "mySubmissions": {
     "reviewedBy": "Sprawdzone przez",
     "staleDataWarning": "Nie udało się odświeżyć zgłoszeń. Wyświetlamy wcześniej wczytane dane",
+    "openChanges": "Zobacz przesłane zmiany dla {{stationId}}",
     "editTooltip": "Edytuj zgłoszenie",
     "deleteTooltip": "Usuń zgłoszenie",
     "confirmDelete": "Czy na pewno chcesz usunąć to zgłoszenie?",
     "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zgłoszenie zostanie trwale usunięte"
+  },
+  "changesSheet": {
+    "title": "Zmiany w zgłoszeniu",
+    "loading": "Wczytywanie zmian w zgłoszeniu",
+    "stationAdd": "Dane nowej stacji",
+    "stationUpdate": "Zmiany stacji",
+    "stationDelete": "Stacja do usunięcia",
+    "sectors": "Układ sektorów",
+    "cells": "Zmiany komórek",
+    "cellId": "Komórka #{{id}}",
+    "sector": "Sektor",
+    "sectorId": "Sektor #{{id}}",
+    "deletedCell": "Ta komórka jest oznaczona do usunięcia ze stacji",
+    "loadError": "Nie udało się wczytać przesłanych zmian"
   },
   "batch": {
     "stationCount_one": "{{count}} stacja",

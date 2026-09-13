@@ -1,6 +1,7 @@
 import {
   Add01Icon,
   AlertCircleIcon,
+  ArrowRight01Icon,
   Cancel01Icon,
   Delete02Icon,
   FullSignalIcon,
@@ -13,7 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -48,14 +49,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { StationIdentityCell } from "@/features/admin/submissions/components/stationIdentityCell";
+import { SubmissionChangesSummary } from "@/features/admin/submissions/components/submissionListParts";
 import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
-import { operatorsQueryOptions } from "@/features/shared/queries";
+import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import type { MySubmissionsFilters } from "@/features/submissions/api";
-import { deleteSubmission } from "@/features/submissions/api";
-import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
+import { deleteSubmission, fetchSubmissionPhotos } from "@/features/submissions/api";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
+import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -71,6 +73,32 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const STATUS_STORAGE_KEY = "account:submissions:status";
 const OPERATORS_STORAGE_KEY = "account:submissions:operators";
+const SUBMISSION_PHOTOS_STALE_TIME = 1000 * 60 * 2;
+
+function loadSubmissionChangesSheet(): Promise<typeof import("./submissionChangesSheet")> {
+  return import("./submissionChangesSheet");
+}
+
+const SubmissionChangesSheet = lazy(() => loadSubmissionChangesSheet().then(({ SubmissionChangesSheet }) => ({ default: SubmissionChangesSheet })));
+
+function SubmissionChangesSheetFallback() {
+  const { t } = useTranslation("submissions");
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/40" aria-hidden="true" />
+      <aside
+        role="status"
+        aria-live="polite"
+        className="fixed inset-y-0 right-0 z-50 flex w-full items-center justify-center border-l bg-background p-6 shadow-lg sm:max-w-xl"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner className="size-4" />
+          {t("changesSheet.loading")}
+        </div>
+      </aside>
+    </>
+  );
+}
 
 function loadStoredStatus(): StatusFilter {
   try {
@@ -302,6 +330,8 @@ export function MySubmissions() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(loadStoredStatus);
   const [selectedOperatorMncs, setSelectedOperatorMncs] = useState<number[]>(loadStoredOperatorMncs);
   const [searchInput, setSearchInput] = useState("");
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null);
+  const [isSubmissionSheetOpen, setIsSubmissionSheetOpen] = useState(false);
   const activeSearch = useDebouncedValue(searchInput, 300);
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
@@ -370,6 +400,21 @@ export function MySubmissions() {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const { openStationDialog } = useFloatingDialogStack();
   const handleStationClick = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
+  const handleSubmissionClick = useCallback(
+    (submission: SubmissionRow) => {
+      void queryClient.prefetchQuery(submissionDetailQueryOptions(submission.id));
+      void queryClient.prefetchQuery({
+        queryKey: ["submission-photos", submission.id],
+        queryFn: () => fetchSubmissionPhotos(submission.id),
+        staleTime: SUBMISSION_PHOTOS_STALE_TIME,
+      });
+      if (submission.cells.length > 0) void queryClient.prefetchQuery(bandsQueryOptions());
+      void queryClient.prefetchQuery(regionsQueryOptions());
+      setSelectedSubmission(submission);
+      setIsSubmissionSheetOpen(true);
+    },
+    [queryClient],
+  );
 
   // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual requires the compiler's automatic bailout
   const virtualizer = useVirtualizer({
@@ -461,7 +506,6 @@ export function MySubmissions() {
           const hasNotes = !!submission.review_notes;
           const hasReview = hasNotes || !!submission.reviewer;
           const stationId = submission.station_id;
-          const submissionIdentityId = `submission-${submission.id}-identity`;
           const reviewHeadingId = `submission-${submission.id}-review-heading`;
 
           return (
@@ -480,11 +524,23 @@ export function MySubmissions() {
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              <article aria-labelledby={submissionIdentityId} className="group border-b border-border/50 hover:bg-muted/40 transition-colors">
-                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 md:flex md:gap-3">
-                  <div id={submissionIdentityId} className="col-span-2 col-start-1 row-start-1 min-w-0 md:order-2 md:flex-1">
+              <article className="group relative border-b border-border/50">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-label={t("mySubmissions.openChanges", {
+                    stationId: submission.station?.station_id ?? submission.proposedStation?.station_id ?? t("common:labels.newStation"),
+                  })}
+                  onPointerEnter={() => void loadSubmissionChangesSheet()}
+                  onFocus={() => void loadSubmissionChangesSheet()}
+                  onClick={() => handleSubmissionClick(submission)}
+                  className="absolute inset-0 z-0 cursor-pointer transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                />
+                <div className="pointer-events-none relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 px-3 py-2.5 md:flex md:gap-3">
+                  <div className="col-span-2 col-start-1 row-start-1 min-w-0 md:order-2 md:flex-1">
                     {submission.station ? (
                       <StationIdentityCell
+                        className={stationId !== null ? "pointer-events-auto relative z-10" : undefined}
                         stationId={submission.station.station_id}
                         operator={getOperatorById(submission.station.operator_id)}
                         fallback={t("common:labels.newStation")}
@@ -510,7 +566,7 @@ export function MySubmissions() {
                   </div>
 
                   <div className="col-start-1 row-start-2 justify-self-start md:order-1">
-                    <SubmissionTypeBadge type={submission.type} />
+                    <SubmissionChangesSummary submission={submission} />
                   </div>
 
                   <time
@@ -520,54 +576,71 @@ export function MySubmissions() {
                     {formatShortDate(submission.createdAt, i18n.language)}
                   </time>
 
-                  {submission.status === "pending" ? (
-                    <div className="col-start-3 row-start-2 flex items-center gap-1 justify-self-end md:order-3">
-                      <Tooltip>
-                        <TooltipTrigger render={<span />}>
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            nativeButton={false}
-                            render={<Link to="/submission" search={{ edit: submission.id }} />}
-                            aria-label={t("mySubmissions.editTooltip")}
-                          >
-                            <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("mySubmissions.editTooltip")}</TooltipContent>
-                      </Tooltip>
-                      <AlertDialog>
+                  <div className="pointer-events-none col-start-3 row-start-2 flex items-center gap-1 justify-self-end md:order-3">
+                    {submission.status === "pending" ? (
+                      <>
                         <Tooltip>
                           <TooltipTrigger render={<span />}>
-                            <AlertDialogTrigger render={<Button size="icon-sm" variant="ghost" aria-label={t("mySubmissions.deleteTooltip")} />}>
-                              <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
-                            </AlertDialogTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("mySubmissions.deleteTooltip")}</TooltipContent>
-                        </Tooltip>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t("mySubmissions.confirmDelete")}</AlertDialogTitle>
-                            <AlertDialogDescription>{t("mySubmissions.confirmDeleteDesc")}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-                            <AlertDialogAction
-                              variant="destructive"
-                              onClick={() => deleteMutation.mutate(submission.id)}
-                              disabled={deleteMutation.isPending}
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              className="pointer-events-auto relative z-10"
+                              nativeButton={false}
+                              render={<Link to="/submission" search={{ edit: submission.id }} />}
+                              aria-label={t("mySubmissions.editTooltip")}
                             >
-                              {t("common:actions.delete")}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ) : null}
+                              <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("mySubmissions.editTooltip")}</TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                          <Tooltip>
+                            <TooltipTrigger render={<span />}>
+                              <AlertDialogTrigger
+                                render={
+                                  <Button
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    className="pointer-events-auto relative z-10"
+                                    aria-label={t("mySubmissions.deleteTooltip")}
+                                  />
+                                }
+                              >
+                                <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
+                              </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("mySubmissions.deleteTooltip")}</TooltipContent>
+                          </Tooltip>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("mySubmissions.confirmDelete")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("mySubmissions.confirmDeleteDesc")}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() => deleteMutation.mutate(submission.id)}
+                                disabled={deleteMutation.isPending}
+                              >
+                                {t("common:actions.delete")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    ) : null}
+                    <HugeiconsIcon
+                      icon={ArrowRight01Icon}
+                      className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
+                  </div>
                 </div>
 
                 {hasReview && (
-                  <div className="px-3 pb-2.5 pt-0">
+                  <div className="pointer-events-none relative px-3 pb-2.5 pt-0">
                     <section aria-labelledby={reviewHeadingId} className="bg-muted/60 rounded-lg px-3 py-2.5 space-y-1">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <h3 id={reviewHeadingId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -633,6 +706,17 @@ export function MySubmissions() {
       <div ref={setScrollEl} className={cn("flex-1 min-h-0 overflow-y-auto", showFloatingMobileFilters && "max-md:mb-10")}>
         {listContent}
       </div>
+
+      {selectedSubmission ? (
+        <Suspense fallback={<SubmissionChangesSheetFallback />}>
+          <SubmissionChangesSheet
+            submission={selectedSubmission}
+            operators={operators}
+            open={isSubmissionSheetOpen}
+            onOpenChange={setIsSubmissionSheetOpen}
+          />
+        </Suspense>
+      ) : null}
 
       {navActionTarget &&
         createPortal(

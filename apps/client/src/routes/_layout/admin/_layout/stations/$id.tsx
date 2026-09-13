@@ -19,6 +19,7 @@ import { StationDetailHeader } from "@/features/admin/stations/components/statio
 import { StationInfoForm } from "@/features/admin/stations/components/stationInfoForm";
 import { StationPhotoSelector } from "@/features/admin/stations/components/StationPhotoSelector";
 import { type LocalCell, isCellModified, useSaveStationMutation } from "@/features/admin/stations/mutations";
+import { adminStationQueryOptions } from "@/features/admin/stations/queries";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { groupPermitsByStation } from "@/features/map/utils";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
@@ -29,7 +30,7 @@ import { findDuplicateCids, findDuplicateEnbidClids } from "@/features/submissio
 import { ukePermitsToCells } from "@/features/submissions/utils/cells";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useSettings } from "@/hooks/useSettings";
-import { fetchApiData, showApiError } from "@/lib/api";
+import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { isRecent } from "@/lib/dateUtils";
 import { shallowEqual } from "@/lib/shallowEqual";
@@ -86,8 +87,7 @@ function AdminStationDetailPage() {
   const isCreateMode = id === "new";
 
   const { data: station, isLoading } = useQuery({
-    queryKey: ["admin", "station", id],
-    queryFn: () => fetchApiData<Station>(`stations/${id}`),
+    ...adminStationQueryOptions(id),
     enabled: !!id && !isCreateMode,
   });
 
@@ -476,34 +476,40 @@ function StationDetailForm({
         stationStatus,
       },
       {
-        onSuccess: async (result) => {
+        onSuccess: (result) => {
           if (result.mode === "create") {
             const resultLocationId = result.station.location?.id;
-            if (photos.length > 0 && resultLocationId) {
-              await uploadAndAssignStationPhotos({
-                locationId: resultLocationId,
-                stationId: result.station.id,
-                files: photos,
-                selected: [],
-                mainId: null,
-                useFirstUploadedAsMain: true,
-              }).catch(() => {
-                toast.error(t("toast.photoUploadFailed"));
-              });
-            }
-            toast.success(t("toast.created"));
-            void navigate({ to: `/admin/stations/${result.station.id}`, replace: true });
-          } else {
-            toast.success(t("toast.saved"));
-            dispatch({ type: "CLEAR_DELETED" });
-            const fresh = await queryClient.fetchQuery<Station>({
-              queryKey: ["admin", "station", String(result.stationId)],
+            const photoUpload =
+              photos.length > 0 && resultLocationId
+                ? uploadAndAssignStationPhotos({
+                    locationId: resultLocationId,
+                    stationId: result.station.id,
+                    files: photos,
+                    selected: [],
+                    mainId: null,
+                    useFirstUploadedAsMain: true,
+                  }).catch(() => {
+                    toast.error(t("toast.photoUploadFailed"));
+                  })
+                : Promise.resolve();
+            void photoUpload.then(() => {
+              toast.success(t("toast.created"));
+              void navigate({ to: `/admin/stations/${result.station.id}`, replace: true });
             });
-            setLocalCells(sortAndMapCells(fresh.cells));
-            const freshRats = new Set(fresh.cells.map((c) => c.rat));
-            setEnabledRats(RAT_ORDER.filter((r) => freshRats.has(r)));
-            setSectors((fresh.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })));
+            return;
           }
+
+          toast.success(t("toast.saved"));
+          void queryClient
+            .query(adminStationQueryOptions(result.stationId))
+            .then((fresh) => {
+              dispatch({ type: "CLEAR_DELETED" });
+              setLocalCells(sortAndMapCells(fresh.cells));
+              const freshRats = new Set(fresh.cells.map((c) => c.rat));
+              setEnabledRats(RAT_ORDER.filter((r) => freshRats.has(r)));
+              setSectors((fresh.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })));
+            })
+            .catch(() => toast.error(t("toast.refreshFailed")));
         },
         onError: (error) => {
           showApiError(error);

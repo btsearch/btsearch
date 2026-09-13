@@ -3,7 +3,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { DraftCell } from "../../utils/fromAnalyzer";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
@@ -11,6 +10,7 @@ import { CellTypeInfoPopover } from "@/features/shared/CellTypeInfoPopover";
 import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getCellDetailKeys, getRatChannelField } from "@/features/shared/rat";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
+import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
 import { type AnalyzerDetailKey, getAnalyzerBandMhz, getAnalyzerBandNumber } from "@/features/submissions/utils/analyzerRatSpecs";
 import { cn } from "@/lib/utils";
 import type { CellType } from "@/types/station";
@@ -61,18 +61,7 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
       )}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <Badge
-          variant="secondary"
-          className={cn(
-            change.conflict
-              ? "bg-destructive/10 text-destructive"
-              : isAddOperation
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                : "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-          )}
-        >
-          {t(isAddOperation ? "batch.addOperation" : "batch.updateOperation")}
-        </Badge>
+        <SubmissionCellOperationBadge operation={change.operation} conflict={change.conflict} />
         <TechnologySummary bands={[change.rat]} className="mt-0 pl-0" />
         {mhz !== null || band !== null ? (
           <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">

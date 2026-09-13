@@ -13,6 +13,7 @@ import {
   putStationSectors,
   updateExtraIds,
 } from "./api";
+import { type StationUpdateImpact, invalidateStationUpdateQueries } from "./queries";
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { pickCellDetails } from "@/features/submissions/api";
 import { shallowEqual } from "@/lib/shallowEqual";
@@ -33,29 +34,30 @@ export function useDeleteStationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (stationId: number) => deleteStation(stationId),
-    onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "stations"] });
+    onSuccess: (_result, stationId) => {
+      invalidateStationUpdateQueries(
+        queryClient,
+        {
+          stationId,
+          oldLocationId: null,
+          newLocationId: null,
+          stationMetadataChanged: true,
+          locationMetadataChanged: false,
+          locationMoved: false,
+          cellsChanged: false,
+          cellCountChanged: false,
+          sectorsChanged: false,
+          extraIdsChanged: false,
+        },
+        { conservative: true },
+      );
     },
   });
 }
 
 export function useCreateStationMutation() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createStation,
-    onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "stations"] });
-    },
-  });
-}
-
-export function usePatchStationMutation(stationId: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: Record<string, unknown>) => patchStation(stationId, body),
-    onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: ["admin", "station", String(stationId)] });
-    },
   });
 }
 
@@ -150,6 +152,8 @@ export interface SaveStationPayload {
   stationStatus?: StationStatus;
 }
 
+const partiallyCreatedStationIds = new WeakMap<SaveStationPayload, number>();
+
 export function useSaveStationMutation() {
   const queryClient = useQueryClient();
   const createLocationMutation = useCreateLocationMutation();
@@ -195,6 +199,7 @@ export function useSaveStationMutation() {
           is_confirmed: payload.isConfirmed,
           cells: cellsPayload,
         });
+        partiallyCreatedStationIds.set(payload, res.data.id);
 
         let sectorIdByLocalId = new Map<string, number>();
         if (payload.sectors.length > 0) {
@@ -235,6 +240,8 @@ export function useSaveStationMutation() {
 
       const station = payload.originalStation;
       const originalCells = station.cells;
+      const oldLocationId = station.location?.id ?? null;
+      let locationMetadataChanged = false;
       let sectorIdByLocalId = makeSectorIdMap(payload.sectors);
       const sectorPayload = toSectorPayload(payload.sectors);
       const haveSectorsChanged = sectorsChanged(payload.sectors, station.sectors);
@@ -270,7 +277,10 @@ export function useSaveStationMutation() {
           if (payload.location.city !== (station.location.city ?? "")) locationPatch.city = payload.location.city || null;
           if (payload.location.address !== (station.location.address ?? "")) locationPatch.address = payload.location.address || null;
           if (payload.location.region_id !== (station.location.region?.id ?? null)) locationPatch.region_id = payload.location.region_id;
-          if (Object.keys(locationPatch).length > 0) await patchLocation(station.location.id, locationPatch);
+          if (Object.keys(locationPatch).length > 0) {
+            await patchLocation(station.location.id, locationPatch);
+            locationMetadataChanged = true;
+          }
         }
       } else if (payload.location.latitude !== null && payload.location.longitude !== null && payload.location.region_id !== null) {
         const locationRes = await createLocationMutation.mutateAsync({
@@ -354,27 +364,31 @@ export function useSaveStationMutation() {
         await patchCells(station.id, cellPatches);
       }
 
-      const stationChanged =
+      const stationMetadataChanged =
         stationPatch.station_id !== station.station_id ||
         stationPatch.operator_id !== (station.operator?.id ?? null) ||
         stationPatch.notes !== (station.notes ?? null) ||
         stationPatch.extra_address !== (station.extra_address ?? null) ||
         stationPatch.is_confirmed !== station.is_confirmed ||
-        stationPatch.status !== station.status ||
-        ("location_id" in stationPatch && stationPatch.location_id !== (station.location?.id ?? null));
+        (payload.stationStatus !== undefined && payload.stationStatus !== station.status);
+      const newLocationId = typeof stationPatch.location_id === "number" ? stationPatch.location_id : oldLocationId;
+      const locationMoved = newLocationId !== oldLocationId;
+      const stationChanged = stationMetadataChanged || locationMoved;
 
       if (stationChanged) await patchStation(station.id, stationPatch);
 
       const existingNetworksId = payload.originalStation?.extra_identificators?.networks_id ?? null;
-      if (payload.skipExtraIds) return { mode: "update" as const, stationId: station.id };
-
       const extraIdsFieldsChanged =
         (payload.networksId ?? null) !== existingNetworksId ||
         (payload.networksName || null) !== (payload.originalStation?.extra_identificators?.networks_name || null) ||
         (payload.mnoName || null) !== (payload.originalStation?.extra_identificators?.mno_name || null);
 
       const existingHasExtraIds = existingNetworksId !== null || !!payload.originalStation?.extra_identificators?.mno_name;
-      if (((payload.networksId !== null && payload.networksId !== undefined) || !!payload.mnoName || existingHasExtraIds) && extraIdsFieldsChanged) {
+      const shouldUpdateExtraIds =
+        !payload.skipExtraIds &&
+        ((payload.networksId !== null && payload.networksId !== undefined) || !!payload.networksName || !!payload.mnoName || existingHasExtraIds) &&
+        extraIdsFieldsChanged;
+      if (shouldUpdateExtraIds) {
         await updateExtraIds(station.id, {
           networks_id: payload.networksId ?? null,
           networks_name: payload.networksName || null,
@@ -382,10 +396,84 @@ export function useSaveStationMutation() {
         });
       }
 
-      return { mode: "update" as const, stationId: station.id };
+      const impact: StationUpdateImpact = {
+        stationId: station.id,
+        oldLocationId,
+        newLocationId,
+        stationMetadataChanged,
+        locationMetadataChanged,
+        locationMoved,
+        cellsChanged: newCells.length > 0 || payload.deletedServerCellIds.length > 0 || cellsToPreclearSector.length > 0 || cellPatches.length > 0,
+        cellCountChanged: newCells.length > 0 || payload.deletedServerCellIds.length > 0,
+        sectorsChanged: haveSectorsChanged,
+        extraIdsChanged: shouldUpdateExtraIds,
+      };
+
+      return { mode: "update" as const, stationId: station.id, impact };
     },
-    onSuccess: (result) => {
-      if (result.mode === "update") return queryClient.invalidateQueries({ queryKey: ["admin", "station", String(result.stationId)] });
+    onSuccess: (result, payload) => {
+      partiallyCreatedStationIds.delete(payload);
+      if (result.mode === "update") {
+        invalidateStationUpdateQueries(queryClient, result.impact);
+        return;
+      }
+
+      const locationId = result.station.location?.id ?? null;
+      invalidateStationUpdateQueries(queryClient, {
+        stationId: result.station.id,
+        oldLocationId: null,
+        newLocationId: locationId,
+        stationMetadataChanged: true,
+        locationMetadataChanged: false,
+        locationMoved: locationId !== null,
+        cellsChanged: result.station.cells.length > 0,
+        cellCountChanged: true,
+        sectorsChanged: payload.sectors.length > 0,
+        extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+      });
+    },
+    onError: (_error, payload) => {
+      if (payload.isCreateMode) {
+        const stationId = partiallyCreatedStationIds.get(payload);
+        partiallyCreatedStationIds.delete(payload);
+        if (stationId === undefined) return;
+        invalidateStationUpdateQueries(
+          queryClient,
+          {
+            stationId,
+            oldLocationId: null,
+            newLocationId: payload.existingLocationId,
+            stationMetadataChanged: true,
+            locationMetadataChanged: false,
+            locationMoved: false,
+            cellsChanged: payload.localCells.length > 0,
+            cellCountChanged: true,
+            sectorsChanged: payload.sectors.length > 0,
+            extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+          },
+          { conservative: true, refetchAdminDetail: true },
+        );
+        return;
+      }
+      if (!payload.originalStation) return;
+      const stationId = payload.originalStation.id;
+      const locationId = payload.originalStation.location?.id ?? null;
+      invalidateStationUpdateQueries(
+        queryClient,
+        {
+          stationId,
+          oldLocationId: locationId,
+          newLocationId: locationId,
+          stationMetadataChanged: true,
+          locationMetadataChanged: true,
+          locationMoved: false,
+          cellsChanged: true,
+          cellCountChanged: true,
+          sectorsChanged: true,
+          extraIdsChanged: true,
+        },
+        { conservative: true, refetchAdminDetail: true },
+      );
     },
   });
 }

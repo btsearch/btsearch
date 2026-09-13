@@ -247,7 +247,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
 
   const formatValue = (field: string, value: StationHistoryChangeValue, rat?: string): string => {
     if (value === null || value === "") return "-";
-    if (typeof value === "boolean") return value ? t("history.values.yes") : t("history.values.no");
+    if (typeof value === "boolean") return value ? t("common:labels.yes") : t("common:labels.no");
     if (field === "status" && typeof value === "string") return t(`stations:status.${value}`, { defaultValue: value });
     if (field === "type" && typeof value === "string") return value.toUpperCase();
     if ((field === "photo" || field === "main_photo") && typeof value === "string" && value.startsWith("#"))

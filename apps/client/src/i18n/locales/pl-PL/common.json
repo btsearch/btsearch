@@ -91,6 +91,8 @@
     "search": "Wyszukiwanie",
     "none": "Żadne",
     "confirmed": "Potwierdzona",
+    "yes": "Tak",
+    "no": "Nie",
     "networksId": "N! ID",
     "networksName": "Nazwa NetWorks",
     "cellType": "Rodzaj komórki",

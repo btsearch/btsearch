@@ -8,6 +8,7 @@ import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionListItem } from "@/features/admin/submissions/types";
 import { countCellOperations } from "@/features/admin/submissions/utils";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
+import type { CellOperation } from "@/features/submissions/types";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Operator } from "@/types/station";
@@ -37,25 +38,31 @@ export function SubmissionStationSummary({ submission, getOperatorById }: { subm
   );
 }
 
-export function SubmissionChangesSummary({ submission }: { submission: SubmissionListItem }) {
+export function SubmissionCellCounts({ cells }: { cells: readonly { operation: CellOperation }[] }) {
   const { t } = useTranslation("submissions");
-  const { added, modified, deleted } = countCellOperations(submission.cells);
+  const { added, modified, deleted } = countCellOperations(cells);
   const label = t("table.cellCountsLabel", { added, updated: modified, deleted });
 
   return (
+    <span
+      className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-mono text-xs font-semibold tabular-nums"
+      aria-label={label}
+      title={`${t("table.cellCountsLegend")}: ${label}`}
+    >
+      <span className="text-emerald-700 dark:text-emerald-400">{added}</span>
+      <span className="px-0.5 text-muted-foreground">/</span>
+      <span className="text-amber-800 dark:text-amber-400">{modified}</span>
+      <span className="px-0.5 text-muted-foreground">/</span>
+      <span className="text-red-700 dark:text-red-400">{deleted}</span>
+    </span>
+  );
+}
+
+export function SubmissionChangesSummary({ submission }: { submission: Pick<SubmissionListItem, "cells" | "type"> }) {
+  return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <SubmissionTypeBadge type={submission.type} />
-      <span
-        className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-mono text-xs font-semibold tabular-nums"
-        aria-label={label}
-        title={`${t("table.cellCountsLegend")}: ${label}`}
-      >
-        <span className="text-emerald-700 dark:text-emerald-400">{added}</span>
-        <span className="px-0.5 text-muted-foreground">/</span>
-        <span className="text-amber-800 dark:text-amber-400">{modified}</span>
-        <span className="px-0.5 text-muted-foreground">/</span>
-        <span className="text-red-700 dark:text-red-400">{deleted}</span>
-      </span>
+      <SubmissionCellCounts cells={submission.cells} />
     </div>
   );
 }

@@ -95,6 +95,7 @@
     "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
     "cellsSaved": "Komórki zostały zapisane",
     "saved": "Stacja została zapisana",
+    "refreshFailed": "Stacja została zapisana, ale nie udało się wczytać jej najnowszych danych",
     "noBands": "Brak dostępnych pasm dla {{rat}}",
     "duplicateCid": "Znaleziono duplikat CID w komórkach {{rat}}",
     "duplicateEnbidClid": "Znaleziono duplikat eNBID+CLID w komórkach LTE",

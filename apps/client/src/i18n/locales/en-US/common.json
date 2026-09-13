@@ -92,6 +92,8 @@
     "search": "Search",
     "none": "None",
     "confirmed": "Confirmed",
+    "yes": "Yes",
+    "no": "No",
     "networksId": "N! ID",
     "networksName": "Network name",
     "cellType": "Cell type",
