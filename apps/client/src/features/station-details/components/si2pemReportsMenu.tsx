@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 type ReportItem = {
   report: PemReport;
   dateLabel: string;
+  isLatestGenerated: boolean;
   sourceLabel: "pemSourceGenerated" | "pemSourceSearch";
 };
 
@@ -37,12 +38,14 @@ export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, 
   const reportsByYear = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
     const sorted = [...reports].sort((a, b) => b.date.localeCompare(a.date));
+    const latestGeneratedReport = sorted.find((report) => report.source === "map");
     const groups = new Map<string, ReportItem[]>();
     for (const report of sorted) {
       const year = report.date.slice(0, 4);
       const item: ReportItem = {
         report,
         dateLabel: formatter.format(new Date(report.date)),
+        isLatestGenerated: report === latestGeneratedReport,
         sourceLabel: report.source === "map" ? "pemSourceGenerated" : "pemSourceSearch",
       };
       const group = groups.get(year);
@@ -66,10 +69,10 @@ export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, 
         <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="w-auto max-w-96 max-h-80 overflow-y-auto">
-        {reportsByYear.map(([year, items], groupIndex) => (
+        {reportsByYear.map(([year, items]) => (
           <DropdownMenuGroup key={year}>
             <DropdownMenuLabel className="py-1 text-xs font-medium text-muted-foreground">{year}</DropdownMenuLabel>
-            {items.map(({ report, dateLabel, sourceLabel }, index) => {
+            {items.map(({ report, dateLabel, isLatestGenerated, sourceLabel }) => {
               const showAntennaData = report.source === "map" && report.antenna_data_available;
               const openAntennaDialog = () => {
                 openSI2PEMReportDialog({ report, latitude, longitude, operatorName, operatorMnc });
@@ -87,7 +90,7 @@ export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, 
                       <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
                         {t(`common:labels.${sourceLabel}`)}
                       </span>
-                      {groupIndex === 0 && index === 0 ? (
+                      {isLatestGenerated ? (
                         <span className="shrink-0 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
                           {t("common:labels.latest")}
                         </span>
