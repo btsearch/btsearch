@@ -15,6 +15,7 @@ import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, useTable } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useCallback, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { DatePickerButton } from "@/features/admin/audit-operations/components/date-picker-button";
 import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operation-detail-sheet";
@@ -39,6 +41,8 @@ import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/q
 import type { AuditOperationSummary } from "@/features/admin/audit-operations/types";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
+import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
+import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
@@ -49,9 +53,25 @@ const TABLE_PAGINATION_CONFIG = {
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
   minRows: 1,
 };
+const MOBILE_ROW_HEIGHT_FALLBACK = 112;
+const MOBILE_PAGINATION_CONFIG = { headerHeight: DATA_TABLE_HEADER_HEIGHT, paginationHeight: 51, minRows: 1 };
+const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
 const ALL_KINDS = KIND_GROUPS.flatMap((group) => group.kinds);
 const EMPTY_OPERATIONS: AuditOperationSummary[] = [];
+const MOBILE_AUDIT_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => (
+  <div key={index} className="space-y-2.5 px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3">
+      <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+      <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
+    </div>
+    <div className="flex items-center justify-between gap-3">
+      <div className="h-6 w-36 animate-pulse rounded bg-muted" />
+      <div className="h-3.5 w-12 animate-pulse rounded bg-muted" />
+    </div>
+    <div className="h-3.5 w-2/3 animate-pulse rounded bg-muted" />
+  </div>
+));
 const auditDateFormatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatAuditDate(dateString: string, locale: string): string {
@@ -338,6 +358,198 @@ function AuditOperationsMobileFilterRail({
   );
 }
 
+function getPerformerAttribution(t: TFunction, operation: AuditOperationSummary): string | null {
+  const { actor, performer } = operation;
+  if (performer === null || performer.id === actor?.id) return null;
+
+  const performerName = performer.name ?? performer.username ?? t("auditLogs.actor.system");
+  return performer.username
+    ? t("auditLogs.actor.viaWithUsername", { name: performerName, username: performer.username })
+    : t("auditLogs.actor.via", { name: performerName });
+}
+
+function getOperationTargetLabel(t: TFunction, operation: AuditOperationSummary): string {
+  if (operation.station_ids.length === 1) return `#${operation.station_ids[0]}`;
+  if (operation.station_ids.length > 1) return t("auditLogs.target.stations", { count: operation.station_ids.length });
+
+  const entities = [...new Set(operation.counts.map((count) => count.entity))];
+  return entities.length > 0 ? entities.map((entity) => getEntityLabel(t, entity)).join(", ") : "-";
+}
+
+function AuditOperationTarget({ operation, targetLabel, className }: { operation: AuditOperationSummary; targetLabel: string; className?: string }) {
+  const stationId = operation.station_ids.length === 1 ? operation.station_ids[0] : undefined;
+
+  if (stationId !== undefined)
+    return (
+      <Link
+        to="/admin/stations/$id"
+        params={{ id: String(stationId) }}
+        search={{ uke: undefined }}
+        className={cn(
+          "pointer-events-auto rounded-sm text-xs font-mono text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          className,
+        )}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {targetLabel}
+      </Link>
+    );
+
+  return <span className={cn("text-xs", targetLabel === "-" ? "text-muted-foreground" : "font-medium", className)}>{targetLabel}</span>;
+}
+
+function AuditOperationMobileRow({
+  operation,
+  locale,
+  onOpenOperation,
+  t,
+}: {
+  operation: AuditOperationSummary;
+  locale: string;
+  onOpenOperation: (operationId: number) => void;
+  t: TFunction;
+}) {
+  const timestamp = formatAuditDate(operation.createdAt, locale);
+  const performerAttribution = getPerformerAttribution(t, operation);
+  const targetLabel = getOperationTargetLabel(t, operation);
+  const changesSummary = formatCountsSummary(t, operation.counts);
+  const actorLabel = operation.actor?.name ?? operation.actor?.username ?? t("auditLogs.actor.system");
+  const ariaLabel = [getKindLabel(t, operation.kind), timestamp, actorLabel, performerAttribution, targetLabel, changesSummary, operation.source]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <li className="group relative transition-colors hover:bg-muted/50">
+      <button
+        type="button"
+        className="absolute inset-0 z-10 cursor-pointer rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        aria-label={ariaLabel}
+        onClick={() => onOpenOperation(operation.id)}
+      />
+      <div className="pointer-events-none relative z-20 px-3 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <OperationKindBadge
+            kind={operation.kind}
+            t={t}
+            compact
+            className="h-auto max-w-full shrink whitespace-normal py-1 text-left [&>svg]:shrink-0"
+          />
+          <time className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground" dateTime={operation.createdAt}>
+            {timestamp}
+          </time>
+        </div>
+        <div className="mt-2 flex min-w-0 items-end justify-between gap-3">
+          <div className="min-w-0">
+            <UserChip user={operation.actor} systemLabel={t("auditLogs.actor.system")} />
+            {performerAttribution !== null ? (
+              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{performerAttribution}</span>
+            ) : null}
+          </div>
+          <span className="shrink-0 text-[10px] uppercase text-muted-foreground">{operation.source}</span>
+        </div>
+        <div className="mt-2 min-w-0 text-xs">
+          <AuditOperationTarget operation={operation} targetLabel={targetLabel} className="relative z-30" />
+          {changesSummary ? (
+            <>
+              <span className="px-2 text-border" aria-hidden="true">
+                ·
+              </span>
+              <span className="text-muted-foreground">{changesSummary}</span>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+type AuditOperationsMobileListProps = {
+  isLoading: boolean;
+  isError: boolean;
+  operations: AuditOperationSummary[];
+  pageSize: number;
+  sort: "asc" | "desc";
+  locale: string;
+  listRef: (node: HTMLUListElement | null) => void;
+  onSortToggle: () => void;
+  onOpenOperation: (operationId: number) => void;
+  onRetry: () => unknown;
+};
+
+function AuditOperationsMobileList({
+  isLoading,
+  isError,
+  operations,
+  pageSize,
+  sort,
+  locale,
+  listRef,
+  onSortToggle,
+  onOpenOperation,
+  onRetry,
+}: AuditOperationsMobileListProps) {
+  const { t } = useTranslation(["admin", "common"]);
+
+  if (isError && operations.length === 0)
+    return (
+      <div
+        className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-t-lg border border-b-0 bg-card px-4 text-center text-muted-foreground"
+        role="alert"
+      >
+        <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-destructive/5 text-destructive/60">
+          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+        </div>
+        <p className="font-medium text-foreground">{t("common:error.title")}</p>
+        <p className="mt-1 max-w-md text-sm">{t("common:error.description")}</p>
+        <Button type="button" variant="outline" className="mt-4" onClick={() => void onRetry()}>
+          {t("common:actions.retry")}
+        </Button>
+      </div>
+    );
+
+  const sortDirection = sort === "asc" ? t("common:sorting.ascending") : t("common:sorting.descending");
+
+  return (
+    <div className="overflow-hidden rounded-t-lg border border-b-0 bg-card">
+      <div className="flex h-10 items-center border-b bg-muted/20 px-2">
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onSortToggle}
+          aria-label={`${t("auditLogs.columns.timestamp")}: ${sortDirection}`}
+        >
+          {t("auditLogs.columns.timestamp")}
+          <HugeiconsIcon
+            icon={Sorting05Icon}
+            aria-hidden="true"
+            className="size-3.5 text-foreground"
+            style={sort === "asc" ? SORT_ASC_STYLE : undefined}
+          />
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="divide-y" aria-hidden="true">
+          {MOBILE_AUDIT_SKELETON_ROWS.slice(0, Math.min(pageSize, MOBILE_AUDIT_SKELETON_ROWS.length))}
+        </div>
+      ) : null}
+      {!isLoading && operations.length === 0 ? (
+        <div className="flex min-h-64 flex-1 flex-col items-center justify-center px-4 text-center text-muted-foreground" role="status">
+          <HugeiconsIcon icon={Search01Icon} className="mb-2 size-10 opacity-20" />
+          <p className="font-medium text-foreground">{t("auditLogs.empty.title")}</p>
+          <p className="text-sm opacity-80">{t("auditLogs.empty.subtitle")}</p>
+        </div>
+      ) : null}
+      {!isLoading && operations.length > 0 ? (
+        <ul ref={listRef} className="divide-y">
+          {operations.map((operation) => (
+            <AuditOperationMobileRow key={operation.id} operation={operation} locale={locale} onOpenOperation={onOpenOperation} t={t} />
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 type AuditOperationsTableRowsProps = {
   columnsCount: number;
   isLoading: boolean;
@@ -394,14 +606,30 @@ function AdminAuditLogsPage() {
   const search = Route.useSearch();
   const queryFilter = search.q ?? "";
   const navActionTarget = useNavActionTarget();
+  const isMobile = useIsMobile();
   const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const [filterState, dispatchFilter] = useReducer(auditOperationsFilterReducer, initialFilterState);
   const { entityFilter, kindsFilter, selectedUserIds, dateFrom, dateTo, sort } = filterState;
 
-  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK, {
+    round: false,
+    safetyBuffer: 0,
+  });
+  const desktopPagination = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const mobilePagination = useTablePagination({ ...MOBILE_PAGINATION_CONFIG, rowHeight: mobileRowHeight });
+  const { setPagination: setDesktopPagination } = desktopPagination;
+  const { setPagination: setMobilePagination } = mobilePagination;
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
 
-  const resetPage = useCallback(() => setPagination((previous) => ({ ...previous, pageIndex: 0 })), [setPagination]);
+  const resetPage = useCallback(() => {
+    setDesktopPagination((previous) => ({ ...previous, pageIndex: 0 }));
+    setMobilePagination((previous) => ({ ...previous, pageIndex: 0 }));
+  }, [setDesktopPagination, setMobilePagination]);
+  const handleSortToggle = useCallback(() => {
+    dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
+    resetPage();
+  }, [resetPage, sort]);
 
   const activeFilterCount = [
     entityFilter !== "",
@@ -430,7 +658,7 @@ function AdminAuditLogsPage() {
     },
     [navigate],
   );
-  const { data, isLoading, isError } = useQuery(
+  const { data, isLoading, isFetching, isError, refetch } = useQuery(
     auditOperationsQueryOptions({
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
@@ -456,17 +684,10 @@ function AdminAuditLogsPage() {
             <button
               type="button"
               className="inline-flex items-center gap-1 hover:text-foreground -ml-1 px-1 py-0.5 rounded transition-colors"
-              onClick={() => {
-                dispatchFilter({ type: "SET_SORT", payload: sort === "desc" ? "asc" : "desc" });
-                resetPage();
-              }}
+              onClick={handleSortToggle}
             >
               {t("auditLogs.columns.timestamp")}
-              <HugeiconsIcon
-                icon={Sorting05Icon}
-                className="size-3.5 text-foreground"
-                style={sort === "asc" ? { transform: "scaleY(-1)" } : undefined}
-              />
+              <HugeiconsIcon icon={Sorting05Icon} className="size-3.5 text-foreground" style={sort === "asc" ? SORT_ASC_STYLE : undefined} />
             </button>
           ),
           size: 160,
@@ -479,14 +700,7 @@ function AdminAuditLogsPage() {
           size: 180,
           cell: ({ getValue, row }) => {
             const actor = getValue();
-            const performer = row.original.performer;
-            let performerAttribution: string | null = null;
-            if (performer !== null && performer.id !== actor?.id) {
-              const performerName = performer.name ?? performer.username ?? t("auditLogs.actor.system");
-              performerAttribution = performer.username
-                ? t("auditLogs.actor.viaWithUsername", { name: performerName, username: performer.username })
-                : t("auditLogs.actor.via", { name: performerName });
-            }
+            const performerAttribution = getPerformerAttribution(t, row.original);
             return (
               <div className="min-w-0">
                 <UserChip user={actor} systemLabel={t("auditLogs.actor.system")} />
@@ -506,31 +720,7 @@ function AdminAuditLogsPage() {
           id: "target",
           header: t("auditLogs.columns.target"),
           size: 130,
-          cell: ({ row }) => {
-            const stationIds = row.original.station_ids;
-            if (stationIds.length === 1) {
-              const stationId = stationIds[0];
-              return (
-                <Link
-                  to="/admin/stations/$id"
-                  params={{ id: String(stationId) }}
-                  search={{ uke: undefined }}
-                  className="text-xs font-mono text-primary hover:underline"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  #{stationId}
-                </Link>
-              );
-            }
-            if (stationIds.length > 1)
-              return <span className="text-xs font-medium">{t("auditLogs.target.stations", { count: stationIds.length })}</span>;
-            const entities = [...new Set(row.original.counts.map((count) => count.entity))];
-            return entities.length > 0 ? (
-              <span className="text-xs font-medium">{entities.map((entity) => getEntityLabel(t, entity)).join(", ")}</span>
-            ) : (
-              <span className="text-muted-foreground text-xs">-</span>
-            );
-          },
+          cell: ({ row }) => <AuditOperationTarget operation={row.original} targetLabel={getOperationTargetLabel(t, row.original)} />,
         }),
         columnHelper.display({
           id: "changes",
@@ -544,7 +734,7 @@ function AdminAuditLogsPage() {
           cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue()}</span>,
         }),
       ]),
-    [t, sort, i18n.language, resetPage],
+    [t, sort, i18n.language, handleSortToggle],
   );
   const sorting = useMemo(() => [{ id: "createdAt", desc: sort === "desc" }], [sort]);
 
@@ -669,26 +859,73 @@ function AdminAuditLogsPage() {
 
       <div
         ref={containerRef}
-        className={cn("flex-1 min-h-0 max-md:mb-10 overflow-x-hidden", pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip")}
+        className={cn(
+          "relative flex-1 min-h-0 max-md:mb-10 overflow-x-hidden",
+          isMobile ? "overflow-y-auto overscroll-y-contain" : pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip",
+        )}
+        aria-busy={isMobile && isFetching}
       >
-        <div className="custom-scrollbar overflow-x-auto">
-          <DataTable.Root table={table} className="block rounded-b-none border-b-0">
-            <DataTable.Table>
-              <DataTable.Header />
-              <AuditOperationsTableRows
-                columnsCount={columns.length}
-                isLoading={isLoading}
-                isError={isError}
-                operations={operations}
-                pageSize={pagination.pageSize}
-                onOpenOperation={openOperation}
-              />
-            </DataTable.Table>
-          </DataTable.Root>
-        </div>
-        <DataTable.PaginationFooter>
-          <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
-        </DataTable.PaginationFooter>
+        {isMobile && isFetching && !isLoading ? (
+          <div
+            className="absolute right-2 top-2 z-40 inline-flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm"
+            role="status"
+          >
+            <Spinner role="presentation" aria-hidden="true" className="size-3.5" />
+            {t("common:actions.updating")}
+          </div>
+        ) : null}
+        {isMobile && !isFetching && isError && operations.length > 0 ? (
+          <div
+            className="absolute right-2 top-2 z-40 inline-flex items-center gap-2 rounded-md border border-destructive/30 bg-background/95 px-2 py-1 text-xs text-destructive shadow-sm"
+            role="alert"
+          >
+            <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
+            {t("common:placeholder.errorFetching")}
+            <Button type="button" variant="ghost" size="xs" onClick={() => void refetch()}>
+              {t("common:actions.retry")}
+            </Button>
+          </div>
+        ) : null}
+        {isMobile ? (
+          <div className="flex flex-col">
+            <AuditOperationsMobileList
+              isLoading={isLoading}
+              isError={isError}
+              operations={operations}
+              pageSize={pagination.pageSize}
+              sort={sort}
+              locale={i18n.language}
+              listRef={listRef}
+              onSortToggle={handleSortToggle}
+              onOpenOperation={openOperation}
+              onRetry={refetch}
+            />
+            <DataTable.PaginationFooter>
+              <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} showRowsPerPage={false} />
+            </DataTable.PaginationFooter>
+          </div>
+        ) : (
+          <div className="min-w-full">
+            <div className="custom-scrollbar overflow-x-auto">
+              <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+                <DataTable.Table>
+                  <DataTable.Header />
+                  <AuditOperationsTableRows
+                    columnsCount={columns.length}
+                    isLoading={isLoading}
+                    isError={isError}
+                    operations={operations}
+                    pageSize={pagination.pageSize}
+                    onOpenOperation={openOperation}
+                  />
+                </DataTable.Table>
+              </DataTable.Root>
+            </div>
+            <DataTable.PaginationFooter>
+              <DataTablePagination table={table} totalItems={total} pageSizeOptions={pageSizeOptions} />
+            </DataTable.PaginationFooter>
+          </div>
+        )}
       </div>
 
       {search.operation !== undefined ? (

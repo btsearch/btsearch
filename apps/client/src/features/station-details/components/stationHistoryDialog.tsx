@@ -436,7 +436,7 @@ type HistoryOperationItemProps = {
 const HistoryOperationItem = memo(function HistoryOperationItem({ operation, canManageOperation, onRevert }: HistoryOperationItemProps) {
   const { t, i18n } = useTranslation("stationDetails");
   const singleSection = operation.sections.length === 1 ? operation.sections[0] : undefined;
-  const icon = singleSection ? KIND_ICONS[singleSection.kind] : getOperationKindIcon(operation.kind);
+  const icon = operation.kind === "revert" ? Undo02Icon : singleSection ? KIND_ICONS[singleSection.kind] : getOperationKindIcon(operation.kind);
   const iconClass = singleSection ? ACTION_CHIP_CLASSES[singleSection.action] : ACTION_CHIP_CLASSES.update;
   const title = singleSection
     ? t(`history.titles.${singleSection.kind}_${singleSection.action}`)
