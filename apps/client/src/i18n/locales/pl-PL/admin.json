@@ -482,7 +482,16 @@
       "skipped_many": "Pominięto {{count, number}} zmian",
       "skipped_other": "Pominięto {{count, number}} zmian",
       "notRevertible": "Tej operacji nie można cofnąć",
-      "alreadyReverted": "Ta operacja została już cofnięta"
+      "alreadyReverted": "Ta operacja została już cofnięta",
+      "reasons": {
+        "unsupportedEntity": "Tego typu rekordu nie można cofnąć",
+        "unsupportedOperation": "Tego typu zmiany nie można cofnąć",
+        "alreadyReverted": "Ta zmiana została już cofnięta",
+        "missingRecordId": "Nie można zidentyfikować zmienionego rekordu",
+        "missingOldValues": "Poprzednie wartości nie zostały zapisane",
+        "missingNewValues": "Nowe wartości nie zostały zapisane",
+        "missingDetails": "Wymagane szczegóły rekordu nie zostały zapisane"
+      }
     }
   }
 }

@@ -6,7 +6,7 @@ import { memo, useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getEntityLabel, getOpLabel } from "../labels";
+import { getEntityLabel, getOpLabel, getRevertReasonLabel } from "../labels";
 import { auditOperationQueryOptions } from "../queries";
 import type { AuditEntry, AuditOperationSummary } from "../types";
 import { ChangesTable } from "./changes-table";
@@ -76,7 +76,7 @@ const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert 
           ) : (
             <Tooltip>
               <TooltipTrigger render={<span />}>{revertButton}</TooltipTrigger>
-              <TooltipContent>{entry.revert_reason ?? t("auditLogs.revert.notRevertible")}</TooltipContent>
+              <TooltipContent>{getRevertReasonLabel(t, entry.revert_reason)}</TooltipContent>
             </Tooltip>
           )}
         </div>

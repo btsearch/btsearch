@@ -433,7 +433,16 @@
       "skipped_one": "Skipped {{count, number}} change",
       "skipped_other": "Skipped {{count, number}} changes",
       "notRevertible": "This operation cannot be reverted",
-      "alreadyReverted": "This operation has already been reverted"
+      "alreadyReverted": "This operation has already been reverted",
+      "reasons": {
+        "unsupportedEntity": "This record type cannot be reverted",
+        "unsupportedOperation": "This change type cannot be reverted",
+        "alreadyReverted": "This change has already been reverted",
+        "missingRecordId": "The affected record could not be identified",
+        "missingOldValues": "The previous values were not recorded",
+        "missingNewValues": "The new values were not recorded",
+        "missingDetails": "Required record details were not recorded"
+      }
     }
   }
 }

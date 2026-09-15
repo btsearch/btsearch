@@ -43,6 +43,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import type { PaginationState } from "@/hooks/useTablePageSize";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";
+import { partitionOperators } from "@/lib/cellular/operators";
 import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
@@ -228,6 +229,14 @@ function AdminSubmissionsListPage() {
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
   const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const { orderedOperators, topOperatorCount, hasOperatorGroupSeparator } = useMemo(() => {
+    const { top, other } = partitionOperators(operators);
+    return {
+      orderedOperators: [...top, ...other],
+      topOperatorCount: top.length,
+      hasOperatorGroupSeparator: top.length > 0 && other.length > 0,
+    };
+  }, [operators]);
   const { operatorById, operatorByMnc } = useMemo(() => {
     const byId = new Map<number, Operator>();
     const byMnc = new Map<number, Operator>();
@@ -327,7 +336,9 @@ function AdminSubmissionsListPage() {
     selectedSubmitterIds,
     selectedOperators,
     selectedRegions,
-    operators,
+    operators: orderedOperators,
+    topOperatorCount,
+    hasOperatorGroupSeparator,
     regions,
     searchInput,
     activeFilterCount,

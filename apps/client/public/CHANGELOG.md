@@ -1,6 +1,13 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-15
+
+### 🚀 Enhancements
+
+- The selected file in the cell analyzer can now be replaced by dragging and dropping another file onto its card
+- Operator filters in `My Submissions` and admin submissions now show operator logos and prioritize Plus, T-Mobile, Orange and Play, matching the photo gallery and station editor
+
 # 2026-09-14
 
 ### 🚀 Enhancements

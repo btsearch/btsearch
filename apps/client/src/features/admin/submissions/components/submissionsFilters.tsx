@@ -1,7 +1,7 @@
 import { Cancel01Icon, FullSignalIcon, Location01Icon, Search01Icon, Tag01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { TFunction } from "i18next";
-import { useMemo, useRef } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,14 @@ import {
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
+  ComboboxSeparator,
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 
@@ -37,6 +38,8 @@ type SharedFilterProps = {
   selectedOperators: Operator[];
   selectedRegions: Region[];
   operators: Operator[];
+  topOperatorCount: number;
+  hasOperatorGroupSeparator: boolean;
   regions: Region[];
   searchInput: string;
   activeFilterCount: number;
@@ -86,6 +89,8 @@ export function SubmissionsFilterToolbar({
   selectedOperators,
   selectedRegions,
   operators,
+  topOperatorCount,
+  hasOperatorGroupSeparator,
   regions,
   searchInput,
   activeFilterCount,
@@ -163,10 +168,7 @@ export function SubmissionsFilterToolbar({
             <HugeiconsIcon icon={FullSignalIcon} className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
             {visibleOperators.map((operator) => (
               <ComboboxChip key={operator.id} className="max-w-20 shrink-0">
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                  <span className="truncate">{operator.name}</span>
-                </span>
+                <DialogOperatorName name={operator.name} mnc={operator.mnc} compact />
               </ComboboxChip>
             ))}
             {hiddenOperatorCount > 0 ? (
@@ -182,11 +184,13 @@ export function SubmissionsFilterToolbar({
           <ComboboxContent anchor={operatorChipsRef}>
             <ComboboxList>
               <ComboboxEmpty>-</ComboboxEmpty>
-              {operators.map((operator) => (
-                <ComboboxItem key={operator.id} value={operator}>
-                  <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                  <span className="truncate">{operator.name}</span>
-                </ComboboxItem>
+              {operators.map((operator, index) => (
+                <Fragment key={operator.id}>
+                  {hasOperatorGroupSeparator && index === topOperatorCount ? <ComboboxSeparator /> : null}
+                  <ComboboxItem value={operator}>
+                    <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm leading-5 font-normal" />
+                  </ComboboxItem>
+                </Fragment>
               ))}
             </ComboboxList>
           </ComboboxContent>
@@ -361,8 +365,12 @@ export function SubmissionsMobileFilterRail({
                   selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                <span className="min-w-0 flex-1 truncate">{operator.name}</span>
+                <DialogOperatorName
+                  name={operator.name}
+                  mnc={operator.mnc}
+                  compact
+                  labelClassName={cn("text-sm leading-5 font-normal", selected && "text-primary")}
+                />
               </button>
             );
           })}

@@ -14,7 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -41,6 +41,7 @@ import {
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
+  ComboboxSeparator,
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
@@ -53,6 +54,7 @@ import { SubmissionChangesSummary } from "@/features/admin/submissions/component
 import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import type { MySubmissionsFilters } from "@/features/submissions/api";
 import { deleteSubmission, fetchSubmissionPhotos } from "@/features/submissions/api";
@@ -61,7 +63,7 @@ import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { partitionOperators } from "@/lib/cellular/operators";
 import { formatShortDate } from "@/lib/format";
 import { cn, toggleValue } from "@/lib/utils";
 import type { Operator } from "@/types/station";
@@ -122,6 +124,8 @@ type MySubmissionsFilterProps = {
   statusFilter: StatusFilter;
   selectedOperators: Operator[];
   operators: Operator[];
+  topOperatorCount: number;
+  hasOperatorGroupSeparator: boolean;
   searchInput: string;
   onStatusChange: (status: StatusFilter) => void;
   onOperatorChange: (operators: Operator[]) => void;
@@ -207,8 +211,12 @@ function MySubmissionsMobileFilterRail({
                   selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                <span className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                <span className="min-w-0 flex-1 truncate">{operator.name}</span>
+                <DialogOperatorName
+                  name={operator.name}
+                  mnc={operator.mnc}
+                  compact
+                  labelClassName={cn("text-sm leading-5 font-normal", selected && "text-primary")}
+                />
               </button>
             );
           })}
@@ -222,6 +230,8 @@ function MySubmissionsDesktopFilters({
   statusFilter,
   selectedOperators,
   operators,
+  topOperatorCount,
+  hasOperatorGroupSeparator,
   searchInput,
   onStatusChange,
   onOperatorChange,
@@ -262,10 +272,7 @@ function MySubmissionsDesktopFilters({
             <HugeiconsIcon icon={FullSignalIcon} className="size-3.5 shrink-0 text-muted-foreground pointer-events-none" />
             {visibleSelectedOperators.map((operator) => (
               <ComboboxChip key={operator.id} className="max-w-20 shrink-0">
-                <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <span className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                  <span className="truncate">{operator.name}</span>
-                </span>
+                <DialogOperatorName name={operator.name} mnc={operator.mnc} compact />
               </ComboboxChip>
             ))}
             {hiddenSelectedOperatorCount > 0 ? (
@@ -281,11 +288,13 @@ function MySubmissionsDesktopFilters({
           <ComboboxContent anchor={operatorChipsRef}>
             <ComboboxList>
               <ComboboxEmpty>-</ComboboxEmpty>
-              {operators.map((operator) => (
-                <ComboboxItem key={operator.id} value={operator}>
-                  <span className="size-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(operator.mnc) }} />
-                  <span className="truncate">{operator.name}</span>
-                </ComboboxItem>
+              {operators.map((operator, index) => (
+                <Fragment key={operator.id}>
+                  {hasOperatorGroupSeparator && index === topOperatorCount ? <ComboboxSeparator /> : null}
+                  <ComboboxItem value={operator}>
+                    <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm leading-5 font-normal" />
+                  </ComboboxItem>
+                </Fragment>
               ))}
             </ComboboxList>
           </ComboboxContent>
@@ -335,6 +344,14 @@ export function MySubmissions() {
   const activeSearch = useDebouncedValue(searchInput, 300);
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
+  const { orderedOperators, topOperatorCount, hasOperatorGroupSeparator } = useMemo(() => {
+    const { top, other } = partitionOperators(operators);
+    return {
+      orderedOperators: [...top, ...other],
+      topOperatorCount: top.length,
+      hasOperatorGroupSeparator: top.length > 0 && other.length > 0,
+    };
+  }, [operators]);
   const { operatorById, operatorByMnc } = useMemo(() => {
     const byId = new Map<number, Operator>();
     const byMnc = new Map<number, Operator>();
@@ -680,7 +697,9 @@ export function MySubmissions() {
           <MySubmissionsDesktopFilters
             statusFilter={statusFilter}
             selectedOperators={selectedOperators}
-            operators={operators}
+            operators={orderedOperators}
+            topOperatorCount={topOperatorCount}
+            hasOperatorGroupSeparator={hasOperatorGroupSeparator}
             searchInput={searchInput}
             onStatusChange={handleStatusChange}
             onOperatorChange={handleOperatorChange}
@@ -727,7 +746,9 @@ export function MySubmissions() {
                   <MySubmissionsMobileFilterRail
                     statusFilter={statusFilter}
                     selectedOperators={selectedOperators}
-                    operators={operators}
+                    operators={orderedOperators}
+                    topOperatorCount={topOperatorCount}
+                    hasOperatorGroupSeparator={hasOperatorGroupSeparator}
                     searchInput={searchInput}
                     onStatusChange={handleStatusChange}
                     onOperatorChange={handleOperatorChange}

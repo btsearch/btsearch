@@ -777,16 +777,6 @@ function AnalyzerPage() {
     [importFile, resetPage, t],
   );
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      dispatch({ type: "SET_DRAGGING", payload: false });
-      const file = e.dataTransfer.files[0];
-      if (file) void handleFile(file);
-    },
-    [handleFile],
-  );
-
   const mutationFn = useCallback(async () => {
     const cells = parsedRows!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
     return analyzeCells(cells);
@@ -816,6 +806,22 @@ function AnalyzerPage() {
       showApiError(error);
     },
   });
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dispatch({ type: "SET_DRAGGING", payload: false });
+      if (isLoading) return;
+      const file = e.dataTransfer.files[0];
+      if (file) void handleFile(file);
+    },
+    [handleFile, isLoading],
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+    dispatch({ type: "SET_DRAGGING", payload: false });
+  }, []);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -1355,7 +1361,15 @@ function AnalyzerPage() {
           />
 
           {parsedRows || isImporting ? (
-            <div className="overflow-hidden rounded-lg border bg-card">
+            <div
+              className={cn("overflow-hidden rounded-lg border bg-card transition-colors", isDragging && !isLoading && "border-primary bg-primary/5")}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!isLoading) dispatch({ type: "SET_DRAGGING", payload: true });
+              }}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -1460,7 +1474,7 @@ function AnalyzerPage() {
                 e.preventDefault();
                 dispatch({ type: "SET_DRAGGING", payload: true });
               }}
-              onDragLeave={() => dispatch({ type: "SET_DRAGGING", payload: false })}
+              onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               role="button"
