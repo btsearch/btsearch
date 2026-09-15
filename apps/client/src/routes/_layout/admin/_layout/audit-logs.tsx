@@ -41,7 +41,6 @@ import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/q
 import type { AuditOperationSummary } from "@/features/admin/audit-operations/types";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
-import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
@@ -53,8 +52,7 @@ const TABLE_PAGINATION_CONFIG = {
   paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
   minRows: 1,
 };
-const MOBILE_ROW_HEIGHT_FALLBACK = 112;
-const MOBILE_PAGINATION_CONFIG = { headerHeight: DATA_TABLE_HEADER_HEIGHT, paginationHeight: 51, minRows: 1 };
+const MOBILE_PAGINATION_CONFIG = { rowHeight: 112, headerHeight: DATA_TABLE_HEADER_HEIGHT, paginationHeight: 51, minRows: 1 };
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
 const ALL_KINDS = KIND_GROUPS.flatMap((group) => group.kinds);
@@ -470,7 +468,6 @@ type AuditOperationsMobileListProps = {
   pageSize: number;
   sort: "asc" | "desc";
   locale: string;
-  listRef: (node: HTMLUListElement | null) => void;
   onSortToggle: () => void;
   onOpenOperation: (operationId: number) => void;
   onRetry: () => unknown;
@@ -483,7 +480,6 @@ function AuditOperationsMobileList({
   pageSize,
   sort,
   locale,
-  listRef,
   onSortToggle,
   onOpenOperation,
   onRetry,
@@ -540,7 +536,7 @@ function AuditOperationsMobileList({
         </div>
       ) : null}
       {!isLoading && operations.length > 0 ? (
-        <ul ref={listRef} className="divide-y">
+        <ul className="divide-y">
           {operations.map((operation) => (
             <AuditOperationMobileRow key={operation.id} operation={operation} locale={locale} onOpenOperation={onOpenOperation} t={t} />
           ))}
@@ -612,12 +608,8 @@ function AdminAuditLogsPage() {
   const [filterState, dispatchFilter] = useReducer(auditOperationsFilterReducer, initialFilterState);
   const { entityFilter, kindsFilter, selectedUserIds, dateFrom, dateTo, sort } = filterState;
 
-  const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK, {
-    round: false,
-    safetyBuffer: 0,
-  });
   const desktopPagination = useTablePagination(TABLE_PAGINATION_CONFIG);
-  const mobilePagination = useTablePagination({ ...MOBILE_PAGINATION_CONFIG, rowHeight: mobileRowHeight });
+  const mobilePagination = useTablePagination(MOBILE_PAGINATION_CONFIG);
   const { setPagination: setDesktopPagination } = desktopPagination;
   const { setPagination: setMobilePagination } = mobilePagination;
   const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
@@ -895,7 +887,6 @@ function AdminAuditLogsPage() {
               pageSize={pagination.pageSize}
               sort={sort}
               locale={i18n.language}
-              listRef={listRef}
               onSortToggle={handleSortToggle}
               onOpenOperation={openOperation}
               onRetry={refetch}
