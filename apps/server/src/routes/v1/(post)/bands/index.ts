@@ -3,11 +3,10 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const bandsSelectSchema = createSelectSchema(bands);
 const bandsInsertSchema = createInsertSchema(bands).strict();
@@ -24,10 +23,14 @@ const schemaRoute = {
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   try {
-    const [band] = await db.insert(bands).values(req.body).returning();
+    const band = await runAuditedOperation(auditContextFromRequest(req), { kind: "band.create" }, async (tx, audit) => {
+      const [created] = await tx.insert(bands).values(req.body).returning();
+      if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
 
-    if (!band) throw new ErrorResponse("FAILED_TO_CREATE");
-    await createAuditLog({ action: "bands.create", table_name: "bands", record_id: band.id, old_values: null, new_values: band }, req);
+      await audit.log({ entity: "bands", op: "create", recordId: created.id, new: created });
+      return created;
+    });
+
     return res.send({ data: band });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -38,7 +41,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createBand: Route<ReqBody, ResponseData> = {
   url: "/bands",
   method: "POST",
-  config: { permissions: ["write:bands"] },
+  config: {
+    permissions: ["create:bands"],
+  },
   schema: schemaRoute,
   handler,
 };

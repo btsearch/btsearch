@@ -10,7 +10,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
@@ -37,35 +37,32 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
   });
   if (!comment) throw new ErrorResponse("NOT_FOUND");
 
-  const isPrivileged = await verifyPermissions(userId, { comments: ["delete"] });
+  const isPrivileged = await verifyPermissions(userId, { comments: ["moderate"] });
   if (comment.user_id !== userId && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
   try {
     const commentAttachments = comment.attachments ?? [];
+    const uuids = commentAttachments.map((attachment) => attachment.uuid);
 
-    await db.delete(stationComments).where(eq(stationComments.id, comment_id));
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.delete" }, async (tx, audit) => {
+      await tx.delete(stationComments).where(eq(stationComments.id, comment_id));
+      if (uuids.length > 0) await tx.delete(attachments).where(inArray(attachments.uuid, uuids));
 
-    if (commentAttachments.length > 0) {
-      const uuids = commentAttachments.map((a) => a.uuid);
-      await db.delete(attachments).where(inArray(attachments.uuid, uuids));
-      await Promise.all(
-        uuids.map(async (uuid) => {
-          try {
-            await fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`));
-          } catch {}
-        }),
-      );
-    }
+      await audit.log({
+        entity: "station_comments",
+        op: "delete",
+        recordId: comment_id,
+        stationId: station_id,
+        old: comment,
+      });
+    });
 
-    await createAuditLog(
-      {
-        action: "station_comments.delete",
-        table_name: "station_comments",
-        old_values: comment,
-        new_values: null,
-        metadata: { comment_id },
-      },
-      req,
+    await Promise.all(
+      uuids.map(async (uuid) => {
+        try {
+          await fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`));
+        } catch {}
+      }),
     );
 
     return res.status(204).send();
@@ -78,6 +75,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 const deleteComment: Route<ReqParams, void> = {
   url: "/stations/:station_id/comments/:comment_id",
   method: "DELETE",
+  config: { permissions: ["delete:comments"] },
   schema: schemaRoute,
   handler,
 };

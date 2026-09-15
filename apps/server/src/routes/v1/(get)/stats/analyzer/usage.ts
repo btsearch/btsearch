@@ -65,6 +65,7 @@ const getAnalyzerUsage: Route<ReqQuery, ResBody> = {
   schema: schemaRoute,
   config: {
     permissions: ["read:stats"],
+    allowGuestAccess: true,
   },
   handler,
 };

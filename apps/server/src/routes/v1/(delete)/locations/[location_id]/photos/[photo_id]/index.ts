@@ -5,16 +5,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod/v4";
 
-import db from "../../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../../../services/auditLog.service.js";
 import {
-  createStationPhotoSelectionAuditLogs,
-  loadStationPhotoSelectionSnapshots,
-} from "../../../../../../../services/stations/photoSelectionHistory.js";
+  auditContextFromRequest,
+  loadPhotoSelectionSnapshots,
+  logPhotoSelectionChanges,
+  runAuditedOperation,
+} from "../../../../../../../services/audit/index.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
@@ -27,50 +26,37 @@ type ReqParams = { Params: { location_id: number; photo_id: number } };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<Record<never, never>>>) {
   const { location_id, photo_id } = req.params;
-  const session = req.userSession;
-  if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
+  if (!req.userSession?.user) throw new ErrorResponse("UNAUTHORIZED");
 
-  const hasPermission = await verifyPermissions(session.user.id, { stations: ["update"] });
-  if (!hasPermission) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
-
-  const attachmentUuid = await db.transaction(async (tx) => {
-    const photo = await tx.query.locationPhotos.findFirst({
-      where: { id: photo_id, location_id },
-    });
+  const attachmentUuid = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.photos" }, async (tx, audit) => {
+    const photo = await tx.query.locationPhotos.findFirst({ where: { id: photo_id, location_id } });
     if (!photo) throw new ErrorResponse("NOT_FOUND");
 
-    const [attachment, affectedSelections] = await Promise.all([
+    const [attachment, affectedSelections, affectedPhotos] = await Promise.all([
       tx.query.attachments.findFirst({ where: { id: photo.attachment_id } }),
       tx
         .select({ station_id: stationPhotoSelections.station_id })
         .from(stationPhotoSelections)
         .innerJoin(locationPhotos, eq(stationPhotoSelections.location_photo_id, locationPhotos.id))
         .where(eq(locationPhotos.attachment_id, photo.attachment_id)),
+      tx.query.locationPhotos.findMany({ where: { attachment_id: photo.attachment_id } }),
     ]);
-    const affectedStationIds = affectedSelections.map((selection) => selection.station_id);
-    const previousSelections = await loadStationPhotoSelectionSnapshots(tx, affectedStationIds);
+    const affectedStationIds = [...new Set(affectedSelections.map((selection) => selection.station_id))];
+    const previousSelections = await loadPhotoSelectionSnapshots(tx, affectedStationIds);
 
     await tx.delete(locationPhotos).where(and(eq(locationPhotos.id, photo_id), eq(locationPhotos.location_id, location_id)));
     if (attachment) await tx.delete(attachments).where(eq(attachments.id, attachment.id));
 
-    await createAuditLog(
-      {
-        action: "location_photos.delete",
-        table_name: "location_photos",
-        record_id: photo_id,
-        old_values: photo,
-        metadata: { location_id },
-      },
-      req,
-      tx,
+    await audit.logMany(
+      affectedPhotos.map((deletedPhoto) => ({
+        entity: "location_photos",
+        op: "delete",
+        recordId: deletedPhoto.id,
+        old: deletedPhoto,
+        metadata: { location_id: deletedPhoto.location_id },
+      })),
     );
-    await createStationPhotoSelectionAuditLogs({
-      handle: tx,
-      stationIds: affectedStationIds,
-      previousSnapshots: previousSelections,
-      req,
-    });
-
+    await logPhotoSelectionChanges(audit, previousSelections);
     return attachment?.uuid ?? null;
   });
 

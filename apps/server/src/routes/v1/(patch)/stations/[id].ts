@@ -1,17 +1,26 @@
-import { locations, stations } from "@openbts/drizzle";
+import { stations } from "@openbts/drizzle";
 import { eq } from "drizzle-orm";
 import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import {
+  auditContextFromRequest,
+  loadPhotoSelectionSnapshots,
+  logPhotoSelectionChanges,
+  runAuditedOperation,
+} from "../../../../services/audit/index.js";
 import { deleteLocationWithPhotos } from "../../../../services/locations/deleteWithPhotos.js";
 import { migrateStationPhotosToLocation } from "../../../../services/stations/photoMigration.js";
-import { assertStationStatusTransition, stationStatusUpdate } from "../../../../services/stations/status.js";
+import { stationStatusUpdate } from "../../../../services/stations/status.js";
+
+const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const stationsUpdateSchema = createUpdateSchema(stations)
   .omit({
@@ -51,66 +60,54 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   try {
     const { status: nextStatus, ...stationPatch } = req.body;
-    // if (nextStatus !== undefined) assertStationStatusTransition(station.status, nextStatus);
     const now = new Date();
-    const statusPatch = nextStatus !== undefined && nextStatus !== station.status ? stationStatusUpdate(nextStatus, now) : {};
-    const [updated] = await db
-      .update(stations)
-      .set({
-        ...stationPatch,
-        ...statusPatch,
-        updatedAt: now,
-      })
-      .where(eq(stations.id, station_id))
-      .returning();
-    if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
+    const attachmentUuidsToDelete: string[] = [];
+    const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.edit" }, async (tx, audit) => {
+      const current = await tx.query.stations.findFirst({ where: { id: station_id } });
+      if (!current) throw new ErrorResponse("NOT_FOUND");
+      const statusPatch = nextStatus !== undefined && nextStatus !== current.status ? stationStatusUpdate(nextStatus, now) : {};
+      const [saved] = await tx
+        .update(stations)
+        .set({
+          ...stationPatch,
+          ...statusPatch,
+          updatedAt: now,
+        })
+        .where(eq(stations.id, station_id))
+        .returning();
+      if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "stations",
-        record_id: station_id,
-        old_values: station,
-        new_values: updated,
-      },
-      req,
-    );
+      await audit.log({
+        entity: "stations",
+        op: "update",
+        recordId: station_id,
+        stationId: station_id,
+        old: current,
+        new: saved,
+      });
 
-    const oldLocationId = station.location_id;
-    const newLocationId = updated.location_id;
-    if (oldLocationId !== null && oldLocationId !== newLocationId) {
-      try {
-        await db.transaction(async (tx) => {
+      const oldLocationId = current.location_id;
+      const newLocationId = saved.location_id;
+      if (oldLocationId !== null && oldLocationId !== newLocationId) {
+        try {
+          const previousSelections = await loadPhotoSelectionSnapshots(tx, [station_id]);
           const remainingStations = await tx.$count(stations, eq(stations.location_id, oldLocationId));
           const oldLocationOrphaned = remainingStations === 0;
 
-          if (newLocationId !== null) await migrateStationPhotosToLocation(tx, station_id, oldLocationId, newLocationId, oldLocationOrphaned);
+          if (newLocationId !== null) await migrateStationPhotosToLocation(audit, station_id, oldLocationId, newLocationId, oldLocationOrphaned);
 
-          if (oldLocationOrphaned) {
-            const oldLocation = await tx.query.locations.findFirst({
-              where: { id: oldLocationId },
-              with: { region: { columns: { id: true, name: true, code: true } } },
-            });
-            if (newLocationId === null) await deleteLocationWithPhotos(tx, oldLocationId);
-            else await tx.delete(locations).where(eq(locations.id, oldLocationId));
-            await createAuditLog(
-              {
-                action: "locations.delete",
-                table_name: "locations",
-                record_id: oldLocationId,
-                old_values: oldLocation ?? { id: oldLocationId },
-                new_values: null,
-                metadata: { station_id: station_id, reason: "stations.update" },
-              },
-              req,
-              tx,
-            );
-          }
-        });
-      } catch (error) {
-        throw new ErrorResponse("INTERNAL_SERVER_ERROR", { message: "Failed to migrate station photos after location change", cause: error });
+          if (oldLocationOrphaned) attachmentUuidsToDelete.push(...(await deleteLocationWithPhotos(audit, oldLocationId, station_id)));
+
+          await logPhotoSelectionChanges(audit, previousSelections);
+        } catch (error) {
+          throw new ErrorResponse("INTERNAL_SERVER_ERROR", { message: "Failed to migrate station photos after location change", cause: error });
+        }
       }
-    }
+
+      return saved;
+    });
+
+    await Promise.all(attachmentUuidsToDelete.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
 
     return res.send({ data: updated });
   } catch (error) {
@@ -122,7 +119,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateStation: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id",
   method: "PATCH",
-  config: { permissions: ["write:stations"] },
+  config: { permissions: ["update:stations"] },
   schema: schemaRoute,
   handler,
 };

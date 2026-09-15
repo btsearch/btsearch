@@ -3,11 +3,10 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const operatorsSelectSchema = createSelectSchema(operators);
 const operatorsInsertSchema = createInsertSchema(operators).strict();
@@ -24,13 +23,14 @@ const schemaRoute = {
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   try {
-    const [operator] = await db.insert(operators).values(req.body).returning();
+    const operator = await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.create" }, async (tx, audit) => {
+      const [created] = await tx.insert(operators).values(req.body).returning();
+      if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
 
-    if (!operator) throw new ErrorResponse("FAILED_TO_CREATE");
-    await createAuditLog(
-      { action: "operators.create", table_name: "operators", record_id: operator.id, old_values: null, new_values: operator },
-      req,
-    );
+      await audit.log({ entity: "operators", op: "create", recordId: created.id, new: created });
+      return created;
+    });
+
     return res.send({ data: operator });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -41,7 +41,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createOperator: Route<ReqBody, ResponseData> = {
   url: "/operators",
   method: "POST",
-  config: { permissions: ["write:operators"] },
+  config: {
+    permissions: ["create:operators"],
+  },
   schema: schemaRoute,
   handler,
 };

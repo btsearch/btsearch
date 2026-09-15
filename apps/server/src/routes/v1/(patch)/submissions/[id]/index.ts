@@ -10,13 +10,8 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../services/auditLog.service.js";
-import {
-  checkCellDuplicatesBatch,
-  checkLTEClidConsistency,
-  checkPciDuplicates,
-  getOperatorIdForStation,
-} from "../../../../../services/cellDuplicateCheck.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../../../../../services/cellDuplicateCheck.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import type { DbTx } from "../../../../../types/global.js";
 import {
@@ -143,27 +138,11 @@ function withCellDetails({ gsm, umts, lte, nr, ...base }: ProposedCellWithRelati
   };
 }
 
-async function validateCellConflicts(
-  cells: ProposedCellInput[] | undefined,
-  stationId: number | null,
-  proposedOperatorId?: number | null,
-): Promise<void> {
+async function validateCellConflicts(cells: ProposedCellInput[] | undefined, stationId: number | null): Promise<void> {
   if (!cells || cells.length === 0) return;
 
   validateCellDuplicates(cells);
   const allModifiedCellIds = cells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
-  // await checkLTEClidConsistency(
-  //   stationId,
-  //   cells
-  //     .filter((cell) => cell.operation !== "delete")
-  //     .map((cell) => ({
-  //       rat: cell.rat,
-  //       details: cell.details as Record<string, unknown> | undefined,
-  //       excludeCellId: cell.target_cell_id ?? undefined,
-  //     })),
-  //   allModifiedCellIds,
-  //   proposedOperatorId,
-  // );
   if (stationId !== null) {
     await checkPciDuplicates(stationId, getPciDuplicateSources(cells), allModifiedCellIds);
   }
@@ -225,7 +204,7 @@ async function replaceProposedCells(
   const insertRows = cells.map(({ details: _details, ...cell }) => ({
     ...cell,
     submission_id: submissionId,
-    is_confirmed: hasAdminPermission ? (cell.is_confirmed ?? false) : false,
+    is_confirmed: hasAdminPermission && (cell.is_confirmed ?? false),
     operation: cell.operation ?? "add",
   }));
 
@@ -287,7 +266,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
 
   const [hasAdminPermission, submission] = await Promise.all([
-    verifyPermissions(session.user.id, { submissions: ["update"] }),
+    verifyPermissions(session.user.id, { submissions: ["moderate"] }),
     db.query.submissions.findFirst({ where: { id } }),
   ]);
 
@@ -306,25 +285,25 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before updating." });
 
   validateSectorInputs(req.body.sectors);
-  const existingProposedStation =
-    submission.station_id === null && req.body.cells
-      ? await db.query.proposedStations.findFirst({ where: { submission_id: id }, columns: { operator_id: true } })
-      : null;
-  await validateCellConflicts(req.body.cells, submission.station_id, req.body.station?.operator_id ?? existingProposedStation?.operator_id);
+  await validateCellConflicts(req.body.cells, submission.station_id);
 
   try {
-    const result = await db.transaction((tx) => updateSubmissionDraft(tx, submission, req.body, hasAdminPermission));
-
-    await createAuditLog(
-      {
-        action: "submissions.update",
-        table_name: "submissions",
-        record_id: undefined,
-        old_values: submission,
-        new_values: result,
-        metadata: { submission_id: id },
+    const result = await runAuditedOperation(
+      auditContextFromRequest(req),
+      { kind: "submission.update", metadata: { submission_id: id } },
+      async (tx, audit) => {
+        const updated = await updateSubmissionDraft(tx, submission, req.body, hasAdminPermission);
+        const { sectors: _sectors, cells: _cells, ...updatedSubmission } = updated;
+        await audit.log({
+          entity: "submissions",
+          op: "update",
+          recordId: id,
+          stationId: submission.station_id,
+          old: submission,
+          new: updatedSubmission,
+        });
+        return updated;
       },
-      req,
     );
 
     return res.send({ data: result });
@@ -337,6 +316,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateSubmission: Route<RequestData, ResponseData> = {
   url: "/submissions/:id",
   method: "PATCH",
+  config: { permissions: ["update:submissions"] },
   schema: schemaRoute,
   handler,
 };

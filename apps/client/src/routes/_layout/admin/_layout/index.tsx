@@ -31,13 +31,13 @@ const EditorNotes = lazy(() => import("@/features/admin/dashboard/EditorNotes").
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { getActionStyle } from "@/features/admin/audit-logs/constants";
+import { OperationKindBadge } from "@/features/admin/audit-operations/components/operation-kind-badge";
 import {
   fetchDashboardStats,
   fetchDashboardDelta,
   fetchPendingSubmissions,
   fetchPendingComments,
-  fetchRecentAuditLogs,
+  fetchRecentAuditOperations,
   fetchImportStatus,
 } from "@/features/admin/dashboard/api";
 import type { StepStatus } from "@/features/admin/uke-import/api";
@@ -83,8 +83,8 @@ function AdminDashboardPage() {
         refetchOnMount: "always" as const,
       },
       {
-        queryKey: ["admin", "dashboard", "audit-logs"],
-        queryFn: fetchRecentAuditLogs,
+        queryKey: ["admin", "dashboard", "audit-operations"],
+        queryFn: ({ signal }) => fetchRecentAuditOperations(signal),
         staleTime: 30_000,
       },
       {
@@ -101,7 +101,7 @@ function AdminDashboardPage() {
   const pendingCommentCount = commentsQuery.data?.totalCount ?? 0;
   const submissions = submissionsQuery.data?.data ?? [];
   const comments = commentsQuery.data?.data ?? [];
-  const auditLogs = auditQuery.data?.data ?? [];
+  const auditOperations = auditQuery.data?.data ?? [];
   const importStatus = importQuery.data;
 
   const approveMutation = useMutation({
@@ -492,27 +492,25 @@ function AdminDashboardPage() {
                       ))}
                     </div>
                   ) : (
-                    auditLogs.map((log) => {
-                      const style = getActionStyle(log.action);
+                    auditOperations.map((operation) => {
+                      const actorName = operation.actor?.name ?? operation.actor?.username ?? t("auditLogs.actor.system", { ns: "admin" });
                       return (
-                        <div key={log.id} className="flex items-center gap-3 px-3.5 py-2 border-b border-border/50 last:border-0">
-                          <span
-                            className={cn(
-                              "shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider border",
-                              style.badgeClass,
-                            )}
-                          >
-                            <span className={cn("size-1.5 rounded-[1px]", style.dotClass)} aria-hidden="true" />
-                            {log.action}
-                          </span>
+                        <div key={operation.id} className="flex items-center gap-3 px-3.5 py-2 border-b border-border/50 last:border-0">
+                          <OperationKindBadge kind={operation.kind} t={t} compact />
                           <div className="flex-1 min-w-0 text-[11px] truncate">
-                            {log.user && (
-                              <span className="text-muted-foreground">
-                                {log.user.name} (<span className="text-foreground">@{log.user.username}</span>)
-                              </span>
-                            )}
+                            <span className="text-muted-foreground">
+                              {actorName}
+                              {operation.actor?.username ? (
+                                <>
+                                  {" "}
+                                  (<span className="text-foreground">@{operation.actor.username}</span>)
+                                </>
+                              ) : null}
+                            </span>
                           </div>
-                          <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">{formatRelativeTime(log.createdAt, t)}</span>
+                          <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                            {formatRelativeTime(operation.createdAt, t)}
+                          </span>
                         </div>
                       );
                     })

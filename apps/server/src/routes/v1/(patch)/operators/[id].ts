@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const operatorsUpdateSchema = createUpdateSchema(operators).strict();
 const operatorsSelectSchema = createSelectSchema(operators);
@@ -39,9 +39,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   if (!operator) throw new ErrorResponse("NOT_FOUND");
 
   try {
-    const [updated] = await db.update(operators).set(req.body).where(eq(operators.id, id)).returning();
-    if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
-    await createAuditLog({ action: "operators.update", table_name: "operators", record_id: id, old_values: operator, new_values: updated }, req);
+    const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.update" }, async (tx, audit) => {
+      const [result] = await tx.update(operators).set(req.body).where(eq(operators.id, id)).returning();
+      if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
+
+      await audit.log({ entity: "operators", op: "update", recordId: id, old: operator, new: result });
+      return result;
+    });
 
     return res.send({ data: updated });
   } catch (error) {
@@ -53,7 +57,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateOperator: Route<RequestData, ResponseData> = {
   url: "/operators/:id",
   method: "PATCH",
-  config: { permissions: ["write:operators"] },
+  config: {
+    permissions: ["update:operators"],
+  },
   schema: schemaRoute,
   handler,
 };

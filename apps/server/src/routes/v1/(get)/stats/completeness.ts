@@ -82,6 +82,7 @@ const getStatsCompleteness: Route<RouteGenericInterface, ResBody> = {
   schema: schemaRoute,
   config: {
     permissions: ["read:stats"],
+    allowGuestAccess: true,
   },
   handler,
 };

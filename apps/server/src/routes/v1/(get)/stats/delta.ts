@@ -59,7 +59,7 @@ const getStatsDelta: Route<never, Response> = {
   url: "/stats/delta",
   method: "GET",
   schema: schemaRoute,
-  config: { permissions: ["read:submissions"] },
+  config: { permissions: ["read_all:submissions"] },
   handler,
 };
 

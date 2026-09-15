@@ -234,35 +234,41 @@
     "columns": {
       "timestamp": "Data utworzenia",
       "actor": "Użytkownik",
-      "action": "Akcja",
+      "kind": "Operacja",
+      "target": "Cel",
+      "changes": "Zmiany",
       "entity": "Tabela",
-      "record": "Rekord",
       "source": "Źródło"
     },
     "actor": {
-      "system": "System"
+      "system": "System",
+      "via": "przez {{name}}",
+      "viaWithUsername": "przez {{name}} (@{{username}})"
     },
     "filters": {
       "allEntities": "Wszystkie tabele",
-      "allActions": "Wszystkie akcje",
-      "actionsCount_one": "{{count, number}} akcja",
-      "actionsCount_few": "{{count, number}} akcje",
-      "actionsCount_many": "{{count, number}} akcji",
-      "actionsCount_other": "{{count, number}} akcji",
+      "allKinds": "Wszystkie operacje",
+      "kindsCount_one": "{{count, number}} operacja",
+      "kindsCount_few": "{{count, number}} operacje",
+      "kindsCount_many": "{{count, number}} operacji",
+      "kindsCount_other": "{{count, number}} operacji",
       "dateFrom": "Od",
       "dateRange": "Zakres dat",
       "dateTo": "Do",
-      "recordId": "ID rekordu",
-      "userId": "ID użytkownika",
-      "userSearch": "Użytkownik (imię, email...)",
-      "moreFilters": "Więcej filtrów"
+      "recordId": "ID rekordu"
+    },
+    "target": {
+      "stations_one": "{{count, number}} stacja",
+      "stations_few": "{{count, number}} stacje",
+      "stations_many": "{{count, number}} stacji",
+      "stations_other": "{{count, number}} stacji"
     },
     "empty": {
       "title": "Nie znaleziono logów",
       "subtitle": "Spróbuj zmienić filtry"
     },
     "detail": {
-      "title": "Szczegóły logu",
+      "title": "Szczegóły operacji",
       "overview": "Informacje",
       "changes": "Zmiany",
       "field": "Pole",
@@ -274,7 +280,209 @@
       "userAgent": "Przeglądarka",
       "links": "Linki",
       "station": "Stacja",
-      "submission": "Zgłoszenie"
+      "submission": "Zgłoszenie",
+      "performedBy": "Wykonane przez",
+      "reverts": "Cofa operację #{{id}}",
+      "revertedBy": "Cofnięta przez operację #{{id}}"
+    },
+    "groups": {
+      "station": "Stacje",
+      "cells": "Komórki",
+      "location": "Lokalizacje",
+      "submission": "Zgłoszenia",
+      "comment": "Komentarze",
+      "operator": "Operatorzy",
+      "band": "Pasma",
+      "region": "Województwa",
+      "list": "Listy użytkowników",
+      "settings": "Ustawienia",
+      "uke": "Import UKE",
+      "analyzer": "Analizator",
+      "system": "System",
+      "revert": "Cofnięcia"
+    },
+    "kinds": {
+      "station": {
+        "create": "Utworzenie stacji",
+        "edit": "Edycja stacji",
+        "delete": "Dezaktywacja stacji",
+        "photos": "Zdjęcia stacji"
+      },
+      "cells": {
+        "create": "Dodanie komórek",
+        "update": "Aktualizacja komórek",
+        "delete": "Usunięcie komórek"
+      },
+      "location": {
+        "create": "Utworzenie lokalizacji",
+        "edit": "Edycja lokalizacji",
+        "delete": "Usunięcie lokalizacji",
+        "photos": "Zdjęcia lokalizacji"
+      },
+      "submission": {
+        "create": "Utworzenie zgłoszenia",
+        "update": "Aktualizacja zgłoszenia",
+        "delete": "Usunięcie zgłoszenia",
+        "approve": "Zatwierdzenie zgłoszenia",
+        "reject": "Odrzucenie zgłoszenia",
+        "cleanup": "Czyszczenie zgłoszeń",
+        "photos": "Zdjęcia zgłoszenia"
+      },
+      "analyzer": {
+        "apply": "Zastosowanie analizatora"
+      },
+      "comment": {
+        "create": "Utworzenie komentarza",
+        "update": "Aktualizacja komentarza",
+        "delete": "Usunięcie komentarza"
+      },
+      "operator": {
+        "create": "Utworzenie operatora",
+        "update": "Aktualizacja operatora",
+        "delete": "Usunięcie operatora"
+      },
+      "band": {
+        "create": "Utworzenie pasma",
+        "update": "Aktualizacja pasma",
+        "delete": "Usunięcie pasma"
+      },
+      "region": {
+        "create": "Utworzenie województwa",
+        "update": "Aktualizacja województwa",
+        "delete": "Usunięcie województwa"
+      },
+      "list": {
+        "create": "Utworzenie listy",
+        "update": "Aktualizacja listy",
+        "delete": "Usunięcie listy"
+      },
+      "settings": {
+        "update": "Aktualizacja ustawień"
+      },
+      "uke": {
+        "import": "Import UKE"
+      },
+      "system": {
+        "inactive_cleanup": "Czyszczenie nieaktywnych stacji",
+        "submission_cleanup": "Czyszczenie zgłoszeń"
+      },
+      "revert": "Cofnięcie zmian"
+    },
+    "entities": {
+      "stations": "Stacje",
+      "cells": "Komórki",
+      "locations": "Lokalizacje",
+      "station_sectors": "Sektory",
+      "extra_identificators": "Identyfikatory sieci",
+      "station_photo_selections": "Wybór zdjęć",
+      "location_photos": "Zdjęcia lokalizacji",
+      "station_comments": "Komentarze",
+      "submissions": "Zgłoszenia",
+      "submission_photos": "Zdjęcia zgłoszeń",
+      "operators": "Operatorzy",
+      "bands": "Pasma",
+      "regions": "Województwa",
+      "user_lists": "Listy użytkowników",
+      "settings": "Ustawienia"
+    },
+    "ops": {
+      "create": "Utworzenie",
+      "update": "Aktualizacja",
+      "delete": "Usunięcie"
+    },
+    "counts": {
+      "stations_one": "{{count, number}} stacja",
+      "stations_few": "{{count, number}} stacje",
+      "stations_many": "{{count, number}} stacji",
+      "stations_other": "{{count, number}} stacji",
+      "cells_one": "{{count, number}} komórka",
+      "cells_few": "{{count, number}} komórki",
+      "cells_many": "{{count, number}} komórek",
+      "cells_other": "{{count, number}} komórek",
+      "locations_one": "{{count, number}} lokalizacja",
+      "locations_few": "{{count, number}} lokalizacje",
+      "locations_many": "{{count, number}} lokalizacji",
+      "locations_other": "{{count, number}} lokalizacji",
+      "station_sectors_one": "{{count, number}} sektor",
+      "station_sectors_few": "{{count, number}} sektory",
+      "station_sectors_many": "{{count, number}} sektorów",
+      "station_sectors_other": "{{count, number}} sektorów",
+      "extra_identificators_one": "{{count, number}} identyfikator sieci",
+      "extra_identificators_few": "{{count, number}} identyfikatory sieci",
+      "extra_identificators_many": "{{count, number}} identyfikatorów sieci",
+      "extra_identificators_other": "{{count, number}} identyfikatorów sieci",
+      "station_photo_selections_one": "{{count, number}} wybór zdjęć",
+      "station_photo_selections_few": "{{count, number}} wybory zdjęć",
+      "station_photo_selections_many": "{{count, number}} wyborów zdjęć",
+      "station_photo_selections_other": "{{count, number}} wyborów zdjęć",
+      "location_photos_one": "{{count, number}} zdjęcie lokalizacji",
+      "location_photos_few": "{{count, number}} zdjęcia lokalizacji",
+      "location_photos_many": "{{count, number}} zdjęć lokalizacji",
+      "location_photos_other": "{{count, number}} zdjęć lokalizacji",
+      "station_comments_one": "{{count, number}} komentarz",
+      "station_comments_few": "{{count, number}} komentarze",
+      "station_comments_many": "{{count, number}} komentarzy",
+      "station_comments_other": "{{count, number}} komentarzy",
+      "submissions_one": "{{count, number}} zgłoszenie",
+      "submissions_few": "{{count, number}} zgłoszenia",
+      "submissions_many": "{{count, number}} zgłoszeń",
+      "submissions_other": "{{count, number}} zgłoszeń",
+      "submission_photos_one": "{{count, number}} zdjęcie zgłoszenia",
+      "submission_photos_few": "{{count, number}} zdjęcia zgłoszenia",
+      "submission_photos_many": "{{count, number}} zdjęć zgłoszenia",
+      "submission_photos_other": "{{count, number}} zdjęć zgłoszenia",
+      "operators_one": "{{count, number}} operator",
+      "operators_few": "{{count, number}} operatorzy",
+      "operators_many": "{{count, number}} operatorów",
+      "operators_other": "{{count, number}} operatorów",
+      "bands_one": "{{count, number}} pasmo",
+      "bands_few": "{{count, number}} pasma",
+      "bands_many": "{{count, number}} pasm",
+      "bands_other": "{{count, number}} pasm",
+      "regions_one": "{{count, number}} województwo",
+      "regions_few": "{{count, number}} województwa",
+      "regions_many": "{{count, number}} województw",
+      "regions_other": "{{count, number}} województw",
+      "user_lists_one": "{{count, number}} lista użytkownika",
+      "user_lists_few": "{{count, number}} listy użytkownika",
+      "user_lists_many": "{{count, number}} list użytkownika",
+      "user_lists_other": "{{count, number}} list użytkownika",
+      "settings_one": "{{count, number}} ustawienie",
+      "settings_few": "{{count, number}} ustawienia",
+      "settings_many": "{{count, number}} ustawień",
+      "settings_other": "{{count, number}} ustawień",
+      "other": "{{count, number}} × {{entity}}"
+    },
+    "revert": {
+      "action": "Cofnij operację",
+      "entryAction": "Cofnij tę zmianę",
+      "title": "Cofnąć operację #{{id}}?",
+      "entryTitle": "Cofnąć tę zmianę z operacji #{{id}}?",
+      "description": "Zmiany zostaną wycofane w nowej operacji, a wartości przywrócone do stanu sprzed zmiany",
+      "revertibleCount_one": "Można cofnąć {{count, number}} zmianę",
+      "revertibleCount_few": "Można cofnąć {{count, number}} zmiany",
+      "revertibleCount_many": "Można cofnąć {{count, number}} zmian",
+      "revertibleCount_other": "Można cofnąć {{count, number}} zmian",
+      "skippedCount_one": "{{count, number}} zmiana zostanie pominięta",
+      "skippedCount_few": "{{count, number}} zmiany zostaną pominięte",
+      "skippedCount_many": "{{count, number}} zmian zostanie pominiętych",
+      "skippedCount_other": "{{count, number}} zmian zostanie pominiętych",
+      "confirm": "Cofnij",
+      "force": "Cofnij mimo to",
+      "conflictsTitle": "Dane zmieniły się od czasu tej operacji",
+      "conflictsDescription": "Przejrzyj bieżące wartości przed cofnięciem. Wymuszenie cofnięcia może nadpisać nowsze zmiany",
+      "expected": "Oczekiwano",
+      "current": "Obecnie",
+      "success_one": "Cofnięto {{count, number}} zmianę",
+      "success_few": "Cofnięto {{count, number}} zmiany",
+      "success_many": "Cofnięto {{count, number}} zmian",
+      "success_other": "Cofnięto {{count, number}} zmian",
+      "skipped_one": "Pominięto {{count, number}} zmianę",
+      "skipped_few": "Pominięto {{count, number}} zmiany",
+      "skipped_many": "Pominięto {{count, number}} zmian",
+      "skipped_other": "Pominięto {{count, number}} zmian",
+      "notRevertible": "Tej operacji nie można cofnąć",
+      "alreadyReverted": "Ta operacja została już cofnięta"
     }
   }
 }

@@ -1,8 +1,9 @@
-import type { AuditLogEntry } from "@/features/admin/audit-logs/constants";
 import type { AdminComment } from "@/features/admin/comments/types";
 import type { SubmissionListItem } from "@/features/admin/submissions/types";
 import type { ImportJobStatus } from "@/features/admin/uke-import/api";
 import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
+
+export { fetchRecentAuditOperations } from "@/features/admin/audit-operations/api";
 
 export interface DashboardStats {
   lastUpdated: {
@@ -38,8 +39,5 @@ export const fetchPendingSubmissions = () =>
 
 export const fetchPendingComments = () =>
   fetchJson<{ data: AdminComment[]; totalCount: number }>(`${API_BASE}/comments?status=pending&limit=25&offset=0`);
-
-export const fetchRecentAuditLogs = () =>
-  fetchJson<{ data: AuditLogEntry[]; totalCount: number }>(`${API_BASE}/audit-logs?limit=25&offset=0&sort=desc`);
 
 export const fetchImportStatus = () => fetchApiData<ImportJobStatus>("uke/import/status");

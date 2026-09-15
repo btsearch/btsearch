@@ -1,5 +1,7 @@
+import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
 import type { CLFDescriptionTemplates, ClfExportFormat } from "@openbts/shared/clfExportTemplates";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   index,
@@ -72,50 +74,9 @@ export type CloudPreferences = {
 
 export const Role = pgEnum("role", ["user", "moderator", "admin"]);
 export const APITokenTier = pgEnum("api_token_tier", ["basic", "pro", "unlimited"]);
-export const AuditAction = pgEnum("audit_action", [
-  "stations.create",
-  "stations.update",
-  "stations.delete",
-  "cells.create",
-  "cells.update",
-  "cells.delete",
-  "locations.create",
-  "locations.update",
-  "locations.delete",
-  "operators.create",
-  "operators.update",
-  "operators.delete",
-  "bands.create",
-  "bands.update",
-  "bands.delete",
-  "regions.create",
-  "regions.update",
-  "regions.delete",
-  "submissions.create",
-  "submissions.update",
-  "submissions.delete",
-  "submissions.approve",
-  "submissions.reject",
-  "submissions.cleanup",
-  "settings.update",
-  "station_comments.create",
-  "station_comments.update",
-  "station_comments.delete",
-  "station_photos.create",
-  "station_photos.update",
-  "station_photos.delete",
-  "location_photos.create",
-  "location_photos.update",
-  "location_photos.delete",
-  "submission_photos.create",
-  "submission_photos.update",
-  "submission_photos.delete",
-  "user_lists.create",
-  "user_lists.update",
-  "user_lists.delete",
-  "uke_import.start",
-]);
+export const AuditOp = pgEnum("audit_op", ["create", "update", "delete"]);
 export const AuditSource = pgEnum("audit_source", ["api", "import", "system"]);
+export const AuditSchema = pgSchema("audit");
 export const AuthSchema = pgSchema("auth");
 
 export const users = AuthSchema.table(
@@ -627,36 +588,59 @@ export const stationComments = pgTable(
   ],
 );
 
-/**
- * Audit logs table
- * @example
- * { id: 1, action: "stations.create", table_name: "stations", record_id: 1, old_values: {}, new_values: {}, metadata: {}, source: "api", ip_address: "127.0.0.1", user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36", invoked_by: 1, createdAt: new Date() }
- */
-export const auditLogs = pgTable(
-  "audit_logs",
+export const auditOperations = AuditSchema.table(
+  "audit_operations",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    action: AuditAction("action").notNull(),
-    table_name: varchar("table_name", { length: 100 }).notNull(),
-    record_id: integer("record_id"),
-    old_values: jsonb("old_values"),
-    new_values: jsonb("new_values"),
-    metadata: jsonb("metadata"),
-    source: AuditSource("source"),
+    client_key: uuid("client_key").unique(),
+    kind: varchar("kind", { length: 64 }).$type<AuditOperationKind>().notNull(),
+    actor_id: uuid("actor_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
+    performed_by: uuid("performed_by").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
+    source: AuditSource("source").notNull().default("api"),
     ip_address: varchar("ip_address", { length: 60 }),
     user_agent: text("user_agent"),
-    invoked_by: uuid("invoked_by").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
+    metadata: jsonb("metadata"),
+    reverts_operation_id: integer("reverts_operation_id").references((): AnyPgColumn => auditOperations.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    reverted_by_operation_id: integer("reverted_by_operation_id").references((): AnyPgColumn => auditOperations.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("audit_logs_record_id_idx").on(table.record_id),
-    index("audit_logs_invoked_by_idx").on(table.invoked_by),
-    index("audit_logs_table_name_idx").on(table.table_name),
+    index("audit_operations_created_at_id_idx").on(table.createdAt, table.id),
+    index("audit_operations_actor_id_idx").on(table.actor_id),
+    index("audit_operations_performed_by_idx").on(table.performed_by),
+    index("audit_operations_kind_idx").on(table.kind),
+    index("audit_operations_reverts_operation_id_idx").on(table.reverts_operation_id),
+  ],
+);
+
+export const auditLogs = AuditSchema.table(
+  "audit_logs",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    operation_id: integer("operation_id")
+      .references(() => auditOperations.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    entity: varchar("entity", { length: 40 }).$type<AuditEntity>().notNull(),
+    op: AuditOp("op").notNull(),
+    station_id: integer("station_id"),
+    record_id: text("record_id"),
+    old_values: jsonb("old_values"),
+    new_values: jsonb("new_values"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("audit_logs_operation_id_idx").on(table.operation_id),
+    index("audit_logs_entity_op_idx").on(table.entity, table.op),
+    index("audit_logs_entity_record_id_idx").on(table.entity, table.record_id),
+    index("audit_logs_station_operation_idx").on(table.station_id, table.operation_id),
     index("audit_logs_date_created_idx").on(table.createdAt),
-    index("audit_logs_action_idx").on(table.action),
-    index("audit_logs_table_name_created_idx").on(table.table_name, table.createdAt),
-    index("audit_logs_action_created_idx").on(table.action, table.createdAt),
-    index("audit_logs_invoked_by_created_idx").on(table.invoked_by, table.createdAt),
   ],
 );
 

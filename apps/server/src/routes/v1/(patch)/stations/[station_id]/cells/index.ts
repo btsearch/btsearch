@@ -8,7 +8,7 @@ import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../services/audit/index.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
 import { queueStationCellsChangedNotification } from "../../../../../../services/notifications/stationCellChanges.js";
 import { assertCanMutateStationCells } from "../../../../../../services/stations/status.js";
@@ -110,7 +110,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   validateCellDuplicates(effectiveCells);
 
-  const allModifiedCellIds = cellsData.map((cellData) => cellData.cell_id);
+  const allModifiedCellIds = [...new Set(cellsData.map((cellData) => cellData.cell_id))];
 
   await Promise.all([
     station.operator_id
@@ -146,7 +146,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   ]);
 
   try {
-    const updated = await db.transaction(async (tx) => {
+    const response = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.update" }, async (tx, audit) => {
+      const oldSnapshots = await loadCellSnapshots(tx, allModifiedCellIds);
+      if (oldSnapshots.size !== allModifiedCellIds.length) throw new ErrorResponse("NOT_FOUND");
+
       const results: z.infer<typeof cellsSelectSchema>[] = [];
 
       for (const cellData of cellsData) {
@@ -173,58 +176,31 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         results.push(updatedCell);
       }
 
-      return results;
-    });
+      const newSnapshots = await loadCellSnapshots(tx, allModifiedCellIds);
+      const response = results.map((cell) => {
+        const snapshot = newSnapshots.get(cell.id);
+        if (!snapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
+        return { ...snapshot, details: snapshot.details ?? undefined } as ResponseData[number];
+      });
 
-    const ids = updated.map((c) => c.id);
-    const full = await db.query.cells.findMany({
-      where: {
-        RAW: (fields, { inArray }) => inArray(fields.id, ids),
-      },
-      with: {
-        gsm: { columns: { cell_id: false } },
-        umts: { columns: { cell_id: false } },
-        lte: { columns: { cell_id: false } },
-        nr: { columns: { cell_id: false } },
-      },
+      await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station_id));
+      await audit.logMany(
+        allModifiedCellIds.map((cellId) => {
+          const oldSnapshot = oldSnapshots.get(cellId);
+          const newSnapshot = newSnapshots.get(cellId);
+          if (!oldSnapshot || !newSnapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
+          return {
+            entity: "cells",
+            op: "update",
+            recordId: cellId,
+            stationId: station_id,
+            old: oldSnapshot,
+            new: newSnapshot,
+          };
+        }),
+      );
+      return response;
     });
-
-    const response: ResponseData = updated.map((cell) => {
-      const fullCell = full.find((c) => c.id === cell.id);
-      const details = fullCell?.gsm ?? fullCell?.umts ?? fullCell?.lte ?? fullCell?.nr ?? undefined;
-      return { ...cell, details };
-    });
-
-    const cellsUpdated = response.map((cell) => {
-      const oldFull = existingCells.find((c) => c.id === cell.id);
-      const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, ...oldBase } = oldFull ?? ({} as typeof oldFull & Record<string, never>);
-      const oldDetails = oldFull ? (oldFull.gsm ?? oldFull.umts ?? oldFull.lte ?? oldFull.nr ?? undefined) : undefined;
-      return { old: { ...oldBase, details: oldDetails }, new: cell };
-    });
-    await createAuditLog(
-      {
-        action: "cells.update",
-        table_name: "cells",
-        record_id: null,
-        old_values: { cells: cellsUpdated.map((c) => c.old) },
-        new_values: { cells: cellsUpdated.map((c) => c.new) },
-        metadata: { station_id },
-      },
-      req,
-    );
-
-    const [updatedStation] = await db.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station_id)).returning();
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "stations",
-        record_id: station_id,
-        old_values: { updatedAt: station.updatedAt },
-        new_values: { updatedAt: updatedStation?.updatedAt },
-        metadata: { reason: "cells.update" },
-      },
-      req,
-    );
 
     queueStationCellsChangedNotification({ stationId: station_id, counts: { updated: response.length } });
 
@@ -239,7 +215,7 @@ const updateCells: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/cells",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["write:stations"] },
+  config: { permissions: ["update:cells"] },
   handler,
 };
 

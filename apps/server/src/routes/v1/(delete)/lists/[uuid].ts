@@ -8,7 +8,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 
 const schemaRoute = {
@@ -28,19 +28,18 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 
   const [list, isAdmin] = await Promise.all([
     db.query.userLists.findFirst({ where: { uuid } }),
-    verifyPermissions(userId, { user_lists: ["delete"] }),
+    verifyPermissions(userId, { user_lists: ["manage_all"] }),
   ]);
   if (!list) throw new ErrorResponse("NOT_FOUND");
   if (!isAdmin && list.created_by !== userId) throw new ErrorResponse("FORBIDDEN");
 
-  await db
-    .delete(userLists)
-    .where(eq(userLists.uuid, uuid))
-    .catch(() => {
-      throw new ErrorResponse("FAILED_TO_DELETE");
-    });
-
-  await createAuditLog({ action: "user_lists.delete", table_name: "user_lists", record_id: list.id, old_values: list }, req);
+  await runAuditedOperation(auditContextFromRequest(req), { kind: "list.delete" }, async (tx, audit) => {
+    await tx.delete(userLists).where(eq(userLists.uuid, uuid));
+    await audit.log({ entity: "user_lists", op: "delete", recordId: list.id, old: list });
+  }).catch((error) => {
+    if (error instanceof ErrorResponse) throw error;
+    throw new ErrorResponse("FAILED_TO_DELETE");
+  });
 
   return res.status(204).send();
 }
@@ -48,6 +47,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 const deleteList: Route<ReqParams, void> = {
   url: "/lists/:uuid",
   method: "DELETE",
+  config: { permissions: ["delete:user_lists"] },
   schema: schemaRoute,
   handler,
 };

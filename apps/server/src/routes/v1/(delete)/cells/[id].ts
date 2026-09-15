@@ -7,7 +7,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../services/audit/index.js";
 import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
 import { assertCanDeleteCells } from "../../../../services/stations/status.js";
 
@@ -33,7 +33,10 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   assertCanDeleteCells(station, currentCellCount - 1);
 
   try {
-    await db.transaction(async (tx) => {
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.delete" }, async (tx, audit) => {
+      const snapshot = await loadCellSnapshot(tx, cell.id);
+      if (!snapshot) throw new ErrorResponse("NOT_FOUND");
+
       switch (cell.rat) {
         case "GSM":
           await tx.delete(gsmCells).where(eq(gsmCells.cell_id, cell.id));
@@ -50,32 +53,15 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
       }
 
       await tx.delete(cells).where(eq(cells.id, cell.id));
-
-      await createAuditLog(
-        {
-          action: "cells.delete",
-          table_name: "cells",
-          record_id: cell.id,
-          old_values: cell,
-          new_values: null,
-          metadata: { station_id: cell.station_id },
-        },
-        req,
-        tx,
-      );
-
       await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, cell.station_id));
-      await createAuditLog(
-        {
-          action: "stations.update",
-          table_name: "stations",
-          record_id: cell.station_id,
-          new_values: { updatedAt: new Date() },
-          metadata: { reason: "cells.delete" },
-        },
-        req,
-        tx,
-      );
+      await audit.log({
+        entity: "cells",
+        op: "delete",
+        recordId: cell.id,
+        stationId: cell.station_id,
+        old: snapshot,
+        new: null,
+      });
     });
 
     queueStationCellsChangedNotification({ stationId: cell.station_id, counts: { removed: 1 } });

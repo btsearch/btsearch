@@ -1,4 +1,5 @@
 import type { auditLogs } from "@openbts/drizzle";
+import type { AuditOperationKind } from "@openbts/shared/audit";
 
 export type StationHistoryValue = string | number | boolean | null;
 export type StationHistoryChangeValue = StationHistoryValue | StationHistoryValue[] | Record<string, StationHistoryValue>;
@@ -18,13 +19,10 @@ export type StationHistoryAuthor = {
   image: string | null;
 };
 
-export type StationHistoryEntry = {
-  id: number;
+export type StationHistorySection = {
   kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
   action: "create" | "update" | "delete";
-  createdAt: Date;
   changes: StationHistoryChange[];
-  author?: StationHistoryAuthor | null;
 };
 
 export type StationHistoryLookups = {
@@ -172,53 +170,35 @@ function cellIdentifier(flat: HistoryObject): string | undefined {
   return undefined;
 }
 
-function extractCellList(values: unknown): HistoryObject[] {
-  if (isPlainObject(values) && Array.isArray(values.cells)) return values.cells.filter(isPlainObject);
-  if (isPlainObject(values)) return [values];
-  return [];
-}
-
-function transformCells(row: AuditRow, action: StationHistoryEntry["action"], lookups: StationHistoryLookups): StationHistoryChange[] {
-  const changes: StationHistoryChange[] = [];
+function transformCells(row: AuditRow, action: StationHistorySection["action"], lookups: StationHistoryLookups): StationHistoryChange[] {
   if (action === "create" || action === "delete") {
-    const source = action === "create" ? row.new_values : row.old_values;
-    for (const cell of extractCellList(source)) {
-      const flat = flattenCell(cell);
-      if (!flat) continue;
-      const snapshot = cellSnapshot(flat, lookups);
-      const change: StationHistoryChange = {
-        field: "cell",
-        from: action === "create" ? null : snapshot,
-        to: action === "create" ? snapshot : null,
-      };
-      const label = cellLabel(flat, lookups);
-      if (label) change.label = label;
-      if (typeof flat.rat === "string") change.rat = flat.rat;
-      changes.push(change);
-    }
-    return changes;
+    const flat = flattenCell(action === "create" ? row.new_values : row.old_values);
+    if (!flat) return [];
+    const snapshot = cellSnapshot(flat, lookups);
+    const change: StationHistoryChange = {
+      field: "cell",
+      from: action === "create" ? null : snapshot,
+      to: action === "create" ? snapshot : null,
+    };
+    const label = cellLabel(flat, lookups);
+    if (label) change.label = label;
+    if (typeof flat.rat === "string") change.rat = flat.rat;
+    return [change];
   }
 
-  const oldCells = extractCellList(row.old_values).map(flattenCell);
-  const newCells = extractCellList(row.new_values).map(flattenCell);
-  const pairCount = Math.min(oldCells.length, newCells.length);
-  for (let index = 0; index < pairCount; index++) {
-    const oldFlat = oldCells[index];
-    const newFlat = newCells[index];
-    if (!oldFlat || !newFlat) continue;
-    const baseLabel = cellLabel(newFlat, lookups) ?? cellLabel(oldFlat, lookups);
-    const identifier = cellIdentifier(oldFlat) ?? cellIdentifier(newFlat);
-    const label = baseLabel !== undefined && identifier !== undefined ? `${baseLabel} · ${identifier}` : (baseLabel ?? identifier);
-    const ratValue = newFlat.rat ?? oldFlat.rat;
-    changes.push(
-      ...diffFields(oldFlat, newFlat, [...CELL_FIELDS, "cell_type", ...CELL_DETAIL_FIELDS], lookups, {
-        requireBothSides: true,
-        label,
-        rat: typeof ratValue === "string" ? ratValue : undefined,
-      }),
-    );
-  }
-  return changes;
+  const oldFlat = flattenCell(row.old_values);
+  const newFlat = flattenCell(row.new_values);
+  if (!oldFlat || !newFlat) return [];
+  const baseLabel = cellLabel(newFlat, lookups) ?? cellLabel(oldFlat, lookups);
+  const identifier = cellIdentifier(oldFlat) ?? cellIdentifier(newFlat);
+  let label = baseLabel ?? identifier;
+  if (baseLabel !== undefined && identifier !== undefined) label = `${baseLabel} · ${identifier}`;
+  const ratValue = newFlat.rat ?? oldFlat.rat;
+  return diffFields(oldFlat, newFlat, [...CELL_FIELDS, "cell_type", ...CELL_DETAIL_FIELDS], lookups, {
+    requireBothSides: true,
+    label,
+    rat: typeof ratValue === "string" ? ratValue : undefined,
+  });
 }
 
 function azimuthList(value: unknown): number[] {
@@ -256,7 +236,7 @@ function photoReference(photoId: number | null): string | null {
   return photoId === null ? null : `#${photoId}`;
 }
 
-function transformPhotos(row: AuditRow): { action: StationHistoryEntry["action"]; changes: StationHistoryChange[] } {
+function transformPhotos(row: AuditRow): { action: StationHistorySection["action"]; changes: StationHistoryChange[] } {
   const previous = photoSelections(row.old_values);
   const next = photoSelections(row.new_values);
   const addedIds = [...next.keys()].filter((photoId) => !previous.has(photoId)).sort((a, b) => a - b);
@@ -266,15 +246,19 @@ function transformPhotos(row: AuditRow): { action: StationHistoryEntry["action"]
   const changes: StationHistoryChange[] = [
     ...deletedIds.map((photoId) => ({ field: "photo", from: `#${photoId}`, to: null })),
     ...addedIds.map((photoId) => ({ field: "photo", from: null, to: `#${photoId}` })),
-    ...(previousMainId === nextMainId ? [] : [{ field: "main_photo", from: photoReference(previousMainId), to: photoReference(nextMainId) }]),
   ];
-  const action = addedIds.length > 0 && deletedIds.length === 0 ? "create" : addedIds.length === 0 && deletedIds.length > 0 ? "delete" : "update";
+  if (changes.length > 0 && previousMainId !== nextMainId)
+    changes.push({ field: "main_photo", from: photoReference(previousMainId), to: photoReference(nextMainId) });
+
+  let action: StationHistorySection["action"] = "update";
+  if (addedIds.length > 0 && deletedIds.length === 0) action = "create";
+  if (addedIds.length === 0 && deletedIds.length > 0) action = "delete";
   return { action, changes };
 }
 
 export function enrichSectorAzimuths(map: Map<number, number>, rows: AuditRow[]): void {
   for (const row of rows) {
-    if (row.table_name !== "station_sectors") continue;
+    if (row.entity !== "station_sectors") continue;
     for (const values of [row.new_values, row.old_values]) {
       if (!Array.isArray(values)) continue;
       for (const sector of values) {
@@ -287,32 +271,33 @@ export function enrichSectorAzimuths(map: Map<number, number>, rows: AuditRow[])
 
 export function collectLocationSnapshotNames(map: Map<number, string>, rows: AuditRow[]): void {
   for (const row of rows) {
-    if (row.table_name !== "locations" || row.record_id === null || map.has(row.record_id)) continue;
+    if (row.entity !== "locations" || row.record_id === null) continue;
+    const locationId = Number(row.record_id);
+    if (!Number.isInteger(locationId) || map.has(locationId)) continue;
     for (const values of [row.old_values, row.new_values]) {
       if (!isPlainObject(values)) continue;
       const name = [values.city, values.address].filter((part): part is string => typeof part === "string" && part !== "").join(", ");
       if (name !== "") {
-        map.set(row.record_id, name);
+        map.set(locationId, name);
         break;
       }
     }
   }
 }
 
-function baseAction(row: AuditRow): StationHistoryEntry["action"] {
-  if (row.action.endsWith(".create")) return "create";
-  if (row.action.endsWith(".delete")) return "delete";
-  return "update";
+function baseAction(row: AuditRow, operationKind: AuditOperationKind): StationHistorySection["action"] {
+  if (row.entity === "stations" && operationKind === "station.delete") return "delete";
+  return row.op;
 }
 
-export function transformAuditRow(row: AuditRow, lookups: StationHistoryLookups): StationHistoryEntry | null {
+export function transformEntry(row: AuditRow, operationKind: AuditOperationKind, lookups: StationHistoryLookups): StationHistorySection | null {
   const oldValues = isPlainObject(row.old_values) ? row.old_values : null;
   const newValues = isPlainObject(row.new_values) ? row.new_values : null;
-  let action = baseAction(row);
-  let kind: StationHistoryEntry["kind"];
+  let action = baseAction(row, operationKind);
+  let kind: StationHistorySection["kind"];
   let changes: StationHistoryChange[];
 
-  switch (row.table_name) {
+  switch (row.entity) {
     case "stations":
       kind = "station";
       changes = diffFields(oldValues, newValues, STATION_FIELDS, lookups);
@@ -323,7 +308,6 @@ export function transformAuditRow(row: AuditRow, lookups: StationHistoryLookups)
       break;
     case "extra_identificators": {
       kind = "network_ids";
-      action = oldValues === null ? "create" : newValues === null ? "delete" : "update";
       changes = diffFields(oldValues, newValues, EXTRA_IDENTIFIER_FIELDS, lookups);
       break;
     }
@@ -352,5 +336,5 @@ export function transformAuditRow(row: AuditRow, lookups: StationHistoryLookups)
   }
 
   if (changes.length === 0) return null;
-  return { id: row.id, kind, action, createdAt: row.createdAt, changes };
+  return { kind, action, changes };
 }

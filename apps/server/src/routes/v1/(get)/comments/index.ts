@@ -105,7 +105,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 const getComments: Route<ReqQuery, ResponseData> = {
   url: "/comments",
   method: "GET",
-  config: { permissions: ["read:comments"] },
+  config: { permissions: ["read_all:comments"] },
   schema: schemaRoute,
   handler,
 };

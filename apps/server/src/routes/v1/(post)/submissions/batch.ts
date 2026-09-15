@@ -7,7 +7,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { notifyStaffNewSubmission } from "../../../../services/notifications/service.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 import {
@@ -48,6 +48,16 @@ const schemaRoute = {
 };
 
 type ResponseData = z.infer<typeof submissionsSelectSchema>[];
+
+function bareSubmission({
+  proposedStation: _station,
+  proposedLocation: _location,
+  sectors: _sectors,
+  cells: _cells,
+  ...submission
+}: SubmissionWithExtras) {
+  return submission;
+}
 
 function addStationTac(stationTacs: Map<number, number>, stationId: number, tac: number): void {
   const existingTac = stationTacs.get(stationId);
@@ -156,30 +166,23 @@ ${ANALYZER_SYSTEM_NOTE}`
   const expandedSubmissionInputs = await expandLteTacUpdates(submissionInputs);
 
   try {
-    const results = await db.transaction(async (tx) => {
+    const results = await runAuditedOperation(auditContextFromRequest(req), { kind: "submission.create" }, async (tx, audit) => {
       const created: SubmissionWithExtras[] = [];
       for (const input of expandedSubmissionInputs) {
         // eslint-disable-next-line no-await-in-loop
         created.push(await processSubmission(tx, input, userId));
       }
+      await audit.logMany(
+        created.map((submission) => ({
+          entity: "submissions",
+          op: "create",
+          recordId: submission.id,
+          stationId: submission.station_id,
+          new: bareSubmission(submission),
+        })),
+      );
       return created;
     });
-
-    await Promise.all(
-      results.map((submission) =>
-        createAuditLog(
-          {
-            action: "submissions.create",
-            table_name: "submissions",
-            record_id: undefined,
-            old_values: null,
-            new_values: submission,
-            metadata: { submission_id: submission.id },
-          },
-          req,
-        ),
-      ),
-    );
 
     const submitterName = userSession.user.name || userSession.user.username || "Unknown";
     const stationIdsToResolve = results.filter((s) => !s.proposedStation?.station_id && s.station_id).map((s) => s.station_id!);
@@ -220,7 +223,7 @@ ${ANALYZER_SYSTEM_NOTE}`
 const createSubmissionBatch: Route<ReqBody, ResponseData> = {
   url: "/submissions/batch",
   method: "POST",
-  config: { permissions: ["write:submissions"] },
+  config: { permissions: ["create:submissions"] },
   schema: schemaRoute,
   handler,
 };

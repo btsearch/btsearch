@@ -1,5 +1,6 @@
 import type { MultipartFile } from "@fastify/multipart";
-import { attachments, submissionPhotos } from "@openbts/drizzle";
+import { attachments, submissionLocationPhotoSelections, submissionPhotos } from "@openbts/drizzle";
+import { and, eq, ne } from "drizzle-orm";
 import * as ExifReader from "exifreader";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { fileTypeFromBuffer } from "file-type";
@@ -12,9 +13,8 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
-import { clearOtherMainPhotos } from "../../../../../services/submissions/photos.js";
 import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
@@ -60,11 +60,17 @@ const schemaRoute = {
 
 type ReqParams = { Params: { id: string } };
 type RequestData = ReqParams;
+type PendingPhoto = {
+  attachment: typeof attachments.$inferInsert;
+  attachmentUuid: string;
+  note: string | null;
+  takenAt: Date | null;
+  isMain: boolean;
+};
+type InsertedPhoto = { id: number; attachment_uuid: string; mime_type: string; createdAt: Date };
+type PhotoItem = Omit<InsertedPhoto, "createdAt"> & { createdAt: string };
 
-async function handler(
-  req: FastifyRequest<RequestData>,
-  res: ReplyPayload<JSONBody<{ id: number; attachment_uuid: string; mime_type: string; createdAt: string }[]>>,
-) {
+async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
   if (!getRuntimeSettings().photosEnabled) throw new ErrorResponse("FORBIDDEN");
   const { id } = req.params;
   const userId = req.userSession?.user.id;
@@ -86,7 +92,8 @@ async function handler(
   await ensureUploadDir();
 
   const savedPaths: string[] = [];
-  const insertedRows: { id: number; attachment_uuid: string; mime_type: string; createdAt: Date }[] = [];
+  const pendingPhotos: PendingPhoto[] = [];
+  let insertedRows: InsertedPhoto[];
   const notes: string[] = [];
   const takenAts: (string | null)[] = [];
   const isMains: boolean[] = [];
@@ -103,7 +110,7 @@ async function handler(
       }
       if (anyPart.type !== "file" || !anyPart.file) continue;
       const filePart = part as MultipartFile;
-      if (existingCount.length + savedPaths.length >= MAX_PHOTOS_PER_SUBMISSION) break;
+      if (existingCount.length + pendingPhotos.length >= MAX_PHOTOS_PER_SUBMISSION) break;
 
       const fileUuid = crypto.randomUUID();
       const filename = `${fileUuid}.webp`;
@@ -137,70 +144,111 @@ async function handler(
 
       const stats = await fs.stat(filePath);
 
-      const [newAttachment] = await db
-        .insert(attachments)
-        .values({
+      const fileIndex = pendingPhotos.length;
+      const note = notes[fileIndex]?.trim().slice(0, 100) || null;
+      const takenAtRaw = takenAts[fileIndex];
+      let takenAt: Date | null = null;
+      if (takenAtRaw) {
+        const parsed = new Date(takenAtRaw);
+        if (Number.isNaN(parsed.getTime())) throw new ErrorResponse("BAD_REQUEST", { message: "Invalid takenAt date" });
+        takenAt = parsed;
+      } else if (exifDate) takenAt = exifDate;
+
+      const isMain = mainFileIndex === null && (isMains[fileIndex] ?? false);
+      pendingPhotos.push({
+        attachment: {
           uuid: fileUuid,
           name: filePart.filename ?? filename,
           author_id: userId,
           mime_type: "image/webp",
           size: stats.size,
-        })
-        .returning();
-      if (!newAttachment) throw new ErrorResponse("FAILED_TO_CREATE");
-
-      const fileIndex = insertedRows.length;
-      const note = notes[fileIndex]?.trim().slice(0, 100) || null;
-      const takenAtRaw = takenAts[fileIndex];
-      let taken_at: Date | null = null;
-      if (takenAtRaw) {
-        const parsed = new Date(takenAtRaw);
-        if (Number.isNaN(parsed.getTime())) throw new ErrorResponse("BAD_REQUEST", { message: "Invalid takenAt date" });
-        taken_at = parsed;
-      } else if (exifDate) {
-        taken_at = exifDate;
-      }
-      const is_main: boolean = mainFileIndex === null && (isMains[fileIndex] ?? false);
-      const [photoRow] = await db
-        .insert(submissionPhotos)
-        .values({ submission_id: id, attachment_id: newAttachment.id, note, taken_at, is_main })
-        .returning();
-      if (!photoRow) throw new ErrorResponse("FAILED_TO_CREATE");
-      if (is_main) mainFileIndex = fileIndex;
-
-      insertedRows.push({ id: photoRow.id, attachment_uuid: fileUuid, mime_type: "image/webp", createdAt: photoRow.createdAt });
+        },
+        attachmentUuid: fileUuid,
+        note,
+        takenAt,
+        isMain,
+      });
+      if (isMain) mainFileIndex = fileIndex;
     }
 
-    const mainPhotoId = mainFileIndex !== null ? (insertedRows[mainFileIndex]?.id ?? null) : null;
-    if (mainPhotoId !== null) await clearOtherMainPhotos(id, mainPhotoId);
-  } catch (error) {
-    await Promise.all(
-      savedPaths.map(async (p) => {
-        try {
-          await fs.access(p);
-          await fs.unlink(p);
-        } catch {}
-      }),
+    insertedRows = await runAuditedOperation(
+      auditContextFromRequest(req),
+      { kind: "submission.photos", metadata: { submission_id: id } },
+      async (tx, audit) => {
+        if (pendingPhotos.length === 0) return [];
+
+        const createdAttachments = await tx
+          .insert(attachments)
+          .values(pendingPhotos.map(({ attachment }) => attachment))
+          .returning();
+        if (createdAttachments.length !== pendingPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
+
+        const attachmentByUuid = new Map(createdAttachments.map((attachment) => [attachment.uuid, attachment]));
+        const createdPhotos = await tx
+          .insert(submissionPhotos)
+          .values(
+            pendingPhotos.map((pendingPhoto) => {
+              const attachment = attachmentByUuid.get(pendingPhoto.attachmentUuid);
+              if (!attachment) throw new ErrorResponse("FAILED_TO_CREATE");
+              return {
+                submission_id: id,
+                attachment_id: attachment.id,
+                note: pendingPhoto.note,
+                taken_at: pendingPhoto.takenAt,
+                is_main: pendingPhoto.isMain,
+              };
+            }),
+          )
+          .returning();
+        if (createdPhotos.length !== pendingPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
+
+        const photoByAttachmentId = new Map(createdPhotos.map((photo) => [photo.attachment_id, photo]));
+        const mainPendingPhoto = mainFileIndex === null ? null : pendingPhotos[mainFileIndex];
+        const mainAttachment = mainPendingPhoto ? attachmentByUuid.get(mainPendingPhoto.attachmentUuid) : null;
+        const mainPhotoId = mainAttachment ? (photoByAttachmentId.get(mainAttachment.id)?.id ?? null) : null;
+        if (mainPhotoId !== null)
+          await Promise.all([
+            tx
+              .update(submissionPhotos)
+              .set({ is_main: false })
+              .where(and(eq(submissionPhotos.submission_id, id), ne(submissionPhotos.id, mainPhotoId))),
+            tx.update(submissionLocationPhotoSelections).set({ is_main: false }).where(eq(submissionLocationPhotoSelections.submission_id, id)),
+          ]);
+
+        await audit.logMany(
+          createdPhotos.map((photo) => ({
+            entity: "submission_photos",
+            op: "create",
+            recordId: photo.id,
+            stationId: submission.station_id,
+            new: photo,
+          })),
+        );
+
+        return pendingPhotos.map((pendingPhoto) => {
+          const attachment = attachmentByUuid.get(pendingPhoto.attachmentUuid);
+          const photo = attachment ? photoByAttachmentId.get(attachment.id) : undefined;
+          if (!photo) throw new ErrorResponse("FAILED_TO_CREATE");
+          return { id: photo.id, attachment_uuid: pendingPhoto.attachmentUuid, mime_type: "image/webp", createdAt: photo.createdAt };
+        });
+      },
     );
+  } catch (error) {
+    await Promise.all(savedPaths.map((filePath) => fs.unlink(filePath).catch(() => {})));
     if (error instanceof ErrorResponse) throw error;
     throw error;
   }
-
-  await createAuditLog(
-    { action: "submission_photos.create", table_name: "submission_photos", metadata: { submission_id: id }, new_values: insertedRows },
-    req,
-  );
 
   return res.code(201).send({
     data: insertedRows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
   });
 }
 
-const uploadSubmissionPhotos: Route<RequestData, { id: number; attachment_uuid: string; mime_type: string; createdAt: string }[]> = {
+const uploadSubmissionPhotos: Route<RequestData, PhotoItem[]> = {
   url: "/submissions/:id/photos",
   method: "POST",
   schema: schemaRoute,
-  config: { permissions: ["write:submissions"] },
+  config: { permissions: ["create:submissions"] },
   handler,
 };
 

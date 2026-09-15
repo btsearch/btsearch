@@ -9,7 +9,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
 import { buildInternalStationActionUrl } from "../../../../../../services/notifications/actionUrls.js";
 import { notifyStationWatchers } from "../../../../../../services/notifications/service.js";
 import { logger } from "../../../../../../utils/logger.js";
@@ -53,33 +53,33 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   });
   if (!comment) throw new ErrorResponse("NOT_FOUND");
 
-  const isPrivileged = await verifyPermissions(userId, { comments: ["update"] });
+  const isPrivileged = await verifyPermissions(userId, { comments: ["moderate"] });
   if (comment.user_id !== userId && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
   if (approve !== undefined && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
-  const [updated] = await db
-    .update(stationComments)
-    .set({
-      ...(content !== undefined && { content }),
-      ...(approve !== undefined && { status: approve ? "approved" : "pending" }),
-      updatedAt: new Date(),
-    })
-    .where(eq(stationComments.id, comment_id))
-    .returning();
+  const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.update" }, async (tx, audit) => {
+    const [result] = await tx
+      .update(stationComments)
+      .set({
+        ...(content !== undefined && { content }),
+        ...(approve !== undefined && { status: approve ? "approved" : "pending" }),
+        updatedAt: new Date(),
+      })
+      .where(eq(stationComments.id, comment_id))
+      .returning();
+    if (!result) throw new ErrorResponse("INTERNAL_SERVER_ERROR");
 
-  if (!updated) throw new ErrorResponse("INTERNAL_SERVER_ERROR");
-
-  await createAuditLog(
-    {
-      action: "station_comments.update",
-      table_name: "station_comments",
-      old_values: comment,
-      new_values: updated,
-      metadata: { comment_id },
-    },
-    req,
-  );
+    await audit.log({
+      entity: "station_comments",
+      op: "update",
+      recordId: comment_id,
+      stationId: station_id,
+      old: comment,
+      new: result,
+    });
+    return result;
+  });
 
   if (approve === true && comment.status !== "approved") {
     const station = await db.query.stations.findFirst({
@@ -101,6 +101,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateComment: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/comments/:comment_id",
   method: "PATCH",
+  config: { permissions: ["update:comments"] },
   schema: schemaRoute,
   handler,
 };

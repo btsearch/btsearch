@@ -16,8 +16,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const schemaRoute = {
   response: {
@@ -32,11 +31,7 @@ const schemaRoute = {
 type ResponseData = { cleaned: number };
 
 async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseData>>) {
-  const session = req.userSession;
-  if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
-
-  const hasPermission = await verifyPermissions(session.user.id, { submissions: ["delete"] });
-  if (!hasPermission) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+  if (!req.userSession?.user) throw new ErrorResponse("UNAUTHORIZED");
 
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -52,39 +47,36 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
 
   const submissionIds = staleSubmissions.map((s) => s.id);
 
-  await db.transaction(async (tx) => {
-    const proposedCellRows = await tx.query.proposedCells.findMany({
-      where: {
-        submission_id: { in: submissionIds },
-      },
-      columns: { id: true },
-    });
-    const cellIds = proposedCellRows.map((c) => c.id);
-
-    if (cellIds.length > 0) {
-      await Promise.all([
-        tx.delete(proposedGSMCells).where(inArray(proposedGSMCells.proposed_cell_id, cellIds)),
-        tx.delete(proposedUMTSCells).where(inArray(proposedUMTSCells.proposed_cell_id, cellIds)),
-        tx.delete(proposedLTECells).where(inArray(proposedLTECells.proposed_cell_id, cellIds)),
-        tx.delete(proposedNRCells).where(inArray(proposedNRCells.proposed_cell_id, cellIds)),
-      ]);
-      await tx.delete(proposedCells).where(inArray(proposedCells.submission_id, submissionIds));
-    }
-
-    await tx.delete(proposedSectors).where(inArray(proposedSectors.submission_id, submissionIds));
-    await tx.delete(proposedStations).where(inArray(proposedStations.submission_id, submissionIds));
-    await tx.delete(proposedLocations).where(inArray(proposedLocations.submission_id, submissionIds));
-  });
-
-  await createAuditLog(
+  await runAuditedOperation(
+    auditContextFromRequest(req),
     {
-      action: "submissions.cleanup",
-      table_name: "submissions",
-      record_id: null,
-      new_values: null,
+      kind: "submission.cleanup",
+      allowEmpty: true,
       metadata: { cleaned_count: submissionIds.length, older_than: oneMonthAgo.toISOString() },
     },
-    req,
+    async (tx) => {
+      const proposedCellRows = await tx.query.proposedCells.findMany({
+        where: {
+          submission_id: { in: submissionIds },
+        },
+        columns: { id: true },
+      });
+      const cellIds = proposedCellRows.map((c) => c.id);
+
+      if (cellIds.length > 0) {
+        await Promise.all([
+          tx.delete(proposedGSMCells).where(inArray(proposedGSMCells.proposed_cell_id, cellIds)),
+          tx.delete(proposedUMTSCells).where(inArray(proposedUMTSCells.proposed_cell_id, cellIds)),
+          tx.delete(proposedLTECells).where(inArray(proposedLTECells.proposed_cell_id, cellIds)),
+          tx.delete(proposedNRCells).where(inArray(proposedNRCells.proposed_cell_id, cellIds)),
+        ]);
+        await tx.delete(proposedCells).where(inArray(proposedCells.submission_id, submissionIds));
+      }
+
+      await tx.delete(proposedSectors).where(inArray(proposedSectors.submission_id, submissionIds));
+      await tx.delete(proposedStations).where(inArray(proposedStations.submission_id, submissionIds));
+      await tx.delete(proposedLocations).where(inArray(proposedLocations.submission_id, submissionIds));
+    },
   );
 
   return res.send({ data: { cleaned: submissionIds.length } });
@@ -93,7 +85,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
 const cleanupSubmissions: Route<Record<string, never>, ResponseData> = {
   url: "/submissions/cleanup",
   method: "POST",
-  config: { permissions: ["delete:submissions"] },
+  config: { permissions: ["cleanup:submissions"] },
   schema: schemaRoute,
   handler,
 };

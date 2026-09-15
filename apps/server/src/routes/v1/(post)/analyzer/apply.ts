@@ -8,9 +8,10 @@ import z from "zod";
 import { ErrorResponse } from "../../../../errors.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
-import { createAuditLog } from "../../../../services/auditLog.service.ts";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
+import { type AuditRecorder, auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../services/audit/index.ts";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
 import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
+import type { DbTx } from "../../../../types/global.ts";
 import { validateCellARFCNsAgainstBands } from "../../../../utils/cellARFCNValidation.ts";
 import {
   type LTEInsertDetails,
@@ -78,8 +79,6 @@ const schemaRoute = {
 
 type StationChangeRecord = {
   station_id: number;
-  old_updatedAt: Date | null;
-  new_updatedAt: Date | null | undefined;
   updatedCellIds: number[];
   addedCellIds: number[];
   applied: number;
@@ -110,7 +109,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const [stationResults, existingCells, bandRows] = await Promise.all([
     db.query.stations.findMany({
       where: { AND: [{ id: { in: stationIds } }, { status: "published" }] },
-      columns: { id: true, operator_id: true, updatedAt: true },
+      columns: { id: true, operator_id: true },
     }),
     updateCellIds.length > 0
       ? db.query.cells.findMany({ where: { id: { in: updateCellIds } }, with: { gsm: true, umts: true, lte: true, nr: true } })
@@ -120,7 +119,8 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       : Promise.resolve([]),
   ]);
 
-  if (!stationResults) throw new ErrorResponse("NOT_FOUND", { message: "None of the stations in this batch were found in the database" });
+  if (stationResults.length !== stationIds.length)
+    throw new ErrorResponse("NOT_FOUND", { message: "Some stations in this batch were not found or are not published" });
 
   const stationMap = new Map(stationResults.map((station) => [station.id, station]));
   const existingCellsMap = new Map(existingCells.map((c) => [c.id, c]));
@@ -172,22 +172,6 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         checks.push(checkCellDuplicatesBatch(cellEntries, station.operator_id));
       }
 
-      // checks.push(
-      //   checkLTEClidConsistency(
-      //     station.id,
-      //     item.cells.map((cell) => {
-      //       const existingCell =
-      //         cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
-      //       const details =
-      //         cell.rat === "LTE" && cell.operation === "update"
-      //           ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
-      //           : (cell.details as Record<string, unknown> | undefined);
-      //       return { rat: cell.rat, details, excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined };
-      //     }),
-      //     allModifiedCellIds,
-      //   ),
-      // );
-
       checks.push(
         checkPciDuplicates(
           station.id,
@@ -213,8 +197,10 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     }),
   );
 
-  const updateRecords = await db.transaction(async (tx) => {
+  async function applyChanges(tx: DbTx, audit: AuditRecorder): Promise<StationChangeRecord[]> {
     const records: StationChangeRecord[] = [];
+    const oldSnapshots = await loadCellSnapshots(tx, updateCellIds);
+    if (oldSnapshots.size !== updateCellIds.length) throw new ErrorResponse("NOT_FOUND");
 
     for (const { item, station } of stationItems) {
       const updatedCellIds: number[] = [];
@@ -241,11 +227,10 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
             .insert(cells)
             .values({ station_id: station.id, band_id: cell.band_id, rat: cell.rat, type: cell.type ?? null, is_confirmed: true })
             .returning();
-          if (newCell) {
-            // oxlint-disable-next-line no-await-in-loop
-            await insertRATCellDetails(tx, cell.rat, newCell.id, cell.details as RATInsertDetails);
-            addedCellIds.push(newCell.id);
-          }
+          if (!newCell) throw new ErrorResponse("FAILED_TO_CREATE");
+          // oxlint-disable-next-line no-await-in-loop
+          await insertRATCellDetails(tx, cell.rat, newCell.id, cell.details as RATInsertDetails);
+          addedCellIds.push(newCell.id);
         }
       }
 
@@ -260,6 +245,10 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 
         if (propagatedRows.length > 0) {
           const propagatedCellIds = propagatedRows.map((row) => row.cellId);
+          const propagatedExistingIds = propagatedCellIds.filter((cellId) => !addedCellIds.includes(cellId));
+          // oxlint-disable-next-line no-await-in-loop
+          const propagatedSnapshots = await loadCellSnapshots(tx, propagatedExistingIds);
+          for (const [cellId, snapshot] of propagatedSnapshots) if (!oldSnapshots.has(cellId)) oldSnapshots.set(cellId, snapshot);
           // oxlint-disable-next-line no-await-in-loop
           await tx.update(lteCells).set({ tac: stationTac, updatedAt: new Date() }).where(inArray(lteCells.cell_id, propagatedCellIds));
           // oxlint-disable-next-line no-await-in-loop
@@ -269,81 +258,58 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       }
 
       // oxlint-disable-next-line no-await-in-loop
-      const [updatedStation] = await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station.id)).returning();
+      await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station.id));
 
+      const uniqueUpdatedCellIds = [...new Set(updatedCellIds)];
       records.push({
         station_id: station.id,
-        old_updatedAt: station.updatedAt,
-        new_updatedAt: updatedStation?.updatedAt,
-        updatedCellIds,
+        updatedCellIds: uniqueUpdatedCellIds,
         addedCellIds,
-        applied: updatedCellIds.length + addedCellIds.length,
+        applied: uniqueUpdatedCellIds.length + addedCellIds.length,
       });
     }
 
+    const addedCellIds = [...new Set(records.flatMap((record) => record.addedCellIds))];
+    const addedCellIdSet = new Set(addedCellIds);
+    const updatedCellIds = [...new Set(records.flatMap((record) => record.updatedCellIds).filter((cellId) => !addedCellIdSet.has(cellId)))];
+    const newSnapshots = await loadCellSnapshots(tx, [...updatedCellIds, ...addedCellIds]);
+    await audit.logMany([
+      ...updatedCellIds.map((cellId) => {
+        const oldSnapshot = oldSnapshots.get(cellId);
+        const newSnapshot = newSnapshots.get(cellId);
+        if (!oldSnapshot || !newSnapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
+        return {
+          entity: "cells" as const,
+          op: "update" as const,
+          recordId: cellId,
+          stationId: newSnapshot.station_id,
+          old: oldSnapshot,
+          new: newSnapshot,
+          metadata: { source: "analyzer" },
+        };
+      }),
+      ...addedCellIds.map((cellId) => {
+        const newSnapshot = newSnapshots.get(cellId);
+        if (!newSnapshot) throw new ErrorResponse("FAILED_TO_CREATE");
+        return {
+          entity: "cells" as const,
+          op: "create" as const,
+          recordId: cellId,
+          stationId: newSnapshot.station_id,
+          old: null,
+          new: newSnapshot,
+          metadata: { source: "analyzer" },
+        };
+      }),
+    ]);
+
     return records;
-  });
-
-  const touchedCellIds = [...new Set(updateRecords.flatMap((record) => [...record.updatedCellIds, ...record.addedCellIds]))];
-  const newCellStates =
-    touchedCellIds.length > 0
-      ? await db.query.cells.findMany({
-          where: { id: { in: touchedCellIds } },
-          with: { gsm: true, umts: true, lte: true, nr: true },
-        })
-      : [];
-
-  const newCellStatesMap = new Map(newCellStates.map((c) => [c.id, c]));
-  function flattenCellDetails(cell: (typeof newCellStates)[0]) {
-    const { gsm, umts, lte, nr, ...base } = cell;
-    return { ...base, details: gsm ?? umts ?? lte ?? nr ?? null };
   }
 
-  await Promise.all(
-    updateRecords.map(async (record) => {
-      const cellsUpdated = record.updatedCellIds.map((id) => ({
-        old: flattenCellDetails(existingCellsMap.get(id)!),
-        new: flattenCellDetails(newCellStatesMap.get(id)!),
-      }));
-      await createAuditLog(
-        {
-          action: "cells.update",
-          table_name: "cells",
-          record_id: null,
-          old_values: { cells: cellsUpdated.map((c) => c.old) },
-          new_values: { cells: cellsUpdated.map((c) => c.new) },
-          metadata: { station_id: record.station_id, source: "analyzer" },
-        },
-        req,
-      );
-
-      if (record.addedCellIds.length > 0) {
-        const cellsCreated = record.addedCellIds.map((id) => flattenCellDetails(newCellStatesMap.get(id)!));
-        await createAuditLog(
-          {
-            action: "cells.create",
-            table_name: "cells",
-            record_id: null,
-            old_values: null,
-            new_values: { cells: cellsCreated },
-            metadata: { station_id: record.station_id, source: "analyzer" },
-          },
-          req,
-        );
-      }
-
-      await createAuditLog(
-        {
-          action: "stations.update",
-          table_name: "stations",
-          record_id: record.station_id,
-          old_values: { updatedAt: record.old_updatedAt },
-          new_values: { updatedAt: record.new_updatedAt },
-          metadata: { reason: "analyzer" },
-        },
-        req,
-      );
-    }),
+  const updateRecords = await runAuditedOperation(
+    auditContextFromRequest(req),
+    { kind: "analyzer.apply", metadata: { station_ids: stationIds } },
+    applyChanges,
   );
 
   for (const record of updateRecords)
@@ -358,7 +324,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const applyAnalyzerCells: Route<ReqBody, ResponseData> = {
   url: "/analyzer/apply",
   method: "POST",
-  config: { permissions: ["create:cells", "update:cells", "write:stations"] },
+  config: {
+    permissions: ["apply:analyzer"],
+  },
   schema: schemaRoute,
   handler,
 };

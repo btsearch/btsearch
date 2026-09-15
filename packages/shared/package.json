@@ -33,6 +33,10 @@
       "types": "./src/cellTypes.ts",
       "default": "./dist/src/cellTypes.js"
     },
+    "./audit": {
+      "types": "./src/audit.ts",
+      "default": "./dist/src/audit.js"
+    },
     "./seo": {
       "types": "./src/seo.ts",
       "default": "./dist/src/seo.js"

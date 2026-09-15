@@ -9,7 +9,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const locationsUpdateSchema = createUpdateSchema(locations)
   .strict()
@@ -42,50 +42,35 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     where: {
       id,
     },
-    with: { region: { columns: { id: true, name: true, code: true } } },
   });
   if (!location) throw new ErrorResponse("NOT_FOUND");
 
+  const linkedStations = await db.query.stations.findMany({
+    where: { location_id: id },
+    columns: { id: true },
+  });
+  const stationIds = linkedStations.map((station) => station.id);
+
   try {
-    const [updated] = await db
-      .update(locations)
-      .set({ ...req.body, updatedAt: new Date() })
-      .where(eq(locations.id, id))
-      .returning();
-    if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
+    const updated = await runAuditedOperation(
+      auditContextFromRequest(req),
+      { kind: "location.edit", metadata: { station_ids: stationIds } },
+      async (tx, audit) => {
+        const oldLocation = await tx.query.locations.findFirst({ where: { id } });
+        if (!oldLocation) throw new ErrorResponse("NOT_FOUND");
 
-    const updatedWithRegion = await db.query.locations.findFirst({
-      where: { id },
-      with: { region: { columns: { id: true, name: true, code: true } } },
-    });
+        const [nextLocation] = await tx
+          .update(locations)
+          .set({ ...req.body, updatedAt: new Date() })
+          .where(eq(locations.id, id))
+          .returning();
+        if (!nextLocation) throw new ErrorResponse("FAILED_TO_UPDATE");
 
-    await createAuditLog(
-      { action: "locations.update", table_name: "locations", record_id: id, old_values: location, new_values: updatedWithRegion ?? updated },
-      req,
+        await audit.log({ entity: "locations", op: "update", recordId: id, old: oldLocation, new: nextLocation });
+        if (stationIds.length > 0) await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.location_id, id));
+        return nextLocation;
+      },
     );
-
-    const linkedStations = await db.query.stations.findMany({
-      where: { location_id: id },
-    });
-    if (linkedStations.length > 0) {
-      const now = new Date();
-      await db.update(stations).set({ updatedAt: now }).where(eq(stations.location_id, id));
-      await Promise.all(
-        linkedStations.map((station) =>
-          createAuditLog(
-            {
-              action: "stations.update",
-              table_name: "stations",
-              record_id: station.id,
-              old_values: station,
-              new_values: { ...station, updatedAt: now },
-              metadata: { reason: "locations.update", location_id: id },
-            },
-            req,
-          ),
-        ),
-      );
-    }
 
     return res.send({
       data: updated,
@@ -100,7 +85,7 @@ const updateLocation: Route<RequestData, ResponseData> = {
   url: "/locations/:id",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["write:locations"] },
+  config: { permissions: ["update:locations"] },
   handler,
 };
 

@@ -1,5 +1,5 @@
 import { cells, stations } from "@openbts/drizzle";
-import { count, eq, inArray } from "drizzle-orm";
+import { count, inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -7,7 +7,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../services/audit/index.js";
 import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
 import { assertCanDeleteCells } from "../../../../services/stations/status.js";
 
@@ -35,7 +35,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
   for (const cell of foundCells) deletedCountByStationId.set(cell.station_id, (deletedCountByStationId.get(cell.station_id) ?? 0) + 1);
 
   try {
-    await db.transaction(async (tx) => {
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.delete" }, async (tx, audit) => {
       const cellCounts = await tx
         .select({ stationId: cells.station_id, total: count() })
         .from(cells)
@@ -49,41 +49,25 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
         assertCanDeleteCells(station, currentCellCount - deletedForStation);
       }
 
+      const snapshots = await loadCellSnapshots(tx, ids);
+      if (snapshots.size !== ids.length) throw new ErrorResponse("NOT_FOUND");
+
       await tx.delete(cells).where(inArray(cells.id, ids));
-
-      /* eslint-disable no-await-in-loop */
-      for (const stationId of uniqueStationIds) {
-        await createAuditLog(
-          {
-            action: "cells.delete",
-            table_name: "cells",
-            record_id: null,
-            old_values: { cells: foundCells.filter((cell) => cell.station_id === stationId) },
-            new_values: null,
-            metadata: { station_id: stationId },
-          },
-          req,
-          tx,
-        );
-      }
-      /* eslint-enable no-await-in-loop */
-
-      /* eslint-disable no-await-in-loop */
-      for (const stationId of uniqueStationIds) {
-        await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
-        await createAuditLog(
-          {
-            action: "stations.update",
-            table_name: "stations",
-            record_id: stationId,
-            new_values: { updatedAt: new Date() },
-            metadata: { reason: "cells.delete" },
-          },
-          req,
-          tx,
-        );
-      }
-      /* eslint-enable no-await-in-loop */
+      await tx.update(stations).set({ updatedAt: new Date() }).where(inArray(stations.id, uniqueStationIds));
+      await audit.logMany(
+        ids.map((id) => {
+          const snapshot = snapshots.get(id);
+          if (!snapshot) throw new ErrorResponse("NOT_FOUND");
+          return {
+            entity: "cells",
+            op: "delete",
+            recordId: id,
+            stationId: snapshot.station_id,
+            old: snapshot,
+            new: null,
+          };
+        }),
+      );
     });
 
     for (const [stationId, removed] of deletedCountByStationId) queueStationCellsChangedNotification({ stationId, counts: { removed } });

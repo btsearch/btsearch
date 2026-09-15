@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 
 const insertSchema = createInsertSchema(userLists, {
@@ -43,20 +43,23 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const [listCountRow] = await db.select({ count: count() }).from(userLists).where(eq(userLists.created_by, userId));
   if ((listCountRow?.count ?? 0) >= 10) throw new ErrorResponse("BAD_REQUEST", { message: "You have reached the maximum limit of 10 lists" });
 
-  const [created] = await db
-    .insert(userLists)
-    .values({
-      ...req.body,
-      radiolines: req.body.radiolines ?? [],
-      created_by: userId,
-    })
-    .returning()
-    .catch(() => {
-      throw new ErrorResponse("FAILED_TO_CREATE");
-    });
-  if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
+  const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.create" }, async (tx, audit) => {
+    const [result] = await tx
+      .insert(userLists)
+      .values({
+        ...req.body,
+        radiolines: req.body.radiolines ?? [],
+        created_by: userId,
+      })
+      .returning();
+    if (!result) throw new ErrorResponse("FAILED_TO_CREATE");
 
-  await createAuditLog({ action: "user_lists.create", table_name: "user_lists", record_id: created.id, new_values: created }, req);
+    await audit.log({ entity: "user_lists", op: "create", recordId: result.id, new: result });
+    return result;
+  }).catch((error) => {
+    if (error instanceof ErrorResponse) throw error;
+    throw new ErrorResponse("FAILED_TO_CREATE");
+  });
 
   return res.send({ data: created });
 }

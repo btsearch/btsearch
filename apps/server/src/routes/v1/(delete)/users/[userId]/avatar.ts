@@ -47,7 +47,7 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<n
 const deleteUserAvatar: Route<Params, null> = {
   url: "/users/:userId/avatar",
   method: "DELETE",
-  config: { permissions: ["ban:users"] },
+  config: { permissions: ["delete-avatar:user"] },
   schema: schemaRoute,
   handler,
 };

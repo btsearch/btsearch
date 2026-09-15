@@ -52,7 +52,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const offset = (page - 1) * limit;
   const userId = req.userSession.user.id;
 
-  const isAdmin = await verifyPermissions(userId, { user_lists: ["read"] });
+  const isAdmin = await verifyPermissions(userId, { user_lists: ["read_all"] });
   const showAll = isAdmin && all;
 
   const whereClause = and(showAll ? undefined : eq(userLists.created_by, userId), search ? ilike(userLists.name, `%${search}%`) : undefined);
@@ -116,6 +116,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 const getLists: Route<ReqQuery, ResponseBody> = {
   url: "/lists",
   method: "GET",
+  config: { permissions: ["read:user_lists"] },
   schema: schemaRoute,
   handler,
 };

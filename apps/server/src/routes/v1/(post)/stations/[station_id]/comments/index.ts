@@ -11,7 +11,7 @@ import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../../../services/settings.service.js";
 import { decodeHeicToRaw, isHeic } from "../../../../../../utils/image.js";
 
@@ -60,18 +60,19 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     if (!station) throw new ErrorResponse("NOT_FOUND");
 
     let content: string | undefined;
-    const validatedAttachments: { uuid: string; type: string }[] | null = [];
+    const pendingAttachments: (typeof attachments.$inferInsert)[] = [];
+    const validatedAttachments: { uuid: string; type: string }[] = [];
 
     await ensureUploadDir();
     const savedPaths: string[] = [];
+    let newComment: ResponseData;
     try {
       for await (const part of req.parts({ limits: { fileSize: MAX_FILE_SIZE_BYTES } })) {
         if ((part as MultipartFile).type === "file" && (part as MultipartFile).file) {
           const filePart = part as MultipartFile;
           const mimetype: string = filePart.mimetype;
           if (!mimetype.startsWith("image/")) throw new ErrorResponse("BAD_REQUEST", { message: "Only image files are allowed" });
-          if ((validatedAttachments as { uuid: string; type: string }[]).length >= 5)
-            throw new ErrorResponse("BAD_REQUEST", { message: "Maximum 5 photos per comment" });
+          if (validatedAttachments.length >= 5) throw new ErrorResponse("BAD_REQUEST", { message: "Maximum 5 photos per comment" });
           const fileUuid = crypto.randomUUID();
           const filename = `${fileUuid}.webp`;
           const filePath = path.join(UPLOAD_DIR, filename);
@@ -98,12 +99,14 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           await fs.writeFile(filePath, outputBuffer);
           const stats = await fs.stat(filePath);
 
-          const [newAttachment] = await db
-            .insert(attachments)
-            .values({ uuid: fileUuid, name: filePart.filename ?? filename, author_id: userId, mime_type: "image/webp", size: stats.size })
-            .returning();
-          if (!newAttachment) throw new ErrorResponse("FAILED_TO_CREATE");
-          (validatedAttachments as { uuid: string; type: string }[]).push({ uuid: newAttachment.uuid, type: newAttachment.mime_type });
+          pendingAttachments.push({
+            uuid: fileUuid,
+            name: filePart.filename ?? filename,
+            author_id: userId,
+            mime_type: "image/webp",
+            size: stats.size,
+          });
+          validatedAttachments.push({ uuid: fileUuid, type: "image/webp" });
           continue;
         }
 
@@ -113,46 +116,46 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
             content = field.value !== null && field.value !== undefined ? String(field.value as string | number | boolean) : "";
         }
       }
+
+      if (!content) throw new ErrorResponse("BAD_REQUEST");
+      const commentContent = content;
+
+      const { commentQueueEnabled } = getRuntimeSettings();
+      newComment = await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.create" }, async (tx, audit) => {
+        if (pendingAttachments.length > 0) await tx.insert(attachments).values(pendingAttachments);
+
+        const [created] = await tx
+          .insert(stationComments)
+          .values({
+            station_id: station_id,
+            user_id: userId,
+            content: commentContent,
+            attachments: validatedAttachments,
+            status: commentQueueEnabled && !["admin", "editor"].includes(req.userSession?.user.role ?? "") ? "pending" : "approved",
+          })
+          .returning();
+        if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
+
+        await audit.log({
+          entity: "station_comments",
+          op: "create",
+          recordId: created.id,
+          stationId: station_id,
+          new: created,
+        });
+        return created;
+      });
     } catch (error) {
       await Promise.all(
-        savedPaths.map(async (p) => {
+        savedPaths.map(async (savedPath) => {
           try {
-            await fs.access(p);
-            await fs.unlink(p);
+            await fs.unlink(savedPath);
           } catch {}
         }),
       );
       if (error instanceof ErrorResponse) throw error;
       throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
     }
-
-    if (!content) throw new ErrorResponse("BAD_REQUEST");
-
-    const { commentQueueEnabled } = getRuntimeSettings();
-
-    const [newComment] = await db
-      .insert(stationComments)
-      .values({
-        station_id: Number(station_id),
-        user_id: userId,
-        content: content,
-        attachments: validatedAttachments,
-        status: commentQueueEnabled && !["admin", "editor"].includes(req.userSession?.user.role ?? "") ? "pending" : "approved",
-      })
-      .returning();
-    if (!newComment) throw new ErrorResponse("FAILED_TO_CREATE");
-
-    await createAuditLog(
-      {
-        action: "station_comments.create",
-        table_name: "station_comments",
-        record_id: null,
-        old_values: null,
-        new_values: newComment,
-        metadata: { comment_id: newComment.id },
-      },
-      req,
-    );
 
     return res.code(201).send({ data: newComment });
   } catch (error) {

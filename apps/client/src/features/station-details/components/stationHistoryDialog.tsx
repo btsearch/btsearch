@@ -1,6 +1,8 @@
 import {
+  Activity01Icon,
   AirportTowerIcon,
   ArrowDown01Icon,
+  ArrowReloadHorizontalIcon,
   ArrowRight01Icon,
   ArrowUpRight01Icon,
   Cancel01Icon,
@@ -10,15 +12,24 @@ import {
   FullSignalIcon,
   Image01Icon,
   Location01Icon,
+  Undo02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { memo, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, memo, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { fetchStationHistory } from "../api";
-import type { StationHistoryChange, StationHistoryChangeValue, StationHistoryEntry, StationHistoryPhotoReference, StationHistoryValue } from "../api";
+import type {
+  StationHistoryChange,
+  StationHistoryChangeValue,
+  StationHistoryOperation,
+  StationHistoryPhotoReference,
+  StationHistorySection,
+  StationHistoryValue,
+} from "../api";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
 import { StationTitle } from "./stationTitle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,7 +44,11 @@ import { cn } from "@/lib/utils";
 
 type StationHistoryDialogPanelProps = FloatingDialogPanelFrameProps & StationHistoryDialogPayload;
 
-const KIND_ICONS: Record<StationHistoryEntry["kind"], IconSvgElement> = {
+const RevertOperationDialog = lazy(() =>
+  import("@/features/admin/audit-operations/components/revert-dialog").then((module) => ({ default: module.RevertOperationDialog })),
+);
+
+const KIND_ICONS: Record<StationHistorySection["kind"], IconSvgElement> = {
   station: AirportTowerIcon,
   location: Location01Icon,
   cells: FullSignalIcon,
@@ -42,7 +57,7 @@ const KIND_ICONS: Record<StationHistoryEntry["kind"], IconSvgElement> = {
   photos: Image01Icon,
 };
 
-const ACTION_CHIP_CLASSES: Record<StationHistoryEntry["action"], string> = {
+const ACTION_CHIP_CLASSES: Record<StationHistorySection["action"], string> = {
   create: "text-emerald-700 dark:text-emerald-300",
   update: "text-blue-700 dark:text-blue-300",
   delete: "text-rose-700 dark:text-rose-300",
@@ -90,7 +105,7 @@ const COMMON_LABEL_KEYS: Record<string, string> = {
   cell_type: "cellType",
 };
 
-type HistoryDayGroup = { key: string; label: string; entries: StationHistoryEntry[] };
+type HistoryDayGroup = { key: string; label: string; operations: StationHistoryOperation[] };
 type CellChangeGroup = { label: string; rat: string; changes: StationHistoryChange[] };
 type RatCellChangeGroup = { rat: string; cells: CellChangeGroup[] };
 type HistoryPhotoReferenceProps = {
@@ -98,8 +113,10 @@ type HistoryPhotoReferenceProps = {
   isMain: boolean;
   photoReferences: ReadonlyMap<number, StationHistoryPhotoReference>;
 };
-type HistoryEntryItemProps = {
-  entry: StationHistoryEntry;
+type HistorySectionChangesProps = {
+  section: StationHistorySection;
+  operationId: number;
+  photoReferences: StationHistoryPhotoReference[];
 };
 type PhotoChangePresentation = {
   changes: StationHistoryChange[];
@@ -115,6 +132,10 @@ function parsePhotoReferenceId(value: StationHistoryChangeValue): number | null 
   if (typeof value !== "string" || !value.startsWith("#")) return null;
   const photoId = Number(value.slice(1));
   return Number.isInteger(photoId) && photoId > 0 ? photoId : null;
+}
+
+function isPhotoField(field: string): boolean {
+  return field === "photo" || field === "main_photo";
 }
 
 function preparePhotoChanges(changes: StationHistoryChange[]): PhotoChangePresentation {
@@ -208,11 +229,11 @@ function groupChangesByLabel(changes: StationHistoryChange[]): CellChangeGroup[]
   return groups;
 }
 
-function groupCellChanges(entry: StationHistoryEntry): RatCellChangeGroup[] {
+function groupCellChanges(action: StationHistorySection["action"], changes: StationHistoryChange[]): RatCellChangeGroup[] {
   const cells =
-    entry.action === "update"
-      ? groupChangesByLabel(entry.changes)
-      : entry.changes.map((change) => ({ label: change.label ?? "", rat: change.rat ?? "", changes: [change] }));
+    action === "update"
+      ? groupChangesByLabel(changes)
+      : changes.map((change) => ({ label: change.label ?? "", rat: change.rat ?? "", changes: [change] }));
   const groups = new Map<string, CellChangeGroup[]>();
   for (const cell of cells) {
     const existing = groups.get(cell.rat);
@@ -222,12 +243,19 @@ function groupCellChanges(entry: StationHistoryEntry): RatCellChangeGroup[] {
   return [...groups].map(([rat, groupedCells]) => ({ rat, cells: groupedCells }));
 }
 
-const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryItemProps) {
-  const { t, i18n } = useTranslation(["stationDetails", "stations", "common"]);
-  const photoReferences = useMemo(() => new Map((entry.photoReferences ?? []).map((photo) => [photo.id, photo])), [entry.photoReferences]);
-  const cellChangeGroups = useMemo(() => (entry.kind === "cells" ? groupCellChanges(entry) : []), [entry]);
+const HistorySectionChanges = memo(function HistorySectionChanges({
+  section,
+  operationId,
+  photoReferences: photoReferenceList,
+}: HistorySectionChangesProps) {
+  const { t } = useTranslation(["stationDetails", "stations", "common"]);
+  const photoReferences = useMemo(() => new Map(photoReferenceList.map((photo) => [photo.id, photo])), [photoReferenceList]);
+  const cellChangeGroups = useMemo(
+    () => (section.kind === "cells" ? groupCellChanges(section.action, section.changes) : []),
+    [section.action, section.changes, section.kind],
+  );
   const [cellsExpanded, setCellsExpanded] = useState(() => {
-    if (entry.kind !== "cells") return true;
+    if (section.kind !== "cells") return true;
     return cellChangeGroups.reduce((total, group) => total + group.cells.length, 0) <= 4;
   });
 
@@ -250,8 +278,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
     if (typeof value === "boolean") return value ? t("common:labels.yes") : t("common:labels.no");
     if (field === "status" && typeof value === "string") return t(`stations:status.${value}`, { defaultValue: value });
     if (field === "type" && typeof value === "string") return value.toUpperCase();
-    if ((field === "photo" || field === "main_photo") && typeof value === "string" && value.startsWith("#"))
-      return t("history.values.photoReference", { id: value.slice(1) });
+    if (isPhotoField(field) && typeof value === "string" && value.startsWith("#")) return t("history.values.photoReference", { id: value.slice(1) });
     if ((field === "azimuth" || field === "azimuths") && typeof value === "number") return `${value}°`;
     if (Array.isArray(value)) {
       if (value.length === 0) return "-";
@@ -265,7 +292,7 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
   };
 
   const renderValue = (change: StationHistoryChange, value: StationHistoryChangeValue, isMain: boolean) => {
-    if ((change.field === "photo" || change.field === "main_photo") && parsePhotoReferenceId(value) !== null)
+    if (isPhotoField(change.field) && parsePhotoReferenceId(value) !== null)
       return <HistoryPhotoReference value={value} isMain={isMain} photoReferences={photoReferences} />;
     return formatValue(change.field, value, change.rat);
   };
@@ -308,16 +335,17 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
     return (
       <div className="text-xs leading-6 text-muted-foreground wrap-break-word">
         {presentation.changes.map((change, index) => {
-          const isPhotoChange = change.field === "photo" || change.field === "main_photo";
+          const isPhotoChange = isPhotoField(change.field);
           const fromPhotoId = parsePhotoReferenceId(change.from);
           const toPhotoId = parsePhotoReferenceId(change.to);
           const fromIsMain = fromPhotoId !== null && (change.field === "main_photo" || fromPhotoId === presentation.mainFromId);
           const toIsMain = toPhotoId !== null && (change.field === "main_photo" || toPhotoId === presentation.mainToId);
+          const fieldSeparator = change.from !== null && change.to !== null ? " " : ": ";
           return (
-            <p key={`${entry.id}-${index}`}>
+            <p key={`${operationId}-${index}`}>
               {includeCellLabel && change.label ? `${change.label} ` : ""}
               {isPhotoChange ? null : fieldLabel(change.field, change.rat)}
-              {isPhotoChange ? null : change.from !== null && change.to !== null ? " " : ": "}
+              {isPhotoChange ? null : fieldSeparator}
               {renderChangeValue(change, fromIsMain, toIsMain)}
             </p>
           );
@@ -345,90 +373,157 @@ const HistoryEntryItem = memo(function HistoryEntryItem({ entry }: HistoryEntryI
     );
   };
 
-  const renderEntryChanges = () => {
-    if (entry.kind === "cells") {
-      const cellCount = cellChangeGroups.reduce((total, group) => total + group.cells.length, 0);
-      return (
-        <details className="group mt-1.5" open={cellsExpanded} onToggle={(event) => setCellsExpanded(event.currentTarget.open)}>
-          <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-xs text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-            <span className="font-medium text-foreground">{t("history.cellCount", { count: cellCount })}</span>
-            <span className="flex min-w-0 flex-1 flex-wrap gap-1">
-              {cellChangeGroups.map((group) => (
-                <span key={group.rat} className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
-                  {group.rat || t("history.otherCells")} {group.cells.length}
-                </span>
-              ))}
-            </span>
-            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
-          </summary>
-          {cellsExpanded ? (
-            <div className="mt-1.5 overflow-hidden rounded-lg border border-border/70">
-              {cellChangeGroups.map((ratGroup) => (
-                <section key={ratGroup.rat} aria-label={ratGroup.rat || t("history.otherCells")}>
-                  <div className="flex items-center justify-between bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                    <span>{ratGroup.rat || t("history.otherCells")}</span>
-                    <span className="tabular-nums">{t("history.cellCount", { count: ratGroup.cells.length })}</span>
-                  </div>
-                  <div className="divide-y divide-border/60">
-                    {ratGroup.cells.map((cell, cellIndex) => {
-                      const snapshot = entry.action === "update" ? null : cell.changes[0];
-                      return (
-                        <div
-                          key={`${entry.id}-${ratGroup.rat}-${cell.label}-${cellIndex}`}
-                          className="grid gap-0.5 px-2.5 py-1.5 sm:grid-cols-[minmax(11rem,14rem)_1fr] sm:gap-3"
-                        >
-                          <p className="text-xs font-semibold leading-5 text-foreground">{cell.label || fieldLabel("cell")}</p>
-                          {snapshot ? renderCellSnapshot(snapshot) : renderChangeTokens(cell.changes, cell.label === "")}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : null}
-        </details>
-      );
-    }
+  if (section.kind !== "cells") return <div className="mt-0.5">{renderChangeTokens(section.changes)}</div>;
 
-    return <div className="mt-0.5">{renderChangeTokens(entry.changes)}</div>;
-  };
+  const cellCount = cellChangeGroups.reduce((total, group) => total + group.cells.length, 0);
+  return (
+    <details className="group mt-1.5" open={cellsExpanded} onToggle={(event) => setCellsExpanded(event.currentTarget.open)}>
+      <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-xs text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+        <span className="font-medium text-foreground">{t("history.cellCount", { count: cellCount })}</span>
+        <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+          {cellChangeGroups.map((group) => (
+            <span key={group.rat} className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
+              {group.rat || t("history.otherCells")} {group.cells.length}
+            </span>
+          ))}
+        </span>
+        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      {cellsExpanded ? (
+        <div className="mt-1.5 overflow-hidden rounded-lg border border-border/70">
+          {cellChangeGroups.map((ratGroup) => (
+            <section key={ratGroup.rat} aria-label={ratGroup.rat || t("history.otherCells")}>
+              <div className="flex items-center justify-between bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                <span>{ratGroup.rat || t("history.otherCells")}</span>
+                <span className="tabular-nums">{t("history.cellCount", { count: ratGroup.cells.length })}</span>
+              </div>
+              <div className="divide-y divide-border/60">
+                {ratGroup.cells.map((cell, cellIndex) => {
+                  const snapshot = section.action === "update" ? null : cell.changes[0];
+                  return (
+                    <div
+                      key={`${operationId}-${ratGroup.rat}-${cell.label}-${cellIndex}`}
+                      className="grid gap-0.5 px-2.5 py-1.5 sm:grid-cols-[minmax(11rem,14rem)_1fr] sm:gap-3"
+                    >
+                      <p className="text-xs font-semibold leading-5 text-foreground">{cell.label || fieldLabel("cell")}</p>
+                      {snapshot ? renderCellSnapshot(snapshot) : renderChangeTokens(cell.changes, cell.label === "")}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : null}
+    </details>
+  );
+});
+
+function getOperationKindIcon(kind: StationHistoryOperation["kind"]): IconSvgElement {
+  if (kind === "station.photos" || kind === "location.photos" || kind === "submission.photos") return Image01Icon;
+  if (kind.startsWith("station.")) return AirportTowerIcon;
+  if (kind.startsWith("cells.")) return FullSignalIcon;
+  if (kind.startsWith("location.")) return Location01Icon;
+  return Activity01Icon;
+}
+
+type HistoryOperationItemProps = {
+  operation: StationHistoryOperation;
+  canManageOperation: boolean;
+  onRevert: (operationId: number) => void;
+};
+
+const HistoryOperationItem = memo(function HistoryOperationItem({ operation, canManageOperation, onRevert }: HistoryOperationItemProps) {
+  const { t, i18n } = useTranslation("stationDetails");
+  const singleSection = operation.sections.length === 1 ? operation.sections[0] : undefined;
+  const icon = singleSection ? KIND_ICONS[singleSection.kind] : getOperationKindIcon(operation.kind);
+  const iconClass = singleSection ? ACTION_CHIP_CLASSES[singleSection.action] : ACTION_CHIP_CLASSES.update;
+  const title = singleSection
+    ? t(`history.titles.${singleSection.kind}_${singleSection.action}`)
+    : t(`history.operations.${operation.kind}`, { defaultValue: t("history.operations.fallback") });
 
   return (
     <article className="flex gap-2.5 py-2.5 [content-visibility:auto] [contain-intrinsic-size:auto_5rem]">
-      <span aria-hidden className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center", ACTION_CHIP_CLASSES[entry.action])}>
-        <HugeiconsIcon icon={KIND_ICONS[entry.kind]} className="size-3.5" />
+      <span aria-hidden className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center", iconClass)}>
+        <HugeiconsIcon icon={icon} className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-          <h4 className="min-w-0 text-sm font-medium leading-5 text-foreground">{t(`history.titles.${entry.kind}_${entry.action}`)}</h4>
-          <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-            {entry.author ? (
+        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h4 className="min-w-0 text-sm font-medium leading-5 text-foreground">{title}</h4>
+            {operation.reverted_by_operation_id !== null ? (
+              <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <HugeiconsIcon icon={Undo02Icon} className="size-3" aria-hidden="true" />
+                {t("history.revert.reverted")}
+              </span>
+            ) : null}
+          </div>
+          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            {operation.author ? (
               <>
                 <Avatar className="size-5 shrink-0">
-                  <AvatarImage src={resolveAvatarUrl(entry.author.image)} />
-                  <AvatarFallback className="text-[9px]">{(entry.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={resolveAvatarUrl(operation.author.image)} />
+                  <AvatarFallback className="text-[9px]">{(operation.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                {entry.author.username ? (
+                {operation.author.username ? (
                   <Link
                     to="/users/$username"
-                    params={{ username: entry.author.username }}
+                    params={{ username: operation.author.username }}
                     className="max-w-48 cursor-pointer truncate underline-offset-2 hover:underline"
                   >
-                    {entry.author.name} (@{entry.author.username})
+                    {operation.author.name} (@{operation.author.username})
                   </Link>
                 ) : (
-                  <span className="max-w-48 truncate">{entry.author.name}</span>
+                  <span className="max-w-48 truncate">{operation.author.name}</span>
                 )}
                 <span className="text-muted-foreground/50">·</span>
               </>
             ) : null}
-            <time dateTime={entry.createdAt} title={formatFullDate(entry.createdAt, i18n.language)} className="shrink-0 tabular-nums">
-              {new Date(entry.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
+            <time dateTime={operation.createdAt} title={formatFullDate(operation.createdAt, i18n.language)} className="shrink-0 tabular-nums">
+              {new Date(operation.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
             </time>
+            {canManageOperation && operation.revertible ? (
+              <button
+                type="button"
+                onClick={() => onRevert(operation.id)}
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-label={t("history.revert.action")}
+              >
+                <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" aria-hidden="true" />
+              </button>
+            ) : null}
+            {canManageOperation ? (
+              <Link
+                to="/admin/audit-logs"
+                search={{ operation: operation.id }}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-label={t("history.openOperation")}
+              >
+                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" aria-hidden="true" />
+              </Link>
+            ) : null}
           </span>
         </div>
-        {renderEntryChanges()}
+
+        {singleSection ? (
+          <HistorySectionChanges section={singleSection} operationId={operation.id} photoReferences={operation.photoReferences} />
+        ) : (
+          <div className="mt-1.5 space-y-2">
+            {operation.sections.map((section, index) => (
+              <section key={`${section.kind}-${section.action}-${index}`}>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <HugeiconsIcon icon={KIND_ICONS[section.kind]} className={cn("size-3.5", ACTION_CHIP_CLASSES[section.action])} aria-hidden="true" />
+                  <h5>{t(`history.titles.${section.kind}_${section.action}`)}</h5>
+                </div>
+                <div className="pl-5">
+                  <HistorySectionChanges section={section} operationId={operation.id} photoReferences={operation.photoReferences} />
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -455,9 +550,11 @@ export function StationHistoryDialogPanel({
   const operatorColor = getOperatorColor(operatorMnc ?? 0);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { data: session } = authClient.useSession();
-  const userRole = session?.user?.role as string | undefined;
-  const isAuditLogUser = userRole === "admin";
-  const isAdmin = userRole === "admin" || userRole === "editor";
+  const userRole = session?.user?.role;
+  const canOpenAuditLog = userRole === "admin";
+  const canOpenAdminHistory = canOpenAuditLog || userRole === "editor";
+  const [revertOperationId, setRevertOperationId] = useState<number | null>(null);
+  const handleRevert = useCallback((operationId: number) => setRevertOperationId(operationId), []);
 
   const {
     data,
@@ -480,7 +577,7 @@ export function StationHistoryDialogPanel({
   });
 
   const pages = data?.pages;
-  const entries = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
+  const operations = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   useImperativeHandle(bodyRef, () => scrollContainerRef.current!);
@@ -510,161 +607,189 @@ export function StationHistoryDialogPanel({
 
   const groups = useMemo<HistoryDayGroup[]>(() => {
     const result: HistoryDayGroup[] = [];
-    for (const entry of entries) {
-      const date = new Date(entry.createdAt);
+    for (const operation of operations) {
+      const date = new Date(operation.createdAt);
       const key = date.toDateString();
       const previous = result[result.length - 1];
-      if (previous && previous.key === key) previous.entries.push(entry);
+      if (previous && previous.key === key) previous.operations.push(operation);
       else
         result.push({
           key,
           label: date.toLocaleDateString(i18n.language, { day: "numeric", month: "long", year: "numeric" }),
-          entries: [entry],
+          operations: [operation],
         });
     }
     return result;
-  }, [entries, i18n.language]);
+  }, [operations, i18n.language]);
+
+  let loadMoreLabel = t("history.loadMore");
+  if (isFetchingNextPage) loadMoreLabel = t("common:actions.loading");
+  else if (isFetchNextPageError) loadMoreLabel = t("common:actions.retry");
+
+  let historyContent: ReactNode;
+  if (isPending)
+    historyContent = (
+      <>
+        <output className="sr-only">{t("common:actions.loading")}</output>
+        <div className="divide-y divide-border/60" aria-hidden="true">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="flex gap-2.5 py-2.5 first:pt-1">
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2 pt-1">
+                <Skeleton className="h-3.5 w-44" />
+                <Skeleton className="h-3 w-full max-w-64" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  else if (isError && operations.length === 0)
+    historyContent = (
+      <div
+        className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-destructive/25 bg-destructive/5 px-6 py-10 text-center"
+        role="alert"
+      >
+        <p className="text-sm font-semibold text-foreground">{t("history.error")}</p>
+        <Button variant="outline" size="sm" className="mt-4" disabled={isFetching} onClick={() => void refetch()}>
+          {isFetching ? t("common:actions.loading") : t("common:actions.retry")}
+        </Button>
+      </div>
+    );
+  else if (operations.length === 0)
+    historyContent = (
+      <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
+        <HugeiconsIcon icon={Clock01Icon} className="size-7 text-muted-foreground" />
+        <h3 className="mt-3 text-sm font-semibold text-foreground">{t("history.empty")}</h3>
+        <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("history.emptyHint")}</p>
+      </div>
+    );
+  else
+    historyContent = (
+      <>
+        {groups.map((group) => (
+          <section key={group.key} aria-label={group.label}>
+            <h3 className="sticky top-0 z-10 -mx-3 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground sm:-mx-4 sm:px-4">
+              {group.label}
+            </h3>
+            <div className="divide-y divide-border/60">
+              {group.operations.map((operation) => (
+                <HistoryOperationItem key={operation.id} operation={operation} canManageOperation={canOpenAuditLog} onRevert={handleRevert} />
+              ))}
+            </div>
+          </section>
+        ))}
+        {isRefetchError && !isFetchNextPageError ? (
+          <div
+            className="my-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2"
+            role="alert"
+          >
+            <p className="text-xs text-destructive">{t("history.refreshError")}</p>
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}>
+              {t("common:actions.retry")}
+            </Button>
+          </div>
+        ) : null}
+        {hasNextPage ? (
+          <div ref={loadMoreRef} className="space-y-2 py-2">
+            {isFetchNextPageError ? (
+              <p className="text-center text-xs text-destructive" role="alert">
+                {t("history.loadMoreError")}
+              </p>
+            ) : null}
+            <Button variant="outline" size="sm" className="w-full" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+              {loadMoreLabel}
+            </Button>
+          </div>
+        ) : (
+          <p className="py-2 text-center text-xs text-muted-foreground">{t("history.end")}</p>
+        )}
+      </>
+    );
 
   return (
-    <div className={cn("relative", className)} style={style} role={modal ? undefined : "dialog"} aria-labelledby={modal ? undefined : titleId}>
-      <div
-        ref={contentRef}
-        className={cn(
-          "relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-background shadow-2xl",
-          contentClassName,
-        )}
-      >
-        <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
-          <div
-            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
-          >
-            <div id={titleId} className="min-w-0 flex-1">
-              <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("history.title")}</h2>
-              <div className="mt-1 flex min-w-0 items-center gap-2">
-                <StationTitle
-                  stationId={stationCode}
-                  operator={{ name: operatorName, mnc: operatorMnc ?? 0 }}
-                  stationIdClassName="text-xs text-muted-foreground"
-                />
+    <>
+      <div className={cn("relative", className)} style={style} role={modal ? undefined : "dialog"} aria-labelledby={modal ? undefined : titleId}>
+        <div
+          ref={contentRef}
+          className={cn(
+            "relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-background shadow-2xl",
+            contentClassName,
+          )}
+        >
+          <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
+            <div
+              className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+              style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+            >
+              <div id={titleId} className="min-w-0 flex-1">
+                <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("history.title")}</h2>
+                <div className="mt-1 flex min-w-0 items-center gap-2">
+                  <StationTitle
+                    stationId={stationCode}
+                    operator={{ name: operatorName, mnc: operatorMnc ?? 0 }}
+                    stationIdClassName="text-xs text-muted-foreground"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-1">
-              {isRefetching && !isFetchingNextPage ? (
-                <output className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground" />
-                  <span className="sr-only sm:not-sr-only">{t("history.refreshing")}</span>
-                </output>
-              ) : null}
-              {isAdmin && (
-                <Link
-                  to={isAuditLogUser ? "/admin/audit-logs" : "/admin/submissions"}
-                  search={isAuditLogUser ? { q: String(stationId) } : { q: stationCode, page: 0 }}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-1">
+                {isRefetching && !isFetchingNextPage ? (
+                  <output className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground" />
+                    <span className="sr-only sm:not-sr-only">{t("history.refreshing")}</span>
+                  </output>
+                ) : null}
+                {canOpenAdminHistory && (
+                  <Link
+                    to={canOpenAuditLog ? "/admin/audit-logs" : "/admin/submissions"}
+                    search={canOpenAuditLog ? { q: String(stationId) } : { q: stationCode, page: 0 }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    aria-label={canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions")}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span className="sr-only sm:not-sr-only">{canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions")}</span>
+                    <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
+                  </Link>
+                )}
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  onClick={onClose}
                   onPointerDown={(event) => event.stopPropagation()}
-                  aria-label={isAuditLogUser ? t("history.openAuditLog") : t("history.openSubmissions")}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  aria-label={t("common:actions.close")}
                 >
-                  <span className="sr-only sm:not-sr-only">{isAuditLogUser ? t("history.openAuditLog") : t("history.openSubmissions")}</span>
-                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
-                </Link>
-              )}
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={onClose}
-                onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={t("common:actions.close")}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
-              </button>
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable"
-          aria-busy={isPending || isFetchingNextPage}
-        >
-          <div ref={bodyContentRef} className="px-3 py-2 sm:px-4 sm:py-2.5">
-            {isPending ? (
-              <>
-                <output className="sr-only">{t("common:actions.loading")}</output>
-                <div className="divide-y divide-border/60" aria-hidden="true">
-                  {Array.from({ length: 3 }, (_, index) => (
-                    <div key={index} className="flex gap-2.5 py-2.5 first:pt-1">
-                      <Skeleton className="size-7 shrink-0 rounded-full" />
-                      <div className="flex-1 space-y-2 pt-1">
-                        <Skeleton className="h-3.5 w-44" />
-                        <Skeleton className="h-3 w-full max-w-64" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : isError && entries.length === 0 ? (
-              <div
-                className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-destructive/25 bg-destructive/5 px-6 py-10 text-center"
-                role="alert"
-              >
-                <p className="text-sm font-semibold text-foreground">{t("history.error")}</p>
-                <Button variant="outline" size="sm" className="mt-4" disabled={isFetching} onClick={() => void refetch()}>
-                  {isFetching ? t("common:actions.loading") : t("common:actions.retry")}
-                </Button>
-              </div>
-            ) : entries.length === 0 ? (
-              <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
-                <HugeiconsIcon icon={Clock01Icon} className="size-7 text-muted-foreground" />
-                <h3 className="mt-3 text-sm font-semibold text-foreground">{t("history.empty")}</h3>
-                <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("history.emptyHint")}</p>
-              </div>
-            ) : (
-              <>
-                {groups.map((group) => (
-                  <section key={group.key} aria-label={group.label}>
-                    <h3 className="sticky top-0 z-10 -mx-3 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground sm:-mx-4 sm:px-4">
-                      {group.label}
-                    </h3>
-                    <div className="divide-y divide-border/60">
-                      {group.entries.map((entry) => (
-                        <HistoryEntryItem key={entry.id} entry={entry} />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-                {isRefetchError && !isFetchNextPageError ? (
-                  <div
-                    className="my-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2"
-                    role="alert"
-                  >
-                    <p className="text-xs text-destructive">{t("history.refreshError")}</p>
-                    <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}>
-                      {t("common:actions.retry")}
-                    </Button>
-                  </div>
-                ) : null}
-                {hasNextPage ? (
-                  <div ref={loadMoreRef} className="space-y-2 py-2">
-                    {isFetchNextPageError ? (
-                      <p className="text-center text-xs text-destructive" role="alert">
-                        {t("history.loadMoreError")}
-                      </p>
-                    ) : null}
-                    <Button variant="outline" size="sm" className="w-full" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
-                      {isFetchingNextPage ? t("common:actions.loading") : isFetchNextPageError ? t("common:actions.retry") : t("history.loadMore")}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="py-2 text-center text-xs text-muted-foreground">{t("history.end")}</p>
-                )}
-              </>
-            )}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable"
+            aria-busy={isPending || isFetchingNextPage}
+          >
+            <div ref={bodyContentRef} className="px-3 py-2 sm:px-4 sm:py-2.5">
+              {historyContent}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      {revertOperationId !== null ? (
+        <Suspense fallback={null}>
+          <RevertOperationDialog
+            operationId={revertOperationId}
+            open
+            onOpenChange={(open) => {
+              if (!open) setRevertOperationId(null);
+            }}
+            className="z-60"
+          />
+        </Suspense>
+      ) : null}
+    </>
   );
 }

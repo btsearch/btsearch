@@ -11,16 +11,15 @@ import {
   UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
+import { useQuery } from "@tanstack/react-query";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createColumnHelper, useTable } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import { ACTION_GROUPS, type AuditLogEntry, TABLE_LABELS, TABLE_OPTIONS, getActionStyle } from "../../../../features/admin/audit-logs/constants";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
@@ -30,13 +29,17 @@ import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { AuditLogDetailSheet } from "@/features/admin/audit-logs/components/audit-log-detail-sheet";
-import { DatePickerButton } from "@/features/admin/audit-logs/components/date-picker-button";
+import { DatePickerButton } from "@/features/admin/audit-operations/components/date-picker-button";
+import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operation-detail-sheet";
+import { OperationKindBadge } from "@/features/admin/audit-operations/components/operation-kind-badge";
+import { UserChip } from "@/features/admin/audit-operations/components/user-chip";
+import { ENTITY_OPTIONS, KIND_GROUPS } from "@/features/admin/audit-operations/constants";
+import { formatCountsSummary, getEntityLabel, getKindLabel } from "@/features/admin/audit-operations/labels";
+import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/queries";
+import type { AuditOperationSummary } from "@/features/admin/audit-operations/types";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
 import { useTablePagination } from "@/hooks/useTablePageSize";
-import { API_BASE, fetchJson } from "@/lib/api";
-import { resolveAvatarUrl } from "@/lib/format";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
@@ -47,31 +50,40 @@ const TABLE_PAGINATION_CONFIG = {
   minRows: 1,
 };
 
+const ALL_KINDS = KIND_GROUPS.flatMap((group) => group.kinds);
+const EMPTY_OPERATIONS: AuditOperationSummary[] = [];
+const auditDateFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function formatAuditDate(dateString: string, locale: string): string {
-  return new Date(dateString).toLocaleDateString(locale, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+  let formatter = auditDateFormatters.get(locale);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    auditDateFormatters.set(locale, formatter);
+  }
+  return formatter.format(new Date(dateString));
 }
 
-const columnHelper = createColumnHelper<AppTableFeatures, AuditLogEntry>();
+const columnHelper = createColumnHelper<AppTableFeatures, AuditOperationSummary>();
 
-type AuditLogsFilterState = {
-  tableFilter: string;
-  actionsFilter: string[];
+type AuditOperationsFilterState = {
+  entityFilter: AuditEntity | "";
+  kindsFilter: AuditOperationKind[];
+  selectedUserIds: string[];
   dateFrom: string;
   dateTo: string;
-  queryFilter: string;
   sort: "asc" | "desc";
-  selectedEntry: AuditLogEntry | null;
 };
 
 type AuditLogsSearch = {
   q?: string;
+  operation?: number;
 };
 
 function parseAuditLogsQuery(value: unknown): string | undefined {
@@ -80,73 +92,60 @@ function parseAuditLogsQuery(value: unknown): string | undefined {
   return undefined;
 }
 
-function getInitialFilterState(search: AuditLogsSearch): AuditLogsFilterState {
-  return {
-    ...initialFilterState,
-    queryFilter: search.q ?? "",
-  };
+function parseOperationId(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return undefined;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
 }
 
-function auditLogsFilterReducer(
-  state: AuditLogsFilterState,
+function isAuditEntity(value: unknown): value is AuditEntity {
+  return typeof value === "string" && ENTITY_OPTIONS.some((entity) => entity === value);
+}
+
+function auditOperationsFilterReducer(
+  state: AuditOperationsFilterState,
   action:
-    | { type: "SET_TABLE_FILTER"; payload: string }
-    | { type: "SET_ACTIONS_FILTER"; payload: string[] }
+    | { type: "SET_ENTITY_FILTER"; payload: AuditEntity | "" }
+    | { type: "SET_KINDS_FILTER"; payload: AuditOperationKind[] }
+    | { type: "SET_USER_IDS"; payload: string[] }
     | { type: "SET_DATE_FROM"; payload: string }
     | { type: "SET_DATE_TO"; payload: string }
-    | { type: "SET_QUERY_FILTER"; payload: string }
     | { type: "SET_SORT"; payload: "asc" | "desc" }
-    | { type: "SET_SELECTED_ENTRY"; payload: AuditLogEntry | null }
     | { type: "CLEAR_FILTERS" },
-): AuditLogsFilterState {
+): AuditOperationsFilterState {
   switch (action.type) {
-    case "SET_TABLE_FILTER":
-      return { ...state, tableFilter: action.payload };
-    case "SET_ACTIONS_FILTER":
-      return { ...state, actionsFilter: action.payload };
+    case "SET_ENTITY_FILTER":
+      return { ...state, entityFilter: action.payload };
+    case "SET_KINDS_FILTER":
+      return { ...state, kindsFilter: action.payload };
+    case "SET_USER_IDS":
+      return { ...state, selectedUserIds: action.payload };
     case "SET_DATE_FROM":
       return { ...state, dateFrom: action.payload };
     case "SET_DATE_TO":
       return { ...state, dateTo: action.payload };
-    case "SET_QUERY_FILTER":
-      return { ...state, queryFilter: action.payload };
     case "SET_SORT":
       return { ...state, sort: action.payload };
-    case "SET_SELECTED_ENTRY":
-      return { ...state, selectedEntry: action.payload };
     case "CLEAR_FILTERS":
-      return { ...state, tableFilter: "", actionsFilter: [], dateFrom: "", dateTo: "", queryFilter: "" };
-    default:
-      return state;
+      return { ...state, entityFilter: "", kindsFilter: [], selectedUserIds: [], dateFrom: "", dateTo: "" };
   }
 }
 
-const initialFilterState: AuditLogsFilterState = {
-  tableFilter: "",
-  actionsFilter: [],
+const initialFilterState: AuditOperationsFilterState = {
+  entityFilter: "",
+  kindsFilter: [],
+  selectedUserIds: [],
   dateFrom: "",
   dateTo: "",
-  queryFilter: "",
   sort: "desc",
-  selectedEntry: null,
 };
 
-function ActionsFilterButton({
-  value,
-  onChange,
-  t,
-}: {
-  value: string[];
-  onChange: (v: string[]) => void;
-  t: ReturnType<typeof useTranslation<["admin", "common", "stationDetails"]>>["t"];
-}) {
+function KindsFilterButton({ value, onChange }: { value: AuditOperationKind[]; onChange: (value: AuditOperationKind[]) => void }) {
+  const { t } = useTranslation(["admin", "common"]);
   const [open, setOpen] = useState(false);
 
-  function toggle(action: string) {
-    onChange(value.includes(action) ? value.filter((a) => a !== action) : [...value, action]);
-  }
-
-  const label = value.length === 0 ? t("auditLogs.filters.allActions") : t("auditLogs.filters.actionsCount", { count: value.length });
+  const label = value.length === 0 ? t("auditLogs.filters.allKinds") : t("auditLogs.filters.kindsCount", { count: value.length });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -160,31 +159,33 @@ function ActionsFilterButton({
         <span className="truncate">{label}</span>
         <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 shrink-0 ml-auto transition-transform", open && "rotate-180")} />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-0 max-h-96 overflow-y-auto">
-        {value.length > 0 && (
+      <PopoverContent align="start" className="w-72 p-0 max-h-96 overflow-y-auto">
+        {value.length > 0 ? (
           <div className="px-3 py-2 border-b flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{t("auditLogs.filters.actionsCount", { count: value.length })}</span>
+            <span className="text-xs text-muted-foreground">{t("auditLogs.filters.kindsCount", { count: value.length })}</span>
             <button type="button" onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               {t("common:actions.clear")}
             </button>
           </div>
-        )}
-        {ACTION_GROUPS.map((group, i) => (
-          <div key={group.label}>
-            {i > 0 && <div className="h-px bg-border mx-1" />}
-            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</div>
-            {group.actions.map((action) => {
-              const checked = value.includes(action);
+        ) : null}
+        {KIND_GROUPS.map((group, index) => (
+          <div key={group.key}>
+            {index > 0 ? <div className="h-px bg-border mx-1" /> : null}
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              {t(`auditLogs.groups.${group.key}`, { defaultValue: group.key })}
+            </div>
+            {group.kinds.map((kind) => {
+              const checked = value.includes(kind);
               return (
                 <button
-                  key={action}
+                  key={kind}
                   type="button"
-                  onClick={() => toggle(action)}
+                  onClick={() => onChange(checked ? value.filter((item) => item !== kind) : [...value, kind])}
                   className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-muted/50 transition-colors text-left"
                 >
                   <Checkbox checked={checked} className="pointer-events-none" />
-                  <span className="text-xs font-mono">{action.split(".").pop()}</span>
-                  {checked && <HugeiconsIcon icon={Tick02Icon} className="size-3 text-muted-foreground ml-auto" />}
+                  <span className="min-w-0 truncate text-xs">{getKindLabel(t, kind)}</span>
+                  {checked ? <HugeiconsIcon icon={Tick02Icon} className="size-3 text-muted-foreground ml-auto" /> : null}
                 </button>
               );
             })}
@@ -195,16 +196,15 @@ function ActionsFilterButton({
   );
 }
 
-type AuditLogsMobileFilterRailProps = {
-  tableFilter: string;
-  actionsFilter: string[];
+type AuditOperationsMobileFilterRailProps = {
+  entityFilter: AuditEntity | "";
+  kindsFilter: AuditOperationKind[];
   dateFrom: string;
   dateTo: string;
   queryFilter: string;
   selectedUserIds: string[];
-  getTableLabel: (table: string) => string;
-  onTableChange: (value: string) => void;
-  onActionsChange: (value: string[]) => void;
+  onEntityChange: (value: AuditEntity | "") => void;
+  onKindsChange: (value: AuditOperationKind[]) => void;
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
   onQueryChange: (value: string) => void;
@@ -212,24 +212,23 @@ type AuditLogsMobileFilterRailProps = {
   onClear: () => void;
 };
 
-function AuditLogsMobileFilterRail({
-  tableFilter,
-  actionsFilter,
+function AuditOperationsMobileFilterRail({
+  entityFilter,
+  kindsFilter,
   dateFrom,
   dateTo,
   queryFilter,
   selectedUserIds,
-  getTableLabel,
-  onTableChange,
-  onActionsChange,
+  onEntityChange,
+  onKindsChange,
   onDateFromChange,
   onDateToChange,
   onQueryChange,
   onUsersChange,
   onClear,
-}: AuditLogsMobileFilterRailProps) {
-  const { t } = useTranslation(["admin", "common", "stationDetails"]);
-  const hasActiveFilters = Boolean(tableFilter || actionsFilter.length || dateFrom || dateTo || queryFilter || selectedUserIds.length);
+}: AuditOperationsMobileFilterRailProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const hasActiveFilters = Boolean(entityFilter || kindsFilter.length || dateFrom || dateTo || queryFilter || selectedUserIds.length);
 
   return (
     <div className="flex items-center gap-1">
@@ -259,48 +258,48 @@ function AuditLogsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={Boolean(tableFilter)} icon={Note01Icon} label={t("auditLogs.columns.entity")}>
+      <MobileFilterChip active={Boolean(entityFilter)} icon={Note01Icon} label={t("auditLogs.columns.entity")}>
         <MobileFilterPanelTitle>{t("auditLogs.columns.entity")}</MobileFilterPanelTitle>
         <div className="grid max-h-64 gap-1 overflow-y-auto">
           <button
             type="button"
-            onClick={() => onTableChange("")}
-            className={cn("h-8 rounded-md px-2 text-left text-sm transition-colors", !tableFilter ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+            onClick={() => onEntityChange("")}
+            className={cn("h-8 rounded-md px-2 text-left text-sm transition-colors", !entityFilter ? "bg-primary/10 text-primary" : "hover:bg-muted")}
           >
             {t("auditLogs.filters.allEntities")}
           </button>
-          {TABLE_OPTIONS.map((table) => (
+          {ENTITY_OPTIONS.map((entity) => (
             <button
-              key={table}
+              key={entity}
               type="button"
-              onClick={() => onTableChange(table)}
+              onClick={() => onEntityChange(entity)}
               className={cn(
                 "h-8 rounded-md px-2 text-left text-sm transition-colors",
-                tableFilter === table ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                entityFilter === entity ? "bg-primary/10 text-primary" : "hover:bg-muted",
               )}
             >
-              {getTableLabel(table)}
+              {getEntityLabel(t, entity)}
             </button>
           ))}
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={actionsFilter.length > 0} count={actionsFilter.length} icon={Activity01Icon} label={t("auditLogs.columns.action")}>
-        <MobileFilterPanelTitle>{t("auditLogs.columns.action")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={kindsFilter.length > 0} count={kindsFilter.length} icon={Activity01Icon} label={t("auditLogs.columns.kind")}>
+        <MobileFilterPanelTitle>{t("auditLogs.columns.kind")}</MobileFilterPanelTitle>
         <div className="grid max-h-64 gap-1 overflow-y-auto">
-          {ACTION_GROUPS.flatMap((group) => group.actions).map((action) => {
-            const selected = actionsFilter.includes(action);
+          {ALL_KINDS.map((kind) => {
+            const selected = kindsFilter.includes(kind);
             return (
               <button
-                key={action}
+                key={kind}
                 type="button"
-                onClick={() => onActionsChange(selected ? actionsFilter.filter((value) => value !== action) : [...actionsFilter, action])}
+                onClick={() => onKindsChange(selected ? kindsFilter.filter((value) => value !== kind) : [...kindsFilter, kind])}
                 className={cn(
                   "flex h-8 items-center rounded-md px-2 text-left text-sm transition-colors",
                   selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                <span className="min-w-0 flex-1 truncate font-mono">{action}</span>
+                <span className="min-w-0 flex-1 truncate">{getKindLabel(t, kind)}</span>
               </button>
             );
           })}
@@ -339,89 +338,115 @@ function AuditLogsMobileFilterRail({
   );
 }
 
+type AuditOperationsTableRowsProps = {
+  columnsCount: number;
+  isLoading: boolean;
+  isError: boolean;
+  operations: AuditOperationSummary[];
+  pageSize: number;
+  onOpenOperation: (operationId: number) => void;
+};
+
+function AuditOperationsTableRows({ columnsCount, isLoading, isError, operations, pageSize, onOpenOperation }: AuditOperationsTableRowsProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  const handleRowClick = useCallback((row: AuditOperationSummary) => onOpenOperation(row.id), [onOpenOperation]);
+
+  if (isLoading) return <DataTable.Skeleton rows={pageSize} columns={columnsCount} />;
+
+  if (isError)
+    return (
+      <tbody>
+        <tr>
+          <td colSpan={columnsCount} className="h-64 text-center">
+            <div className="flex flex-col items-center justify-center text-muted-foreground">
+              <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
+                <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
+              </div>
+              <p>{t("common:error.title")}</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    );
+
+  if (operations.length === 0)
+    return (
+      <tbody>
+        <tr>
+          <td colSpan={columnsCount} className="h-64 text-center">
+            <div className="flex flex-col items-center justify-center text-muted-foreground">
+              <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
+              <p className="font-medium">{t("auditLogs.empty.title")}</p>
+              <p className="text-sm opacity-70">{t("auditLogs.empty.subtitle")}</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    );
+
+  return <DataTable.Body onRowClick={handleRowClick} />;
+}
+
 function AdminAuditLogsPage() {
   "use no memo";
-  const { t, i18n } = useTranslation(["admin", "common", "stationDetails"]);
+  const { t, i18n } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const queryFilter = search.q ?? "";
   const navActionTarget = useNavActionTarget();
   const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const [filterState, dispatchFilter] = useReducer(auditLogsFilterReducer, search, getInitialFilterState);
-  const { tableFilter, actionsFilter, dateFrom, dateTo, queryFilter, sort, selectedEntry } = filterState;
-
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [filterState, dispatchFilter] = useReducer(auditOperationsFilterReducer, initialFilterState);
+  const { entityFilter, kindsFilter, selectedUserIds, dateFrom, dateTo, sort } = filterState;
 
   const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
 
-  const resetPage = useCallback(() => setPagination((prev) => ({ ...prev, pageIndex: 0 })), [setPagination]);
+  const resetPage = useCallback(() => setPagination((previous) => ({ ...previous, pageIndex: 0 })), [setPagination]);
 
-  useEffect(() => {
-    dispatchFilter({ type: "SET_QUERY_FILTER", payload: search.q ?? "" });
-    resetPage();
-  }, [search.q, resetPage]);
+  const activeFilterCount = [
+    entityFilter !== "",
+    kindsFilter.length > 0,
+    dateFrom !== "",
+    dateTo !== "",
+    queryFilter !== "",
+    selectedUserIds.length > 0,
+  ].filter(Boolean).length;
+  const hasActiveFilters = activeFilterCount > 0;
 
-  const hasActiveFilters = !!(tableFilter || actionsFilter.length || dateFrom || dateTo || queryFilter || selectedUserIds.length);
-  const activeFilterCount = [tableFilter, actionsFilter.length > 0, dateFrom, dateTo, queryFilter, selectedUserIds.length > 0].filter(Boolean).length;
-
-  const clearAllFilters = useCallback(() => {
+  function clearAllFilters(): void {
     dispatchFilter({ type: "CLEAR_FILTERS" });
-    setSelectedUserIds([]);
     resetPage();
-    void navigate({ from: Route.fullPath, search: (s) => ({ ...s, q: undefined }), replace: true });
-  }, [navigate, resetPage]);
+    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, q: undefined }), replace: true });
+  }
 
-  const handleQueryFilterChange = useCallback(
-    (value: string) => {
-      dispatchFilter({ type: "SET_QUERY_FILTER", payload: value });
-      resetPage();
-      void navigate({ from: Route.fullPath, search: (s) => ({ ...s, q: value || undefined }), replace: true });
+  function handleQueryFilterChange(value: string): void {
+    resetPage();
+    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, q: value || undefined }), replace: true });
+  }
+
+  const openOperation = useCallback(
+    (operationId: number): void => {
+      void navigate({ from: Route.fullPath, search: (current) => ({ ...current, operation: operationId }), replace: true });
     },
-    [navigate, resetPage],
+    [navigate],
   );
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: [
-      "admin",
-      "audit-logs",
-      pagination.pageIndex,
-      pagination.pageSize,
-      tableFilter,
-      actionsFilter,
-      dateFrom,
-      dateTo,
-      queryFilter,
-      selectedUserIds,
+  const { data, isLoading, isError } = useQuery(
+    auditOperationsQueryOptions({
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
       sort,
-    ],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("limit", pagination.pageSize.toString());
-      params.set("offset", (pagination.pageIndex * pagination.pageSize).toString());
-      params.set("sort", sort);
-      if (tableFilter) params.set("table_name", tableFilter);
-      if (actionsFilter.length > 0) params.set("actions", actionsFilter.join(","));
-      if (queryFilter) params.set("record_id", queryFilter);
-      if (selectedUserIds.length > 0) params.set("user_ids", selectedUserIds.join(","));
-      if (dateFrom) params.set("from", new Date(dateFrom).toISOString());
-      if (dateTo) {
-        const to = new Date(dateTo);
-        to.setHours(23, 59, 59, 999);
-        params.set("to", to.toISOString());
-      }
-      return fetchJson<{ data: AuditLogEntry[]; totalCount: number }>(`${API_BASE}/audit-logs?${params.toString()}`);
-    },
-    placeholderData: keepPreviousData,
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
-
-  const logs = data?.data ?? [];
-  const total = data?.totalCount ?? 0;
-  const getTableLabel = useCallback(
-    (table: string) => (table === "station_sectors" ? t("tabs.sectors", { ns: "stationDetails" }) : (TABLE_LABELS[table] ?? table)),
-    [t],
+      entities: entityFilter ? [entityFilter] : undefined,
+      kinds: kindsFilter.length > 0 ? kindsFilter : undefined,
+      userIds: selectedUserIds.length > 0 ? selectedUserIds : undefined,
+      from: dateFrom ? new Date(`${dateFrom}T00:00:00`).toISOString() : undefined,
+      to: dateTo ? new Date(`${dateTo}T23:59:59.999`).toISOString() : undefined,
+      q: queryFilter || undefined,
+    }),
   );
+
+  const operations = data?.data ?? EMPTY_OPERATIONS;
+  const total = data?.totalCount ?? 0;
+  const selectedRow = operations.find((operation) => operation.id === search.operation);
 
   const columns = useMemo(
     () =>
@@ -449,90 +474,83 @@ function AdminAuditLogsPage() {
             <span className="text-muted-foreground tabular-nums text-xs font-mono">{formatAuditDate(getValue(), i18n.language)}</span>
           ),
         }),
-        columnHelper.accessor("user", {
+        columnHelper.accessor("actor", {
           header: t("auditLogs.columns.actor"),
           size: 180,
-          cell: ({ getValue }) => {
-            const user = getValue();
-            if (!user) {
-              return <span className="text-muted-foreground italic text-xs">{t("auditLogs.actor.system")}</span>;
+          cell: ({ getValue, row }) => {
+            const actor = getValue();
+            const performer = row.original.performer;
+            let performerAttribution: string | null = null;
+            if (performer !== null && performer.id !== actor?.id) {
+              const performerName = performer.name ?? performer.username ?? t("auditLogs.actor.system");
+              performerAttribution = performer.username
+                ? t("auditLogs.actor.viaWithUsername", { name: performerName, username: performer.username })
+                : t("auditLogs.actor.via", { name: performerName });
             }
             return (
-              <div className="flex items-center gap-2">
-                <Avatar className="size-6">
-                  <AvatarImage src={resolveAvatarUrl(user.image)} />
-                  <AvatarFallback className="text-[9px]">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0">
-                  <span className="truncate max-w-28 text-xs font-medium">{user.name}</span>
-                  {user.username && <span className="truncate max-w-28 text-[10px] text-muted-foreground">@{user.username}</span>}
-                </div>
+              <div className="min-w-0">
+                <UserChip user={actor} systemLabel={t("auditLogs.actor.system")} />
+                {performerAttribution !== null ? (
+                  <span className="mt-0.5 block max-w-36 truncate text-[10px] text-muted-foreground">{performerAttribution}</span>
+                ) : null}
               </div>
             );
           },
         }),
-        columnHelper.accessor("action", {
-          header: t("auditLogs.columns.action"),
+        columnHelper.accessor("kind", {
+          header: t("auditLogs.columns.kind"),
           size: 200,
-          cell: ({ getValue }) => {
-            const action = getValue();
-            const style = getActionStyle(action);
-            return (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider border",
-                  style.badgeClass,
-                )}
-              >
-                <span className={cn("size-1.5 rounded-[1px]", style.dotClass)} />
-                {action}
-              </span>
-            );
-          },
+          cell: ({ getValue }) => <OperationKindBadge kind={getValue()} t={t} />,
         }),
-        columnHelper.accessor("table_name", {
-          header: t("auditLogs.columns.entity"),
-          size: 120,
-          cell: ({ getValue }) => <span className="text-xs font-medium">{getTableLabel(getValue())}</span>,
-        }),
-        columnHelper.accessor("record_id", {
-          header: t("auditLogs.columns.record"),
-          size: 100,
-          cell: ({ getValue, row }) => {
-            const recordId = getValue();
-            const fallbackId =
-              (row.original.old_values as Record<string, unknown> | null)?.id ??
-              (row.original.new_values as Record<string, unknown> | null)?.id ??
-              null;
-            const displayId = recordId ?? fallbackId;
-            const shortId =
-              displayId !== null
-                ? String(displayId as string | number)
-                    .split("-")
-                    .pop()
-                : null;
-            return shortId !== null ? (
-              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded" title={String(displayId as string | number)}>
-                #{shortId}
-              </span>
+        columnHelper.display({
+          id: "target",
+          header: t("auditLogs.columns.target"),
+          size: 130,
+          cell: ({ row }) => {
+            const stationIds = row.original.station_ids;
+            if (stationIds.length === 1) {
+              const stationId = stationIds[0];
+              return (
+                <Link
+                  to="/admin/stations/$id"
+                  params={{ id: String(stationId) }}
+                  search={{ uke: undefined }}
+                  className="text-xs font-mono text-primary hover:underline"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  #{stationId}
+                </Link>
+              );
+            }
+            if (stationIds.length > 1)
+              return <span className="text-xs font-medium">{t("auditLogs.target.stations", { count: stationIds.length })}</span>;
+            const entities = [...new Set(row.original.counts.map((count) => count.entity))];
+            return entities.length > 0 ? (
+              <span className="text-xs font-medium">{entities.map((entity) => getEntityLabel(t, entity)).join(", ")}</span>
             ) : (
               <span className="text-muted-foreground text-xs">-</span>
             );
           },
         }),
+        columnHelper.display({
+          id: "changes",
+          header: t("auditLogs.columns.changes"),
+          size: 180,
+          cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatCountsSummary(t, row.original.counts)}</span>,
+        }),
         columnHelper.accessor("source", {
           header: t("auditLogs.columns.source"),
           size: 80,
-          cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue() ?? "-"}</span>,
+          cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue()}</span>,
         }),
       ]),
-    [t, sort, i18n.language, resetPage, getTableLabel],
+    [t, sort, i18n.language, resetPage],
   );
   const sorting = useMemo(() => [{ id: "createdAt", desc: sort === "desc" }], [sort]);
 
   const table = useTable({
     features: appTableFeatures,
-    data: logs,
+    data: operations,
     columns,
     manualPagination: true,
     manualSorting: true,
@@ -555,20 +573,20 @@ function AdminAuditLogsPage() {
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.entity")}</span>
             <Select
-              value={tableFilter === "" ? "__all__" : tableFilter}
-              onValueChange={(v) => {
-                dispatchFilter({ type: "SET_TABLE_FILTER", payload: v === "__all__" ? "" : (v as string) });
+              value={entityFilter || "__all__"}
+              onValueChange={(value) => {
+                dispatchFilter({ type: "SET_ENTITY_FILTER", payload: isAuditEntity(value) ? value : "" });
                 resetPage();
               }}
             >
               <SelectTrigger className="min-w-35">
-                <SelectValue>{tableFilter === "" ? t("auditLogs.filters.allEntities") : getTableLabel(tableFilter)}</SelectValue>
+                <SelectValue>{entityFilter ? getEntityLabel(t, entityFilter) : t("auditLogs.filters.allEntities")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">{t("auditLogs.filters.allEntities")}</SelectItem>
-                {TABLE_OPTIONS.map((table) => (
-                  <SelectItem key={table} value={table}>
-                    {getTableLabel(table)}
+                {ENTITY_OPTIONS.map((entity) => (
+                  <SelectItem key={entity} value={entity}>
+                    {getEntityLabel(t, entity)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -576,12 +594,11 @@ function AdminAuditLogsPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.action")}</span>
-            <ActionsFilterButton
-              t={t}
-              value={actionsFilter}
-              onChange={(v) => {
-                dispatchFilter({ type: "SET_ACTIONS_FILTER", payload: v });
+            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.kind")}</span>
+            <KindsFilterButton
+              value={kindsFilter}
+              onChange={(value) => {
+                dispatchFilter({ type: "SET_KINDS_FILTER", payload: value });
                 resetPage();
               }}
             />
@@ -608,7 +625,7 @@ function AdminAuditLogsPage() {
             <UserPickerPopover
               selectedUserIds={selectedUserIds}
               onSelectionChange={(ids) => {
-                setSelectedUserIds(ids);
+                dispatchFilter({ type: "SET_USER_IDS", payload: ids });
                 resetPage();
               }}
             />
@@ -658,36 +675,14 @@ function AdminAuditLogsPage() {
           <DataTable.Root table={table} className="block rounded-b-none border-b-0">
             <DataTable.Table>
               <DataTable.Header />
-              {isLoading ? (
-                <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-              ) : isError ? (
-                <tbody>
-                  <tr>
-                    <td colSpan={columns.length} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-                        </div>
-                        <p>{t("common:error.title")}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              ) : logs.length === 0 ? (
-                <tbody>
-                  <tr>
-                    <td colSpan={columns.length} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <HugeiconsIcon icon={Search01Icon} className="size-10 mb-2 opacity-20" />
-                        <p className="font-medium">{t("auditLogs.empty.title")}</p>
-                        <p className="text-sm opacity-70">{t("auditLogs.empty.subtitle")}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              ) : (
-                <DataTable.Body onRowClick={(row: AuditLogEntry) => dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: row })} />
-              )}
+              <AuditOperationsTableRows
+                columnsCount={columns.length}
+                isLoading={isLoading}
+                isError={isError}
+                operations={operations}
+                pageSize={pagination.pageSize}
+                onOpenOperation={openOperation}
+              />
             </DataTable.Table>
           </DataTable.Root>
         </div>
@@ -696,33 +691,35 @@ function AdminAuditLogsPage() {
         </DataTable.PaginationFooter>
       </div>
 
-      <AuditLogDetailSheet
-        entry={selectedEntry}
-        open={selectedEntry !== null}
-        onOpenChange={(open) => {
-          if (!open) dispatchFilter({ type: "SET_SELECTED_ENTRY", payload: null });
-        }}
-      />
-      {navActionTarget &&
-        createPortal(
-          showFloatingMobileFilters ? (
+      {search.operation !== undefined ? (
+        <OperationDetailSheet
+          operationId={search.operation}
+          listRow={selectedRow}
+          open
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) void navigate({ from: Route.fullPath, search: (current) => ({ ...current, operation: undefined }), replace: true });
+          }}
+          onOpenOperation={openOperation}
+        />
+      ) : null}
+      {navActionTarget !== null && navActionTarget !== undefined && showFloatingMobileFilters
+        ? createPortal(
             <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
               <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
                 <div className="w-max">
-                  <AuditLogsMobileFilterRail
-                    tableFilter={tableFilter}
-                    actionsFilter={actionsFilter}
+                  <AuditOperationsMobileFilterRail
+                    entityFilter={entityFilter}
+                    kindsFilter={kindsFilter}
                     dateFrom={dateFrom}
                     dateTo={dateTo}
                     queryFilter={queryFilter}
                     selectedUserIds={selectedUserIds}
-                    getTableLabel={getTableLabel}
-                    onTableChange={(value) => {
-                      dispatchFilter({ type: "SET_TABLE_FILTER", payload: value });
+                    onEntityChange={(value) => {
+                      dispatchFilter({ type: "SET_ENTITY_FILTER", payload: value });
                       resetPage();
                     }}
-                    onActionsChange={(value) => {
-                      dispatchFilter({ type: "SET_ACTIONS_FILTER", payload: value });
+                    onKindsChange={(value) => {
+                      dispatchFilter({ type: "SET_KINDS_FILTER", payload: value });
                       resetPage();
                     }}
                     onDateFromChange={(value) => {
@@ -735,17 +732,17 @@ function AdminAuditLogsPage() {
                     }}
                     onQueryChange={handleQueryFilterChange}
                     onUsersChange={(ids) => {
-                      setSelectedUserIds(ids);
+                      dispatchFilter({ type: "SET_USER_IDS", payload: ids });
                       resetPage();
                     }}
                     onClear={clearAllFilters}
                   />
                 </div>
               </div>
-            </div>
-          ) : null,
-          navActionTarget,
-        )}
+            </div>,
+            navActionTarget,
+          )
+        : null}
     </div>
   );
 }
@@ -753,6 +750,7 @@ function AdminAuditLogsPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/audit-logs")({
   validateSearch: (search: Record<string, unknown>): AuditLogsSearch => ({
     q: parseAuditLogsQuery(search.q),
+    operation: parseOperationId(search.operation),
   }),
   component: AdminAuditLogsPage,
   staticData: {

@@ -4,7 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { BackendUnavailableError } from "@/lib/api";
+import { BackendUnavailableError, subscribeToBackendSuccess } from "@/lib/api";
 
 export function BackendStatusProvider({ queryClient, children }: { queryClient: QueryClient; children: ReactNode }) {
   const [isUnavailable, setIsUnavailable] = useState(false);
@@ -12,7 +12,7 @@ export function BackendStatusProvider({ queryClient, children }: { queryClient: 
 
   useEffect(() => {
     const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event) => {
+    const unsubscribeFromQueryCache = cache.subscribe((event) => {
       if (
         event.type === "updated" &&
         event.action.type === "error" &&
@@ -21,7 +21,12 @@ export function BackendStatusProvider({ queryClient, children }: { queryClient: 
       )
         setIsUnavailable(true);
     });
-    return unsubscribe;
+    const unsubscribeFromBackendSuccess = subscribeToBackendSuccess(() => setIsUnavailable(false));
+
+    return () => {
+      unsubscribeFromQueryCache();
+      unsubscribeFromBackendSuccess();
+    };
   }, [queryClient]);
 
   return (

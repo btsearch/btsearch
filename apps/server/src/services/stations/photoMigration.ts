@@ -1,21 +1,20 @@
 import { locationPhotos, stationPhotoSelections } from "@openbts/drizzle";
 import { and, eq, inArray, ne } from "drizzle-orm";
 
-import type { Database } from "../../database/psql.js";
-
-type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type StationPhotoExecutor = Database | Transaction;
+import type { AuditEntryInput, AuditRecorder } from "../audit/index.js";
 
 export async function migrateStationPhotosToLocation(
-  executor: StationPhotoExecutor,
+  audit: AuditRecorder,
   stationId: number,
   oldLocationId: number,
   newLocationId: number,
   oldLocationOrphaned: boolean,
 ): Promise<Map<number, number>> {
   const migratedPhotoIds = new Map<number, number>();
+  const auditEntries: AuditEntryInput[] = [];
+  const auditMetadata = { from_location_id: oldLocationId, to_location_id: newLocationId };
 
-  const selections = await executor.query.stationPhotoSelections.findMany({
+  const selections = await audit.tx.query.stationPhotoSelections.findMany({
     where: { station_id: stationId },
     with: { locationPhoto: true },
   });
@@ -23,14 +22,14 @@ export async function migrateStationPhotosToLocation(
 
   const movablePhotoIds = new Set(movableSelections.map((selection) => selection.location_photo_id));
   const unselectedOldPhotos = oldLocationOrphaned
-    ? (await executor.query.locationPhotos.findMany({ where: { location_id: oldLocationId } })).filter((photo) => !movablePhotoIds.has(photo.id))
+    ? (await audit.tx.query.locationPhotos.findMany({ where: { location_id: oldLocationId } })).filter((photo) => !movablePhotoIds.has(photo.id))
     : [];
 
   if (movableSelections.length === 0 && unselectedOldPhotos.length === 0) return migratedPhotoIds;
 
   const sharedRows =
     !oldLocationOrphaned && movablePhotoIds.size > 0
-      ? await executor
+      ? await audit.tx
           .select({ location_photo_id: stationPhotoSelections.location_photo_id })
           .from(stationPhotoSelections)
           .where(and(inArray(stationPhotoSelections.location_photo_id, [...movablePhotoIds]), ne(stationPhotoSelections.station_id, stationId)))
@@ -41,7 +40,7 @@ export async function migrateStationPhotosToLocation(
     ...movableSelections.map((selection) => selection.locationPhoto.attachment_id),
     ...unselectedOldPhotos.map((photo) => photo.attachment_id),
   ];
-  const existingAtTarget = await executor
+  const existingAtTarget = await audit.tx
     .select({ id: locationPhotos.id, attachment_id: locationPhotos.attachment_id })
     .from(locationPhotos)
     .where(and(eq(locationPhotos.location_id, newLocationId), inArray(locationPhotos.attachment_id, attachmentIds)));
@@ -49,17 +48,20 @@ export async function migrateStationPhotosToLocation(
 
   const photoIdsToMove: number[] = [];
   const photoIdsToDelete: number[] = [];
+  const sourcePhotos = new Map(
+    [...movableSelections.map((selection) => selection.locationPhoto), ...unselectedOldPhotos].map((photo) => [photo.id, photo]),
+  );
 
-  const repointSelection = async (selection: (typeof movableSelections)[number], targetPhotoId: number) => {
-    await executor
+  async function repointSelection(selection: (typeof movableSelections)[number], targetPhotoId: number): Promise<void> {
+    await audit.tx
       .insert(stationPhotoSelections)
       .values({ station_id: stationId, location_photo_id: targetPhotoId, is_main: selection.is_main })
       .onConflictDoNothing();
-    await executor
+    await audit.tx
       .delete(stationPhotoSelections)
       .where(and(eq(stationPhotoSelections.station_id, stationId), eq(stationPhotoSelections.location_photo_id, selection.location_photo_id)));
     migratedPhotoIds.set(selection.location_photo_id, targetPhotoId);
-  };
+  }
 
   /* eslint-disable no-await-in-loop */
   for (const selection of movableSelections) {
@@ -73,7 +75,7 @@ export async function migrateStationPhotosToLocation(
     }
 
     if (sharedPhotoIds.has(photo.id)) {
-      const [copy] = await executor
+      const [copy] = await audit.tx
         .insert(locationPhotos)
         .values({
           location_id: newLocationId,
@@ -83,9 +85,17 @@ export async function migrateStationPhotosToLocation(
           note: photo.note,
           taken_at: photo.taken_at,
         })
-        .returning({ id: locationPhotos.id });
+        .returning();
       if (!copy) continue;
       targetPhotoIdByAttachment.set(photo.attachment_id, copy.id);
+      auditEntries.push({
+        entity: "location_photos",
+        op: "create",
+        recordId: copy.id,
+        stationId,
+        new: copy,
+        metadata: auditMetadata,
+      });
       await repointSelection(selection, copy.id);
       continue;
     }
@@ -106,9 +116,39 @@ export async function migrateStationPhotosToLocation(
     }
   }
 
-  if (photoIdsToDelete.length > 0) await executor.delete(locationPhotos).where(inArray(locationPhotos.id, photoIdsToDelete));
-  if (photoIdsToMove.length > 0)
-    await executor.update(locationPhotos).set({ location_id: newLocationId }).where(inArray(locationPhotos.id, photoIdsToMove));
+  if (photoIdsToDelete.length > 0) {
+    const deletedPhotos = await audit.tx.delete(locationPhotos).where(inArray(locationPhotos.id, photoIdsToDelete)).returning();
+    auditEntries.push(
+      ...deletedPhotos.map((photo) => ({
+        entity: "location_photos" as const,
+        op: "delete" as const,
+        recordId: photo.id,
+        stationId,
+        old: photo,
+        metadata: auditMetadata,
+      })),
+    );
+  }
+  if (photoIdsToMove.length > 0) {
+    const movedPhotos = await audit.tx
+      .update(locationPhotos)
+      .set({ location_id: newLocationId })
+      .where(inArray(locationPhotos.id, photoIdsToMove))
+      .returning();
+    auditEntries.push(
+      ...movedPhotos.map((photo) => ({
+        entity: "location_photos" as const,
+        op: "update" as const,
+        recordId: photo.id,
+        stationId,
+        old: sourcePhotos.get(photo.id),
+        new: photo,
+        metadata: auditMetadata,
+      })),
+    );
+  }
+
+  await audit.logMany(auditEntries);
 
   return migratedPhotoIds;
 }

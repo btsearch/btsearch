@@ -1,7 +1,9 @@
 import { StationResponseSchema } from "@openbts/proto/gen/stations_pb";
 import { PermitsResponseSchema as UKEPermitsResponseSchema } from "@openbts/proto/gen/uke_pb";
+import type { AuditOperationKind } from "@openbts/shared/audit";
 
-import { API_BASE, fetchApiData, fetchJson } from "@/lib/api";
+import { API_BASE, createAuditOperationHandle, fetchApiData, fetchJson } from "@/lib/api";
+import type { AuditOperationHandle } from "@/lib/api";
 import type { Station, UkePermit, UkeStation } from "@/types/station";
 
 export const fetchStation = (id: number) => fetchApiData<Station>(`stations/${id}`, { proto: StationResponseSchema });
@@ -20,24 +22,31 @@ export type StationHistoryChange = {
 export type StationHistoryAuthor = {
   id: string;
   name: string | null;
-  username: string;
+  username: string | null;
   image: string | null;
 };
 
 export type StationHistoryPhotoReference = { id: number; attachment_uuid: string };
 
-export type StationHistoryEntry = {
-  id: number;
+export type StationHistorySection = {
   kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
   action: "create" | "update" | "delete";
-  createdAt: string;
   changes: StationHistoryChange[];
+};
+
+export type StationHistoryOperation = {
+  id: number;
+  kind: AuditOperationKind;
+  createdAt: string;
   author?: StationHistoryAuthor | null;
+  revertible: boolean;
+  reverted_by_operation_id: number | null;
+  sections: StationHistorySection[];
   photoReferences: StationHistoryPhotoReference[];
 };
 
 export type StationHistoryPage = {
-  data: StationHistoryEntry[];
+  data: StationHistoryOperation[];
   nextCursor: number | null;
 };
 
@@ -131,39 +140,61 @@ export const fetchStationPhotos = (stationId: number) => fetchApiData<StationPho
 
 export const fetchLocationPhotos = (locationId: number) => fetchApiData<LocationPhoto[]>(`locations/${locationId}/photos`);
 
-export async function setStationPhotoSelection(stationId: number, selected: number[], mainId: number | null): Promise<void> {
+export async function setStationPhotoSelection(
+  stationId: number,
+  selected: number[],
+  mainId: number | null,
+  auditOperation?: AuditOperationHandle,
+): Promise<void> {
   await fetchJson(`${API_BASE}/stations/${stationId}/photos`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ selected, main_id: mainId }),
+    auditOperation,
   });
 }
 
-export async function uploadLocationPhotos(locationId: number, files: File[]): Promise<LocationPhoto[]> {
+export async function uploadLocationPhotos(locationId: number, files: File[], auditOperation?: AuditOperationHandle): Promise<LocationPhoto[]> {
   const formData = new FormData();
   for (const file of files) formData.append("files", file);
-  const res = await fetchJson<{ data: LocationPhoto[] }>(`${API_BASE}/locations/${locationId}/photos`, { method: "POST", body: formData });
+  const res = await fetchJson<{ data: LocationPhoto[] }>(`${API_BASE}/locations/${locationId}/photos`, {
+    method: "POST",
+    body: formData,
+    auditOperation,
+  });
   return res.data;
 }
 
-export async function updateLocationPhotoNote(locationId: number, photoId: number, note: string): Promise<void> {
+export async function updateLocationPhotoNote(
+  locationId: number,
+  photoId: number,
+  note: string,
+  auditOperation?: AuditOperationHandle,
+): Promise<void> {
   await fetchJson(`${API_BASE}/locations/${locationId}/photos/${photoId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ note }),
+    auditOperation,
   });
 }
 
-export async function updateLocationPhotoTakenAt(locationId: number, photoId: number, takenAt: string | null): Promise<void> {
+export async function updateLocationPhotoTakenAt(
+  locationId: number,
+  photoId: number,
+  takenAt: string | null,
+  auditOperation?: AuditOperationHandle,
+): Promise<void> {
   await fetchJson(`${API_BASE}/locations/${locationId}/photos/${photoId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ taken_at: takenAt }),
+    auditOperation,
   });
 }
 
-export async function deleteLocationPhoto(locationId: number, photoId: number): Promise<void> {
-  await fetchJson(`${API_BASE}/locations/${locationId}/photos/${photoId}`, { method: "DELETE" });
+export async function deleteLocationPhoto(locationId: number, photoId: number, auditOperation?: AuditOperationHandle): Promise<void> {
+  await fetchJson(`${API_BASE}/locations/${locationId}/photos/${photoId}`, { method: "DELETE", auditOperation });
 }
 
 export async function watchStation(stationId: number, source: "internal" | "uke" = "internal"): Promise<void> {
@@ -191,15 +222,16 @@ export async function uploadAndAssignStationPhotos({
   mainId: number | null;
   useFirstUploadedAsMain: boolean;
 }): Promise<LocationPhoto[]> {
-  const newPhotos = await uploadLocationPhotos(locationId, files);
+  const auditOperation = createAuditOperationHandle("station.photos");
+  const newPhotos = await uploadLocationPhotos(locationId, files, auditOperation);
   const newIds = newPhotos.map((photo) => photo.id);
   const nextSelected = [...new Set([...selected, ...newIds])];
   const nextMainId = useFirstUploadedAsMain ? (newIds[0] ?? mainId) : mainId;
 
   try {
-    await setStationPhotoSelection(stationId, nextSelected, nextMainId);
+    await setStationPhotoSelection(stationId, nextSelected, nextMainId, auditOperation);
   } catch (error) {
-    await Promise.allSettled(newIds.map((id) => deleteLocationPhoto(locationId, id)));
+    await Promise.allSettled(newIds.map((id) => deleteLocationPhoto(locationId, id, auditOperation)));
     throw error;
   }
 

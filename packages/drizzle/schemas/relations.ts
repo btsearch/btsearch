@@ -5,6 +5,7 @@ import {
   apikeys,
   attachments,
   auditLogs,
+  auditOperations,
   jwks,
   locationPhotos,
   notifications,
@@ -95,6 +96,7 @@ export const relations = defineRelations(
     apikeys,
     attachments,
     auditLogs,
+    auditOperations,
     jwks,
     notifications,
     oauthAccessTokens,
@@ -278,9 +280,32 @@ export const relations = defineRelations(
       }),
     },
     auditLogs: {
-      user: helpers.one.users({
-        from: helpers.auditLogs.invoked_by,
+      operation: helpers.one.auditOperations({
+        from: helpers.auditLogs.operation_id,
+        to: helpers.auditOperations.id,
+      }),
+    },
+    auditOperations: {
+      actor: helpers.one.users({
+        from: helpers.auditOperations.actor_id,
         to: helpers.users.id,
+        alias: "actor",
+      }),
+      performer: helpers.one.users({
+        from: helpers.auditOperations.performed_by,
+        to: helpers.users.id,
+        alias: "performer",
+      }),
+      entries: helpers.many.auditLogs(),
+      reverts: helpers.one.auditOperations({
+        from: helpers.auditOperations.reverts_operation_id,
+        to: helpers.auditOperations.id,
+        alias: "reverts",
+      }),
+      revertedBy: helpers.one.auditOperations({
+        from: helpers.auditOperations.reverted_by_operation_id,
+        to: helpers.auditOperations.id,
+        alias: "revertedBy",
       }),
     },
     users: {
@@ -298,7 +323,6 @@ export const relations = defineRelations(
         to: helpers.attachments.author_id,
         alias: "author",
       }),
-      auditLogs: helpers.many.auditLogs(),
       submittedSubmissions: helpers.many.submissions({
         from: helpers.users.id,
         to: helpers.submissions.submitter_id,

@@ -2,6 +2,7 @@ import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { nanoid } from "nanoid";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ function getOperationBorderClass(operation: string): string | undefined {
 function computeInitialCells(submission: SubmissionDetail, currentStation: Station | null): LocalCell[] {
   if (submission.status !== "pending") {
     return submission.cells.map((cell) => ({
-      _localId: crypto.randomUUID(),
+      _localId: nanoid(),
       _serverId: cell.id,
       operation: cell.operation,
       target_cell_id: cell.target_cell_id,
@@ -73,7 +74,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
   const unchangedCells: LocalCell[] = currentCells
     .filter((c) => !proposedTargetIds.has(c.id))
     .map((c) => ({
-      _localId: crypto.randomUUID(),
+      _localId: nanoid(),
       operation: "unchanged" as const,
       target_cell_id: c.id,
       _sectorLocalId: c.sector_id ? `sector-${c.sector_id}` : null,
@@ -90,7 +91,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
       const target = currentCellsById.get(cell.target_cell_id);
       if (target) {
         return {
-          _localId: crypto.randomUUID(),
+          _localId: nanoid(),
           _serverId: cell.id,
           operation: cell.operation,
           target_cell_id: cell.target_cell_id,
@@ -105,7 +106,7 @@ function computeInitialCells(submission: SubmissionDetail, currentStation: Stati
       }
     }
     return {
-      _localId: crypto.randomUUID(),
+      _localId: nanoid(),
       _serverId: cell.id,
       operation: cell.operation,
       target_cell_id: cell.target_cell_id,
@@ -321,7 +322,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
 
   const createNewSubmissionCell = useCallback(
     (rat: string, defaultBand: Band): LocalCell => ({
-      _localId: crypto.randomUUID(),
+      _localId: nanoid(),
       operation: "add",
       target_cell_id: null,
       rat: rat as (typeof RAT_ORDER)[number],

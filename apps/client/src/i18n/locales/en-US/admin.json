@@ -223,50 +223,217 @@
     "finishedAt": "Finished at"
   },
   "auditLogs": {
-    "title": "Audit Logs",
     "subtitle": "View system activity and changes",
     "columns": {
       "timestamp": "Timestamp",
       "actor": "Actor",
-      "action": "Action",
+      "kind": "Operation",
+      "target": "Target",
+      "changes": "Changes",
       "entity": "Table",
-      "record": "Record",
       "source": "Source"
     },
     "actor": {
-      "system": "System"
+      "system": "System",
+      "via": "via {{name}}",
+      "viaWithUsername": "via {{name}} (@{{username}})"
     },
     "filters": {
-      "allEntities": "All Tables",
-      "allActions": "All Actions",
-      "actionsCount_one": "{{count, number}} action",
-      "actionsCount_other": "{{count, number}} actions",
+      "allEntities": "All tables",
+      "allKinds": "All operations",
+      "kindsCount_one": "{{count, number}} operation",
+      "kindsCount_other": "{{count, number}} operations",
       "dateFrom": "From",
       "dateRange": "Date range",
       "dateTo": "To",
-      "recordId": "Record ID",
-      "userId": "User ID",
-      "userSearch": "User (name, email...)",
-      "moreFilters": "More filters"
+      "recordId": "Record ID"
+    },
+    "target": {
+      "stations_one": "{{count, number}} station",
+      "stations_other": "{{count, number}} stations"
     },
     "empty": {
       "title": "No logs found",
       "subtitle": "Try adjusting your filters"
     },
     "detail": {
-      "title": "Audit Log Detail",
+      "title": "Operation details",
       "overview": "Overview",
       "changes": "Changes",
       "field": "Field",
-      "oldValues": "Old Value",
-      "newValues": "New Value",
+      "oldValues": "Old value",
+      "newValues": "New value",
       "noChanges": "No changes recorded",
       "metadata": "Metadata",
-      "ipAddress": "IP Address",
-      "userAgent": "User Agent",
+      "ipAddress": "IP address",
+      "userAgent": "User agent",
       "links": "Links",
       "station": "Station",
-      "submission": "Submission"
+      "submission": "Submission",
+      "performedBy": "Performed by",
+      "reverts": "Reverts operation #{{id}}",
+      "revertedBy": "Reverted by operation #{{id}}"
+    },
+    "groups": {
+      "station": "Stations",
+      "cells": "Cells",
+      "location": "Locations",
+      "submission": "Submissions",
+      "comment": "Comments",
+      "operator": "Operators",
+      "band": "Bands",
+      "region": "Regions",
+      "list": "User lists",
+      "settings": "Settings",
+      "uke": "UKE import",
+      "analyzer": "Analyzer",
+      "system": "System",
+      "revert": "Reverts"
+    },
+    "kinds": {
+      "station": {
+        "create": "Station created",
+        "edit": "Station edited",
+        "delete": "Station deactivated",
+        "photos": "Station photos"
+      },
+      "cells": {
+        "create": "Cells added",
+        "update": "Cells updated",
+        "delete": "Cells deleted"
+      },
+      "location": {
+        "create": "Location created",
+        "edit": "Location edited",
+        "delete": "Location deleted",
+        "photos": "Location photos"
+      },
+      "submission": {
+        "create": "Submission created",
+        "update": "Submission updated",
+        "delete": "Submission deleted",
+        "approve": "Submission approved",
+        "reject": "Submission rejected",
+        "cleanup": "Submission cleanup",
+        "photos": "Submission photos"
+      },
+      "analyzer": {
+        "apply": "Analyzer applied"
+      },
+      "comment": {
+        "create": "Comment created",
+        "update": "Comment updated",
+        "delete": "Comment deleted"
+      },
+      "operator": {
+        "create": "Operator created",
+        "update": "Operator updated",
+        "delete": "Operator deleted"
+      },
+      "band": {
+        "create": "Band created",
+        "update": "Band updated",
+        "delete": "Band deleted"
+      },
+      "region": {
+        "create": "Region created",
+        "update": "Region updated",
+        "delete": "Region deleted"
+      },
+      "list": {
+        "create": "List created",
+        "update": "List updated",
+        "delete": "List deleted"
+      },
+      "settings": {
+        "update": "Settings updated"
+      },
+      "uke": {
+        "import": "UKE import"
+      },
+      "system": {
+        "inactive_cleanup": "Inactive stations cleanup",
+        "submission_cleanup": "Submission cleanup"
+      },
+      "revert": "Revert"
+    },
+    "entities": {
+      "stations": "Stations",
+      "cells": "Cells",
+      "locations": "Locations",
+      "station_sectors": "Sectors",
+      "extra_identificators": "Network IDs",
+      "station_photo_selections": "Photo selection",
+      "location_photos": "Location photos",
+      "station_comments": "Comments",
+      "submissions": "Submissions",
+      "submission_photos": "Submission photos",
+      "operators": "Operators",
+      "bands": "Bands",
+      "regions": "Regions",
+      "user_lists": "User lists",
+      "settings": "Settings"
+    },
+    "ops": {
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete"
+    },
+    "counts": {
+      "stations_one": "{{count, number}} station",
+      "stations_other": "{{count, number}} stations",
+      "cells_one": "{{count, number}} cell",
+      "cells_other": "{{count, number}} cells",
+      "locations_one": "{{count, number}} location",
+      "locations_other": "{{count, number}} locations",
+      "station_sectors_one": "{{count, number}} sector",
+      "station_sectors_other": "{{count, number}} sectors",
+      "extra_identificators_one": "{{count, number}} network ID",
+      "extra_identificators_other": "{{count, number}} network IDs",
+      "station_photo_selections_one": "{{count, number}} photo selection",
+      "station_photo_selections_other": "{{count, number}} photo selections",
+      "location_photos_one": "{{count, number}} location photo",
+      "location_photos_other": "{{count, number}} location photos",
+      "station_comments_one": "{{count, number}} comment",
+      "station_comments_other": "{{count, number}} comments",
+      "submissions_one": "{{count, number}} submission",
+      "submissions_other": "{{count, number}} submissions",
+      "submission_photos_one": "{{count, number}} submission photo",
+      "submission_photos_other": "{{count, number}} submission photos",
+      "operators_one": "{{count, number}} operator",
+      "operators_other": "{{count, number}} operators",
+      "bands_one": "{{count, number}} band",
+      "bands_other": "{{count, number}} bands",
+      "regions_one": "{{count, number}} region",
+      "regions_other": "{{count, number}} regions",
+      "user_lists_one": "{{count, number}} user list",
+      "user_lists_other": "{{count, number}} user lists",
+      "settings_one": "{{count, number}} setting",
+      "settings_other": "{{count, number}} settings",
+      "other": "{{count, number}} × {{entity}}"
+    },
+    "revert": {
+      "action": "Revert operation",
+      "entryAction": "Revert this change",
+      "title": "Revert operation #{{id}}?",
+      "entryTitle": "Revert this change from operation #{{id}}?",
+      "description": "The changes will be undone in a new operation and values restored to their previous state",
+      "revertibleCount_one": "{{count, number}} change can be reverted",
+      "revertibleCount_other": "{{count, number}} changes can be reverted",
+      "skippedCount_one": "{{count, number}} change will be skipped",
+      "skippedCount_other": "{{count, number}} changes will be skipped",
+      "confirm": "Revert",
+      "force": "Revert anyway",
+      "conflictsTitle": "Data changed since this operation",
+      "conflictsDescription": "Review the current values before reverting. Forcing the revert may overwrite newer changes",
+      "expected": "Expected",
+      "current": "Current",
+      "success_one": "Reverted {{count, number}} change",
+      "success_other": "Reverted {{count, number}} changes",
+      "skipped_one": "Skipped {{count, number}} change",
+      "skipped_other": "Skipped {{count, number}} changes",
+      "notRevertible": "This operation cannot be reverted",
+      "alreadyReverted": "This operation has already been reverted"
     }
   }
 }

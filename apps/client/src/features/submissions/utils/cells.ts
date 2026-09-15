@@ -1,10 +1,12 @@
+import { nanoid } from "nanoid";
+
 import type { CellFormDetails, CellPayload, ProposedCellForm, SectorPayload } from "../types";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { RAT_ORDER, getCellDetailDefaultValue } from "@/features/shared/rat";
 import type { SectorDraft } from "@/types/station";
 
 export function generateCellId(): string {
-  return crypto.randomUUID();
+  return nanoid();
 }
 
 export function getDefaultCellDetails(rat: ProposedCellForm["rat"]): ProposedCellForm["details"] {

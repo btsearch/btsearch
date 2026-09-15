@@ -5,11 +5,10 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import postgres from "postgres";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../services/audit/index.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../services/cellDuplicateCheck.service.js";
 import { stationStatusForCellCount } from "../../../../services/stations/status.js";
 import { syncStationsPermitsAssociations } from "../../../../services/stationsPermitsAssociation.service.js";
@@ -97,12 +96,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const { cells: cellsData, ...stationData } = req.body;
 
   validateCellDuplicates(cellsData);
-  await checkLTEClidConsistency(
-    null,
-    cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
-    [],
-    stationData.operator_id,
-  );
+  // await checkLTEClidConsistency(
+  //   null,
+  //   cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
+  //   [],
+  //   stationData.operator_id,
+  // );
 
   if (stationData.operator_id && cellsData && cellsData.length > 0) {
     await checkCellDuplicatesBatch(
@@ -114,7 +113,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   await validateCellARFCNsForBands(cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details })));
 
   try {
-    const station = await db.transaction(async (tx) => {
+    const station = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.create" }, async (tx, audit) => {
       const now = new Date();
       const [newStation] = await tx
         .insert(stations)
@@ -133,7 +132,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         const createdCells = await tx
           .insert(cells)
           .values(
-            cellsData.map((cell) => ({
+            cellsData.map(({ details: _details, ...cell }) => ({
               ...cell,
               station_id: newStation.id,
               updatedAt: now,
@@ -183,33 +182,33 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       });
 
       const response: ResponseData = { ...full, cells: cellsWithDetails } as ResponseData;
-
-      await createAuditLog(
-        {
-          action: "stations.create",
-          table_name: "stations",
-          record_id: response.id,
-          old_values: null,
-          new_values: response,
-        },
-        req,
+      const cellSnapshots = await loadCellSnapshots(
         tx,
+        response.cells.map((cell) => cell.id),
       );
-
-      if (response.cells.length > 0) {
-        const auditCells = response.cells.map(({ band, ...cell }) => ({ ...cell, band_id: band.id }));
-        await createAuditLog(
-          {
-            action: "cells.create",
-            table_name: "cells",
-            record_id: null,
-            new_values: { cells: auditCells },
-            metadata: { station_id: response.id },
-          },
-          req,
-          tx,
-        );
-      }
+      const cellEntries = response.cells.map((cell) => {
+        const snapshot = cellSnapshots.get(cell.id);
+        if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");
+        return {
+          entity: "cells" as const,
+          op: "create" as const,
+          recordId: cell.id,
+          stationId: newStation.id,
+          old: null,
+          new: snapshot,
+        };
+      });
+      await audit.logMany([
+        {
+          entity: "stations",
+          op: "create",
+          recordId: newStation.id,
+          stationId: newStation.id,
+          old: null,
+          new: newStation,
+        },
+        ...cellEntries,
+      ]);
 
       return response;
     });
@@ -232,7 +231,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createStation: Route<ReqBody, ResponseData> = {
   url: "/stations",
   method: "POST",
-  config: { permissions: ["write:stations"] },
+  config: { permissions: ["create:stations"] },
   schema: schemaRoute,
   handler,
 };

@@ -10,7 +10,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
@@ -26,9 +26,12 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   const session = req.userSession;
   if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
 
-  const hasAdminPermission = (await verifyPermissions(session.user.id, { submissions: ["read"] })) || false;
+  const hasAdminPermission = await verifyPermissions(session.user.id, { submissions: ["moderate"] });
 
-  const submission = await db.query.submissions.findFirst({ where: { id }, columns: { id: true, submitter_id: true, status: true } });
+  const submission = await db.query.submissions.findFirst({
+    where: { id },
+    columns: { id: true, submitter_id: true, status: true, station_id: true },
+  });
   if (!submission) throw new ErrorResponse("NOT_FOUND");
   if (submission.status !== "pending") throw new ErrorResponse("FORBIDDEN");
 
@@ -40,16 +43,24 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   const attachment = await db.query.attachments.findFirst({ where: { id: photo.attachment_id } });
 
-  await db.delete(submissionPhotos).where(and(eq(submissionPhotos.id, photo_id), eq(submissionPhotos.submission_id, id)));
+  await runAuditedOperation(auditContextFromRequest(req), { kind: "submission.photos", metadata: { submission_id: id } }, async (tx, audit) => {
+    await tx.delete(submissionPhotos).where(and(eq(submissionPhotos.id, photo_id), eq(submissionPhotos.submission_id, id)));
+    if (attachment) await tx.delete(attachments).where(eq(attachments.id, attachment.id));
+
+    await audit.log({
+      entity: "submission_photos",
+      op: "delete",
+      recordId: photo_id,
+      stationId: submission.station_id,
+      old: photo,
+    });
+  });
 
   if (attachment) {
     try {
       await fs.unlink(path.join(UPLOAD_DIR, `${attachment.uuid}.webp`));
     } catch {}
-    await db.delete(attachments).where(eq(attachments.id, attachment.id));
   }
-
-  await createAuditLog({ action: "submission_photos.delete", table_name: "submission_photos", record_id: photo_id, old_values: photo }, req);
 
   return res.code(204).send({});
 }
@@ -57,6 +68,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const deleteSubmissionPhoto: Route<ReqParams, Record<never, never>> = {
   url: "/submissions/:id/photos/:photo_id",
   method: "DELETE",
+  config: { permissions: ["delete:submissions"] },
   schema: schemaRoute,
   handler,
 };

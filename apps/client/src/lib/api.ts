@@ -1,11 +1,40 @@
 import { fromBinary, toJson } from "@bufbuild/protobuf";
 import type { DescMessage } from "@bufbuild/protobuf";
+import { AUDIT_OPERATION_ID_HEADER, AUDIT_OPERATION_KIND_HEADER } from "@openbts/shared/audit";
+import type { ClientSettableAuditOperationKind } from "@openbts/shared/audit";
+import { customAlphabet, nanoid } from "nanoid";
 import { toast } from "sonner";
 
 export const API_BASE = import.meta.env.VITE_API_URL || "https://openbts.sakilabs.com/api/v1";
 export const APP_NAME = import.meta.env.VITE_APP_NAME || "BTSearch";
 
-type ApiError = { code: string; message: string };
+type ApiError = { code: string; message: string; details?: unknown[] };
+
+export type AuditOperationHandle = {
+  id: string;
+  kind: ClientSettableAuditOperationKind;
+};
+
+type BackendSuccessListener = () => void;
+
+const backendSuccessListeners = new Set<BackendSuccessListener>();
+const generateAuditOperationHex = customAlphabet("0123456789abcdef", 30);
+const generateAuditOperationVariant = customAlphabet("89ab", 1);
+
+function notifyBackendSuccess(): void {
+  for (const listener of backendSuccessListeners) listener();
+}
+
+export function subscribeToBackendSuccess(listener: BackendSuccessListener): () => void {
+  backendSuccessListeners.add(listener);
+  return () => backendSuccessListeners.delete(listener);
+}
+
+export function createAuditOperationHandle(kind: ClientSettableAuditOperationKind): AuditOperationHandle {
+  const hex = generateAuditOperationHex();
+  const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-${generateAuditOperationVariant()}${hex.slice(15, 18)}-${hex.slice(18)}`;
+  return { id, kind };
+}
 
 export class ApiResponseError extends Error {
   errors: ApiError[];
@@ -53,21 +82,22 @@ export class DuplicateRequestError extends Error {
 
 type FetchOptions = RequestInit & {
   allowedErrors?: number[];
+  auditOperation?: AuditOperationHandle;
   proto?: DescMessage;
 };
 
 export async function fetchJson<T>(url: string, options?: FetchOptions): Promise<T> {
-  const { allowedErrors, ...fetchOptions } = options ?? {};
+  const { allowedErrors, auditOperation, proto, ...fetchOptions } = options ?? {};
+  const shouldUpdateHeaders = fetchOptions.method === "POST" || auditOperation !== undefined || proto !== undefined;
 
-  if (fetchOptions.method === "POST") {
-    const headers = new Headers(fetchOptions.headers as HeadersInit | undefined);
-    if (!headers.has("x-idempotency-key")) headers.set("x-idempotency-key", crypto.randomUUID());
-    fetchOptions.headers = headers;
-  }
-
-  if (options?.proto) {
-    const headers = new Headers(fetchOptions.headers as HeadersInit | undefined);
-    headers.set("accept", "application/x-protobuf");
+  if (shouldUpdateHeaders) {
+    const headers = new Headers(fetchOptions.headers);
+    if (fetchOptions.method === "POST" && !headers.has("x-idempotency-key")) headers.set("x-idempotency-key", nanoid());
+    if (auditOperation !== undefined) {
+      headers.set(AUDIT_OPERATION_ID_HEADER, auditOperation.id);
+      headers.set(AUDIT_OPERATION_KIND_HEADER, auditOperation.kind);
+    }
+    if (proto !== undefined) headers.set("accept", "application/x-protobuf");
     fetchOptions.headers = headers;
   }
 
@@ -80,7 +110,10 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
   }
 
   if (!response.ok) {
-    if (allowedErrors?.includes(response.status)) return null as unknown as T;
+    if (allowedErrors?.includes(response.status)) {
+      notifyBackendSuccess();
+      return null as unknown as T;
+    }
 
     if (response.status === 409) {
       try {
@@ -127,13 +160,21 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
     throw new Error(`Request failed: ${response.status}`);
   }
 
-  if (options?.proto && response.headers.get("content-type") === "application/x-protobuf") {
+  if (proto !== undefined && response.headers.get("content-type") === "application/x-protobuf") {
     const buffer = await response.arrayBuffer();
-    return toJson(options.proto, fromBinary(options.proto, new Uint8Array(buffer)), { useProtoFieldName: true, emitDefaultValues: true }) as T;
+    const result = toJson(proto, fromBinary(proto, new Uint8Array(buffer)), { useProtoFieldName: true, emitDefaultValues: true }) as T;
+    notifyBackendSuccess();
+    return result;
   }
 
-  if (response.status === 204) return undefined as unknown as T;
-  return response.json();
+  if (response.status === 204) {
+    notifyBackendSuccess();
+    return undefined as unknown as T;
+  }
+
+  const result = await response.json();
+  notifyBackendSuccess();
+  return result;
 }
 
 export async function fetchApiData<T>(endpoint: string, options?: FetchOptions): Promise<T> {

@@ -1,5 +1,6 @@
-import { attachments, auditLogs, locationPhotos, submissions } from "@openbts/drizzle";
-import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import { attachments, auditLogs, auditOperations, locationPhotos } from "@openbts/drizzle";
+import { AUDIT_OPERATION_KINDS, type AuditEntity } from "@openbts/shared/audit";
+import { and, asc, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -7,18 +8,25 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
+import { getEntryRevertibility, loadRevertedEntryIdsByOperation } from "../../../../../services/audit/revert/revertibility.js";
+import type { AuditOperationRow } from "../../../../../services/audit/types.js";
 import {
   type StationHistoryAuthor,
-  type StationHistoryEntry,
   type StationHistoryLookups,
+  type StationHistorySection,
   collectLocationSnapshotNames,
   enrichSectorAzimuths,
-  transformAuditRow,
+  transformEntry,
 } from "../../../../../services/stations/history.js";
 
-const HISTORY_TABLES = ["stations", "locations", "cells", "station_sectors", "extra_identificators"];
-const BATCH_SIZE = 200;
-const MAX_BATCHES = 10;
+const HISTORY_ENTITIES: readonly AuditEntity[] = [
+  "stations",
+  "locations",
+  "cells",
+  "station_sectors",
+  "extra_identificators",
+  "station_photo_selections",
+];
 
 const historyValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const historyChangeValueSchema = z.union([historyValueSchema, z.array(historyValueSchema), z.record(z.string(), historyValueSchema)]);
@@ -39,13 +47,19 @@ const historyPhotoReferenceSchema = z.object({
   id: z.number(),
   attachment_uuid: z.string(),
 });
-const historyEntrySchema = z.object({
-  id: z.number(),
+const historySectionSchema = z.object({
   kind: z.enum(["station", "location", "cells", "sectors", "network_ids", "photos"]),
   action: z.enum(["create", "update", "delete"]),
-  createdAt: z.date(),
   changes: z.array(historyChangeSchema),
+});
+const historyOperationSchema = z.object({
+  id: z.number(),
+  kind: z.enum(AUDIT_OPERATION_KINDS),
+  createdAt: z.date(),
   author: historyAuthorSchema.nullable().optional(),
+  revertible: z.boolean(),
+  reverted_by_operation_id: z.number().nullable(),
+  sections: z.array(historySectionSchema),
   photoReferences: z.array(historyPhotoReferenceSchema),
 });
 
@@ -59,7 +73,7 @@ const schemaRoute = {
   }),
   response: {
     200: z.object({
-      data: z.array(historyEntrySchema),
+      data: z.array(historyOperationSchema),
       nextCursor: z.number().nullable(),
     }),
   },
@@ -69,8 +83,17 @@ type ReqParams = { Params: z.infer<typeof schemaRoute.params> };
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type RequestData = ReqParams & ReqQuery;
 type StationHistoryPhotoReference = z.infer<typeof historyPhotoReferenceSchema>;
-type StationHistoryResponseEntry = StationHistoryEntry & { photoReferences: StationHistoryPhotoReference[] };
-type ResponseBody = { data: StationHistoryResponseEntry[]; nextCursor: number | null };
+type StationHistoryResponseOperation = {
+  id: number;
+  kind: AuditOperationRow["kind"];
+  createdAt: Date;
+  author?: StationHistoryAuthor | null;
+  revertible: boolean;
+  reverted_by_operation_id: number | null;
+  sections: StationHistorySection[];
+  photoReferences: StationHistoryPhotoReference[];
+};
+type ResponseBody = { data: StationHistoryResponseOperation[]; nextCursor: number | null };
 
 type AuditRow = typeof auditLogs.$inferSelect;
 
@@ -82,8 +105,11 @@ function collectLocationIds(rows: AuditRow[], currentLocationId: number | null):
   const ids = new Set<number>();
   if (currentLocationId !== null) ids.add(currentLocationId);
   for (const row of rows) {
-    if (row.table_name === "locations" && row.record_id !== null) ids.add(row.record_id);
-    if (row.table_name !== "stations") continue;
+    if (row.entity === "locations" && row.record_id !== null) {
+      const locationId = Number(row.record_id);
+      if (Number.isInteger(locationId)) ids.add(locationId);
+    }
+    if (row.entity !== "stations") continue;
     for (const values of [row.old_values, row.new_values]) {
       if (!isRecord(values)) continue;
       if (typeof values.location_id === "number") ids.add(values.location_id);
@@ -117,8 +143,8 @@ async function resolveLocationNames(cache: Map<number, string>, ids: ReadonlySet
   collectLocationSnapshotNames(cache, rows);
 }
 
-async function fetchAuthors(rows: AuditRow[]): Promise<Map<string, StationHistoryAuthor>> {
-  const authorIds = [...new Set(rows.map((row) => row.invoked_by).filter((id): id is string => id !== null))];
+async function fetchAuthors(rows: Array<typeof auditOperations.$inferSelect>): Promise<Map<string, StationHistoryAuthor>> {
+  const authorIds = [...new Set(rows.map((row) => row.actor_id).filter((id): id is string => id !== null))];
   const authorRows =
     authorIds.length > 0
       ? await db.query.users.findMany({ where: { id: { in: authorIds } }, columns: { id: true, name: true, username: true, image: true } })
@@ -134,10 +160,10 @@ function parsePhotoId(value: unknown): number | null {
   return Number.isInteger(photoId) && photoId > 0 ? photoId : null;
 }
 
-async function fetchPhotoReferences(entries: StationHistoryEntry[]): Promise<Map<number, StationHistoryPhotoReference>> {
+function collectPhotoIds(sections: StationHistorySection[]): Set<number> {
   const photoIds = new Set<number>();
-  for (const entry of entries) {
-    for (const change of entry.changes) {
+  for (const section of sections) {
+    for (const change of section.changes) {
       if (change.field !== "photo" && change.field !== "main_photo") continue;
       const fromId = parsePhotoId(change.from);
       const toId = parsePhotoId(change.to);
@@ -145,6 +171,11 @@ async function fetchPhotoReferences(entries: StationHistoryEntry[]): Promise<Map
       if (toId !== null) photoIds.add(toId);
     }
   }
+  return photoIds;
+}
+
+async function fetchPhotoReferences(sections: StationHistorySection[]): Promise<Map<number, StationHistoryPhotoReference>> {
+  const photoIds = collectPhotoIds(sections);
   if (photoIds.size === 0) return new Map();
 
   const rows = await db
@@ -155,23 +186,38 @@ async function fetchPhotoReferences(entries: StationHistoryEntry[]): Promise<Map
   return new Map(rows.map((photo) => [photo.id, photo]));
 }
 
-function resolveEntryPhotoReferences(
-  entry: StationHistoryEntry,
+function resolveOperationPhotoReferences(
+  sections: StationHistorySection[],
   references: ReadonlyMap<number, StationHistoryPhotoReference>,
 ): StationHistoryPhotoReference[] {
-  const entryPhotoIds = new Set<number>();
-  for (const change of entry.changes) {
-    if (change.field !== "photo" && change.field !== "main_photo") continue;
-    const fromId = parsePhotoId(change.from);
-    const toId = parsePhotoId(change.to);
-    if (fromId !== null) entryPhotoIds.add(fromId);
-    if (toId !== null) entryPhotoIds.add(toId);
-  }
-
   const result: StationHistoryPhotoReference[] = [];
-  for (const photoId of entryPhotoIds) {
+  for (const photoId of collectPhotoIds(sections)) {
     const reference = references.get(photoId);
     if (reference !== undefined) result.push(reference);
+  }
+  return result;
+}
+
+function toOperationRow(row: typeof auditOperations.$inferSelect): AuditOperationRow {
+  return { ...row, metadata: isRecord(row.metadata) ? row.metadata : null };
+}
+
+function entryBelongsToStation(entry: AuditRow, stationId: number, locationId: number | null, stationCreatedAt: Date): boolean {
+  if (!HISTORY_ENTITIES.includes(entry.entity)) return false;
+  if (entry.station_id === stationId) return true;
+  return entry.entity === "locations" && locationId !== null && entry.record_id === String(locationId) && entry.createdAt >= stationCreatedAt;
+}
+
+function mergeSections(sections: StationHistorySection[]): StationHistorySection[] {
+  const result: StationHistorySection[] = [];
+  for (const section of sections) {
+    if (section.kind !== "cells") {
+      result.push(section);
+      continue;
+    }
+    const existing = result.find((candidate) => candidate.kind === "cells" && candidate.action === section.action);
+    if (existing !== undefined) existing.changes.push(...section.changes);
+    else result.push({ ...section, changes: [...section.changes] });
   }
   return result;
 }
@@ -183,84 +229,87 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const [stationSubmissions, staticLookups] = await Promise.all([
-    db.select({ id: submissions.id }).from(submissions).where(eq(submissions.station_id, station_id)),
+  const directEntry = and(inArray(auditLogs.entity, HISTORY_ENTITIES), eq(auditLogs.station_id, station_id));
+  const locationEntry =
+    station.location_id === null
+      ? undefined
+      : and(eq(auditLogs.entity, "locations"), eq(auditLogs.record_id, String(station.location_id)), gte(auditLogs.createdAt, station.createdAt));
+  const belongsToStation = locationEntry === undefined ? directEntry : or(directEntry, locationEntry);
+  const operationFilter = cursor === undefined ? belongsToStation : and(belongsToStation, lt(auditLogs.operation_id, cursor));
+  const operationIdRows = await db
+    .selectDistinct({ id: auditLogs.operation_id })
+    .from(auditLogs)
+    .where(operationFilter)
+    .orderBy(desc(auditLogs.operation_id))
+    .limit(limit + 1);
+  const hasMore = operationIdRows.length > limit;
+  const operationIds = operationIdRows.slice(0, limit).map(({ id }) => id);
+  if (operationIds.length === 0) return res.send({ data: [], nextCursor: null });
+
+  const [operationRows, auditRows, staticLookups] = await Promise.all([
+    db.select().from(auditOperations).where(inArray(auditOperations.id, operationIds)).orderBy(desc(auditOperations.id)),
+    db.select().from(auditLogs).where(inArray(auditLogs.operation_id, operationIds)).orderBy(asc(auditLogs.id)),
     loadStaticLookups(station_id),
   ]);
-  const submissionIds = stationSubmissions.map((submission) => submission.id);
-
-  const conditions = [
-    and(
-      inArray(auditLogs.table_name, ["stations", "station_sectors", "extra_identificators", "station_photo_selections"]),
-      eq(auditLogs.record_id, station_id),
-    ),
-    and(inArray(auditLogs.table_name, ["cells", "locations"]), sql`${auditLogs.metadata}->>'station_id' = ${String(station_id)}`),
-  ];
-  if (station.location_id !== null)
-    conditions.push(
-      and(eq(auditLogs.table_name, "locations"), eq(auditLogs.record_id, station.location_id), gte(auditLogs.createdAt, station.createdAt)),
-    );
-  if (submissionIds.length > 0)
-    conditions.push(and(inArray(auditLogs.table_name, HISTORY_TABLES), inArray(sql`${auditLogs.metadata}->>'submission_id'`, submissionIds)));
-  const baseWhere = or(...conditions);
-
   const sectorAzimuths = new Map(staticLookups.sectorAzimuths);
   const locationNames = new Map<number, string>();
-  const entries: StationHistoryEntry[] = [];
-  const rowByEntryId = new Map<number, AuditRow>();
-  let scanCursor = cursor ?? null;
-  let hasMoreRows = true;
+  enrichSectorAzimuths(sectorAzimuths, auditRows);
+  await resolveLocationNames(locationNames, collectLocationIds(auditRows, station.location_id), auditRows);
+  const lookups: StationHistoryLookups = { ...staticLookups, sectorAzimuths, locations: locationNames };
 
-  /* eslint-disable no-await-in-loop */
-  for (let batch = 0; batch < MAX_BATCHES && entries.length <= limit; batch++) {
-    const rows = await db
-      .select()
-      .from(auditLogs)
-      .where(scanCursor !== null ? and(baseWhere, lt(auditLogs.id, scanCursor)) : baseWhere)
-      .orderBy(desc(auditLogs.id))
-      .limit(BATCH_SIZE);
-    if (rows.length === 0) {
-      hasMoreRows = false;
-      break;
-    }
-    scanCursor = rows[rows.length - 1]?.id ?? scanCursor;
-
-    enrichSectorAzimuths(sectorAzimuths, rows);
-    await resolveLocationNames(locationNames, collectLocationIds(rows, station.location_id), rows);
-
-    const lookups: StationHistoryLookups = { ...staticLookups, sectorAzimuths, locations: locationNames };
-    for (const row of rows) {
-      const entry = transformAuditRow(row, lookups);
-      if (entry === null) continue;
-      rowByEntryId.set(entry.id, row);
-      entries.push(entry);
-    }
-    if (rows.length < BATCH_SIZE) {
-      hasMoreRows = false;
-      break;
-    }
-  }
-  /* eslint-enable no-await-in-loop */
-
-  const pageEntries = entries.slice(0, limit);
-  let nextCursor: number | null = null;
-  if (entries.length > limit) nextCursor = pageEntries[pageEntries.length - 1]?.id ?? null;
-  else if (hasMoreRows) nextCursor = scanCursor;
-
-  const photoReferencesPromise = fetchPhotoReferences(pageEntries);
-
-  if (["admin", "editor"].includes(req.userSession?.user?.role ?? "") && pageEntries.length > 0) {
-    const pageRows = pageEntries.map((entry) => rowByEntryId.get(entry.id)).filter((row): row is AuditRow => row !== undefined);
-    const authors = await fetchAuthors(pageRows);
-    for (const entry of pageEntries) {
-      const invokedBy = rowByEntryId.get(entry.id)?.invoked_by ?? null;
-      entry.author = invokedBy !== null ? (authors.get(invokedBy) ?? null) : null;
-    }
+  const auditRowsByOperation = new Map<number, AuditRow[]>();
+  for (const row of auditRows) {
+    const rows = auditRowsByOperation.get(row.operation_id) ?? [];
+    rows.push(row);
+    auditRowsByOperation.set(row.operation_id, rows);
   }
 
-  const photoReferences = await photoReferencesPromise;
-  const responseEntries = pageEntries.map((entry) => ({ ...entry, photoReferences: resolveEntryPhotoReferences(entry, photoReferences) }));
-  return res.send({ data: responseEntries, nextCursor });
+  const canSeeAuthor = ["admin", "editor"].includes(req.userSession?.user?.role ?? "");
+  const [authors, revertedEntryIdsByOperation] = await Promise.all([
+    canSeeAuthor ? fetchAuthors(operationRows) : Promise.resolve(new Map<string, StationHistoryAuthor>()),
+    loadRevertedEntryIdsByOperation(db, operationIds),
+  ]);
+
+  const operations: StationHistoryResponseOperation[] = [];
+  for (const row of operationRows) {
+    const operation = toOperationRow(row);
+    const operationEntries = auditRowsByOperation.get(row.id) ?? [];
+    const relevantEntries = operationEntries.filter((entry) => entryBelongsToStation(entry, station_id, station.location_id, station.createdAt));
+    const sections = mergeSections(
+      relevantEntries.flatMap((entry) => {
+        const section = transformEntry(entry, operation.kind, lookups);
+        return section === null ? [] : [section];
+      }),
+    );
+    if (sections.length === 0) continue;
+
+    const revertedEntryIds = revertedEntryIdsByOperation.get(row.id) ?? new Set<number>();
+    const revertible = operationEntries.some(
+      (entry) =>
+        getEntryRevertibility({ ...entry, metadata: isRecord(entry.metadata) ? entry.metadata : null }, { operation, revertedEntryIds }).revertible,
+    );
+    const author = row.actor_id === null ? null : (authors.get(row.actor_id) ?? null);
+    operations.push({
+      id: row.id,
+      kind: row.kind,
+      createdAt: row.createdAt,
+      ...(canSeeAuthor ? { author } : {}),
+      revertible,
+      reverted_by_operation_id: row.reverted_by_operation_id,
+      sections,
+      photoReferences: [],
+    });
+  }
+
+  const photoReferences = await fetchPhotoReferences(operations.flatMap((operation) => operation.sections));
+  const responseOperations = operations.map((operation) => ({
+    ...operation,
+    photoReferences: resolveOperationPhotoReferences(operation.sections, photoReferences),
+  }));
+  return res.send({
+    data: responseOperations,
+    nextCursor: hasMore ? (operationIds[operationIds.length - 1] ?? null) : null,
+  });
 }
 
 const getStationHistory: Route<RequestData, ResponseBody> = {

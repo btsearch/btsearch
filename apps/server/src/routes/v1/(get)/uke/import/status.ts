@@ -51,7 +51,7 @@ const getUkeImportStatus: Route<Record<string, never>, ResponseData> = {
   method: "GET",
   schema: schemaRoute,
   config: {
-    permissions: ["write:uke_permits", "write:uke_radiolines"],
+    permissions: ["read:uke_import"],
     allowGuestAccess: false,
   },
   handler,

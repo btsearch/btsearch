@@ -8,7 +8,7 @@ import z from "zod";
 import { ErrorResponse } from "../../../../../../errors.ts";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.ts";
-import { createAuditLog } from "../../../../../../services/auditLog.service.ts";
+import { auditContextFromRequest, loadSectorSnapshot, runAuditedOperation } from "../../../../../../services/audit/index.ts";
 import type { DbTx } from "../../../../../../types/global.ts";
 
 const sectorInputSchema = z.object({
@@ -73,16 +73,11 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const previousSectors = await db.query.stationSectors.findMany({
-    where: { station_id },
-    columns: { station_id: false },
-    orderBy: { id: "asc" },
-  });
-
   if (sectors.length > MAX_SECTORS)
     throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the station. Maximum allowed is ${MAX_SECTORS}` });
 
-  const result = await db.transaction(async (tx) => {
+  const result = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.edit" }, async (tx, audit) => {
+    const previousSectors = await loadSectorSnapshot(tx, station_id);
     const previousById = new Map(previousSectors.map((sector) => [sector.id, sector]));
     const retainedSectorIds = new Set<number>();
     const sectorPlan = sectors.map((sector) => {
@@ -97,20 +92,22 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
     const deletedIds = previousSectors.filter((sector) => !retainedSectorIds.has(sector.id)).map((sector) => sector.id);
     await deleteUnusedSectors(tx, deletedIds);
 
+    const persistedSectors = await loadSectorSnapshot(tx, station_id);
+    const nextById = new Map(persistedSectors.map((sector) => [sector.id, sector]));
+    const changed =
+      previousSectors.length !== persistedSectors.length || previousSectors.some((sector) => nextById.get(sector.id)?.azimuth !== sector.azimuth);
+    if (changed)
+      await audit.log({
+        entity: "station_sectors",
+        op: "update",
+        recordId: null,
+        stationId: station_id,
+        old: previousSectors,
+        new: persistedSectors,
+      });
+
     return nextSectors;
   });
-
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "station_sectors",
-      record_id: station_id,
-      old_values: previousSectors,
-      new_values: result,
-      metadata: { station_id },
-    },
-    req,
-  );
 
   return res.send({ data: result });
 }
@@ -118,7 +115,7 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
 const putSectors: Route<ReqBodyParams, ResBody> = {
   url: "/stations/:station_id/sectors",
   method: "PUT",
-  config: { permissions: ["write:stations"] },
+  config: { permissions: ["update:stations"] },
   schema: schemaRoute,
   handler,
 };

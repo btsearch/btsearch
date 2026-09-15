@@ -146,6 +146,38 @@
     "otherCells": "Other",
     "openAuditLog": "Audit log",
     "openSubmissions": "Submissions",
+    "openOperation": "Open in audit log",
+    "operations": {
+      "station": {
+        "create": "Station created",
+        "edit": "Station updated",
+        "photos": "Photos updated",
+        "delete": "Station deactivated"
+      },
+      "cells": {
+        "create": "Cells added",
+        "update": "Cells updated",
+        "delete": "Cells removed"
+      },
+      "location": {
+        "create": "Location added",
+        "edit": "Location updated",
+        "delete": "Location removed",
+        "photos": "Photos updated"
+      },
+      "submission": {
+        "approve": "Submission approved"
+      },
+      "analyzer": {
+        "apply": "Analyzer applied"
+      },
+      "revert": "Changes reverted",
+      "fallback": "Station changes"
+    },
+    "revert": {
+      "action": "Revert this operation",
+      "reverted": "Reverted"
+    },
     "values": {
       "previous": "Previous",
       "current": "Current",

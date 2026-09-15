@@ -18,6 +18,7 @@ import {
   updateLocationPhotoTakenAt,
   uploadAndAssignStationPhotos,
 } from "@/features/station-details/api";
+import { createAuditOperationHandle } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Props = { stationId: number; locationId: number };
@@ -70,9 +71,10 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
       originalNote: string;
       originalTakenAt: string | null;
     }) => {
+      const auditOperation = createAuditOperationHandle("station.photos");
       const ops: Promise<void>[] = [];
-      if (note !== originalNote) ops.push(updateLocationPhotoNote(locationId, id, note));
-      if (takenAt !== originalTakenAt) ops.push(updateLocationPhotoTakenAt(locationId, id, takenAt));
+      if (note !== originalNote) ops.push(updateLocationPhotoNote(locationId, id, note, auditOperation));
+      if (takenAt !== originalTakenAt) ops.push(updateLocationPhotoTakenAt(locationId, id, takenAt, auditOperation));
       if (ops.length > 0) await Promise.all(ops);
     },
     onSuccess: () => {

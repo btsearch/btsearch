@@ -19,6 +19,7 @@ import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } 
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "../services/disposableEmailBlocklist.service.js";
 import { afterAuthHook, beforeAuthHook, releaseVerificationResendCooldown } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
+import type { PermissionObject } from "./auth/permissions.js";
 import { OAUTH_SCOPES } from "./auth/scopes.js";
 
 export function mapHeaders(headers: { [s: string]: unknown } | ArrayLike<unknown>) {
@@ -216,7 +217,7 @@ export const auth = betterAuth({
             bands: ["read"],
             uke_permits: ["read"],
             uke_radiolines: ["read"],
-          } as const;
+          } satisfies PermissionObject;
         },
       },
       rateLimit: {

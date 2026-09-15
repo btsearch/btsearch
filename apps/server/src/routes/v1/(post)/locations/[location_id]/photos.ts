@@ -1,6 +1,5 @@
 import type { MultipartFile } from "@fastify/multipart";
 import { attachments, locationPhotos } from "@openbts/drizzle";
-import { inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { fileTypeFromBuffer } from "file-type";
 import fs from "node:fs/promises";
@@ -12,8 +11,7 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
@@ -36,14 +34,17 @@ const schemaRoute = {
 
 type ReqParams = { Params: { location_id: number } };
 type PhotoItem = { id: number; attachment_uuid: string; mime_type: string; createdAt: string };
+type PreparedPhoto = {
+  uuid: string;
+  name: string;
+  size: number;
+  note: string | null;
+};
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
   const { location_id } = req.params;
   const session = req.userSession;
   if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
-
-  const hasPermission = await verifyPermissions(session.user.id, { stations: ["update"] });
-  if (!hasPermission) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
   const isMultipart = (req.headers["content-type"] ?? "").includes("multipart/form-data");
   if (!isMultipart) throw new ErrorResponse("BAD_REQUEST");
@@ -54,8 +55,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   await ensureUploadDir();
 
   const savedPaths: string[] = [];
-  const insertedAttachmentIds: number[] = [];
-  const insertedRows: PhotoItem[] = [];
+  const preparedPhotos: PreparedPhoto[] = [];
   const notes: string[] = [];
 
   try {
@@ -97,58 +97,74 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       await fs.writeFile(filePath, outputBuffer);
       const stats = await fs.stat(filePath);
 
-      const note = notes[insertedRows.length]?.trim().slice(0, 100) || null;
-
-      const [newAttachment] = await db
-        .insert(attachments)
-        .values({ uuid: fileUuid, name: filePart.filename ?? filename, author_id: session.user.id, mime_type: "image/webp", size: stats.size })
-        .returning();
-      if (!newAttachment) throw new ErrorResponse("FAILED_TO_CREATE");
-      insertedAttachmentIds.push(newAttachment.id);
-
-      const [photoRow] = await db
-        .insert(locationPhotos)
-        .values({ location_id, attachment_id: newAttachment.id, uploaded_by: session.user.id, note })
-        .onConflictDoNothing()
-        .returning();
-      if (!photoRow) throw new ErrorResponse("FAILED_TO_CREATE");
-
-      insertedRows.push({
-        id: photoRow.id,
-        attachment_uuid: fileUuid,
-        mime_type: "image/webp",
-        createdAt: photoRow.createdAt.toISOString(),
+      preparedPhotos.push({
+        uuid: fileUuid,
+        name: filePart.filename ?? filename,
+        size: stats.size,
+        note: notes[preparedPhotos.length]?.trim().slice(0, 100) || null,
       });
     }
+
+    if (preparedPhotos.length === 0) return res.code(201).send({ data: [] });
+
+    const insertedRows = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.photos" }, async (tx, audit) => {
+      const insertedAttachments = await tx
+        .insert(attachments)
+        .values(
+          preparedPhotos.map((photo) => ({
+            uuid: photo.uuid,
+            name: photo.name,
+            author_id: session.user.id,
+            mime_type: "image/webp",
+            size: photo.size,
+          })),
+        )
+        .returning();
+      if (insertedAttachments.length !== preparedPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
+
+      const preparedByUuid = new Map(preparedPhotos.map((photo) => [photo.uuid, photo]));
+      const insertedPhotos = await tx
+        .insert(locationPhotos)
+        .values(
+          insertedAttachments.map((attachment) => ({
+            location_id,
+            attachment_id: attachment.id,
+            uploaded_by: session.user.id,
+            note: preparedByUuid.get(attachment.uuid)?.note ?? null,
+          })),
+        )
+        .returning();
+      if (insertedPhotos.length !== preparedPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
+
+      await audit.logMany(
+        insertedPhotos.map((photo) => ({
+          entity: "location_photos",
+          op: "create",
+          recordId: photo.id,
+          new: photo,
+          metadata: { location_id },
+        })),
+      );
+
+      const attachmentById = new Map(insertedAttachments.map((attachment) => [attachment.id, attachment]));
+      return insertedPhotos.map((photo) => {
+        const attachment = attachmentById.get(photo.attachment_id);
+        if (!attachment) throw new ErrorResponse("FAILED_TO_CREATE");
+        return {
+          id: photo.id,
+          attachment_uuid: attachment.uuid,
+          mime_type: attachment.mime_type,
+          createdAt: photo.createdAt.toISOString(),
+        };
+      });
+    });
+
+    return res.code(201).send({ data: insertedRows });
   } catch (error) {
-    if (insertedAttachmentIds.length > 0) {
-      try {
-        await db.delete(attachments).where(inArray(attachments.id, insertedAttachmentIds));
-      } catch {}
-    }
-    await Promise.all(
-      savedPaths.map(async (p) => {
-        try {
-          await fs.unlink(p);
-        } catch {}
-      }),
-    );
+    await Promise.all(savedPaths.map((filePath) => fs.unlink(filePath).catch(() => {})));
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
-
-  await createAuditLog(
-    {
-      action: "location_photos.create",
-      table_name: "location_photos",
-      record_id: location_id,
-      new_values: insertedRows,
-      metadata: { location_id: location.id },
-    },
-    req,
-  );
-
-  return res.code(201).send({ data: insertedRows });
 }
 
 const uploadLocationPhotos: Route<ReqParams, PhotoItem[]> = {

@@ -1,6 +1,15 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-14
+
+### 🚀 Enhancements
+
+- The audit log now groups every save into one operation with its actor, station and a summary of changes, while the detail panel shows every individual change
+- Admins can revert a complete operation or one individual change, with fields changed since the operation shown before confirmation
+- Station change history now shows one entry per save with related changes grouped together, and admins can revert operations directly from the history
+- Audit operations can now be opened directly from links in a station's change history
+
 # 2026-09-13
 
 ### 🚀 Enhancements

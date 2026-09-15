@@ -16,7 +16,7 @@ function formatDateForInput(date: Date): string {
 
 interface DatePickerButtonProps {
   value: string;
-  onChange: (val: string) => void;
+  onChange: (value: string) => void;
   label: string;
 }
 

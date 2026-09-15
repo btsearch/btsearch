@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePickerButton } from "@/features/admin/audit-logs/components/date-picker-button";
+import { DatePickerButton } from "@/features/admin/audit-operations/components/date-picker-button";
 import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/deleted-entry-detail-sheet";
 import type { DeletedEntry } from "@/features/deleted-entries/types";
 import { useTablePagination } from "@/hooks/useTablePageSize";

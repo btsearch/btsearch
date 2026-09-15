@@ -6,7 +6,6 @@ import { z } from "zod/v4";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import { approveSubmissionAction } from "../../../../../services/submissions/actions.js";
 
@@ -40,9 +39,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const session = req.userSession;
   if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
 
-  const hasPermission = await verifyPermissions(session.user.id, { submissions: ["update"] });
-  if (!hasPermission) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
-
   const { submission } = await approveSubmissionAction({
     submissionId: id,
     reviewerId: session.user.id,
@@ -56,7 +52,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const approveSubmission: Route<RequestData, ResponseData> = {
   url: "/submissions/:id/approve",
   method: "POST",
-  config: { permissions: ["update:submissions"] },
+  config: { permissions: ["moderate:submissions"] },
   schema: schemaRoute,
   handler,
 };

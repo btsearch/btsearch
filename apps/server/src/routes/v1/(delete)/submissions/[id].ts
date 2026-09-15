@@ -23,7 +23,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
@@ -42,16 +42,11 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
   if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
   const userId = session.user.id;
 
-  const hasAdminPermission = (await verifyPermissions(session.user.id, { submissions: ["delete"] })) || false;
+  const hasAdminPermission = await verifyPermissions(session.user.id, { submissions: ["delete_all"] });
 
   const submission = await db.query.submissions.findFirst({
     where: {
       id: id,
-    },
-    columns: {
-      id: true,
-      submitter_id: true,
-      status: true,
     },
   });
 
@@ -63,7 +58,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
   let attachmentUuids: string[] = [];
 
   try {
-    await db.transaction(async (tx) => {
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "submission.delete", metadata: { submission_id: id } }, async (tx, audit) => {
       const cellsBase = await tx.query.proposedCells.findMany({
         where: {
           submission_id: id,
@@ -107,6 +102,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
       }
 
       await tx.delete(submissions).where(eq(submissions.id, id));
+      await audit.log({
+        entity: "submissions",
+        op: "delete",
+        recordId: id,
+        stationId: submission.station_id,
+        old: submission,
+      });
     });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -115,24 +117,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 
   await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
 
-  await createAuditLog(
-    {
-      action: "submissions.delete",
-      table_name: "submissions",
-      record_id: undefined,
-      old_values: submission,
-      new_values: null,
-      metadata: { submission_id: id },
-    },
-    req,
-  );
-
   return res.status(204).send();
 }
 
 const deleteSubmission: Route<ReqParams, void> = {
   url: "/submissions/:id",
   method: "DELETE",
+  config: { permissions: ["delete:submissions"] },
   schema: schemaRoute,
   handler,
 };

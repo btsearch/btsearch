@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const locationsSelectSchema = createSelectSchema(locations);
 const locationsInsertSchema = createInsertSchema(locations)
@@ -35,19 +35,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     });
     if (existing) return res.send({ data: existing });
 
-    const [location] = await db.insert(locations).values(req.body).returning();
-
-    if (!location) throw new ErrorResponse("FAILED_TO_CREATE");
-
-    const locationWithRegion = await db.query.locations.findFirst({
-      where: { id: location.id },
-      with: { region: { columns: { id: true, name: true, code: true } } },
+    const location = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.create" }, async (tx, audit) => {
+      const [created] = await tx.insert(locations).values(req.body).returning();
+      if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
+      await audit.log({ entity: "locations", op: "create", recordId: created.id, new: created });
+      return created;
     });
-
-    await createAuditLog(
-      { action: "locations.create", table_name: "locations", record_id: location.id, new_values: locationWithRegion ?? location },
-      req,
-    );
     return res.send({ data: location });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -58,7 +51,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createLocation: Route<ReqBody, ResponseData> = {
   url: "/locations",
   method: "POST",
-  config: { permissions: ["write:locations"] },
+  config: { permissions: ["create:locations"] },
   schema: schemaRoute,
   handler,
 };

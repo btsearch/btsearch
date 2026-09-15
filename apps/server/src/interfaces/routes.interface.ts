@@ -1,5 +1,4 @@
-import type { DescMessage } from "@bufbuild/protobuf";
-import type { FastifyReply, FastifySchema } from "fastify";
+import type { FastifyContextConfig, FastifyReply, FastifySchema } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 import type { RouteGenericInterface } from "fastify/types/route.js";
 
@@ -11,11 +10,7 @@ export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = u
       method: string;
       handler: (req: FastifyRequest<T>, res: ReplyPayload<EmptyResponse>) => Promise<void> | void;
       onRequest?: ((req: FastifyRequest, res: FastifyReply, done: (err?: Error) => void) => void)[];
-      config?: {
-        permissions?: string[];
-        allowGuestAccess?: boolean;
-        proto?: DescMessage;
-      };
+      config?: FastifyContextConfig;
       schema?: FastifySchema;
     }
   : {
@@ -23,11 +18,7 @@ export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = u
       method: string;
       handler: (req: FastifyRequest<T>, res: ReplyPayload<JSONBody<U>>) => Promise<void> | void;
       onRequest?: ((req: FastifyRequest, res: FastifyReply, done: (err?: Error) => void) => void)[];
-      config?: {
-        permissions?: string[];
-        allowGuestAccess?: boolean;
-        proto?: DescMessage;
-      };
+      config?: FastifyContextConfig;
       schema?: FastifySchema;
     };
 

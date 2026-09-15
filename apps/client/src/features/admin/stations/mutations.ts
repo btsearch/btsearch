@@ -16,6 +16,7 @@ import {
 import { type StationUpdateImpact, invalidateStationUpdateQueries } from "./queries";
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { pickCellDetails } from "@/features/submissions/api";
+import { createAuditOperationHandle } from "@/lib/api";
 import { shallowEqual } from "@/lib/shallowEqual";
 import type { Cell, Sector, SectorDraft, Station, StationStatus } from "@/types/station";
 
@@ -24,10 +25,10 @@ export type LocalCell = CellDraftBase & {
   _sectorLocalId?: string | null;
 };
 
-export function useCreateLocationMutation() {
-  return useMutation({
-    mutationFn: createLocation,
-  });
+type PersistedLocalCell = LocalCell & { _serverId: number };
+
+function hasServerId(cell: LocalCell): cell is PersistedLocalCell {
+  return Boolean(cell._serverId);
 }
 
 export function useDeleteStationMutation() {
@@ -52,12 +53,6 @@ export function useDeleteStationMutation() {
         { conservative: true },
       );
     },
-  });
-}
-
-export function useCreateStationMutation() {
-  return useMutation({
-    mutationFn: createStation,
   });
 }
 
@@ -156,11 +151,11 @@ const partiallyCreatedStationIds = new WeakMap<SaveStationPayload, number>();
 
 export function useSaveStationMutation() {
   const queryClient = useQueryClient();
-  const createLocationMutation = useCreateLocationMutation();
-  const createStationMutation = useCreateStationMutation();
 
   return useMutation({
     mutationFn: async (payload: SaveStationPayload) => {
+      const auditOperation = createAuditOperationHandle(payload.isCreateMode ? "station.create" : "station.edit");
+
       if (payload.isCreateMode) {
         if (payload.location.region_id === null || payload.location.longitude === null || payload.location.latitude === null) {
           throw new Error("Location required");
@@ -170,13 +165,16 @@ export function useSaveStationMutation() {
         if (payload.existingLocationId !== null) {
           locationId = payload.existingLocationId;
         } else {
-          const locationRes = await createLocationMutation.mutateAsync({
-            region_id: payload.location.region_id,
-            city: payload.location.city || undefined,
-            address: payload.location.address || undefined,
-            longitude: payload.location.longitude,
-            latitude: payload.location.latitude,
-          });
+          const locationRes = await createLocation(
+            {
+              region_id: payload.location.region_id,
+              city: payload.location.city || undefined,
+              address: payload.location.address || undefined,
+              longitude: payload.location.longitude,
+              latitude: payload.location.latitude,
+            },
+            auditOperation,
+          );
           locationId = locationRes.data.id;
         }
 
@@ -190,20 +188,23 @@ export function useSaveStationMutation() {
           details: pickCellDetails(lc.rat, lc.details),
         }));
 
-        const res = await createStationMutation.mutateAsync({
-          station_id: payload.stationId,
-          operator_id: payload.operatorId,
-          location_id: locationId,
-          notes: payload.notes || null,
-          extra_address: payload.extraAddress || null,
-          is_confirmed: payload.isConfirmed,
-          cells: cellsPayload,
-        });
+        const res = await createStation(
+          {
+            station_id: payload.stationId,
+            operator_id: payload.operatorId,
+            location_id: locationId,
+            notes: payload.notes || null,
+            extra_address: payload.extraAddress || null,
+            is_confirmed: payload.isConfirmed,
+            cells: cellsPayload,
+          },
+          auditOperation,
+        );
         partiallyCreatedStationIds.set(payload, res.data.id);
 
         let sectorIdByLocalId = new Map<string, number>();
         if (payload.sectors.length > 0) {
-          const savedSectors = await putStationSectors(res.data.id, toSectorPayload(payload.sectors));
+          const savedSectors = await putStationSectors(res.data.id, toSectorPayload(payload.sectors), auditOperation);
           sectorIdByLocalId = makeSectorIdMap(payload.sectors, savedSectors.data);
         }
 
@@ -220,15 +221,20 @@ export function useSaveStationMutation() {
               cell_id: created.id,
               sector_id: sectorId,
             })),
+            auditOperation,
           );
         }
 
         if (!payload.skipExtraIds && (payload.networksId !== undefined || payload.networksName || payload.mnoName)) {
-          await updateExtraIds(res.data.id, {
-            networks_id: payload.networksId ?? null,
-            networks_name: payload.networksName || null,
-            mno_name: payload.mnoName || null,
-          });
+          await updateExtraIds(
+            res.data.id,
+            {
+              networks_id: payload.networksId ?? null,
+              networks_name: payload.networksName || null,
+              mno_name: payload.mnoName || null,
+            },
+            auditOperation,
+          );
         }
 
         return { mode: "create" as const, station: res.data };
@@ -264,13 +270,16 @@ export function useSaveStationMutation() {
         const coordsChanged =
           payload.location.latitude !== (station.location.latitude ?? null) || payload.location.longitude !== (station.location.longitude ?? null);
         if (coordsChanged && payload.location.latitude !== null && payload.location.longitude !== null && payload.location.region_id !== null) {
-          const locationRes = await createLocationMutation.mutateAsync({
-            region_id: payload.location.region_id,
-            city: payload.location.city || undefined,
-            address: payload.location.address || undefined,
-            longitude: payload.location.longitude,
-            latitude: payload.location.latitude,
-          });
+          const locationRes = await createLocation(
+            {
+              region_id: payload.location.region_id,
+              city: payload.location.city || undefined,
+              address: payload.location.address || undefined,
+              longitude: payload.location.longitude,
+              latitude: payload.location.latitude,
+            },
+            auditOperation,
+          );
           stationPatch.location_id = locationRes.data.id;
         } else if (!coordsChanged) {
           const locationPatch: Record<string, unknown> = {};
@@ -278,18 +287,21 @@ export function useSaveStationMutation() {
           if (payload.location.address !== (station.location.address ?? "")) locationPatch.address = payload.location.address || null;
           if (payload.location.region_id !== (station.location.region?.id ?? null)) locationPatch.region_id = payload.location.region_id;
           if (Object.keys(locationPatch).length > 0) {
-            await patchLocation(station.location.id, locationPatch);
+            await patchLocation(station.location.id, locationPatch, auditOperation);
             locationMetadataChanged = true;
           }
         }
       } else if (payload.location.latitude !== null && payload.location.longitude !== null && payload.location.region_id !== null) {
-        const locationRes = await createLocationMutation.mutateAsync({
-          region_id: payload.location.region_id,
-          city: payload.location.city || undefined,
-          address: payload.location.address || undefined,
-          longitude: payload.location.longitude,
-          latitude: payload.location.latitude,
-        });
+        const locationRes = await createLocation(
+          {
+            region_id: payload.location.region_id,
+            city: payload.location.city || undefined,
+            address: payload.location.address || undefined,
+            longitude: payload.location.longitude,
+            latitude: payload.location.latitude,
+          },
+          auditOperation,
+        );
         stationPatch.location_id = locationRes.data.id;
       }
 
@@ -309,6 +321,7 @@ export function useSaveStationMutation() {
             notes: lc.notes || null,
             details: pickCellDetails(lc.rat, lc.details),
           })),
+          auditOperation,
         );
         newCells.forEach((lc, index) => {
           const createdCell = createdCells.data[index];
@@ -318,11 +331,11 @@ export function useSaveStationMutation() {
       }
 
       if (payload.deletedServerCellIds.length > 0) {
-        await Promise.all(payload.deletedServerCellIds.map((cellId) => deleteCell(station.id, cellId)));
+        await Promise.all(payload.deletedServerCellIds.map((cellId) => deleteCell(station.id, cellId, auditOperation)));
       }
 
-      const cellsToPreclearSector = payload.localCells.filter((lc) => {
-        if (!lc._serverId || deletedServerCellIdSet.has(lc._serverId)) return false;
+      const cellsToPreclearSector = payload.localCells.filter(hasServerId).filter((lc) => {
+        if (deletedServerCellIdSet.has(lc._serverId)) return false;
         const original = originalCells.find((cell) => cell.id === lc._serverId);
         return original?.sector_id !== null && original?.sector_id !== undefined && removedSectorIds.has(original.sector_id);
       });
@@ -330,18 +343,19 @@ export function useSaveStationMutation() {
         await patchCells(
           station.id,
           cellsToPreclearSector.map((lc) => ({
-            cell_id: lc._serverId as number,
+            cell_id: lc._serverId,
             sector_id: null,
           })),
+          auditOperation,
         );
       }
 
       if (haveSectorsChanged) {
-        const savedSectors = await putStationSectors(station.id, sectorPayload);
+        const savedSectors = await putStationSectors(station.id, sectorPayload, auditOperation);
         sectorIdByLocalId = makeSectorIdMap(payload.sectors, savedSectors.data);
       }
 
-      const modifiedCells = payload.localCells.filter((lc) => lc._serverId && isCellModified(lc, originalCells, sectorIdByLocalId));
+      const modifiedCells = payload.localCells.filter(hasServerId).filter((lc) => isCellModified(lc, originalCells, sectorIdByLocalId));
       const createdCellSectorPatches = newCells.flatMap((lc) => {
         const createdCell = createdNewCellsByLocalId.get(lc._localId);
         const sectorId = resolveSectorId(lc._sectorLocalId, sectorIdByLocalId);
@@ -350,7 +364,7 @@ export function useSaveStationMutation() {
       });
       const cellPatches = [
         ...modifiedCells.map((lc) => ({
-          cell_id: lc._serverId as number,
+          cell_id: lc._serverId,
           band_id: lc.band_id,
           sector_id: resolveSectorId(lc._sectorLocalId, sectorIdByLocalId),
           type: lc.type ?? null,
@@ -361,7 +375,7 @@ export function useSaveStationMutation() {
         ...createdCellSectorPatches,
       ];
       if (cellPatches.length > 0) {
-        await patchCells(station.id, cellPatches);
+        await patchCells(station.id, cellPatches, auditOperation);
       }
 
       const stationMetadataChanged =
@@ -375,7 +389,7 @@ export function useSaveStationMutation() {
       const locationMoved = newLocationId !== oldLocationId;
       const stationChanged = stationMetadataChanged || locationMoved;
 
-      if (stationChanged) await patchStation(station.id, stationPatch);
+      if (stationChanged) await patchStation(station.id, stationPatch, auditOperation);
 
       const existingNetworksId = payload.originalStation?.extra_identificators?.networks_id ?? null;
       const extraIdsFieldsChanged =
@@ -389,11 +403,15 @@ export function useSaveStationMutation() {
         ((payload.networksId !== null && payload.networksId !== undefined) || !!payload.networksName || !!payload.mnoName || existingHasExtraIds) &&
         extraIdsFieldsChanged;
       if (shouldUpdateExtraIds) {
-        await updateExtraIds(station.id, {
-          networks_id: payload.networksId ?? null,
-          networks_name: payload.networksName || null,
-          mno_name: payload.mnoName || null,
-        });
+        await updateExtraIds(
+          station.id,
+          {
+            networks_id: payload.networksId ?? null,
+            networks_name: payload.networksName || null,
+            mno_name: payload.mnoName || null,
+          },
+          auditOperation,
+        );
       }
 
       const impact: StationUpdateImpact = {

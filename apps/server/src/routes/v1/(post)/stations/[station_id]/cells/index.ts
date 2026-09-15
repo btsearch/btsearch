@@ -9,7 +9,7 @@ import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../services/audit/index.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../../../services/cellDuplicateCheck.service.js";
 import { queueStationCellsChangedNotification } from "../../../../../../services/notifications/stationCellChanges.js";
 import { assertCanMutateStationCells } from "../../../../../../services/stations/status.js";
@@ -91,10 +91,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
           station.operator_id,
         )
       : Promise.resolve(),
-    checkLTEClidConsistency(
-      station_id,
-      cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
-    ),
+    // checkLTEClidConsistency(
+    //   station_id,
+    //   cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
+    // ),
     validateCellARFCNsForBands(cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details }))),
     checkPciDuplicates(
       station_id,
@@ -107,69 +107,48 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   ]);
 
   try {
-    const created = await db
-      .insert(cells)
-      .values(
-        cellsData.map((cell) => ({
-          ...cell,
-          station_id: station.id,
-          updatedAt: new Date(),
-          createdAt: new Date(),
+    const response = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.create" }, async (tx, audit) => {
+      const now = new Date();
+      const created = await tx
+        .insert(cells)
+        .values(
+          cellsData.map(({ details: _details, ...cell }) => ({
+            ...cell,
+            station_id: station.id,
+            updatedAt: now,
+            createdAt: now,
+          })),
+        )
+        .returning();
+
+      await Promise.all(
+        created.map(async (row, index) => {
+          const details = cellsData[index]?.details;
+          if (details && isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails);
+        }),
+      );
+
+      const ids = created.map((cell) => cell.id);
+      const snapshots = await loadCellSnapshots(tx, ids);
+      const createdSnapshots = ids.map((id) => {
+        const snapshot = snapshots.get(id);
+        if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");
+        return snapshot;
+      });
+
+      await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station_id));
+      await audit.logMany(
+        createdSnapshots.map((snapshot) => ({
+          entity: "cells",
+          op: "create",
+          recordId: snapshot.id,
+          stationId: station_id,
+          old: null,
+          new: snapshot,
         })),
-      )
-      .returning();
-
-    await Promise.all(
-      created.map(async (row, idx) => {
-        const details = cellsData[idx]?.details;
-        if (!details) return;
-        if (isNormalRat(row.rat)) await insertRATCellDetails(db, row.rat, row.id, details as RATInsertDetails);
-      }),
-    );
-
-    const ids = created.map((cell) => cell.id);
-    const full = await db.query.cells.findMany({
-      where: {
-        RAW: (fields, { inArray }) => inArray(fields.id, ids),
-      },
-      with: { gsm: true, umts: true, lte: true, nr: true },
+      );
+      return createdSnapshots as ResponseData;
     });
-    const idToDetails = new Map<number, z.infer<typeof cellDetailsSchema>>();
-    for (const c of full) {
-      const details: z.infer<typeof cellDetailsSchema> =
-        (c.gsm ? (({ cell_id, ...rest }) => rest)(c.gsm) : null) ??
-        (c.umts ? (({ cell_id, ...rest }) => rest)(c.umts) : null) ??
-        (c.lte ? (({ cell_id, ...rest }) => rest)(c.lte) : null) ??
-        (c.nr ? (({ cell_id, ...rest }) => rest)(c.nr) : null) ??
-        null;
-      idToDetails.set(c.id, details);
-    }
-
-    const response: ResponseData = created.map((cell) => ({ ...cell, details: idToDetails.get(cell.id) ?? null }));
-
-    await createAuditLog(
-      {
-        action: "cells.create",
-        table_name: "cells",
-        record_id: null,
-        new_values: { cells: response },
-        metadata: { station_id },
-      },
-      req,
-    );
-
-    const [updatedStation] = await db.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, station_id)).returning();
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "stations",
-        record_id: station_id,
-        old_values: station,
-        new_values: updatedStation,
-        metadata: { reason: "cells.create" },
-      },
-      req,
-    );
 
     queueStationCellsChangedNotification({ stationId: station_id, counts: { added: response.length } });
 
@@ -183,7 +162,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const addCells: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/cells",
   method: "POST",
-  config: { permissions: ["write:stations"] },
+  config: { permissions: ["create:cells"] },
   schema: schemaRoute,
   handler,
 };

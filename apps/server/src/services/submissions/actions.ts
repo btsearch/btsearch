@@ -29,29 +29,35 @@ import {
   updateRATCellDetailsReturning,
 } from "../../utils/ratCellPersistence.js";
 import { normalizeText } from "../../utils/submission.helpers.js";
-import { createAuditLog } from "../auditLog.service.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../cellDuplicateCheck.service.js";
+import {
+  type AuditRecorder,
+  type CellSnapshot,
+  type PhotoSelectionSnapshots,
+  auditContextFromRequest,
+  flattenCellRow,
+  loadCellSnapshots,
+  loadPhotoSelectionSnapshots,
+  logPhotoSelectionChanges,
+  runAuditedOperation,
+} from "../audit/index.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cellDuplicateCheck.service.js";
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
-import {
-  type StationPhotoSelectionSnapshots,
-  createStationPhotoSelectionAuditLogs,
-  loadStationPhotoSelectionSnapshots,
-} from "../stations/photoSelectionHistory.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.service.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
+type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
+type LocationChange = { op: "create"; old?: never; new: LocationRow } | { op: "update"; old: LocationRow; new: LocationRow };
+type UpsertLocationResult = { locationId: number; change: LocationChange | null };
+
 async function upsertLocation(
   tx: DbTx,
   proposedLocation: { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number },
-  req: FastifyRequest,
-  submissionId: string,
-  auditActorId: string | null,
   knownLocationAtCoords?: LocationRow | null,
-): Promise<number> {
+): Promise<UpsertLocationResult> {
   const existingLocation =
     knownLocationAtCoords !== undefined
       ? knownLocationAtCoords
@@ -68,7 +74,7 @@ async function upsertLocation(
       existingLocation.address !== proposedLocation.address;
 
     if (metadataChanged) {
-      await tx
+      const [updatedLocation] = await tx
         .update(locations)
         .set({
           region_id: proposedLocation.region_id,
@@ -76,23 +82,16 @@ async function upsertLocation(
           address: proposedLocation.address,
           updatedAt: new Date(),
         })
-        .where(eq(locations.id, existingLocation.id));
+        .where(eq(locations.id, existingLocation.id))
+        .returning();
+      if (!updatedLocation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to update location" });
 
-      await createAuditLog(
-        {
-          action: "locations.update",
-          table_name: "locations",
-          record_id: existingLocation.id,
-          old_values: { region_id: existingLocation.region_id, city: existingLocation.city, address: existingLocation.address },
-          new_values: { region_id: proposedLocation.region_id, city: proposedLocation.city, address: proposedLocation.address },
-          metadata: { submission_id: submissionId },
-          invoked_by: auditActorId,
-        },
-        req,
-        tx,
-      );
+      return {
+        locationId: existingLocation.id,
+        change: { op: "update", old: existingLocation, new: updatedLocation },
+      };
     }
-    return existingLocation.id;
+    return { locationId: existingLocation.id, change: null };
   }
 
   const [newLocation] = await tx
@@ -106,19 +105,20 @@ async function upsertLocation(
     })
     .returning();
   if (!newLocation) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create location" });
-  await createAuditLog(
-    {
-      action: "locations.create",
-      table_name: "locations",
-      record_id: newLocation.id,
-      new_values: newLocation,
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
-  return newLocation.id;
+  return { locationId: newLocation.id, change: { op: "create", new: newLocation } };
+}
+
+async function logLocationChange(audit: AuditRecorder, result: UpsertLocationResult, stationId: number | null, submissionId: string): Promise<void> {
+  if (!result.change) return;
+  await audit.log({
+    entity: "locations",
+    op: result.change.op,
+    recordId: result.locationId,
+    stationId,
+    old: result.change.op === "update" ? result.change.old : undefined,
+    new: result.change.new,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 type ProposedSectorRow = {
@@ -135,7 +135,6 @@ type ProposedCellSectorRef = {
 
 type ApprovalQueryClient = Pick<DbTx, "query">;
 type SubmissionRow = NonNullable<Awaited<ReturnType<typeof db.query.submissions.findFirst>>>;
-type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
 type ApprovalDraft = {
   proposedStation: Awaited<ReturnType<typeof loadProposedStationForApproval>>;
   proposedLocation: Awaited<ReturnType<DbTx["query"]["proposedLocations"]["findFirst"]>>;
@@ -149,9 +148,9 @@ type SubmissionLocationPhotoSelectionRow = Awaited<ReturnType<DbTx["query"]["sub
 type ApprovalDuplicateCheckDraft = Pick<ApprovalDraft, "proposedStation" | "proposedCellRows">;
 type ApprovalStationContext = { operatorId: number | null; stationStringId: string | null };
 type CellAuditChanges = {
-  added: Array<Record<string, unknown>>;
-  updated: Array<{ old: Record<string, unknown>; new: Record<string, unknown> }>;
-  deleted: Array<Record<string, unknown>>;
+  added: number[];
+  updated: Array<{ id: number; old: CellSnapshot }>;
+  deleted: CellSnapshot[];
 };
 
 function resolveProposedCellSectorId(proposed: ProposedCellSectorRef, sectorIdByLocalId: ReadonlyMap<string, number>): number | null | undefined {
@@ -172,10 +171,6 @@ function getSiblingMnc(mnc: number | null | undefined): number | null {
 
 function getProposedCellDetails(proposed: ProposedCellRow): Record<string, unknown> | null {
   return (proposed.lte ?? proposed.gsm ?? proposed.umts ?? proposed.nr) as Record<string, unknown> | null;
-}
-
-function getTargetCellDetails(targetCell: TargetCellRow): Record<string, unknown> | null {
-  return (targetCell.gsm ?? targetCell.umts ?? targetCell.lte ?? targetCell.nr) as Record<string, unknown> | null;
 }
 
 async function validatePublishedStation(submission: SubmissionRow): Promise<ApprovalStationContext | null> {
@@ -219,16 +214,14 @@ async function loadApprovalDuplicateCheckDraft(submissionId: string): Promise<Ap
 }
 
 async function createExtraIdentifierForNewStation(
-  tx: DbTx,
+  audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   stationId: number,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<void> {
   if (!proposedStation.networks_id && !proposedStation.mno_name) return;
 
-  const [newIdentifier] = await tx
+  const [newIdentifier] = await audit.tx
     .insert(extraIdentificators)
     .values({
       station_id: stationId,
@@ -240,31 +233,24 @@ async function createExtraIdentifierForNewStation(
 
   if (!newIdentifier) return;
 
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "extra_identificators",
-      record_id: stationId,
-      old_values: null,
-      new_values: newIdentifier,
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  await audit.log({
+    entity: "extra_identificators",
+    op: "create",
+    recordId: newIdentifier.id,
+    stationId,
+    new: newIdentifier,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 async function createStationFromProposal(
-  tx: DbTx,
+  audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   locationId: number | null,
   submissionId: string,
-  req: FastifyRequest,
   proposedCellCount: number,
-  auditActorId: string | null,
 ): Promise<number> {
-  const [newStation] = await tx
+  const [newStation] = await audit.tx
     .insert(stations)
     .values({
       station_id: proposedStation.station_id ?? "",
@@ -278,101 +264,75 @@ async function createStationFromProposal(
     .returning();
   if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station" });
 
-  await createAuditLog(
-    {
-      action: "stations.create",
-      table_name: "stations",
-      record_id: newStation.id,
-      new_values: newStation,
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  await audit.log({
+    entity: "stations",
+    op: "create",
+    recordId: newStation.id,
+    stationId: newStation.id,
+    new: newStation,
+    metadata: { submission_id: submissionId },
+  });
 
-  await createExtraIdentifierForNewStation(tx, proposedStation, newStation.id, submissionId, req, auditActorId);
+  await createExtraIdentifierForNewStation(audit, proposedStation, newStation.id, submissionId);
   return newStation.id;
 }
 
 async function applyNewSubmission(
-  tx: DbTx,
+  audit: AuditRecorder,
   draft: ApprovalDraft,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<{ stationId: number | null; resolvedLocationId: number | null }> {
-  let locationId: number | null = null;
+  let locationResult: UpsertLocationResult | null = null;
 
-  if (draft.proposedLocation) locationId = await upsertLocation(tx, draft.proposedLocation, req, submissionId, auditActorId);
+  if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, draft.proposedLocation);
+  const locationId = locationResult?.locationId ?? null;
 
   let stationId: number | null = null;
   if (draft.proposedStation)
-    stationId = await createStationFromProposal(
-      tx,
-      draft.proposedStation,
-      locationId,
-      submissionId,
-      req,
-      draft.proposedCellRows.length,
-      auditActorId,
-    );
+    stationId = await createStationFromProposal(audit, draft.proposedStation, locationId, submissionId, draft.proposedCellRows.length);
+  if (locationResult) await logLocationChange(audit, locationResult, stationId, submissionId);
 
   return { stationId, resolvedLocationId: locationId };
 }
 
-async function deleteEmptiedLocation(
-  tx: DbTx,
-  currentLocation: LocationRow,
-  submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
-): Promise<void> {
-  await tx.delete(locations).where(eq(locations.id, currentLocation.id));
-  await createAuditLog(
-    {
-      action: "locations.delete",
-      table_name: "locations",
-      record_id: currentLocation.id,
-      old_values: { longitude: currentLocation.longitude, latitude: currentLocation.latitude },
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+async function deleteEmptiedLocation(audit: AuditRecorder, currentLocation: LocationRow, submissionId: string, stationId: number): Promise<void> {
+  await audit.tx.delete(locations).where(eq(locations.id, currentLocation.id));
+  await audit.log({
+    entity: "locations",
+    op: "delete",
+    recordId: currentLocation.id,
+    stationId,
+    old: currentLocation,
+    metadata: { submission_id: submissionId },
+  });
 }
 
-async function updateStationLocation(
-  tx: DbTx,
-  stationId: number,
-  locationId: number,
-  submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
-): Promise<void> {
-  await tx.update(stations).set({ location_id: locationId, updatedAt: new Date() }).where(eq(stations.id, stationId));
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "stations",
-      record_id: stationId,
-      new_values: { location_id: locationId },
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+async function updateStationLocation(audit: AuditRecorder, stationId: number, locationId: number, submissionId: string): Promise<void> {
+  const previousStation = await audit.tx.query.stations.findFirst({ where: { id: stationId } });
+  if (!previousStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
+  const [updatedStation] = await audit.tx
+    .update(stations)
+    .set({ location_id: locationId, updatedAt: new Date() })
+    .where(eq(stations.id, stationId))
+    .returning();
+  if (!updatedStation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to update station location" });
+  await audit.log({
+    entity: "stations",
+    op: "update",
+    recordId: stationId,
+    stationId,
+    old: previousStation,
+    new: updatedStation,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 async function updateLocationMetadata(
-  tx: DbTx,
+  audit: AuditRecorder,
   currentLocation: LocationRow,
   proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
+  stationId: number,
 ): Promise<void> {
   const metadataChanged =
     currentLocation.region_id !== proposedLocation.region_id ||
@@ -381,35 +341,32 @@ async function updateLocationMetadata(
 
   if (!metadataChanged) return;
 
-  await tx
+  const [updatedLocation] = await audit.tx
     .update(locations)
     .set({ region_id: proposedLocation.region_id, city: proposedLocation.city, address: proposedLocation.address, updatedAt: new Date() })
-    .where(eq(locations.id, currentLocation.id));
-  await createAuditLog(
-    {
-      action: "locations.update",
-      table_name: "locations",
-      record_id: currentLocation.id,
-      old_values: { region_id: currentLocation.region_id, city: currentLocation.city, address: currentLocation.address },
-      new_values: { region_id: proposedLocation.region_id, city: proposedLocation.city, address: proposedLocation.address },
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+    .where(eq(locations.id, currentLocation.id))
+    .returning();
+  if (!updatedLocation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to update location" });
+  await audit.log({
+    entity: "locations",
+    op: "update",
+    recordId: currentLocation.id,
+    stationId,
+    old: currentLocation,
+    new: updatedLocation,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 type UpdatedLocationResult = { locationId: number; migratedPhotoIds: Map<number, number> };
 
 async function applyUpdatedLocation(
-  tx: DbTx,
+  audit: AuditRecorder,
   proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
   stationId: number,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<UpdatedLocationResult> {
+  const { tx } = audit;
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
     with: { location: true },
@@ -420,7 +377,7 @@ async function applyUpdatedLocation(
     currentLocation && currentLocation.longitude === proposedLocation.longitude && currentLocation.latitude === proposedLocation.latitude;
 
   if (coordsUnchanged) {
-    await updateLocationMetadata(tx, currentLocation, proposedLocation, submissionId, req, auditActorId);
+    await updateLocationMetadata(audit, currentLocation, proposedLocation, submissionId, stationId);
     return { locationId: currentLocation.id, migratedPhotoIds: new Map() };
   }
 
@@ -428,30 +385,30 @@ async function applyUpdatedLocation(
     where: { AND: [{ longitude: proposedLocation.longitude }, { latitude: proposedLocation.latitude }] },
   });
 
-  const locationId = await upsertLocation(tx, proposedLocation, req, submissionId, auditActorId, locationAtNewCoords ?? null);
-  await updateStationLocation(tx, stationId, locationId, submissionId, req, auditActorId);
+  const locationResult = await upsertLocation(tx, proposedLocation, locationAtNewCoords ?? null);
+  const locationId = locationResult.locationId;
+  await logLocationChange(audit, locationResult, stationId, submissionId);
+  await updateStationLocation(audit, stationId, locationId, submissionId);
   if (!currentLocation) return { locationId, migratedPhotoIds: new Map() };
 
   const [remainingResult] = await tx.select({ remaining: count() }).from(stations).where(eq(stations.location_id, currentLocation.id));
   const oldLocationOrphaned = Number(remainingResult?.remaining ?? 0) === 0;
 
-  const migratedPhotoIds = await migrateStationPhotosToLocation(tx, stationId, currentLocation.id, locationId, oldLocationOrphaned);
-  if (oldLocationOrphaned) await deleteEmptiedLocation(tx, currentLocation, submissionId, req, auditActorId);
+  const migratedPhotoIds = await migrateStationPhotosToLocation(audit, stationId, currentLocation.id, locationId, oldLocationOrphaned);
+  if (oldLocationOrphaned) await deleteEmptiedLocation(audit, currentLocation, submissionId, stationId);
 
   return { locationId, migratedPhotoIds };
 }
 
 async function applyStationIdentityUpdate(
-  tx: DbTx,
+  audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   stationId: number,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<void> {
+  const { tx } = audit;
   const currentStation = await tx.query.stations.findFirst({
     where: { id: stationId },
-    columns: { station_id: true, operator_id: true, notes: true },
   });
   if (!currentStation) return;
 
@@ -477,49 +434,31 @@ async function applyStationIdentityUpdate(
     }
   }
 
-  const oldValues: Record<string, unknown> = {};
-  const newValues: Record<string, unknown> = {};
   const updateValues: Partial<typeof stations.$inferInsert> = { updatedAt: new Date() };
-  if (nextStationStringId !== undefined) {
-    updateValues.station_id = nextStationStringId;
-    oldValues.station_id = currentStation.station_id;
-    newValues.station_id = nextStationStringId;
-  }
-  if (nextOperatorId !== undefined) {
-    updateValues.operator_id = nextOperatorId;
-    oldValues.operator_id = currentStation.operator_id;
-    newValues.operator_id = nextOperatorId;
-  }
-  if (nextNotes !== undefined) {
-    updateValues.notes = nextNotes;
-    oldValues.notes = currentStation.notes;
-    newValues.notes = nextNotes;
-  }
+  if (nextStationStringId !== undefined) updateValues.station_id = nextStationStringId;
+  if (nextOperatorId !== undefined) updateValues.operator_id = nextOperatorId;
+  if (nextNotes !== undefined) updateValues.notes = nextNotes;
 
-  await tx.update(stations).set(updateValues).where(eq(stations.id, stationId));
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "stations",
-      record_id: stationId,
-      old_values: oldValues,
-      new_values: newValues,
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  const [updatedStation] = await tx.update(stations).set(updateValues).where(eq(stations.id, stationId)).returning();
+  if (!updatedStation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to update station" });
+  await audit.log({
+    entity: "stations",
+    op: "update",
+    recordId: stationId,
+    stationId,
+    old: currentStation,
+    new: updatedStation,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 async function applyExtraIdentifierUpdate(
-  tx: DbTx,
+  audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
   stationId: number,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<void> {
+  const { tx } = audit;
   const existingIdentifier = await tx.query.extraIdentificators.findFirst({ where: { station_id: stationId } });
   const proposedNetworksId = proposedStation.networks_id ?? null;
   const proposedNetworksName = normalizeText(proposedStation.networks_name);
@@ -528,19 +467,14 @@ async function applyExtraIdentifierUpdate(
   if (proposedNetworksId === null && proposedNetworksName === null && proposedMnoName === null) {
     if (!existingIdentifier) return;
     await tx.delete(extraIdentificators).where(eq(extraIdentificators.id, existingIdentifier.id));
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "extra_identificators",
-        record_id: stationId,
-        old_values: existingIdentifier,
-        new_values: null,
-        metadata: { submission_id: submissionId },
-        invoked_by: auditActorId,
-      },
-      req,
-      tx,
-    );
+    await audit.log({
+      entity: "extra_identificators",
+      op: "delete",
+      recordId: existingIdentifier.id,
+      stationId,
+      old: existingIdentifier,
+      metadata: { submission_id: submissionId },
+    });
     return;
   }
 
@@ -575,43 +509,33 @@ async function applyExtraIdentifierUpdate(
 
   if (!updatedIdentifier) return;
 
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "extra_identificators",
-      record_id: stationId,
-      old_values: existingIdentifier ?? null,
-      new_values: updatedIdentifier,
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  await audit.log({
+    entity: "extra_identificators",
+    op: existingIdentifier ? "update" : "create",
+    recordId: updatedIdentifier.id,
+    stationId,
+    old: existingIdentifier,
+    new: updatedIdentifier,
+    metadata: { submission_id: submissionId },
+  });
 }
 
-async function applyDeletedSubmission(
-  tx: DbTx,
-  stationId: number | null,
-  submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
-): Promise<void> {
+async function applyDeletedSubmission(audit: AuditRecorder, stationId: number | null, submissionId: string): Promise<void> {
   if (!stationId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete without a station" });
 
-  await tx.update(stations).set(stationStatusUpdate("inactive")).where(eq(stations.id, stationId));
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "stations",
-      record_id: stationId,
-      new_values: { status: "inactive" },
-      metadata: { submission_id: submissionId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  const previousStation = await audit.tx.query.stations.findFirst({ where: { id: stationId } });
+  if (!previousStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
+  const [updatedStation] = await audit.tx.update(stations).set(stationStatusUpdate("inactive")).where(eq(stations.id, stationId)).returning();
+  if (!updatedStation) throw new ErrorResponse("FAILED_TO_UPDATE", { message: "Failed to deactivate station" });
+  await audit.log({
+    entity: "stations",
+    op: "update",
+    recordId: stationId,
+    stationId,
+    old: previousStation,
+    new: updatedStation,
+    metadata: { submission_id: submissionId },
+  });
 }
 
 async function loadTargetCells(tx: DbTx, proposedCellRows: ProposedCellRow[]) {
@@ -645,10 +569,7 @@ async function checkApprovalCellDuplicates(
     .filter((cell) => cell.operation !== "delete" && cell.rat)
     .map((cell) => ({ rat: cell.rat!, details: getProposedCellDetails(cell), excludeCellId: cell.target_cell_id ?? undefined }))
     .filter((entry): entry is typeof entry & { details: Record<string, unknown> } => entry.details !== null);
-  const allModifiedCellIds = draft.proposedCellRows.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined);
   const operatorId = getApprovalOperatorId(submission, draft.proposedStation, stationContext);
-
-  // await checkLTEClidConsistency(submission.station_id ?? null, duplicateEntries, allModifiedCellIds, operatorId);
 
   if (!operatorId) return;
   if (duplicateEntries.length > 0) await checkCellDuplicatesBatch(duplicateEntries, operatorId);
@@ -774,7 +695,7 @@ async function addProposedCell(
   proposed: ProposedCellRow,
   stationId: number | null,
   sectorIdByLocalId: ReadonlyMap<string, number>,
-): Promise<Record<string, unknown>> {
+): Promise<number> {
   if (!stationId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot add cell without a station" });
   if (!proposed.rat) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot add cell without RAT" });
   if (!proposed.band_id) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot add cell without band" });
@@ -794,8 +715,8 @@ async function addProposedCell(
     .returning();
   if (!newCell) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create cell" });
 
-  const details = await insertCellDetails(tx, proposed, newCell.id);
-  return { ...newCell, details };
+  await insertCellDetails(tx, proposed, newCell.id);
+  return newCell.id;
 }
 
 async function updateProposedCell(
@@ -803,7 +724,7 @@ async function updateProposedCell(
   proposed: ProposedCellRow,
   targetCellsMap: ReadonlyMap<number, TargetCellRow>,
   sectorIdByLocalId: ReadonlyMap<string, number>,
-): Promise<{ old: Record<string, unknown>; new: Record<string, unknown> }> {
+): Promise<{ id: number; old: CellSnapshot }> {
   const targetCellId = proposed.target_cell_id;
   if (!targetCellId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot update cell without target_cell_id" });
 
@@ -820,27 +741,20 @@ async function updateProposedCell(
 
   await tx.update(cells).set(cellUpdate).where(eq(cells.id, targetCellId));
 
-  const newDetails = await updateCellDetails(tx, proposed, targetCell);
-  const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, ...baseCellOld } = targetCell;
-  const oldDetails = getTargetCellDetails(targetCell);
-
-  return { old: { ...baseCellOld, details: oldDetails }, new: { ...baseCellOld, ...cellUpdate, details: newDetails } };
+  await updateCellDetails(tx, proposed, targetCell);
+  return { id: targetCellId, old: flattenCellRow(targetCell) };
 }
 
-async function deleteProposedCell(
-  tx: DbTx,
-  proposed: ProposedCellRow,
-  targetCellsMap: ReadonlyMap<number, TargetCellRow>,
-): Promise<Record<string, unknown>> {
+async function deleteProposedCell(tx: DbTx, proposed: ProposedCellRow, targetCellsMap: ReadonlyMap<number, TargetCellRow>): Promise<CellSnapshot> {
   const targetCellId = proposed.target_cell_id;
   if (!targetCellId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot delete cell without target_cell_id" });
 
   const targetCell = targetCellsMap.get(targetCellId);
   if (!targetCell) throw new ErrorResponse("NOT_FOUND", { message: `Target cell ${targetCellId} not found` });
 
+  const snapshot = flattenCellRow(targetCell);
   await tx.delete(cells).where(eq(cells.id, targetCellId));
-  const { gsm: _dGsm, umts: _dUmts, lte: _dLte, nr: _dNr, ...baseCellDelete } = targetCell;
-  return { ...baseCellDelete, details: getTargetCellDetails(targetCell) };
+  return snapshot;
 }
 
 async function applyProposedCells(
@@ -893,81 +807,68 @@ async function deleteUnretainedSectors(tx: DbTx, stationId: number | null, secto
   await tx.delete(stationSectors).where(inArray(stationSectors.id, sectorIdsToDelete));
 }
 
-async function createSectorAuditLog(
-  tx: DbTx,
+async function logSectorChange(
+  audit: AuditRecorder,
   stationId: number | null,
   proposedSectorRows: ApprovalDraft["proposedSectorRows"],
   previousSectors: Array<{ id: number; azimuth: number }>,
   nextSectors: Array<{ id: number; azimuth: number }>,
   submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
 ): Promise<void> {
   if (!stationId || proposedSectorRows.length === 0) return;
 
-  await createAuditLog(
-    {
-      action: "stations.update",
-      table_name: "station_sectors",
-      record_id: stationId,
-      old_values: previousSectors,
-      new_values: nextSectors,
-      metadata: { submission_id: submissionId, station_id: stationId },
-      invoked_by: auditActorId,
-    },
-    req,
-    tx,
-  );
+  await audit.log({
+    entity: "station_sectors",
+    op: "update",
+    recordId: null,
+    stationId,
+    old: previousSectors,
+    new: nextSectors,
+    metadata: { submission_id: submissionId },
+  });
 }
 
-async function createCellAuditLogs(
-  tx: DbTx,
-  changes: CellAuditChanges,
-  stationId: number | null,
-  submissionId: string,
-  req: FastifyRequest,
-  auditActorId: string | null,
-): Promise<void> {
-  if (changes.added.length > 0)
-    await createAuditLog(
-      {
-        action: "cells.create",
-        table_name: "cells",
-        record_id: null,
-        new_values: { cells: changes.added },
-        metadata: { submission_id: submissionId, station_id: stationId },
-        invoked_by: auditActorId,
-      },
-      req,
-      tx,
-    );
-  if (changes.updated.length > 0)
-    await createAuditLog(
-      {
-        action: "cells.update",
-        table_name: "cells",
-        record_id: null,
-        old_values: { cells: changes.updated.map((cell) => cell.old) },
-        new_values: { cells: changes.updated.map((cell) => cell.new) },
-        metadata: { submission_id: submissionId, station_id: stationId },
-        invoked_by: auditActorId,
-      },
-      req,
-      tx,
-    );
-  if (changes.deleted.length > 0)
-    await createAuditLog(
-      {
-        action: "cells.delete",
-        table_name: "cells",
-        record_id: null,
-        old_values: { cells: changes.deleted },
-        metadata: { submission_id: submissionId, station_id: stationId },
-        invoked_by: auditActorId,
-      },
-      req,
-      tx,
-    );
+async function logCellChanges(audit: AuditRecorder, changes: CellAuditChanges, submissionId: string): Promise<void> {
+  const newSnapshots = await loadCellSnapshots(audit.tx, [...changes.added, ...changes.updated.map(({ id }) => id)]);
+  const requireSnapshot = (cellId: number) => {
+    const snapshot = newSnapshots.get(cellId);
+    if (!snapshot) throw new ErrorResponse("FAILED_TO_UPDATE", { message: `Failed to load cell ${cellId} after approval` });
+    return snapshot;
+  };
+
+  await audit.logMany([
+    ...changes.added.map((cellId) => {
+      const snapshot = requireSnapshot(cellId);
+      return {
+        entity: "cells" as const,
+        op: "create" as const,
+        recordId: cellId,
+        stationId: snapshot.station_id,
+        new: snapshot,
+        metadata: { submission_id: submissionId },
+      };
+    }),
+    ...changes.updated.map(({ id: cellId, old }) => {
+      const snapshot = requireSnapshot(cellId);
+      return {
+        entity: "cells" as const,
+        op: "update" as const,
+        recordId: cellId,
+        stationId: snapshot.station_id,
+        old,
+        new: snapshot,
+        metadata: { submission_id: submissionId },
+      };
+    }),
+    ...changes.deleted.map((snapshot) => ({
+      entity: "cells" as const,
+      op: "delete" as const,
+      recordId: snapshot.id,
+      stationId: snapshot.station_id,
+      old: snapshot,
+      metadata: { submission_id: submissionId },
+    })),
+  ]);
 }
 
 async function loadStationPhotoContext(tx: DbTx, stationId: number): Promise<{ locationId: number | null; mnc: number | null } | null> {
@@ -981,15 +882,16 @@ async function loadStationPhotoContext(tx: DbTx, stationId: number): Promise<{ l
 }
 
 async function applyUploadedSubmissionPhotos(
-  tx: DbTx,
+  audit: AuditRecorder,
   submission: SubmissionRow,
   submissionId: string,
   stationId: number,
   resolvedLocationId: number | null,
   photos: SubmissionPhotoRow[],
-  previousSelections: StationPhotoSelectionSnapshots,
+  previousSelections: PhotoSelectionSnapshots,
 ): Promise<boolean> {
   if (photos.length === 0) return false;
+  const { tx } = audit;
 
   let stationPhotoContext: Awaited<ReturnType<typeof loadStationPhotoContext>> = null;
   let photoLocationId = resolvedLocationId;
@@ -999,32 +901,36 @@ async function applyUploadedSubmissionPhotos(
   }
   if (!photoLocationId) return false;
 
-  await tx
-    .insert(locationPhotos)
-    .values(
-      photos.map((photo) => ({
-        location_id: photoLocationId,
-        attachment_id: photo.attachment_id,
-        submission_id: submissionId,
-        uploaded_by: submission.submitter_id,
-        note: photo.note,
-        taken_at: photo.taken_at,
-      })),
-    )
-    .onConflictDoNothing();
-
-  const unorderedRows = await tx
-    .select({ id: locationPhotos.id, attachment_id: locationPhotos.attachment_id })
+  const attachmentIds = photos.map((photo) => photo.attachment_id);
+  const existingRows = await tx
+    .select()
     .from(locationPhotos)
-    .where(
-      and(
-        eq(locationPhotos.location_id, photoLocationId),
-        inArray(
-          locationPhotos.attachment_id,
-          photos.map((photo) => photo.attachment_id),
-        ),
-      ),
-    );
+    .where(and(eq(locationPhotos.location_id, photoLocationId), inArray(locationPhotos.attachment_id, attachmentIds)));
+
+  const existingAttachmentIds = new Set(existingRows.map((row) => row.attachment_id));
+  const newPhotoValues = photos
+    .filter((photo) => !existingAttachmentIds.has(photo.attachment_id))
+    .map((photo) => ({
+      location_id: photoLocationId,
+      attachment_id: photo.attachment_id,
+      submission_id: submissionId,
+      uploaded_by: submission.submitter_id,
+      note: photo.note,
+      taken_at: photo.taken_at,
+    }));
+  const insertedRows = newPhotoValues.length > 0 ? await tx.insert(locationPhotos).values(newPhotoValues).returning() : [];
+  await audit.logMany(
+    insertedRows.map((photo) => ({
+      entity: "location_photos",
+      op: "create",
+      recordId: photo.id,
+      stationId,
+      new: photo,
+      metadata: { submission_id: submissionId },
+    })),
+  );
+
+  const unorderedRows = [...existingRows, ...insertedRows];
 
   if (unorderedRows.length === 0) return false;
 
@@ -1071,7 +977,7 @@ async function applyUploadedSubmissionPhotos(
 
   if (!siblingStation) return explicitMainId !== null;
 
-  const siblingPreviousSelections = await loadStationPhotoSelectionSnapshots(tx, [siblingStation.id]);
+  const siblingPreviousSelections = await loadPhotoSelectionSnapshots(tx, [siblingStation.id]);
   previousSelections.set(siblingStation.id, siblingPreviousSelections.get(siblingStation.id) ?? []);
 
   const siblingExistingMain = await tx.query.stationPhotoSelections.findFirst({
@@ -1102,10 +1008,13 @@ async function forceMainSelection(tx: DbTx, stationId: number, locationPhotoId: 
 }
 
 async function resolvePhotoSelectionsToLocation(
-  tx: DbTx,
+  audit: AuditRecorder,
   locationPhotoSels: SubmissionLocationPhotoSelectionRow[],
   stationLocationId: number,
+  stationId: number,
+  submissionId: string,
 ): Promise<SubmissionLocationPhotoSelectionRow[]> {
+  const { tx } = audit;
   const requestedIds = locationPhotoSels.map((selection) => selection.location_photo_id);
   const photoRows = await tx.select().from(locationPhotos).where(inArray(locationPhotos.id, requestedIds));
   const photoById = new Map(photoRows.map((row) => [row.id, row]));
@@ -1136,8 +1045,17 @@ async function resolvePhotoSelectionsToLocation(
           note: photo.note,
           taken_at: photo.taken_at,
         })
-        .returning({ id: locationPhotos.id });
+        .returning();
       targetId = copy?.id;
+      if (copy)
+        await audit.log({
+          entity: "location_photos",
+          op: "create",
+          recordId: copy.id,
+          stationId,
+          new: copy,
+          metadata: { submission_id: submissionId },
+        });
     }
     if (targetId === undefined || resolvedIds.has(targetId)) continue;
     resolvedIds.add(targetId);
@@ -1148,15 +1066,17 @@ async function resolvePhotoSelectionsToLocation(
 }
 
 async function applyLocationPhotoSelections(
-  tx: DbTx,
+  audit: AuditRecorder,
   locationPhotoSels: SubmissionLocationPhotoSelectionRow[],
   stationId: number,
   stationLocationId: number | null,
   uploadedMainApplied: boolean,
+  submissionId: string,
 ): Promise<void> {
   if (locationPhotoSels.length === 0 || stationLocationId === null) return;
+  const { tx } = audit;
 
-  const resolvedSels = await resolvePhotoSelectionsToLocation(tx, locationPhotoSels, stationLocationId);
+  const resolvedSels = await resolvePhotoSelectionsToLocation(audit, locationPhotoSels, stationLocationId, stationId, submissionId);
   if (resolvedSels.length === 0) return;
 
   const resolvedPhotoIds = resolvedSels.map((selection) => selection.location_photo_id);
@@ -1194,12 +1114,14 @@ async function deleteAttachmentFiles(attachmentUuids: string[]): Promise<void> {
 }
 
 async function applyLocationPhotoRemovals(
-  tx: DbTx,
+  audit: AuditRecorder,
   removalPhotoIds: number[],
   stationId: number,
   stationLocationId: number | null,
+  submissionId: string,
 ): Promise<string[]> {
   if (removalPhotoIds.length === 0) return [];
+  const { tx } = audit;
 
   const [wasMain] = await tx
     .select({ id: stationPhotoSelections.id })
@@ -1229,17 +1151,27 @@ async function applyLocationPhotoRemovals(
   if (stationLocationId === null) return [];
 
   const orphanedPhotos = await tx
-    .select({ id: locationPhotos.id, attachmentId: locationPhotos.attachment_id })
+    .select({ photo: locationPhotos })
     .from(locationPhotos)
     .leftJoin(stationPhotoSelections, eq(stationPhotoSelections.location_photo_id, locationPhotos.id))
     .where(and(inArray(locationPhotos.id, removalPhotoIds), eq(locationPhotos.location_id, stationLocationId), isNull(stationPhotoSelections.id)));
 
   if (orphanedPhotos.length === 0) return [];
 
-  const orphanIds = orphanedPhotos.map((photo) => photo.id);
-  const orphanAttachmentIds = orphanedPhotos.map((photo) => photo.attachmentId);
+  const orphanIds = orphanedPhotos.map(({ photo }) => photo.id);
+  const orphanAttachmentIds = orphanedPhotos.map(({ photo }) => photo.attachment_id);
 
   await tx.delete(locationPhotos).where(inArray(locationPhotos.id, orphanIds));
+  await audit.logMany(
+    orphanedPhotos.map(({ photo }) => ({
+      entity: "location_photos",
+      op: "delete",
+      recordId: photo.id,
+      stationId,
+      old: photo,
+      metadata: { submission_id: submissionId },
+    })),
+  );
 
   const stillReferenced = await tx
     .select({ attachment_id: locationPhotos.attachment_id })
@@ -1255,19 +1187,17 @@ async function applyLocationPhotoRemovals(
 }
 
 async function applySubmissionPhotos(
-  tx: DbTx,
+  audit: AuditRecorder,
   submission: SubmissionRow,
   submissionId: string,
   stationId: number | null,
   resolvedLocationId: number | null,
   migratedPhotoIds: Map<number, number>,
   locationPhotoSelections: SubmissionLocationPhotoSelectionRow[],
-  req: FastifyRequest,
-  auditActorId: string | null,
+  previousSelections: PhotoSelectionSnapshots,
 ): Promise<{ attachmentUuidsToDelete: string[]; photosAdded: boolean }> {
   if (!stationId || submission.type === "delete") return { attachmentUuidsToDelete: [], photosAdded: false };
-
-  const previousSelections = await loadStationPhotoSelectionSnapshots(tx, [stationId]);
+  const { tx } = audit;
 
   const photos = await tx.query.submissionPhotos.findMany({ where: { submission_id: submissionId }, orderBy: { id: "asc" } });
   const remapPhotoId = (locationPhotoId: number) => migratedPhotoIds.get(locationPhotoId) ?? locationPhotoId;
@@ -1283,7 +1213,7 @@ async function applySubmissionPhotos(
   const stationLocationId = resolvedLocationId ?? stationRow?.location_id ?? null;
 
   const uploadedMainApplied = await applyUploadedSubmissionPhotos(
-    tx,
+    audit,
     submission,
     submissionId,
     stationId,
@@ -1291,16 +1221,9 @@ async function applySubmissionPhotos(
     photos,
     previousSelections,
   );
-  await applyLocationPhotoSelections(tx, locationPhotoAdditions, stationId, stationLocationId, uploadedMainApplied);
-  const attachmentUuidsToDelete = await applyLocationPhotoRemovals(tx, locationPhotoRemovalIds, stationId, stationLocationId);
-  await createStationPhotoSelectionAuditLogs({
-    handle: tx,
-    stationIds: [...previousSelections.keys()],
-    previousSnapshots: previousSelections,
-    req,
-    metadata: { submission_id: submissionId },
-    invokedBy: auditActorId,
-  });
+  await applyLocationPhotoSelections(audit, locationPhotoAdditions, stationId, stationLocationId, uploadedMainApplied, submissionId);
+  const attachmentUuidsToDelete = await applyLocationPhotoRemovals(audit, locationPhotoRemovalIds, stationId, stationLocationId, submissionId);
+  await logPhotoSelectionChanges(audit, previousSelections, { submission_id: submissionId });
   return { attachmentUuidsToDelete, photosAdded: photos.length > 0 || locationPhotoAdditions.length > 0 };
 }
 
@@ -1340,21 +1263,19 @@ function getApprovedStationStringId(
 }
 
 async function runApprovalTransaction({
-  tx,
+  audit,
   submission,
   submissionId,
   reviewerId,
   reviewerNotes,
-  req,
   duplicateCheckDraft,
   stationContext,
 }: {
-  tx: DbTx;
+  audit: AuditRecorder;
   submission: SubmissionRow;
   submissionId: string;
   reviewerId: string;
   reviewerNotes?: string | null;
-  req: FastifyRequest;
   duplicateCheckDraft: ApprovalDuplicateCheckDraft;
   stationContext: ApprovalStationContext | null;
 }): Promise<{
@@ -1365,14 +1286,14 @@ async function runApprovalTransaction({
   cellChanges: CellAuditChanges;
   photosAdded: boolean;
 }> {
+  const { tx } = audit;
   const draft = await loadApprovalDraft(tx, submissionId, duplicateCheckDraft);
   const targetCellsPromise = loadTargetCells(tx, draft.proposedCellRows);
   let stationId = submission.station_id;
   let resolvedLocationId: number | null = null;
-  const auditActorId = submission.submitter_id;
 
   if (submission.type === "new") {
-    const result = await applyNewSubmission(tx, draft, submissionId, req, auditActorId);
+    const result = await applyNewSubmission(audit, draft, submissionId);
     stationId = result.stationId;
     resolvedLocationId = result.resolvedLocationId;
   }
@@ -1381,20 +1302,22 @@ async function runApprovalTransaction({
     stationId && submission.type !== "delete"
       ? await tx.query.submissionLocationPhotoSelections.findMany({ where: { submission_id: submissionId } })
       : [];
+  const previousPhotoSelections: PhotoSelectionSnapshots =
+    stationId && submission.type !== "delete" ? await loadPhotoSelectionSnapshots(tx, [stationId]) : new Map();
 
   let migratedPhotoIds = new Map<number, number>();
   if (submission.type === "update" && draft.proposedLocation && stationId) {
-    const locationResult = await applyUpdatedLocation(tx, draft.proposedLocation, stationId, submissionId, req, auditActorId);
+    const locationResult = await applyUpdatedLocation(audit, draft.proposedLocation, stationId, submissionId);
     resolvedLocationId = locationResult.locationId;
     migratedPhotoIds = locationResult.migratedPhotoIds;
   }
 
   if (submission.type === "update" && draft.proposedStation && stationId) {
-    await applyStationIdentityUpdate(tx, draft.proposedStation, stationId, submissionId, req, auditActorId);
-    await applyExtraIdentifierUpdate(tx, draft.proposedStation, stationId, submissionId, req, auditActorId);
+    await applyStationIdentityUpdate(audit, draft.proposedStation, stationId, submissionId);
+    await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId, submissionId);
   }
 
-  if (submission.type === "delete") await applyDeletedSubmission(tx, stationId, submissionId, req, auditActorId);
+  if (submission.type === "delete") await applyDeletedSubmission(audit, stationId, submissionId);
 
   const { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors, nextSectors } = await applyProposedSectors(
     tx,
@@ -1409,49 +1332,55 @@ async function runApprovalTransaction({
 
   let publishedPendingStation = false;
   if (submission.type === "update" && stationId && cellChanges.added.length > 0) {
-    const [updatedStation] = await tx
-      .update(stations)
-      .set(stationStatusUpdate("published"))
-      .where(and(eq(stations.id, stationId), eq(stations.status, "pending")))
-      .returning({ id: stations.id });
-    publishedPendingStation = updatedStation !== undefined;
+    const previousStation = await tx.query.stations.findFirst({ where: { id: stationId } });
+    if (previousStation?.status === "pending") {
+      const [updatedStation] = await tx
+        .update(stations)
+        .set(stationStatusUpdate("published"))
+        .where(and(eq(stations.id, stationId), eq(stations.status, "pending")))
+        .returning();
+      publishedPendingStation = updatedStation !== undefined;
 
-    if (updatedStation)
-      await createAuditLog(
-        {
-          action: "stations.update",
-          table_name: "stations",
-          record_id: stationId,
-          old_values: { status: "pending" },
-          new_values: { status: "published" },
+      if (updatedStation)
+        await audit.log({
+          entity: "stations",
+          op: "update",
+          recordId: stationId,
+          stationId,
+          old: previousStation,
+          new: updatedStation,
           metadata: { submission_id: submissionId },
-          invoked_by: auditActorId,
-        },
-        req,
-        tx,
-      );
+        });
+    }
   }
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
-  await createSectorAuditLog(tx, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId, req, auditActorId);
-  await createCellAuditLogs(tx, cellChanges, stationId, submissionId, req, auditActorId);
+  await logSectorChange(audit, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId);
+  await logCellChanges(audit, cellChanges, submissionId);
 
   if (submission.type === "update" && stationId && !publishedPendingStation)
     await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, stationId));
 
   const { attachmentUuidsToDelete, photosAdded } = await applySubmissionPhotos(
-    tx,
+    audit,
     submission,
     submissionId,
     stationId,
     resolvedLocationId,
     migratedPhotoIds,
     submissionPhotoSelectionRows,
-    req,
-    auditActorId,
+    previousPhotoSelections,
   );
 
   const updated = await finalizeApprovedSubmission(tx, submission, submissionId, reviewerId, reviewerNotes);
+  await audit.log({
+    entity: "submissions",
+    op: "update",
+    recordId: submissionId,
+    stationId,
+    old: submission,
+    new: updated,
+  });
   const stationStringId = getApprovedStationStringId(submission, draft.proposedStation, stationId, stationContext);
 
   return { submission: updated, resolvedStationId: stationId, stationStringId, attachmentUuidsToDelete, cellChanges, photosAdded };
@@ -1476,17 +1405,23 @@ export async function approveSubmissionAction({
   const duplicateCheckDraft = await loadApprovalDuplicateCheckDraft(submissionId);
   await checkApprovalCellDuplicates(submission, duplicateCheckDraft, stationContext);
 
-  const transactionResult = await db.transaction((tx) =>
-    runApprovalTransaction({
-      tx,
-      submission,
-      submissionId,
-      reviewerId,
-      reviewerNotes,
-      req,
-      duplicateCheckDraft,
-      stationContext,
-    }),
+  const transactionResult = await runAuditedOperation(
+    auditContextFromRequest(req),
+    {
+      kind: "submission.approve",
+      actorId: submission.submitter_id,
+      metadata: { submission_id: submissionId, type: submission.type },
+    },
+    (_tx, audit) =>
+      runApprovalTransaction({
+        audit,
+        submission,
+        submissionId,
+        reviewerId,
+        reviewerNotes,
+        duplicateCheckDraft,
+        stationContext,
+      }),
   );
 
   const { submission: result, stationStringId } = transactionResult;
@@ -1499,18 +1434,6 @@ export async function approveSubmissionAction({
       logger.error("Failed to sync stations_permits after approval", { error: e instanceof Error ? e.message : String(e) }),
     );
   }
-
-  await createAuditLog(
-    {
-      action: "submissions.approve",
-      table_name: "submissions",
-      record_id: null,
-      old_values: { status: submission.status },
-      new_values: { status: result.status, reviewer_id: result.reviewer_id, reviewed_at: result.reviewed_at },
-      metadata: { submission_id: submissionId, type: submission.type, station_id: submission.station_id },
-    },
-    req,
-  );
 
   const [reviewer, actionStation] = await Promise.all([
     db.query.users.findFirst({ where: { id: reviewerId }, columns: { name: true } }),
@@ -1526,7 +1449,7 @@ export async function approveSubmissionAction({
   if (submission.submitter_id !== null) {
     void createQueuedSubmissionApprovalNotification({
       userId: submission.submitter_id,
-      submissionId: submissionId,
+      submissionId,
       stationId: transactionResult.resolvedStationId ?? undefined,
       metadata: {
         ...(stationStringId ? { station_id: stationStringId } : {}),
@@ -1576,30 +1499,37 @@ export async function rejectSubmissionAction({
   if (!submission) throw new ErrorResponse("NOT_FOUND");
   if (submission.status !== "pending") throw new ErrorResponse("BAD_REQUEST", { message: "Only pending submissions can be approved" });
 
-  const now = new Date();
-  const [result] = await db
-    .update(submissions)
-    .set({
-      status: "rejected",
-      reviewer_id: reviewerId,
-      review_notes: reviewerNotes ?? submission.review_notes,
-      reviewed_at: now,
-      updatedAt: now,
-    })
-    .where(eq(submissions.id, submissionId))
-    .returning();
-  if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
-
-  await createAuditLog(
+  const result = await runAuditedOperation(
+    auditContextFromRequest(req),
     {
-      action: "submissions.reject",
-      table_name: "submissions",
-      record_id: null,
-      old_values: submission,
-      new_values: result,
-      metadata: { submission_id: submissionId },
+      metadata: { submission_id: submissionId, submitter_id: submission.submitter_id },
+      kind: "submission.reject",
     },
-    req,
+    async (tx, audit) => {
+      const now = new Date();
+      const [updated] = await tx
+        .update(submissions)
+        .set({
+          status: "rejected",
+          reviewer_id: reviewerId,
+          review_notes: reviewerNotes ?? submission.review_notes,
+          reviewed_at: now,
+          updatedAt: now,
+        })
+        .where(eq(submissions.id, submissionId))
+        .returning();
+      if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
+
+      await audit.log({
+        entity: "submissions",
+        op: "update",
+        recordId: submissionId,
+        stationId: submission.station_id,
+        old: submission,
+        new: updated,
+      });
+      return updated;
+    },
   );
 
   const [reviewer, station] = await Promise.all([
@@ -1614,7 +1544,7 @@ export async function rejectSubmissionAction({
     void createAndDeliverNotification({
       userId: submission.submitter_id,
       type: "submission_rejected",
-      submissionId: submissionId,
+      submissionId,
       stationId: submission.station_id ?? undefined,
       metadata: {
         ...(stationStringId ? { station_id: stationStringId } : {}),

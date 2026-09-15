@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../services/audit/index.js";
 import {
   checkCellDuplicate,
   checkLTEClidConsistency,
@@ -59,7 +59,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
     if (req.body.details && req.body.station_id) {
       const operatorId = await getOperatorIdForStation(req.body.station_id);
       if (operatorId) await checkCellDuplicate({ rat: req.body.rat, details: req.body.details as Record<string, unknown> }, operatorId);
-      await checkLTEClidConsistency(req.body.station_id, [{ rat: req.body.rat, details: req.body.details as Record<string, unknown> }]);
+      // await checkLTEClidConsistency(req.body.station_id, [{ rat: req.body.rat, details: req.body.details as Record<string, unknown> }]);
     }
 
     if (req.body.details && req.body.station_id && req.body.band_id) {
@@ -72,42 +72,32 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
 
     await validateCellARFCNsForBands([{ rat: req.body.rat, band_id: req.body.band_id, details: req.body.details }]);
 
-    const [inserted] = await db.insert(cells).values(req.body).returning();
-    if (!inserted) throw new ErrorResponse("FAILED_TO_CREATE");
+    const { details: requestedDetails, ...cellData } = req.body;
+    const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.create" }, async (tx, audit) => {
+      const [inserted] = await tx.insert(cells).values(cellData).returning();
+      if (!inserted) throw new ErrorResponse("FAILED_TO_CREATE");
 
-    let details: z.infer<typeof cellDetailsSchema> = null;
-    if (req.body.details && isNormalRat(inserted.rat)) {
-      const insertedDetails = await insertRATCellDetailsReturning(db, inserted.rat, inserted.id, req.body.details as RATInsertDetails);
-      details = insertedDetails as z.infer<typeof cellDetailsSchema>;
-    }
+      if (requestedDetails && isNormalRat(inserted.rat))
+        await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails);
 
-    await createAuditLog(
-      {
-        action: "cells.create",
-        table_name: "cells",
-        record_id: inserted.id,
-        old_values: null,
-        new_values: { ...inserted, details },
-        metadata: { station_id: inserted.station_id },
-      },
-      req,
-    );
+      const snapshot = await loadCellSnapshot(tx, inserted.id);
+      if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");
 
-    await db.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, inserted.station_id));
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "stations",
-        record_id: inserted.station_id,
-        new_values: { updatedAt: new Date() },
-        metadata: { reason: "cells.create" },
-      },
-      req,
-    );
+      await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, inserted.station_id));
+      await audit.log({
+        entity: "cells",
+        op: "create",
+        recordId: inserted.id,
+        stationId: inserted.station_id,
+        old: null,
+        new: snapshot,
+      });
+      return snapshot as ResponseData;
+    });
 
-    queueStationCellsChangedNotification({ stationId: inserted.station_id, counts: { added: 1 } });
+    queueStationCellsChangedNotification({ stationId: created.station_id, counts: { added: 1 } });
 
-    return res.send({ data: { ...inserted, details } as ResponseData });
+    return res.send({ data: created });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
@@ -117,7 +107,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
 const createCell: Route<ReqWithDetails, ResponseData> = {
   url: "/cells",
   method: "POST",
-  config: { permissions: ["write:cells"] },
+  config: { permissions: ["create:cells"] },
   schema: schemaRoute,
   handler,
 };

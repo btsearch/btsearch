@@ -29,6 +29,15 @@ export class ValidationError extends ErrorResponse {
   }
 }
 
+export class DetailedErrorResponse extends ErrorResponse {
+  details: unknown[];
+
+  constructor(code: ErrorCode, details: unknown[], options?: { message?: string; cause?: unknown }) {
+    super(code, options);
+    this.details = details;
+  }
+}
+
 export type ErrorCode =
   | "INTERNAL_SERVER_ERROR"
   | "BAD_REQUEST"
@@ -46,6 +55,7 @@ export type ErrorCode =
   | "TOO_MANY_REQUESTS"
   | "QUOTA_EXCEEDED"
   | "DUPLICATE_ENTRY"
+  | "CONFLICT"
   | "SERVICE_UNAVAILABLE"
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST";
@@ -118,6 +128,10 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
   },
   DUPLICATE_ENTRY: {
     message: "A duplicate entry already exists.",
+    statusCode: 409,
+  },
+  CONFLICT: {
+    message: "The resource conflicts with its current state.",
     statusCode: 409,
   },
   SERVICE_UNAVAILABLE: {

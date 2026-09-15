@@ -33,7 +33,7 @@
       "read_uke_radiolines": "Linie radiowe UKE",
       "create_comments": "Publikowanie komentarzy do stacji w Twoim imieniu",
       "create_user_lists": "Tworzenie i zarządzanie Twoimi listami stacji",
-      "write_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu"
+      "create_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu"
     }
   },
   "apps": {

@@ -3,11 +3,10 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const regionsSelectSchema = createSelectSchema(regions);
 const regionsInsertSchema = createInsertSchema(regions).strict();
@@ -26,16 +25,20 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const { name, code } = req.body;
 
   try {
-    const [region] = await db
-      .insert(regions)
-      .values({
-        name,
-        code,
-      })
-      .returning();
+    const region = await runAuditedOperation(auditContextFromRequest(req), { kind: "region.create" }, async (tx, audit) => {
+      const [created] = await tx
+        .insert(regions)
+        .values({
+          name,
+          code,
+        })
+        .returning();
+      if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
 
-    if (!region) throw new ErrorResponse("FAILED_TO_CREATE");
-    await createAuditLog({ action: "regions.create", table_name: "regions", record_id: region.id, old_values: null, new_values: region }, req);
+      await audit.log({ entity: "regions", op: "create", recordId: created.id, new: created });
+      return created;
+    });
+
     return res.send({ data: region });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -46,7 +49,9 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createRegion: Route<ReqBody, ResponseData> = {
   url: "/regions",
   method: "POST",
-  config: { permissions: ["write:regions"] },
+  config: {
+    permissions: ["create:regions"],
+  },
   schema: schemaRoute,
   handler,
 };

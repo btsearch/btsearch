@@ -7,8 +7,8 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
-import { assertStationStatusTransition, stationStatusUpdate } from "../../../../services/stations/status.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
+import { stationStatusUpdate } from "../../../../services/stations/status.js";
 
 const schemaRoute = {
   params: z.object({
@@ -28,24 +28,23 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   if (!station) throw new ErrorResponse("NOT_FOUND");
   if (station.status === "inactive") return res.status(204).send();
 
-  // assertStationStatusTransition(station.status, "inactive");
-
   try {
-    await db.transaction(async (tx) => {
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "station.delete" }, async (tx, audit) => {
+      const current = await tx.query.stations.findFirst({ where: { id: stationId } });
+      if (!current) throw new ErrorResponse("NOT_FOUND");
+      if (current.status === "inactive") return;
+
       const [updated] = await tx.update(stations).set(stationStatusUpdate("inactive")).where(eq(stations.id, stationId)).returning();
       if (!updated) throw new ErrorResponse("FAILED_TO_DELETE");
 
-      await createAuditLog(
-        {
-          action: "stations.delete",
-          table_name: "stations",
-          record_id: stationId,
-          old_values: station,
-          new_values: updated,
-        },
-        req,
-        tx,
-      );
+      await audit.log({
+        entity: "stations",
+        op: "delete",
+        recordId: stationId,
+        stationId,
+        old: current,
+        new: updated,
+      });
     });
 
     return res.status(204).send();

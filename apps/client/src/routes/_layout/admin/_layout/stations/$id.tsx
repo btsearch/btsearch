@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ import { type Band, type Cell, type SectorDraft, type Station, type StationStatu
 
 function cellToLocal(cell: Cell): LocalCell {
   return {
-    _localId: crypto.randomUUID(),
+    _localId: nanoid(),
     _serverId: cell.id,
     _sectorLocalId: cell.sector_id ? `sector-${cell.sector_id}` : null,
     rat: cell.rat as (typeof RAT_ORDER)[number],
@@ -293,7 +294,7 @@ function StationDetailForm({
 
   const createNewStationCell = useCallback(
     (rat: string, defaultBand: Band): LocalCell => ({
-      _localId: crypto.randomUUID(),
+      _localId: nanoid(),
       _sectorLocalId: null,
       rat: rat as (typeof RAT_ORDER)[number],
       band_id: defaultBand.id,

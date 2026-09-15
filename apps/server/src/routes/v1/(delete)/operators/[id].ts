@@ -7,7 +7,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const schemaRoute = {
   params: z.object({
@@ -26,8 +26,10 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   if (!operator) throw new ErrorResponse("NOT_FOUND");
 
   try {
-    await db.delete(operators).where(eq(operators.id, id));
-    await createAuditLog({ action: "operators.delete", table_name: "operators", record_id: id, old_values: operator, new_values: null }, req);
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.delete" }, async (tx, audit) => {
+      await tx.delete(operators).where(eq(operators.id, id));
+      await audit.log({ entity: "operators", op: "delete", recordId: id, old: operator });
+    });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
@@ -39,7 +41,9 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
 const deleteOperator: Route<IdParams, void> = {
   url: "/operators/:id",
   method: "DELETE",
-  config: { permissions: ["delete:operators"] },
+  config: {
+    permissions: ["delete:operators"],
+  },
   schema: schemaRoute,
   handler,
 };

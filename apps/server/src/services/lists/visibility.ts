@@ -24,7 +24,7 @@ export async function getVisibleUserList(uuid: string, userId: string | undefine
 
   if (!list.is_public) {
     if (!userId) throw new ErrorResponse("UNAUTHORIZED");
-    const isAdmin = await verifyPermissions(userId, { user_lists: ["read"] });
+    const isAdmin = await verifyPermissions(userId, { user_lists: ["read_all"] });
     if (!isAdmin && userId !== list.created_by) throw new ErrorResponse("NOT_FOUND");
   }
 

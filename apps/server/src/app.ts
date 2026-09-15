@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import staticServe from "@fastify/static";
+import { AUDIT_OPERATION_ID_HEADER, AUDIT_OPERATION_KIND_HEADER } from "@openbts/shared/audit";
 import scalarReference from "@scalar/fastify-api-reference";
 import debug from "debug";
 import Fastify from "fastify";
@@ -20,7 +21,7 @@ import { SEOPagesController } from "./controllers/seo/pages.controller.js";
 import { SitemapController } from "./controllers/seo/sitemap.controller.js";
 import { APIv1Controller } from "./controllers/v1.controller.js";
 import { redisReady } from "./database/redis.js";
-import { type ErrorResponse, ValidationError } from "./errors.js";
+import { DetailedErrorResponse, type ErrorResponse, ValidationError } from "./errors.js";
 import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
@@ -143,10 +144,7 @@ export default class App {
         errors: {
           code: string;
           message: string;
-          details?: {
-            field: string;
-            validationMessage: string | undefined;
-          }[];
+          details?: unknown[];
         }[];
       } = {
         errors: [
@@ -156,9 +154,8 @@ export default class App {
           },
         ],
       };
-      if (err instanceof ValidationError && errorResponse.errors[0]) {
-        errorResponse.errors[0].details = (err as ValidationError)?.details || [];
-      }
+      const responseError = errorResponse.errors[0];
+      if (responseError && (err instanceof ValidationError || err instanceof DetailedErrorResponse)) responseError.details = err.details;
 
       return res.status(statusCode).send(errorResponse);
     });
@@ -184,7 +181,15 @@ export default class App {
           cb(null, isLocalhost || isOwnDomain ? true : origin);
         },
         credentials: true,
-        allowedHeaders: ["content-type", "x-api-key", "authorization", "x-idempotency-key", "accept"],
+        allowedHeaders: [
+          "content-type",
+          "x-api-key",
+          "authorization",
+          "x-idempotency-key",
+          AUDIT_OPERATION_ID_HEADER,
+          AUDIT_OPERATION_KIND_HEADER,
+          "accept",
+        ],
         exposedHeaders: [
           "x-response-time",
           "x-ratelimit-limit",

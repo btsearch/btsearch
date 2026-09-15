@@ -2,7 +2,12 @@ import type { FastifyRequest } from "fastify";
 
 import { PUBLIC_ROUTES } from "../constants.js";
 import { ErrorResponse } from "../errors.js";
+import type { TokenTier } from "../interfaces/auth.interface.ts";
+import type { ApiToken } from "../interfaces/fastify.interface.js";
+import type { Route } from "../interfaces/routes.interface.js";
+import { convertToPermissionObject, verifyPermissions } from "../plugins/auth/utils.js";
 import { getCurrentUser, verifyApiKey } from "../plugins/betterauth.plugin.js";
+import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../services/oauthToken.service.js";
 import { getRequestPathname, isSEOPublicPath } from "../services/seo/routes.js";
 import { getRuntimeSettings } from "../services/settings.service.js";
 
@@ -19,10 +24,6 @@ const TWO_FACTOR_ALLOWED = [
   "/api/v1/auth/two-factor/verify-backup-code",
   "/api/v1/auth/two-factor/view-backup-codes",
 ];
-import type { TokenTier } from "../interfaces/auth.interface.ts";
-import type { ApiToken } from "../interfaces/fastify.interface.js";
-import type { Route } from "../interfaces/routes.interface.js";
-import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../services/oauthToken.service.js";
 
 export async function authHook(req: FastifyRequest) {
   const route = req.routeOptions as unknown as Route;
@@ -35,6 +36,9 @@ export async function authHook(req: FastifyRequest) {
   if (isPublicByRuntime) return;
   if (isPublicByStatic && !settings.enforceAuthForAllRoutes) return;
 
+  const routePermissions = route.config?.permissions;
+  const routePermissionObject = convertToPermissionObject(routePermissions);
+
   const { headers } = req;
   const authHeader = headers["x-api-key"];
 
@@ -44,7 +48,7 @@ export async function authHook(req: FastifyRequest) {
   if (bearerToken && isOAuthBearerToken(bearerToken)) {
     const verified = await verifyOAuthAccessToken(bearerToken);
     if (!verified) throw new ErrorResponse("UNAUTHORIZED");
-    if (!hasRequiredScopes(verified.token, route?.config?.permissions)) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+    if (!hasRequiredScopes(verified.token, routePermissions)) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
 
     req.userSession = verified.userSession;
     req.oauthToken = verified.token;
@@ -56,12 +60,19 @@ export async function authHook(req: FastifyRequest) {
     const allowGuest = route?.config?.allowGuestAccess && !settings.enforceAuthForAllRoutes;
     const netMonsterUserAgent = process.env.NTM_USERAGENT || null;
     const isNetMonsterExport = netMonsterUserAgent && req.headers["user-agent"]?.startsWith(netMonsterUserAgent) && url.includes("/cells/export");
-    if (!user && !allowGuest && !isNetMonsterExport) throw new ErrorResponse("UNAUTHORIZED");
+    const requiresAuthentication = !allowGuest && !isNetMonsterExport;
+    if (!user && requiresAuthentication) throw new ErrorResponse("UNAUTHORIZED");
 
     req.userSession = user;
 
     const isTwoFactorRoute = TWO_FACTOR_ALLOWED.some((p) => url?.startsWith(p));
     if (!isTwoFactorRoute && user?.user.forceTotp && !user.user.twoFactorEnabled) throw new ErrorResponse("TWO_FACTOR_REQUIRED");
+
+    const isIntrinsicallyProtected = !isPublicByStatic && !route.config?.allowGuestAccess;
+    if (user && isIntrinsicallyProtected && routePermissionObject) {
+      const hasPermissions = await verifyPermissions(user.user.id, routePermissionObject);
+      if (!hasPermissions) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+    }
   }
 
   if (authHeader) {
@@ -86,20 +97,7 @@ export async function authHook(req: FastifyRequest) {
       return;
     }
 
-    let routePermissions: Record<string, string[]> | undefined;
-    if (route?.config?.permissions) {
-      // Example: ["read:users", "write:posts"] => { users: ["read"], posts: ["write"] }
-      routePermissions = {};
-      for (const perm of route.config.permissions) {
-        const [action, resource] = perm.split(":");
-        if (action && resource) {
-          if (!routePermissions[resource]) routePermissions[resource] = [];
-          routePermissions[resource].push(action);
-        }
-      }
-    }
-
-    const { valid, key } = await verifyApiKey(apiKey, routePermissions);
+    const { valid, key } = await verifyApiKey(apiKey, routePermissionObject);
     if (!valid || !key) throw new ErrorResponse("FORBIDDEN");
 
     req.apiToken = key as ApiToken;

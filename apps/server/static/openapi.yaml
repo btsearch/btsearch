@@ -549,7 +549,7 @@ paths:
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
         - name: list
           in: query
-          description: User list UUID. Only stations belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          description: User list UUID. Only stations belonging to that list are returned. Private lists require authentication and ownership (or admin `read_all:user_lists` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -897,7 +897,7 @@ paths:
     get:
       tags: [Comments]
       summary: List all station comments
-      description: Requires `read:comments` permission
+      description: Requires `read_all:comments` permission
       security:
         - CookieAuth: []
       parameters:
@@ -1253,7 +1253,7 @@ paths:
     get:
       tags: [Stations]
       summary: Get public change history for station
-      description: Changes derived from audit log records, what changed, when, and the previous/new values. Author info is included only for editors and admins
+      description: Logical operations affecting the station, grouped into record-change sections. Author info is included only for editors and admins
       parameters:
         - $ref: "#/components/parameters/StationIdPath"
         - name: limit
@@ -1261,7 +1261,7 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
         - name: cursor
           in: query
-          description: Returns entries with an ID lower than this value (taken from `nextCursor` of the previous page)
+          description: Returns operations with an ID lower than this value (taken from `nextCursor` of the previous page)
           schema: { type: integer }
       responses:
         "200":
@@ -1272,7 +1272,7 @@ paths:
                 type: object
                 required: [data, nextCursor]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/StationHistoryEntry" } }
+                  data: { type: array, items: { $ref: "#/components/schemas/StationHistoryOperation" } }
                   nextCursor: { type: integer, nullable: true }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
@@ -1678,7 +1678,7 @@ paths:
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
         - name: list
           in: query
-          description: User list UUID. Only locations with at least one station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          description: User list UUID. Only locations with at least one station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `read_all:user_lists` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -2123,7 +2123,7 @@ paths:
     get:
       tags: [Submissions]
       summary: List all submissions (admin)
-      description: Returns all submissions across all users. Requires `read:submissions` permission
+      description: Returns all submissions across all users. Requires `read_all:submissions` permission
       security:
         - CookieAuth: []
       parameters:
@@ -3046,10 +3046,10 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /audit-logs:
+  /audit-operations:
     get:
       tags: [Audit Logs]
-      summary: List audit logs
+      summary: List audit operations
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3060,23 +3060,21 @@ paths:
         - name: offset
           in: query
           schema: { type: integer, minimum: 0, default: 0 }
-        - name: table_name
+        - name: kinds
           in: query
+          description: Comma-separated operation kinds
           schema: { type: string }
-        - name: record_id
+        - name: entities
           in: query
-          description: Search record ID, IP address, old/new values, and metadata
+          description: Comma-separated changed entity names
           schema: { type: string }
-        - name: actions
+        - name: ops
           in: query
-          description: Comma-separated list of audit actions to filter by (e.g. `stations.create,stations.delete`)
+          description: Comma-separated physical row operations (`create`, `update`, `delete`)
           schema: { type: string }
-        - name: invoked_by
-          in: query
-          schema: { type: string, format: uuid }
         - name: user_ids
           in: query
-          description: Comma-separated list of user IDs to filter by actor
+          description: Comma-separated user IDs matched against the credited actor or performer
           schema: { type: string }
         - name: from
           in: query
@@ -3089,6 +3087,14 @@ paths:
         - name: sort
           in: query
           schema: { type: string, enum: [asc, desc], default: desc }
+        - name: station_id
+          in: query
+          description: Internal station ID present on at least one entry
+          schema: { type: integer, minimum: 1 }
+        - name: q
+          in: query
+          description: Exact record/station ID search when numeric; otherwise exact record ID or metadata text search
+          schema: { type: string, maxLength: 100 }
       responses:
         "200":
           description: OK
@@ -3098,7 +3104,7 @@ paths:
                 type: object
                 required: [data, totalCount]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/AuditLogWithUser" } }
+                  data: { type: array, items: { $ref: "#/components/schemas/AuditOperationSummary" } }
                   totalCount: { type: integer }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -3106,10 +3112,10 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /audit-logs/{id}:
+  /audit-operations/{id}:
     get:
       tags: [Audit Logs]
-      summary: Get audit log by ID
+      summary: Get an audit operation and its entries
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3124,10 +3130,42 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: "#/components/schemas/AuditLogWithUser" }
+                  data: { $ref: "#/components/schemas/AuditOperationDetail" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /audit-operations/{id}/revert:
+    post:
+      tags: [Audit Logs]
+      summary: Revert all supported changes in an operation or selected entries
+      security:
+        - ApiKeyAuth: []
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuditRevertRequest" }
+      responses:
+        "200":
+          description: Revert completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditRevertResult" }
+        "400": { $ref: "#/components/responses/AuditRevertBadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/AuditConflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -3167,7 +3205,7 @@ paths:
           schema: { type: boolean, default: false }
         - name: list
           in: query
-          description: User list UUID. Only locations with at least one UKE station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          description: User list UUID. Only locations with at least one UKE station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `read_all:user_lists` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -3391,7 +3429,7 @@ paths:
           schema: { type: string }
         - name: list
           in: query
-          description: User list UUID. Only microwave links belonging to that list are returned. Private lists require authentication and ownership (or admin `user_lists:read` permission). Combinable with all other filters
+          description: User list UUID. Only microwave links belonging to that list are returned. Private lists require authentication and ownership (or admin `read_all:user_lists` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -3541,7 +3579,7 @@ paths:
     get:
       tags: [Lists]
       summary: List user lists
-      description: Returns lists owned by the authenticated user. Admins with `user_lists:read` permission can pass `all=true` to see all lists across all users
+      description: Returns lists owned by the authenticated user. Admins with `read_all:user_lists` permission can pass `all=true` to see all lists across all users
       security:
         - CookieAuth: []
       parameters:
@@ -3556,7 +3594,7 @@ paths:
           schema: { type: string }
         - name: all
           in: query
-          description: Return all users' lists. Requires `user_lists:read` admin permission. Ignored for non-admins
+          description: Return all users' lists. Requires `read_all:user_lists` admin permission. Ignored for non-admins
           schema: { type: boolean, default: false }
       responses:
         "200":
@@ -3605,7 +3643,7 @@ paths:
     get:
       tags: [Lists]
       summary: Get list metadata and member IDs
-      description: "Returns the list's metadata plus the IDs of its member stations and microwave links. To fetch the member objects (optionally filtered and paginated), pass the list UUID as the `list` query parameter to `/stations`, `/locations`, `/uke/locations` or `/uke/radiolines`. Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `user_lists:read` permission)"
+      description: "Returns the list's metadata plus the IDs of its member stations and microwave links. To fetch the member objects (optionally filtered and paginated), pass the list UUID as the `list` query parameter to `/stations`, `/locations`, `/uke/locations` or `/uke/radiolines`. Public lists are accessible without authentication. Private lists require authentication and ownership (or admin `read_all:user_lists` permission)"
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -4106,6 +4144,61 @@ components:
             errors:
               - code: DUPLICATE_ENTRY
                 message: Duplicate entry
+    AuditRevertBadRequest:
+      description: The revert request is invalid, or none of its selected entries can be reverted
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiError"
+              - type: object
+                properties:
+                  errors:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      required: [code, message]
+                      properties:
+                        code: { type: string, enum: [BAD_REQUEST, VALIDATION_ERROR, INVALID_QUERY] }
+                        message: { type: string }
+                        details:
+                          type: array
+                          items:
+                            oneOf:
+                              - $ref: "#/components/schemas/AuditRevertSkipped"
+                              - type: object
+                                required: [field]
+                                properties:
+                                  field: { type: string }
+                                  validationMessage: { type: string, nullable: true }
+    AuditConflict:
+      description: The current database state conflicts with the requested revert, or its idempotency key was reused within the 30-second window
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/ApiError"
+              - type: object
+                properties:
+                  errors:
+                    type: array
+                    minItems: 1
+                    items:
+                      oneOf:
+                        - type: object
+                          required: [code, message, details]
+                          properties:
+                            code: { type: string, enum: [CONFLICT] }
+                            message: { type: string }
+                            details:
+                              type: array
+                              items: { $ref: "#/components/schemas/AuditRevertConflict" }
+                        - type: object
+                          required: [code, message]
+                          properties:
+                            code: { type: string, enum: [DUPLICATE_REQUEST] }
+                            message: { type: string }
     InternalServerError:
       description: Internal server error (e.g. failed to create/update/delete)
       content:
@@ -4257,11 +4350,16 @@ components:
                   - ALREADY_LOGGED_IN
                   - INSUFFICIENT_PERMISSIONS
                   - TOO_MANY_REQUESTS
+                  - QUOTA_EXCEEDED
                   - DUPLICATE_ENTRY
+                  - CONFLICT
+                  - SERVICE_UNAVAILABLE
+                  - TWO_FACTOR_REQUIRED
+                  - DUPLICATE_REQUEST
               message: { type: string }
               details:
                 type: array
-                description: Only present for VALIDATION_ERROR
+                description: Present for validation errors and endpoint-specific detailed responses
                 items:
                   type: object
                   properties:
@@ -5095,58 +5193,230 @@ components:
         image: { type: string, nullable: true }
         name: { type: string }
 
-    AuditAction:
+    AuditOperationKind:
       type: string
       enum:
-        - stations.create
-        - stations.update
-        - stations.delete
+        - station.create
+        - station.edit
+        - station.delete
+        - station.photos
         - cells.create
         - cells.update
         - cells.delete
-        - locations.create
-        - locations.update
-        - locations.delete
-        - operators.create
-        - operators.update
-        - operators.delete
-        - bands.create
-        - bands.update
-        - bands.delete
-        - regions.create
-        - regions.update
-        - regions.delete
-        - submissions.create
-        - submissions.update
-        - submissions.delete
-        - submissions.approve
-        - submissions.reject
+        - location.create
+        - location.edit
+        - location.delete
+        - location.photos
+        - submission.create
+        - submission.update
+        - submission.delete
+        - submission.approve
+        - submission.reject
+        - submission.cleanup
+        - submission.photos
+        - analyzer.apply
+        - comment.create
+        - comment.update
+        - comment.delete
+        - operator.create
+        - operator.update
+        - operator.delete
+        - band.create
+        - band.update
+        - band.delete
+        - region.create
+        - region.update
+        - region.delete
+        - list.create
+        - list.update
+        - list.delete
         - settings.update
-        - station_comments.create
-        - station_comments.delete
-        - user_lists.create
-        - user_lists.update
-        - user_lists.delete
-        - uke_import.start
-    AuditLogWithUser:
+        - uke.import
+        - system.inactive_cleanup
+        - system.submission_cleanup
+        - revert
+    AuditEntity:
+      type: string
+      enum:
+        - stations
+        - cells
+        - locations
+        - station_sectors
+        - extra_identificators
+        - station_photo_selections
+        - location_photos
+        - station_comments
+        - submissions
+        - submission_photos
+        - operators
+        - bands
+        - regions
+        - user_lists
+        - settings
+    AuditOp:
+      type: string
+      enum: [create, update, delete]
+    AuditSource:
+      type: string
+      enum: [api, import, system]
+    AuditUserSummary:
       type: object
+      required: [id, name, username, image]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        username: { type: string, nullable: true }
+        image: { type: string, nullable: true }
+    AuditOperationCount:
+      type: object
+      required: [entity, op, count]
+      properties:
+        entity: { $ref: "#/components/schemas/AuditEntity" }
+        op: { $ref: "#/components/schemas/AuditOp" }
+        count: { type: integer }
+    AuditOperationSummary:
+      type: object
+      required:
+        [
+          id,
+          kind,
+          source,
+          client_key,
+          createdAt,
+          actor,
+          performer,
+          ip_address,
+          user_agent,
+          metadata,
+          reverts_operation_id,
+          reverted_by_operation_id,
+          entry_count,
+          counts,
+          station_ids,
+        ]
       properties:
         id: { type: integer }
-        action: { $ref: "#/components/schemas/AuditAction" }
-        table_name: { type: string }
-        record_id: { type: integer, nullable: true }
-        old_values: { type: object, nullable: true }
-        new_values: { type: object, nullable: true }
-        metadata: { type: object, nullable: true }
-        source: { type: string, enum: [api, import, system], nullable: true }
+        kind: { $ref: "#/components/schemas/AuditOperationKind" }
+        source: { $ref: "#/components/schemas/AuditSource" }
+        client_key: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+        actor:
+          allOf: [{ $ref: "#/components/schemas/AuditUserSummary" }]
+          nullable: true
+        performer:
+          allOf: [{ $ref: "#/components/schemas/AuditUserSummary" }]
+          nullable: true
         ip_address: { type: string, nullable: true }
         user_agent: { type: string, nullable: true }
-        invoked_by: { type: string, format: uuid, nullable: true }
+        metadata: { type: object, nullable: true, additionalProperties: true }
+        reverts_operation_id: { type: integer, nullable: true }
+        reverted_by_operation_id: { type: integer, nullable: true }
+        entry_count: { type: integer }
+        counts: { type: array, items: { $ref: "#/components/schemas/AuditOperationCount" } }
+        station_ids: { type: array, items: { type: integer } }
+    AuditSnapshot:
+      description: A complete row snapshot or a set-valued array snapshot; null when that side of the change does not exist
+      nullable: true
+    AuditEntry:
+      type: object
+      required: [id, entity, op, record_id, station_id, old_values, new_values, metadata, createdAt, revertible]
+      properties:
+        id: { type: integer }
+        entity: { $ref: "#/components/schemas/AuditEntity" }
+        op: { $ref: "#/components/schemas/AuditOp" }
+        record_id: { type: string, nullable: true }
+        station_id: { type: integer, nullable: true, description: Internal station ID used for history scoping }
+        old_values: { $ref: "#/components/schemas/AuditSnapshot" }
+        new_values: { $ref: "#/components/schemas/AuditSnapshot" }
+        metadata: { type: object, nullable: true, additionalProperties: true }
         createdAt: { type: string, format: date-time }
-        user:
-          allOf:
-            - $ref: "#/components/schemas/UserPublic"
-          nullable: true
+        revertible: { type: boolean }
+        revert_reason: { type: string }
+    AuditOperationLink:
+      type: object
+      required: [id, kind, createdAt]
+      properties:
+        id: { type: integer }
+        kind: { $ref: "#/components/schemas/AuditOperationKind" }
+        createdAt: { type: string, format: date-time }
+    AuditOperationDetail:
+      allOf:
+        - $ref: "#/components/schemas/AuditOperationSummary"
+        - type: object
+          required: [entries, revertible, reverts, reverted_by]
+          properties:
+            entries: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+            revertible: { type: boolean }
+            reverts:
+              allOf: [{ $ref: "#/components/schemas/AuditOperationLink" }]
+              nullable: true
+            reverted_by:
+              allOf: [{ $ref: "#/components/schemas/AuditOperationLink" }]
+              nullable: true
+    AuditRevertRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        entry_ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        force: { type: boolean, default: false }
+    AuditRevertConflictField:
+      type: object
+      required: [field, expected, current]
+      properties:
+        field: { type: string }
+        expected: { $ref: "#/components/schemas/AuditSnapshot" }
+        current: { $ref: "#/components/schemas/AuditSnapshot" }
+    AuditRevertConflict:
+      type: object
+      required: [entry_id, entity, op, record_id, station_id, kind, message]
+      properties:
+        entry_id: { type: integer }
+        entity: { $ref: "#/components/schemas/AuditEntity" }
+        op: { $ref: "#/components/schemas/AuditOp" }
+        record_id: { type: string, nullable: true }
+        station_id: { type: integer, nullable: true }
+        kind:
+          type: string
+          enum: [missing, stale, already_absent, exists, unique_violation, fk_missing, referenced, station_without_cells, concurrent_modification]
+        message: { type: string }
+        fields: { type: array, items: { $ref: "#/components/schemas/AuditRevertConflictField" } }
+        dependents:
+          type: array
+          items:
+            type: object
+            required: [table, count]
+            properties:
+              table: { type: string }
+              count: { type: integer }
+        constraint: { type: string }
+    AuditRevertSkipped:
+      type: object
+      required: [entry_id, reason]
+      properties:
+        entry_id: { type: integer }
+        reason: { type: string }
+        message: { type: string }
+    AuditRevertSkippedField:
+      type: object
+      required: [entry_id, field, reason]
+      properties:
+        entry_id: { type: integer }
+        field: { type: string }
+        reason: { type: string, enum: [fk_missing] }
+    AuditRevertResult:
+      type: object
+      required: [operation, reverted, skipped, skipped_fields, affected_station_ids]
+      properties:
+        operation: { $ref: "#/components/schemas/AuditOperationSummary" }
+        reverted: { type: array, items: { type: integer } }
+        skipped: { type: array, items: { $ref: "#/components/schemas/AuditRevertSkipped" } }
+        skipped_fields: { type: array, items: { $ref: "#/components/schemas/AuditRevertSkippedField" } }
+        affected_station_ids: { type: array, items: { type: integer } }
 
     StationHistoryChangeValue:
       description: A primitive value, an array of primitives, or a flat object of primitives. Null when one side of the change is absent.
@@ -5157,7 +5427,7 @@ components:
       properties:
         field: { type: string, description: Normalized changed field; photo selection events may use photo or main_photo }
         label: { type: string, description: 'Cell identity label, e.g. "LTE 1800 · CLID 31"' }
-        rat: { type: string, description: RAT of the affected cell, present on cell changes }
+        rat: { type: string, description: "RAT of the affected cell, present on cell changes" }
         from: { $ref: "#/components/schemas/StationHistoryChangeValue" }
         to: { $ref: "#/components/schemas/StationHistoryChangeValue" }
     StationHistoryAuthor:
@@ -5174,18 +5444,26 @@ components:
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
-    StationHistoryEntry:
+    StationHistorySection:
       type: object
-      required: [id, kind, action, createdAt, changes, photoReferences]
+      required: [kind, action, changes]
       properties:
-        id: { type: integer, description: ID of the underlying audit log entry }
         kind: { type: string, enum: [station, location, cells, sectors, network_ids, photos] }
         action: { type: string, enum: [create, update, delete] }
-        createdAt: { type: string, format: date-time }
         changes: { type: array, items: { $ref: "#/components/schemas/StationHistoryChange" } }
+    StationHistoryOperation:
+      type: object
+      required: [id, kind, createdAt, revertible, reverted_by_operation_id, sections, photoReferences]
+      properties:
+        id: { type: integer, description: Audit operation ID }
+        kind: { $ref: "#/components/schemas/AuditOperationKind" }
+        createdAt: { type: string, format: date-time }
+        revertible: { type: boolean }
+        reverted_by_operation_id: { type: integer, nullable: true }
+        sections: { type: array, items: { $ref: "#/components/schemas/StationHistorySection" } }
         photoReferences:
           type: array
-          description: Currently available photos referenced by this history entry
+          description: Currently available photos referenced by this operation
           items: { $ref: "#/components/schemas/StationHistoryPhotoReference" }
         author:
           description: Included only for editors and admins; null for system or import changes

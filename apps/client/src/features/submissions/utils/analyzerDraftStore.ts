@@ -1,3 +1,5 @@
+import { nanoid } from "nanoid";
+
 import { isCellType } from "@/features/shared/cellTypes";
 import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
 import type { AnalyzerMatchedCell, AnalyzerResult } from "@/lib/analyzer/api";
@@ -6,6 +8,7 @@ const LEGACY_PREFIX = "analyzer:draft:";
 const CURRENT_PREFIX = "analyzer:draft:v1:";
 const STORAGE_VERSION = 1;
 const DRAFT_TTL_MS = 60 * 60 * 1000;
+const NANOID_PATTERN = /^[A-Za-z0-9_-]{21}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never;
@@ -53,6 +56,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const isInteger = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value);
 const isNonNegativeInteger = (value: unknown): value is number => isInteger(value) && value >= 0;
 const isNullableInteger = (value: unknown): value is number | null => value === null || isInteger(value);
+const isDraftId = (value: string): boolean => NANOID_PATTERN.test(value) || UUID_PATTERN.test(value);
 
 function safeRemoveItem(key: string) {
   try {
@@ -339,7 +343,7 @@ export function clearDraft(id: string) {
 export function saveDraft(draft: Omit<AnalyzerDraft, "id" | "createdAt">): string | null {
   clearStaleDrafts();
   try {
-    const savedDraft = createSavedDraft(draft, crypto.randomUUID());
+    const savedDraft = createSavedDraft(draft, nanoid());
     if (writeCurrentDraft(savedDraft)) return savedDraft.id;
     clearStaleDrafts(true);
     return writeCurrentDraft(savedDraft) ? savedDraft.id : null;
@@ -349,6 +353,8 @@ export function saveDraft(draft: Omit<AnalyzerDraft, "id" | "createdAt">): strin
 }
 
 export function loadDraft(id: string): AnalyzerDraft | null {
+  if (!isDraftId(id)) return null;
+
   const serializedCurrent = safeGetItem(currentStorageKey(id));
   if (serializedCurrent) {
     const draft = parseCurrentDraft(serializedCurrent, id);
@@ -384,8 +390,8 @@ export function clearStaleDrafts(force = false) {
   }
 
   for (const key of keys) {
-    const isCurrent = key.startsWith(CURRENT_PREFIX) && UUID_PATTERN.test(key.slice(CURRENT_PREFIX.length));
-    const isLegacy = !key.startsWith(CURRENT_PREFIX) && key.startsWith(LEGACY_PREFIX) && UUID_PATTERN.test(key.slice(LEGACY_PREFIX.length));
+    const isCurrent = key.startsWith(CURRENT_PREFIX) && isDraftId(key.slice(CURRENT_PREFIX.length));
+    const isLegacy = !key.startsWith(CURRENT_PREFIX) && key.startsWith(LEGACY_PREFIX) && isDraftId(key.slice(LEGACY_PREFIX.length));
     if (!isCurrent && !isLegacy) continue;
     if (force) {
       safeRemoveItem(key);

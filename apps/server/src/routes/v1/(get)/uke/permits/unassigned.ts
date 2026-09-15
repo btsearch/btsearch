@@ -232,7 +232,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 const getUnassignedUkePermits: Route<ReqQuery, ResponseBody> = {
   url: "/uke/permits/unassigned",
   method: "GET",
-  config: { permissions: ["read:uke_permits_orphaned"], allowGuestAccess: false },
+  config: {
+    permissions: ["read_unassigned:uke_permits"],
+    allowGuestAccess: false,
+  },
   schema: schemaRoute,
   handler,
 };

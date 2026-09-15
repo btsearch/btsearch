@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { db } from "../database/psql.js";
 import type { Session } from "../interfaces/fastify.interface.js";
+import type { RoutePermission } from "../plugins/auth/permissions.js";
 
 export type OAuthTokenContext = {
   clientId: string;
@@ -62,7 +63,7 @@ export async function verifyOAuthAccessToken(bearerToken: string): Promise<{ use
   };
 }
 
-export function hasRequiredScopes(token: OAuthTokenContext, routePermissions: string[] | undefined) {
+export function hasRequiredScopes(token: OAuthTokenContext, routePermissions: readonly RoutePermission[] | undefined) {
   if (!routePermissions?.length) return true;
   return routePermissions.every((permission) => token.scopes.includes(permission));
 }

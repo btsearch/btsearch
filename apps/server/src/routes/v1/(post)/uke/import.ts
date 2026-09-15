@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, recordAuditOperation } from "../../../../services/audit/index.js";
 import { startImportJob } from "../../../../services/ukeImportJob.service.js";
 
 const importStepSchema = z.object({
@@ -53,15 +53,10 @@ type ResponseData = z.infer<typeof importJobStatusSchema>;
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const status = await startImportJob(req.body);
-  await createAuditLog(
-    {
-      action: "uke_import.start",
-      table_name: "uke_import",
-      source: "import",
-      metadata: { config: req.body, status: status.state },
-    },
-    req,
-  );
+  await recordAuditOperation(auditContextFromRequest(req, "import"), {
+    kind: "uke.import",
+    metadata: { config: req.body, status: status.state },
+  });
   res.send({ data: status });
 }
 
@@ -70,7 +65,7 @@ const importUkeData: Route<ReqBody, ResponseData> = {
   method: "POST",
   schema: schemaRoute,
   config: {
-    permissions: ["write:uke_permits", "write:uke_radiolines"],
+    permissions: ["run:uke_import"],
     allowGuestAccess: false,
   },
   handler,

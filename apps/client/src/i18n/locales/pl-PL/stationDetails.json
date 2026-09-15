@@ -148,6 +148,38 @@
     "otherCells": "Inne",
     "openAuditLog": "Logi w dzienniku",
     "openSubmissions": "Zgłoszenia",
+    "openOperation": "Otwórz w dzienniku",
+    "operations": {
+      "station": {
+        "create": "Utworzono stację",
+        "edit": "Zaktualizowano stację",
+        "photos": "Zaktualizowano zdjęcia",
+        "delete": "Dezaktywowano stację"
+      },
+      "cells": {
+        "create": "Dodano komórki",
+        "update": "Zaktualizowano komórki",
+        "delete": "Usunięto komórki"
+      },
+      "location": {
+        "create": "Dodano lokalizację",
+        "edit": "Zaktualizowano lokalizację",
+        "delete": "Usunięto lokalizację",
+        "photos": "Zaktualizowano zdjęcia"
+      },
+      "submission": {
+        "approve": "Zatwierdzono zgłoszenie"
+      },
+      "analyzer": {
+        "apply": "Zastosowano analizator"
+      },
+      "revert": "Cofnięto zmiany",
+      "fallback": "Zmiany stacji"
+    },
+    "revert": {
+      "action": "Cofnij tę operację",
+      "reverted": "Cofnięto"
+    },
     "values": {
       "previous": "Poprzednia wartość",
       "current": "Aktualna wartość",

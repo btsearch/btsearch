@@ -11,6 +11,7 @@ import type {
 } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 
+import type { RoutePermission } from "../plugins/auth/permissions.js";
 import type { auth } from "../plugins/betterauth.plugin.js";
 import type { OAuthTokenContext } from "../services/oauthToken.service.js";
 import type { TokenTier } from "./auth.interface.js";
@@ -43,8 +44,9 @@ declare module "fastify" {
   }
 
   export interface FastifyContextConfig {
-    permissions?: string[];
+    permissions?: RoutePermission[];
     allowGuestAccess?: boolean;
+    retainIdempotencyKey?: boolean;
     proto?: DescMessage;
   }
 }

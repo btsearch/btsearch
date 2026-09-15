@@ -1,4 +1,5 @@
 import { API_BASE, fetchJson } from "@/lib/api";
+import type { AuditOperationHandle } from "@/lib/api";
 import type { LocationWithStations } from "@/types/station";
 
 type LocationsResponse = { data: LocationWithStations[]; totalCount: number };
@@ -30,11 +31,12 @@ export async function fetchLocationDetail(id: number): Promise<LocationWithStati
   return res.data;
 }
 
-export async function patchLocation(id: number, body: Record<string, unknown>) {
+export async function patchLocation(id: number, body: Record<string, unknown>, auditOperation?: AuditOperationHandle) {
   return fetchJson<{ data: unknown }>(`${API_BASE}/locations/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    auditOperation,
   });
 }
 

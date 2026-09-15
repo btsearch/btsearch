@@ -9,7 +9,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 
 const updateSchema = createUpdateSchema(userLists, {
@@ -49,22 +49,25 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const [list, isAdmin] = await Promise.all([
     db.query.userLists.findFirst({ where: { uuid } }),
-    verifyPermissions(userId, { user_lists: ["write"] }),
+    verifyPermissions(userId, { user_lists: ["manage_all"] }),
   ]);
   if (!list) throw new ErrorResponse("NOT_FOUND");
   if (!isAdmin && list.created_by !== userId) throw new ErrorResponse("FORBIDDEN");
 
-  const [updated] = await db
-    .update(userLists)
-    .set({ ...req.body, updatedAt: new Date() })
-    .where(eq(userLists.uuid, uuid))
-    .returning()
-    .catch(() => {
-      throw new ErrorResponse("FAILED_TO_UPDATE");
-    });
-  if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
+  const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.update" }, async (tx, audit) => {
+    const [result] = await tx
+      .update(userLists)
+      .set({ ...req.body, updatedAt: new Date() })
+      .where(eq(userLists.uuid, uuid))
+      .returning();
+    if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
 
-  await createAuditLog({ action: "user_lists.update", table_name: "user_lists", record_id: updated.id, old_values: list, new_values: updated }, req);
+    await audit.log({ entity: "user_lists", op: "update", recordId: result.id, old: list, new: result });
+    return result;
+  }).catch((error) => {
+    if (error instanceof ErrorResponse) throw error;
+    throw new ErrorResponse("FAILED_TO_UPDATE");
+  });
 
   return res.send({ data: updated });
 }
@@ -72,6 +75,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateList: Route<RequestData, ResponseData> = {
   url: "/lists/:uuid",
   method: "PATCH",
+  config: { permissions: ["update:user_lists"] },
   schema: schemaRoute,
   handler,
 };

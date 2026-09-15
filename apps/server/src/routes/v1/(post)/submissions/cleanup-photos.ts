@@ -9,8 +9,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
@@ -27,11 +26,7 @@ const schemaRoute = {
 type ResponseData = { deleted: number };
 
 async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseData>>) {
-  const session = req.userSession;
-  if (!session?.user) throw new ErrorResponse("UNAUTHORIZED");
-
-  const hasPermission = await verifyPermissions(session.user.id, { submissions: ["delete"] });
-  if (!hasPermission) throw new ErrorResponse("INSUFFICIENT_PERMISSIONS");
+  if (!req.userSession?.user) throw new ErrorResponse("UNAUTHORIZED");
 
   const rejectedSubmissions = await db.query.submissions.findMany({
     where: {
@@ -63,21 +58,20 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
     columns: { id: true, uuid: true },
   });
 
-  await db.delete(submissionPhotos).where(inArray(submissionPhotos.id, photoIds));
-  await db.delete(attachments).where(inArray(attachments.id, attachmentIds));
-
-  await Promise.all(attachmentRows.map(({ uuid }) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
-
-  await createAuditLog(
+  await runAuditedOperation(
+    auditContextFromRequest(req),
     {
-      action: "submission_photos.delete",
-      table_name: "submission_photos",
-      record_id: null,
-      new_values: null,
+      kind: "submission.cleanup",
+      allowEmpty: true,
       metadata: { deleted_count: attachmentRows.length },
     },
-    req,
+    async (tx) => {
+      await tx.delete(submissionPhotos).where(inArray(submissionPhotos.id, photoIds));
+      await tx.delete(attachments).where(inArray(attachments.id, attachmentIds));
+    },
   );
+
+  await Promise.all(attachmentRows.map(({ uuid }) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
 
   return res.send({ data: { deleted: attachmentRows.length } });
 }
@@ -85,7 +79,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
 const cleanupRejectedPhotos: Route<Record<string, never>, ResponseData> = {
   url: "/submissions/cleanup-photos",
   method: "POST",
-  config: { permissions: ["delete:submissions"] },
+  config: { permissions: ["cleanup:submissions"] },
   schema: schemaRoute,
   handler,
 };

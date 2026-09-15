@@ -1,39 +1,53 @@
 import { attachments, locationPhotos, locations } from "@openbts/drizzle";
 import { eq, inArray } from "drizzle-orm";
-import fs from "node:fs/promises";
-import path from "node:path";
 
-import type { Database } from "../../database/psql.js";
+import type { AuditRecorder } from "../audit/index.js";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+export async function deleteLocationWithPhotos(audit: AuditRecorder, locationId: number, stationId?: number): Promise<string[]> {
+  const location = await audit.tx.query.locations.findFirst({ where: { id: locationId } });
+  if (location === undefined) return [];
 
-type LocationTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+  const photos = await audit.tx
+    .select({ photo: locationPhotos, attachmentId: attachments.id, attachmentUuid: attachments.uuid })
+    .from(locationPhotos)
+    .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
+    .where(eq(locationPhotos.location_id, locationId));
 
-export async function deleteLocationWithPhotos(executor: Database | LocationTransaction, locationId: number) {
-  const photos = await executor.query.locationPhotos.findMany({
-    where: { location_id: locationId },
-    with: { attachment: { columns: { id: true, uuid: true } } },
-  });
+  await audit.tx.delete(locations).where(eq(locations.id, locationId));
+  await audit.logMany([
+    ...photos.map(({ photo }) => ({
+      entity: "location_photos" as const,
+      op: "delete" as const,
+      recordId: photo.id,
+      stationId,
+      old: photo,
+      metadata: { location_id: locationId },
+    })),
+    {
+      entity: "locations",
+      op: "delete",
+      recordId: locationId,
+      stationId,
+      old: location,
+    },
+  ]);
 
-  await executor.delete(locations).where(eq(locations.id, locationId));
+  const attachmentIds = photos.map(({ attachmentId }) => attachmentId);
+  if (attachmentIds.length === 0) return [];
 
-  const attachmentIds = photos.map((p) => p.attachment.id);
-  if (attachmentIds.length === 0) return;
-
-  const stillReferenced = await executor
+  const stillReferenced = await audit.tx
     .select({ attachment_id: locationPhotos.attachment_id })
     .from(locationPhotos)
     .where(inArray(locationPhotos.attachment_id, attachmentIds));
   const stillReferencedIds = new Set(stillReferenced.map((row) => row.attachment_id));
-  const deletablePhotos = photos.filter((p) => !stillReferencedIds.has(p.attachment.id));
-  if (deletablePhotos.length === 0) return;
+  const deletablePhotos = photos.filter(({ attachmentId }) => !stillReferencedIds.has(attachmentId));
+  if (deletablePhotos.length === 0) return [];
 
-  await executor.delete(attachments).where(
+  await audit.tx.delete(attachments).where(
     inArray(
       attachments.id,
-      deletablePhotos.map((p) => p.attachment.id),
+      deletablePhotos.map(({ attachmentId }) => attachmentId),
     ),
   );
-
-  await Promise.all(deletablePhotos.map((p) => fs.unlink(path.join(UPLOAD_DIR, `${p.attachment.uuid}.webp`)).catch(() => {})));
+  return deletablePhotos.map(({ attachmentUuid }) => attachmentUuid);
 }

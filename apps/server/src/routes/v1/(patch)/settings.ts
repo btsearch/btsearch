@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import { settingsDataSchema } from "../(get)/settings.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../services/auditLog.service.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../services/audit/index.js";
 import { type RuntimeSettings, getRuntimeSettings, updateRuntimeSettings } from "../../../services/settings.service.js";
 
 type ReqBody = { Body: Partial<RuntimeSettings> };
@@ -38,16 +38,11 @@ const schemaRoute = {
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<Response>>) {
   const patch = req.body;
   const oldSettings = getRuntimeSettings();
-  const updated = await updateRuntimeSettings(patch);
-  await createAuditLog(
-    {
-      action: "settings.update",
-      table_name: "settings",
-      old_values: oldSettings,
-      new_values: updated,
-    },
-    req,
-  );
+  const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "settings.update" }, async (_tx, audit) => {
+    const result = await updateRuntimeSettings(patch);
+    await audit.log({ entity: "settings", op: "update", recordId: null, old: oldSettings, new: result });
+    return result;
+  });
   res.send({ data: updated });
 }
 
@@ -55,7 +50,9 @@ const patchSettings: Route<ReqBody, Response> = {
   url: "/settings",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["update:settings"] },
+  config: {
+    permissions: ["update:settings"],
+  },
   handler,
 };
 

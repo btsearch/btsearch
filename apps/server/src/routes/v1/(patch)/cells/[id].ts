@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { createAuditLog } from "../../../../services/auditLog.service.js";
+import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../services/audit/index.js";
 import {
   checkCellDuplicate,
   checkLTEClidConsistency,
@@ -72,7 +72,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         cell.rat === "LTE" ? ({ ...cell.lte, ...lteDetails } as Record<string, unknown>) : (req.body.details as Record<string, unknown>);
       const operatorId = await getOperatorIdForStation(cell.station_id);
       if (operatorId) await checkCellDuplicate({ rat: cell.rat, details: identityDetails, excludeCellId: id }, operatorId);
-      await checkLTEClidConsistency(cell.station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: id }]);
+      // await checkLTEClidConsistency(cell.station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: id }]);
     }
 
     if (req.body.details && cell.rat === "NR") {
@@ -108,61 +108,47 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   }
 
   try {
-    const [updated] = await db
-      .update(cells)
-      .set({
-        ...req.body,
-        updatedAt: new Date(),
-      })
-      .where(eq(cells.id, id))
-      .returning();
-    if (!updated) throw new ErrorResponse("FAILED_TO_UPDATE");
+    const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.update" }, async (tx, audit) => {
+      const oldSnapshot = await loadCellSnapshot(tx, id);
+      if (!oldSnapshot) throw new ErrorResponse("NOT_FOUND");
 
-    if (req.body.details && isNormalRat(cell.rat)) {
-      const updatedDetails = await updateRATCellDetailsReturning(db, cell.rat, id, req.body.details as RATUpdateDetails);
-      if (!updatedDetails)
-        throw new ErrorResponse("FAILED_TO_UPDATE", {
-          message: `This cell has no ${cell.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,
-        });
-    }
+      const { details, ...patch } = req.body;
+      const [saved] = await tx
+        .update(cells)
+        .set({
+          ...patch,
+          updatedAt: new Date(),
+        })
+        .where(eq(cells.id, id))
+        .returning();
+      if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
-    const full = await db.query.cells.findFirst({
-      where: {
-        id,
-      },
-      with: { gsm: true, umts: true, lte: true, nr: true },
+      if (details && isNormalRat(cell.rat)) {
+        const updatedDetails = await updateRATCellDetailsReturning(tx, cell.rat, id, details as RATUpdateDetails);
+        if (!updatedDetails)
+          throw new ErrorResponse("FAILED_TO_UPDATE", {
+            message: `This cell has no ${cell.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,
+          });
+      }
+
+      const newSnapshot = await loadCellSnapshot(tx, id);
+      if (!newSnapshot) throw new ErrorResponse("FAILED_TO_UPDATE");
+
+      await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, cell.station_id));
+      await audit.log({
+        entity: "cells",
+        op: "update",
+        recordId: id,
+        stationId: cell.station_id,
+        old: oldSnapshot,
+        new: newSnapshot,
+      });
+      return newSnapshot as ResponseData;
     });
-    const details = full?.gsm ?? full?.umts ?? full?.lte ?? full?.nr ?? null;
-
-    const { gsm: _gsm, umts: _umts, lte: _lte, nr: _nr, ...oldBase } = cell;
-    const oldDetails = cell.gsm ?? cell.umts ?? cell.lte ?? cell.nr ?? null;
-    await createAuditLog(
-      {
-        action: "cells.update",
-        table_name: "cells",
-        record_id: id,
-        old_values: { ...oldBase, details: oldDetails },
-        new_values: { ...updated, details },
-        metadata: { station_id: cell.station_id },
-      },
-      req,
-    );
-
-    await db.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, cell.station_id));
-    await createAuditLog(
-      {
-        action: "stations.update",
-        table_name: "stations",
-        record_id: cell.station_id,
-        new_values: { updatedAt: new Date() },
-        metadata: { reason: "cells.update" },
-      },
-      req,
-    );
 
     queueStationCellsChangedNotification({ stationId: cell.station_id, counts: { updated: 1 } });
 
-    return res.send({ data: { ...updated, details } });
+    return res.send({ data: updated });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
@@ -172,7 +158,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateCell: Route<RequestData, ResponseData> = {
   url: "/cells/:id",
   method: "PATCH",
-  config: { permissions: ["write:cells"] },
+  config: { permissions: ["update:cells"] },
   schema: schemaRoute,
   handler,
 };

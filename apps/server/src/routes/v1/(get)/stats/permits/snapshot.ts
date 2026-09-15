@@ -127,6 +127,7 @@ const getPermitsSnapshot: Route<ReqBody, ResBody> = {
   schema: schemaRoute,
   config: {
     permissions: ["read:stats"],
+    allowGuestAccess: true,
   },
   handler,
 };

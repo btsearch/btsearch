@@ -24,7 +24,8 @@ export async function idempotencyHook(req: FastifyRequest, res: FastifyReply) {
 
   if (acquired === null) throw new ErrorResponse("DUPLICATE_REQUEST");
 
-  res.raw.on("finish", () => {
-    redis.del(redisKey).catch(() => {});
-  });
+  if (!req.routeOptions.config.retainIdempotencyKey)
+    res.raw.on("finish", () => {
+      redis.del(redisKey).catch(() => {});
+    });
 }
