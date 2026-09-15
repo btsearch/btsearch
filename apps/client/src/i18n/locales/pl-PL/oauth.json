@@ -32,8 +32,11 @@
       "read_uke_permits": "Pozwolenia UKE",
       "read_uke_radiolines": "Linie radiowe UKE",
       "create_comments": "Publikowanie komentarzy do stacji w Twoim imieniu",
-      "create_user_lists": "Tworzenie i zarządzanie Twoimi listami stacji",
-      "create_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu"
+      "create_user_lists": "Tworzenie Twoich list stacji",
+      "update_user_lists": "Aktualizowanie Twoich list stacji",
+      "create_submissions": "Zgłaszanie zmian danych stacji w Twoim imieniu",
+      "update_submissions": "Aktualizowanie Twoich zgłoszeń",
+      "delete_submissions": "Usuwanie Twoich zgłoszeń"
     }
   },
   "apps": {

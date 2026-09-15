@@ -32,8 +32,11 @@
       "read_uke_permits": "UKE permits",
       "read_uke_radiolines": "UKE microwave links",
       "create_comments": "Post station comments as you",
-      "create_user_lists": "Create and manage your station lists",
-      "create_submissions": "Submit station data changes as you"
+      "create_user_lists": "Create your station lists",
+      "update_user_lists": "Update your station lists",
+      "create_submissions": "Submit station data changes as you",
+      "update_submissions": "Update your submissions",
+      "delete_submissions": "Delete your submissions"
     }
   },
   "apps": {

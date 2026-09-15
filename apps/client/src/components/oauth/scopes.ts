@@ -1,7 +1,14 @@
 export const IDENTITY_SCOPES = ["openid", "profile", "email"] as const;
 export const OFFLINE_SCOPE = "offline_access";
 
-const KNOWN_WRITE_SCOPES = new Set(["create:comments", "create:user_lists", "create:submissions"]);
+const KNOWN_WRITE_SCOPES = new Set([
+  "create:comments",
+  "create:user_lists",
+  "update:user_lists",
+  "create:submissions",
+  "update:submissions",
+  "delete:submissions",
+]);
 
 export type GroupedScopes = {
   identity: string[];
