@@ -48,6 +48,8 @@ function getNotificationVisual(type: Notification["type"]) {
       return { icon: Tick02Icon, iconClassName: "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" };
     case "submission_rejected":
       return { icon: Cancel01Icon, iconClassName: "bg-destructive/10 text-destructive dark:bg-destructive/20" };
+    case "submission_photo_upload_failed":
+      return { icon: Image01Icon, iconClassName: "bg-destructive/10 text-destructive dark:bg-destructive/20" };
     case "new_submission":
       return { icon: Add01Icon, iconClassName: "bg-primary/10 text-primary dark:bg-primary/15" };
     case "station_cells_changed":

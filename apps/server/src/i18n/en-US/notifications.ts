@@ -15,6 +15,10 @@ export default {
     title: "Submission rejected",
     body: "Your submission has been rejected",
   },
+  submissionPhotoUploadFailed: {
+    title: "Submission deleted because photos were not uploaded",
+    body: "Your selected photos were not uploaded, so your submission was deleted",
+  },
   newSubmission: {
     title: "New submission",
     body: "A new submission is waiting for review",

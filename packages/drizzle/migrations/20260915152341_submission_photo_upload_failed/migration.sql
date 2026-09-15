@@ -1,0 +1,1 @@
+ALTER TYPE "notification_type" ADD VALUE 'submission_photo_upload_failed' BEFORE 'new_submission';

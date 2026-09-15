@@ -25,6 +25,7 @@ import { UkeSchema, locations, stations, ukeStations } from "./bts.ts";
 export const NotificationType = pgEnum("notification_type", [
   "submission_approved",
   "submission_rejected",
+  "submission_photo_upload_failed",
   "new_submission",
   "station_cells_changed",
   "station_photos_added",

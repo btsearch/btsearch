@@ -6,6 +6,7 @@ export type Notification = {
   type:
     | "submission_approved"
     | "submission_rejected"
+    | "submission_photo_upload_failed"
     | "new_submission"
     | "station_cells_changed"
     | "station_photos_added"

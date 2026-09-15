@@ -4,6 +4,7 @@ import webpush from "web-push";
 
 import db from "../../database/psql.js";
 import { getLabels, t } from "../../i18n/index.js";
+import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
 import { coalesceOrCreateStationNotification } from "./coalesceOrCreateStationNotification.js";
 import { getStationWatchers } from "./getStationWatchers.js";
@@ -14,7 +15,12 @@ const { VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
 if (VAPID_SUBJECT && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 export type StationNotificationType = "station_cells_changed" | "station_photos_added" | "station_comment_approved" | "station_uke_permit_added";
-export type NotificationType = "submission_approved" | "submission_rejected" | "new_submission" | StationNotificationType;
+export type NotificationType =
+  | "submission_approved"
+  | "submission_rejected"
+  | "submission_photo_upload_failed"
+  | "new_submission"
+  | StationNotificationType;
 
 const STATION_NOTIFICATION_TYPES: StationNotificationType[] = [
   "station_cells_changed",
@@ -22,12 +28,18 @@ const STATION_NOTIFICATION_TYPES: StationNotificationType[] = [
   "station_comment_approved",
   "station_uke_permit_added",
 ];
+const SUBMISSION_UPDATE_NOTIFICATION_TYPES = new Set<NotificationType>([
+  "submission_approved",
+  "submission_rejected",
+  "submission_photo_upload_failed",
+]);
 const SUBMISSION_APPROVAL_PUSH_WINDOW_MS = 10 * 60 * 1000;
 
 const NOTIFICATION_TYPE_KEY: Record<
   NotificationType,
   | "submissionApproved"
   | "submissionRejected"
+  | "submissionPhotoUploadFailed"
   | "newSubmission"
   | "stationCellsChanged"
   | "stationPhotosAdded"
@@ -36,6 +48,7 @@ const NOTIFICATION_TYPE_KEY: Record<
 > = {
   submission_approved: "submissionApproved",
   submission_rejected: "submissionRejected",
+  submission_photo_upload_failed: "submissionPhotoUploadFailed",
   new_submission: "newSubmission",
   station_cells_changed: "stationCellsChanged",
   station_photos_added: "stationPhotosAdded",
@@ -52,7 +65,14 @@ export interface CreateNotificationParams {
   actionUrl?: string;
 }
 
-async function prepareNotification(params: CreateNotificationParams) {
+export interface PreparedNotification {
+  title: string;
+  body: string;
+  locale: string | null | undefined;
+  metadata: Record<string, unknown> | undefined;
+}
+
+export async function prepareNotification(params: CreateNotificationParams): Promise<PreparedNotification> {
   const { userId, type, stationId, metadata } = params;
 
   const [user, stationOperatorName] = await Promise.all([
@@ -73,14 +93,15 @@ async function prepareNotification(params: CreateNotificationParams) {
 }
 
 async function insertNotification(
+  executor: Pick<DbTx, "insert">,
   params: CreateNotificationParams,
   title: string,
   metadata: Record<string, unknown> | undefined,
   pushQueuedAt: Date | null = null,
-): Promise<string | undefined> {
+): Promise<string> {
   const { userId, type, submissionId, stationId, actionUrl } = params;
 
-  const [inserted] = await db
+  const [inserted] = await executor
     .insert(notifications)
     .values({
       userId,
@@ -94,17 +115,24 @@ async function insertNotification(
     })
     .returning({ id: notifications.id });
 
-  return inserted?.id;
+  if (!inserted) throw new Error("Failed to insert notification");
+  return inserted.id;
 }
 
-export async function createAndDeliverNotification(params: CreateNotificationParams): Promise<void> {
-  const { userId, type, actionUrl } = params;
-  const prepared = await prepareNotification(params);
-  const notificationId = await insertNotification(params, prepared.title, prepared.metadata);
+export async function insertPreparedNotification(tx: DbTx, params: CreateNotificationParams, prepared: PreparedNotification): Promise<string> {
+  return insertNotification(tx, params, prepared.title, prepared.metadata);
+}
 
+export async function deliverPreparedNotificationPush(
+  params: CreateNotificationParams,
+  prepared: PreparedNotification,
+  notificationId: string,
+): Promise<void> {
+  const { userId, type, actionUrl } = params;
   const allSubs = await db.query.pushSubscriptions.findMany({ where: { userId } });
-  const pushSubs =
-    type === "submission_approved" || type === "submission_rejected" ? allSubs.filter((s) => s.preferences.submissionUpdates !== false) : allSubs;
+  const pushSubs = SUBMISSION_UPDATE_NOTIFICATION_TYPES.has(type)
+    ? allSubs.filter((subscription) => subscription.preferences.submissionUpdates !== false)
+    : allSubs;
 
   const body = buildPushBody(prepared.body, prepared.metadata, prepared.locale);
   const payload = JSON.stringify({ title: prepared.title, body, actionUrl, notificationId });
@@ -112,10 +140,16 @@ export async function createAndDeliverNotification(params: CreateNotificationPar
   await deliverPush(pushSubs, payload);
 }
 
+export async function createAndDeliverNotification(params: CreateNotificationParams): Promise<void> {
+  const prepared = await prepareNotification(params);
+  const notificationId = await insertNotification(db, params, prepared.title, prepared.metadata);
+  await deliverPreparedNotificationPush(params, prepared, notificationId);
+}
+
 export async function createQueuedSubmissionApprovalNotification(params: Omit<CreateNotificationParams, "type">): Promise<void> {
   const approvalParams: CreateNotificationParams = { ...params, type: "submission_approved" };
   const prepared = await prepareNotification(approvalParams);
-  await insertNotification(approvalParams, prepared.title, prepared.metadata, new Date());
+  await insertNotification(db, approvalParams, prepared.title, prepared.metadata, new Date());
 }
 
 async function deliverPush(subs: { endpoint: string; p256dh: string; auth: string }[], payload: string): Promise<boolean> {

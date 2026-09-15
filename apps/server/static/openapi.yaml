@@ -4455,7 +4455,17 @@ components:
       properties:
         id: { type: string, format: uuid }
         userId: { type: string, format: uuid }
-        type: { type: string, enum: [submission_approved, submission_rejected, new_submission] }
+        type:
+          type: string
+          enum:
+            - submission_approved
+            - submission_rejected
+            - submission_photo_upload_failed
+            - new_submission
+            - station_cells_changed
+            - station_photos_added
+            - station_comment_approved
+            - station_uke_permit_added
         title: { type: string }
         submissionId: { type: string, format: uuid, nullable: true }
         metadata: { type: object, nullable: true, additionalProperties: true }

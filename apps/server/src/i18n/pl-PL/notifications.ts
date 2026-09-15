@@ -15,6 +15,10 @@ export default {
     title: "Zgłoszenie odrzucone",
     body: "Twoje zgłoszenie zostało odrzucone",
   },
+  submissionPhotoUploadFailed: {
+    title: "Zgłoszenie usunięte, ponieważ zdjęcia nie zostały przesłane",
+    body: "Wybrane zdjęcia nie zostały przesłane, dlatego Twoje zgłoszenie zostało usunięte",
+  },
   newSubmission: {
     title: "Nowe zgłoszenie",
     body: "Nowe zgłoszenie oczekuje na rozpatrzenie",
