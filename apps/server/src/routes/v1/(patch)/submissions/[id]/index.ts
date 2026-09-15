@@ -10,7 +10,7 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
+import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../../../../../services/cellDuplicateCheck.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import type { DbTx } from "../../../../../types/global.js";
@@ -292,15 +292,18 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       auditContextFromRequest(req),
       { kind: "submission.update", metadata: { submission_id: id } },
       async (tx, audit) => {
+        const oldSnapshot = await loadSubmissionDraftSnapshot(tx, id);
+        if (!oldSnapshot) throw new ErrorResponse("NOT_FOUND");
         const updated = await updateSubmissionDraft(tx, submission, req.body, hasAdminPermission);
-        const { sectors: _sectors, cells: _cells, ...updatedSubmission } = updated;
+        const newSnapshot = await loadSubmissionDraftSnapshot(tx, id);
+        if (!newSnapshot) throw new ErrorResponse("NOT_FOUND");
         await audit.log({
           entity: "submissions",
           op: "update",
           recordId: id,
           stationId: submission.station_id,
-          old: submission,
-          new: updatedSubmission,
+          old: oldSnapshot,
+          new: newSnapshot,
         });
         return updated;
       },

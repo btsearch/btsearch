@@ -1,4 +1,21 @@
-import { cells, gsmCells, lteCells, nrCells, stationPhotoSelections, stationSectors, umtsCells } from "@openbts/drizzle";
+import {
+  cells,
+  gsmCells,
+  lteCells,
+  nrCells,
+  proposedCells,
+  proposedGSMCells,
+  proposedLTECells,
+  proposedLocations,
+  proposedNRCells,
+  proposedSectors,
+  proposedStations,
+  proposedUMTSCells,
+  stationPhotoSelections,
+  stationSectors,
+  submissions,
+  umtsCells,
+} from "@openbts/drizzle";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import type { DbTx } from "../../types/global.js";
@@ -11,20 +28,100 @@ type CellWithRatRows = typeof cells.$inferSelect & {
   nr: typeof nrCells.$inferSelect | null;
 };
 
+type ProposedCellWithRatRows = typeof proposedCells.$inferSelect & {
+  gsm: typeof proposedGSMCells.$inferSelect | null;
+  umts: typeof proposedUMTSCells.$inferSelect | null;
+  lte: typeof proposedLTECells.$inferSelect | null;
+  nr: typeof proposedNRCells.$inferSelect | null;
+};
+
+type SubmissionDraftRow = typeof submissions.$inferSelect & {
+  proposedStation: typeof proposedStations.$inferSelect | null;
+  proposedLocation: typeof proposedLocations.$inferSelect | null;
+  proposedSectors: (typeof proposedSectors.$inferSelect)[];
+  proposedCells: ProposedCellWithRatRows[];
+};
+
 type RatSnapshot =
   | Omit<typeof gsmCells.$inferSelect, "cell_id">
   | Omit<typeof umtsCells.$inferSelect, "cell_id">
   | Omit<typeof lteCells.$inferSelect, "cell_id">
   | Omit<typeof nrCells.$inferSelect, "cell_id">;
 
+type ProposedRatSnapshot =
+  | Omit<typeof proposedGSMCells.$inferSelect, "proposed_cell_id">
+  | Omit<typeof proposedUMTSCells.$inferSelect, "proposed_cell_id">
+  | Omit<typeof proposedLTECells.$inferSelect, "proposed_cell_id">
+  | Omit<typeof proposedNRCells.$inferSelect, "proposed_cell_id">;
+
+type StableProposalRow<T> = Omit<T, "id" | "submission_id" | "createdAt" | "updatedAt">;
+
 export type CellSnapshot = typeof cells.$inferSelect & { details: RatSnapshot | null };
 export type SectorSnapshot = { id: number; azimuth: number };
 export type PhotoSelectionSnapshot = { location_photo_id: number; is_main: boolean };
 export type PhotoSelectionSnapshots = Map<number, PhotoSelectionSnapshot[]>;
+export type SubmissionDraftSnapshot = typeof submissions.$inferSelect & {
+  proposedStation: StableProposalRow<typeof proposedStations.$inferSelect> | null;
+  proposedLocation: StableProposalRow<typeof proposedLocations.$inferSelect> | null;
+  sectors: StableProposalRow<typeof proposedSectors.$inferSelect>[];
+  cells: Array<StableProposalRow<typeof proposedCells.$inferSelect> & { details: ProposedRatSnapshot | null }>;
+};
 
 function omitCellId<T extends { cell_id: number }>(row: T): Omit<T, "cell_id"> {
   const { cell_id: _cellId, ...details } = row;
   return details;
+}
+
+function omitProposedCellId<T extends { proposed_cell_id: number }>(row: T): Omit<T, "proposed_cell_id"> {
+  const { proposed_cell_id: _proposedCellId, ...details } = row;
+  return details;
+}
+
+function omitProposalMetadata<T extends { id: number; submission_id: string | null; createdAt: Date; updatedAt: Date }>(
+  row: T,
+): StableProposalRow<T> {
+  const { id: _id, submission_id: _submissionId, createdAt: _createdAt, updatedAt: _updatedAt, ...snapshot } = row;
+  return snapshot;
+}
+
+function compareSnapshotValues(left: unknown, right: unknown): number {
+  return JSON.stringify(left).localeCompare(JSON.stringify(right));
+}
+
+function flattenProposedCellRow(row: ProposedCellWithRatRows): SubmissionDraftSnapshot["cells"][number] {
+  const { gsm, umts, lte, nr, ...cell } = row;
+  const snapshot = omitProposalMetadata(cell);
+  if (gsm !== null) return { ...snapshot, details: omitProposedCellId(gsm) };
+  if (umts !== null) return { ...snapshot, details: omitProposedCellId(umts) };
+  if (lte !== null) return { ...snapshot, details: omitProposedCellId(lte) };
+  if (nr !== null) return { ...snapshot, details: omitProposedCellId(nr) };
+  return { ...snapshot, details: null };
+}
+
+export function normalizeSubmissionDraft(row: SubmissionDraftRow): SubmissionDraftSnapshot {
+  const { proposedStation, proposedLocation, proposedSectors: sectorRows, proposedCells: cellRows, ...submission } = row;
+  const sectors = sectorRows.map(omitProposalMetadata).sort(compareSnapshotValues);
+  const cells = cellRows.map(flattenProposedCellRow).sort(compareSnapshotValues);
+  return {
+    ...submission,
+    proposedStation: proposedStation === null ? null : omitProposalMetadata(proposedStation),
+    proposedLocation: proposedLocation === null ? null : omitProposalMetadata(proposedLocation),
+    sectors,
+    cells,
+  };
+}
+
+export async function loadSubmissionDraftSnapshot(tx: DbTx, submissionId: string): Promise<SubmissionDraftSnapshot | undefined> {
+  const row = await tx.query.submissions.findFirst({
+    where: { id: submissionId },
+    with: {
+      proposedStation: true,
+      proposedLocation: true,
+      proposedSectors: true,
+      proposedCells: { with: { gsm: true, umts: true, lte: true, nr: true } },
+    },
+  });
+  return row === undefined ? undefined : normalizeSubmissionDraft(row);
 }
 
 export function flattenCellRow(row: CellWithRatRows): CellSnapshot {
