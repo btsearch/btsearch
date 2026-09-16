@@ -966,6 +966,7 @@ paths:
     get:
       tags: [Stations]
       summary: List comments for a station
+      description: Returns approved comments to everyone. Signed-in users also receive their own pending comments.
       parameters:
         - $ref: "#/components/parameters/StationIdPath"
       responses:

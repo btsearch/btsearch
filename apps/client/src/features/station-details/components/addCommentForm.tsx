@@ -1,7 +1,7 @@
-import { Cancel01Icon, ImageAdd01Icon, SentIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, ImageAdd01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type SubmitEvent, useCallback, useRef, useState } from "react";
+import { type ChangeEvent, type SubmitEvent, useCallback, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -42,6 +42,7 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
   const { t } = useTranslation(["stationDetails", "submissions"]);
   const [content, setContent] = useState("");
   const [images, setImages] = useState<ImagePreview[]>([]);
+  const contentId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -98,33 +99,37 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
-      <div className="space-y-2">
+      <label htmlFor={contentId} className="sr-only">
+        {t("comments.addComment")}
+      </label>
+      <div className="overflow-hidden rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/20">
         <Textarea
+          id={contentId}
           placeholder={t("comments.placeholder")}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           disabled={mutation.isPending}
-          className="min-h-20 resize-none"
+          className="min-h-20 max-h-60 resize-none overflow-y-auto rounded-none border-0 bg-transparent px-3 py-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent dark:bg-transparent"
         />
 
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {images.map((image) => (
-              <div key={image.id} className="relative group rounded-lg overflow-hidden border bg-muted/20">
+          <div className="flex flex-wrap gap-2 px-3 pb-3">
+            {images.map((image, index) => (
+              <div key={image.id} className="group relative overflow-hidden rounded-lg border bg-muted/20">
                 <PhotoWithFallback
                   src={image.previewUrl}
-                  alt="Preview"
+                  alt=""
                   className="size-20 object-cover"
                   fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(image.id)}
+                  aria-label={t("comments.removeImage", { number: index + 1 })}
                   className={cn(
-                    "absolute top-1 right-1 size-5 rounded-full",
-                    "bg-background/80 backdrop-blur-sm border shadow-sm",
-                    "flex items-center justify-center",
-                    "opacity-0 group-hover:opacity-100 transition-opacity",
+                    "absolute top-1 right-1 flex size-6 cursor-pointer items-center justify-center rounded-full",
+                    "border bg-background/90 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
                     "hover:bg-destructive hover:text-white",
                   )}
                 >
@@ -134,15 +139,13 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-2 py-2">
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleAddImages} className="hidden" />
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="cursor-pointer text-muted-foreground"
             onClick={() => fileInputRef.current?.click()}
             disabled={mutation.isPending || images.length >= MAX_PHOTOS}
           >
@@ -152,12 +155,12 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
               {images.length > 0 && ` (${images.length}/${MAX_PHOTOS})`}
             </span>
           </Button>
-        </div>
 
-        <Button type="submit" size="sm" disabled={isDisabled}>
-          {mutation.isPending ? t("common:actions.submitting") : t("comments.postComment")}
-          {mutation.isPending ? <Spinner data-icon="inline-end" /> : <HugeiconsIcon icon={SentIcon} className="size-4" data-icon="inline-end" />}
-        </Button>
+          <Button type="submit" size="sm" className="cursor-pointer" disabled={isDisabled}>
+            {mutation.isPending ? t("common:actions.submitting") : t("comments.postComment")}
+            {mutation.isPending && <Spinner data-icon="inline-end" />}
+          </Button>
+        </div>
       </div>
 
       {mutation.isError && (

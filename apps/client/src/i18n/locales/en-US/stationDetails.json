@@ -103,14 +103,21 @@
     "unavailable": "Comments are currently unavailable",
     "noComments": "No comments",
     "noCommentsHint": "Be the first to share information about this station",
+    "unknownAuthor": "Unknown user",
     "file": "File",
+    "addComment": "Add a comment",
     "placeholder": "Add a comment...",
     "addImages": "Add images",
+    "removeImage": "Remove image {{number}}",
     "postComment": "Post comment",
     "deleteConfirm": "Delete comment",
     "deleteDescription": "Are you sure you want to delete this comment? This action cannot be undone",
     "deleted": "Comment deleted",
-    "pendingApproval": "Your comment has been submitted and is awaiting approval before it becomes visible"
+    "withdraw": "Withdraw comment",
+    "withdrawDescription": "Are you sure you want to withdraw this comment? This action cannot be undone",
+    "withdrawn": "Comment withdrawn",
+    "pendingStatus": "Awaiting approval",
+    "pendingApproval": "Your comment has been submitted and is awaiting approval before it becomes visible to others"
   },
   "photos": {
     "title": "Photos",

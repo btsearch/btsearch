@@ -103,14 +103,21 @@
     "unavailable": "Komentarze są obecnie niedostępne",
     "noComments": "Brak komentarzy",
     "noCommentsHint": "Bądź pierwszą osobą, która podzieli się informacjami o tej stacji",
+    "unknownAuthor": "Nieznany użytkownik",
     "file": "Plik",
+    "addComment": "Dodaj komentarz",
     "placeholder": "Dodaj komentarz...",
     "addImages": "Dodaj obrazy",
+    "removeImage": "Usuń obraz {{number}}",
     "postComment": "Opublikuj komentarz",
     "deleteConfirm": "Usuń komentarz",
     "deleteDescription": "Czy na pewno chcesz usunąć ten komentarz? Tej operacji nie można cofnąć",
     "deleted": "Komentarz usunięty",
-    "pendingApproval": "Twój komentarz został przesłany i oczekuje na zatwierdzenie przed opublikowaniem"
+    "withdraw": "Wycofaj komentarz",
+    "withdrawDescription": "Czy na pewno chcesz wycofać ten komentarz? Tej operacji nie można cofnąć",
+    "withdrawn": "Komentarz wycofany",
+    "pendingStatus": "Oczekuje na zatwierdzenie",
+    "pendingApproval": "Twój komentarz został przesłany i oczekuje na zatwierdzenie, zanim stanie się widoczny dla innych"
   },
   "photos": {
     "title": "Zdjęcia",

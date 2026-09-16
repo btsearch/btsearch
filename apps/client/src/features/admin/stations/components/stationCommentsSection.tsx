@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
+import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 import type { StationComment } from "@/types/station";
 
@@ -29,14 +30,16 @@ type StationCommentsSectionProps = {
 };
 
 export function StationCommentsSection({ stationId }: StationCommentsSectionProps) {
-  const { t, i18n } = useTranslation("submissions");
+  const { t, i18n } = useTranslation(["submissions", "stationDetails"]);
   const { t: tAdmin } = useTranslation("admin");
+  const { data: session } = authClient.useSession();
+  const currentUserId = session?.user?.id;
   const queryClient = useQueryClient();
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data: comments = [], isLoading } = useQuery({
-    queryKey: ["station-comments", stationId],
+    queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () =>
       fetchApiData<StationComment[]>(`stations/${stationId}/comments`, {
         allowedErrors: [404, 403],
@@ -96,7 +99,7 @@ export function StationCommentsSection({ stationId }: StationCommentsSectionProp
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{comment.author?.name ?? `User #${comment.author_id}`}</span>
+                          <span className="font-semibold text-sm">{comment.author?.name ?? `User #${comment.user_id}`}</span>
                           {comment.author?.username && <span className="text-xs text-muted-foreground">@{comment.author.username}</span>}
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <HugeiconsIcon icon={Calendar03Icon} className="size-3" />
@@ -137,6 +140,9 @@ export function StationCommentsSection({ stationId }: StationCommentsSectionProp
                             </div>
                           ))}
                         </div>
+                      )}
+                      {comment.status === "pending" && (
+                        <p className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">{t("stationDetails:comments.pendingStatus")}</p>
                       )}
                     </div>
                   </div>

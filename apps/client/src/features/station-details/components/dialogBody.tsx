@@ -33,6 +33,7 @@ import { RAT_ORDER } from "@/features/shared/rat";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData } from "@/lib/api";
+import { authClient } from "@/lib/auth/client";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 import type { Station, StationComment } from "@/types/station";
@@ -68,6 +69,8 @@ export function StationDetailsBody({
 }: StationDetailsBodyProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const { data: settings } = useSettings();
+  const { data: session } = authClient.useSession();
+  const currentUserId = session?.user?.id;
   const { preferences } = usePreferences();
   const location = useLocation();
   const [displayedTab, setDisplayedTab] = useState<TabId>(activeTab);
@@ -103,7 +106,7 @@ export function StationDetailsBody({
   });
 
   const { data: comments } = useQuery({
-    queryKey: ["station-comments", stationId],
+    queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () => fetchApiData<StationComment[]>(`stations/${stationId}/comments`, { allowedErrors: [404, 403] }).then((data) => data ?? []),
     staleTime: 1000 * 60 * 5,
     enabled: source === "internal" && !!settings?.enableStationComments,

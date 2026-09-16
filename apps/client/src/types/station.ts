@@ -270,8 +270,9 @@ export type CommentAttachment = {
 export type StationComment = {
   id: string;
   station_id: number;
-  author_id: string;
+  user_id: string;
   content: string;
+  status: "pending" | "approved";
   createdAt: string;
   updatedAt: string;
   attachments?: CommentAttachment[];

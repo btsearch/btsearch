@@ -32,6 +32,7 @@ type ResponseData = z.infer<typeof commentWithAuthorSchema>[];
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { station_id } = req.params;
+  const userId = req.userSession?.user.id;
 
   if (!getRuntimeSettings().enableStationComments) throw new ErrorResponse("FORBIDDEN");
 
@@ -45,7 +46,10 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   try {
     const comments = await db.query.stationComments.findMany({
       where: {
-        AND: [{ station_id: { eq: station_id } }, { status: { eq: "approved" } }],
+        AND: [
+          { station_id: { eq: station_id } },
+          userId ? { OR: [{ status: { eq: "approved" } }, { status: { eq: "pending" }, user_id: { eq: userId } }] } : { status: { eq: "approved" } },
+        ],
       },
       with: {
         author: {
@@ -55,6 +59,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       orderBy: { createdAt: "desc" },
     });
 
+    res.header("Cache-Control", "private, no-store");
     return res.send({ data: comments });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;

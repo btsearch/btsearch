@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Calendar03Icon, Delete02Icon, Image01Icon, Message01Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, Delete02Icon, Image01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -22,16 +22,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
-import type { StationComment } from "@/types/station";
+import { cn } from "@/lib/utils";
+import type { CommentAttachment, StationComment } from "@/types/station";
 
 const fetchComments = (stationId: number) =>
   fetchApiData<StationComment[]>(`stations/${stationId}/comments`, {
     allowedErrors: [404, 403],
   }).then((data) => data ?? []);
+
+const photoIndex = (attachments: CommentAttachment[], attachmentIndex: number) =>
+  attachments.slice(0, attachmentIndex).filter((attachment) => attachment.type.startsWith("image/")).length;
 
 type CommentsListProps = {
   stationId: number;
@@ -49,7 +53,7 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["station-comments", stationId],
+    queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () => fetchComments(stationId),
     enabled: !!stationId,
     staleTime: 1000 * 60 * 5,
@@ -63,8 +67,9 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
       });
       if (!response.ok) throw new Error("Failed to delete comment");
     },
-    onSuccess: () => {
-      toast.success(t("stationDetails:comments.deleted"));
+    onSuccess: (_data, commentId) => {
+      const wasPending = comments.some((comment) => comment.id === commentId && comment.status === "pending");
+      toast.success(t(wasPending ? "comments.withdrawn" : "comments.deleted"));
       return queryClient.invalidateQueries({ queryKey: ["station-comments", stationId] });
     },
     onError: (error) => showApiError(error),
@@ -106,133 +111,152 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Spinner className="size-6 text-muted-foreground" />
+      <div className="divide-y divide-border/60" aria-busy="true">
+        {[1, 2].map((row) => (
+          <div key={row} className="flex gap-3 py-5 first:pt-0">
+            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-full max-w-md" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground px-4">
-        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-        </div>
-        <p className="text-sm">{t("comments.unavailable")}</p>
+      <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0" />
+        <p>{t("comments.unavailable")}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {comments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-muted/10 rounded-2xl border border-dashed mx-2">
-          <HugeiconsIcon icon={Message01Icon} className="size-10 mb-3 opacity-10" />
+        <div className="py-8 text-center">
           <p className="text-sm font-medium text-foreground">{t("comments.noComments")}</p>
-          <p className="text-xs text-muted-foreground mt-1 px-6">{t("comments.noCommentsHint")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("comments.noCommentsHint")}</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="divide-y divide-border/60">
           {comments.map((comment) => (
-            <div key={comment.id} className="flex gap-4">
-              <Avatar className="size-9 shrink-0 border">
-                <AvatarImage src={resolveAvatarUrl(comment.author?.image)} />
-                <AvatarFallback>
-                  <HugeiconsIcon icon={UserIcon} className="size-4 opacity-50" />
+            <article key={comment.id} className="flex min-w-0 gap-3 py-4 first:pt-0 last:pb-0">
+              <Avatar className="size-8 shrink-0 border">
+                <AvatarImage src={resolveAvatarUrl(comment.author?.image)} alt="" />
+                <AvatarFallback className="text-xs font-semibold text-muted-foreground">
+                  {comment.author?.name ? (
+                    comment.author.name.charAt(0).toLocaleUpperCase(i18n.language)
+                  ) : (
+                    <HugeiconsIcon icon={UserIcon} className="size-4" />
+                  )}
                 </AvatarFallback>
               </Avatar>
 
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {comment.author?.username ? (
-                      <Link
-                        to="/users/$username"
-                        params={{ username: comment.author.username }}
-                        className="text-sm font-bold truncate hover:underline"
-                      >
-                        {comment.author.name}
-                      </Link>
-                    ) : (
-                      <span className="text-sm font-bold truncate">{comment.author?.name}</span>
-                    )}
-                    {comment.author?.username && <span className="text-xs text-muted-foreground truncate">@{comment.author.username}</span>}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <HugeiconsIcon icon={Calendar03Icon} className="size-3" />
-                      {new Date(comment.createdAt).toLocaleDateString(i18n.language)}
-                    </span>
-                    {(isAdmin || comment.author?.id === currentUserId) && (
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="size-6 p-0 text-muted-foreground hover:text-destructive"
-                              disabled={deleteMutation.isPending}
-                            />
-                          }
-                        >
-                          <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t("stationDetails:comments.deleteConfirm")}</AlertDialogTitle>
-                            <AlertDialogDescription>{t("stationDetails:comments.deleteDescription")}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-                            <AlertDialogAction variant="destructive" onClick={() => deleteMutation.mutate(comment.id)}>
-                              {t("common:actions.delete")}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </div>
-                <div className="p-3.5 rounded-2xl rounded-tl-none bg-muted/20 border text-sm leading-relaxed space-y-3">
-                  <p>{comment.content}</p>
-
-                  {comment.attachments && comment.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-                      {comment.attachments.map((attachment, attachmentIndex) =>
-                        attachment.type.startsWith("image/") ? (
-                          <button
-                            type="button"
-                            key={attachment.uuid}
-                            onClick={() => setLightbox({ commentId: comment.id, index: attachmentIndex })}
-                            className="group relative rounded-lg overflow-hidden border bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer"
-                          >
-                            <PhotoWithFallback
-                              src={`/uploads/${attachment.uuid}.webp`}
-                              alt="Attachment"
-                              className="size-20 object-cover"
-                              fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
-                            />
-                          </button>
-                        ) : (
-                          <div
-                            key={attachment.uuid}
-                            className="size-20 flex flex-col items-center justify-center gap-1 text-muted-foreground rounded-lg border bg-muted/20"
-                          >
-                            <HugeiconsIcon icon={Image01Icon} className="size-6" />
-                            <span className="text-[10px]">{t("comments.file")}</span>
-                          </div>
-                        ),
-                      )}
-                    </div>
+              <div className={cn("relative min-w-0 flex-1", (isAdmin || comment.user_id === currentUserId) && "pr-9")}>
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  {comment.author?.username ? (
+                    <Link
+                      to="/users/$username"
+                      params={{ username: comment.author.username }}
+                      className="max-w-full truncate text-sm font-semibold text-foreground underline-offset-2 hover:underline"
+                    >
+                      {comment.author.name}
+                    </Link>
+                  ) : (
+                    <span className="truncate text-sm font-semibold text-foreground">{comment.author?.name ?? t("comments.unknownAuthor")}</span>
                   )}
+                  {comment.author?.username && <span className="truncate text-xs text-muted-foreground">@{comment.author.username}</span>}
+                  <time
+                    dateTime={comment.createdAt}
+                    title={new Date(comment.createdAt).toLocaleString(i18n.language)}
+                    className="text-xs tabular-nums text-muted-foreground"
+                  >
+                    {new Date(comment.createdAt).toLocaleDateString(i18n.language)}
+                  </time>
                 </div>
+                {(isAdmin || comment.user_id === currentUserId) && (
+                  <div className="absolute -right-1 -top-1">
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="cursor-pointer text-muted-foreground hover:text-destructive"
+                            aria-label={comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}
+                            title={comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}
+                            disabled={deleteMutation.isPending}
+                          />
+                        }
+                      >
+                        <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {comment.status === "pending" ? t("comments.withdrawDescription") : t("comments.deleteDescription")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
+                          <AlertDialogAction variant="destructive" className="cursor-pointer" onClick={() => deleteMutation.mutate(comment.id)}>
+                            {comment.status === "pending" ? t("comments.withdraw") : t("common:actions.delete")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+                <p className="mt-1.5 max-w-prose whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{comment.content}</p>
+
+                {comment.attachments && comment.attachments.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {comment.attachments.map((attachment, attachmentIndex) =>
+                      attachment.type.startsWith("image/") ? (
+                        <button
+                          type="button"
+                          key={attachment.uuid}
+                          onClick={() => setLightbox({ commentId: comment.id, index: photoIndex(comment.attachments ?? [], attachmentIndex) })}
+                          aria-label={t("photos.openPhoto", { number: photoIndex(comment.attachments ?? [], attachmentIndex) + 1 })}
+                          className="overflow-hidden rounded-lg border bg-muted/20 transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <PhotoWithFallback
+                            src={`/uploads/${attachment.uuid}.webp`}
+                            alt=""
+                            className="size-20 object-cover sm:size-24"
+                            fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
+                          />
+                        </button>
+                      ) : (
+                        <div
+                          key={attachment.uuid}
+                          className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border bg-muted/20 text-muted-foreground sm:size-24"
+                        >
+                          <HugeiconsIcon icon={Image01Icon} className="size-6" />
+                          <span className="text-[10px]">{t("comments.file")}</span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+                {comment.status === "pending" && (
+                  <p className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">{t("comments.pendingStatus")}</p>
+                )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
-      {comments.length > 0 && <div className="border-t" />}
-      {isLoggedIn && <AddCommentForm stationId={stationId} />}
+      {isLoggedIn && (
+        <div className={comments.length > 0 ? "border-t border-border/60 pt-5" : undefined}>
+          <AddCommentForm stationId={stationId} />
+        </div>
+      )}
       <Lightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onClose={closeLightbox} onPrev={prevPhoto} onNext={nextPhoto} />
     </div>
   );
