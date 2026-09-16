@@ -2,7 +2,6 @@ import {
   Activity01Icon,
   AirportTowerIcon,
   ArrowDown01Icon,
-  ArrowReloadHorizontalIcon,
   ArrowRight01Icon,
   ArrowUpRight01Icon,
   Cancel01Icon,
@@ -489,7 +488,7 @@ const HistoryOperationItem = memo(function HistoryOperationItem({ operation, can
                 className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 aria-label={t("history.revert.action")}
               >
-                <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" aria-hidden="true" />
+                <HugeiconsIcon icon={Undo02Icon} className="size-3.5" aria-hidden="true" />
               </button>
             ) : null}
             {canManageOperation ? (

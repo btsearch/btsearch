@@ -1,4 +1,4 @@
-import { ArrowReloadHorizontalIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, Undo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -151,7 +151,7 @@ export function RevertOperationDialog({ operationId, entryIds, counts, open, onO
       <AlertDialogContent className={cn(hasConflicts && "data-[size=default]:sm:max-w-lg", className)}>
         <AlertDialogHeader>
           <AlertDialogMedia className={cn(hasConflicts && "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive")}>
-            <HugeiconsIcon icon={ArrowReloadHorizontalIcon} aria-hidden="true" />
+            <HugeiconsIcon icon={Undo02Icon} aria-hidden="true" />
           </AlertDialogMedia>
           <AlertDialogTitle>{t(isEntryRevert ? "auditLogs.revert.entryTitle" : "auditLogs.revert.title", { id: operationId })}</AlertDialogTitle>
           <AlertDialogDescription>{t("auditLogs.revert.description")}</AlertDialogDescription>
