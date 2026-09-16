@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
+import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
 export type Photo = {
@@ -132,7 +133,7 @@ export function PhotosSection({
       void invalidate();
       toast.success(t("photos.uploaded"));
     },
-    onError: () => toast.error(t("photos.uploadFailed")),
+    onError: (error) => toast.error(t(photoQualityErrorKey(error) ?? "photos.uploadFailed")),
   });
 
   const closeLightbox = () => setLightboxIndex(null);

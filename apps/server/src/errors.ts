@@ -58,7 +58,9 @@ export type ErrorCode =
   | "CONFLICT"
   | "SERVICE_UNAVAILABLE"
   | "TWO_FACTOR_REQUIRED"
-  | "DUPLICATE_REQUEST";
+  | "DUPLICATE_REQUEST"
+  | "PHOTO_TOO_SMALL"
+  | "PHOTO_TOO_BLURRY";
 
 interface ErrorDefinition {
   message: string;
@@ -145,5 +147,13 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
   DUPLICATE_REQUEST: {
     message: "A request with this idempotency key is already being processed.",
     statusCode: 409,
+  },
+  PHOTO_TOO_SMALL: {
+    message: "Photo resolution is too low. Use an image at least 640 by 480 pixels.",
+    statusCode: 400,
+  },
+  PHOTO_TOO_BLURRY: {
+    message: "Photo is too blurry. Please use a clearer image.",
+    statusCode: 400,
   },
 };

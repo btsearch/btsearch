@@ -15,7 +15,7 @@ import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.j
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
-import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
+import { assertStationPhotoQuality, decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_PHOTOS_PER_SUBMISSION = 5;
@@ -140,6 +140,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 75 })
         .toBuffer();
+      await assertStationPhotoQuality(outputBuffer);
       await fs.writeFile(filePath, outputBuffer);
 
       const stats = await fs.stat(filePath);

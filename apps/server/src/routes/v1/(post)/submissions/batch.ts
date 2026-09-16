@@ -7,7 +7,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
+import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../../../../services/audit/index.js";
 import { notifyStaffNewSubmission } from "../../../../services/notifications/service.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
 import {
@@ -48,16 +48,6 @@ const schemaRoute = {
 };
 
 type ResponseData = z.infer<typeof submissionsSelectSchema>[];
-
-function bareSubmission({
-  proposedStation: _station,
-  proposedLocation: _location,
-  sectors: _sectors,
-  cells: _cells,
-  ...submission
-}: SubmissionWithExtras) {
-  return submission;
-}
 
 function addStationTac(stationTacs: Map<number, number>, stationId: number, tac: number): void {
   const existingTac = stationTacs.get(stationId);
@@ -173,13 +163,19 @@ ${ANALYZER_SYSTEM_NOTE}`
         created.push(await processSubmission(tx, input, userId));
       }
       await audit.logMany(
-        created.map((submission) => ({
-          entity: "submissions",
-          op: "create",
-          recordId: submission.id,
-          stationId: submission.station_id,
-          new: bareSubmission(submission),
-        })),
+        await Promise.all(
+          created.map(async (submission) => {
+            const snapshot = await loadSubmissionDraftSnapshot(tx, submission.id);
+            if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");
+            return {
+              entity: "submissions" as const,
+              op: "create" as const,
+              recordId: submission.id,
+              stationId: submission.station_id,
+              new: snapshot,
+            };
+          }),
+        ),
       );
       return created;
     });

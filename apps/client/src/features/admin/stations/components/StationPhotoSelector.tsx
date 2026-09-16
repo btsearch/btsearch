@@ -19,6 +19,7 @@ import {
   uploadAndAssignStationPhotos,
 } from "@/features/station-details/api";
 import { createAuditOperationHandle } from "@/lib/api";
+import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
 type Props = { stationId: number; locationId: number };
@@ -122,12 +123,12 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
       ]);
       toast.success(t("photos.uploaded"));
     },
-    onError: async () => {
+    onError: async (error) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }),
         queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
       ]);
-      toast.error(t("photos.uploadFailed"));
+      toast.error(t(photoQualityErrorKey(error) ?? "photos.uploadFailed"));
     },
   });
 

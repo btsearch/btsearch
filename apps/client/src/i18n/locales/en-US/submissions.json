@@ -161,6 +161,8 @@
     "uploaded": "Photos uploaded",
     "deleted": "Photo deleted",
     "uploadFailed": "Failed to upload photos",
+    "tooSmall": "Photo is too small. Use an image at least 640 by 480 pixels",
+    "tooBlurry": "Photo is too blurry. Please use a clearer image",
     "fileTooLarge": "{{name}} is too large (max {{size}})",
     "confirmDelete": "Delete this photo?",
     "confirmDeleteDesc": "This can't be undone. The photo will be permanently deleted",

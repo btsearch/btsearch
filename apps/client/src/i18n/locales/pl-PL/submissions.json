@@ -161,6 +161,8 @@
     "uploaded": "Zdjęcia przesłane",
     "deleted": "Zdjęcie usunięte",
     "uploadFailed": "Nie udało się przesłać zdjęć",
+    "tooSmall": "Zdjęcie ma za niską rozdzielczość. Użyj obrazu o wymiarach co najmniej 640 na 480 pikseli",
+    "tooBlurry": "Zdjęcie jest zbyt rozmazane. Użyj wyraźniejszego zdjęcia",
     "fileTooLarge": "{{name}} jest za duże (maks. {{size}})",
     "confirmDelete": "Usunąć to zdjęcie?",
     "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zdjęcie zostanie trwale usunięte",

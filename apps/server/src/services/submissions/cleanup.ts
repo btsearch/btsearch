@@ -1,5 +1,14 @@
-import { notifications, submissionPhotos, submissions } from "@openbts/drizzle";
-import { and, eq, inArray, isNotNull, lt, notExists } from "drizzle-orm";
+import {
+  notifications,
+  proposedCells,
+  proposedLocations,
+  proposedSectors,
+  proposedStations,
+  submissionLocationPhotoSelections,
+  submissionPhotos,
+  submissions,
+} from "@openbts/drizzle";
+import { and, eq, inArray, isNotNull, lt, notExists, or } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { logger } from "../../utils/logger.js";
@@ -24,6 +33,25 @@ export async function cleanupOrphanedSubmissions(): Promise<void> {
     isNotNull(submissions.pending_photos),
     lt(submissions.createdAt, cutoff),
     notExists(db.select({ id: submissionPhotos.id }).from(submissionPhotos).where(eq(submissionPhotos.submission_id, submissions.id))),
+    or(
+      and(
+        eq(submissions.type, "new"),
+        notExists(db.select({ id: proposedCells.id }).from(proposedCells).where(eq(proposedCells.submission_id, submissions.id))),
+      ),
+      and(
+        eq(submissions.type, "update"),
+        notExists(db.select({ id: proposedStations.id }).from(proposedStations).where(eq(proposedStations.submission_id, submissions.id))),
+        notExists(db.select({ id: proposedLocations.id }).from(proposedLocations).where(eq(proposedLocations.submission_id, submissions.id))),
+        notExists(db.select({ id: proposedSectors.id }).from(proposedSectors).where(eq(proposedSectors.submission_id, submissions.id))),
+        notExists(db.select({ id: proposedCells.id }).from(proposedCells).where(eq(proposedCells.submission_id, submissions.id))),
+        notExists(
+          db
+            .select({ id: submissionLocationPhotoSelections.location_photo_id })
+            .from(submissionLocationPhotoSelections)
+            .where(eq(submissionLocationPhotoSelections.submission_id, submissions.id)),
+        ),
+      ),
+    ),
   );
   const candidates = await db.select({ id: submissions.id, submitterId: submissions.submitter_id }).from(submissions).where(condition);
   if (candidates.length === 0) return;
@@ -48,15 +76,7 @@ export async function cleanupOrphanedSubmissions(): Promise<void> {
     async (tx, audit) => {
       const deleted = await tx
         .delete(submissions)
-        .where(
-          and(
-            inArray(submissions.id, candidateIds),
-            eq(submissions.status, "pending"),
-            isNotNull(submissions.pending_photos),
-            lt(submissions.createdAt, cutoff),
-            notExists(tx.select({ id: submissionPhotos.id }).from(submissionPhotos).where(eq(submissionPhotos.submission_id, submissions.id))),
-          ),
-        )
+        .where(and(inArray(submissions.id, candidateIds), condition))
         .returning();
       const deletedIds = deleted.map(({ id }) => id);
       if (deletedIds.length > 0) await tx.delete(notifications).where(inArray(notifications.submissionId, deletedIds));

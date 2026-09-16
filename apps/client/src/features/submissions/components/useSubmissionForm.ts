@@ -14,7 +14,15 @@ import {
   uploadSubmissionPhotos,
 } from "../api";
 import { submissionDetailQueryOptions } from "../queries";
-import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, StationAction, SubmissionMode } from "../types";
+import type {
+  ProposedCellForm,
+  ProposedLocationForm,
+  ProposedStationForm,
+  RatType,
+  StationAction,
+  SubmissionFormData,
+  SubmissionMode,
+} from "../types";
 import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
 import { type OriginalState, hasFormChanges, isEqualLocation, isEqualStation } from "../utils/equality";
 import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
@@ -24,6 +32,7 @@ import { groupPermitsByStation } from "@/features/map/utils";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { showApiError } from "@/lib/api";
+import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import type { SectorDraft, UkeStation } from "@/types/station";
 
 export type FormValues = {
@@ -72,6 +81,19 @@ function buildOriginalState(values: FormValues): OriginalState {
     mnoName: values.mode === "existing" ? values.mnoName : "",
     submitterNote: values.submitterNote,
   };
+}
+
+function requiresUploadedPhoto(data: SubmissionFormData): boolean {
+  if (data.type === "new") return data.cells.length === 0;
+  if (data.type === "delete") return false;
+  return (
+    !data.station &&
+    !data.location &&
+    !data.sectors?.length &&
+    data.cells.length === 0 &&
+    !data.location_photo_ids?.length &&
+    !data.location_photo_ids_to_remove?.length
+  );
 }
 
 function stationCellsToForm(station: SearchStation): ProposedCellForm[] {
@@ -264,11 +286,11 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           return updateSubmission(editSubmissionId, data);
         }
       : createSubmission,
-    onSuccess: (data) => {
+    onSuccess: (data, submittedPayload) => {
       const submittedValues = submittedValuesRef.current;
       if (photos.length > 0) {
         const submissionId = isEditMode && editSubmissionId ? editSubmissionId : data.id;
-        const isPhotosOnly = !!data.pending_photos;
+        const shouldRemoveFailedSubmission = !isEditMode && requiresUploadedPhoto(submittedPayload);
         const uploadPromise = uploadSubmissionPhotos(
           submissionId,
           photos,
@@ -276,13 +298,13 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           photoTakenAts.map((d) => d?.toISOString() ?? null),
           mainUploadPhotoIndex,
         ).catch((error: unknown) => {
-          if (isPhotosOnly) void deleteSubmission(submissionId).catch(() => undefined);
+          if (shouldRemoveFailedSubmission) void deleteSubmission(submissionId).catch(() => undefined);
           throw error;
         });
         toast.promise(uploadPromise, {
           loading: t("photos.uploading"),
           success: t("photos.uploaded"),
-          error: t("photos.uploadFailed"),
+          error: (error: unknown) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed"),
         });
         setPhotos([]);
         setPhotoNotes([]);

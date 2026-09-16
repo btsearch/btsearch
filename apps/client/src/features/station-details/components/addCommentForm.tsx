@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { API_BASE, fetchJson } from "@/lib/api";
+import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
 type ImagePreview = {
@@ -38,7 +39,7 @@ async function postComment(stationId: number, content: string, files: File[]) {
 const MAX_PHOTOS = 5;
 
 export function AddCommentForm({ stationId }: AddCommentFormProps) {
-  const { t } = useTranslation("stationDetails");
+  const { t } = useTranslation(["stationDetails", "submissions"]);
   const [content, setContent] = useState("");
   const [images, setImages] = useState<ImagePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +94,7 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
   };
 
   const isDisabled = mutation.isPending || (!content.trim() && images.length === 0);
+  const qualityErrorKey = photoQualityErrorKey(mutation.error);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
@@ -159,7 +161,13 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
       </div>
 
       {mutation.isError && (
-        <p className="text-sm text-destructive">{mutation.error instanceof Error ? mutation.error.message : t("common:actions.error")}</p>
+        <p className="text-sm text-destructive">
+          {qualityErrorKey
+            ? t(`submissions:${qualityErrorKey}`)
+            : mutation.error instanceof Error
+              ? mutation.error.message
+              : t("common:actions.error")}
+        </p>
       )}
     </form>
   );

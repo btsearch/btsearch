@@ -12,7 +12,7 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
-import { decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
+import { assertStationPhotoQuality, decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -83,7 +83,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
       let sharpInput: SharpInput;
       let sharpOptions: SharpOptions | undefined;
-      if (isHeic(filePart.mimetype)) {
+      if (isHeic(detected.mime)) {
         const { data, width, height } = await decodeHeicToRaw(inputBuffer);
         sharpInput = data;
         sharpOptions = { raw: { width, height, channels: 4 } };
@@ -94,6 +94,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
         .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 75 })
         .toBuffer();
+      await assertStationPhotoQuality(outputBuffer);
       await fs.writeFile(filePath, outputBuffer);
       const stats = await fs.stat(filePath);
 
