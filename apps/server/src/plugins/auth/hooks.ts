@@ -1,4 +1,3 @@
-import { createLocalAccountIssuer } from "@better-auth/core/db";
 import { hash } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
 import type { GenericEndpointContext } from "better-auth";
@@ -78,7 +77,6 @@ async function handleSetUserPassword(ctx: HookCtx) {
     await db.insert(schema.accounts).values({
       userId,
       accountId: userId,
-      issuer: createLocalAccountIssuer("credential"),
       providerId: "credential",
       password: hashedPassword,
     });
