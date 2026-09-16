@@ -1,18 +1,18 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNsaCell } from "./cellPresentation";
+import { getDisplayRat, getHeadlineSignal, getReportedCellColumns, isNrNonStandaloneCell } from "./cellPresentation";
 import { formatDecibelValue, formatValue } from "./display";
 import { CellDetails } from "./measurements";
 import {
   type NrDeploymentMode,
-  type NsaAggregation,
-  createNsaAggregation,
-  createNsaPresentationSections,
+  type NrNonStandaloneAggregation,
+  createNrNonStandaloneAggregation,
+  createNrNonStandalonePresentationSections,
   getNeighborTechnologySuffix,
-  getNsaCarrierRoleAbbreviation,
-  getNsaCarrierRoleLabelKey,
-  isNsaAggregationCell,
+  getNrNonStandaloneCarrierRoleAbbreviation,
+  getNrNonStandaloneCarrierRoleLabelKey,
+  isNrNonStandaloneAggregationCell,
 } from "./snapshotPresentation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
@@ -104,9 +104,9 @@ function NeighborCellSection({ cells, nrMode, roleAbbreviation }: NeighborCellSe
   );
 }
 
-function NsaAggregationRows({ aggregation }: { aggregation: NsaAggregation }) {
+function NrNonStandaloneAggregationRows({ aggregation }: { aggregation: NrNonStandaloneAggregation }) {
   const { t } = useTranslation("nsg");
-  const sections = createNsaPresentationSections(aggregation);
+  const sections = createNrNonStandalonePresentationSections(aggregation);
   const hasServingCells = sections.some((section) => section.kind === "nr-serving" || section.kind === "lte-anchor");
 
   return (
@@ -119,7 +119,7 @@ function NsaAggregationRows({ aggregation }: { aggregation: NsaAggregation }) {
               <PrimaryCellSection
                 key={section.key}
                 cells={[section.cell]}
-                label={t(getNsaCarrierRoleLabelKey(section.role), { mode: "NSA" })}
+                label={t(getNrNonStandaloneCarrierRoleLabelKey(section.role), { mode: "NSA" })}
                 showRadioContext={section.showRadioContext}
               />
             );
@@ -129,7 +129,7 @@ function NsaAggregationRows({ aggregation }: { aggregation: NsaAggregation }) {
                 key={section.key}
                 cells={section.cells}
                 nrMode="NSA"
-                roleAbbreviation={getNsaCarrierRoleAbbreviation(section.role)}
+                roleAbbreviation={getNrNonStandaloneCarrierRoleAbbreviation(section.role)}
               />
             );
           case "lte-anchor":
@@ -141,7 +141,7 @@ function NsaAggregationRows({ aggregation }: { aggregation: NsaAggregation }) {
 }
 
 function presentationGroupKey(cell: NsgCell): string {
-  return `${cell.rat}:${isNrNsaCell(cell) ? "nsa" : "other"}`;
+  return `${cell.rat}:${isNrNonStandaloneCell(cell) ? "nsa" : "other"}`;
 }
 
 type PrimaryCellGroup = { key: string; cells: NsgCell[]; label: string };
@@ -155,13 +155,13 @@ function addGroupedCell(groups: Map<string, NsgCell[]>, key: string, cell: NsgCe
 
 export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { snapshot: Snapshot }) {
   const { t } = useTranslation("nsg");
-  const nsaAggregation = createNsaAggregation(snapshot.cells);
-  const primaryRegistered = snapshot.cells.filter((cell) => cell.registered === true && !isNsaAggregationCell(cell));
+  const nrNonStandaloneAggregation = createNrNonStandaloneAggregation(snapshot.cells);
+  const primaryRegistered = snapshot.cells.filter((cell) => cell.registered === true && !isNrNonStandaloneAggregationCell(cell));
   const registeredGroups = new Map<string, NsgCell[]>();
   for (const cell of primaryRegistered) addGroupedCell(registeredGroups, presentationGroupKey(cell), cell);
   const otherGroups = new Map<string, NsgCell[]>();
   for (const cell of snapshot.cells) {
-    if (cell.registered === true || isNsaAggregationCell(cell)) continue;
+    if (cell.registered === true || isNrNonStandaloneAggregationCell(cell)) continue;
     const key = `${presentationGroupKey(cell)}:${cell.registered === false ? "no" : "unknown"}`;
     addGroupedCell(otherGroups, key, cell);
   }
@@ -189,8 +189,8 @@ export const SnapshotDetails = memo(function SnapshotDetails({ snapshot }: { sna
 
   return (
     <div>
-      {nsaAggregation ? <NsaAggregationRows aggregation={nsaAggregation} /> : null}
-      {primaryGroups.length === 0 && nsaAggregation === null ? (
+      {nrNonStandaloneAggregation ? <NrNonStandaloneAggregationRows aggregation={nrNonStandaloneAggregation} /> : null}
+      {primaryGroups.length === 0 && nrNonStandaloneAggregation === null ? (
         <p className="shrink-0 border-t px-4 py-3 text-sm text-muted-foreground">{t("snapshot.noServing")}</p>
       ) : null}
       {blocks.map((block) =>

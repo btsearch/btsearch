@@ -5,12 +5,12 @@ import { getDisplayRat, getHeadlineSignal, getMobileSummaryFields } from "./cell
 import { formatDecibelValue, formatValue } from "./display";
 import { OperatorName } from "./operatorName";
 import {
-  type NsaAggregation,
-  createNsaAggregation,
-  createNsaPresentationSections,
-  getNsaCarrierRoleAbbreviation,
-  getNsaCarrierRoleLabelKey,
-  isNsaAggregationCell,
+  type NrNonStandaloneAggregation,
+  createNrNonStandaloneAggregation,
+  createNrNonStandalonePresentationSections,
+  getNrNonStandaloneCarrierRoleAbbreviation,
+  getNrNonStandaloneCarrierRoleLabelKey,
+  isNrNonStandaloneAggregationCell,
 } from "./snapshotPresentation";
 import { getCellOperator } from "@/features/nsg-explorer/cells/operators";
 import type { Snapshot } from "@/features/nsg-explorer/cells/snapshots";
@@ -115,9 +115,9 @@ function MobileAggregateCellRow({
   );
 }
 
-function MobileNsaSummary({ aggregation }: { aggregation: NsaAggregation }) {
+function MobileNrNonStandaloneSummary({ aggregation }: { aggregation: NrNonStandaloneAggregation }) {
   const { t } = useTranslation("nsg");
-  const sections = createNsaPresentationSections(aggregation);
+  const sections = createNrNonStandalonePresentationSections(aggregation);
   const hasNrServing = sections.some((section) => section.kind === "nr-serving");
 
   return (
@@ -125,14 +125,14 @@ function MobileNsaSummary({ aggregation }: { aggregation: NsaAggregation }) {
       {sections.map((section) => {
         switch (section.kind) {
           case "nr-serving": {
-            const role = getNsaCarrierRoleAbbreviation(section.role);
+            const role = getNrNonStandaloneCarrierRoleAbbreviation(section.role);
             const label = role === null ? "NR NSA" : `NR NSA (${role})`;
             return (
               <MobileAggregateCellRow
                 key={section.key}
                 cell={section.cell}
                 label={label}
-                accessibleLabel={t(getNsaCarrierRoleLabelKey(section.role), { mode: "NSA" })}
+                accessibleLabel={t(getNrNonStandaloneCarrierRoleLabelKey(section.role), { mode: "NSA" })}
                 showGenerationBadge={section.showRadioContext}
                 showOperator={section.showRadioContext}
               />
@@ -161,15 +161,16 @@ export const MobileSummary = memo(function MobileSummary({ snapshot }: { snapsho
   const { t } = useTranslation("nsg");
   if (!snapshot) return null;
 
-  const nsaAggregation = createNsaAggregation(snapshot.cells);
+  const nrNonStandaloneAggregation = createNrNonStandaloneAggregation(snapshot.cells);
   const registered: NsgCell[] = [];
   for (const cell of snapshot.cells) {
-    if (cell.registered === true && !isNsaAggregationCell(cell)) registered.push(cell);
+    if (cell.registered === true && !isNrNonStandaloneAggregationCell(cell)) registered.push(cell);
   }
-  const hasNsaServingCells =
-    nsaAggregation !== null && (nsaAggregation.anchors.length > 0 || nsaAggregation.carriers.some((carrier) => carrier.serving.length > 0));
+  const hasNrNonStandaloneServingCells =
+    nrNonStandaloneAggregation !== null &&
+    (nrNonStandaloneAggregation.anchors.length > 0 || nrNonStandaloneAggregation.carriers.some((carrier) => carrier.serving.length > 0));
 
-  if (registered.length === 0 && !hasNsaServingCells)
+  if (registered.length === 0 && !hasNrNonStandaloneServingCells)
     return <p className="shrink-0 border-b px-3 py-2 text-sm text-muted-foreground">{t("snapshot.noServing")}</p>;
 
   return (
@@ -179,7 +180,9 @@ export const MobileSummary = memo(function MobileSummary({ snapshot }: { snapsho
       data-testid="nsg-mobile-summary"
       tabIndex={0}
     >
-      {hasNsaServingCells && nsaAggregation ? <MobileNsaSummary aggregation={nsaAggregation} /> : null}
+      {hasNrNonStandaloneServingCells && nrNonStandaloneAggregation ? (
+        <MobileNrNonStandaloneSummary aggregation={nrNonStandaloneAggregation} />
+      ) : null}
       {registered.map((cell) => (
         <MobileCellSummary
           key={`${cell.recordOffset}:${cell.cellIndex}:${cell.rat}:${cell.measurementRole ?? "cell"}`}

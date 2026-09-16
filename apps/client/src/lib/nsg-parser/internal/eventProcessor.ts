@@ -1,7 +1,7 @@
 import type { NsgCell, NsgEvent, NsgJsonObject, NsgLocation, NsgNrMode, NsgParseMode } from "../model";
 import { isValidLatLng } from "./coordinates";
+import type { DefaultDataSubscriptionChange, LteAnchor } from "./nonStandalone/model";
 import { resolveNrIdentity } from "./nrIdentity";
-import type { DefaultDataSubscriptionChange, LteAnchor } from "./nsa/model";
 import { StreamingOperatorState, resolveCellOperator } from "./operatorState";
 
 const MAX_UMTS_CI = 0x0fffffff;

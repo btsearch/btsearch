@@ -147,12 +147,48 @@ function getNumericDetailValue(details: SortableCellDetails, field: CellDetailKe
   return Number.isFinite(value) ? value : 0;
 }
 
+function getLteSortValue(details: SortableCellDetails): number {
+  if (details?.ecid !== undefined && details.ecid !== null) return getNumericDetailValue(details, "ecid");
+  return getNumericDetailValue(details, "enbid") * 256 + getNumericDetailValue(details, "clid");
+}
+
+function getUmtsSortValue(details: SortableCellDetails): number {
+  if (details?.cid_long !== undefined && details.cid_long !== null) return getNumericDetailValue(details, "cid_long");
+  return getNumericDetailValue(details, "rnc") * 65536 + getNumericDetailValue(details, "cid");
+}
+
+function getNrStandaloneSortValue(details: SortableCellDetails): number {
+  if (details?.nci !== undefined && details.nci !== null) return getNumericDetailValue(details, "nci");
+  const gnbid = getNumericDetailValue(details, "gnbid");
+  const gnbidLength = gnbid.toString(2).length;
+  return gnbid * 2 ** (36 - gnbidLength) + getNumericDetailValue(details, "clid");
+}
+
+function compareNrTypes(detailsA: SortableCellDetails, detailsB: SortableCellDetails): number {
+  return Number(detailsA?.type !== "sa") - Number(detailsB?.type !== "sa");
+}
+
 export function compareRatCellDetails(rat: string, detailsA: SortableCellDetails, detailsB: SortableCellDetails): number {
-  if (rat === "NR" && detailsA?.type === "nsa" && detailsB?.type === "nsa")
-    return getNumericDetailValue(detailsA, "pci") - getNumericDetailValue(detailsB, "pci");
+  if (rat === "NR") {
+    const typeOrder = compareNrTypes(detailsA, detailsB);
+    if (typeOrder !== 0) return typeOrder;
+    if (detailsA?.type !== "sa") return getNumericDetailValue(detailsA, "pci") - getNumericDetailValue(detailsB, "pci");
+    return getNrStandaloneSortValue(detailsA) - getNrStandaloneSortValue(detailsB);
+  }
+  if (rat === "LTE") return getLteSortValue(detailsA) - getLteSortValue(detailsB);
+  if (rat === "UMTS") return getUmtsSortValue(detailsA) - getUmtsSortValue(detailsB);
 
   const sortField = getRatSortDetailField(rat);
   return getNumericDetailValue(detailsA, sortField) - getNumericDetailValue(detailsB, sortField);
+}
+
+export function compareRatCells(rat: string, bandA: number, detailsA: SortableCellDetails, bandB: number, detailsB: SortableCellDetails): number {
+  if (rat === "NR") {
+    const typeOrder = compareNrTypes(detailsA, detailsB);
+    if (typeOrder !== 0) return typeOrder;
+  }
+  if (bandA !== bandB) return bandA - bandB;
+  return compareRatCellDetails(rat, detailsA, detailsB);
 }
 
 export function getRatDefaultBandDuplex(rat: string, bandValue?: number | null): string | undefined {

@@ -231,19 +231,24 @@ workerPort.on("message", async (params: WorkerParams) => {
       sectorMetaById.set(sector.id, { index, azimuth: sector.azimuth });
     }
 
-    const stationNsaNRBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
+    const stationNrNonStandaloneBandPciMap = new Map<number, Map<string, NRBandPCIs>>();
     const stationNRBandPciMap = new Map<string, Map<string, NRBandPCIs>>();
     for (const row of nrBandRows) {
       if (!row.band_value) continue;
       const key = `${row.band_value}:${row.band_duplex ?? "null"}`;
 
       if (row.nr_type === "nsa") {
-        const nsaBandMap = stationNsaNRBandPciMap.get(row.station_id) ?? new Map();
-        const nsaEntry = nsaBandMap.get(key) ?? { value: row.band_value, duplex: row.band_duplex ?? null, pcis: [], has_missing_pci: false };
-        if (row.nr_pci !== null && row.nr_pci !== undefined) nsaEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
-        if (row.nr_pci === null || row.nr_pci === undefined) nsaEntry.has_missing_pci = true;
-        nsaBandMap.set(key, nsaEntry);
-        stationNsaNRBandPciMap.set(row.station_id, nsaBandMap);
+        const nrNonStandaloneBandMap = stationNrNonStandaloneBandPciMap.get(row.station_id) ?? new Map();
+        const nrNonStandaloneEntry = nrNonStandaloneBandMap.get(key) ?? {
+          value: row.band_value,
+          duplex: row.band_duplex ?? null,
+          pcis: [],
+          has_missing_pci: false,
+        };
+        if (row.nr_pci !== null && row.nr_pci !== undefined) nrNonStandaloneEntry.pcis.push({ value: row.nr_pci, is_confirmed: row.is_confirmed });
+        if (row.nr_pci === null || row.nr_pci === undefined) nrNonStandaloneEntry.has_missing_pci = true;
+        nrNonStandaloneBandMap.set(key, nrNonStandaloneEntry);
+        stationNrNonStandaloneBandPciMap.set(row.station_id, nrNonStandaloneBandMap);
       }
 
       const stationNRKey = `${row.station_id}:${row.nr_type ?? ""}`;
@@ -343,7 +348,7 @@ workerPort.on("message", async (params: WorkerParams) => {
           pci: row.lte_pci,
           arfcn: row.lte_earfcn,
           rat: "LTE",
-          nr_band_pcis: row.station_pk ? [...(stationNsaNRBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
+          nr_band_pcis: row.station_pk ? [...(stationNrNonStandaloneBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
         },
         format,
         convertOptions,

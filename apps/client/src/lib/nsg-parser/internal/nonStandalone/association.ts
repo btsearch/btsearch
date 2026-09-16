@@ -1,11 +1,11 @@
 import type { NsgCell, NsgJsonObject } from "../../model";
 import { QUALCOMM_NR_MEASUREMENT_LOG_CODE } from "../qualcomm/nrMeasurement";
 import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo, TimedNrMeasurement } from "./model";
-import { createNsaAnchorResolver } from "./streamMapping";
+import { createNrNonStandaloneAnchorResolver } from "./streamMapping";
 
 const ASSOCIATION_MAX_AGE_US = 1_000_000;
 
-export type NsaAssociation = Readonly<{
+export type NrNonStandaloneAssociation = Readonly<{
   anchor: NsgCell;
   derivedCells: readonly NsgCell[];
 }>;
@@ -111,15 +111,15 @@ function createDerivedCells(anchor: LteAnchor, observation: TimedNrMeasurement):
   return [...neighbors, ...primaryCells];
 }
 
-export function associateQualcommNsaMeasurements(
+export function associateQualcommNrNonStandaloneMeasurements(
   anchors: readonly LteAnchor[],
   observations: readonly TimedNrMeasurement[],
   servingCellInfos: readonly TimedLteServingCellInfo[] = [],
   defaultDataSubscriptions: readonly DefaultDataSubscriptionChange[] = [],
-): NsaAssociation[] {
+): NrNonStandaloneAssociation[] {
   if (anchors.length === 0 || observations.length === 0) return [];
 
-  const resolveAnchors = createNsaAnchorResolver(anchors, servingCellInfos, defaultDataSubscriptions);
+  const resolveAnchors = createNrNonStandaloneAnchorResolver(anchors, servingCellInfos, defaultDataSubscriptions);
   const observationsByEvent = new Map<number, AssociatedNrMeasurement>();
 
   for (const observation of observations) {
@@ -138,7 +138,7 @@ export function associateQualcommNsaMeasurements(
       observationsByEvent.set(anchor.cell.eventIndex, { observation, distanceUs });
   }
 
-  const associations: NsaAssociation[] = [];
+  const associations: NrNonStandaloneAssociation[] = [];
   for (const anchor of anchors) {
     const association = observationsByEvent.get(anchor.cell.eventIndex);
     if (association === undefined) continue;
@@ -147,7 +147,7 @@ export function associateQualcommNsaMeasurements(
   return associations;
 }
 
-export function mergeAssociatedNsaCells(cells: readonly NsgCell[], associations: readonly NsaAssociation[]): NsgCell[] {
+export function mergeAssociatedNrNonStandaloneCells(cells: readonly NsgCell[], associations: readonly NrNonStandaloneAssociation[]): NsgCell[] {
   if (associations.length === 0) return [...cells];
   const derivedCellsByEvent = new Map(associations.map(({ anchor, derivedCells }) => [anchor.eventIndex, derivedCells]));
   const mergedCells: NsgCell[] = [];

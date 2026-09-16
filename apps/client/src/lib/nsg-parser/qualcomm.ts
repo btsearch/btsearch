@@ -7,7 +7,7 @@ export type { QualcommNrMeasurement, QualcommNrMeasurementCell } from "./interna
 export {
   QUALCOMM_NR_CONFIGURATION_INFO_LOG_CODE,
   decodeQualcommNrConfigurationInfo,
-  isConnectedQualcommNrSa,
+  isConnectedQualcommNrStandalone,
 } from "./internal/qualcomm/nrConfiguration";
 export type { QualcommNrActiveCarrier, QualcommNrConfigurationInfo } from "./internal/qualcomm/nrConfiguration";
 export { QUALCOMM_NR_SERVING_CELL_INFO_LOG_CODE, decodeQualcommNrServingCellInfo } from "./internal/qualcomm/nrServingCell";

@@ -34,7 +34,7 @@ function getRatFamily(rat: string): RatFamily {
   return "other";
 }
 
-export function isNrNsaCell(cell: NsgCell): boolean {
+export function isNrNonStandaloneCell(cell: NsgCell): boolean {
   return getRatFamily(cell.rat) === "nr" && (cell.measurementRole === "nr-primary" || cell.measurementRole === "nr-neighbor");
 }
 
@@ -108,7 +108,7 @@ export function formatCellIdentity(cell: NsgCell): string {
   if (family === "umts") return `CID ${formatValue(cell.cid)} · UARFCN ${formatValue(cell.uarfcn)}`;
   if (family === "nr") {
     const identity = getNrIdentity(cell);
-    if (isNrNsaCell(cell)) return `PCI ${formatValue(cell.pci)} · ARFCN ${formatValue(cell.arfcn)}`;
+    if (isNrNonStandaloneCell(cell)) return `PCI ${formatValue(cell.pci)} · ARFCN ${formatValue(cell.arfcn)}`;
     return `NCI ${formatValue(identity)} · ARFCN ${formatValue(cell.arfcn)}`;
   }
   return `ID ${formatValue(getGenericIdentity(cell))} · Channel ${formatValue(getGenericChannel(cell))}`;
@@ -142,7 +142,7 @@ export function getCellIdentityFields(cell: NsgCell): readonly DisplayField[] {
       identityField(cell, "psc", cell.psc),
     ];
   if (family === "nr") {
-    if (isNrNsaCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
+    if (isNrNonStandaloneCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
     return [
       identityField(cell, "nrtac", getNrTac(cell)),
       nrIdentityField(cell, "gnbid", cell.gnbid),
@@ -174,7 +174,7 @@ export function getCellMeasurementFields(cell: NsgCell): readonly DisplayField[]
     { key: "rssi", label: "RSSI", value: cell.rssi, unit: "dBm" },
     { key: "sinr", label: "SINR", value: cell.sinr },
   ];
-  if (!isNrNsaCell(cell)) fields.push({ key: "ta", label: "TA", value: cell.ta });
+  if (!isNrNonStandaloneCell(cell)) fields.push({ key: "ta", label: "TA", value: cell.ta });
   if (family === "gsm") fields.push({ key: "ber", label: "BER", value: cell.ber });
   return fields;
 }
@@ -197,7 +197,7 @@ export function getMobileSummaryFields(cell: NsgCell): readonly DisplayField[] {
   if (family === "gsm") return getCellIdentityFields(cell);
   if (family === "umts") return [...getCellIdentityFields(cell), { key: "ecno", label: "Ec/No", value: cell.ecno, unit: "dB" }];
   if (family === "nr") {
-    if (isNrNsaCell(cell))
+    if (isNrNonStandaloneCell(cell))
       return [
         identityField(cell, "pci", cell.pci),
         identityField(cell, "arfcn", cell.arfcn),
@@ -229,7 +229,7 @@ export function getSignalIdentityFields(cell: NsgCell): readonly DisplayField[] 
   if (family === "umts") return [identityField(cell, "cid", cell.cid), identityField(cell, "uarfcn", cell.uarfcn)];
   if (family === "nr") {
     const identity = getNrIdentity(cell);
-    if (isNrNsaCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
+    if (isNrNonStandaloneCell(cell)) return [identityField(cell, "pci", cell.pci), identityField(cell, "arfcn", cell.arfcn)];
     return [identityField(cell, "nci", identity), identityField(cell, "arfcn", cell.arfcn)];
   }
   return [
@@ -276,7 +276,7 @@ export function getReportedCellColumns(rat: string, samples?: readonly NsgCell[]
     ];
   if (family === "nr") {
     const sample = samples?.[0];
-    if (sample && isNrNsaCell(sample))
+    if (sample && isNrNonStandaloneCell(sample))
       return [
         { key: "pci", label: "PCI", getValue: (cell) => cell.pci },
         { key: "arfcn", label: "ARFCN", getValue: (cell) => cell.arfcn },

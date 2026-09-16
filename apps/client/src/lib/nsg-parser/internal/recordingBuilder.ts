@@ -11,15 +11,15 @@ import type {
   NsgTimestamp,
 } from "../model";
 import { EventProcessor, type EventProcessorSink } from "./eventProcessor";
-import { associateQualcommNsaMeasurements, mergeAssociatedNsaCells } from "./nsa/association";
-import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo, TimedNrMeasurement } from "./nsa/model";
+import { associateQualcommNrNonStandaloneMeasurements, mergeAssociatedNrNonStandaloneCells } from "./nonStandalone/association";
+import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo, TimedNrMeasurement } from "./nonStandalone/model";
 import type { QualcommDiagPrefix } from "./qualcomm/diag";
-import { isConnectedQualcommNrSa } from "./qualcomm/nrConfiguration";
+import { isConnectedQualcommNrStandalone } from "./qualcomm/nrConfiguration";
 import type { DecodedQualcommRecord, QualcommRecordPolicy } from "./qualcomm/record";
 import { decodeQualcommRecord } from "./qualcomm/record";
 import { isValidQualcommSignalingEnvelope } from "./qualcomm/signaling/decoder";
-import { fuseQualcommSaCells } from "./sa/association";
-import type { TimedNrConfigurationInfo, TimedNrServingCellInfo } from "./sa/model";
+import { fuseQualcommNrStandaloneCells } from "./standalone/association";
+import type { TimedNrConfigurationInfo, TimedNrServingCellInfo } from "./standalone/model";
 
 export const MAX_RETAINED_SIGNALING_RECORDS = 10_000;
 const MAX_RETAINED_SIGNALING_PAYLOAD_BYTES = 16 * 1024 * 1024;
@@ -312,11 +312,11 @@ export class RecordingBuilder {
 
   private emitAssociatedNrCells(): void {
     if (this.mode === "streaming") return;
-    const shouldFuseSa =
-      this.nrConfigurations.some(({ configuration }) => isConnectedQualcommNrSa(configuration)) ||
+    const shouldFuseNrStandalone =
+      this.nrConfigurations.some(({ configuration }) => isConnectedQualcommNrStandalone(configuration)) ||
       (this.nrMeasurements.length > 0 && this.cells.some((cell) => cell.rat === "NR" && cell.nrMode === "SA"));
-    const sa = shouldFuseSa
-      ? fuseQualcommSaCells(
+    const nrStandaloneResult = shouldFuseNrStandalone
+      ? fuseQualcommNrStandaloneCells(
           this.cells,
           this.events,
           this.nrConfigurations,
@@ -327,15 +327,15 @@ export class RecordingBuilder {
           this.defaultDataSubscriptions,
         )
       : { cells: this.cells, syntheticEvents: [], remainingMeasurements: this.nrMeasurements };
-    for (const event of sa.syntheticEvents) {
+    for (const event of nrStandaloneResult.syntheticEvents) {
       this.events.push(event);
       this.eventCount++;
       this.eventTypeCounts.set(event.name, (this.eventTypeCounts.get(event.name) ?? 0) + 1);
       this.options.onEvent?.(event);
     }
-    const associations = associateQualcommNsaMeasurements(
+    const associations = associateQualcommNrNonStandaloneMeasurements(
       this.lteAnchors,
-      sa.remainingMeasurements.filter((observation) => observation.measurement.cells.some((cell) => cell.serving)),
+      nrStandaloneResult.remainingMeasurements.filter((observation) => observation.measurement.cells.some((cell) => cell.serving)),
       this.lteServingCellInfos,
       this.defaultDataSubscriptions,
     );
@@ -343,7 +343,7 @@ export class RecordingBuilder {
       anchor.measurementRole = "lte-secondary";
       anchor.raw.measurementRole = "lte-secondary";
     }
-    const mergedCells = mergeAssociatedNsaCells(sa.cells, associations);
+    const mergedCells = mergeAssociatedNrNonStandaloneCells(nrStandaloneResult.cells, associations);
     this.cells.length = 0;
     for (const cell of mergedCells) this.cells.push(cell);
     this.cellCount = this.cells.length;

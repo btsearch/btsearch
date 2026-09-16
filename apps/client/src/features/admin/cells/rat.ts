@@ -1,6 +1,7 @@
 export {
   RAT_ORDER,
   RAT_OPTIONS,
+  compareRatCells,
   compareRatCellDetails,
   getCellDetailDefaultValue,
   findPreferredRatBand,

@@ -20,18 +20,18 @@ function getSectorLocalId(cell: SectorSyncCell): string | null {
   return hasSector(cell) ? (cell._sectorLocalId ?? null) : null;
 }
 
-function isNSATarget(cell: CrossRatSectorSyncCell): boolean {
+function isNrNonStandaloneTarget(cell: CrossRatSectorSyncCell): boolean {
   const details = cell.details as Record<string, unknown>;
   return cell.rat === "NR" && (details.type ?? "nsa") === "nsa" && getPCI(cell) !== null && !hasSector(cell);
 }
 
-function isNRSACell(cell: CrossRatSectorSyncCell): boolean {
+function isNrStandaloneCell(cell: CrossRatSectorSyncCell): boolean {
   const details = cell.details as Record<string, unknown>;
   return cell.rat === "NR" && details.type === "sa";
 }
 
 export function isNRSyncTarget(cell: CrossRatSectorSyncCell): boolean {
-  return isNSATarget(cell) || (isNRSACell(cell) && getPCI(cell) !== null && !hasSector(cell));
+  return isNrNonStandaloneTarget(cell) || (isNrStandaloneCell(cell) && getPCI(cell) !== null && !hasSector(cell));
 }
 
 export function syncByPCI<T extends SectorSyncCell>(cells: T[]): T[] {
@@ -55,7 +55,7 @@ export function syncByPCI<T extends SectorSyncCell>(cells: T[]): T[] {
   });
 }
 
-function syncNSAFromLTE<T extends CrossRatSectorSyncCell>(cells: T[]): T[] {
+function syncNrNonStandaloneFromLTE<T extends CrossRatSectorSyncCell>(cells: T[]): T[] {
   const lteSectorsByPci = new Map<number, string | null>();
 
   for (const cell of cells) {
@@ -72,7 +72,7 @@ function syncNSAFromLTE<T extends CrossRatSectorSyncCell>(cells: T[]): T[] {
   if (lteSectorsByPci.size === 0) return cells;
 
   return cells.map((cell) => {
-    if (!isNSATarget(cell)) return cell;
+    if (!isNrNonStandaloneTarget(cell)) return cell;
     const pci = getPCI(cell);
     if (pci === null) return cell;
     const sectorLocalId = lteSectorsByPci.get(pci);
@@ -82,15 +82,15 @@ function syncNSAFromLTE<T extends CrossRatSectorSyncCell>(cells: T[]): T[] {
 }
 
 export function syncNRByPCI<T extends CrossRatSectorSyncCell>(cells: T[]): T[] {
-  const nrSaCells = cells.filter(isNRSACell);
-  const syncedNrSaCells = syncByPCI(nrSaCells);
-  let nrSaIndex = 0;
-  const cellsWithSyncedNrSa = cells.map((cell) => {
-    if (!isNRSACell(cell)) return cell;
-    const syncedCell = syncedNrSaCells[nrSaIndex];
-    nrSaIndex += 1;
+  const nrStandaloneCells = cells.filter(isNrStandaloneCell);
+  const syncedNrStandaloneCells = syncByPCI(nrStandaloneCells);
+  let nrStandaloneIndex = 0;
+  const cellsWithSyncedNrStandalone = cells.map((cell) => {
+    if (!isNrStandaloneCell(cell)) return cell;
+    const syncedCell = syncedNrStandaloneCells[nrStandaloneIndex];
+    nrStandaloneIndex += 1;
     return syncedCell ?? cell;
   });
 
-  return syncNSAFromLTE(cellsWithSyncedNrSa);
+  return syncNrNonStandaloneFromLTE(cellsWithSyncedNrStandalone);
 }

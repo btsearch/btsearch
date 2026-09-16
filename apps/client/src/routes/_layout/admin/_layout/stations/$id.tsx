@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { DiffBadges } from "@/features/admin/cells/cellsEditor";
 import { CellsEditor } from "@/features/admin/cells/cellsEditor";
 import { useCellDrafts } from "@/features/admin/cells/hooks/useCellDrafts";
-import { RAT_ORDER, compareRatCellDetails } from "@/features/admin/cells/rat";
+import { RAT_ORDER, compareRatCells } from "@/features/admin/cells/rat";
 import { bandsQueryOptions, operatorsQueryOptions } from "@/features/admin/queries";
 import { StationCommentsSection } from "@/features/admin/stations/components/stationCommentsSection";
 import { StationDetailHeader } from "@/features/admin/stations/components/stationDetailHeader";
@@ -54,8 +54,9 @@ function cellToLocal(cell: Cell): LocalCell {
 function sortAndMapCells(cells: Cell[]): LocalCell[] {
   return [...cells]
     .sort((a, b) => {
-      if (a.band.value !== b.band.value) return a.band.value - b.band.value;
-      return compareRatCellDetails(a.rat, a.details, b.details);
+      const ratOrder = RAT_ORDER.findIndex((rat) => rat === a.rat) - RAT_ORDER.findIndex((rat) => rat === b.rat);
+      if (ratOrder !== 0) return ratOrder;
+      return compareRatCells(a.rat, a.band.value, a.details, b.band.value, b.details);
     })
     .map(cellToLocal);
 }

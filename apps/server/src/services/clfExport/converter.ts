@@ -302,7 +302,7 @@ function getDescription(cell: CellExportData): string {
   return `${prefix ? `${prefix} ` : ""}${getBaseDescription(cell)}`;
 }
 
-function isNRNsa(cell: CellExportData): boolean {
+function isNrNonStandalone(cell: CellExportData): boolean {
   return cell.rat === "NR" && cell.nr_type === "nsa";
 }
 
@@ -471,7 +471,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
         duplex: cell.band_duplex,
         nr_pci: cell.pci,
         nr_arfcn: cell.arfcn,
-        nr_tac: isNRNsa(cell) ? undefined : cell.nrtac,
+        nr_tac: isNrNonStandalone(cell) ? undefined : cell.nrtac,
         nr_band: getMarkedNRBand(cell),
       };
     }
@@ -483,7 +483,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
 function renderDescription(cell: CellExportData, options?: ConvertOptions): string {
   if (cell.rat === "CDMA") return sanitizeDescription(getDescription(cell));
 
-  const templateKey = isNRNsa(cell) ? "NR_NSA" : cell.rat;
+  const templateKey = isNrNonStandalone(cell) ? "NR_NSA" : cell.rat;
   const template = options?.templates?.[templateKey] || CLF_DESCRIPTION_TEMPLATE_DEFAULTS[templateKey];
   const vars = buildTemplateVars(cell);
   return sanitizeDescription(renderCLFDescriptionTemplate(template, (key) => formatTemplateValue(vars[key as CLFDescriptionTemplatePlaceholder])));
@@ -541,7 +541,7 @@ export function toNTM(cell: CellExportData, options?: ConvertOptions): string | 
       return `4G;${mcc};${mnc};${ci};${tac};${enbid};${pci};${lat};${lon};${location};${earfcn}`;
     }
     case "NR": {
-      const useLTETAC = options?.displayNRSeparately === true && isNRNsa(cell);
+      const useLTETAC = options?.displayNRSeparately === true && isNrNonStandalone(cell);
       const nci = useLTETAC ? (cell.nci ?? 1) : (cell.nci ?? NTM_UNKNOWN);
       const tac = useLTETAC ? (cell.station_lte_tac ?? NTM_UNKNOWN) : (cell.nrtac ?? NTM_UNKNOWN);
       const pci = cell.pci ?? NTM_UNKNOWN;

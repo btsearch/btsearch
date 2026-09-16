@@ -43,7 +43,7 @@ export type QualcommNrConfigurationInfo = Readonly<{
   activeRadioBearerCount: number;
 }>;
 
-export function isConnectedQualcommNrSa(configuration: QualcommNrConfigurationInfo): boolean {
+export function isConnectedQualcommNrStandalone(configuration: QualcommNrConfigurationInfo): boolean {
   return configuration.state === 7 && configuration.configurationActive && configuration.connectivityMode === 2;
 }
 

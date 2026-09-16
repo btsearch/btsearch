@@ -1,27 +1,27 @@
 import type { NsgCell } from "@/lib/nsg-parser/model";
 
-export type NsaCarrierRole = "primary" | "secondary" | "unknown";
+export type NrNonStandaloneCarrierRole = "primary" | "secondary" | "unknown";
 export type NrDeploymentMode = "NSA" | "SA";
 
-export type NsaCarrierGroup = Readonly<{
+export type NrNonStandaloneCarrierGroup = Readonly<{
   key: string;
   carrierIndex: number | null;
-  role: NsaCarrierRole;
+  role: NrNonStandaloneCarrierRole;
   serving: readonly NsgCell[];
   neighbors: readonly NsgCell[];
 }>;
 
-export type NsaAggregation = Readonly<{
+export type NrNonStandaloneAggregation = Readonly<{
   anchors: readonly NsgCell[];
-  carriers: readonly NsaCarrierGroup[];
+  carriers: readonly NrNonStandaloneCarrierGroup[];
 }>;
 
-export type NsaPresentationSection =
+export type NrNonStandalonePresentationSection =
   | Readonly<{
       kind: "nr-serving";
       key: string;
       carrierKey: string;
-      role: NsaCarrierRole;
+      role: NrNonStandaloneCarrierRole;
       cell: NsgCell;
       showRadioContext: boolean;
     }>
@@ -29,7 +29,7 @@ export type NsaPresentationSection =
       kind: "nr-neighbors";
       key: string;
       carrierKey: string;
-      role: NsaCarrierRole;
+      role: NrNonStandaloneCarrierRole;
       cells: readonly NsgCell[];
     }>
   | Readonly<{
@@ -41,30 +41,30 @@ export type NsaPresentationSection =
 type MutableCarrierGroup = {
   key: string;
   carrierIndex: number | null;
-  role: NsaCarrierRole;
+  role: NrNonStandaloneCarrierRole;
   serving: NsgCell[];
   neighbors: NsgCell[];
 };
 
-type NsaCarrierRoleLabelKey = "snapshot.nrPrimaryCell" | "snapshot.nrSecondaryCell" | "snapshot.nrCell";
+type NrNonStandaloneCarrierRoleLabelKey = "snapshot.nrPrimaryCell" | "snapshot.nrSecondaryCell" | "snapshot.nrCell";
 
 function rawNonNegativeInteger(cell: NsgCell, key: string): number | null {
   const value = cell.raw[key];
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-function compareCarrierGroups(left: NsaCarrierGroup, right: NsaCarrierGroup): number {
+function compareCarrierGroups(left: NrNonStandaloneCarrierGroup, right: NrNonStandaloneCarrierGroup): number {
   if (left.carrierIndex === null) return right.carrierIndex === null ? 0 : 1;
   if (right.carrierIndex === null) return -1;
   return left.carrierIndex - right.carrierIndex;
 }
 
-function carrierRole(carrierIndex: number | null): NsaCarrierRole {
+function carrierRole(carrierIndex: number | null): NrNonStandaloneCarrierRole {
   if (carrierIndex === null) return "unknown";
   return carrierIndex === 0 ? "primary" : "secondary";
 }
 
-export function getNsaCarrierRoleLabelKey(role: NsaCarrierRole): NsaCarrierRoleLabelKey {
+export function getNrNonStandaloneCarrierRoleLabelKey(role: NrNonStandaloneCarrierRole): NrNonStandaloneCarrierRoleLabelKey {
   switch (role) {
     case "primary":
       return "snapshot.nrPrimaryCell";
@@ -75,7 +75,7 @@ export function getNsaCarrierRoleLabelKey(role: NsaCarrierRole): NsaCarrierRoleL
   }
 }
 
-export function getNsaCarrierRoleAbbreviation(role: NsaCarrierRole): "PC" | "SC" | null {
+export function getNrNonStandaloneCarrierRoleAbbreviation(role: NrNonStandaloneCarrierRole): "PC" | "SC" | null {
   switch (role) {
     case "primary":
       return "PC";
@@ -92,7 +92,7 @@ export function getNeighborTechnologySuffix(rat: string, nrMode?: NrDeploymentMo
   return rat;
 }
 
-export function createNsaAggregation(cells: readonly NsgCell[]): NsaAggregation | null {
+export function createNrNonStandaloneAggregation(cells: readonly NsgCell[]): NrNonStandaloneAggregation | null {
   const anchors: NsgCell[] = [];
   const carriersByKey = new Map<string, MutableCarrierGroup>();
 
@@ -118,8 +118,8 @@ export function createNsaAggregation(cells: readonly NsgCell[]): NsaAggregation 
   return anchors.length === 0 && carriers.length === 0 ? null : { anchors, carriers };
 }
 
-export function createNsaPresentationSections(aggregation: NsaAggregation): readonly NsaPresentationSection[] {
-  const sections: NsaPresentationSection[] = [];
+export function createNrNonStandalonePresentationSections(aggregation: NrNonStandaloneAggregation): readonly NrNonStandalonePresentationSection[] {
+  const sections: NrNonStandalonePresentationSection[] = [];
 
   for (const carrier of aggregation.carriers) {
     for (const cell of carrier.serving) {
@@ -149,6 +149,6 @@ export function createNsaPresentationSections(aggregation: NsaAggregation): read
   return sections;
 }
 
-export function isNsaAggregationCell(cell: NsgCell): boolean {
+export function isNrNonStandaloneAggregationCell(cell: NsgCell): boolean {
   return cell.measurementRole === "lte-secondary" || cell.measurementRole === "nr-primary" || cell.measurementRole === "nr-neighbor";
 }

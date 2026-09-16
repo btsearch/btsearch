@@ -1,9 +1,9 @@
 import type { NsgCell, NsgEvent, NsgJsonObject } from "../../model";
+import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo } from "../nonStandalone/model";
+import type { TimedNrMeasurement } from "../nonStandalone/model";
+import { createNrNonStandaloneAnchorResolver } from "../nonStandalone/streamMapping";
 import { resolveNrIdentity } from "../nrIdentity";
-import type { DefaultDataSubscriptionChange, LteAnchor, TimedLteServingCellInfo } from "../nsa/model";
-import type { TimedNrMeasurement } from "../nsa/model";
-import { createNsaAnchorResolver } from "../nsa/streamMapping";
-import { QUALCOMM_NR_CONFIGURATION_INFO_LOG_CODE, isConnectedQualcommNrSa } from "../qualcomm/nrConfiguration";
+import { QUALCOMM_NR_CONFIGURATION_INFO_LOG_CODE, isConnectedQualcommNrStandalone } from "../qualcomm/nrConfiguration";
 import type { QualcommNrActiveCarrier } from "../qualcomm/nrConfiguration";
 import { QUALCOMM_NR_MEASUREMENT_LOG_CODE } from "../qualcomm/nrMeasurement";
 import type { QualcommNrMeasurementCell } from "../qualcomm/nrMeasurement";
@@ -22,12 +22,12 @@ type TimelinePoint = Readonly<{
   recordOffset: number;
 }>;
 
-type SaState = Readonly<{
+type NrStandaloneState = Readonly<{
   configuration: TimedNrConfigurationInfo;
   epoch: number;
 }>;
 
-type IndexedSaState = Readonly<{
+type IndexedNrStandaloneState = Readonly<{
   configuration: TimedNrConfigurationInfo;
   epoch: number | null;
 }>;
@@ -38,9 +38,9 @@ type AndroidNrContext = TimelinePoint &
     cellPositions: readonly number[];
   }>;
 
-type SaEventContext = AndroidNrContext &
+type NrStandaloneEventContext = AndroidNrContext &
   Readonly<{
-    state: SaState;
+    state: NrStandaloneState;
   }>;
 
 type SubscriptionGroup = Readonly<{
@@ -77,12 +77,12 @@ type StandaloneCellDefinition = Readonly<{
 type StandaloneGroup = Readonly<{
   envelope: NsgCell | null;
   point: TimedNrServingCellInfo | TimedNrMeasurement;
-  state: SaState;
+  state: NrStandaloneState;
   streamIndex: number;
   cells: readonly StandaloneCellDefinition[];
 }>;
 
-export type QualcommSaFusionResult = Readonly<{
+export type QualcommNrStandaloneFusionResult = Readonly<{
   cells: NsgCell[];
   syntheticEvents: NsgEvent[];
   remainingMeasurements: TimedNrMeasurement[];
@@ -92,11 +92,11 @@ function compareTimeline(left: TimelinePoint, right: TimelinePoint): number {
   return left.elapsedUs - right.elapsedUs || left.recordOffset - right.recordOffset;
 }
 
-function isPositiveSa(configuration: TimedNrConfigurationInfo): boolean {
-  return configuration.configuration.version === 8 && isConnectedQualcommNrSa(configuration.configuration);
+function isPositiveNrStandalone(configuration: TimedNrConfigurationInfo): boolean {
+  return configuration.configuration.version === 8 && isConnectedQualcommNrStandalone(configuration.configuration);
 }
 
-function buildConfigurationTimeline(configurations: readonly TimedNrConfigurationInfo[]): Map<number, IndexedSaState[]> {
+function buildConfigurationTimeline(configurations: readonly TimedNrConfigurationInfo[]): Map<number, IndexedNrStandaloneState[]> {
   const byStream = new Map<number, TimedNrConfigurationInfo[]>();
   for (const configuration of configurations) {
     const stream = byStream.get(configuration.streamIndex);
@@ -104,24 +104,28 @@ function buildConfigurationTimeline(configurations: readonly TimedNrConfiguratio
     else byStream.set(configuration.streamIndex, [configuration]);
   }
 
-  const timelines = new Map<number, IndexedSaState[]>();
+  const timelines = new Map<number, IndexedNrStandaloneState[]>();
   for (const [streamIndex, records] of byStream) {
     records.sort(compareTimeline);
-    const states: IndexedSaState[] = [];
+    const states: IndexedNrStandaloneState[] = [];
     let epoch = 0;
-    let wasSa = false;
+    let wasNrStandalone = false;
     for (const configuration of records) {
-      const sa = isPositiveSa(configuration);
-      if (sa && !wasSa) epoch++;
-      states.push({ configuration, epoch: sa ? epoch : null });
-      wasSa = sa;
+      const isNrStandalone = isPositiveNrStandalone(configuration);
+      if (isNrStandalone && !wasNrStandalone) epoch++;
+      states.push({ configuration, epoch: isNrStandalone ? epoch : null });
+      wasNrStandalone = isNrStandalone;
     }
     timelines.set(streamIndex, states);
   }
   return timelines;
 }
 
-function indexedStateAt(timelines: ReadonlyMap<number, readonly IndexedSaState[]>, streamIndex: number, point: TimelinePoint): IndexedSaState | null {
+function indexedStateAt(
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
+  streamIndex: number,
+  point: TimelinePoint,
+): IndexedNrStandaloneState | null {
   const timeline = timelines.get(streamIndex);
   if (!timeline) return null;
   let low = 0;
@@ -134,13 +138,21 @@ function indexedStateAt(timelines: ReadonlyMap<number, readonly IndexedSaState[]
   return low === 0 ? null : timeline[low - 1];
 }
 
-function saStateAt(timelines: ReadonlyMap<number, readonly IndexedSaState[]>, streamIndex: number, point: TimelinePoint): SaState | null {
+function nrStandaloneStateAt(
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
+  streamIndex: number,
+  point: TimelinePoint,
+): NrStandaloneState | null {
   const state = indexedStateAt(timelines, streamIndex, point);
   if (state === null) return null;
   return state.epoch === null ? null : { configuration: state.configuration, epoch: state.epoch };
 }
 
-function futureSaStateAt(timelines: ReadonlyMap<number, readonly IndexedSaState[]>, streamIndex: number, point: TimelinePoint): SaState | null {
+function futureNrStandaloneStateAt(
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
+  streamIndex: number,
+  point: TimelinePoint,
+): NrStandaloneState | null {
   const timeline = timelines.get(streamIndex);
   if (!timeline || indexedStateAt(timelines, streamIndex, point) !== null) return null;
   const state = timeline[0];
@@ -236,14 +248,14 @@ function createSubscriptionGroups(contexts: readonly AndroidNrContext[], cells: 
 function collectStreamVotes(
   groups: readonly SubscriptionGroup[],
   cells: readonly NsgCell[],
-  timelines: ReadonlyMap<number, readonly IndexedSaState[]>,
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
   servingCellInfos: readonly TimedNrServingCellInfo[],
 ): Map<number, StreamVote[]> {
   const votesByStream = new Map<number, StreamVote[]>();
   for (const servingCell of servingCellInfos) {
     if (servingCell.info.version !== 4) continue;
-    const existingState = saStateAt(timelines, servingCell.streamIndex, servingCell);
-    const state = existingState ?? futureSaStateAt(timelines, servingCell.streamIndex, servingCell);
+    const existingState = nrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
+    const state = existingState ?? futureNrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
     if (state === null) continue;
     const nci = matchableNci(servingCell.info.cellIdentity);
     if (nci === null) continue;
@@ -281,7 +293,7 @@ function collectStreamVotes(
 function createContextResolvers(
   groups: readonly SubscriptionGroup[],
   cells: readonly NsgCell[],
-  timelines: ReadonlyMap<number, readonly IndexedSaState[]>,
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
   servingCellInfos: readonly TimedNrServingCellInfo[],
   lteAnchors: readonly LteAnchor[],
   lteServingCellInfos: readonly TimedLteServingCellInfo[],
@@ -292,8 +304,8 @@ function createContextResolvers(
 }> {
   const groupsByKey = new Map(groups.map((group) => [group.key, group]));
   const votesByStream = collectStreamVotes(groups, cells, timelines, servingCellInfos);
-  const resolveLteAnchors = createNsaAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions);
-  const resolveEvidenceLteAnchors = createNsaAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions, {
+  const resolveLteAnchors = createNrNonStandaloneAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions);
+  const resolveEvidenceLteAnchors = createNrNonStandaloneAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions, {
     allowFallbacks: false,
   });
 
@@ -322,17 +334,17 @@ function createContextResolvers(
   return { resolveContexts, resolveEvidenceContexts };
 }
 
-function createSaEventContexts(
+function createNrStandaloneEventContexts(
   contexts: readonly AndroidNrContext[],
-  timelines: ReadonlyMap<number, readonly IndexedSaState[]>,
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
   resolveContexts: (streamIndex: number, point: TimelinePoint) => readonly AndroidNrContext[] | null,
-): SaEventContext[] {
-  const resolved: SaEventContext[] = [];
+): NrStandaloneEventContext[] {
+  const resolved: NrStandaloneEventContext[] = [];
   for (const context of contexts) {
-    let matchedState: SaState | null = null;
+    let matchedState: NrStandaloneState | null = null;
     let ambiguous = false;
     for (const streamIndex of timelines.keys()) {
-      const state = saStateAt(timelines, streamIndex, context);
+      const state = nrStandaloneStateAt(timelines, streamIndex, context);
       if (state === null || !resolveContexts(streamIndex, context)?.includes(context)) continue;
       if (matchedState !== null) {
         ambiguous = true;
@@ -345,20 +357,20 @@ function createSaEventContexts(
   return resolved;
 }
 
-function createFutureSaEventContexts(
+function createFutureNrStandaloneEventContexts(
   contexts: readonly AndroidNrContext[],
   cells: readonly NsgCell[],
-  timelines: ReadonlyMap<number, readonly IndexedSaState[]>,
+  timelines: ReadonlyMap<number, readonly IndexedNrStandaloneState[]>,
   servingCellInfos: readonly TimedNrServingCellInfo[],
-): SaEventContext[] {
-  const resolvedByEvent = new Map<number, SaEventContext>();
+): NrStandaloneEventContext[] {
+  const resolvedByEvent = new Map<number, NrStandaloneEventContext>();
   const ambiguousEvents = new Set<number>();
 
   for (const servingCell of servingCellInfos) {
     if (servingCell.info.version !== 4) continue;
-    const state = futureSaStateAt(timelines, servingCell.streamIndex, servingCell);
+    const state = futureNrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
     if (state === null) continue;
-    const context = scheduleSaContextForServingCell(contexts, cells, servingCell, state.configuration);
+    const context = scheduleNrStandaloneContextForServingCell(contexts, cells, servingCell, state.configuration);
     if (context === null) continue;
     if (state.configuration.elapsedUs - context.elapsedUs > ASSOCIATION_MAX_AGE_US) continue;
     if (ambiguousEvents.has(context.event.id)) continue;
@@ -377,8 +389,8 @@ function createFutureSaEventContexts(
   return [...resolvedByEvent.values()];
 }
 
-function groupContexts(contexts: readonly SaEventContext[]): Map<string, SaEventContext[]> {
-  const grouped = new Map<string, SaEventContext[]>();
+function groupContexts(contexts: readonly NrStandaloneEventContext[]): Map<string, NrStandaloneEventContext[]> {
+  const grouped = new Map<string, NrStandaloneEventContext[]>();
   for (const context of contexts) {
     const key = stateKey(context.state.configuration.streamIndex, context.state.epoch);
     const records = grouped.get(key);
@@ -489,7 +501,7 @@ function uniqueScheduleContext(candidates: readonly AndroidNrContext[], cells: r
   return nearestRecord(candidates, point);
 }
 
-function scheduleSaContextForMeasurement(
+function scheduleNrStandaloneContextForMeasurement(
   contexts: readonly AndroidNrContext[],
   cells: readonly NsgCell[],
   observation: TimedNrMeasurement,
@@ -503,7 +515,7 @@ function scheduleSaContextForMeasurement(
   return uniqueScheduleContext(candidates, cells, observation);
 }
 
-function scheduleSaContextForServingCell(
+function scheduleNrStandaloneContextForServingCell(
   contexts: readonly AndroidNrContext[],
   cells: readonly NsgCell[],
   servingCell: TimedNrServingCellInfo,
@@ -522,7 +534,7 @@ function scheduleSaContextForServingCell(
 }
 
 function servingPosition(
-  context: SaEventContext,
+  context: NrStandaloneEventContext,
   cells: readonly NsgCell[],
   servingCell: TimedNrServingCellInfo | null,
   measurement: TimedNrMeasurement | null,
@@ -602,7 +614,7 @@ function measurementProvenance(contribution: MeasurementContribution): NsgJsonOb
   };
 }
 
-function fuseScheduleSaCell(cell: NsgCell, contribution: MeasurementContribution): NsgCell {
+function fuseScheduleNrStandaloneCell(cell: NsgCell, contribution: MeasurementContribution): NsgCell {
   const decoded = contribution.cell;
   const raw: NsgJsonObject = { ...cell.raw, ...measurementProvenance(contribution), nrMode: "SA" };
   delete raw.measurementRole;
@@ -620,7 +632,7 @@ function fuseScheduleSaCell(cell: NsgCell, contribution: MeasurementContribution
   return { ...fused, ...resolveNrIdentity(raw, fused.nci) };
 }
 
-function createScheduleSaNeighbor(envelope: NsgCell, event: NsgEvent, cellIndex: number, contribution: MeasurementContribution): NsgCell {
+function createScheduleNrStandaloneNeighbor(envelope: NsgCell, event: NsgEvent, cellIndex: number, contribution: MeasurementContribution): NsgCell {
   const decoded = contribution.cell;
   const raw: NsgJsonObject = {
     type: "nr",
@@ -687,7 +699,7 @@ function carrierProvenance(carrier: QualcommNrActiveCarrier): NsgJsonObject {
   };
 }
 
-function fuseCell(cell: NsgCell, state: SaState, contributions: CellContributions): NsgCell {
+function fuseCell(cell: NsgCell, state: NrStandaloneState, contributions: CellContributions): NsgCell {
   const raw: NsgJsonObject = { ...cell.raw, ...configurationProvenance(state.configuration), nrMode: "SA" };
   delete raw.measurementRole;
   let fused: NsgCell = {
@@ -737,7 +749,7 @@ function createDerivedNeighbor(
   envelope: NsgCell,
   event: NsgEvent,
   cellIndex: number,
-  state: SaState,
+  state: NrStandaloneState,
   contribution: MeasurementContribution,
   carrier: QualcommNrActiveCarrier | undefined,
 ): NsgCell {
@@ -821,7 +833,7 @@ function standaloneEnvelope(
   return anchor !== null && Math.abs(anchor.cell.elapsedUs - point.elapsedUs) <= ASSOCIATION_MAX_AGE_US ? anchor.cell : null;
 }
 
-function standaloneCarrier(state: SaState, measurement: MeasurementContribution | null): QualcommNrActiveCarrier | undefined {
+function standaloneCarrier(state: NrStandaloneState, measurement: MeasurementContribution | null): QualcommNrActiveCarrier | undefined {
   const carriers = state.configuration.configuration.activeCarriers;
   if (measurement === null) return carriers.length === 1 ? carriers[0] : undefined;
   const arfcn = validArfcn(measurement.cell.arfcn);
@@ -834,7 +846,7 @@ function createSyntheticEvent(id: number, group: StandaloneGroup): NsgEvent {
   const { envelope, point } = group;
   return {
     id,
-    name: "QualcommNrSa",
+    name: "QualcommNrStandalone",
     marker: null,
     recordOffset: point.recordOffset,
     streamIndex: group.streamIndex,
@@ -842,7 +854,7 @@ function createSyntheticEvent(id: number, group: StandaloneGroup): NsgEvent {
     timestampUs: point.timestampUs,
     timestampMs: point.timestampMs,
     data: {
-      event: "QualcommNrSa",
+      event: "QualcommNrStandalone",
       source: "qualcomm-diag",
       nrMode: "SA",
       subId: envelope?.subId ?? null,
@@ -856,7 +868,7 @@ function createStandaloneCell(
   envelope: NsgCell | null,
   eventIndex: number,
   cellIndex: number,
-  state: SaState,
+  state: NrStandaloneState,
   servingCell: TimedNrServingCellInfo | null,
   measurement: MeasurementContribution | null,
 ): NsgCell {
@@ -948,7 +960,7 @@ function matchingMeasurementForServing(
   return matched;
 }
 
-export function fuseQualcommSaCells(
+export function fuseQualcommNrStandaloneCells(
   cells: readonly NsgCell[],
   events: readonly NsgEvent[],
   configurations: readonly TimedNrConfigurationInfo[],
@@ -957,7 +969,7 @@ export function fuseQualcommSaCells(
   lteAnchors: readonly LteAnchor[] = [],
   lteServingCellInfos: readonly TimedLteServingCellInfo[] = [],
   defaultDataSubscriptions: readonly DefaultDataSubscriptionChange[] = [],
-): QualcommSaFusionResult {
+): QualcommNrStandaloneFusionResult {
   const timelines = buildConfigurationTimeline(configurations);
   const androidContexts = createAndroidNrContexts(cells, events);
   const subscriptionGroups = createSubscriptionGroups(androidContexts, cells);
@@ -970,14 +982,14 @@ export function fuseQualcommSaCells(
     lteServingCellInfos,
     defaultDataSubscriptions,
   );
-  const resolveEvidenceLteAnchors = createNsaAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions, {
+  const resolveEvidenceLteAnchors = createNrNonStandaloneAnchorResolver(lteAnchors, lteServingCellInfos, defaultDataSubscriptions, {
     allowFallbacks: false,
   });
-  const establishedContexts = createSaEventContexts(androidContexts, timelines, resolveContexts);
+  const establishedContexts = createNrStandaloneEventContexts(androidContexts, timelines, resolveContexts);
   const establishedEventIds = new Set(establishedContexts.map((context) => context.event.id));
   const contexts = [
     ...establishedContexts,
-    ...createFutureSaEventContexts(androidContexts, cells, timelines, servingCellInfos).filter(
+    ...createFutureNrStandaloneEventContexts(androidContexts, cells, timelines, servingCellInfos).filter(
       (context) => !establishedEventIds.has(context.event.id),
     ),
   ];
@@ -997,12 +1009,12 @@ export function fuseQualcommSaCells(
         remainingMeasurements.push(observation);
         continue;
       }
-      const context = scheduleSaContextForMeasurement(androidContexts, cells, observation);
+      const context = scheduleNrStandaloneContextForMeasurement(androidContexts, cells, observation);
       if (context === null) {
         remainingMeasurements.push(observation);
         continue;
       }
-      const futureState = futureSaStateAt(timelines, observation.streamIndex, observation);
+      const futureState = futureNrStandaloneStateAt(timelines, observation.streamIndex, observation);
       const futureKey = futureState === null ? null : stateKey(observation.streamIndex, futureState.epoch);
       const futureContexts = futureKey === null ? null : contextsByState.get(futureKey);
       if (futureState !== null && futureKey !== null && futureContexts?.some((candidate) => candidate.event.id === context.event.id)) {
@@ -1041,11 +1053,11 @@ export function fuseQualcommSaCells(
   const servingByState = new Map<string, TimedNrServingCellInfo[]>();
   for (const servingCell of servingCellInfos) {
     if (servingCell.info.version !== 4) continue;
-    let state = saStateAt(timelines, servingCell.streamIndex, servingCell);
+    let state = nrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
     if (state === null) {
-      const futureState = futureSaStateAt(timelines, servingCell.streamIndex, servingCell);
+      const futureState = futureNrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
       const futureContexts = futureState === null ? null : contextsByState.get(stateKey(servingCell.streamIndex, futureState.epoch));
-      const context = futureContexts ? scheduleSaContextForServingCell(futureContexts, cells, servingCell) : null;
+      const context = futureContexts ? scheduleNrStandaloneContextForServingCell(futureContexts, cells, servingCell) : null;
       if (futureState !== null && context !== null && futureContexts?.some((candidate) => candidate.event.id === context.event.id))
         state = futureState;
     }
@@ -1079,7 +1091,7 @@ export function fuseQualcommSaCells(
         if (decodedPair === null) continue;
         const target = uniqueAvailablePairPosition(context.cellPositions, cells, decodedPair, occupiedPositions);
         if (target === null) continue;
-        replacements.set(target, fuseScheduleSaCell(cells[target], { observation, cell: decoded }));
+        replacements.set(target, fuseScheduleNrStandaloneCell(cells[target], { observation, cell: decoded }));
         occupiedPositions.add(target);
         matchedMeasurements.add(decoded);
       }
@@ -1095,7 +1107,7 @@ export function fuseQualcommSaCells(
       if (decodedPair === null) continue;
       if (context.cellPositions.some((position) => samePair(cellPair(cells[position]), decodedPair))) continue;
       if (derivedPairs.some((candidate) => samePair(candidate, decodedPair))) continue;
-      derived.push(createScheduleSaNeighbor(envelope, context.event, nextCellIndex++, { observation, cell: decoded }));
+      derived.push(createScheduleNrStandaloneNeighbor(envelope, context.event, nextCellIndex++, { observation, cell: decoded }));
       derivedPairs.push(decodedPair);
     }
     if (derived.length > 0) derivedByEvent.set(context.event.id, derived);
@@ -1186,7 +1198,7 @@ export function fuseQualcommSaCells(
   const standaloneGroups: StandaloneGroup[] = [];
   for (const servingCell of servingCellInfos) {
     if (usedServingRecords.has(servingCell) || servingCell.info.version !== 4) continue;
-    const state = saStateAt(timelines, servingCell.streamIndex, servingCell);
+    const state = nrStandaloneStateAt(timelines, servingCell.streamIndex, servingCell);
     if (state === null) continue;
     if (matchableNci(servingCell.info.cellIdentity) === null && validPci(servingCell.info.physicalCellId) === null) continue;
     const key = stateKey(servingCell.streamIndex, state.epoch);
@@ -1204,7 +1216,7 @@ export function fuseQualcommSaCells(
 
   for (const observations of measurementsByState.values()) {
     for (const observation of observations) {
-      const state = saStateAt(timelines, observation.streamIndex, observation);
+      const state = nrStandaloneStateAt(timelines, observation.streamIndex, observation);
       if (state === null) continue;
       const envelope = standaloneEnvelope(observation.streamIndex, observation, cells, resolveEvidenceContexts, resolveEvidenceLteAnchors);
       const seenPairs: NrPair[] = [];

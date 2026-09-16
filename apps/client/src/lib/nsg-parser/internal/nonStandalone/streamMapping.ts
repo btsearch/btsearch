@@ -115,7 +115,7 @@ function defaultDataSubscriptionAt(changes: readonly DefaultDataSubscriptionChan
   return index === 0 ? null : changes[index - 1].subId;
 }
 
-export function createNsaAnchorResolver(
+export function createNrNonStandaloneAnchorResolver(
   anchors: readonly LteAnchor[],
   infos: readonly TimedLteServingCellInfo[],
   defaultDataSubscriptions: readonly DefaultDataSubscriptionChange[],

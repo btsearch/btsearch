@@ -1,4 +1,4 @@
-import { compareRatCellDetails } from "@/features/shared/rat";
+import { compareRatCells } from "@/features/shared/rat";
 import type { Cell } from "@/types/station";
 
 export function groupCellsByRat(cells: Cell[]): Record<string, Cell[]> {
@@ -9,13 +9,7 @@ export function groupCellsByRat(cells: Cell[]): Record<string, Cell[]> {
   }, {});
 
   for (const rat in groups) {
-    groups[rat].sort((a, b) => {
-      const bandA = Number(a.band.value);
-      const bandB = Number(b.band.value);
-      if (bandA !== bandB) return bandA - bandB;
-
-      return compareRatCellDetails(rat, a.details, b.details);
-    });
+    groups[rat].sort((a, b) => compareRatCells(rat, Number(a.band.value), a.details, Number(b.band.value), b.details));
   }
 
   return groups;

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { CellDraftBase } from "../cellEditRow";
-import { RAT_ORDER, compareRatCellDetails, findPreferredRatBand, getCellDetailDefaultValue, getSharedDetailFields } from "../rat";
+import { RAT_ORDER, compareRatCells, findPreferredRatBand, getCellDetailDefaultValue, getSharedDetailFields } from "../rat";
 import { syncByPCI, syncNRByPCI } from "../sectorAssignmentSync";
 import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
 import type { Band } from "@/types/station";
@@ -66,10 +66,11 @@ export function useCellDrafts<T extends CellDraftBase>({
     sortedOnce.current = true;
     setCells((prev) =>
       [...prev].sort((a, b) => {
+        const ratOrder = RAT_ORDER.findIndex((rat) => rat === a.rat) - RAT_ORDER.findIndex((rat) => rat === b.rat);
+        if (ratOrder !== 0) return ratOrder;
         const bandA = bandValueMap.get(a.band_id) ?? 0;
         const bandB = bandValueMap.get(b.band_id) ?? 0;
-        if (bandA !== bandB) return bandA - bandB;
-        return compareRatCellDetails(a.rat, a.details, b.details);
+        return compareRatCells(a.rat, bandA, a.details, bandB, b.details);
       }),
     );
   }, [bandValueMap, sortCellsByRat]);

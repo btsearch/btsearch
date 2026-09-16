@@ -8,25 +8,14 @@ import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
 import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { bandsQueryOptions } from "@/features/shared/queries";
-import { getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
-
-function getEditableSortDetailField(rat: RatType): string {
-  if (rat === "GSM" || rat === "UMTS") return "cid";
-  return "clid";
-}
+import { compareRatCells, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
 
 function getInitialCellOrder(cells: ProposedCellForm[], bandValueMap: Map<number, number>, rat: RatType): string[] {
-  const sortField = getEditableSortDetailField(rat);
   return [...cells]
     .sort((a, b) => {
       const bandA = a.band_id !== null ? (bandValueMap.get(a.band_id) ?? 0) : 0;
       const bandB = b.band_id !== null ? (bandValueMap.get(b.band_id) ?? 0) : 0;
-      if (bandA !== bandB) return bandA - bandB;
-      const detailsA = a.details as Record<string, unknown>;
-      const detailsB = b.details as Record<string, unknown>;
-      const detailA = (detailsA[sortField] as number) ?? 0;
-      const detailB = (detailsB[sortField] as number) ?? 0;
-      return detailA - detailB;
+      return compareRatCells(rat, bandA, a.details, bandB, b.details);
     })
     .map((cell) => cell.id);
 }
