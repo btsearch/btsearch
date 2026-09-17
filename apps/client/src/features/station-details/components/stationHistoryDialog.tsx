@@ -1,5 +1,4 @@
 import {
-  Activity01Icon,
   AirportTowerIcon,
   ArrowDown01Icon,
   ArrowRight01Icon,
@@ -24,7 +23,7 @@ import { fetchStationHistory } from "../api";
 import type {
   StationHistoryChange,
   StationHistoryChangeValue,
-  StationHistoryOperation,
+  StationHistoryItem,
   StationHistoryPhotoReference,
   StationHistorySection,
   StationHistoryValue,
@@ -104,7 +103,8 @@ const COMMON_LABEL_KEYS: Record<string, string> = {
   cell_type: "cellType",
 };
 
-type HistoryDayGroup = { key: string; label: string; operations: StationHistoryOperation[] };
+type HistoryDisplayEntry = { type: "change" | "revert"; items: [StationHistoryItem, ...StationHistoryItem[]] };
+type HistoryDayGroup = { key: string; label: string; entries: HistoryDisplayEntry[] };
 type CellChangeGroup = { label: string; rat: string; changes: StationHistoryChange[] };
 type RatCellChangeGroup = { rat: string; cells: CellChangeGroup[] };
 type HistoryPhotoReferenceProps = {
@@ -418,28 +418,26 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
   );
 });
 
-function getOperationKindIcon(kind: StationHistoryOperation["kind"]): IconSvgElement {
-  if (kind === "station.photos" || kind === "location.photos" || kind === "submission.photos") return Image01Icon;
-  if (kind.startsWith("station.")) return AirportTowerIcon;
-  if (kind.startsWith("cells.")) return FullSignalIcon;
-  if (kind.startsWith("location.")) return Location01Icon;
-  return Activity01Icon;
-}
-
-type HistoryOperationItemProps = {
-  operation: StationHistoryOperation;
+type HistoryItemProps = {
+  item: StationHistoryItem;
+  revertItems?: HistoryDisplayEntry["items"];
   canManageOperation: boolean;
-  onRevert: (operationId: number) => void;
+  onRevert: (item: StationHistoryItem) => void;
 };
 
-const HistoryOperationItem = memo(function HistoryOperationItem({ operation, canManageOperation, onRevert }: HistoryOperationItemProps) {
+function sameHistoryItemProps(previous: HistoryItemProps, next: HistoryItemProps): boolean {
+  if (previous.item !== next.item || previous.canManageOperation !== next.canManageOperation || previous.onRevert !== next.onRevert) return false;
+  if (previous.revertItems === next.revertItems) return true;
+  if (previous.revertItems === undefined || next.revertItems === undefined) return false;
+  return previous.revertItems.length === next.revertItems.length && previous.revertItems.every((item, index) => item === next.revertItems?.[index]);
+}
+
+const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOperation, onRevert }: HistoryItemProps) {
   const { t, i18n } = useTranslation("stationDetails");
-  const singleSection = operation.sections.length === 1 ? operation.sections[0] : undefined;
-  const icon = operation.kind === "revert" ? Undo02Icon : singleSection ? KIND_ICONS[singleSection.kind] : getOperationKindIcon(operation.kind);
-  const iconClass = singleSection ? ACTION_CHIP_CLASSES[singleSection.action] : ACTION_CHIP_CLASSES.update;
-  const title = singleSection
-    ? t(`history.titles.${singleSection.kind}_${singleSection.action}`)
-    : t(`history.operations.${operation.kind}`, { defaultValue: t("history.operations.fallback") });
+  const isRevert = revertItems !== undefined;
+  const icon = isRevert ? Undo02Icon : KIND_ICONS[item.kind];
+  const iconClass = isRevert ? ACTION_CHIP_CLASSES.update : ACTION_CHIP_CLASSES[item.action];
+  const title = isRevert ? t("history.operations.revert") : t(`history.titles.${item.kind}_${item.action}`);
 
   return (
     <article className="flex gap-2.5 py-2.5 [content-visibility:auto] [contain-intrinsic-size:auto_5rem]">
@@ -450,41 +448,41 @@ const HistoryOperationItem = memo(function HistoryOperationItem({ operation, can
         <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="min-w-0 text-sm font-medium leading-5 text-foreground">{title}</h4>
-            {operation.reverted_by_operation_id !== null ? (
+            {item.revertStatus !== "none" ? (
               <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                 <HugeiconsIcon icon={Undo02Icon} className="size-3" aria-hidden="true" />
-                {t("history.revert.reverted")}
+                {t(item.revertStatus === "complete" ? "history.revert.reverted" : "history.revert.partiallyReverted")}
               </span>
             ) : null}
           </div>
           <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            {operation.author ? (
+            {item.author ? (
               <>
                 <Avatar className="size-5 shrink-0">
-                  <AvatarImage src={resolveAvatarUrl(operation.author.image)} />
-                  <AvatarFallback className="text-[9px]">{(operation.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={resolveAvatarUrl(item.author.image)} />
+                  <AvatarFallback className="text-[9px]">{(item.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                {operation.author.username ? (
+                {item.author.username ? (
                   <Link
                     to="/users/$username"
-                    params={{ username: operation.author.username }}
+                    params={{ username: item.author.username }}
                     className="max-w-48 cursor-pointer truncate underline-offset-2 hover:underline"
                   >
-                    {operation.author.name} (@{operation.author.username})
+                    {item.author.name} (@{item.author.username})
                   </Link>
                 ) : (
-                  <span className="max-w-48 truncate">{operation.author.name}</span>
+                  <span className="max-w-48 truncate">{item.author.name}</span>
                 )}
                 <span className="text-muted-foreground/50">·</span>
               </>
             ) : null}
-            <time dateTime={operation.createdAt} title={formatFullDate(operation.createdAt, i18n.language)} className="shrink-0 tabular-nums">
-              {new Date(operation.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
+            <time dateTime={item.createdAt} title={formatFullDate(item.createdAt, i18n.language)} className="shrink-0 tabular-nums">
+              {new Date(item.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
             </time>
-            {canManageOperation && operation.revertible ? (
+            {canManageOperation && item.revertible ? (
               <button
                 type="button"
-                onClick={() => onRevert(operation.id)}
+                onClick={() => onRevert(item)}
                 className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 aria-label={t("history.revert.action")}
               >
@@ -494,7 +492,7 @@ const HistoryOperationItem = memo(function HistoryOperationItem({ operation, can
             {canManageOperation ? (
               <Link
                 to="/admin/audit-logs"
-                search={{ operation: operation.id }}
+                search={{ operation: item.operationId }}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -506,27 +504,27 @@ const HistoryOperationItem = memo(function HistoryOperationItem({ operation, can
           </span>
         </div>
 
-        {singleSection ? (
-          <HistorySectionChanges section={singleSection} operationId={operation.id} photoReferences={operation.photoReferences} />
-        ) : (
+        {isRevert ? (
           <div className="mt-1.5 space-y-2">
-            {operation.sections.map((section, index) => (
-              <section key={`${section.kind}-${section.action}-${index}`}>
+            {revertItems.map((change) => (
+              <section key={change.id}>
                 <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <HugeiconsIcon icon={KIND_ICONS[section.kind]} className={cn("size-3.5", ACTION_CHIP_CLASSES[section.action])} aria-hidden="true" />
-                  <h5>{t(`history.titles.${section.kind}_${section.action}`)}</h5>
+                  <HugeiconsIcon icon={KIND_ICONS[change.kind]} className={cn("size-3.5", ACTION_CHIP_CLASSES[change.action])} aria-hidden="true" />
+                  <h5>{t(`history.titles.${change.kind}_${change.action}`)}</h5>
                 </div>
                 <div className="pl-5">
-                  <HistorySectionChanges section={section} operationId={operation.id} photoReferences={operation.photoReferences} />
+                  <HistorySectionChanges section={change} operationId={change.operationId} photoReferences={change.photoReferences} />
                 </div>
               </section>
             ))}
           </div>
+        ) : (
+          <HistorySectionChanges section={item} operationId={item.operationId} photoReferences={item.photoReferences} />
         )}
       </div>
     </article>
   );
-});
+}, sameHistoryItemProps);
 
 export function StationHistoryDialogPanel({
   stationId,
@@ -552,8 +550,8 @@ export function StationHistoryDialogPanel({
   const userRole = session?.user?.role;
   const canOpenAuditLog = userRole === "admin";
   const canOpenAdminHistory = canOpenAuditLog || userRole === "editor";
-  const [revertOperationId, setRevertOperationId] = useState<number | null>(null);
-  const handleRevert = useCallback((operationId: number) => setRevertOperationId(operationId), []);
+  const [revertTarget, setRevertTarget] = useState<{ operationId: number; entryIds: number[] } | null>(null);
+  const handleRevert = useCallback((item: StationHistoryItem) => setRevertTarget({ operationId: item.operationId, entryIds: item.entryIds }), []);
 
   const {
     data,
@@ -576,7 +574,7 @@ export function StationHistoryDialogPanel({
   });
 
   const pages = data?.pages;
-  const operations = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
+  const items = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   useImperativeHandle(bodyRef, () => scrollContainerRef.current!);
@@ -606,20 +604,25 @@ export function StationHistoryDialogPanel({
 
   const groups = useMemo<HistoryDayGroup[]>(() => {
     const result: HistoryDayGroup[] = [];
-    for (const operation of operations) {
-      const date = new Date(operation.createdAt);
+    for (const item of items) {
+      const date = new Date(item.createdAt);
       const key = date.toDateString();
       const previous = result[result.length - 1];
-      if (previous && previous.key === key) previous.operations.push(operation);
-      else
-        result.push({
-          key,
-          label: date.toLocaleDateString(i18n.language, { day: "numeric", month: "long", year: "numeric" }),
-          operations: [operation],
-        });
+      const group: HistoryDayGroup =
+        previous && previous.key === key
+          ? previous
+          : {
+              key,
+              label: date.toLocaleDateString(i18n.language, { day: "numeric", month: "long", year: "numeric" }),
+              entries: [],
+            };
+      if (group !== previous) result.push(group);
+      const lastEntry = group.entries[group.entries.length - 1];
+      if (item.isRevert && lastEntry?.type === "revert" && lastEntry.items[0].operationId === item.operationId) lastEntry.items.push(item);
+      else group.entries.push({ type: item.isRevert ? "revert" : "change", items: [item] });
     }
     return result;
-  }, [operations, i18n.language]);
+  }, [items, i18n.language]);
 
   let loadMoreLabel = t("history.loadMore");
   if (isFetchingNextPage) loadMoreLabel = t("common:actions.loading");
@@ -643,7 +646,7 @@ export function StationHistoryDialogPanel({
         </div>
       </>
     );
-  else if (isError && operations.length === 0)
+  else if (isError && items.length === 0)
     historyContent = (
       <div
         className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-destructive/25 bg-destructive/5 px-6 py-10 text-center"
@@ -655,7 +658,7 @@ export function StationHistoryDialogPanel({
         </Button>
       </div>
     );
-  else if (operations.length === 0)
+  else if (items.length === 0)
     historyContent = (
       <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
         <HugeiconsIcon icon={Clock01Icon} className="size-7 text-muted-foreground" />
@@ -672,8 +675,14 @@ export function StationHistoryDialogPanel({
               {group.label}
             </h3>
             <div className="divide-y divide-border/60">
-              {group.operations.map((operation) => (
-                <HistoryOperationItem key={operation.id} operation={operation} canManageOperation={canOpenAuditLog} onRevert={handleRevert} />
+              {group.entries.map((entry) => (
+                <HistoryItem
+                  key={entry.items[0].id}
+                  item={entry.items[0]}
+                  revertItems={entry.type === "revert" ? entry.items : undefined}
+                  canManageOperation={canOpenAuditLog}
+                  onRevert={handleRevert}
+                />
               ))}
             </div>
           </section>
@@ -777,13 +786,14 @@ export function StationHistoryDialogPanel({
           </div>
         </div>
       </div>
-      {revertOperationId !== null ? (
+      {revertTarget !== null ? (
         <Suspense fallback={null}>
           <RevertOperationDialog
-            operationId={revertOperationId}
+            operationId={revertTarget.operationId}
+            entryIds={revertTarget.entryIds}
             open
             onOpenChange={(open) => {
-              if (!open) setRevertOperationId(null);
+              if (!open) setRevertTarget(null);
             }}
             className="z-60"
           />

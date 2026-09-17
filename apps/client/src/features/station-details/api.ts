@@ -1,6 +1,5 @@
 import { StationResponseSchema } from "@openbts/proto/gen/stations_pb";
 import { PermitsResponseSchema as UKEPermitsResponseSchema } from "@openbts/proto/gen/uke_pb";
-import type { AuditOperationKind } from "@openbts/shared/audit";
 
 import { API_BASE, createAuditOperationHandle, fetchApiData, fetchJson } from "@/lib/api";
 import type { AuditOperationHandle } from "@/lib/api";
@@ -34,19 +33,20 @@ export type StationHistorySection = {
   changes: StationHistoryChange[];
 };
 
-export type StationHistoryOperation = {
+export type StationHistoryItem = StationHistorySection & {
   id: number;
-  kind: AuditOperationKind;
+  operationId: number;
   createdAt: string;
   author?: StationHistoryAuthor | null;
+  entryIds: number[];
   revertible: boolean;
-  reverted_by_operation_id: number | null;
-  sections: StationHistorySection[];
+  revertStatus: "none" | "partial" | "complete";
+  isRevert: boolean;
   photoReferences: StationHistoryPhotoReference[];
 };
 
 export type StationHistoryPage = {
-  data: StationHistoryOperation[];
+  data: StationHistoryItem[];
   nextCursor: number | null;
 };
 

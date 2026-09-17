@@ -225,7 +225,7 @@ function computeCoverage(
   return coverage;
 }
 
-async function loadActiveRevertCoverageByOperation(
+export async function loadActiveRevertCoverageByOperation(
   handle: Database | DbTx,
   operationIds: readonly number[],
 ): Promise<Map<number, ActiveRevertCoverage>> {

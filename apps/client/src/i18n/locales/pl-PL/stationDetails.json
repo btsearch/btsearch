@@ -184,8 +184,9 @@
       "fallback": "Zmiany stacji"
     },
     "revert": {
-      "action": "Cofnij tę operację",
-      "reverted": "Cofnięto"
+      "action": "Cofnij tę zmianę",
+      "reverted": "Cofnięto",
+      "partiallyReverted": "Cofnięto częściowo"
     },
     "values": {
       "previous": "Poprzednia wartość",

@@ -1,5 +1,5 @@
 import { attachments, auditLogs, auditOperations, locationPhotos } from "@openbts/drizzle";
-import { AUDIT_OPERATION_KINDS, type AuditEntity } from "@openbts/shared/audit";
+import type { AuditEntity } from "@openbts/shared/audit";
 import { and, asc, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -8,7 +8,7 @@ import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getEntryRevertibility, loadRevertedEntryIdsByOperation } from "../../../../../services/audit/revert/revertibility.js";
+import { getEntryRevertibility, loadActiveRevertCoverageByOperation } from "../../../../../services/audit/revert/revertibility.js";
 import type { AuditOperationRow } from "../../../../../services/audit/types.js";
 import {
   type StationHistoryAuthor,
@@ -47,19 +47,18 @@ const historyPhotoReferenceSchema = z.object({
   id: z.number(),
   attachment_uuid: z.string(),
 });
-const historySectionSchema = z.object({
+const historyItemSchema = z.object({
+  id: z.number(),
+  operationId: z.number(),
+  createdAt: z.date(),
+  author: historyAuthorSchema.nullable().optional(),
   kind: z.enum(["station", "location", "cells", "sectors", "network_ids", "photos"]),
   action: z.enum(["create", "update", "delete"]),
   changes: z.array(historyChangeSchema),
-});
-const historyOperationSchema = z.object({
-  id: z.number(),
-  kind: z.enum(AUDIT_OPERATION_KINDS),
-  createdAt: z.date(),
-  author: historyAuthorSchema.nullable().optional(),
+  entryIds: z.array(z.number()),
   revertible: z.boolean(),
-  reverted_by_operation_id: z.number().nullable(),
-  sections: z.array(historySectionSchema),
+  revertStatus: z.enum(["none", "partial", "complete"]),
+  isRevert: z.boolean(),
   photoReferences: z.array(historyPhotoReferenceSchema),
 });
 
@@ -73,7 +72,7 @@ const schemaRoute = {
   }),
   response: {
     200: z.object({
-      data: z.array(historyOperationSchema),
+      data: z.array(historyItemSchema),
       nextCursor: z.number().nullable(),
     }),
   },
@@ -83,17 +82,18 @@ type ReqParams = { Params: z.infer<typeof schemaRoute.params> };
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type RequestData = ReqParams & ReqQuery;
 type StationHistoryPhotoReference = z.infer<typeof historyPhotoReferenceSchema>;
-type StationHistoryResponseOperation = {
+type StationHistoryItem = StationHistorySection & {
   id: number;
-  kind: AuditOperationRow["kind"];
+  operationId: number;
   createdAt: Date;
   author?: StationHistoryAuthor | null;
+  entryIds: number[];
   revertible: boolean;
-  reverted_by_operation_id: number | null;
-  sections: StationHistorySection[];
+  revertStatus: "none" | "partial" | "complete";
+  isRevert: boolean;
   photoReferences: StationHistoryPhotoReference[];
 };
-type ResponseBody = { data: StationHistoryResponseOperation[]; nextCursor: number | null };
+type ResponseBody = { data: StationHistoryItem[]; nextCursor: number | null };
 
 type AuditRow = typeof auditLogs.$inferSelect;
 
@@ -186,7 +186,7 @@ async function fetchPhotoReferences(sections: StationHistorySection[]): Promise<
   return new Map(rows.map((photo) => [photo.id, photo]));
 }
 
-function resolveOperationPhotoReferences(
+function resolvePhotoReferences(
   sections: StationHistorySection[],
   references: ReadonlyMap<number, StationHistoryPhotoReference>,
 ): StationHistoryPhotoReference[] {
@@ -208,16 +208,25 @@ function entryBelongsToStation(entry: AuditRow, stationId: number, locationId: n
   return entry.entity === "locations" && locationId !== null && entry.record_id === String(locationId) && entry.createdAt >= stationCreatedAt;
 }
 
-function mergeSections(sections: StationHistorySection[]): StationHistorySection[] {
-  const result: StationHistorySection[] = [];
+type HistorySectionWithEntries = StationHistorySection & {
+  id: number;
+  entryIds: number[];
+  revertible: boolean;
+};
+
+function mergeCellSections(sections: HistorySectionWithEntries[]): HistorySectionWithEntries[] {
+  const result: HistorySectionWithEntries[] = [];
   for (const section of sections) {
     if (section.kind !== "cells") {
       result.push(section);
       continue;
     }
     const existing = result.find((candidate) => candidate.kind === "cells" && candidate.action === section.action);
-    if (existing !== undefined) existing.changes.push(...section.changes);
-    else result.push({ ...section, changes: [...section.changes] });
+    if (existing !== undefined) {
+      existing.changes.push(...section.changes);
+      existing.entryIds.push(...section.entryIds);
+      existing.revertible ||= section.revertible;
+    } else result.push({ ...section, changes: [...section.changes], entryIds: [...section.entryIds] });
   }
   return result;
 }
@@ -265,49 +274,58 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   }
 
   const canSeeAuthor = ["admin", "editor"].includes(req.userSession?.user?.role ?? "");
-  const [authors, revertedEntryIdsByOperation] = await Promise.all([
+  const [authors, revertCoverageByOperation] = await Promise.all([
     canSeeAuthor ? fetchAuthors(operationRows) : Promise.resolve(new Map<string, StationHistoryAuthor>()),
-    loadRevertedEntryIdsByOperation(db, operationIds),
+    loadActiveRevertCoverageByOperation(db, operationIds),
   ]);
 
-  const operations: StationHistoryResponseOperation[] = [];
+  const items: StationHistoryItem[] = [];
   for (const row of operationRows) {
     const operation = toOperationRow(row);
     const operationEntries = auditRowsByOperation.get(row.id) ?? [];
     const relevantEntries = operationEntries.filter((entry) => entryBelongsToStation(entry, station_id, station.location_id, station.createdAt));
-    const sections = mergeSections(
+    const revertCoverage = revertCoverageByOperation.get(row.id);
+    const revertedEntryIds = revertCoverage?.revertedEntryIds ?? new Set<number>();
+    const sections = mergeCellSections(
       relevantEntries.flatMap((entry) => {
         const section = transformEntry(entry, operation.kind, lookups);
-        return section === null ? [] : [section];
+        if (section === null) return [];
+        const revertible = getEntryRevertibility(
+          { ...entry, metadata: isRecord(entry.metadata) ? entry.metadata : null },
+          { operation, revertedEntryIds },
+        ).revertible;
+        return [{ ...section, id: entry.id, entryIds: [entry.id], revertible }];
       }),
     );
-    if (sections.length === 0) continue;
-
-    const revertedEntryIds = revertedEntryIdsByOperation.get(row.id) ?? new Set<number>();
-    const revertible = operationEntries.some(
-      (entry) =>
-        getEntryRevertibility({ ...entry, metadata: isRecord(entry.metadata) ? entry.metadata : null }, { operation, revertedEntryIds }).revertible,
-    );
     const author = row.actor_id === null ? null : (authors.get(row.actor_id) ?? null);
-    operations.push({
-      id: row.id,
-      kind: row.kind,
-      createdAt: row.createdAt,
-      ...(canSeeAuthor ? { author } : {}),
-      revertible,
-      reverted_by_operation_id: row.reverted_by_operation_id,
-      sections,
-      photoReferences: [],
-    });
+    for (const section of sections) {
+      const fullyRevertedCount = section.entryIds.filter((id) => revertedEntryIds.has(id) && !revertCoverage?.incompleteEntryIds.has(id)).length;
+      const hasRevertedEntry = section.entryIds.some((id) => revertedEntryIds.has(id));
+      const revertStatus =
+        operation.reverted_by_operation_id !== null || fullyRevertedCount === section.entryIds.length
+          ? "complete"
+          : hasRevertedEntry
+            ? "partial"
+            : "none";
+      items.push({
+        ...section,
+        operationId: row.id,
+        createdAt: row.createdAt,
+        revertStatus,
+        isRevert: row.kind === "revert",
+        ...(canSeeAuthor ? { author } : {}),
+        photoReferences: [],
+      });
+    }
   }
 
-  const photoReferences = await fetchPhotoReferences(operations.flatMap((operation) => operation.sections));
-  const responseOperations = operations.map((operation) => ({
-    ...operation,
-    photoReferences: resolveOperationPhotoReferences(operation.sections, photoReferences),
+  const photoReferences = await fetchPhotoReferences(items);
+  const responseItems = items.map((item) => ({
+    ...item,
+    photoReferences: resolvePhotoReferences([item], photoReferences),
   }));
   return res.send({
-    data: responseOperations,
+    data: responseItems,
     nextCursor: hasMore ? (operationIds[operationIds.length - 1] ?? null) : null,
   });
 }

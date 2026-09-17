@@ -182,8 +182,9 @@
       "fallback": "Station changes"
     },
     "revert": {
-      "action": "Revert this operation",
-      "reverted": "Reverted"
+      "action": "Revert this change",
+      "reverted": "Reverted",
+      "partiallyReverted": "Partially reverted"
     },
     "values": {
       "previous": "Previous",

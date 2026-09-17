@@ -3,7 +3,7 @@ info:
   title: BTSearch API
   description: |
     API for BTSearch Backend
-    Last updated: 2026-09-13
+    Last updated: 2026-09-18
   version: 1.2.0
 
 servers:
@@ -1254,15 +1254,16 @@ paths:
     get:
       tags: [Stations]
       summary: Get public change history for station
-      description: Logical operations affecting the station, grouped into record-change sections. Author info is included only for editors and admins
+      description: Individual station changes. Actions from the same audit operation appear as separate items. Author info is included only for editors and admins
       parameters:
         - $ref: "#/components/parameters/StationIdPath"
         - name: limit
           in: query
+          description: Maximum audit operations scanned per page; one operation may produce multiple change items
           schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
         - name: cursor
           in: query
-          description: Returns operations with an ID lower than this value (taken from `nextCursor` of the previous page)
+          description: Returns changes from audit operations with an ID lower than this value (taken from `nextCursor` of the previous page)
           schema: { type: integer }
       responses:
         "200":
@@ -1273,7 +1274,7 @@ paths:
                 type: object
                 required: [data, nextCursor]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/StationHistoryOperation" } }
+                  data: { type: array, items: { $ref: "#/components/schemas/StationHistoryItem" } }
                   nextCursor: { type: integer, nullable: true }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
@@ -5455,26 +5456,24 @@ components:
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
-    StationHistorySection:
+    StationHistoryItem:
       type: object
-      required: [kind, action, changes]
+      required: [id, operationId, createdAt, kind, action, changes, entryIds, revertible, revertStatus, isRevert, photoReferences]
       properties:
+        id: { type: integer, description: First audit entry ID represented by this change }
+        operationId: { type: integer, description: Audit operation ID for the admin log and pagination }
+        createdAt: { type: string, format: date-time }
         kind: { type: string, enum: [station, location, cells, sectors, network_ids, photos] }
         action: { type: string, enum: [create, update, delete] }
         changes: { type: array, items: { $ref: "#/components/schemas/StationHistoryChange" } }
-    StationHistoryOperation:
-      type: object
-      required: [id, kind, createdAt, revertible, reverted_by_operation_id, sections, photoReferences]
-      properties:
-        id: { type: integer, description: Audit operation ID }
-        kind: { $ref: "#/components/schemas/AuditOperationKind" }
-        createdAt: { type: string, format: date-time }
-        revertible: { type: boolean }
-        reverted_by_operation_id: { type: integer, nullable: true }
-        sections: { type: array, items: { $ref: "#/components/schemas/StationHistorySection" } }
+        entryIds: { type: array, description: Audit entry IDs represented by this change, items: { type: integer } }
+        revertible: { type: boolean, description: At least one represented entry can be reverted }
+        revertStatus:
+          { type: string, enum: [none, partial, complete], description: Revert coverage of the represented entries, including skipped fields }
+        isRevert: { type: boolean, description: Change created by an audit revert operation }
         photoReferences:
           type: array
-          description: Currently available photos referenced by this operation
+          description: Currently available photos referenced by this change
           items: { $ref: "#/components/schemas/StationHistoryPhotoReference" }
         author:
           description: Included only for editors and admins; null for system or import changes
