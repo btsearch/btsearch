@@ -116,6 +116,7 @@ type HistorySectionChangesProps = {
   section: StationHistorySection;
   operationId: number;
   photoReferences: StationHistoryPhotoReference[];
+  topLevel?: boolean;
 };
 type PhotoChangePresentation = {
   changes: StationHistoryChange[];
@@ -246,6 +247,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
   section,
   operationId,
   photoReferences: photoReferenceList,
+  topLevel = false,
 }: HistorySectionChangesProps) {
   const { t } = useTranslation(["stationDetails", "stations", "common"]);
   const photoReferences = useMemo(() => new Map(photoReferenceList.map((photo) => [photo.id, photo])), [photoReferenceList]);
@@ -372,11 +374,15 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
     );
   };
 
-  if (section.kind !== "cells") return <div className="mt-0.5">{renderChangeTokens(section.changes)}</div>;
+  if (section.kind !== "cells") return <div className={topLevel ? "mt-0" : "mt-0.5"}>{renderChangeTokens(section.changes)}</div>;
 
   const cellCount = cellChangeGroups.reduce((total, group) => total + group.cells.length, 0);
   return (
-    <details className="group mt-1.5" open={cellsExpanded} onToggle={(event) => setCellsExpanded(event.currentTarget.open)}>
+    <details
+      className={cn("group", topLevel ? "mt-0" : "mt-1.5")}
+      open={cellsExpanded}
+      onToggle={(event) => setCellsExpanded(event.currentTarget.open)}
+    >
       <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-xs text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
         <span className="font-medium text-foreground">{t("history.cellCount", { count: cellCount })}</span>
         <span className="flex min-w-0 flex-1 flex-wrap gap-1">
@@ -435,6 +441,7 @@ function sameHistoryItemProps(previous: HistoryItemProps, next: HistoryItemProps
 const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOperation, onRevert }: HistoryItemProps) {
   const { t, i18n } = useTranslation("stationDetails");
   const isRevert = revertItems !== undefined;
+  const isTopLevel = !isRevert;
   const icon = isRevert ? Undo02Icon : KIND_ICONS[item.kind];
   const iconClass = isRevert ? ACTION_CHIP_CLASSES.update : ACTION_CHIP_CLASSES[item.action];
   const title = isRevert ? t("history.operations.revert") : t(`history.titles.${item.kind}_${item.action}`);
@@ -445,7 +452,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
         <HugeiconsIcon icon={icon} className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+        <div className={cn("flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-2", isTopLevel ? "sm:items-end" : "sm:items-start")}>
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="min-w-0 text-sm font-medium leading-5 text-foreground">{title}</h4>
             {item.revertStatus !== "none" ? (
@@ -519,7 +526,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
             ))}
           </div>
         ) : (
-          <HistorySectionChanges section={item} operationId={item.operationId} photoReferences={item.photoReferences} />
+          <HistorySectionChanges section={item} operationId={item.operationId} photoReferences={item.photoReferences} topLevel={isTopLevel} />
         )}
       </div>
     </article>
