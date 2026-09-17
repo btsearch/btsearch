@@ -128,6 +128,7 @@ function ReceiverHeightField({ receiver, onCommit }: { receiver: TerrainProfileR
       setValue(String(receiver?.mountedHeight ?? 5));
       return;
     }
+    if (height === (receiver?.mountedHeight ?? 5)) return;
     onCommit(height);
   };
 

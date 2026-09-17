@@ -13,12 +13,16 @@ const NMPT_COVERAGE = "DSM_PL-EVRF2007-NH";
 const WCS_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.TERRAIN_WCS_CONCURRENCY) || 2));
 const TARGET_RESOLUTION_M = Math.max(2, Math.min(50, Number(process.env.TERRAIN_PROFILE_RESOLUTION_M) || 10));
 const MAX_SAMPLES = 401;
-const MAX_CHUNK_SPAN_M = 1_000;
+const MIN_CHUNK_SPAN_M = 1_000;
+const MAX_CHUNK_SPAN_M = 4_000;
+const MAX_COVERAGE_AREA_M2 = 2_000_000;
+const MAX_CHUNK_AREA_M2 = MAX_COVERAGE_AREA_M2 * 0.95;
 const MAX_COVERAGE_BYTES = 6 * 1024 * 1024;
+const WCS_MAX_ATTEMPTS = 2;
 const MAX_EFFECTIVE_RESOLUTION_M = Math.max(TARGET_RESOLUTION_M, TERRAIN_PROFILE_MAX_DISTANCE_M / (MAX_SAMPLES - 1));
-const MIN_SAMPLES_PER_CHUNK = Math.max(2, Math.floor(MAX_CHUNK_SPAN_M / MAX_EFFECTIVE_RESOLUTION_M) + 1);
+const MIN_SAMPLES_PER_CHUNK = Math.max(2, Math.floor(MIN_CHUNK_SPAN_M / MAX_EFFECTIVE_RESOLUTION_M) + 1);
 const MAX_WCS_CHUNKS = Math.ceil((MAX_SAMPLES - 1) / (MIN_SAMPLES_PER_CHUNK - 1));
-const WCS_CACHE_LOCK_TTL_SECONDS = Math.ceil((MAX_WCS_CHUNKS * 2 * TERRAIN_UPSTREAM_TIMEOUT_MS) / WCS_CONCURRENCY / 1_000) + 60;
+const WCS_CACHE_LOCK_TTL_SECONDS = Math.ceil((MAX_WCS_CHUNKS * 2 * WCS_MAX_ATTEMPTS * TERRAIN_UPSTREAM_TIMEOUT_MS) / WCS_CONCURRENCY / 1_000) + 60;
 
 type ProjectedPoint = { x: number; y: number };
 type SamplePoint = ProjectedPoint & { distanceM: number; latitude: number; longitude: number; index: number };
@@ -97,10 +101,21 @@ function interpolatePoints(
 }
 
 function splitIntoChunks(points: SamplePoint[], effectiveResolutionM: number): SamplePoint[][] {
-  const samplesPerChunk = Math.max(2, Math.floor(MAX_CHUNK_SPAN_M / effectiveResolutionM) + 1);
+  const padding = Math.max(effectiveResolutionM * 2, 10);
   const chunks: SamplePoint[][] = [];
-  for (let start = 0; start < points.length - 1; start += samplesPerChunk - 1)
-    chunks.push(points.slice(start, Math.min(points.length, start + samplesPerChunk)));
+  for (let start = 0; start < points.length - 1;) {
+    let end = start + 1;
+    for (; end + 1 < points.length; end++) {
+      const first = points[start];
+      const next = points[end + 1];
+      if (!first || !next) break;
+      const span = Math.hypot(next.x - first.x, next.y - first.y);
+      const area = (Math.abs(next.x - first.x) + padding * 2) * (Math.abs(next.y - first.y) + padding * 2);
+      if (span > MAX_CHUNK_SPAN_M || area > MAX_CHUNK_AREA_M2) break;
+    }
+    chunks.push(points.slice(start, end + 1));
+    start = end;
+  }
   return chunks;
 }
 
@@ -110,7 +125,7 @@ async function fetchCoverage(url: string, coverage: string, points: SamplePoint[
   const maxX = Math.max(...points.map((point) => point.x)) + padding;
   const minY = Math.min(...points.map((point) => point.y)) - padding;
   const maxY = Math.max(...points.map((point) => point.y)) + padding;
-  if ((maxX - minX) * (maxY - minY) > 2_000_000) throw new Error("Requested WCS coverage exceeds the area limit");
+  if ((maxX - minX) * (maxY - minY) > MAX_COVERAGE_AREA_M2) throw new Error("Requested WCS coverage exceeds the area limit");
 
   const params = new URLSearchParams({
     SERVICE: "WCS",
@@ -131,14 +146,14 @@ async function fetchCoverage(url: string, coverage: string, points: SamplePoint[
 }
 
 async function fetchCoverageOrNull(url: string, coverage: string, points: SamplePoint[], resolutionM: number): Promise<AaiGrid | null> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < WCS_MAX_ATTEMPTS; attempt++) {
     try {
       // oxlint-disable-next-line no-await-in-loop -- retries are intentionally sequential
       return await fetchCoverage(url, coverage, points, resolutionM);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const isTimeout = message.includes("timed out") || message.includes("closed unexpectedly") || message.includes("abort");
-      if (!isTimeout || attempt === 1) return null;
+      if (!isTimeout || attempt === WCS_MAX_ATTEMPTS - 1) return null;
     }
   }
   return null;
@@ -204,6 +219,7 @@ export class GeoportalTerrainSampler implements TerrainSampler {
         freshTtlSeconds: 86400,
         staleTtlSeconds: 7 * 86400,
         lockTtlSeconds: WCS_CACHE_LOCK_TTL_SECONDS,
+        lockWaitDeadlineMs: WCS_CACHE_LOCK_TTL_SECONDS * 1_000,
         shouldCache: (value) => value.terrainStatus !== "unavailable",
       },
       () => sampleUncached(station, receiver),
