@@ -91,14 +91,14 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
             {showBandNumber && band !== null ? <span className="opacity-75">{mhz !== null ? ` (b${band})` : `(b${band})`}</span> : null}
           </span>
         ) : null}
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-1">
           <CellTypeSelect
             value={change.type ?? null}
             onChange={onCellTypeChange}
             ariaLabel={t("stations:cells.cellType")}
             className="relative h-8 w-20 shrink-0 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           />
-          <CellTypeInfoPopover align="center" className="relative size-6 after:absolute after:-inset-2.5 after:content-['']" />
+          <CellTypeInfoPopover align="center" className="relative size-6 after:absolute after:-inset-x-1 after:-inset-y-2.5 after:content-['']" />
         </div>
       </div>
 
