@@ -3,12 +3,13 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { DraftStation } from "../../utils/fromAnalyzer";
+import { type DraftStation, isAnalyzerCellIncluded } from "../../utils/fromAnalyzer";
 import { AnalyzerCellChangeRow } from "./AnalyzerCellChangeRow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
+import type { AnalyzerDetailKey } from "@/features/submissions/utils/analyzerRatSpecs";
 import { cn } from "@/lib/utils";
 import type { CellType } from "@/types/station";
 
@@ -17,6 +18,7 @@ interface Props {
   duplexSelections: ReadonlyMap<number, string | null>;
   onDuplexChange: (stationInternalId: number, rowIndex: number, duplex: string | null) => void;
   onCellTypeChange: (stationInternalId: number, rowIndex: number, cellType: CellType | null) => void;
+  onFieldSelectionChange: (stationInternalId: number, rowIndex: number, key: AnalyzerDetailKey, selected: boolean) => void;
   onRemoveCell: (stationInternalId: number, rowIndex: number) => void;
   onRemoveStation: (stationInternalId: number) => void;
 }
@@ -26,12 +28,14 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
   duplexSelections,
   onDuplexChange,
   onCellTypeChange,
+  onFieldSelectionChange,
   onRemoveCell,
   onRemoveStation,
 }: Props) {
   const { t } = useTranslation(["submissions", "common"]);
   const headingId = `analyzer-station-${station.stationInternalId}`;
   const [open, setOpen] = useState(true);
+  const includedCellCount = station.cells.filter(isAnalyzerCellIncluded).length;
 
   return (
     <section
@@ -39,14 +43,14 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
       className={cn("@container overflow-hidden rounded-xl border bg-card", station.hasConflicts && "border-destructive/50")}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <header className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-1.5 @sm:px-4">
-          <CollapsibleTrigger className="group flex min-w-0 cursor-pointer select-none items-center gap-3 text-left">
+        <header className="flex min-h-11 items-center justify-between gap-1 border-b bg-muted/30 px-2.5 @sm:px-3">
+          <CollapsibleTrigger className="group flex min-h-11 min-w-0 flex-1 cursor-pointer select-none items-center gap-2 text-left">
             <HugeiconsIcon
               icon={ArrowDown01Icon}
               className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-panel-open:rotate-0 motion-reduce:transition-none"
               aria-hidden="true"
             />
-            <div className="flex min-w-0 flex-col @lg:flex-row @lg:items-center @lg:gap-3">
+            <div className="flex min-w-0 flex-col @sm:flex-row @sm:items-center @sm:gap-2">
               <span id={headingId} className="flex min-w-0 items-center gap-2">
                 {station.operatorName === null ? (
                   <HugeiconsIcon icon={AirportTowerIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -56,7 +60,11 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
                   operator={station.operatorName !== null ? { name: station.operatorName, mnc: station.operatorMnc } : undefined}
                 />
               </span>
-              <p className="shrink-0 text-xs text-muted-foreground @lg:border-l @lg:pl-3">{t("batch.cellCount", { count: station.cells.length })}</p>
+              <p className="shrink-0 text-xs text-muted-foreground @sm:border-l @sm:pl-2">
+                {includedCellCount === station.cells.length
+                  ? t("batch.cellCount", { count: station.cells.length })
+                  : t("batch.includedCellCount", { included: includedCellCount, total: station.cells.length })}
+              </p>
             </div>
             {station.hasConflicts ? <Badge variant="destructive">{t("batch.conflictBadge")}</Badge> : null}
           </CollapsibleTrigger>
@@ -64,7 +72,7 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
             <Button
               variant="ghost"
               size="default"
-              className="h-11 cursor-pointer text-muted-foreground hover:text-destructive sm:h-8"
+              className="size-11 cursor-pointer p-0 text-muted-foreground hover:text-destructive sm:h-8 sm:w-auto sm:px-3"
               aria-label={t("batch.removeStation", { stationId: station.station_id })}
               onClick={() => onRemoveStation(station.stationInternalId)}
             >
@@ -82,6 +90,7 @@ export const AnalyzerStationGroupCard = memo(function AnalyzerStationGroupCard({
                 selectedDuplex={duplexSelections.get(cell._rowIndex)}
                 onDuplexChange={(duplex) => onDuplexChange(station.stationInternalId, cell._rowIndex, duplex)}
                 onCellTypeChange={(cellType) => onCellTypeChange(station.stationInternalId, cell._rowIndex, cellType)}
+                onFieldSelectionChange={(key, selected) => onFieldSelectionChange(station.stationInternalId, cell._rowIndex, key, selected)}
                 onRemove={() => onRemoveCell(station.stationInternalId, cell._rowIndex)}
               />
             ))}

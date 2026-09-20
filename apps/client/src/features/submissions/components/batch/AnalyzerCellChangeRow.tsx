@@ -3,7 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { DraftCell } from "../../utils/fromAnalyzer";
+import { isAnalyzerCellIncluded } from "../../utils/fromAnalyzer";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { CellTypeInfoPopover } from "@/features/shared/CellTypeInfoPopover";
@@ -11,7 +13,12 @@ import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getCellDetailKeys, getRatChannelField } from "@/features/shared/rat";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
-import { type AnalyzerDetailKey, getAnalyzerBandMhz, getAnalyzerBandNumber } from "@/features/submissions/utils/analyzerRatSpecs";
+import {
+  type AnalyzerDetailKey,
+  getAnalyzerBandMhz,
+  getAnalyzerBandNumber,
+  isAnalyzerDetailRequired,
+} from "@/features/submissions/utils/analyzerRatSpecs";
 import { cn } from "@/lib/utils";
 import type { CellType } from "@/types/station";
 
@@ -22,10 +29,11 @@ interface Props {
   selectedDuplex: string | null | undefined;
   onDuplexChange: (duplex: string | null) => void;
   onCellTypeChange: (cellType: CellType | null) => void;
+  onFieldSelectionChange: (key: AnalyzerDetailKey, selected: boolean) => void;
   onRemove: () => void;
 }
 
-export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, onCellTypeChange, onRemove }: Props) {
+export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, onCellTypeChange, onFieldSelectionChange, onRemove }: Props) {
   const { t } = useTranslation(["submissions", "common", "stations"]);
   const isAddOperation = change.operation === "add";
 
@@ -38,8 +46,20 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
   const mhz = channel !== undefined ? getAnalyzerBandMhz(change.rat, channel) : null;
   const showBandNumber = !ambiguousDuplex || !!selectedDuplex;
   const hasUnresolvedBand = isAddOperation && change.band_id === null && change.duplexChoices.length === 0;
+  const isIncluded = isAnalyzerCellIncluded(change);
+  let rowStateClassName = "before:bg-amber-500";
+  if (change.conflict) rowStateClassName = "bg-destructive/5 before:bg-destructive";
+  else if (!isIncluded) rowStateClassName = "bg-muted/15 before:bg-muted-foreground/30";
+  else if (isAddOperation) rowStateClassName = "before:bg-emerald-500";
 
-  const fields: { key: AnalyzerDetailKey; currentVal: AnalyzerFieldValue; newVal: AnalyzerFieldValue; isChanged: boolean }[] = [];
+  const fields: {
+    key: AnalyzerDetailKey;
+    currentVal: AnalyzerFieldValue;
+    newVal: AnalyzerFieldValue;
+    isChanged: boolean;
+    isRequired: boolean;
+    isSelected: boolean;
+  }[] = [];
 
   const base = isAddOperation ? {} : (change.baseDetails ?? {});
   const changed = change.details;
@@ -48,19 +68,21 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
     const currentVal = base[key];
     const newVal = changed[key];
     const isChanged = key in changed && newVal !== null && newVal !== undefined;
+    const isRequired = isChanged && isAnalyzerDetailRequired(change.operation, change.rat, key);
+    const isSelected = !isChanged || isRequired || change.selectedDetailKeys.has(key);
     if ((currentVal !== null && currentVal !== undefined) || isChanged)
-      fields.push({ key, currentVal, newVal: isChanged ? newVal : undefined, isChanged });
+      fields.push({ key, currentVal, newVal: isChanged ? newVal : undefined, isChanged, isRequired, isSelected });
   }
 
   return (
     <li
       className={cn(
-        "relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-3 py-2 @4xl:grid-cols-[max-content_minmax(0,1fr)_auto] @4xl:gap-x-2 @sm:px-4",
+        "relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 px-2.5 py-1.5 @4xl:grid-cols-[max-content_minmax(0,1fr)_auto] @4xl:gap-x-2 @4xl:gap-y-1.5 sm:px-4 sm:py-2",
         "before:absolute before:inset-y-2 before:left-0 before:w-px before:content-['']",
-        change.conflict ? "bg-destructive/5 before:bg-destructive" : isAddOperation ? "before:bg-emerald-500" : "before:bg-amber-500",
+        rowStateClassName,
       )}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
         <SubmissionCellOperationBadge operation={change.operation} conflict={change.conflict} />
         <TechnologySummary bands={[change.rat]} className="mt-0 pl-0" />
         {mhz !== null || band !== null ? (
@@ -69,49 +91,82 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
             {showBandNumber && band !== null ? <span className="opacity-75">{mhz !== null ? ` (b${band})` : `(b${band})`}</span> : null}
           </span>
         ) : null}
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-2.5">
           <CellTypeSelect
             value={change.type ?? null}
             onChange={onCellTypeChange}
             ariaLabel={t("stations:cells.cellType")}
-            className="h-11 w-20 shrink-0 text-xs focus:border-ring focus:ring-[3px] focus:ring-ring/50 sm:h-8"
+            className="relative h-8 w-20 shrink-0 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           />
-          <CellTypeInfoPopover align="center" className="size-8 sm:size-6" />
+          <CellTypeInfoPopover align="center" className="relative size-6 after:absolute after:-inset-2.5 after:content-['']" />
         </div>
       </div>
 
-      <dl className="col-start-1 row-start-2 flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-2 @4xl:col-start-2 @4xl:row-start-1 @4xl:gap-x-6 @4xl:border-l @4xl:pl-2">
-        {fields.map(({ key, currentVal, newVal, isChanged }) => (
-          <div key={key} className="flex min-w-0 items-baseline gap-1.5">
-            <dt className="shrink-0 text-xs text-muted-foreground">{getRatDetailFieldLabel(change.rat, key)}</dt>
-            <dd className="flex min-w-0 items-center gap-1.5 font-mono text-xs tabular-nums">
-              {isChanged && currentVal !== null && currentVal !== undefined ? (
-                <>
-                  <span className="sr-only">{t("batch.currentValue")}</span>
-                  <del className="truncate text-muted-foreground decoration-current">{String(currentVal)}</del>
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="sr-only">{t("batch.newValue")}</span>
-                  <ins className="truncate font-semibold text-amber-700 no-underline dark:text-amber-400">{String(newVal)}</ins>
-                </>
-              ) : isChanged ? (
-                <>
-                  <span className="sr-only">{t("batch.newValue")}</span>
-                  <ins
-                    className={cn(
-                      "truncate font-semibold no-underline",
-                      isAddOperation ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400",
-                    )}
-                  >
-                    {String(newVal)}
-                  </ins>
-                </>
-              ) : (
-                <span className="truncate text-foreground">{String(currentVal)}</span>
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <div className="col-span-full row-start-2 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 @4xl:col-span-1 @4xl:col-start-2 @4xl:row-start-1 @4xl:border-l @4xl:pl-2 [&>*+*]:before:shrink-0 [&>*+*]:before:text-muted-foreground/40 [&>*+*]:before:content-['/']">
+        {fields.map(({ key, currentVal, newVal, isChanged, isRequired, isSelected }) => {
+          const fieldLabel = getRatDetailFieldLabel(change.rat, key);
+          const fieldId = `analyzer-field-${change._rowIndex}-${key}`;
+          let newValueClassName = "text-amber-700 dark:text-amber-400";
+          if (!isSelected) newValueClassName = "text-muted-foreground";
+          else if (isAddOperation) newValueClassName = "text-emerald-700 dark:text-emerald-400";
+
+          let valueContent = <span className="truncate text-foreground">{String(currentVal)}</span>;
+          if (isChanged && currentVal !== null && currentVal !== undefined) {
+            valueContent = (
+              <>
+                <span className="sr-only">{t("batch.currentValue")}</span>
+                <del className="truncate text-muted-foreground decoration-current">{String(currentVal)}</del>
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">{t("batch.newValue")}</span>
+                <ins
+                  className={cn("truncate font-semibold no-underline", isSelected ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}
+                >
+                  {String(newVal)}
+                </ins>
+              </>
+            );
+          } else if (isChanged) {
+            valueContent = (
+              <>
+                <span className="sr-only">{t("batch.newValue")}</span>
+                <ins className={cn("truncate font-semibold no-underline", newValueClassName)}>{String(newVal)}</ins>
+              </>
+            );
+          }
+
+          const value = <span className="flex min-w-0 items-center gap-1.5 font-mono text-xs tabular-nums">{valueContent}</span>;
+
+          if (!isChanged)
+            return (
+              <div key={key} className="flex min-w-0 items-baseline gap-1.5">
+                <span className="shrink-0 text-xs text-muted-foreground">{fieldLabel}</span>
+                {value}
+              </div>
+            );
+
+          return (
+            <div key={key} className="flex min-h-11 min-w-0 items-center gap-1.5">
+              <Checkbox
+                id={fieldId}
+                checked={isSelected}
+                disabled={isRequired}
+                onCheckedChange={(checked) => onFieldSelectionChange(key, checked === true)}
+                aria-label={t("batch.includeField", { field: fieldLabel, rat: change.rat, row: change._rowIndex + 1 })}
+              />
+              <label htmlFor={fieldId} className={cn("flex min-h-11 min-w-0 items-center gap-1.5", isRequired ? "cursor-default" : "cursor-pointer")}>
+                <span className="shrink-0 text-xs text-muted-foreground">{fieldLabel}</span>
+                {value}
+                {isRequired ? <span className="sr-only">{t("batch.requiredField")}</span> : null}
+              </label>
+            </div>
+          );
+        })}
+        {!isIncluded ? (
+          <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground @4xl:hidden">
+            {t("batch.notIncluded")}
+          </span>
+        ) : null}
+      </div>
 
       {ambiguousDuplex || hasUnresolvedBand || change.conflict ? (
         <div className="col-span-full flex flex-wrap items-center gap-2 @4xl:col-span-2 @4xl:col-start-2">
@@ -119,7 +174,10 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
             <Select value={selectedDuplex ?? ""} onValueChange={(value) => onDuplexChange(value || null)}>
               <SelectTrigger
                 aria-label={t("batch.selectDuplexForCell", { row: change._rowIndex + 1 })}
-                className={cn("h-11 w-24 shrink-0 text-xs sm:h-8", !selectedDuplex && "border-amber-500/60 text-amber-700 dark:text-amber-400")}
+                className={cn(
+                  "relative h-8 w-24 shrink-0 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']",
+                  !selectedDuplex && "border-amber-500/60 text-amber-700 dark:text-amber-400",
+                )}
               >
                 <SelectValue>{selectedDuplex ?? t("batch.selectDuplex")}</SelectValue>
               </SelectTrigger>
@@ -146,15 +204,20 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
           ) : null}
         </div>
       ) : null}
-      <Button
-        variant="ghost"
-        size="icon-lg"
-        className="col-start-2 row-start-1 size-11 cursor-pointer text-muted-foreground hover:text-destructive @4xl:col-start-3 sm:size-8"
-        aria-label={t("batch.removeCell", { row: change._rowIndex + 1 })}
-        onClick={onRemove}
-      >
-        <HugeiconsIcon icon={Delete02Icon} className="size-4" aria-hidden="true" />
-      </Button>
+      <div className="col-start-2 row-start-1 flex items-center gap-1.5 self-start @4xl:col-start-3 @4xl:self-center">
+        {!isIncluded ? (
+          <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground @4xl:inline">{t("batch.notIncluded")}</span>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative size-8 shrink-0 cursor-pointer text-muted-foreground after:absolute after:-inset-1.5 after:content-[''] hover:text-destructive"
+          aria-label={t("batch.removeCell", { row: change._rowIndex + 1 })}
+          onClick={onRemove}
+        >
+          <HugeiconsIcon icon={Delete02Icon} className="size-4" aria-hidden="true" />
+        </Button>
+      </div>
     </li>
   );
 }

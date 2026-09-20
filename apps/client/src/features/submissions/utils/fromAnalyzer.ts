@@ -2,6 +2,7 @@ import type { CellFormDetails, SubmissionFormData } from "../types";
 import type { AnalyzerDraft } from "./analyzerDraftStore";
 import {
   type AnalyzerBandChoice,
+  type AnalyzerDetailKey,
   type AnalyzerRat,
   type MismatchDetails,
   buildAnalyzerBaseDetails,
@@ -21,9 +22,11 @@ export interface DraftCell {
   target_sector_id: number | undefined;
   band_id: number | null;
   type?: CellType | null;
+  baseType: CellType | null | undefined;
   duplexChoices: AnalyzerBandChoice[];
   details: MismatchDetails;
   baseDetails?: MismatchDetails;
+  selectedDetailKeys: ReadonlySet<AnalyzerDetailKey>;
   warningKeys: string[];
   conflict: boolean;
 }
@@ -49,6 +52,26 @@ export interface AnalyzerBatchDraft {
 
 type AnalyzerCellConflictState = Pick<DraftCell, "details" | "type">;
 
+function getSelectedAnalyzerDetails(cell: Pick<DraftCell, "details" | "selectedDetailKeys">): MismatchDetails {
+  const details: MismatchDetails = {};
+  for (const key of cell.selectedDetailKeys) {
+    if (!(key in cell.details)) continue;
+    Object.assign(details, { [key]: cell.details[key] });
+  }
+  return details;
+}
+
+export function isAnalyzerCellIncluded(cell: Pick<DraftCell, "operation" | "selectedDetailKeys" | "type" | "baseType">): boolean {
+  return cell.operation === "add" || cell.selectedDetailKeys.size > 0 || cell.type !== cell.baseType;
+}
+
+function getAnalyzerCellConflictState(cell: DraftCell): AnalyzerCellConflictState {
+  return {
+    details: getSelectedAnalyzerDetails(cell),
+    type: cell.type === cell.baseType ? undefined : cell.type,
+  };
+}
+
 function hasAnalyzerCellConflict(seen: AnalyzerCellConflictState, cell: AnalyzerCellConflictState): boolean {
   const hasTypeConflict = seen.type !== undefined && cell.type !== undefined && seen.type !== cell.type;
   return (
@@ -68,10 +91,10 @@ export function recalculateAnalyzerCellConflicts(cells: DraftCell[]): DraftCell[
   const stateByTargetCell = new Map<number, AnalyzerCellConflictState>();
 
   return cells.map((cell) => {
-    if (cell.target_cell_id === undefined) return cell.conflict ? { ...cell, conflict: false } : cell;
+    if (cell.target_cell_id === undefined || !isAnalyzerCellIncluded(cell)) return cell.conflict ? { ...cell, conflict: false } : cell;
 
     const seen = stateByTargetCell.get(cell.target_cell_id);
-    const current = { details: cell.details, type: cell.type };
+    const current = getAnalyzerCellConflictState(cell);
     const conflict = seen !== undefined && hasAnalyzerCellConflict(seen, current);
 
     stateByTargetCell.set(cell.target_cell_id, seen === undefined ? current : mergeAnalyzerCellConflictState(seen, current));
@@ -79,7 +102,7 @@ export function recalculateAnalyzerCellConflicts(cells: DraftCell[]): DraftCell[
   });
 }
 
-function pickMismatchDetails(rat: AnalyzerRat, details: MismatchDetails) {
+function pickMismatchDetails(rat: AnalyzerRat, details: MismatchDetails): Partial<CellFormDetails> {
   const keys = getCellDetailKeys(rat);
   return Object.fromEntries(keys.filter((key) => key in details).map((key) => [key, details[key as keyof MismatchDetails]]));
 }
@@ -153,9 +176,11 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
       target_sector_id,
       band_id,
       type,
+      baseType: type,
       duplexChoices,
       details,
       baseDetails,
+      selectedDetailKeys: new Set(Object.keys(details) as AnalyzerDetailKey[]),
       warningKeys: warnings,
       conflict,
     };
@@ -188,20 +213,17 @@ export function buildAnalyzerBatchDraft(draft: AnalyzerDraft, bands: Band[] = []
 }
 
 export function buildSubmissionPayloads(draft: AnalyzerBatchDraft): SubmissionFormData[] {
-  return draft.stations.map((station) => ({
-    station_id: station.stationInternalId,
-    type: "update",
-    cells: station.cells.map((cell) => ({
+  return draft.stations.flatMap((station) => {
+    const cells = station.cells.filter(isAnalyzerCellIncluded).map((cell) => ({
       operation: cell.operation,
       target_cell_id: cell.target_cell_id,
       target_sector_id: cell.target_sector_id,
       band_id: cell.band_id,
       rat: cell.rat,
-      type: cell.type,
-      details: {
-        ...pickMismatchDetails(cell.rat, cell.baseDetails ?? {}),
-        ...pickMismatchDetails(cell.rat, cell.details),
-      } as Partial<CellFormDetails>,
-    })),
-  }));
+      type: cell.operation === "add" || cell.type !== cell.baseType ? cell.type : undefined,
+      details: pickMismatchDetails(cell.rat, getSelectedAnalyzerDetails(cell)),
+    }));
+    if (cells.length === 0) return [];
+    return [{ station_id: station.stationInternalId, type: "update" as const, cells }];
+  });
 }

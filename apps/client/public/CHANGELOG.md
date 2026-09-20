@@ -9,6 +9,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Map popups now let you copy station or microwave link GPS coordinates
 - microwave link popups show overlapping links in a scrollable list and can be closed with Escape
 - SI2PEM antenna details now show each antenna's total EIRP and all reported bands
+- Cell Analyzer review now lets you choose detected cell fields per change or in bulk. Unselected fields remain unchanged when applying directly and use current database values in submissions, with a more compact mobile review
 
 ### 🩹 Fixes
 

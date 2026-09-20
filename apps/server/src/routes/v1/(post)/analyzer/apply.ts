@@ -15,7 +15,6 @@ import type { DbTx } from "../../../../types/global.ts";
 import { validateCellARFCNsAgainstBands } from "../../../../utils/cellARFCNValidation.ts";
 import {
   type LTEInsertDetails,
-  type LTEUpdateDetails,
   type RATInsertDetails,
   type RATUpdateDetails,
   insertRATCellDetails,
@@ -126,6 +125,32 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const existingCellsMap = new Map(existingCells.map((c) => [c.id, c]));
   const bandMap = new Map(bandRows.map((b) => [b.id, b]));
 
+  function getExistingRatDetails(existingCell: (typeof existingCells)[number], rat: z.infer<typeof cellSchema>["rat"]) {
+    switch (rat) {
+      case "GSM":
+        return existingCell.gsm;
+      case "UMTS":
+        return existingCell.umts;
+      case "LTE":
+        return existingCell.lte;
+      case "NR":
+        return existingCell.nr;
+    }
+  }
+
+  function mergeCellDetailsForValidation(cell: z.infer<typeof cellSchema>) {
+    if (cell.operation === "add" || cell.target_cell_id === undefined) return cell;
+    const existingCell = existingCellsMap.get(cell.target_cell_id);
+    if (!existingCell) return cell;
+    return {
+      ...cell,
+      details: {
+        ...getExistingRatDetails(existingCell, cell.rat),
+        ...(cell.details as RATUpdateDetails | undefined),
+      },
+    };
+  }
+
   const stationItems = items.map((item) => ({ item, station: stationMap.get(item.station_id)! }));
   const submittedTacByStationId = new Map<number, number>();
 
@@ -133,7 +158,11 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     for (const cell of item.cells) {
       if (cell.rat !== "LTE") continue;
       const details = cell.details as Partial<LTEInsertDetails> | undefined;
-      if (details?.tac !== null && details?.tac !== undefined) addStationTac(submittedTacByStationId, item.station_id, details.tac);
+      if (details?.tac === null || details?.tac === undefined) continue;
+      const currentTac =
+        cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id)?.lte?.tac : undefined;
+      if (currentTac === details.tac) continue;
+      addStationTac(submittedTacByStationId, item.station_id, details.tac);
     }
   }
 
@@ -154,9 +183,11 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           throw new ErrorResponse("NOT_FOUND", { message: `Cell ${cell.target_cell_id} does not exist on station ${station.id}` });
       }
 
-      validateCellDuplicates(item.cells);
+      const validationCells = item.cells.map(mergeCellDetailsForValidation);
 
-      validateCellARFCNsAgainstBands(item.cells, bandMap);
+      validateCellDuplicates(validationCells);
+
+      validateCellARFCNsAgainstBands(validationCells, bandMap);
 
       const checks: Promise<void>[] = [];
       const allModifiedCellIds = item.cells
@@ -164,7 +195,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         .map((cell) => cell.target_cell_id!);
 
       if (station.operator_id) {
-        const cellEntries = item.cells.map((cell) => ({
+        const cellEntries = validationCells.map((cell) => ({
           rat: cell.rat,
           details: cell.details! as RATInsertDetails,
           excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
@@ -175,20 +206,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       checks.push(
         checkPciDuplicates(
           station.id,
-          item.cells.map((cell) => {
-            const existingCell =
-              cell.operation === "update" && cell.target_cell_id !== undefined ? existingCellsMap.get(cell.target_cell_id) : undefined;
-            const details =
-              cell.rat === "LTE" && cell.operation === "update"
-                ? ({ ...existingCell?.lte, ...(cell.details as LTEUpdateDetails | undefined) } as Record<string, unknown>)
-                : (cell.details as Record<string, unknown> | undefined);
-            return {
-              rat: cell.rat,
-              bandId: cell.band_id,
-              details,
-              excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
-            };
-          }),
+          validationCells.map((cell) => ({
+            rat: cell.rat,
+            bandId: cell.band_id,
+            details: cell.details as Record<string, unknown> | undefined,
+            excludeCellId: cell.operation === "update" ? cell.target_cell_id : undefined,
+          })),
           allModifiedCellIds,
         ),
       );

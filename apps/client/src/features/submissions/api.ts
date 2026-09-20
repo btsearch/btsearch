@@ -156,7 +156,7 @@ export function pickCellDetails(rat: RatType | undefined, details: Partial<CellF
   return picked as Partial<CellFormDetails>;
 }
 
-function buildSubmissionPayload(data: SubmissionFormData): Record<string, unknown> {
+function buildSubmissionPayload(data: SubmissionFormData, preservePartialCellDetails = false): Record<string, unknown> {
   const payload: Record<string, unknown> = { type: data.type };
 
   if (data.station_id) payload.station_id = data.station_id;
@@ -182,7 +182,7 @@ function buildSubmissionPayload(data: SubmissionFormData): Record<string, unknow
       rat: cell.rat,
       ...(cell.type === undefined ? {} : { type: cell.type }),
       notes: cell.notes,
-      details: pickCellDetails(cell.rat, cell.details),
+      details: preservePartialCellDetails ? cell.details : pickCellDetails(cell.rat, cell.details),
     }));
   }
   if (data.pending_photos) payload.pending_photos = data.pending_photos;
@@ -201,7 +201,7 @@ export async function createSubmission(data: SubmissionFormData): Promise<Submis
 export async function createAnalyzerBatch(payloads: SubmissionFormData[], submitterNote?: string): Promise<SubmissionResponse[]> {
   return postApiData<SubmissionResponse[]>("submissions/batch", {
     submitter_note: submitterNote?.trim() || undefined,
-    items: payloads.map(buildSubmissionPayload),
+    items: payloads.map((payload) => buildSubmissionPayload(payload, true)),
   });
 }
 
@@ -296,7 +296,7 @@ export async function applyAnalyzerBatch(payload: SubmissionFormData[]): Promise
         band_id: cell.band_id,
         rat: cell.rat,
         ...(cell.type === undefined ? {} : { type: cell.type }),
-        details: pickCellDetails(cell.rat, cell.details),
+        details: cell.details,
       })),
     })),
   });

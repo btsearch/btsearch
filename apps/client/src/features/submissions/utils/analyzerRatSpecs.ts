@@ -14,6 +14,7 @@ type AnalyzerRatSpec = {
   baseDetails: readonly DetailFieldMapping[];
   warningDetails: readonly WarningFieldMapping[];
   probableAddDetails?: readonly DetailFieldMapping[];
+  requiredAddDetails?: readonly AnalyzerDetailKey[];
   channelBandResolver?: (channel: number) => number | null;
 };
 
@@ -61,6 +62,7 @@ const ANALYZER_RAT_SPECS: Record<AnalyzerRat, AnalyzerRatSpec> = {
       { detailKey: "pci", sourceKey: "pci" },
       { detailKey: "earfcn", sourceKey: "earfcn" },
     ],
+    requiredAddDetails: ["tac", "enbid", "clid"],
     channelBandResolver: getBandFromEARFCN,
   },
   NR: {
@@ -97,6 +99,10 @@ export function buildAnalyzerProbableAddDetails(rat: AnalyzerRat, row: StoredPar
   const details: MismatchDetails = {};
   for (const field of ANALYZER_RAT_SPECS[rat].probableAddDetails ?? []) assignDetail(details, field.detailKey, readValue(row, field.sourceKey));
   return details;
+}
+
+export function isAnalyzerDetailRequired(operation: "add" | "update", rat: AnalyzerRat, key: AnalyzerDetailKey): boolean {
+  return operation === "add" && (ANALYZER_RAT_SPECS[rat].requiredAddDetails?.includes(key) ?? false);
 }
 
 export function getAnalyzerBandNumber(rat: AnalyzerRat, channel: number): number | null {

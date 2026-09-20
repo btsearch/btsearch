@@ -4,7 +4,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
-import { ErrorResponse } from "../../../../errors.js";
+import { ErrorResponse, ValidationError } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../../../../services/audit/index.js";
@@ -15,6 +15,7 @@ import {
   type SubmissionWithExtras,
   processSubmission,
   proposedCellInsert,
+  proposedCellInsertBase,
   proposedLocationInsert,
   proposedStationInsert,
   singleSubmissionSchema,
@@ -26,9 +27,21 @@ import { logger } from "../../../../utils/logger.js";
 const ITEMS_CAP = 25;
 const ANALYZER_SYSTEM_NOTE = "System: Zgłoszono przez analizator. Mogą być błędy";
 
+const batchProposedCellInsert = proposedCellInsertBase.extend({ details: z.record(z.string(), z.unknown()).optional() }).superRefine((cell, ctx) => {
+  const operation = cell.operation ?? "add";
+  if (operation === "delete") return;
+  if (cell.rat === null || cell.rat === undefined) ctx.addIssue({ code: "custom", message: "RAT is required for cell changes", path: ["rat"] });
+  if (operation !== "add") return;
+  if (cell.band_id === null || cell.band_id === undefined)
+    ctx.addIssue({ code: "custom", message: "band_id is required for added cells", path: ["band_id"] });
+  if (cell.details === undefined) ctx.addIssue({ code: "custom", message: "Details are required for added cells", path: ["details"] });
+});
+const batchSingleSubmissionSchema = singleSubmissionSchema.safeExtend({
+  cells: z.array(batchProposedCellInsert).optional(),
+});
 const requestSchema = z.object({
   submitter_note: z.string().max(2000).optional(),
-  items: z.array(singleSubmissionSchema).min(1).max(ITEMS_CAP),
+  items: z.array(batchSingleSubmissionSchema).min(1).max(ITEMS_CAP),
 });
 
 type ReqBody = { Body: z.infer<typeof requestSchema> };
@@ -48,6 +61,14 @@ const schemaRoute = {
 };
 
 type ResponseData = z.infer<typeof submissionsSelectSchema>[];
+type BatchSubmission = z.infer<typeof batchSingleSubmissionSchema>;
+type BatchCell = z.infer<typeof batchProposedCellInsert>;
+
+function requireTargetCellId(cell: BatchCell): number {
+  if (cell.target_cell_id === null || cell.target_cell_id === undefined)
+    throw new ErrorResponse("BAD_REQUEST", { message: "target_cell_id is required for cell updates" });
+  return cell.target_cell_id;
+}
 
 function addStationTac(stationTacs: Map<number, number>, stationId: number, tac: number): void {
   const existingTac = stationTacs.get(stationId);
@@ -56,19 +77,18 @@ function addStationTac(stationTacs: Map<number, number>, stationId: number, tac:
   stationTacs.set(stationId, tac);
 }
 
-async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSubmission[]> {
-  const tacByStationId = new Map<number, number>();
+async function expandLteTacUpdates(inputs: BatchSubmission[]): Promise<BatchSubmission[]> {
+  const stationIdsWithSubmittedTac = new Set<number>();
 
   for (const input of inputs) {
     if (!input.station_id) continue;
     for (const cell of input.cells ?? []) {
       if (cell.operation === "delete" || cell.rat !== "LTE") continue;
-      const details = cell.details as { tac?: number | null } | undefined;
-      if (details?.tac !== null && details?.tac !== undefined) addStationTac(tacByStationId, input.station_id, details.tac);
+      if (typeof cell.details?.tac === "number") stationIdsWithSubmittedTac.add(input.station_id);
     }
   }
 
-  if (tacByStationId.size === 0) return inputs;
+  if (stationIdsWithSubmittedTac.size === 0) return inputs;
 
   const stationCells = await db
     .select({
@@ -85,14 +105,34 @@ async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSu
     })
     .from(cells)
     .innerJoin(lteCells, eq(lteCells.cell_id, cells.id))
-    .where(inArray(cells.station_id, [...tacByStationId.keys()]));
+    .where(inArray(cells.station_id, [...stationIdsWithSubmittedTac]));
 
   const lteCellsByStationId = new Map<number, typeof stationCells>();
+  const lteCellsById = new Map<number, (typeof stationCells)[number]>();
   for (const cell of stationCells) {
-    const stationCells = lteCellsByStationId.get(cell.stationId) ?? [];
-    stationCells.push(cell);
-    lteCellsByStationId.set(cell.stationId, stationCells);
+    const cellsForStation = lteCellsByStationId.get(cell.stationId) ?? [];
+    cellsForStation.push(cell);
+    lteCellsByStationId.set(cell.stationId, cellsForStation);
+    lteCellsById.set(cell.cellId, cell);
   }
+
+  const tacByStationId = new Map<number, number>();
+  for (const input of inputs) {
+    if (!input.station_id) continue;
+    for (const cell of input.cells ?? []) {
+      if (cell.operation === "delete" || cell.rat !== "LTE") continue;
+      const tac = cell.details?.tac;
+      if (typeof tac !== "number") continue;
+      const currentCell =
+        cell.operation === "update" && cell.target_cell_id !== null && cell.target_cell_id !== undefined
+          ? lteCellsById.get(cell.target_cell_id)
+          : undefined;
+      if (currentCell?.stationId === input.station_id && currentCell.tac === tac) continue;
+      addStationTac(tacByStationId, input.station_id, tac);
+    }
+  }
+
+  if (tacByStationId.size === 0) return inputs;
 
   return inputs.map((input) => {
     if (!input.station_id) return input;
@@ -101,7 +141,7 @@ async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSu
 
     const inputCells = (input.cells ?? []).map((cell) => {
       if (cell.operation === "delete" || cell.rat !== "LTE") return cell;
-      return { ...cell, details: { ...(cell.details as Record<string, unknown> | undefined), tac } };
+      return { ...cell, details: { ...cell.details, tac } };
     });
     const existingCellIds = new Set(inputCells.map((cell) => cell.target_cell_id).filter((id): id is number => id !== null && id !== undefined));
     const expandedCells = [...inputCells];
@@ -130,6 +170,108 @@ async function expandLteTacUpdates(inputs: SingleSubmission[]): Promise<SingleSu
   });
 }
 
+async function hydrateCellUpdates(inputs: BatchSubmission[]): Promise<BatchSubmission[]> {
+  const updateCellIds: number[] = [];
+  for (const input of inputs) {
+    for (const cell of input.cells ?? []) {
+      if (cell.operation !== "update") continue;
+      updateCellIds.push(requireTargetCellId(cell));
+    }
+  }
+
+  if (updateCellIds.length === 0) return inputs;
+
+  const existingCells = await db.query.cells.findMany({
+    where: { id: { in: [...new Set(updateCellIds)] } },
+    with: { gsm: true, umts: true, lte: true, nr: true },
+  });
+  const existingCellsById = new Map(existingCells.map((cell) => [cell.id, cell]));
+
+  function getCurrentDetails(existingCell: (typeof existingCells)[number]): Record<string, unknown> | undefined {
+    switch (existingCell.rat) {
+      case "GSM":
+        return existingCell.gsm
+          ? {
+              lac: existingCell.gsm.lac,
+              cid: existingCell.gsm.cid,
+              e_gsm: existingCell.gsm.e_gsm,
+            }
+          : undefined;
+      case "UMTS":
+        return existingCell.umts
+          ? {
+              lac: existingCell.umts.lac,
+              rnc: existingCell.umts.rnc,
+              cid: existingCell.umts.cid,
+              arfcn: existingCell.umts.arfcn,
+            }
+          : undefined;
+      case "LTE":
+        return existingCell.lte
+          ? {
+              tac: existingCell.lte.tac,
+              enbid: existingCell.lte.enbid,
+              clid: existingCell.lte.clid,
+              pci: existingCell.lte.pci,
+              earfcn: existingCell.lte.earfcn,
+              supports_iot: existingCell.lte.supports_iot,
+            }
+          : undefined;
+      case "NR":
+        return existingCell.nr
+          ? {
+              nrtac: existingCell.nr.nrtac,
+              gnbid: existingCell.nr.gnbid,
+              clid: existingCell.nr.clid,
+              pci: existingCell.nr.pci,
+              arfcn: existingCell.nr.arfcn,
+              type: existingCell.nr.type,
+              supports_nr_redcap: existingCell.nr.supports_nr_redcap,
+            }
+          : undefined;
+    }
+  }
+
+  return inputs.map((input) => ({
+    ...input,
+    cells: input.cells?.map((cell) => {
+      if (cell.operation !== "update") return cell;
+      const targetCellId = requireTargetCellId(cell);
+      if (input.station_id === null || input.station_id === undefined)
+        throw new ErrorResponse("BAD_REQUEST", { message: "station_id is required for cell updates" });
+
+      const existingCell = existingCellsById.get(targetCellId);
+      if (!existingCell || existingCell.station_id !== input.station_id)
+        throw new ErrorResponse("NOT_FOUND", { message: `Cell ${targetCellId} does not exist on station ${input.station_id}` });
+      if (cell.rat !== null && cell.rat !== undefined && cell.rat !== existingCell.rat)
+        throw new ErrorResponse("BAD_REQUEST", { message: `Cell ${targetCellId} is ${existingCell.rat}, not ${cell.rat}` });
+
+      const currentDetails = getCurrentDetails(existingCell);
+      if (!currentDetails) throw new ErrorResponse("NOT_FOUND", { message: `Cell ${targetCellId} has no ${existingCell.rat} details` });
+
+      return {
+        ...cell,
+        station_id: input.station_id,
+        band_id: cell.band_id ?? existingCell.band_id,
+        rat: existingCell.rat,
+        type: cell.type === undefined ? existingCell.type : cell.type,
+        details: { ...currentDetails, ...cell.details },
+      };
+    }),
+  }));
+}
+
+function parseCompleteSubmissions(inputs: BatchSubmission[]): SingleSubmission[] {
+  const parsed = z.array(singleSubmissionSchema).safeParse(inputs);
+  if (parsed.success) return parsed.data;
+  throw new ValidationError(
+    parsed.error.issues.map((issue) => ({
+      field: ["items", ...issue.path].map(String).join("/"),
+      validationMessage: issue.message,
+    })),
+  );
+}
+
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   if (!getRuntimeSettings().submissionsEnabled) throw new ErrorResponse("FORBIDDEN");
   const userSession = req.userSession;
@@ -147,18 +289,20 @@ ${ANALYZER_SYSTEM_NOTE}`
     throw new ErrorResponse("BAD_REQUEST", { message: "Each station must have at least 1 cell changes in a batch submission" });
   }
 
-  const submissionInputs: SingleSubmission[] = items.map((item) => ({
+  const submissionInputs: BatchSubmission[] = items.map((item) => ({
     ...item,
     submitter_note: item.submitter_note ?? effective_note,
   }));
 
-  await Promise.all(submissionInputs.map(validateSubmission));
   const expandedSubmissionInputs = await expandLteTacUpdates(submissionInputs);
+  const hydratedSubmissionInputs = await hydrateCellUpdates(expandedSubmissionInputs);
+  const completeSubmissionInputs = parseCompleteSubmissions(hydratedSubmissionInputs);
+  await Promise.all(completeSubmissionInputs.map(validateSubmission));
 
   try {
     const results = await runAuditedOperation(auditContextFromRequest(req), { kind: "submission.create" }, async (tx, audit) => {
       const created: SubmissionWithExtras[] = [];
-      for (const input of expandedSubmissionInputs) {
+      for (const input of completeSubmissionInputs) {
         // eslint-disable-next-line no-await-in-loop
         created.push(await processSubmission(tx, input, userId));
       }

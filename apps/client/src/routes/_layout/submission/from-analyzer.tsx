@@ -27,15 +27,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { applyAnalyzerBatch, createAnalyzerBatch } from "@/features/submissions/api";
+import { AnalyzerFieldSelectionPopover } from "@/features/submissions/components/batch/AnalyzerFieldSelectionPopover";
 import { AnalyzerStationGroupCard } from "@/features/submissions/components/batch/AnalyzerStationGroupCard";
 import type { AnalyzerDraft } from "@/features/submissions/utils/analyzerDraftStore";
 import { clearDraft, loadDraft } from "@/features/submissions/utils/analyzerDraftStore";
+import type { AnalyzerDetailKey, AnalyzerRat } from "@/features/submissions/utils/analyzerRatSpecs";
 import { analyzerReviewReducer, createAnalyzerReviewState } from "@/features/submissions/utils/analyzerReviewState";
-import { buildSubmissionPayloads } from "@/features/submissions/utils/fromAnalyzer";
+import { buildSubmissionPayloads, isAnalyzerCellIncluded } from "@/features/submissions/utils/fromAnalyzer";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSettings } from "@/hooks/useSettings";
 import { getAnalyzerFormatLabel } from "@/lib/analyzer/analyzer-parsers";
 import { showApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { Band, CellType } from "@/types/station";
 
 export const Route = createFileRoute("/_layout/submission/from-analyzer")({
@@ -115,6 +118,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
   );
   const stations = visibleEntries.map(({ station }) => station);
   const batchDraft = { ...initialBatchDraft, stations };
+  const submissionPayloads = buildSubmissionPayloads(batchDraft);
   const hasRemovals = stationEntries.some((entry) => entry.removed || entry.removedCells.size > 0);
 
   const onDuplexChange = useCallback((stationId: number, rowIndex: number, duplex: string | null) => {
@@ -123,6 +127,18 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
 
   const onCellTypeChange = useCallback((stationId: number, rowIndex: number, cellType: CellType | null) => {
     dispatch({ type: "set-cell-type", stationId, rowIndex, cellType });
+  }, []);
+
+  const onFieldSelectionChange = useCallback((stationId: number, rowIndex: number, key: AnalyzerDetailKey, selected: boolean) => {
+    dispatch({ type: "set-detail-selected", stationId, rowIndex, key, selected });
+  }, []);
+
+  const onBulkFieldSelectionChange = useCallback((rat: AnalyzerRat, key: AnalyzerDetailKey, selected: boolean) => {
+    dispatch({ type: "set-detail-selected-for-all", rat, key, selected });
+  }, []);
+
+  const onAllOptionalFieldsChange = useCallback((selected: boolean) => {
+    dispatch({ type: "set-all-optional-details", selected });
   }, []);
 
   const removeCellFromSubmission = useCallback((stationId: number, rowIndex: number) => {
@@ -138,7 +154,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
   }, []);
 
   const { mutate: submit, isPending: isSubmitting } = useMutation({
-    mutationFn: () => createAnalyzerBatch(buildSubmissionPayloads(batchDraft), submitterNote),
+    mutationFn: () => createAnalyzerBatch(submissionPayloads, submitterNote),
     onSuccess: () => {
       if (draftId) clearDraft(draftId);
       toast.success(t("batch.submitSuccess"));
@@ -148,7 +164,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
   });
 
   const { mutate: apply, isPending: isApplying } = useMutation({
-    mutationFn: () => applyAnalyzerBatch(buildSubmissionPayloads(batchDraft)),
+    mutationFn: () => applyAnalyzerBatch(submissionPayloads),
     onSuccess: () => {
       if (draftId) clearDraft(draftId);
       toast.success(t("batch.applySuccess"));
@@ -159,13 +175,20 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
 
   const isPending = isSubmitting || isApplying;
 
-  const totalCells = stations.reduce((num, station) => num + station.cells.length, 0);
+  const includedStationCount = submissionPayloads.length;
+  const totalCells = submissionPayloads.reduce((num, station) => num + station.cells.length, 0);
+  const hasNoSelectedChanges = totalCells === 0;
   const hasConflicts = stations.some((station) => station.hasConflicts);
-  const hasUnresolvedBands = stations.some((station) => station.cells.some((cell) => cell.operation === "add" && cell.band_id === null));
-  const isBlocked = hasConflicts || hasUnresolvedBands;
+  const hasUnresolvedBands = stations.some((station) =>
+    station.cells.some((cell) => isAnalyzerCellIncluded(cell) && cell.operation === "add" && cell.band_id === null),
+  );
+  const isBlocked = hasNoSelectedChanges || hasConflicts || hasUnresolvedBands;
   const validationDescriptionId = isBlocked ? "batch-validation-summary" : undefined;
   const fileName = draft.metadata.fileName || t("batch.unknownFile");
   const fileFormat = draft.metadata.fileFormat ? getAnalyzerFormatLabel(draft.metadata.fileFormat) : null;
+  let validationTitle = t("batch.readyTitle");
+  if (hasNoSelectedChanges) validationTitle = t("batch.nothingSelectedTitle");
+  else if (isBlocked) validationTitle = t("batch.issuesTitle");
   const actions = (
     <AnalyzerReviewActions
       floating={hasFloatingMobileActions}
@@ -182,8 +205,8 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto">
-        <div className="w-full space-y-5 p-3 md:p-4 lg:p-6">
+      <div className={cn("flex-1 overflow-y-auto", hasFloatingMobileActions && "scroll-pb-[calc(6rem+env(safe-area-inset-bottom))]")}>
+        <div className={cn("w-full space-y-5 p-3 md:p-4 lg:p-6", hasFloatingMobileActions && "pb-[calc(6rem+env(safe-area-inset-bottom))]")}>
           <header className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">{t("batch.fromAnalyzerTitle")}</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">{t("batch.fromAnalyzerDescription")}</p>
@@ -206,7 +229,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
               <div className="grid grid-cols-2 border-t bg-muted/20 sm:min-w-64 sm:border-l sm:border-t-0">
                 <div className="flex flex-col justify-center px-4 py-3">
                   <span className="text-xs text-muted-foreground">{t("common:labels.stations")}</span>
-                  <span className="font-mono text-lg font-semibold tabular-nums">{stations.length}</span>
+                  <span className="font-mono text-lg font-semibold tabular-nums">{includedStationCount}</span>
                 </div>
                 <div className="flex flex-col justify-center border-l px-4 py-3">
                   <span className="text-xs text-muted-foreground">{t("table.cells")}</span>
@@ -221,19 +244,27 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
           ) : (
             <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
               <main className="order-2 min-w-0 space-y-3 xl:order-1">
-                <div className="flex min-h-9 items-center justify-between gap-3">
+                <div className="flex min-h-9 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-base font-semibold">{t("batch.reviewChanges")}</h2>
                     <p className="text-xs text-muted-foreground">
-                      {t("batch.stationCount", { count: stations.length })} · {t("batch.cellCount", { count: totalCells })}
+                      {t("batch.stationCount", { count: includedStationCount })} · {t("batch.cellCount", { count: totalCells })}
                     </p>
                   </div>
-                  {hasRemovals ? (
-                    <Button variant="ghost" onClick={restoreRemovedChanges}>
-                      <HugeiconsIcon icon={RefreshIcon} className="size-4" aria-hidden="true" />
-                      {t("batch.restoreRemoved")}
-                    </Button>
-                  ) : null}
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <AnalyzerFieldSelectionPopover
+                      stations={stations}
+                      onFieldSelectionChange={onBulkFieldSelectionChange}
+                      onAllOptionalFieldsChange={onAllOptionalFieldsChange}
+                      className="min-w-0 flex-1 sm:flex-none"
+                    />
+                    {hasRemovals ? (
+                      <Button variant="ghost" onClick={restoreRemovedChanges} className="h-11 min-w-11 shrink-0 sm:h-8 sm:min-w-8">
+                        <HugeiconsIcon icon={RefreshIcon} className="size-4" aria-hidden="true" />
+                        <span className="max-sm:sr-only">{t("batch.restoreRemoved")}</span>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {visibleEntries.map(({ station, duplexSelections }) => (
@@ -243,6 +274,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
                     duplexSelections={duplexSelections}
                     onDuplexChange={onDuplexChange}
                     onCellTypeChange={onCellTypeChange}
+                    onFieldSelectionChange={onFieldSelectionChange}
                     onRemoveCell={removeCellFromSubmission}
                     onRemoveStation={removeStation}
                   />
@@ -250,12 +282,18 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
               </main>
 
               <aside className="order-1 overflow-hidden rounded-xl border bg-card xl:order-2 xl:sticky xl:top-4">
-                <section id="batch-validation-summary" aria-labelledby="batch-validation-heading" aria-live="polite" className="p-4">
+                <section id="batch-validation-summary" aria-labelledby="batch-validation-heading" aria-live="polite" className="p-3 xl:p-4">
                   <h2 id="batch-validation-heading" className="text-sm font-semibold">
-                    {t(isBlocked ? "batch.issuesTitle" : "batch.readyTitle")}
+                    {validationTitle}
                   </h2>
                   {isBlocked ? (
                     <div className="mt-3 space-y-3">
+                      {hasNoSelectedChanges ? (
+                        <div className="flex items-start gap-2.5 text-muted-foreground">
+                          <HugeiconsIcon icon={InformationCircleIcon} className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                          <p className="text-xs">{t("batch.nothingSelectedDescription")}</p>
+                        </div>
+                      ) : null}
                       {hasConflicts ? (
                         <div className="flex items-start gap-2.5 text-destructive">
                           <HugeiconsIcon icon={AlertCircleIcon} className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -283,7 +321,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
                   )}
                 </section>
 
-                <section className="border-t p-4">
+                <section className="border-t p-3 xl:p-4">
                   <label htmlFor="submitterNote" className="text-sm font-medium">
                     {t("batch.submitterNote")}
                   </label>
@@ -293,16 +331,16 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
                     value={submitterNote}
                     onChange={(event) => setSubmitterNote(event.target.value)}
                     placeholder={t("batch.submitterNotePlaceholder")}
-                    rows={4}
-                    className="mt-3 resize-y text-sm"
+                    rows={2}
+                    className="mt-2 min-h-16 resize-none text-sm xl:mt-3 xl:min-h-24 xl:resize-y"
                   />
                 </section>
 
-                <section className="space-y-2 border-t p-4">
+                <section className="space-y-1 border-t p-1 xl:space-y-2 xl:p-4">
                   {!canApplyDirectly ? <p className="pb-1 text-xs text-muted-foreground">{t("batch.batchRateLimit")}</p> : null}
                   {hasFloatingMobileActions ? null : actions}
 
-                  <Button size="lg" variant="ghost" disabled={isPending} onClick={() => navigate({ to: "/analyzer" })} className="h-11 w-full xl:h-9">
+                  <Button variant="ghost" disabled={isPending} onClick={() => navigate({ to: "/analyzer" })} className="h-11 w-full xl:h-9">
                     {t("common:actions.cancel")}
                   </Button>
                 </section>

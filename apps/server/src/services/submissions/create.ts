@@ -57,14 +57,16 @@ export const nrInsertSchema = nrInsertSchemaBase.superRefine((data, ctx) => {
   }
 });
 export const proposedSectorInsert = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
-export const proposedCellInsert = createInsertSchema(proposedCells)
+export const proposedCellInsertBase = createInsertSchema(proposedCells)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, is_confirmed: true, operation: true })
   .extend({
     operation: z.enum(["add", "update", "delete"]).optional(),
     details: z.unknown().optional(),
   })
-  .strict()
-  .superRefine(makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchema }));
+  .strict();
+export const proposedCellInsert = proposedCellInsertBase.superRefine(
+  makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchema }),
+);
 
 export const singleSubmissionSchema = z
   .object({
