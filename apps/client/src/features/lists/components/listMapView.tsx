@@ -16,6 +16,7 @@ import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { useMapKeybinds } from "@/features/map/hooks/useMapKeybinds";
 import type { MapPopupLocation } from "@/features/map/hooks/useMapPopup";
 import { useMapPositionPersistence } from "@/features/map/hooks/useMapPositionPersistence";
+import { useMapQueryHousekeeping } from "@/features/map/hooks/useMapQueryHousekeeping";
 import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActions";
 import type { SearchStation } from "@/features/map/searchApi";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -27,6 +28,7 @@ const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesL
 
 const LIST_MAP_FILTERS_STORAGE_KEY = "list-map:filters";
 const LIST_FETCH_LIMIT = 1000;
+const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-radiolines"]);
 
 type ListMapContextProps = { name: string };
 
@@ -45,7 +47,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const navigate = useNavigate();
   const { map, isLoaded } = useMap();
   useMapPositionPersistence({ map, isLoaded });
-  const { zoom } = useMapBounds({ map, isLoaded });
+  const { bounds, zoom, isMoving } = useMapBounds({ map, isLoaded });
   const { data: runtimeSettings } = useSettings();
   const { data: session } = authClient.useSession();
   const showAddToList = !!session?.user && !!runtimeSettings?.enableUserLists;
@@ -67,25 +69,30 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const filterParams = buildFilterParams(filters).toString();
+  useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LIST_MAP_QUERY_FAMILIES });
+
   const { data: fetchedLocations } = useQuery({
-    queryKey: ["list-locations", uuid, filters.source, filterParams, wantAzimuths],
-    queryFn: ({ signal }) => fetchLocations(undefined, filters, LIST_FETCH_LIMIT, { azimuths: wantAzimuths, list: uuid, signal }),
+    queryKey: ["list-locations", bounds, uuid, filters.source, filterParams, wantAzimuths],
+    queryFn: ({ signal }) => fetchLocations(bounds, filters, LIST_FETCH_LIMIT, { azimuths: wantAzimuths, list: uuid, signal }),
+    enabled: isLoaded && !!bounds && !isMoving,
     staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60,
     placeholderData: (prev) => prev,
   });
 
   const { data: radioLinesResponse } = useQuery({
-    queryKey: ["list-radiolines", uuid, filters.radiolineOperators, filters.recentDays],
+    queryKey: ["list-radiolines", bounds, uuid, filters.radiolineOperators, filters.recentDays],
     queryFn: ({ signal }) =>
-      fetchRadioLines(undefined, {
+      fetchRadioLines(bounds, {
         signal,
         operatorIds: filters.radiolineOperators,
         limit: LIST_FETCH_LIMIT,
         recentDays: filters.recentDays,
         list: uuid,
       }),
-    enabled: filters.showRadiolines,
+    enabled: filters.showRadiolines && !!bounds && !isMoving,
     staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60,
     placeholderData: (prev) => prev,
   });
   const radioLines = radioLinesResponse?.data;
@@ -108,17 +115,17 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const hasFitBoundsRef = useRef(false);
   useEffect(() => {
     if (!map || !isLoaded || hasFitBoundsRef.current || !fetchedLocations) return;
-    const bounds = new LngLatBounds();
+    const listBounds = new LngLatBounds();
     for (const location of fetchedLocations.data) {
-      bounds.extend([location.longitude, location.latitude]);
+      listBounds.extend([location.longitude, location.latitude]);
     }
     for (const rl of radioLines ?? []) {
-      bounds.extend([rl.tx.longitude, rl.tx.latitude]);
-      bounds.extend([rl.rx.longitude, rl.rx.latitude]);
+      listBounds.extend([rl.tx.longitude, rl.tx.latitude]);
+      listBounds.extend([rl.rx.longitude, rl.rx.latitude]);
     }
-    if (bounds.isEmpty()) return;
+    if (listBounds.isEmpty()) return;
     hasFitBoundsRef.current = true;
-    map.fitBounds(bounds, { padding: 80, maxZoom: 14 });
+    map.fitBounds(listBounds, { padding: 80, maxZoom: 14 });
   }, [map, isLoaded, fetchedLocations, radioLines]);
 
   const handlePopupClose = useCallback((closedLocation: MapPopupLocation) => {

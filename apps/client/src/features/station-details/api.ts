@@ -85,12 +85,16 @@ export type PemReport = {
 export const fetchPemReports = (stationId: string, lat: number, lng: number, operator: number) =>
   fetchApiData<PemReport[]>(`pem/${stationId}?lat=${lat}&lng=${lng}&operator=${operator}`);
 
-export type SI2PEMAntenna = {
+export type SI2PEMAntennaBand = {
   label: string | null;
-  technology: string | null;
-  frequencyMHz: number;
+  rat: string | null;
+  value: number;
+  eirp: number | null;
   tiltRange: { minimum: number; maximum: number } | null;
   measuredTilt: number | null;
+};
+
+export type SI2PEMAntenna = {
   rowNumber: number | null;
   pageNumber: number;
   antenna: {
@@ -99,8 +103,8 @@ export type SI2PEMAntenna = {
     mountedHeight: number;
     azimuth: number | null;
   };
-  eirp: number | null;
-  bandIndex: number;
+  totalEirp: number | null;
+  bands: SI2PEMAntennaBand[];
 };
 
 export type FetchSI2PEMAntennasRequest = {

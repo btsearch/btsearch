@@ -9,6 +9,7 @@ import { TechnologySummary } from "./technologySummary";
 import { Lightbox } from "@/components/photos/lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
+import { CopyButton } from "@/features/station-details/components/copyButton";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { usePreferences } from "@/hooks/usePreferences";
 import { getOperatorColor } from "@/lib/cellular/operators";
@@ -277,11 +278,14 @@ export const PopupContent = memo(function PopupContent({
         />
       </div>
 
-      <div className="px-3 py-1.5 border-t border-border/50 flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground font-mono">
-          GPS: {formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}
-        </span>
-        <div className="flex items-center gap-1.5">
+      <div className="group/copy flex h-7 items-center justify-between gap-2 border-t border-border/50 px-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
+            GPS: {formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}
+          </span>
+          <CopyButton text={`${location.latitude}, ${location.longitude}`} compact />
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
           {!isUkeSource && <PopupPhotosButton locationId={location.id} />}
           <PopupShareButton location={location} source={source} />
         </div>

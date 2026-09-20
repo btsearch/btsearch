@@ -1,12 +1,49 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-20
+
+### 🚀 Enhancements
+
+- List maps now fetch data for the visible map area and discard outdated requests after you move the map
+- Map popups now let you copy station or microwave link GPS coordinates
+- microwave link popups show overlapping links in a scrollable list and can be closed with Escape
+- SI2PEM antenna details now show each antenna's total EIRP and all reported bands
+
+### 🩹 Fixes
+
+- Omnidirectional azimuth markers now keep a consistent radius at every map zoom and range setting
+- Photo sharpness checks are now less likely to reject usable images
+
+# 2026-09-18
+
+### 🚀 Enhancements
+
+- Station change history now shows each change separately and indicates whether it can be reverted individually or with the full operation
+
+# 2026-09-16
+
+### 🚀 Enhancements
+
+- Authors can now view their own pending station comments
+- The cell editor now sorts cells by their full LTE ECID, UMTS CID or NR standalone NCI
+
+### 🩹 Fixes
+
+- Photo uploads now flag blurry images and explain why they were rejected
+
 # 2026-09-15
 
 ### 🚀 Enhancements
 
 - The selected file in the cell analyzer can now be replaced by dragging and dropping another file onto its card
 - Operator filters in `My Submissions` and admin submissions now show operator logos and prioritize Plus, T-Mobile, Orange and Play, matching the photo gallery and station editor
+- Admin audit logs and the users page now work better on mobile screens
+- Submission audit history now records all changes saved in a draft
+
+### 🩹 Fixes
+
+- Users now receive a notification when their submission is deleted
 
 # 2026-09-14
 

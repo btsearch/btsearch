@@ -51,16 +51,16 @@ function mapAntennaCandidates(antennas: SI2PEMAntenna[], report: SI2PEMReport, f
   const candidates: AntennaCandidate[] = [];
   const seen = new Set<string>();
   for (const antenna of antennas) {
-    const fingerprint = [antenna.antenna.mountedHeight, antenna.antenna.azimuth, antenna.measuredTilt, antenna.frequencyMHz].join(":");
+    const fingerprint = [antenna.antenna.mountedHeight, antenna.antenna.azimuth, antenna.measuredTilt, antenna.value].join(":");
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
     candidates.push({
       key: candidateKey([report.url, antenna.pageNumber, antenna.rowNumber, fingerprint]),
       source: "si2pem_report",
       antenna: { mountedHeight: antenna.antenna.mountedHeight, azimuth: antenna.antenna.azimuth },
-      frequencyMHz: antenna.frequencyMHz,
+      frequencyMHz: antenna.value,
       measuredTilt: antenna.measuredTilt,
-      band: enrichCandidateBand(antenna.frequencyMHz, antenna.antenna.azimuth, fallbackCandidates),
+      band: enrichCandidateBand(antenna.value, antenna.antenna.azimuth, fallbackCandidates),
       provenance: {
         report_url: report.url,
         report_date: report.published_at,

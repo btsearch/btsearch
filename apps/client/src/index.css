@@ -311,6 +311,18 @@
     background: transparent !important;
   }
 
+  .maplibregl-popup.radioline-map-popup .maplibregl-popup-close-button {
+    display: inline-flex !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    right: 0.5rem !important;
+    top: 0.5rem !important;
+    line-height: 1 !important;
+  }
+
   .station-hover-tooltip .maplibregl-popup-content {
     pointer-events: none !important;
   }

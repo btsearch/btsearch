@@ -45,7 +45,7 @@ type LineLayerPaint = NonNullable<LineLayerSpecification["paint"]>;
 const AZIMUTH_ARC_SEGMENT_DEGREES = 4;
 const OMNIDIRECTIONAL_AZIMUTH = 360;
 const FULL_CIRCLE_DEGREES = 360;
-const OMNIDIRECTIONAL_RADIUS_SCALE = 0.5;
+const OMNIDIRECTIONAL_RADIUS_METERS = 25;
 
 function hasAzimuth<T extends { azimuth: number | null | undefined }>(sector: T): sector is T & { azimuth: number } {
   return sector.azimuth !== null && sector.azimuth !== undefined;
@@ -126,15 +126,13 @@ function appendOmnidirectionalFeatures(
   lat: number,
   lng: number,
   colors: string[],
-  lineLength: number,
 ): void {
-  const omnidirectionalLength = lineLength * OMNIDIRECTIONAL_RADIUS_SCALE;
-  const outlineCoordinates = buildOmnidirectionalCircleCoordinates(lat, lng, omnidirectionalLength);
+  const outlineCoordinates = buildOmnidirectionalCircleCoordinates(lat, lng, OMNIDIRECTIONAL_RADIUS_METERS);
   outlines.push(createLineFeature(outlineCoordinates, OMNIDIRECTIONAL_AZIMUTH, colors[0] ?? DEFAULT_COLOR, "omnidirectional"));
 
   if (colors.length === 1) {
     fills.push(createPolygonFeature(outlineCoordinates, colors[0], "omnidirectional"));
-    labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, omnidirectionalLength));
+    labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
     return;
   }
 
@@ -142,14 +140,14 @@ function appendOmnidirectionalFeatures(
   for (let i = 0; i < colors.length; i++) {
     const fillStartAngle = i * fillAngle;
     const fillEndAngle = (i + 1) * fillAngle;
-    const fillArcCoordinates = buildAzimuthArcCoordinates(lat, lng, fillStartAngle, fillEndAngle, omnidirectionalLength);
+    const fillArcCoordinates = buildAzimuthArcCoordinates(lat, lng, fillStartAngle, fillEndAngle, OMNIDIRECTIONAL_RADIUS_METERS);
     fills.push(createPolygonFeature([[lng, lat], ...fillArcCoordinates, [lng, lat]], colors[i], "omnidirectional"));
   }
 
-  labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, omnidirectionalLength));
+  labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
 }
 
-function buildOmnidirectionalFeatures(points: AzimuthPoint[], lineLength: number): AzimuthFeatures {
+function buildOmnidirectionalFeatures(points: AzimuthPoint[]): AzimuthFeatures {
   const fills: GeoJsonFeature[] = [];
   const outlines: GeoJsonFeature[] = [];
   const labels: GeoJsonFeature[] = [];
@@ -160,7 +158,7 @@ function buildOmnidirectionalFeatures(points: AzimuthPoint[], lineLength: number
     const azimuthColors = groupColorsByAzimuth(entries, true);
     const colors = azimuthColors.get(OMNIDIRECTIONAL_AZIMUTH);
     if (colors === undefined) continue;
-    appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors, lineLength);
+    appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors);
   }
 
   return { fills, outlines, labels };
@@ -177,7 +175,7 @@ function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triang
     const azimuthColors = groupColorsByAzimuth(entries, true);
     for (const [azimuth, colors] of azimuthColors) {
       if (azimuth === OMNIDIRECTIONAL_AZIMUTH) {
-        appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors, lineLength);
+        appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors);
         continue;
       }
 
@@ -282,7 +280,7 @@ type GeoJSONTriple = {
 
 function makeGeoJSONTriple(points: AzimuthPoint[], lineLength: number, triangleHalfAngle: number): GeoJSONTriple {
   if (triangleHalfAngle === 0) {
-    const omniFeatures = buildOmnidirectionalFeatures(points, lineLength);
+    const omniFeatures = buildOmnidirectionalFeatures(points);
     return {
       fill: { type: "FeatureCollection", features: omniFeatures.fills },
       outline: { type: "FeatureCollection", features: [...buildAzimuthLineFeatures(points, lineLength), ...omniFeatures.outlines] },

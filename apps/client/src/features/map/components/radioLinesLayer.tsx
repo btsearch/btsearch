@@ -85,29 +85,45 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
       cleanupPopup();
 
       const container = document.createElement("div");
-      container.className = "station-popup-container";
-
-      const root = createRoot(container);
-      popupRootRef.current = root;
-
-      root.render(
-        <QueryClientProvider client={queryClient}>
-          {links.map((link) => (
-            <RadioLinePopupContent key={link.groupId} link={link} showAddToList={showAddToList} onOpenDetails={handleOpenDetails} />
-          ))}
-          <RadioLineFooter coordinates={coordinates} />
-        </QueryClientProvider>,
-      );
+      container.className = "station-popup-container outline-none";
+      container.tabIndex = -1;
 
       const popup = new Popup({
+        className: "station-map-popup radioline-map-popup",
         closeButton: true,
         closeOnClick: true,
         maxWidth: "none",
         offset: 12,
       })
         .setLngLat(coordinates)
-        .setDOMContent(container)
-        .addTo(map);
+        .setDOMContent(container);
+      container.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        event.stopPropagation();
+        popup.remove();
+      });
+
+      const root = createRoot(container);
+      popupRootRef.current = root;
+
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <div className="w-72 text-sm">
+            <div className="custom-scrollbar max-h-72 overflow-x-hidden overflow-y-auto">
+              {links.map((link, index) => (
+                <RadioLinePopupContent
+                  key={link.groupId}
+                  link={link}
+                  isFirst={index === 0}
+                  showAddToList={showAddToList}
+                  onOpenDetails={handleOpenDetails}
+                />
+              ))}
+            </div>
+            <RadioLineFooter coordinates={coordinates} />
+          </div>
+        </QueryClientProvider>,
+      );
 
       popupRef.current = popup;
       popup.on("close", () => {
@@ -117,6 +133,7 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
         popupRootRef.current = null;
         popupRoot?.unmount();
       });
+      popup.addTo(map);
     },
     [map, cleanupPopup, handleOpenDetails, showAddToList],
   );

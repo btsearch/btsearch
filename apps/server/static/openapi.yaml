@@ -4282,13 +4282,14 @@ components:
                 installation_document: { type: string, format: uri }
                 lab_name: { type: string }
 
-    SI2PEMAntenna:
+    SI2PEMAntennaBand:
       type: object
-      required: [label, technology, frequencyMHz, tiltRange, measuredTilt, rowNumber, pageNumber, antenna, eirp, bandIndex]
+      required: [label, rat, value, eirp, tiltRange, measuredTilt]
       properties:
         label: { type: string, nullable: true }
-        technology: { type: string, nullable: true }
-        frequencyMHz: { type: number, format: double }
+        rat: { type: string, nullable: true }
+        value: { type: number, format: double }
+        eirp: { type: number, format: double, nullable: true }
         tiltRange:
           type: object
           nullable: true
@@ -4297,6 +4298,11 @@ components:
             minimum: { type: number, format: double }
             maximum: { type: number, format: double }
         measuredTilt: { type: number, format: double, nullable: true }
+
+    SI2PEMAntenna:
+      type: object
+      required: [rowNumber, pageNumber, antenna, totalEirp, bands]
+      properties:
         rowNumber: { type: integer, nullable: true }
         pageNumber: { type: integer, minimum: 0 }
         antenna:
@@ -4307,8 +4313,10 @@ components:
             manufacturer: { type: string, nullable: true }
             mountedHeight: { type: number, format: double }
             azimuth: { type: number, format: double, nullable: true }
-        eirp: { type: number, format: double, nullable: true }
-        bandIndex: { type: integer, minimum: 0 }
+        totalEirp: { type: number, format: double, nullable: true }
+        bands:
+          type: array
+          items: { $ref: "#/components/schemas/SI2PEMAntennaBand" }
 
     KmzFile:
       type: object

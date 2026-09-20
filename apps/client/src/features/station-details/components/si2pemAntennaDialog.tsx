@@ -23,35 +23,7 @@ type SI2PEMAntennaDialogPanelProps = FloatingDialogPanelFrameProps & {
   operatorMnc?: number | null;
 };
 
-type SI2PEMAntennaGroup = {
-  key: string;
-  antenna: SI2PEMAntenna["antenna"];
-  eirp: number | null;
-  bands: SI2PEMAntenna[];
-};
-
-function groupSI2PEMAntennas(antennas: SI2PEMAntenna[]): SI2PEMAntennaGroup[] {
-  const groups: SI2PEMAntennaGroup[] = [];
-
-  for (const [index, item] of antennas.entries()) {
-    const currentGroup = groups.at(-1);
-    if (item.bandIndex === 0 || currentGroup === undefined) {
-      groups.push({
-        key: `${item.pageNumber}:${item.rowNumber ?? "prose"}:${index}`,
-        antenna: item.antenna,
-        eirp: item.eirp,
-        bands: [item],
-      });
-      continue;
-    }
-
-    currentGroup.bands.push(item);
-  }
-
-  return groups;
-}
-
-function SI2PEMAntennaList({ groups }: { groups: SI2PEMAntennaGroup[] }) {
+function SI2PEMAntennaList({ antennas }: { antennas: SI2PEMAntenna[] }) {
   const { t, i18n } = useTranslation("stationDetails");
   const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }), [i18n.language]);
 
@@ -59,29 +31,30 @@ function SI2PEMAntennaList({ groups }: { groups: SI2PEMAntennaGroup[] }) {
     return value === null ? "-" : `${numberFormatter.format(value)}${unit}`;
   }
 
-  function formatTiltRange(range: SI2PEMAntenna["tiltRange"]): string {
+  function formatTiltRange(range: SI2PEMAntenna["bands"][number]["tiltRange"]): string {
     return range === null ? "-" : `${numberFormatter.format(range.minimum)}-${numberFormatter.format(range.maximum)}°`;
   }
 
   return (
     <div className="divide-y divide-border/60">
-      {groups.map((group, antennaIndex) => {
+      {antennas.map((item, antennaIndex) => {
+        const antennaKey = `${item.pageNumber}:${item.rowNumber ?? "prose"}:${antennaIndex}`;
         const summary = [
-          [t("si2pemAntennaData.fields.azimuth"), formatNumber(group.antenna.azimuth, "°")],
-          [t("si2pemAntennaData.fields.height"), formatNumber(group.antenna.mountedHeight, " m")],
-          [t("si2pemAntennaData.fields.eirp"), formatNumber(group.eirp, " W")],
+          [t("si2pemAntennaData.fields.azimuth"), formatNumber(item.antenna.azimuth, "°")],
+          [t("si2pemAntennaData.fields.height"), formatNumber(item.antenna.mountedHeight, " m")],
+          [t("si2pemAntennaData.fields.eirp"), formatNumber(item.totalEirp, " W")],
         ];
 
         return (
-          <section key={group.key} className="py-2.5 first:pt-1 last:pb-1" aria-labelledby={`${group.key}-title`}>
+          <section key={antennaKey} className="py-2.5 first:pt-1 last:pb-1" aria-labelledby={`${antennaKey}-title`}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Badge variant="secondary" aria-hidden="true" className="h-5 min-w-6 justify-center px-1 py-0 text-[10px] font-semibold tabular-nums">
                 {antennaIndex + 1}
               </Badge>
-              <h3 id={`${group.key}-title`} className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+              <h3 id={`${antennaKey}-title`} className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
                 <span className="sr-only">{t("si2pemAntennaData.antennaNumber", { number: antennaIndex + 1 })} · </span>
-                {group.antenna.model ?? t("si2pemAntennaData.unknownModel")}
-                {group.antenna.manufacturer ? <span className="font-normal text-muted-foreground"> · {group.antenna.manufacturer}</span> : null}
+                {item.antenna.model ?? t("si2pemAntennaData.unknownModel")}
+                {item.antenna.manufacturer ? <span className="font-normal text-muted-foreground"> · {item.antenna.manufacturer}</span> : null}
               </h3>
               <p className="w-full text-xs text-muted-foreground tabular-nums sm:ml-auto sm:w-auto">
                 {summary.map(([label, value], index) => (
@@ -93,9 +66,9 @@ function SI2PEMAntennaList({ groups }: { groups: SI2PEMAntennaGroup[] }) {
               </p>
             </div>
             <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-4 gap-y-1 rounded-lg bg-muted/30 px-2.5 py-1.5 text-sm tabular-nums">
-              {group.bands.map((band) => (
-                <Fragment key={band.bandIndex}>
-                  <span className="truncate font-mono font-medium text-foreground">{`${numberFormatter.format(band.frequencyMHz)} MHz`}</span>
+              {item.bands.map((band, bandIndex) => (
+                <Fragment key={`${band.label ?? band.value}:${bandIndex}`}>
+                  <span className="truncate font-mono font-medium text-foreground">{`${numberFormatter.format(band.value)} MHz`}</span>
                   <span className="text-right">
                     <span className="text-xs text-muted-foreground">{t("si2pemAntennaData.fields.tiltRange")} </span>
                     <span className="font-medium">{formatTiltRange(band.tiltRange)}</span>
@@ -198,8 +171,6 @@ export function SI2PEMAntennaDialogPanel({
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
   });
-  const antennaGroups = useMemo(() => groupSI2PEMAntennas(antennas ?? []), [antennas]);
-
   return (
     <div className={cn("relative", className)} style={style} role="dialog" aria-labelledby={titleId}>
       <div
@@ -258,7 +229,7 @@ export function SI2PEMAntennaDialogPanel({
             {isLoading ? <SI2PEMAntennaLoading /> : null}
             {error ? <SI2PEMAntennaError isRetrying={isFetching} onRetry={() => void refetch()} /> : null}
             {!error && antennas?.length === 0 ? <SI2PEMAntennaEmpty /> : null}
-            {antennaGroups.length > 0 ? <SI2PEMAntennaList groups={antennaGroups} /> : null}
+            {antennas && antennas.length > 0 ? <SI2PEMAntennaList antennas={antennas} /> : null}
           </div>
         </div>
       </div>

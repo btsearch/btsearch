@@ -16,6 +16,8 @@ import {
   getLinkTypeStyle,
 } from "../utils";
 import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
+import { CopyButton } from "@/features/station-details/components/copyButton";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { usePreferences } from "@/hooks/usePreferences";
 import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
@@ -73,43 +75,57 @@ function PopupShareButton({ link }: { link: DuplexRadioLink }) {
 export function RadioLineFooter({ coordinates }: { coordinates: [number, number] }) {
   const { preferences } = usePreferences();
   return (
-    <div className="px-3 py-1.5 border-t border-border/50 flex items-center">
-      <span className="text-[10px] text-muted-foreground font-mono">
+    <div className="group/copy flex h-7 items-center gap-1.5 border-t border-border/50 px-3">
+      <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
         GPS: {formatCoordinates(coordinates[1], coordinates[0], preferences.gpsFormat)}
       </span>
+      <CopyButton text={`${coordinates[1]}, ${coordinates[0]}`} compact />
     </div>
   );
 }
 
 type RadioLinePopupContentProps = {
   link: DuplexRadioLink;
+  isFirst?: boolean;
   showAddToList?: boolean;
   onOpenDetails: (link: DuplexRadioLink) => void;
 };
 
-export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link, showAddToList = false, onOpenDetails }: RadioLinePopupContentProps) {
+export const RadioLinePopupContent = memo(function RadioLinePopupContent({
+  link,
+  isFirst = false,
+  showAddToList = false,
+  onOpenDetails,
+}: RadioLinePopupContentProps) {
   const { t } = useTranslation(["main", "common"]);
 
   const first = link.directions[0];
   const operatorName = first.operator?.name ?? t("unknownOperator");
   const mnc = resolveOperatorMnc(first.operator?.mnc, first.operator?.name);
-  const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
+  const hasMnc = mnc !== null && mnc !== undefined;
+  const color = hasMnc ? getOperatorColor(mnc) : "#3b82f6";
   const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
   const permitNumber = first.permit.number;
   const linkTypeStyle = getLinkTypeStyle(link.linkType);
   const { dl: dlSpeed, ul: ulSpeed } = calculateLinkDirectionalSpeeds(link);
+  const headerPadding = showAddToList ? (isFirst ? "pr-20" : "pr-14") : isFirst ? "pr-12" : "pr-8";
 
   return (
-    <div className="w-72 text-sm relative">
-      <button type="button" className="w-full text-left px-3 py-2 hover:bg-muted/50 cursor-pointer" onClick={() => onOpenDetails(link)}>
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="size-2 rounded-[2px] shrink-0" style={{ backgroundColor: color }} />
-          <span className="font-medium text-[13px] truncate">{normalizeOperatorName(operatorName)}</span>
+    <div className="relative border-b border-border/30 last:border-0">
+      <button
+        type="button"
+        className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
+        onClick={() => onOpenDetails(link)}
+        style={{ backgroundImage: `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)` }}
+      >
+        <div className={cn("flex min-w-0 items-center gap-1.5", headerPadding)}>
+          {!hasMnc ? <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} aria-hidden /> : null}
+          <DialogOperatorName compact name={normalizeOperatorName(operatorName)} mnc={mnc} />
           {permitNumber && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{permitNumber}</span>}
         </div>
 
-        <div className="flex items-center gap-2 mt-1.5 pl-3.5">
-          <div className="flex items-center text-[11px] font-mono whitespace-nowrap">
+        <div className="mt-1.5 flex items-start gap-2 pl-3.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-[11px]">
             <span className="text-muted-foreground">{formatDistance(distance)}</span>
             {linkTypeStyle ? (
               <>
@@ -163,7 +179,7 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({ link,
         </div>
       </button>
 
-      <div className="absolute bottom-2 right-2 flex items-center gap-1">
+      <div className={cn("absolute top-2 flex items-center gap-1", isFirst ? "right-8" : "right-2")}>
         {showAddToList && (
           <Suspense>
             <AddToListPopover radiolineIds={link.directions.map((d) => d.id)} />

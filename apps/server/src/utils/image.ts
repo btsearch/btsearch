@@ -8,7 +8,7 @@ const MIN_PHOTO_SHORT_SIDE = 480;
 const MIN_PHOTO_LONG_SIDE = 640;
 const QUALITY_CHECK_SIZE = 1024;
 const QUALITY_TILE_COUNT = 4;
-const MIN_PHOTO_SHARPNESS = 1.5;
+const MIN_PHOTO_SHARPNESS = 1.25;
 
 export function isHeic(mimetype: string): boolean {
   return HEIC_MIMES.has(mimetype.toLowerCase());
