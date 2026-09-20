@@ -102,7 +102,7 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
         </div>
       </div>
 
-      <div className="col-span-full row-start-2 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 @4xl:col-span-1 @4xl:col-start-2 @4xl:row-start-1 @4xl:border-l @4xl:pl-2 [&>*+*]:before:shrink-0 [&>*+*]:before:text-muted-foreground/40 [&>*+*]:before:content-['/']">
+      <div className="col-span-full row-start-2 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 @4xl:col-span-1 @4xl:col-start-2 @4xl:row-start-1 @4xl:border-l @4xl:pl-2 [&>*+*]:before:shrink-0 [&>*+*]:before:text-muted-foreground/40 [&>*+*]:before:content-['/']">
         {fields.map(({ key, currentVal, newVal, isChanged, isRequired, isSelected }) => {
           const fieldLabel = getRatDetailFieldLabel(change.rat, key);
           const fieldId = `analyzer-field-${change._rowIndex}-${key}`;
