@@ -2,8 +2,8 @@ import { Add01Icon, ArrowDown01Icon, Copy01Icon, FlashIcon } from "@hugeicons/co
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import type { RatType } from "../../types";
-import { Button } from "@/components/ui/button";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CellHeaderActionButton } from "@/features/cells/components/cellHeaderActionButton";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ function DiffBadge({ count, color, label }: { count: number; color: string; labe
 export function CollapsibleHeader({ rat, cellsCount, diffCounts, onAddCell, onAddRemainingCells, onFillEARFCN, t }: CollapsibleHeaderProps) {
   return (
     <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
-      <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer select-none group">
+      <CollapsibleTrigger className="flex min-w-0 items-center gap-2 cursor-pointer select-none group">
         <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 text-muted-foreground group-data-panel-open:rotate-0 -rotate-90" />
         <RatGenerationLabel rat={rat} />
         <span className="font-semibold text-sm">{rat}</span>
@@ -48,35 +48,28 @@ export function CollapsibleHeader({ rat, cellsCount, diffCounts, onAddCell, onAd
         <DiffBadge count={diffCounts.modified} color="amber" label={t("stations:cells.diffModified", { count: diffCounts.modified })} />
         <DiffBadge count={diffCounts.deleted} color="red" label={t("stations:cells.diffDeleted", { count: diffCounts.deleted })} />
       </CollapsibleTrigger>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {onFillEARFCN && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
+          <CellHeaderActionButton
+            label={t("stations:cells.fillEarfcn")}
             onClick={onFillEARFCN}
-            className="h-7 text-xs text-sky-600/80 hover:text-sky-600 hover:bg-sky-500/10 dark:text-sky-400 dark:hover:text-sky-300 dark:hover:bg-sky-400/10"
+            className="text-sky-600/80 hover:text-sky-600 hover:bg-sky-500/10 dark:text-sky-400 dark:hover:text-sky-300 dark:hover:bg-sky-400/10"
           >
             <HugeiconsIcon icon={FlashIcon} className="size-3.5" />
-            <span className="hidden sm:inline">{t("stations:cells.fillEarfcn")}</span>
-          </Button>
+          </CellHeaderActionButton>
         )}
         {onAddRemainingCells && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
+          <CellHeaderActionButton
+            label={t("stations:cells.addRemainingCells")}
             onClick={onAddRemainingCells}
-            className="h-7 text-xs text-purple-600/80 hover:text-purple-600 hover:bg-purple-500/10 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-400/10"
+            className="text-purple-600/80 hover:text-purple-600 hover:bg-purple-500/10 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-400/10"
           >
             <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
-            <span className="hidden sm:inline">{t("stations:cells.addRemainingCells")}</span>
-          </Button>
+          </CellHeaderActionButton>
         )}
-        <Button type="button" variant="ghost" size="sm" onClick={onAddCell} className="h-7 text-xs">
+        <CellHeaderActionButton label={t("stations:cells.addCell")} onClick={onAddCell}>
           <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-          <span className="hidden sm:inline">{t("stations:cells.addCell")}</span>
-        </Button>
+        </CellHeaderActionButton>
       </div>
     </div>
   );

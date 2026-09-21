@@ -278,6 +278,7 @@ function StationDetailForm({
   const { data: allBands = [] } = useQuery(bandsQueryOptions());
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user?.role === "admin";
+  const selectedOperator = useMemo(() => operators.find((operator) => operator.id === operatorId), [operators, operatorId]);
 
   const areCellActionsLocked = !isCreateMode && station?.status !== "published";
 
@@ -329,6 +330,7 @@ function StationDetailForm({
     onDelete: handleServerCellDelete,
     sortCellsByRat: false,
     disabled: areCellActionsLocked,
+    operatorMnc: selectedOperator?.mnc ?? null,
   });
 
   const handleSectorsChange = useCallback(
@@ -535,8 +537,6 @@ function StationDetailForm({
     setLocalCells(sortAndMapCells(station.cells));
     setSectors((station.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })));
   };
-
-  const selectedOperator = useMemo(() => operators.find((o) => o.id === operatorId), [operators, operatorId]);
 
   const originalCells = useMemo(() => station?.cells ?? [], [station]);
   const originalCellsById = useMemo(() => new Map(originalCells.map((cell) => [cell.id, cell])), [originalCells]);

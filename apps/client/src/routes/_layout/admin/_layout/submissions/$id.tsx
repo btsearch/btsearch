@@ -312,6 +312,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
   const { data: allBands = [] } = useQuery(bandsQueryOptions());
+  const selectedOperator = useMemo(() => operators.find((operator) => operator.id === stationForm.operator_id), [operators, stationForm.operator_id]);
   const [sectors, setSectors] = useState<SectorDraft[]>(() =>
     submission.sectors.length > 0
       ? submission.sectors.map((sector) => ({ _localId: sector.local_id, id: sector.target_sector_id ?? undefined, azimuth: sector.azimuth }))
@@ -352,6 +353,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     allBands,
     createNewCell: createNewSubmissionCell,
     disabled: isFormDisabled,
+    operatorMnc: selectedOperator?.mnc ?? null,
   });
 
   const visibleRats = useMemo(() => RAT_ORDER.filter((r) => enabledRats.includes(r)), [enabledRats]);
@@ -426,8 +428,6 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
       },
     );
   }, [checkStaleness, rejectSubmission, reviewNotes, submission.id, t]);
-
-  const selectedOperator = useMemo(() => operators.find((o) => o.id === stationForm.operator_id), [operators, stationForm.operator_id]);
 
   const currentOperatorId = submission.station?.operator_id ?? null;
   const currentOperator = useMemo(

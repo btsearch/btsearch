@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { CellDraftBase } from "../cellEditRow";
 import { RAT_ORDER, compareRatCells, findPreferredRatBand, getCellDetailDefaultValue, getSharedDetailFields } from "../rat";
 import { syncByPCI, syncNRByPCI } from "../sectorAssignmentSync";
-import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
+import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remaining-lte-cells";
 import type { Band } from "@/types/station";
 
 type UseCellDraftsOptions<T extends CellDraftBase> = {
@@ -16,6 +16,7 @@ type UseCellDraftsOptions<T extends CellDraftBase> = {
   onDelete?: (cell: T) => void;
   disabled?: boolean;
   sortCellsByRat?: boolean;
+  operatorMnc?: number | null;
 };
 
 type UseCellDraftsReturn<T extends CellDraftBase> = {
@@ -43,6 +44,7 @@ export function useCellDrafts<T extends CellDraftBase>({
   onDelete,
   disabled,
   sortCellsByRat = true,
+  operatorMnc,
 }: UseCellDraftsOptions<T>): UseCellDraftsReturn<T> {
   const { t } = useTranslation("stations");
 
@@ -142,11 +144,12 @@ export function useCellDrafts<T extends CellDraftBase>({
   const addRemainingLteCells = useCallback(() => {
     if (disabled) return;
     setCells((prev) => {
-      const additions = buildRemainingLteCells(
-        prev.filter((cell) => cell.rat === "LTE"),
-        (cell) => cell.band_id,
-        (cell) => cell.details.clid,
-        (source, clid) => {
+      const additions = buildRemainingLTECells({
+        operatorMnc,
+        cells: prev.filter((cell) => cell.rat === "LTE"),
+        getBandId: (cell) => cell.band_id,
+        getDetails: (cell) => cell.details,
+        createCell: (source, clid) => {
           const band = allBands.find((b) => b.id === source.band_id);
           if (!band) return null;
           const template = createNewCell("LTE", band);
@@ -157,14 +160,14 @@ export function useCellDrafts<T extends CellDraftBase>({
             type: source.type ?? template.type,
             is_confirmed: source.is_confirmed,
             notes: source.notes,
-            details: createRemainingLteDetails(source.details, clid),
+            details: createRemainingLTEDetails(source.details, clid),
           };
         },
-      );
+      });
       if (additions.length === 0) return prev;
       return [...prev, ...additions];
     });
-  }, [disabled, allBands, createNewCell]);
+  }, [disabled, allBands, createNewCell, operatorMnc]);
 
   useEffect(
     () => () => {

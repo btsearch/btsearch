@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { ProposedCellForm, RatType } from "../../types";
 import { buildOriginalCellsMap, generateCellId, getCellDiffStatus, getDefaultCellDetails } from "../../utils/cells";
 import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
-import { buildRemainingLteCells, createRemainingLteDetails } from "@/features/cells/lib/remaining-lte-cells";
+import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remaining-lte-cells";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { compareRatCells, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
@@ -39,10 +39,11 @@ export type UseCellDetailsFormProps = {
   cells: ProposedCellForm[];
   originalCells: ProposedCellForm[];
   isNewStation: boolean;
+  operatorMnc?: number | null;
   onCellsChange: (rat: RatType, cells: ProposedCellForm[]) => void;
 };
 
-export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, onCellsChange }: UseCellDetailsFormProps) {
+export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, operatorMnc, onCellsChange }: UseCellDetailsFormProps) {
   const { t } = useTranslation(["submissions", "admin"]);
   const { t: tStation } = useTranslation("stationDetails");
 
@@ -112,23 +113,25 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, on
 
   const handleAddRemainingLteCells = useCallback(() => {
     if (rat !== "LTE") return;
-    const additions = buildRemainingLteCells(
+    const additions = buildRemainingLTECells({
+      operatorMnc,
       cells,
-      (cell) => cell.band_id,
-      (cell) => (cell.details as Partial<Record<string, unknown>>).clid,
-      (source, clid) => ({
+      getBandId: (cell) => cell.band_id,
+      getDetails: (cell) => cell.details as Readonly<Record<string, unknown>>,
+      createCell: (source, clid) => ({
         id: generateCellId(),
         rat,
         band_id: source.band_id,
+        _sectorLocalId: source._sectorLocalId,
         type: source.type ?? DEFAULT_CELL_TYPE,
         notes: source.notes,
         is_confirmed: source.is_confirmed,
-        details: createRemainingLteDetails(source.details as Record<string, unknown>, clid),
+        details: createRemainingLTEDetails(source.details as Readonly<Record<string, unknown>>, clid),
       }),
-    );
+    });
     if (additions.length === 0) return;
     onCellsChange(rat, [...cells, ...additions]);
-  }, [cells, onCellsChange, rat]);
+  }, [cells, onCellsChange, operatorMnc, rat]);
 
   const [clonedIds, setClonedIds] = useState<ReadonlySet<string>>(new Set());
   const cloneTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());

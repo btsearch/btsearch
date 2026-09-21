@@ -8,9 +8,10 @@ import { CellEditRow } from "./cellEditRow";
 import { RAT_ORDER, getRatSupportsSectorPciSync, ratToGenLabel } from "./rat";
 import { isNRSyncTarget } from "./sectorAssignmentSync";
 import { EmptyPanel } from "@/components/content/empty-panel";
-import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CellHeaderActionButton } from "@/features/cells/components/cellHeaderActionButton";
 import { getKnownEARFCN } from "@/features/cells/lib/earfcn-fill";
+import { supportsRemainingLTECells } from "@/features/cells/lib/remaining-lte-cells";
 import { RatCellsTableHeader } from "@/features/shared/RatCellsTableHeader";
 import { GenerationTag, RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
@@ -234,9 +235,9 @@ export function CellsEditor<T extends CellDraftBase>({
 
           return (
             <Collapsible key={rat} defaultOpen>
-              <div className={cn("border rounded-xl overflow-hidden", sectionClassName)}>
+              <div className={cn("@container/cells border rounded-xl overflow-hidden", sectionClassName)}>
                 <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
-                  <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer select-none group">
+                  <CollapsibleTrigger className="flex min-w-0 items-center gap-2 cursor-pointer select-none group">
                     <HugeiconsIcon
                       icon={ArrowDown01Icon}
                       className="size-3.5 text-muted-foreground transition-transform group-data-panel-open:rotate-0 -rotate-90"
@@ -271,38 +272,28 @@ export function CellsEditor<T extends CellDraftBase>({
                       </span>
                     )}
                   </CollapsibleTrigger>
-                  <div className="flex items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
                     {canSyncSectorsByPCI && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
+                      <CellHeaderActionButton
                         onClick={() => onSyncSectorsByPCIInRat?.(rat)}
-                        className="h-7 text-xs text-cyan-700/80 hover:text-cyan-700 hover:bg-cyan-600/10 dark:text-cyan-400 dark:hover:text-cyan-300 dark:hover:bg-cyan-400/10"
-                        aria-label={t("stations:cells.syncSectorsByPci")}
-                        title={t("stations:cells.syncSectorsByPci")}
+                        label={t("stations:cells.syncSectorsByPci")}
+                        className="text-cyan-700/80 hover:text-cyan-700 hover:bg-cyan-600/10 dark:text-cyan-400 dark:hover:text-cyan-300 dark:hover:bg-cyan-400/10"
                       >
                         <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("stations:cells.syncSectorsByPci")}</span>
-                      </Button>
+                      </CellHeaderActionButton>
                     )}
                     {showConfirmCellsButton && onConfirmAllCellsInRat && cellsForRat.length > 0 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
+                      <CellHeaderActionButton
                         onClick={() => onConfirmAllCellsInRat(rat)}
-                        className="h-7 text-xs text-green-700/80 hover:text-green-700 hover:bg-green-600/10 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-400/10"
+                        label={t("stations:cells.confirmCells")}
+                        className="text-green-700/80 hover:text-green-700 hover:bg-green-600/10 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-400/10"
                       >
                         <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("stations:cells.confirmCells")}</span>
-                      </Button>
+                      </CellHeaderActionButton>
                     )}
                     {rat === "LTE" && operatorMnc && !readOnly && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
+                      <CellHeaderActionButton
+                        label={t("stations:cells.fillEarfcn")}
                         onClick={() => {
                           const bandById = new Map(bands.map((b) => [b.id, b]));
                           for (const cell of cellsForRat) {
@@ -314,29 +305,24 @@ export function CellsEditor<T extends CellDraftBase>({
                             if (known !== null) onCellChange(cell._localId, { details: { ...cell.details, earfcn: known } });
                           }
                         }}
-                        className="h-7 text-xs text-sky-600/80 hover:text-sky-600 hover:bg-sky-500/10 dark:text-sky-400 dark:hover:text-sky-300 dark:hover:bg-sky-400/10"
+                        className="text-sky-600/80 hover:text-sky-600 hover:bg-sky-500/10 dark:text-sky-400 dark:hover:text-sky-300 dark:hover:bg-sky-400/10"
                       >
                         <HugeiconsIcon icon={FlashIcon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("stations:cells.fillEarfcn")}</span>
-                      </Button>
+                      </CellHeaderActionButton>
                     )}
-                    {rat === "LTE" && operatorMnc === 26006 && onAddRemainingLteCells && !readOnly && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
+                    {rat === "LTE" && supportsRemainingLTECells(operatorMnc) && onAddRemainingLteCells && !readOnly && (
+                      <CellHeaderActionButton
+                        label={t("stations:cells.addRemainingCells")}
                         onClick={onAddRemainingLteCells}
-                        className="h-7 text-xs text-purple-600/80 hover:text-purple-600 hover:bg-purple-500/10 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-400/10"
+                        className="text-purple-600/80 hover:text-purple-600 hover:bg-purple-500/10 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-400/10"
                       >
                         <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("stations:cells.addRemainingCells")}</span>
-                      </Button>
+                      </CellHeaderActionButton>
                     )}
                     {showAddButton && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => onAddCell(rat)} className="h-7 text-xs">
+                      <CellHeaderActionButton label={t("stations:cells.addCell")} onClick={() => onAddCell(rat)}>
                         <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("stations:cells.addCell")}</span>
-                      </Button>
+                      </CellHeaderActionButton>
                     )}
                   </div>
                 </div>

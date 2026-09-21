@@ -18,6 +18,7 @@ import { CellDetailsFields } from "@/features/admin/cells/cellDetailsFields";
 import { useBandSelection } from "@/features/admin/cells/hooks/useBandSelection";
 import { navigateRowHorizontal } from "@/features/admin/cells/rowNav";
 import { getKnownEARFCN } from "@/features/cells/lib/earfcn-fill";
+import { supportsRemainingLTECells } from "@/features/cells/lib/remaining-lte-cells";
 import { CellTypeSelect } from "@/features/shared/CellTypeSelect";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import { getBandName } from "@/features/station-details/frequencyCalc";
@@ -54,7 +55,7 @@ export function CellDetailsForm({ rat, cells, originalCells, sectors, isNewStati
     handleCellUpdate,
     handleDetailsChange,
     handleNotesChange,
-  } = useCellDetailsForm({ rat, cells, originalCells, isNewStation, onCellsChange });
+  } = useCellDetailsForm({ rat, cells, originalCells, isNewStation, operatorMnc, onCellsChange });
 
   const handleFillEARFCN =
     rat === "LTE" && operatorMnc
@@ -74,13 +75,13 @@ export function CellDetailsForm({ rat, cells, originalCells, sectors, isNewStati
 
   return (
     <Collapsible defaultOpen>
-      <div className="border rounded-xl overflow-hidden">
+      <div className="@container/cells border rounded-xl overflow-hidden">
         <CollapsibleHeader
           rat={rat}
           cellsCount={cells.length}
           diffCounts={diffCounts}
           onAddCell={handleAddCell}
-          onAddRemainingCells={rat === "LTE" && operatorMnc === 26006 ? handleAddRemainingLteCells : undefined}
+          onAddRemainingCells={rat === "LTE" && supportsRemainingLTECells(operatorMnc) ? handleAddRemainingLteCells : undefined}
           onFillEARFCN={handleFillEARFCN}
           t={t}
         />

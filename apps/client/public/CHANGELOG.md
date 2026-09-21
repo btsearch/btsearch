@@ -1,6 +1,12 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-21
+
+### 🚀 Enhancements
+
+- The LTE cell editor can now fill missing sector cells for Plus, Orange, T-Mobile and Play
+
 # 2026-09-20
 
 ### 🚀 Enhancements
