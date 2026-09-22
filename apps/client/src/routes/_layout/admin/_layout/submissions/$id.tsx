@@ -24,7 +24,7 @@ import { SubmitterCard } from "@/features/admin/submissions/components/submitter
 import { useApproveSubmissionMutation, useRejectSubmissionMutation, useSaveSubmissionMutation } from "@/features/admin/submissions/mutations";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
 import { countCellOperations } from "@/features/admin/submissions/utils";
-import { CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
+import { CELL_TYPE_LABELS, DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
@@ -328,7 +328,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
       target_cell_id: null,
       rat: rat as (typeof RAT_ORDER)[number],
       band_id: defaultBand.id,
-      type: null,
+      type: DEFAULT_CELL_TYPE,
       is_confirmed: false,
       notes: "",
       details: {},
