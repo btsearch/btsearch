@@ -2,34 +2,25 @@ import { AlertCircleIcon, Cancel01Icon, CheckmarkCircle02Icon } from "@hugeicons
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
-import { type ImportStep, type JobState, type StepStatus, fetchImportStatus, startImport } from "@/features/admin/uke-import/api";
+import {
+  type JobState,
+  type StepStatus,
+  UKE_IMPORT_STATUS_QUERY_KEY,
+  getFailedImportSourceSteps,
+  importStatusQueryOptions,
+  isImportStatusInProgress,
+  startImport,
+} from "@/features/admin/uke-import/api";
+import { StepDuration } from "@/features/admin/uke-import/StepDuration";
 import { i18n } from "@/i18n";
-import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-function StepTimer({ startedAt, finishedAt }: { startedAt?: string; finishedAt?: string }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!startedAt || finishedAt) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [startedAt, finishedAt]);
-
-  if (!startedAt) return null;
-
-  const start = new Date(startedAt).getTime();
-  const end = finishedAt ? new Date(finishedAt).getTime() : now;
-  const elapsed = Math.max(0, end - start);
-
-  return <span className="text-xs text-muted-foreground tabular-nums">{formatDuration(elapsed)}</span>;
-}
 
 function StepStatusIcon({ status }: { status: StepStatus }) {
   switch (status) {
@@ -71,18 +62,16 @@ function UkeImportPage() {
   const [importRadiolines, setImportRadiolines] = useState(true);
   const [importDeviceRegistry, setImportDeviceRegistry] = useState(true);
 
-  const { data: status } = useQuery({
-    queryKey: ["uke-import-status"],
-    queryFn: fetchImportStatus,
-    refetchInterval: (query) => (query.state.data?.state === "running" ? 2000 : false),
-  });
+  const { data: status } = useQuery(importStatusQueryOptions);
 
   const startMutation = useMutation({
     mutationFn: startImport,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["uke-import-status"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: UKE_IMPORT_STATUS_QUERY_KEY }),
   });
 
-  const isRunning = status?.state === "running";
+  const isRunning = isImportStatusInProgress(status);
+  const failedSourceSteps = getFailedImportSourceSteps(status);
+  const hasImportFailure = failedSourceSteps.length > 0 || status?.state === "error";
 
   return (
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
@@ -161,15 +150,37 @@ function UkeImportPage() {
                 </p>
               )}
 
-              {status.state === "error" && status.error && (
-                <div className="mt-2 mb-3 rounded-md bg-destructive/10 border border-destructive/20 p-3">
-                  <p className="text-sm text-destructive">{status.error}</p>
-                </div>
-              )}
+              {hasImportFailure ? (
+                <Alert variant="destructive" className="mt-3 mb-3">
+                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" />
+                  <AlertTitle>{t("ukeImport.failure.title")}</AlertTitle>
+                  <AlertDescription className="mt-1 space-y-2 text-left">
+                    {failedSourceSteps.length > 0 ? (
+                      <div>
+                        <p className="font-medium">{t("ukeImport.failure.failedSources")}</p>
+                        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                          {failedSourceSteps.map((step) => (
+                            <li key={step.key}>{t(`ukeImport.steps.${step.key}`)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {isRunning ? <p>{t("ukeImport.failure.continuing")}</p> : null}
+                    {status.error ? (
+                      <div>
+                        <p className="font-medium">{t("ukeImport.failure.details")}</p>
+                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md bg-destructive/5 p-2 font-mono text-xs">
+                          {status.error}
+                        </pre>
+                      </div>
+                    ) : null}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               {status.steps.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {status.steps.map((step: ImportStep) => (
+                  {status.steps.map((step) => (
                     <div
                       key={step.key}
                       className={cn(
@@ -181,7 +192,7 @@ function UkeImportPage() {
                     >
                       <StepStatusIcon status={step.status} />
                       <span className="flex-1">{t(`ukeImport.steps.${step.key}`)}</span>
-                      <StepTimer startedAt={step.startedAt} finishedAt={step.finishedAt} />
+                      <StepDuration key={step.startedAt} step={step} className="text-xs text-muted-foreground tabular-nums" />
                       <span className="text-xs text-muted-foreground">{t(`ukeImport.stepStatus.${step.status}`)}</span>
                     </div>
                   ))}

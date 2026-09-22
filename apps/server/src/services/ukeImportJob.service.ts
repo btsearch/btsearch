@@ -13,6 +13,7 @@ import { buildInternalStationActionUrl, buildMapLocationActionUrl, buildUkeStati
 import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from "./notifications/service.js";
 import { cleanupOrphanedUkeLocations, cleanupOrphanedUkeStations, pruneStationsPermits } from "./stationsPermitsAssociation.service.js";
 import { getSnapshotDelta, takeStatsSnapshot } from "./statsSnapshot.service.js";
+import { type ImportWorkerTask, type SourceImportStepKey, type SourceImportStepStatus, runSourceImportStep } from "./ukeImportSourceStep.js";
 
 type ImportStepKey =
   | "permits"
@@ -420,7 +421,7 @@ function markError(job: ImportJobStatus, key: ImportStepKey): void {
   updateStep(job, key, { status: "error", finishedAt: new Date().toISOString() });
 }
 
-function runInWorker(task: string): Promise<boolean> {
+function runInWorker(task: ImportWorkerTask): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(WORKER_PATH, {
       workerData: { task },
@@ -439,6 +440,31 @@ function runInWorker(task: string): Promise<boolean> {
     worker.on("exit", (code) => {
       if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
     });
+  });
+}
+
+async function runJobSourceImportStep(
+  job: ImportJobStatus,
+  step: SourceImportStepKey,
+  task: ImportWorkerTask,
+  enabled: boolean,
+  sourceErrors: string[],
+  failedSources: Set<SourceImportStepKey>,
+): Promise<boolean> {
+  return runSourceImportStep(step, task, enabled, {
+    runTask: runInWorker,
+    persistStatus: async (sourceStep, status: SourceImportStepStatus) => {
+      if (status === "running") markRunning(job, sourceStep);
+      else if (status === "success") markSuccess(job, sourceStep);
+      else if (status === "skipped") markSkipped(job, sourceStep);
+      else markError(job, sourceStep);
+      await saveJob(job);
+    },
+    reportError: (sourceStep, message) => {
+      failedSources.add(sourceStep);
+      sourceErrors.push(`${sourceStep}: ${message}`);
+      logger.error("UKE source import failed", { step: sourceStep, error: message });
+    },
   });
 }
 
@@ -479,62 +505,25 @@ async function runJob(
   let permitsChanged = false;
   let radiolinesChanged = false;
   let deviceRegistryChanged = false;
+  let snapshotCompleted = false;
   let associationKeysBeforePrune: Set<string> | null = null;
+  const sourceErrors: string[] = [];
+  const failedSources = new Set<SourceImportStepKey>();
 
   try {
-    if (shouldImportPermits) {
-      markRunning(job, "permits");
-      await saveJob(job);
-      try {
-        permitsChanged = await runInWorker("importPermits");
-        if (permitsChanged) markSuccess(job, "permits");
-        else markSkipped(job, "permits");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "permits");
-        await saveJob(job);
-        throw e;
-      }
-    } else {
-      markSkipped(job, "permits");
-      await saveJob(job);
-    }
-
-    if (shouldImportRadiolines) {
-      markRunning(job, "radiolines");
-      await saveJob(job);
-      try {
-        radiolinesChanged = await runInWorker("importRadiolines");
-        if (radiolinesChanged) markSuccess(job, "radiolines");
-        else markSkipped(job, "radiolines");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "radiolines");
-        await saveJob(job);
-        throw e;
-      }
-    } else {
-      markSkipped(job, "radiolines");
-      await saveJob(job);
-    }
-
-    if (shouldImportDeviceRegistry) {
-      markRunning(job, "device_registry");
-      await saveJob(job);
-      try {
-        deviceRegistryChanged = await runInWorker("importDeviceRegistry");
-        if (deviceRegistryChanged) markSuccess(job, "device_registry");
-        else markSkipped(job, "device_registry");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "device_registry");
-        await saveJob(job);
-        throw e;
-      }
-    } else {
-      markSkipped(job, "device_registry");
-      await saveJob(job);
-    }
+    permitsChanged = await runJobSourceImportStep(job, "permits", "importPermits", shouldImportPermits, sourceErrors, failedSources);
+    radiolinesChanged = await runJobSourceImportStep(job, "radiolines", "importRadiolines", shouldImportRadiolines, sourceErrors, failedSources);
+    deviceRegistryChanged = await runJobSourceImportStep(
+      job,
+      "device_registry",
+      "importDeviceRegistry",
+      shouldImportDeviceRegistry,
+      sourceErrors,
+      failedSources,
+    );
+    const permitDataChanged = permitsChanged || deviceRegistryChanged;
+    const permitSourceFailed = failedSources.has("permits") || failedSources.has("device_registry");
+    const anySourceChanged = permitDataChanged || radiolinesChanged;
 
     markRunning(job, "prune_deleted_entries");
     await saveJob(job);
@@ -550,7 +539,7 @@ async function runJob(
       throw e;
     }
 
-    if (permitsChanged || deviceRegistryChanged) {
+    if (permitDataChanged) {
       markRunning(job, "cleanup_orphaned_uke_entities");
       await saveJob(job);
       try {
@@ -606,11 +595,12 @@ async function runJob(
       await saveJob(job);
     }
 
-    if (permitsChanged || deviceRegistryChanged) {
+    if (permitDataChanged && !permitSourceFailed) {
       markRunning(job, "snapshot");
       await saveJob(job);
       try {
         await takeStatsSnapshot();
+        snapshotCompleted = true;
         markSuccess(job, "snapshot");
         await saveJob(job);
       } catch (e) {
@@ -623,7 +613,7 @@ async function runJob(
       await saveJob(job);
     }
 
-    if (permitsChanged || deviceRegistryChanged) {
+    if (permitDataChanged || permitSourceFailed) {
       markRunning(job, "refresh_statistics");
       await saveJob(job);
       try {
@@ -640,27 +630,33 @@ async function runJob(
       await saveJob(job);
     }
 
-    job.state = "success";
+    job.state = sourceErrors.length > 0 ? "error" : "success";
     job.finishedAt = new Date().toISOString();
+    if (sourceErrors.length > 0) {
+      job.error = sourceErrors.join("; ");
+      logger.error("UKE import job completed with source errors", { error: job.error });
+    }
     await saveJob(job);
-    if (permitsChanged || radiolinesChanged || deviceRegistryChanged) {
+    if (anySourceChanged)
       notifyUkeUpdate().catch((e) => logger.error("Failed to send UKE update notifications", { error: e instanceof Error ? e.message : String(e) }));
-      const importStartedAt = job.startedAt;
-      if (importStartedAt !== undefined) {
-        Promise.all([computeImportDelta(importStartedAt), getSnapshotDelta().catch(() => null)])
-          .then(([delta, snapshotDelta]) =>
-            redis.publish(
-              IMPORT_COMPLETE_CHANNEL,
-              JSON.stringify({ state: "success", startedAt: importStartedAt, finishedAt: job.finishedAt, delta, snapshotDelta }),
-            ),
-          )
-          .catch((e) => logger.error("Failed to publish import complete event", { error: e instanceof Error ? e.message : String(e) }));
-      }
+
+    const importStartedAt = job.startedAt;
+    if (importStartedAt !== undefined && (anySourceChanged || sourceErrors.length > 0)) {
+      const deltaPromise = anySourceChanged ? computeImportDelta(importStartedAt) : Promise.resolve(undefined);
+      const snapshotDeltaPromise = snapshotCompleted ? getSnapshotDelta().catch(() => null) : Promise.resolve(undefined);
+      Promise.all([deltaPromise, snapshotDeltaPromise])
+        .then(([delta, snapshotDelta]) =>
+          redis.publish(
+            IMPORT_COMPLETE_CHANNEL,
+            JSON.stringify({ state: job.state, startedAt: importStartedAt, finishedAt: job.finishedAt, error: job.error, delta, snapshotDelta }),
+          ),
+        )
+        .catch((e) => logger.error("Failed to publish import complete event", { error: e instanceof Error ? e.message : String(e) }));
     }
   } catch (e) {
     job.state = "error";
     job.finishedAt = new Date().toISOString();
-    job.error = e instanceof Error ? e.message : String(e);
+    job.error = [...sourceErrors, e instanceof Error ? e.message : String(e)].join("; ");
     await saveJob(job);
     logger.error("UKE import job failed", { error: job.error });
   } finally {

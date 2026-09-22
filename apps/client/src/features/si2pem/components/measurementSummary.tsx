@@ -1,4 +1,4 @@
-import Location01Icon from "@hugeicons/core-free-icons/Location01Icon";
+import { Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 

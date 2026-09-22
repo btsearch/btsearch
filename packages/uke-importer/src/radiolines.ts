@@ -11,10 +11,10 @@ import {
 } from "./radiolines/equipment.js";
 import { archiveAndDeleteRadiolines, insertRadiolines, loadRadiolineChanges, updateRadiolines } from "./radiolines/persistence.js";
 import { collectRadiolineOperatorNames, prepareRadiolineRecords } from "./radiolines/records.js";
+import { readRadiolineWorkbook } from "./radiolines/workbook.js";
 import { scrapeXlsxLinks } from "./scrape.js";
-import type { RawRadioLineData } from "./types.js";
 import { upsertUkeOperators } from "./upserts.js";
-import { downloadFile, ensureDownloadDir, parseFileDateWithImportTime, readSheetAsJson } from "./utils.js";
+import { downloadFile, ensureDownloadDir, parseFileDateWithImportTime } from "./utils.js";
 
 export async function importRadiolines(): Promise<boolean> {
   console.log("[radiolines] Starting microwave links import...");
@@ -48,7 +48,7 @@ export async function importRadiolines(): Promise<boolean> {
   const filePath = path.join(DOWNLOAD_DIR, fileName);
   console.log(`[radiolines] Downloading: ${fileName}`);
   await downloadFile(first.href, filePath);
-  const rows = readSheetAsJson<RawRadioLineData>(filePath);
+  const rows = readRadiolineWorkbook(filePath);
   console.log(`[radiolines] Loaded ${rows.length} rows`);
 
   console.log("[radiolines] Collecting manufacturers, antenna types, transmitter types...");

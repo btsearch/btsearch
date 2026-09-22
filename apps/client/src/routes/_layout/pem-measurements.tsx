@@ -1,8 +1,4 @@
-import Calendar03Icon from "@hugeicons/core-free-icons/Calendar03Icon";
-import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
-import FilterIcon from "@hugeicons/core-free-icons/FilterIcon";
-import Location01Icon from "@hugeicons/core-free-icons/Location01Icon";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
+import { Calendar03Icon, Cancel01Icon, FilterIcon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";

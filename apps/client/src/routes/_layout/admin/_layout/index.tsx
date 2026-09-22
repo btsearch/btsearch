@@ -12,7 +12,7 @@ import {
   TaskDone02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,9 +38,9 @@ import {
   fetchPendingSubmissions,
   fetchPendingComments,
   fetchRecentAuditOperations,
-  fetchImportStatus,
 } from "@/features/admin/dashboard/api";
-import type { StepStatus } from "@/features/admin/uke-import/api";
+import { type StepStatus, getFailedImportSourceSteps, importStatusQueryOptions, isImportStatusInProgress } from "@/features/admin/uke-import/api";
+import { StepDuration } from "@/features/admin/uke-import/StepDuration";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { formatRelativeTime, formatShortDate, resolveAvatarUrl } from "@/lib/format";
 
@@ -58,7 +58,7 @@ function AdminDashboardPage() {
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user?.role === "admin";
 
-  const [statsQuery, deltaQuery, submissionsQuery, commentsQuery, auditQuery, importQuery] = useQueries({
+  const [statsQuery, deltaQuery, submissionsQuery, commentsQuery, auditQuery] = useQueries({
     queries: [
       {
         queryKey: ["admin", "dashboard", "stats"],
@@ -87,12 +87,12 @@ function AdminDashboardPage() {
         queryFn: ({ signal }) => fetchRecentAuditOperations(signal),
         staleTime: 30_000,
       },
-      {
-        queryKey: ["admin", "dashboard", "import-status"],
-        queryFn: fetchImportStatus,
-        staleTime: 30_000,
-      },
     ],
+  });
+  const importQuery = useQuery({
+    ...importStatusQueryOptions,
+    staleTime: 30_000,
+    refetchOnMount: "always",
   });
 
   const stats = statsQuery.data;
@@ -103,6 +103,7 @@ function AdminDashboardPage() {
   const comments = commentsQuery.data?.data ?? [];
   const auditOperations = auditQuery.data?.data ?? [];
   const importStatus = importQuery.data;
+  const failedImportSourceSteps = getFailedImportSourceSteps(importStatus);
 
   const approveMutation = useMutation({
     mutationFn: async (comment: AdminComment) => {
@@ -151,7 +152,7 @@ function AdminDashboardPage() {
       }))
     : [];
 
-  const importNeedsAttention = importStatus?.state === "running" || importStatus?.state === "error";
+  const importNeedsAttention = isImportStatusInProgress(importStatus) || importStatus?.state === "error";
 
   const importStateColor =
     importStatus?.state === "running"
@@ -578,6 +579,17 @@ function AdminDashboardPage() {
                 </span>
               </div>
 
+              {importStatus?.state === "error" || failedImportSourceSteps.length > 0 ? (
+                <div className="rounded-md border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive" role="alert">
+                  <p className="font-medium">{t("ukeImport.failure.dashboard", { ns: "admin" })}</p>
+                  {failedImportSourceSteps.length > 0 ? (
+                    <p className="mt-0.5 text-destructive/80">
+                      {failedImportSourceSteps.map((step) => t(`ukeImport.steps.${step.key}`, { ns: "admin" })).join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {importNeedsAttention && (
                 <div className="flex flex-col gap-1" role="list" aria-label={t("items.ukeImport", { ns: "nav" })}>
                   {(importStatus?.steps ?? []).map((step) => {
@@ -585,18 +597,15 @@ function AdminDashboardPage() {
                     const stepLabel = t(`dashboard.importSteps.${step.key}`, { ns: "admin", defaultValue: step.key });
                     const stepStatus = t(`ukeImport.stepStatus.${step.status}`, { ns: "admin", defaultValue: step.status });
                     return (
-                      <div
-                        key={step.key}
-                        role="listitem"
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40"
-                        aria-label={`${stepLabel}: ${stepStatus}`}
-                      >
+                      <div key={step.key} role="listitem" className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40">
                         {cfg.icon ? (
                           <HugeiconsIcon icon={cfg.icon} className={cn("size-3 shrink-0", cfg.className)} aria-hidden="true" />
                         ) : (
                           <Spinner className={cn("size-3 shrink-0", cfg.className)} aria-hidden="true" />
                         )}
-                        <span className="text-[11px] font-medium">{stepLabel}</span>
+                        <span className="min-w-0 flex-1 text-[11px] font-medium">{stepLabel}</span>
+                        <span className="sr-only">{stepStatus}</span>
+                        <StepDuration key={step.startedAt} step={step} className="shrink-0 text-[11px] text-muted-foreground tabular-nums" />
                       </div>
                     );
                   })}

@@ -226,6 +226,13 @@
       "skipped": "Pominięte",
       "error": "Błąd"
     },
+    "failure": {
+      "title": "Błędy importu",
+      "failedSources": "Źródła zakończone błędem",
+      "continuing": "Pozostałe źródła i odpowiednie kroki końcowe będą nadal wykonywane",
+      "details": "Szczegóły błędu",
+      "dashboard": "Import UKE wymaga uwagi"
+    },
     "startedAt": "Rozpoczęto",
     "finishedAt": "Zakończono"
   },

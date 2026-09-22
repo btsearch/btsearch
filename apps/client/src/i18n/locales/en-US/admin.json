@@ -219,6 +219,13 @@
       "skipped": "Skipped",
       "error": "Error"
     },
+    "failure": {
+      "title": "Import errors",
+      "failedSources": "Failed sources",
+      "continuing": "The remaining sources and applicable follow-up steps will continue",
+      "details": "Error details",
+      "dashboard": "The UKE import needs attention"
+    },
     "startedAt": "Started at",
     "finishedAt": "Finished at"
   },

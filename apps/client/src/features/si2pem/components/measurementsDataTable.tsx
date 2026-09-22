@@ -1,7 +1,4 @@
-import AlertCircleIcon from "@hugeicons/core-free-icons/AlertCircleIcon";
-import Location01Icon from "@hugeicons/core-free-icons/Location01Icon";
-import MapsIcon from "@hugeicons/core-free-icons/MapsIcon";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
+import { AlertCircleIcon, Location01Icon, MapsIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { type ColumnDef, useTable } from "@tanstack/react-table";
 import type { TFunction } from "i18next";

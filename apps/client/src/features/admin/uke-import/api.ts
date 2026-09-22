@@ -1,3 +1,5 @@
+import { queryOptions } from "@tanstack/react-query";
+
 import { API_BASE, fetchJson } from "@/lib/api";
 
 export type ImportStepKey =
@@ -29,6 +31,24 @@ export interface ImportJobStatus {
   error?: string;
 }
 
+export const UKE_IMPORT_STATUS_QUERY_KEY = ["uke-import-status"] as const;
+
+const SOURCE_IMPORT_STEP_KEYS = new Set<ImportStepKey>(["permits", "radiolines", "device_registry"]);
+
+export function getFailedImportSourceSteps(status: ImportJobStatus | undefined): ImportStep[] {
+  if (!status) return [];
+  return status.steps.filter((step) => step.status === "error" && SOURCE_IMPORT_STEP_KEYS.has(step.key));
+}
+
+export function isImportStatusInProgress(status: ImportJobStatus | undefined): boolean {
+  if (!status) return false;
+  if (status.state === "running") return true;
+  if (status.state !== "success" && status.state !== "error") return false;
+
+  const cleanup = status.steps.find((step) => step.key === "cleanup");
+  return cleanup?.status === "pending" || cleanup?.status === "running";
+}
+
 export interface StartImportPayload {
   importPermits?: boolean;
   importRadiolines?: boolean;
@@ -39,6 +59,12 @@ export async function fetchImportStatus(): Promise<ImportJobStatus> {
   const res = await fetchJson<{ data: ImportJobStatus }>(`${API_BASE}/uke/import/status`);
   return res.data;
 }
+
+export const importStatusQueryOptions = queryOptions({
+  queryKey: UKE_IMPORT_STATUS_QUERY_KEY,
+  queryFn: fetchImportStatus,
+  refetchInterval: (query) => (isImportStatusInProgress(query.state.data) ? 2000 : false),
+});
 
 export async function startImport(payload: StartImportPayload): Promise<ImportJobStatus> {
   const res = await fetchJson<{ data: ImportJobStatus }>(`${API_BASE}/uke/import`, {
