@@ -346,9 +346,10 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       form.setFieldValue("sectors", []);
       form.setFieldValue("originalSectors", []);
       form.setFieldValue("selectedRats", []);
+      if (!isEditMode) setOriginalState({});
       clearLocationPhotoDraft();
     },
-    [clearLocationPhotoDraft, form],
+    [clearLocationPhotoDraft, form, isEditMode],
   );
 
   const handleActionChange = useCallback(

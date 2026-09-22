@@ -1,6 +1,17 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-22
+
+### 🚀 Enhancements
+
+- The submission form now combines station and action selection into one compact card, with existing-station results matching the map search layout
+
+### 🩹 Fixes
+
+- The cell editor now moves below the station form on narrow mobile screens instead of remaining in a side-by-side layout
+- Existing-station submissions now keep the optional note field visible, require a station before submission, and correctly return to the no-changes state when switching back to New mode
+
 # 2026-09-21
 
 ### 🚀 Enhancements

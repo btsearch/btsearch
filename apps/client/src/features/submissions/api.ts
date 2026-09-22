@@ -4,6 +4,7 @@ import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
 import { type GeocodingResult, reverseGeocode as reverseGeocodeWithMapbox } from "@/lib/geo/geocoding";
 import type {
+  Band,
   CellDetails,
   CellType,
   Location,
@@ -38,6 +39,7 @@ export type SearchCell = {
   rat: string;
   station_id: number;
   band_id: number;
+  band: Band;
   type: CellType | null;
   sector_id: number | null;
   notes: string | null;
@@ -52,6 +54,7 @@ export type SearchStation = {
   station_id: string;
   operator_id: number;
   notes: string | null;
+  extra_address: string | null;
   updatedAt: string;
   createdAt: string;
   is_confirmed: boolean;
@@ -111,6 +114,7 @@ export async function fetchStationForSubmission(id: number): Promise<SearchStati
     station_id: station.station_id,
     operator_id: station.operator?.id ?? null,
     notes: station.notes,
+    extra_address: station.extra_address,
     updatedAt: station.updatedAt,
     createdAt: station.createdAt,
     is_confirmed: station.is_confirmed,
@@ -119,6 +123,7 @@ export async function fetchStationForSubmission(id: number): Promise<SearchStati
       rat: cell.rat,
       station_id: cell.station_id,
       band_id: cell.band.id,
+      band: cell.band,
       type: cell.type,
       notes: cell.notes,
       is_confirmed: cell.is_confirmed,

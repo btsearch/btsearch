@@ -204,7 +204,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="relative rounded-xl border">
           <form.Subscribe selector={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
             {({ mode, selectedStation }) => (
               <StationSelector mode={mode} selectedStation={selectedStation} onModeChange={handleModeChange} onStationSelect={loadStation} />
@@ -421,7 +421,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
                 cellsCount={cellsCount}
                 submitterNote={submitterNote}
                 onSubmitterNoteChange={handleSubmitterNoteChange}
-                canSubmit={canSubmit && hasChanges}
+                canSubmit={canSubmit && hasChanges && (mode === "new" || selectedStation !== null)}
                 isSubmitting={isSubmitting}
                 isPending={mutation.isPending}
                 isSuccess={mutation.isSuccess}
@@ -433,7 +433,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
         </form.Subscribe>
       </div>
 
-      <div className="flex-[3_0_500px] min-w-0 max-md:flex-[1_1_auto]">
+      <div className="flex-[3_0_500px] min-w-0 max-md:flex-[1_1_100%]">
         <form.Subscribe
           selector={(s) => ({
             selectedRats: s.values.selectedRats,

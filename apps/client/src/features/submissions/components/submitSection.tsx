@@ -59,15 +59,13 @@ export function SubmitSection({
       {!isDeleteAction && isPending && <div className="text-xs text-muted-foreground">{t("form.summary")}</div>}
       {isDeleteAction && <div className="text-xs text-destructive font-medium">{t("deleteStation.warning")}</div>}
       {showNoChangesMessage && <div className="text-xs text-amber-600 dark:text-amber-500">{t("form.noChanges")}</div>}
-      {(mode === "new" || selectedStation) && (
-        <Textarea
-          placeholder={notePlaceholder}
-          value={submitterNote}
-          onChange={(e) => onSubmitterNoteChange(e.target.value)}
-          className="min-h-15 text-sm resize-none"
-          rows={2}
-        />
-      )}
+      <Textarea
+        placeholder={notePlaceholder}
+        value={submitterNote}
+        onChange={(e) => onSubmitterNoteChange(e.target.value)}
+        className="min-h-15 text-sm resize-none"
+        rows={2}
+      />
       <Button
         type="submit"
         disabled={!canSubmit || isSubmitting || isPending}
