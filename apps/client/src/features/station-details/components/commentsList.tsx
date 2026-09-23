@@ -6,7 +6,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { AddCommentForm } from "./addCommentForm";
 import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import {
@@ -46,7 +45,6 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { data: session } = authClient.useSession();
   const currentUserId = session?.user?.id;
-  const isLoggedIn = !!session?.user;
   const queryClient = useQueryClient();
   const {
     data: comments = [],
@@ -250,11 +248,6 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
               </div>
             </article>
           ))}
-        </div>
-      )}
-      {isLoggedIn && (
-        <div className={comments.length > 0 ? "border-t border-border/60 pt-5" : undefined}>
-          <AddCommentForm stationId={stationId} />
         </div>
       )}
       <Lightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onClose={closeLightbox} onPrev={prevPhoto} onNext={nextPhoto} />

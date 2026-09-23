@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { fetchElevation, fetchPemReports, fetchStationPhotos } from "../api";
 import { TAB_OPTIONS, type TabId } from "../tabs";
 import { groupCellsByRat } from "../utils";
+import { AddCommentForm } from "./addCommentForm";
 import { CellTable } from "./cellTable";
 import { CommentsList } from "./commentsList";
 import { CopyButton } from "./copyButton";
@@ -105,7 +106,11 @@ export function StationDetailsBody({
     enabled: source === "internal" && !!settings?.photosEnabled,
   });
 
-  const { data: comments } = useQuery({
+  const {
+    data: comments,
+    isLoading: commentsLoading,
+    error: commentsError,
+  } = useQuery({
     queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () => fetchApiData<StationComment[]>(`stations/${stationId}/comments`, { allowedErrors: [404, 403] }).then((data) => data ?? []),
     staleTime: 1000 * 60 * 5,
@@ -369,6 +374,18 @@ export function StationDetailsBody({
                       <section>
                         <CommentsList stationId={stationId} isAdmin={isAdmin} />
                       </section>
+                    </div>
+                  )}
+
+                  {settings?.enableStationComments && session?.user && (
+                    <div
+                      className={cn(
+                        "mt-5",
+                        (comments?.length ?? 0) > 0 && "border-t border-border/60 pt-5",
+                        (displayedTab !== "comments" || commentsLoading || !!commentsError) && "hidden",
+                      )}
+                    >
+                      <AddCommentForm key={`${stationId}:${currentUserId}`} stationId={stationId} />
                     </div>
                   )}
 

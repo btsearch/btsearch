@@ -8,10 +8,10 @@ export type StationDialogRect = {
 export type StationDialogInteractionMode = "drag" | "resize-corner" | "resize-horizontal";
 
 export const STATION_DIALOG_DESKTOP_MIN_WIDTH = 610;
-export const STATION_DIALOG_DESKTOP_MIN_HEIGHT = 600;
+export const STATION_DIALOG_DESKTOP_MIN_HEIGHT = 540;
 
 const DEFAULT_DIALOG_WIDTH = 920;
-const DEFAULT_DIALOG_HEIGHT = STATION_DIALOG_DESKTOP_MIN_HEIGHT;
+const DEFAULT_DIALOG_HEIGHT = 600;
 const DIALOG_OFFSET = 32;
 const DIALOG_MARGIN = 16;
 const RECT_SYNC_THRESHOLD = 1;

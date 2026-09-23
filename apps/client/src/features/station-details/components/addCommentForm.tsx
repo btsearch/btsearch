@@ -1,7 +1,7 @@
 import { Cancel01Icon, ImageAdd01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, type SubmitEvent, useCallback, useId, useRef, useState } from "react";
+import { type ChangeEvent, type ClipboardEvent, type DragEvent, type SubmitEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -38,60 +38,109 @@ async function postComment(stationId: number, content: string, files: File[]) {
 
 const MAX_PHOTOS = 5;
 
+function revokePreviewUrls(images: ImagePreview[]) {
+  for (const image of images) URL.revokeObjectURL(image.previewUrl);
+}
+
 export function AddCommentForm({ stationId }: AddCommentFormProps) {
   const { t } = useTranslation(["stationDetails", "submissions"]);
   const [content, setContent] = useState("");
   const [images, setImages] = useState<ImagePreview[]>([]);
+  const imagesRef = useRef<ImagePreview[]>([]);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const contentId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  useEffect(
+    () => () => {
+      revokePreviewUrls(imagesRef.current);
+      imagesRef.current = [];
+    },
+    [],
+  );
+
   const mutation = useMutation({
-    mutationFn: () =>
-      postComment(
-        stationId,
-        content,
-        images.map((img) => img.file),
-      ),
+    mutationFn: ({ content, files }: { content: string; files: File[] }) => postComment(stationId, content, files),
     onSuccess: (res: { data: { status: "pending" | "approved" } }) => {
       setContent("");
+      revokePreviewUrls(imagesRef.current);
+      imagesRef.current = [];
       setImages([]);
       if (res.data.status === "pending") toast.info(t("comments.pendingApproval"));
       void queryClient.invalidateQueries({ queryKey: ["station-comments", stationId] });
     },
   });
 
-  const handleAddImages = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter((file) => file.type.startsWith("image/"));
+  const addImages = useCallback((files: File[]) => {
+    const filesToAdd = files.filter((file) => file.type.startsWith("image/")).slice(0, MAX_PHOTOS - imagesRef.current.length);
+    if (filesToAdd.length === 0) return;
 
-    setImages((prev) => {
-      const remaining = MAX_PHOTOS - prev.length;
-      const filesToAdd = validFiles.slice(0, remaining);
-      const newImages: ImagePreview[] = filesToAdd.map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-      }));
-      return [...prev, ...newImages];
-    });
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    const newImages: ImagePreview[] = filesToAdd.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    const nextImages = [...imagesRef.current, ...newImages];
+    imagesRef.current = nextImages;
+    setImages(nextImages);
   }, []);
 
+  const handleAddImages = (e: ChangeEvent<HTMLInputElement>) => {
+    addImages(Array.from(e.target.files ?? []));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboardFiles = Array.from(e.clipboardData.files);
+    const files =
+      clipboardFiles.length > 0
+        ? clipboardFiles
+        : Array.from(e.clipboardData.items, (item) => item.getAsFile()).filter((file): file is File => file !== null);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    if (!e.clipboardData.getData("text/plain")) e.preventDefault();
+    if (!mutation.isPending) addImages(imageFiles);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+
+    e.preventDefault();
+    const canAddImages = !mutation.isPending && images.length < MAX_PHOTOS;
+    e.dataTransfer.dropEffect = canAddImages ? "copy" : "none";
+    setIsDraggingFile(canAddImages);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setIsDraggingFile(false);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    setIsDraggingFile(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    e.preventDefault();
+    if (!mutation.isPending) addImages(files);
+  };
+
   const handleRemoveImage = useCallback((id: string) => {
-    setImages((prev) => {
-      const updated = prev.filter((img) => img.id !== id);
-      const removed = prev.find((img) => img.id === id);
-      if (removed) URL.revokeObjectURL(removed.previewUrl);
-      return updated;
-    });
+    const removed = imagesRef.current.find((image) => image.id === id);
+    if (!removed) return;
+
+    const nextImages = imagesRef.current.filter((image) => image.id !== id);
+    imagesRef.current = nextImages;
+    setImages(nextImages);
+    URL.revokeObjectURL(removed.previewUrl);
   }, []);
 
   const handleSubmit = (e: SubmitEvent) => {
     e.preventDefault();
-    if (!content.trim() && images.length === 0) return;
-    mutation.mutate();
+    const files = imagesRef.current.map((image) => image.file);
+    if (!content.trim() && files.length === 0) return;
+    mutation.mutate({ content, files });
   };
 
   const isDisabled = mutation.isPending || (!content.trim() && images.length === 0);
@@ -102,12 +151,21 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
       <label htmlFor={contentId} className="sr-only">
         {t("comments.addComment")}
       </label>
-      <div className="overflow-hidden rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/20">
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={cn(
+          "overflow-hidden rounded-xl border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/20",
+          isDraggingFile && "border-ring ring-[3px] ring-ring/50",
+        )}
+      >
         <Textarea
           id={contentId}
           placeholder={t("comments.placeholder")}
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onPaste={handlePaste}
           disabled={mutation.isPending}
           className="min-h-20 max-h-60 resize-none overflow-y-auto rounded-none border-0 bg-transparent px-3 py-3 shadow-none focus-visible:border-transparent focus-visible:ring-0 disabled:bg-transparent dark:bg-transparent"
         />
