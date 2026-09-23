@@ -156,8 +156,8 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
                 </AvatarFallback>
               </Avatar>
 
-              <div className={cn("relative min-w-0 flex-1", (isAdmin || comment.user_id === currentUserId) && "pr-9")}>
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="relative min-w-0 flex-1">
+                <div className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", (isAdmin || comment.user_id === currentUserId) && "pr-9")}>
                   {comment.author?.username ? (
                     <Link
                       to="/users/$username"
@@ -212,7 +212,7 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
                     </AlertDialog>
                   </div>
                 )}
-                <p className="mt-1.5 max-w-prose whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{comment.content}</p>
+                <p className="mt-1.5 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-foreground">{comment.content}</p>
 
                 {comment.attachments && comment.attachments.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
