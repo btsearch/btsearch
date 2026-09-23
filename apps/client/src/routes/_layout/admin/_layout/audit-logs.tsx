@@ -20,7 +20,7 @@ import { useCallback, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
@@ -31,10 +31,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { DatePickerButton } from "@/features/admin/audit-operations/components/date-picker-button";
-import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operation-detail-sheet";
-import { OperationKindBadge } from "@/features/admin/audit-operations/components/operation-kind-badge";
-import { UserChip } from "@/features/admin/audit-operations/components/user-chip";
+import { DatePickerButton } from "@/features/admin/audit-operations/components/datePickerButton";
+import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operationDetailSheet";
+import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
+import { UserChip } from "@/features/admin/audit-operations/components/userChip";
 import { ENTITY_OPTIONS, KIND_GROUPS } from "@/features/admin/audit-operations/constants";
 import { formatCountsSummary, getEntityLabel, getKindLabel } from "@/features/admin/audit-operations/labels";
 import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/queries";

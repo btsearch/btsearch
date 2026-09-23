@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 import { StationsFilterPanel } from "./stationsFilterPanel";
 import { StationsMobileFilterRail } from "./stationsMobileFilterRail";
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { MobileFilterRailInline } from "@/features/shared/filterPanel";
 import { StationsDataTable } from "@/features/stations/components/stationsDataTable";

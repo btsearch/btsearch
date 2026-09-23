@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { CellDraftBase } from "../cellEditRow";
 import { RAT_ORDER, compareRatCells, findPreferredRatBand, getCellDetailDefaultValue, getSharedDetailFields } from "../rat";
 import { syncByPCI, syncNRByPCI } from "../sectorAssignmentSync";
-import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remaining-lte-cells";
+import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remainingLteCells";
 import type { Band } from "@/types/station";
 
 type UseCellDraftsOptions<T extends CellDraftBase> = {
@@ -156,7 +156,7 @@ export function useCellDrafts<T extends CellDraftBase>({
           return {
             ...template,
             band_id: source.band_id,
-            _sectorLocalId: source._sectorLocalId,
+            _sectorLocalId: null,
             type: source.type ?? template.type,
             is_confirmed: source.is_confirmed,
             notes: source.notes,

@@ -1,4 +1,4 @@
-import type { AnalyzerCell } from "@/lib/analyzer/analyzer-parsers";
+import type { AnalyzerCell } from "@/lib/analyzer/analyzerParsers";
 import type { NsgCell } from "@/lib/nsg-parser/model";
 import { resolveCellOperator } from "@/lib/nsg-parser/operators";
 

@@ -1,5 +1,5 @@
 import { fetchApiData } from "../api";
-import type { AnalyzerCell } from "./analyzer-parsers";
+import type { AnalyzerCell } from "./analyzerParsers";
 import { ANALYZER_CHUNK_CONCURRENCY, chunkAnalyzerCells } from "./chunks";
 import type { CellType, Operator, Region, UkeStation } from "@/types/station";
 

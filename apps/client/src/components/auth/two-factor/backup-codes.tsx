@@ -7,7 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
+import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
 
 export type BackupCodesProps = {
   codes: string[];

@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useState } from "react";
 
 export const RESEND_COOLDOWN_SECONDS = 60;

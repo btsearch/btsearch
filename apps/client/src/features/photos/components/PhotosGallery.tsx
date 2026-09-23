@@ -21,7 +21,7 @@ import type { GalleryPhoto, PhotosGalleryFilters, PhotosGalleryOrder, PhotosGall
 import { usePhotosGallery } from "../hooks";
 import { GallerySkeleton } from "./GallerySkeleton";
 import { PhotoTile } from "./PhotoTile";
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Lightbox } from "@/components/photos/lightbox";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

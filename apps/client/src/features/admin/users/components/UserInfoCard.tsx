@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { AdminUser } from "@/features/admin/users/types";
 import { fetchApiData, showApiError } from "@/lib/api";
-import { useResendCooldown } from "@/lib/auth/use-resend-cooldown";
+import { useResendCooldown } from "@/lib/auth/useResendCooldown";
 
 function getResendButtonLabel(isPending: boolean, isCoolingDown: boolean, cooldown: number): string {
   if (isPending) return "Sending...";

@@ -23,7 +23,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

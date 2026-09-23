@@ -16,7 +16,7 @@ import { StationSelector } from "./stationSelector";
 import { SubmissionPhotosPanel } from "./submissionPhotosPanel";
 import { SubmitSection } from "./submitSection";
 import { useSubmissionForm } from "./useSubmissionForm";
-import { EmptyPanel } from "@/components/content/empty-panel";
+import { EmptyPanel } from "@/components/content/emptyPanel";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";

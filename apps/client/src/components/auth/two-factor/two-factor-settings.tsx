@@ -9,7 +9,7 @@ import { RegenerateBackupCodesDialog } from "./regenerate-backup-codes-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
+import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
 import { cn } from "@/lib/utils";
 
 export type TwoFactorSettingsProps = {

@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import {
   AlertDialog,
   AlertDialogAction,

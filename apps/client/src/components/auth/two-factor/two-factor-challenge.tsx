@@ -13,9 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { clearTwoFactorMethods, readTwoFactorMethods, type TwoFactorMethod } from "@/lib/auth/two-factor-methods";
-import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
-import { RESEND_COOLDOWN_SECONDS, useResendCooldown } from "@/lib/auth/use-resend-cooldown";
+import { clearTwoFactorMethods, readTwoFactorMethods, type TwoFactorMethod } from "@/lib/auth/twoFactorMethods";
+import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
+import { RESEND_COOLDOWN_SECONDS, useResendCooldown } from "@/lib/auth/useResendCooldown";
 import { cn } from "@/lib/utils";
 
 /** Challenge surfaces the view can render, in the order they are offered. */

@@ -9,7 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
 
 export function RenamePasskeyDialog({
   open,

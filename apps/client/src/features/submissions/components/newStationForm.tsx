@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import type { ProposedStationForm } from "../types";
 import type { StationErrors } from "../utils/validation";
-import { OperatorSelect } from "@/components/cellular/operator-select";
+import { OperatorSelect } from "@/components/cellular/operatorSelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

@@ -7,7 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { SwitchAccountSubmenuItem } from "./switch-account-submenu-item";
 import { UserView } from "@/components/auth/user/user-view";
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
+import { multiSessionPlugin } from "@/lib/auth/multiSessionPlugin";
 
 /**
  * Render the submenu content for switching between multiple authenticated sessions.

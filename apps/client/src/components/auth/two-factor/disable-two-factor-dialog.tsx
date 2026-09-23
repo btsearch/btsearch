@@ -22,8 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
-import { useTwoFactorPasswordRequirement } from "@/lib/auth/use-two-factor-password";
+import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
+import { useTwoFactorPasswordRequirement } from "@/lib/auth/useTwoFactorPassword";
 
 export type DisableTwoFactorDialogProps = {
   open: boolean;

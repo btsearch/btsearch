@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
+import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";

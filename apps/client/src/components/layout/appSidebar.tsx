@@ -4,12 +4,12 @@ import { Link, useLocation } from "@tanstack/react-router";
 import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { NavLists } from "./nav-lists";
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
+import { NavLists } from "./navLists";
+import { NavMain } from "./navMain";
+import { NavUser } from "./navUser";
 import { AuthDialog } from "@/components/auth/authDialog";
-import { LanguageSwitcher } from "@/components/preferences/language-switcher";
-import { ThemeToggle } from "@/components/preferences/theme-toggle";
+import { LanguageSwitcher } from "@/components/preferences/languageSwitcher";
+import { ThemeToggle } from "@/components/preferences/themeToggle";
 import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { useSettings } from "@/hooks/useSettings";

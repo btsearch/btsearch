@@ -10,7 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Item, ItemActions } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
-import { multiSessionPlugin } from "@/lib/auth/multi-session-plugin";
+import { multiSessionPlugin } from "@/lib/auth/multiSessionPlugin";
 import { cn } from "@/lib/utils";
 
 export type ManageAccountProps = {

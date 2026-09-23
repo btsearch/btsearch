@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { createPortal } from "react-dom";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { LocationsDataTable } from "@/features/admin/locations/components/locationsDataTable";
 import { LocationsFilterPanel } from "@/features/admin/locations/components/locationsFilterPanel";

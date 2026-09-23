@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floating-nav";
+import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ import { analyzerReviewReducer, createAnalyzerReviewState } from "@/features/sub
 import { buildSubmissionPayloads, isAnalyzerCellIncluded } from "@/features/submissions/utils/fromAnalyzer";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSettings } from "@/hooks/useSettings";
-import { getAnalyzerFormatLabel } from "@/lib/analyzer/analyzer-parsers";
+import { getAnalyzerFormatLabel } from "@/lib/analyzer/analyzerParsers";
 import { showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Band, CellType } from "@/types/station";

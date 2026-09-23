@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import type { DeletedEntry } from "../types";
-import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
+import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatFullDate } from "@/lib/format";
 

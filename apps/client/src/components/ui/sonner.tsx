@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 import { Spinner } from "./spinner";
-import { useTheme } from "@/components/preferences/theme-provider";
+import { useTheme } from "@/components/preferences/themeProvider";
 import { useIsMobile } from "@/hooks/useMobile";
 
 const Toaster = ({ ...props }: ToasterProps) => {

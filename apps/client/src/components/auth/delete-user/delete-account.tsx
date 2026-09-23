@@ -24,7 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { deleteUserPlugin } from "@/lib/auth/delete-user-plugin";
+import { deleteUserPlugin } from "@/lib/auth/deleteUserPlugin";
 import { cn } from "@/lib/utils";
 
 export type DeleteAccountProps = {

@@ -6,13 +6,13 @@ import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 
-import { UKESourceBadge } from "@/components/cellular/uke-source-badge";
+import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Button } from "@/components/ui/button";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePickerButton } from "@/features/admin/audit-operations/components/date-picker-button";
-import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/deleted-entry-detail-sheet";
+import { DatePickerButton } from "@/features/admin/audit-operations/components/datePickerButton";
+import { DeletedEntryDetailSheet } from "@/features/deleted-entries/components/deletedEntryDetailSheet";
 import type { DeletedEntry } from "@/features/deleted-entries/types";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { API_BASE, fetchJson } from "@/lib/api";

@@ -10,7 +10,7 @@ import { PasskeysEmpty } from "./passkeys-empty";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ItemGroup, ItemSeparator } from "@/components/ui/item";
-import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
 import { cn } from "@/lib/utils";
 
 export type PasskeysProps = {

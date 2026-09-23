@@ -1,6 +1,6 @@
 import { mapNsgAnalyzerCell } from "./cellAdapter";
-import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "@/lib/analyzer/analyzer-import";
-import type { ParsedRow } from "@/lib/analyzer/analyzer-parsers";
+import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "@/lib/analyzer/analyzerImport";
+import type { ParsedRow } from "@/lib/analyzer/analyzerParsers";
 import { formatNsgTimestamp, parseNsg } from "@/lib/nsg-parser";
 import type { NsgProgress, NsgSource } from "@/lib/nsg-parser/model";
 

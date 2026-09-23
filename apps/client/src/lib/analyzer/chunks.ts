@@ -1,4 +1,4 @@
-import type { AnalyzerCell } from "./analyzer-parsers";
+import type { AnalyzerCell } from "./analyzerParsers";
 
 export const ANALYZER_REQUEST_CHUNK_SIZE = 4_000;
 export const ANALYZER_CHUNK_CONCURRENCY = 4;

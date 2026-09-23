@@ -141,6 +141,7 @@ export function supportsRemainingLTECells(operatorMnc?: number | null): boolean 
 export function createRemainingLTEDetails(details: Readonly<Record<string, unknown>>, clid: number): Record<string, unknown> {
   const next = { ...details };
   delete next.ecid;
+  delete next.pci;
   next.clid = clid;
   return next;
 }

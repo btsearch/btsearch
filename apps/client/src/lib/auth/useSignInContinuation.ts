@@ -1,7 +1,7 @@
 import { useAuth } from "@better-auth-ui/react";
 import { useCallback } from "react";
 
-import { TWO_FACTOR_PLUGIN_ID, isTwoFactorRedirect, storeTwoFactorMethods } from "./two-factor-methods";
+import { TWO_FACTOR_PLUGIN_ID, isTwoFactorRedirect, storeTwoFactorMethods } from "./twoFactorMethods";
 
 export function useSignInContinuation() {
   const { basePaths, navigate, plugins, redirectTo } = useAuth();

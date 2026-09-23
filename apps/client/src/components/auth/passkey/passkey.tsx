@@ -9,7 +9,7 @@ import { DeletePasskeyDialog, type ListedPasskey } from "./delete-passkey-dialog
 import { RenamePasskeyDialog } from "./rename-passkey-dialog";
 import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
-import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
 
 export type PasskeyProps = {
   passkey: ListedPasskey;

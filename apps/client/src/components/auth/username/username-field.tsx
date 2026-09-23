@@ -10,7 +10,7 @@ import type { AdditionalFieldProps } from "@/components/auth/additional-field";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { usernamePlugin } from "@/lib/auth/username-plugin";
+import { usernamePlugin } from "@/lib/auth/usernamePlugin";
 
 /**
  * Renderer for the `username` additional field. Owns availability checking,

@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { isCellType } from "@/features/shared/cellTypes";
-import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzer-parsers";
+import type { FileFormat, ParsedRow } from "@/lib/analyzer/analyzerParsers";
 import type { AnalyzerMatchedCell, AnalyzerResult } from "@/lib/analyzer/api";
 
 const LEGACY_PREFIX = "analyzer:draft:";

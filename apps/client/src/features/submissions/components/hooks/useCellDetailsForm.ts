@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { ProposedCellForm, RatType } from "../../types";
 import { buildOriginalCellsMap, generateCellId, getCellDiffStatus, getDefaultCellDetails } from "../../utils/cells";
 import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
-import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remaining-lte-cells";
+import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remainingLteCells";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { bandsQueryOptions } from "@/features/shared/queries";
 import { compareRatCells, getRatSiblingSyncField, getSharedDetailFields } from "@/features/shared/rat";
@@ -122,7 +122,7 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
         id: generateCellId(),
         rat,
         band_id: source.band_id,
-        _sectorLocalId: source._sectorLocalId,
+        _sectorLocalId: null,
         type: source.type ?? DEFAULT_CELL_TYPE,
         notes: source.notes,
         is_confirmed: source.is_confirmed,

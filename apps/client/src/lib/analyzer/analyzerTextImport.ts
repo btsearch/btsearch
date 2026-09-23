@@ -1,6 +1,6 @@
-import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "./analyzer-import";
+import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "./analyzerImport";
 /* oxlint-disable no-await-in-loop -- Ordered stream reads and batch yields bound memory and keep cancellation responsive */
-import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "./analyzer-parsers";
+import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "./analyzerParsers";
 
 type TextFileFormat = Exclude<FileFormat, "nsg">;
 

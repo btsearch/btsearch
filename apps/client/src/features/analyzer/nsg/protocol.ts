@@ -1,5 +1,5 @@
 import type { NsgAnalyzerImport } from "./parseImport";
-import type { AnalyzerImportErrorCode } from "@/lib/analyzer/analyzer-import";
+import type { AnalyzerImportErrorCode } from "@/lib/analyzer/analyzerImport";
 import type { NsgProgress } from "@/lib/nsg-parser/model";
 
 export type NsgAnalyzerWorkerRequest = { type: "parse"; file: File };

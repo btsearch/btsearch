@@ -31,7 +31,7 @@ const EditorNotes = lazy(() => import("@/features/admin/dashboard/EditorNotes").
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { OperationKindBadge } from "@/features/admin/audit-operations/components/operation-kind-badge";
+import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
 import {
   fetchDashboardStats,
   fetchDashboardDelta,

@@ -21,7 +21,7 @@ import { type ComponentType, type PointerEvent, type TouchEvent, useEffect, useL
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
-import { useTheme } from "@/components/preferences/theme-provider";
+import { useTheme } from "@/components/preferences/themeProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

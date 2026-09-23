@@ -15,8 +15,8 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { twoFactorPlugin } from "@/lib/auth/two-factor-plugin";
-import { useTwoFactorPasswordRequirement } from "@/lib/auth/use-two-factor-password";
+import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
+import { useTwoFactorPasswordRequirement } from "@/lib/auth/useTwoFactorPassword";
 
 type EnrollmentStep = "password" | "verify" | "backupCodes";
 

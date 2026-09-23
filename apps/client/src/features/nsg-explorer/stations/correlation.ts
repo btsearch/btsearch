@@ -1,6 +1,6 @@
 import { mapNsgAnalyzerCell } from "@/features/analyzer/nsg/cellAdapter";
 import { type ServingCellResolution, type ServingCellSnapshot, resolveServingCellAt } from "@/features/nsg-explorer/cells/servingTimeline";
-import type { AnalyzerCell } from "@/lib/analyzer/analyzer-parsers";
+import type { AnalyzerCell } from "@/lib/analyzer/analyzerParsers";
 import type { AnalyzerResult, AnalyzerStation } from "@/lib/analyzer/api";
 import type { NsgCell } from "@/lib/nsg-parser/model";
 

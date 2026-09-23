@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { ProposedCellForm, RatType } from "../types";
 import type { CellError } from "../utils/validation";
 import { CellDetailsForm } from "./cellDetailsForm";
-import { EmptyPanel } from "@/components/content/empty-panel";
+import { EmptyPanel } from "@/components/content/emptyPanel";
 import { RAT_ORDER } from "@/features/shared/rat";
 import type { SectorDraft } from "@/types/station";
 

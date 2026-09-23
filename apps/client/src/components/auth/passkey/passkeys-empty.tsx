@@ -4,7 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
 
 export type PasskeysEmptyProps = {
   onAddPress: () => void;

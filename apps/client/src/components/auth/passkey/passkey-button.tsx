@@ -10,7 +10,7 @@ import { useIsMutating } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { passkeyPlugin } from "@/lib/auth/passkey-plugin";
+import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
 import { cn } from "@/lib/utils";
 
 export type PasskeyButtonProps = {

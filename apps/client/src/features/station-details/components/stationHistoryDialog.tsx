@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 type StationHistoryDialogPanelProps = FloatingDialogPanelFrameProps & StationHistoryDialogPayload;
 
 const RevertOperationDialog = lazy(() =>
-  import("@/features/admin/audit-operations/components/revert-dialog").then((module) => ({ default: module.RevertOperationDialog })),
+  import("@/features/admin/audit-operations/components/revertDialog").then((module) => ({ default: module.RevertOperationDialog })),
 );
 
 const KIND_ICONS: Record<StationHistorySection["kind"], IconSvgElement> = {

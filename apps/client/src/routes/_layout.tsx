@@ -4,10 +4,10 @@ import { Link, Outlet, createFileRoute, useLocation, useMatches } from "@tanstac
 import { Fragment, type ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AnnouncementBanner } from "@/components/app/announcement-banner";
+import { AnnouncementBanner } from "@/components/app/announcementBanner";
 import { AuthGuard } from "@/components/auth/authGuard";
-import { AppSidebar } from "@/components/layout/app-sidebar";
-import { FLOATING_NAV_ACTION_TARGET_ID, FloatingNav } from "@/components/layout/floating-nav";
+import { AppSidebar } from "@/components/layout/appSidebar";
+import { FLOATING_NAV_ACTION_TARGET_ID, FloatingNav } from "@/components/layout/floatingNav";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -44,7 +44,7 @@ export interface RouteHandle {
 }
 
 const EMPTY_BREADCRUMBS: BreadcrumbSegment[] = [];
-const MobileTopAd = lazy(() => import("@/components/layout/mobile-top-ad"));
+const MobileTopAd = lazy(() => import("@/components/layout/mobileTopAd"));
 const MOBILE_TOP_AD_SLOT = import.meta.env.VITE_ADSENSE_CLIENT ? (import.meta.env.VITE_ADSENSE_MAP_MOBILE_SLOT as string | undefined) : undefined;
 
 function MobileTopAdPlaceholder() {

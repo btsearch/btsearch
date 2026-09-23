@@ -18,8 +18,8 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSepar
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { useSignInContinuation } from "@/lib/auth/use-sign-in-continuation";
-import { usernamePlugin } from "@/lib/auth/username-plugin";
+import { usernamePlugin } from "@/lib/auth/usernamePlugin";
+import { useSignInContinuation } from "@/lib/auth/useSignInContinuation";
 import { cn } from "@/lib/utils";
 
 export type SignInUsernameProps = {
