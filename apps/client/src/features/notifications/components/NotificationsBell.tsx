@@ -10,13 +10,17 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import type { Notification } from "../api";
 import { useNotifications } from "../useNotifications";
 import { usePushSubscription } from "../usePushSubscription";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { fetchUkeStation } from "@/features/station-details/api";
+import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,6 +44,15 @@ type NotificationMetadata = {
 function formatStationLabel(stationId: string | undefined, operatorName: string | undefined): string | undefined {
   if (stationId === undefined) return undefined;
   return operatorName !== undefined ? `${stationId} (${operatorName})` : stationId;
+}
+
+function getMapStationTarget(actionUrl: string | null): { id: number; source: "internal" | "uke" } | null {
+  if (!actionUrl?.startsWith("/#map=")) return null;
+  const match = /~(f~S|fu~(?:S|U))([1-9]\d*)$/.exec(actionUrl);
+  if (!match) return null;
+  const id = Number(match[2]);
+  if (!Number.isSafeInteger(id)) return null;
+  return { id, source: match[1].startsWith("fu") ? "uke" : "internal" };
 }
 
 function getNotificationVisual(type: Notification["type"]) {
@@ -66,7 +79,11 @@ function getNotificationVisual(type: Notification["type"]) {
 function NotificationItem({ notification, onRead }: { notification: Notification; onRead: (id: string) => void }) {
   const { t } = useTranslation("notifications");
   const { t: tCommon } = useTranslation("common");
+  const { pathname } = useLocation();
+  const queryClient = useQueryClient();
+  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
   const { icon, iconClassName } = getNotificationVisual(notification.type);
+  const mapStationTarget = pathname === "/" ? getMapStationTarget(notification.actionUrl) : null;
   const metadata = notification.metadata as unknown as NotificationMetadata | null;
   const stationId = metadata?.station_id;
   const stationOperatorName = metadata?.station_operator_name;
@@ -84,8 +101,14 @@ function NotificationItem({ notification, onRead }: { notification: Notification
   const count = metadata?.count;
   const updatedAt = notification.updatedAt ?? notification.createdAt;
 
-  const handleRead = () => {
+  const handleClick = () => {
     if (!notification.readAt) onRead(notification.id);
+    if (mapStationTarget?.source === "internal") openStationDialog(mapStationTarget.id, "internal");
+    else if (mapStationTarget?.source === "uke")
+      void queryClient
+        .fetchQuery({ queryKey: ["uke-station", mapStationTarget.id], queryFn: () => fetchUkeStation(mapStationTarget.id) })
+        .then(openUkePermitDialog)
+        .catch(showApiError);
   };
 
   const content = (
@@ -126,16 +149,16 @@ function NotificationItem({ notification, onRead }: { notification: Notification
     </>
   );
 
-  if (notification.actionUrl) {
+  if (notification.actionUrl && mapStationTarget === null) {
     return (
-      <DropdownMenuItem render={<Link to={notification.actionUrl as "/"} />} className="flex items-start gap-2 py-2" onClick={handleRead}>
+      <DropdownMenuItem render={<Link to={notification.actionUrl as "/"} />} className="flex items-start gap-2 py-2" onClick={handleClick}>
         {content}
       </DropdownMenuItem>
     );
   }
 
   return (
-    <DropdownMenuItem className="flex items-start gap-2 py-2" onClick={handleRead}>
+    <DropdownMenuItem className="flex items-start gap-2 py-2" onClick={handleClick}>
       {content}
     </DropdownMenuItem>
   );

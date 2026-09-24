@@ -1,6 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { MapMouseEvent, MapTouchEvent } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import type { LocationsResponse } from "../api";
 import { fetchLocationWithStations, locationQueryKey } from "../api";
@@ -17,7 +19,7 @@ import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } fr
 import type { StationHoverEntry } from "./stationHoverTooltipContent";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 import { useMap } from "@/components/ui/map";
-import { fetchStation, fetchUkePermit } from "@/features/station-details/api";
+import { fetchStation, fetchUkePermit, fetchUkeStation } from "@/features/station-details/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
 import { getOperatorColor } from "@/lib/cellular/operators";
@@ -38,7 +40,44 @@ const EMPTY_BLOCKED_LAYERS: string[] = [];
 const PLANNED_PEM_BLOCKED_LAYERS = [PLANNED_PEM_LAYER_ID];
 const MAP_TOUCH_LONG_PRESS_MS = 500;
 const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
+const SHARED_STATION_COORDINATE_TOLERANCE = 0.00001;
 const ignorePrefetchError = () => undefined;
+
+class LegacyUkeStationLinkError extends Error {
+  constructor(readonly reason: "ambiguous" | "notFound") {
+    super(reason);
+  }
+}
+
+async function resolveLegacyUkeStation(stationId: string, center?: [number, number]): Promise<UkeStation> {
+  const numericId = Number(stationId);
+  const hasNumericId = /^\d+$/.test(stationId) && Number.isSafeInteger(numericId) && numericId > 0;
+  const [permitsResult, stationResult] = await Promise.allSettled([
+    fetchUkePermit(stationId),
+    hasNumericId ? fetchUkeStation(numericId) : Promise.resolve(null),
+  ]);
+  const candidates = new Map<number, UkeStation>();
+  if (permitsResult.status === "fulfilled") for (const station of groupPermitsByStation(permitsResult.value)) candidates.set(station.id, station);
+  if (stationResult.status === "fulfilled" && stationResult.value) candidates.set(stationResult.value.id, stationResult.value);
+
+  const coordinateMatches = center
+    ? [...candidates.values()].filter(
+        (station) =>
+          station.location &&
+          Math.abs(station.location.latitude - center[1]) < SHARED_STATION_COORDINATE_TOLERANCE &&
+          Math.abs(station.location.longitude - center[0]) < SHARED_STATION_COORDINATE_TOLERANCE,
+      )
+    : [];
+  if (coordinateMatches.length === 1) return coordinateMatches[0];
+  if (coordinateMatches.length > 1) throw new LegacyUkeStationLinkError("ambiguous");
+
+  const [onlyStation] = candidates.values();
+  if (candidates.size === 1 && onlyStation) return onlyStation;
+  if (candidates.size > 1) throw new LegacyUkeStationLinkError("ambiguous");
+  if (permitsResult.status === "rejected") throw permitsResult.reason;
+  if (stationResult.status === "rejected") throw stationResult.reason;
+  throw new LegacyUkeStationLinkError("notFound");
+}
 
 export const DEFAULT_FILTERS: StationFilters = {
   operators: [],
@@ -133,6 +172,7 @@ export function StationsLayer({
   activePopupLocations,
   urlSyncEnabled = true,
 }: StationsLayerProps) {
+  const { t } = useTranslation("stationDetails");
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
   const queryClient = useQueryClient();
@@ -146,24 +186,49 @@ export function StationsLayer({
   const handleUrlInitialize = useCallback(
     async ({
       filters: urlFilters,
+      center,
       stationId,
+      ukeStationId,
       locationId,
       radiolineId,
     }: {
       filters?: StationFilters;
+      center?: [number, number];
       stationId?: string;
+      ukeStationId?: number;
       locationId?: number;
       radiolineId?: number;
     }) => {
       if (urlFilters) onFiltersChange?.(urlFilters);
       const activeFilters = urlFilters ?? filters;
 
-      if (stationId && map) {
+      if (ukeStationId && map) {
+        pendingStationId.current = ukeStationId;
+        queryClient
+          .fetchQuery({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
+          .then((station) => {
+            if (station.location?.latitude && station.location?.longitude) {
+              map.flyTo({
+                center: [station.location.longitude, station.location.latitude],
+                zoom: 16,
+                essential: true,
+                speed: 1.5,
+              });
+              onOpenUkeStationDetails(station);
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to fetch shared station:", error);
+            showApiError(error);
+          })
+          .finally(() => {
+            pendingStationId.current = null;
+          });
+      } else if (stationId && map) {
         pendingStationId.current = stationId;
         const stationPromise =
           activeFilters.source === "uke"
-            ? fetchUkePermit(stationId).then((permits) => {
-                const ukeStation = groupPermitsByStation(permits ?? [])[0];
+            ? resolveLegacyUkeStation(stationId, center).then((ukeStation) => {
                 if (ukeStation?.location?.latitude && ukeStation?.location?.longitude) {
                   map.flyTo({
                     center: [ukeStation.location.longitude, ukeStation.location.latitude],
@@ -187,6 +252,10 @@ export function StationsLayer({
               });
         stationPromise
           .catch((error) => {
+            if (error instanceof LegacyUkeStationLinkError) {
+              toast.error(t(error.reason === "ambiguous" ? "page.ambiguousUkeStationLink" : "page.stationNotFoundTitle"));
+              return;
+            }
             console.error("Failed to fetch shared station:", error);
             showApiError(error);
           })
@@ -230,7 +299,7 @@ export function StationsLayer({
           });
       }
     },
-    [queryClient, map, filters, showPopup, onFiltersChange, onOpenStationDetails, onOpenUkeStationDetails, onRadiolineIdFromUrl],
+    [queryClient, map, filters, showPopup, onFiltersChange, onOpenStationDetails, onOpenUkeStationDetails, onRadiolineIdFromUrl, t],
   );
 
   useUrlSync({

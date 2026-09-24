@@ -79,6 +79,7 @@
     "info": "Informacje",
     "stationsAtLocation": "Stacje w tej lokalizacji",
     "stationNotFoundTitle": "Nie znaleziono stacji",
+    "ambiguousUkeStationLink": "Ten link UKE pasuje do więcej niż jednej stacji",
     "stationNotFoundDescription": "Stacja o podanym identyfikatorze nie istnieje lub została usunięta z bazy",
     "stationUnavailableTitle": "Nie udało się wczytać stacji",
     "stationUnavailableDescription": "Spróbuj ponownie za chwilę",

@@ -11,7 +11,7 @@ export function buildInternalStationActionUrl(station: StationActionTarget): str
 
 export function buildUkeStationActionUrl(station: StationActionTarget): string | undefined {
   if (!station.location) return undefined;
-  return `/#map=16.00/${station.location.latitude}/${station.location.longitude}~fu~S${station.id}`;
+  return `/#map=16.00/${station.location.latitude}/${station.location.longitude}~fu~U${station.id}`;
 }
 
 export function buildMapLocationActionUrl(location: MapCoordinates): string {

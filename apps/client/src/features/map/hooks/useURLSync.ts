@@ -13,6 +13,7 @@ type UseUrlSyncArgs = {
     center?: [number, number];
     zoom?: number;
     stationId?: string;
+    ukeStationId?: number;
     locationId?: number;
     radiolineId?: number;
   }) => void;
@@ -175,6 +176,7 @@ function parseUrlHash(): {
   center?: [number, number];
   zoom?: number;
   stationId?: string;
+  ukeStationId?: number;
   locationId?: number;
   radiolineId?: number;
 } {
@@ -194,6 +196,7 @@ function parseUrlHash(): {
 
   let filters: Partial<StationFilters> | null = null;
   let stationId: string | undefined;
+  let ukeStationId: number | undefined;
   let locationId: number | undefined;
   let radiolineId: number | undefined;
 
@@ -205,8 +208,12 @@ function parseUrlHash(): {
       if (key === "L") locationId = Number.parseInt(value, 10) || undefined;
       else if (key === "R") radiolineId = Number.parseInt(value, 10) || undefined;
       else if (key === "S") stationId = value || undefined;
+      else if (key === "U") {
+        const id = Number(value);
+        if (Number.isSafeInteger(id) && id > 0) ukeStationId = id;
+      }
     }
-    filters = parseTokenFilters(tokens.filter((t) => t[0] !== "L" && t[0] !== "R" && t[0] !== "S"));
+    filters = parseTokenFilters(tokens.filter((t) => t[0] !== "L" && t[0] !== "R" && t[0] !== "S" && t[0] !== "U"));
   } else if (hasQuery) {
     const queryPart = hash.split("?")[1] ?? "";
     const params = new URLSearchParams(queryPart);
@@ -223,6 +230,7 @@ function parseUrlHash(): {
     center: !Number.isNaN(lat) && !Number.isNaN(lng) ? [lng, lat] : undefined,
     zoom: !Number.isNaN(z) ? z : undefined,
     stationId,
+    ukeStationId,
     locationId: locationId !== undefined && !Number.isNaN(locationId) ? locationId : undefined,
     radiolineId: radiolineId !== undefined && !Number.isNaN(radiolineId) ? radiolineId : undefined,
   };
@@ -280,7 +288,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
   useEffect(() => {
     if (!enabled || !isLoaded || !map || isInitialized.current) return;
 
-    const { filters: urlFilters, center, zoom: urlZoom, stationId, locationId, radiolineId } = parseUrlHash();
+    const { filters: urlFilters, center, zoom: urlZoom, stationId, ukeStationId, locationId, radiolineId } = parseUrlHash();
 
     if (center || urlZoom !== undefined) {
       map.flyTo({
@@ -311,6 +319,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
       center,
       zoom: urlZoom,
       stationId,
+      ukeStationId,
       locationId,
       radiolineId,
     });
