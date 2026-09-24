@@ -102,7 +102,7 @@ async function runScheduledUkeImport(slot: Date): Promise<void> {
   }
 
   logger.info("uke_import_scheduled", { trigger: "six_hourly", slot: slot.toISOString() });
-  await startImportJob({ importPermits: true, importRadiolines: false, importDeviceRegistry: true });
+  await startImportJob({ importPermits: true, importRadiolines: true, importDeviceRegistry: true });
 }
 
 function triggerScheduledUkeImport(slot: Date): void {
