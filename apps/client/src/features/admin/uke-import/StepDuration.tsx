@@ -9,7 +9,7 @@ export function StepDuration({ step, className }: { step: ImportStep; className:
   useEffect(() => {
     if (step.status !== "running" || !step.startedAt || step.finishedAt || !Number.isFinite(Date.parse(step.startedAt))) return;
 
-    const interval = window.setInterval(() => setNow(Date.now()), 100);
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, [step.status, step.startedAt, step.finishedAt]);
 

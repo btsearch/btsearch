@@ -3577,6 +3577,30 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /uke/import/history:
+    get:
+      tags: [UKE]
+      summary: List UKE import runs from the last 7 days
+      security:
+        - ApiKeyAuth: []
+        - CookieAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/UkeImportJobStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /lists:
     get:
       tags: [Lists]
@@ -5927,6 +5951,8 @@ components:
     UkeImportJobStatus:
       type: object
       properties:
+        id: { type: string, nullable: true }
+        trigger: { type: string, enum: [manual, scheduled], nullable: true }
         state: { type: string, enum: [idle, running, success, error] }
         startedAt: { type: string, nullable: true }
         finishedAt: { type: string, nullable: true }
@@ -5955,6 +5981,7 @@ components:
               status: { type: string, enum: [pending, running, success, skipped, error] }
               startedAt: { type: string, nullable: true }
               finishedAt: { type: string, nullable: true }
+              error: { type: string, nullable: true }
         error: { type: string, nullable: true }
 
     # User Lists schemas

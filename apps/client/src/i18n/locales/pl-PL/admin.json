@@ -196,16 +196,22 @@
   "ukeImport": {
     "title": "Import UKE",
     "subtitle": "Importuj dane z UKE (Urząd Komunikacji Elektronicznej)",
-    "importPermits": "Importuj pozwolenia",
-    "importRadiolines": "Importuj radiolinie",
-    "importDeviceRegistry": "Importuj rejestr urządzeń",
+    "hourlySchedule": "Automatyczny import odbywa się co godzinę",
+    "sources": {
+      "label": "Źródła",
+      "importPermits": "Pozwolenia",
+      "importRadiolines": "Radiolinie",
+      "importDeviceRegistry": "Rejestr urządzeń"
+    },
     "startImport": "Rozpocznij import",
+    "startFailed": "Nie udało się uruchomić importu. Spróbuj ponownie",
     "alreadyRunning": "Import jest już w toku",
     "status": {
       "idle": "Bezczynne",
       "running": "W toku",
       "success": "Zakończono",
-      "error": "Błąd"
+      "completedWithErrors": "Zakończono z błędami",
+      "error": "Nie powiodło się"
     },
     "steps": {
       "permits": "Import pozwoleń",
@@ -227,14 +233,30 @@
       "error": "Błąd"
     },
     "failure": {
-      "title": "Błędy importu",
-      "failedSources": "Źródła zakończone błędem",
-      "continuing": "Pozostałe źródła i odpowiednie kroki końcowe będą nadal wykonywane",
-      "details": "Szczegóły błędu",
       "dashboard": "Import UKE wymaga uwagi"
     },
     "startedAt": "Rozpoczęto",
-    "finishedAt": "Zakończono"
+    "finishedAt": "Zakończono",
+    "duration": "Czas trwania",
+    "trigger": {
+      "label": "Tryb uruchomienia",
+      "manual": "Ręczny",
+      "scheduled": "Automatyczny"
+    },
+    "latest": {
+      "title": "Ostatni import",
+      "loading": "Ładowanie ostatniego importu...",
+      "empty": "Nie uruchomiono jeszcze żadnego importu",
+      "loadError": "Nie udało się wczytać stanu importu"
+    },
+    "history": {
+      "title": "Poprzednie importy",
+      "description": "Importy z ostatnich 7 dni",
+      "empty": "Brak wcześniejszych importów z ostatnich 7 dni",
+      "loading": "Ładowanie poprzednich importów...",
+      "loadError": "Nie udało się wczytać poprzednich importów",
+      "showMore": "Pokaż jeszcze {{count}}"
+    }
   },
   "auditLogs": {
     "subtitle": "Przeglądaj aktywność systemu i zmiany",

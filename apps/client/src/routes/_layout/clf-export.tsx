@@ -770,7 +770,7 @@ function ClfExportPage() {
 
           <div className="space-y-4">
             {isDesktop ? (
-              <div className="sticky top-4">
+              <div>
                 <form.Subscribe selector={(state) => state.isSubmitting}>
                   {(isSubmitting) => (
                     <ExportActions

@@ -17,7 +17,7 @@ const workerCount = Number(process.env.WORKERS) || availableParallelism();
 
 const SCHEDULER_LOCK_KEY = "scheduler:leader";
 const SCHEDULER_LOCK_TTL = 30;
-const UKE_IMPORT_INTERVAL_HOURS = 6;
+const UKE_IMPORT_INTERVAL_HOURS = 1;
 const UKE_IMPORT_INTERVAL_MS = UKE_IMPORT_INTERVAL_HOURS * 60 * 60 * 1000;
 const UKE_IMPORT_SLOT_TTL_SECONDS = UKE_IMPORT_INTERVAL_HOURS * 2 * 60 * 60;
 const UKE_IMPORT_SLOT_KEY_PREFIX = "uke:import:schedule:";
@@ -86,7 +86,7 @@ function getNextUkeImportSlot(date = new Date()): Date {
 async function runScheduledUkeImport(slot: Date): Promise<void> {
   const isLeader = await renewSchedulerLock().catch(() => false);
   if (!isLeader) {
-    logger.info("uke_import_schedule_skipped", { trigger: "six_hourly", slot: slot.toISOString(), reason: "not_scheduler_leader" });
+    logger.info("uke_import_schedule_skipped", { trigger: "hourly", slot: slot.toISOString(), reason: "not_scheduler_leader" });
     return;
   }
 
@@ -97,12 +97,17 @@ async function runScheduledUkeImport(slot: Date): Promise<void> {
   });
 
   if (!acquired) {
-    logger.info("uke_import_schedule_skipped", { trigger: "six_hourly", slot: slot.toISOString(), reason: "slot_already_claimed" });
+    logger.info("uke_import_schedule_skipped", { trigger: "hourly", slot: slot.toISOString(), reason: "slot_already_claimed" });
     return;
   }
 
-  logger.info("uke_import_scheduled", { trigger: "six_hourly", slot: slot.toISOString() });
-  await startImportJob({ importPermits: true, importRadiolines: true, importDeviceRegistry: true });
+  const { started } = await startImportJob({ importPermits: true, importRadiolines: true, importDeviceRegistry: true }, "scheduled");
+  if (!started) {
+    logger.info("uke_import_schedule_skipped", { trigger: "hourly", slot: slot.toISOString(), reason: "import_running" });
+    return;
+  }
+
+  logger.info("uke_import_scheduled", { trigger: "hourly", slot: slot.toISOString() });
 }
 
 function triggerScheduledUkeImport(slot: Date): void {

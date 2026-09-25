@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { API_BASE, fetchJson } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 
 export type ImportStepKey =
   | "permits"
@@ -21,9 +22,12 @@ export interface ImportStep {
   status: StepStatus;
   startedAt?: string;
   finishedAt?: string;
+  error?: string;
 }
 
 export interface ImportJobStatus {
+  id?: string;
+  trigger?: "manual" | "scheduled";
   state: JobState;
   startedAt?: string;
   finishedAt?: string;
@@ -32,6 +36,7 @@ export interface ImportJobStatus {
 }
 
 export const UKE_IMPORT_STATUS_QUERY_KEY = ["uke-import-status"] as const;
+export const UKE_IMPORT_HISTORY_QUERY_KEY = ["uke-import-history"] as const;
 
 const SOURCE_IMPORT_STEP_KEYS = new Set<ImportStepKey>(["permits", "radiolines", "device_registry"]);
 
@@ -60,10 +65,27 @@ export async function fetchImportStatus(): Promise<ImportJobStatus> {
   return res.data;
 }
 
+async function fetchImportStatusAndRefreshHistory(): Promise<ImportJobStatus> {
+  const previousJobId = queryClient.getQueryData<ImportJobStatus>(UKE_IMPORT_STATUS_QUERY_KEY)?.id;
+  const status = await fetchImportStatus();
+  if (previousJobId !== undefined && previousJobId !== status.id) void queryClient.invalidateQueries({ queryKey: UKE_IMPORT_HISTORY_QUERY_KEY });
+  return status;
+}
+
 export const importStatusQueryOptions = queryOptions({
   queryKey: UKE_IMPORT_STATUS_QUERY_KEY,
-  queryFn: fetchImportStatus,
-  refetchInterval: (query) => (isImportStatusInProgress(query.state.data) ? 2000 : false),
+  queryFn: fetchImportStatusAndRefreshHistory,
+  refetchInterval: (query) => (isImportStatusInProgress(query.state.data) ? 2000 : 60_000),
+});
+
+export async function fetchImportHistory(): Promise<ImportJobStatus[]> {
+  const res = await fetchJson<{ data: ImportJobStatus[] }>(`${API_BASE}/uke/import/history`);
+  return res.data;
+}
+
+export const importHistoryQueryOptions = queryOptions({
+  queryKey: UKE_IMPORT_HISTORY_QUERY_KEY,
+  queryFn: fetchImportHistory,
 });
 
 export async function startImport(payload: StartImportPayload): Promise<ImportJobStatus> {

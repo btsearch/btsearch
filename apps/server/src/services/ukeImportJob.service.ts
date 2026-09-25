@@ -1,48 +1,38 @@
 import { deletedEntries, locations, stations, stationsPermits, ukeLocations, ukePermits, ukeRadiolines, ukeStations } from "@openbts/drizzle";
 import { associateStationsWithPermits } from "@openbts/uke-importer/stations";
 import { cleanupDownloads } from "@openbts/uke-importer/utils";
-import { and, count, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, gte, inArray, lt, lte, max, or, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 
 import { db } from "../database/psql.js";
 import redis from "../database/redis.js";
+import { errorMessage } from "../utils/errorMessage.js";
 import { logger } from "../utils/logger.js";
 import { buildInternalStationActionUrl, buildMapLocationActionUrl, buildUkeStationActionUrl } from "./notifications/actionUrls.js";
 import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from "./notifications/service.js";
 import { cleanupOrphanedUkeLocations, cleanupOrphanedUkeStations, pruneStationsPermits } from "./stationsPermitsAssociation.service.js";
 import { getSnapshotDelta, takeStatsSnapshot } from "./statsSnapshot.service.js";
+import { IMPORT_STEP_KEYS, type ImportJobStatus, type ImportStep, type ImportStepKey, type ImportTrigger } from "./ukeImport/schemas.js";
 import { type ImportWorkerTask, type SourceImportStepKey, type SourceImportStepStatus, runSourceImportStep } from "./ukeImportSourceStep.js";
 
-type ImportStepKey =
-  | "permits"
-  | "radiolines"
-  | "device_registry"
-  | "prune_deleted_entries"
-  | "prune_associations"
-  | "cleanup_orphaned_uke_entities"
-  | "associate"
-  | "snapshot"
-  | "refresh_statistics"
-  | "cleanup";
-type StepStatus = "pending" | "running" | "success" | "skipped" | "error";
-type JobState = "idle" | "running" | "success" | "error";
+type ImportJob = ImportJobStatus & { id: string; trigger: ImportTrigger; startedAt: string };
 
-interface ImportStep {
-  key: ImportStepKey;
-  status: StepStatus;
-  startedAt?: string;
-  finishedAt?: string;
+interface ImportOptions {
+  importPermits?: boolean;
+  importRadiolines?: boolean;
+  importDeviceRegistry?: boolean;
 }
 
-interface ImportJobStatus {
-  state: JobState;
-  startedAt?: string;
-  finishedAt?: string;
-  steps: ImportStep[];
-  error?: string;
+interface ImportBaseline {
+  permitId: number;
+  stationId: number;
+  radiolineId: number;
 }
+
+class ImportStepError extends Error {}
 
 interface ImportDelta {
   stations: { added: number };
@@ -57,33 +47,34 @@ interface PermitStationAssociation {
 
 const IMPORT_COMPLETE_CHANNEL = "uke:import:complete";
 
-function getImportChangeSince(startedAt: string): Date {
-  const since = new Date(startedAt);
-  since.setUTCHours(0, 0, 0, 0);
-  return since;
+async function loadImportBaseline(): Promise<ImportBaseline> {
+  const [[permits], [stations], [radiolines]] = await Promise.all([
+    db.select({ id: max(ukePermits.id) }).from(ukePermits),
+    db.select({ id: max(ukeStations.id) }).from(ukeStations),
+    db.select({ id: max(ukeRadiolines.id) }).from(ukeRadiolines),
+  ]);
+  return { permitId: permits?.id ?? 0, stationId: stations?.id ?? 0, radiolineId: radiolines?.id ?? 0 };
 }
 
-async function computeImportDelta(startedAt: string): Promise<ImportDelta> {
-  const since = getImportChangeSince(startedAt);
-
-  const deletedSince = new Date(startedAt);
+async function computeImportDelta(baseline: ImportBaseline, startedAt: string): Promise<ImportDelta> {
+  const since = new Date(startedAt);
 
   const [stationsAdded, permitsAdded, permitsUpdated, permitsDeleted, radiolinesAdded, radiolinesDeleted] = await Promise.all([
-    db.select({ count: count() }).from(ukeStations).where(gte(ukeStations.createdAt, since)),
-    db.select({ count: count() }).from(ukePermits).where(gte(ukePermits.createdAt, since)),
+    db.select({ count: count() }).from(ukeStations).where(gt(ukeStations.id, baseline.stationId)),
+    db.select({ count: count() }).from(ukePermits).where(gt(ukePermits.id, baseline.permitId)),
     db
       .select({ count: count() })
       .from(ukePermits)
-      .where(and(gte(ukePermits.updatedAt, since), lt(ukePermits.createdAt, since))),
+      .where(and(gte(ukePermits.updatedAt, since), lte(ukePermits.id, baseline.permitId))),
     db
       .select({ count: count() })
       .from(deletedEntries)
-      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, deletedSince))),
-    db.select({ count: count() }).from(ukeRadiolines).where(gte(ukeRadiolines.createdAt, since)),
+      .where(and(eq(deletedEntries.source_table, "uke_permits"), gte(deletedEntries.deleted_at, since))),
+    db.select({ count: count() }).from(ukeRadiolines).where(gt(ukeRadiolines.id, baseline.radiolineId)),
     db
       .select({ count: count() })
       .from(deletedEntries)
-      .where(and(eq(deletedEntries.source_table, "uke_radiolines"), gte(deletedEntries.deleted_at, deletedSince))),
+      .where(and(eq(deletedEntries.source_table, "uke_radiolines"), gte(deletedEntries.deleted_at, since))),
   ]);
 
   return {
@@ -100,23 +91,17 @@ async function computeImportDelta(startedAt: string): Promise<ImportDelta> {
   };
 }
 
-const STEP_KEYS: ImportStepKey[] = [
-  "permits",
-  "radiolines",
-  "device_registry",
-  "prune_deleted_entries",
-  "prune_associations",
-  "cleanup_orphaned_uke_entities",
-  "associate",
-  "snapshot",
-  "refresh_statistics",
-  "cleanup",
-];
-
 const DELETED_ENTRIES_RETENTION_DAYS = Number(process.env.DELETED_ENTRIES_RETENTION_DAYS) || 180;
 const REDIS_KEY = "uke:import:status";
 const REDIS_LOCK_KEY = "uke:import:lock";
 const LOCK_TTL_SECONDS = 3600;
+const LOCK_RENEW_INTERVAL_MS = 60_000;
+const MAX_IMPORT_DURATION_MS = 3 * 60 * 60 * 1000;
+const WORKER_TIMEOUT_MS = 60 * 60 * 1000;
+const INTERRUPTED_JOB_ERROR = "Import was interrupted before it finished";
+const HISTORY_KEY = "uke:import:history";
+const HISTORY_RETENTION_SECONDS = 7 * 24 * 60 * 60;
+const HISTORY_RETENTION_MS = HISTORY_RETENTION_SECONDS * 1000;
 const STATISTICS_CACHE_PATTERNS = ["stats:summary:*", "stats:permits:*", "stats:voivodeships:*", "stats:stations:history:*"];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -150,14 +135,16 @@ type InternalStationChangeSummary = {
   actionStation?: { id: number; location: { latitude: number; longitude: number } };
 };
 
-async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, newAssociations: PermitStationAssociation[]): Promise<void> {
-  const since = getImportChangeSince(startedAt);
-  const sinceTime = since.getTime();
+async function notifyInternalStationWatchersAboutUkeChanges(
+  baseline: ImportBaseline,
+  startedAt: string,
+  newAssociations: PermitStationAssociation[],
+): Promise<void> {
   const newAssociationPermitIds = new Set(newAssociations.map((association) => association.permitId));
   const newAssociationPermitIdList = [...newAssociationPermitIds];
-  const dateCondition = or(gte(ukePermits.createdAt, since), gte(ukeStations.createdAt, since));
+  const insertedCondition = or(gt(ukePermits.id, baseline.permitId), gt(ukeStations.id, baseline.stationId));
   const whereCondition =
-    newAssociationPermitIdList.length > 0 ? or(dateCondition, inArray(ukePermits.id, newAssociationPermitIdList)) : dateCondition;
+    newAssociationPermitIdList.length > 0 ? or(insertedCondition, inArray(ukePermits.id, newAssociationPermitIdList)) : insertedCondition;
 
   const [rows, deletedPermitRows] = await Promise.all([
     db
@@ -165,9 +152,7 @@ async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, n
         stationId: stations.id,
         stationStringId: stations.station_id,
         permitId: ukePermits.id,
-        permitCreatedAt: ukePermits.createdAt,
         ukeStationId: ukeStations.id,
-        ukeStationCreatedAt: ukeStations.createdAt,
         ukeLatitude: ukeLocations.latitude,
         ukeLongitude: ukeLocations.longitude,
       })
@@ -204,11 +189,8 @@ async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, n
   for (const row of rows) {
     const summary = getSummary(row.stationId, row.stationStringId);
 
-    const permitCreatedInImport = row.permitCreatedAt.getTime() >= sinceTime;
-    const ukeStationCreatedInImport = row.ukeStationCreatedAt.getTime() >= sinceTime;
-
-    if (permitCreatedInImport || newAssociationPermitIds.has(row.permitId)) summary.permitsAdded.add(row.permitId);
-    if (ukeStationCreatedInImport) summary.ukeStationsAdded.add(row.ukeStationId);
+    if (row.permitId > baseline.permitId || newAssociationPermitIds.has(row.permitId)) summary.permitsAdded.add(row.permitId);
+    if (row.ukeStationId > baseline.stationId) summary.ukeStationsAdded.add(row.ukeStationId);
     if (!summary.actionStation)
       summary.actionStation = { id: row.ukeStationId, location: { latitude: row.ukeLatitude, longitude: row.ukeLongitude } };
   }
@@ -266,10 +248,7 @@ async function notifyInternalStationWatchersAboutUkeChanges(startedAt: string, n
   );
 }
 
-async function notifyUkeStationWatchersAboutUkeChanges(startedAt: string): Promise<void> {
-  const since = getImportChangeSince(startedAt);
-  const sinceTime = since.getTime();
-  const dateCondition = or(gte(ukePermits.createdAt, since), gte(ukeStations.createdAt, since));
+async function notifyUkeStationWatchersAboutUkeChanges(baseline: ImportBaseline, startedAt: string): Promise<void> {
   const deletedUkeStationId = sql<number>`(${deletedEntries.data}->>'uke_station_id')::integer`;
 
   const [rows, deletedPermitRows] = await Promise.all([
@@ -278,15 +257,13 @@ async function notifyUkeStationWatchersAboutUkeChanges(startedAt: string): Promi
         ukeStationId: ukeStations.id,
         stationStringId: ukeStations.station_id,
         permitId: ukePermits.id,
-        permitCreatedAt: ukePermits.createdAt,
-        ukeStationCreatedAt: ukeStations.createdAt,
         ukeLatitude: ukeLocations.latitude,
         ukeLongitude: ukeLocations.longitude,
       })
       .from(ukePermits)
       .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
       .innerJoin(ukeLocations, eq(ukeStations.location_id, ukeLocations.id))
-      .where(dateCondition),
+      .where(or(gt(ukePermits.id, baseline.permitId), gt(ukeStations.id, baseline.stationId))),
     db
       .select({
         ukeStationId: ukeStations.id,
@@ -331,11 +308,8 @@ async function notifyUkeStationWatchersAboutUkeChanges(startedAt: string): Promi
   for (const row of rows) {
     const summary = getSummary(row);
 
-    const permitCreatedInImport = row.permitCreatedAt.getTime() >= sinceTime;
-    const ukeStationCreatedInImport = row.ukeStationCreatedAt.getTime() >= sinceTime;
-
-    if (permitCreatedInImport) summary.permitsAdded.add(row.permitId);
-    if (ukeStationCreatedInImport) summary.ukeStationsAdded.add(row.ukeStationId);
+    if (row.permitId > baseline.permitId) summary.permitsAdded.add(row.permitId);
+    if (row.ukeStationId > baseline.stationId) summary.ukeStationsAdded.add(row.ukeStationId);
   }
 
   for (const row of deletedPermitRows) {
@@ -372,17 +346,54 @@ async function notifyUkeStationWatchersAboutUkeChanges(startedAt: string): Promi
 }
 
 function makeSteps(): ImportStep[] {
-  return STEP_KEYS.map((key) => ({ key, status: "pending" }));
+  return IMPORT_STEP_KEYS.map((key) => ({ key, status: "pending" }));
 }
 
-async function loadJob(): Promise<ImportJobStatus> {
-  const raw = await redis.get(REDIS_KEY);
-  if (!raw) return { state: "idle", steps: [] };
-  return JSON.parse(raw) as ImportJobStatus;
+async function saveJob(job: ImportJob): Promise<void> {
+  const serialized = JSON.stringify(job);
+  await redis
+    .multi()
+    .set(REDIS_KEY, serialized)
+    .set(`${HISTORY_KEY}:${job.id}`, serialized, { expiration: { type: "EX", value: HISTORY_RETENTION_SECONDS } })
+    .exec();
 }
 
-async function saveJob(job: ImportJobStatus): Promise<void> {
-  await redis.set(REDIS_KEY, JSON.stringify(job));
+async function addJobToHistory(job: ImportJob): Promise<void> {
+  const cutoff = Date.now() - HISTORY_RETENTION_MS;
+  await redis
+    .multi()
+    .zAdd(HISTORY_KEY, { score: new Date(job.startedAt).getTime(), value: job.id })
+    .zRemRangeByScore(HISTORY_KEY, "-inf", cutoff - 1)
+    .expire(HISTORY_KEY, HISTORY_RETENTION_SECONDS)
+    .exec();
+}
+
+async function releaseImportLock(token: string): Promise<void> {
+  await redis.eval('if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) end return 0', {
+    keys: [REDIS_LOCK_KEY],
+    arguments: [token],
+  });
+}
+
+async function renewImportLock(token: string): Promise<void> {
+  const renewed = await redis.eval('if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("EXPIRE", KEYS[1], ARGV[2]) end return 0', {
+    keys: [REDIS_LOCK_KEY],
+    arguments: [token, String(LOCK_TTL_SECONDS)],
+  });
+  if (renewed !== 1) logger.error("UKE import lock lost while job is running");
+}
+
+function keepImportLockAlive(token: string): () => void {
+  const deadline = Date.now() + MAX_IMPORT_DURATION_MS;
+  const renewal = setInterval(() => {
+    if (Date.now() < deadline) {
+      void renewImportLock(token).catch((error) => logger.error("Failed to renew UKE import lock", { error }));
+      return;
+    }
+    clearInterval(renewal);
+    logger.error("UKE import exceeded its maximum duration, lock renewal stopped", { maxDurationMs: MAX_IMPORT_DURATION_MS });
+  }, LOCK_RENEW_INTERVAL_MS);
+  return () => clearInterval(renewal);
 }
 
 async function findStatisticsCacheKeyBatches(pattern: string): Promise<string[][]> {
@@ -417,8 +428,8 @@ function markSkipped(job: ImportJobStatus, key: ImportStepKey): void {
   updateStep(job, key, { status: "skipped", finishedAt: new Date().toISOString() });
 }
 
-function markError(job: ImportJobStatus, key: ImportStepKey): void {
-  updateStep(job, key, { status: "error", finishedAt: new Date().toISOString() });
+function markError(job: ImportJobStatus, key: ImportStepKey, error?: string): void {
+  updateStep(job, key, { status: "error", finishedAt: new Date().toISOString(), error });
 }
 
 function runInWorker(task: ImportWorkerTask): Promise<boolean> {
@@ -427,8 +438,13 @@ function runInWorker(task: ImportWorkerTask): Promise<boolean> {
       workerData: { task },
       execArgv: process.execArgv,
     });
+    const timeout = setTimeout(() => {
+      reject(new Error(`Worker timed out after ${WORKER_TIMEOUT_MS / 60_000} minutes`));
+      void worker.terminate();
+    }, WORKER_TIMEOUT_MS);
 
     worker.on("message", (msg: { success: boolean; result?: boolean; error?: string }) => {
+      clearTimeout(timeout);
       if (msg.success) {
         resolve(msg.result ?? false);
       } else {
@@ -438,156 +454,155 @@ function runInWorker(task: ImportWorkerTask): Promise<boolean> {
 
     worker.on("error", reject);
     worker.on("exit", (code) => {
+      clearTimeout(timeout);
       if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
     });
   });
 }
 
-async function runJobSourceImportStep(
-  job: ImportJobStatus,
-  step: SourceImportStepKey,
-  task: ImportWorkerTask,
-  enabled: boolean,
-  sourceErrors: string[],
-  failedSources: Set<SourceImportStepKey>,
-): Promise<boolean> {
+async function runJobSourceImportStep(job: ImportJob, step: SourceImportStepKey, task: ImportWorkerTask, enabled: boolean): Promise<boolean> {
   return runSourceImportStep(step, task, enabled, {
     runTask: runInWorker,
-    persistStatus: async (sourceStep, status: SourceImportStepStatus) => {
+    persistStatus: async (sourceStep, status: SourceImportStepStatus, error?: string) => {
       if (status === "running") markRunning(job, sourceStep);
       else if (status === "success") markSuccess(job, sourceStep);
       else if (status === "skipped") markSkipped(job, sourceStep);
-      else markError(job, sourceStep);
+      else {
+        markError(job, sourceStep, error);
+        logger.error("UKE source import failed", { step: sourceStep, error });
+      }
       await saveJob(job);
-    },
-    reportError: (sourceStep, message) => {
-      failedSources.add(sourceStep);
-      sourceErrors.push(`${sourceStep}: ${message}`);
-      logger.error("UKE source import failed", { step: sourceStep, error: message });
     },
   });
 }
 
-export async function getImportJobStatus(): Promise<ImportJobStatus> {
-  const job = await loadJob();
-  return { ...job, steps: job.steps.map((s) => ({ ...s })) };
+function withInterruptedState(job: ImportJobStatus, activeJobId: string | null): ImportJobStatus {
+  if (job.state !== "running" || job.id === activeJobId) return job;
+  return {
+    ...job,
+    state: "error",
+    error: job.error ?? INTERRUPTED_JOB_ERROR,
+    steps: job.steps.map((step): ImportStep => {
+      if (step.status === "running") return { ...step, status: "error" };
+      if (step.status === "pending") return { ...step, status: "skipped" };
+      return step;
+    }),
+  };
 }
 
-export async function startImportJob(options: {
-  importPermits?: boolean;
-  importRadiolines?: boolean;
-  importDeviceRegistry?: boolean;
-}): Promise<ImportJobStatus> {
-  const acquired = await redis.set(REDIS_LOCK_KEY, "1", { expiration: { type: "EX", value: LOCK_TTL_SECONDS }, condition: "NX" });
-  if (!acquired) return getImportJobStatus();
+export async function getImportJobStatus(): Promise<ImportJobStatus> {
+  const [raw, activeJobId] = await Promise.all([redis.get(REDIS_KEY), redis.get(REDIS_LOCK_KEY)]);
+  if (!raw) return { state: "idle", steps: [] };
+  return withInterruptedState(JSON.parse(raw) as ImportJobStatus, activeJobId);
+}
 
-  const job: ImportJobStatus = {
+export async function getImportJobHistory(): Promise<ImportJobStatus[]> {
+  const [ids, activeJobId] = await Promise.all([
+    redis.zRangeByScore(HISTORY_KEY, Date.now() - HISTORY_RETENTION_MS, "+inf"),
+    redis.get(REDIS_LOCK_KEY),
+  ]);
+  if (ids.length === 0) return [];
+
+  const snapshots = await redis.mGet(ids.reverse().map((id) => `${HISTORY_KEY}:${id}`));
+  return snapshots
+    .filter((snapshot): snapshot is string => snapshot !== null)
+    .map((snapshot) => withInterruptedState(JSON.parse(snapshot) as ImportJobStatus, activeJobId));
+}
+
+export async function startImportJob(
+  options: ImportOptions,
+  trigger: ImportTrigger = "manual",
+): Promise<{ started: boolean; status: ImportJobStatus }> {
+  const id = randomUUID();
+  const acquired = await redis.set(REDIS_LOCK_KEY, id, { expiration: { type: "EX", value: LOCK_TTL_SECONDS }, condition: "NX" });
+  if (!acquired) return { started: false, status: await getImportJobStatus() };
+
+  const job: ImportJob = {
+    id,
+    trigger,
     state: "running",
     startedAt: new Date().toISOString(),
     steps: makeSteps(),
   };
-  await saveJob(job);
+  try {
+    await Promise.all([saveJob(job), addJobToHistory(job)]);
+  } catch (error) {
+    await releaseImportLock(id);
+    throw error;
+  }
 
-  setImmediate(() => runJob(job, options));
-  return { ...job, steps: job.steps.map((s) => ({ ...s })) };
+  setImmediate(() => void runJob(job, options).catch((error) => logger.error("UKE import job runner failed", { error: errorMessage(error) })));
+  return { started: true, status: { ...job, steps: job.steps.map((s) => ({ ...s })) } };
 }
 
-async function runJob(
-  job: ImportJobStatus,
-  options: { importPermits?: boolean; importRadiolines?: boolean; importDeviceRegistry?: boolean },
-): Promise<void> {
+async function runStep(job: ImportJob, key: ImportStepKey, action: () => Promise<unknown>, { optional = false } = {}): Promise<boolean> {
+  markRunning(job, key);
+  await saveJob(job);
+  try {
+    await action();
+  } catch (error) {
+    const message = errorMessage(error);
+    markError(job, key, message);
+    await saveJob(job);
+    if (!optional) throw new ImportStepError(message);
+    logger.error("UKE import step failed", { step: key, error: message });
+    return false;
+  }
+  markSuccess(job, key);
+  await saveJob(job);
+  return true;
+}
+
+function describeErrors(steps: ImportStep[], jobError?: string): string | undefined {
+  const errors = steps.flatMap((step) => (step.error ? [`${step.key}: ${step.error}`] : []));
+  if (jobError) errors.push(jobError);
+  return errors.length > 0 ? errors.join("; ") : undefined;
+}
+
+async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
+  const stopLockRenewal = keepImportLockAlive(job.id);
   const {
     importPermits: shouldImportPermits = true,
     importRadiolines: shouldImportRadiolines = false,
     importDeviceRegistry: shouldImportDeviceRegistry = true,
   } = options;
 
-  let permitsChanged = false;
-  let radiolinesChanged = false;
-  let deviceRegistryChanged = false;
-  let snapshotCompleted = false;
-  let associationKeysBeforePrune: Set<string> | null = null;
-  const sourceErrors: string[] = [];
-  const failedSources = new Set<SourceImportStepKey>();
-
   try {
-    permitsChanged = await runJobSourceImportStep(job, "permits", "importPermits", shouldImportPermits, sourceErrors, failedSources);
-    radiolinesChanged = await runJobSourceImportStep(job, "radiolines", "importRadiolines", shouldImportRadiolines, sourceErrors, failedSources);
-    deviceRegistryChanged = await runJobSourceImportStep(
-      job,
-      "device_registry",
-      "importDeviceRegistry",
-      shouldImportDeviceRegistry,
-      sourceErrors,
-      failedSources,
-    );
+    const baseline = await loadImportBaseline();
+    const permitsChanged = await runJobSourceImportStep(job, "permits", "importPermits", shouldImportPermits);
+    const radiolinesChanged = await runJobSourceImportStep(job, "radiolines", "importRadiolines", shouldImportRadiolines);
+    const deviceRegistryChanged = await runJobSourceImportStep(job, "device_registry", "importDeviceRegistry", shouldImportDeviceRegistry);
+    const failedSourceSteps = job.steps.filter((step) => step.status === "error");
     const permitDataChanged = permitsChanged || deviceRegistryChanged;
-    const permitSourceFailed = failedSources.has("permits") || failedSources.has("device_registry");
+    const permitSourceFailed = failedSourceSteps.some((step) => step.key === "permits" || step.key === "device_registry");
     const anySourceChanged = permitDataChanged || radiolinesChanged;
 
-    markRunning(job, "prune_deleted_entries");
-    await saveJob(job);
-    try {
+    await runStep(job, "prune_deleted_entries", async () => {
       const cutoff = new Date(Date.now() - DELETED_ENTRIES_RETENTION_DAYS * 24 * 60 * 60 * 1000);
       const pruned = await db.delete(deletedEntries).where(lt(deletedEntries.deleted_at, cutoff)).returning({ id: deletedEntries.id });
       logger.info(`Pruned ${pruned.length} deleted entries older than ${DELETED_ENTRIES_RETENTION_DAYS} days`);
-      markSuccess(job, "prune_deleted_entries");
-      await saveJob(job);
-    } catch (e) {
-      markError(job, "prune_deleted_entries");
-      await saveJob(job);
-      throw e;
-    }
+    });
 
     if (permitDataChanged) {
-      markRunning(job, "cleanup_orphaned_uke_entities");
-      await saveJob(job);
-      try {
-        if (job.startedAt) {
-          await notifyUkeStationWatchersAboutUkeChanges(job.startedAt).catch((e) =>
-            logger.error("Failed to send UKE station watch notifications", { error: e instanceof Error ? e.message : String(e) }),
-          );
-        }
+      let associationKeysBeforePrune: Set<string> | null = null;
+      await runStep(job, "cleanup_orphaned_uke_entities", async () => {
+        await notifyUkeStationWatchersAboutUkeChanges(baseline, job.startedAt).catch((e) =>
+          logger.error("Failed to send UKE station watch notifications", { error: errorMessage(e) }),
+        );
         await cleanupOrphanedUkeStations();
         await cleanupOrphanedUkeLocations();
-        markSuccess(job, "cleanup_orphaned_uke_entities");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "cleanup_orphaned_uke_entities");
-        await saveJob(job);
-        throw e;
-      }
-
-      markRunning(job, "prune_associations");
-      await saveJob(job);
-      try {
+      });
+      await runStep(job, "prune_associations", async () => {
         associationKeysBeforePrune = await loadStationPermitAssociationKeys();
         await pruneStationsPermits();
-        markSuccess(job, "prune_associations");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "prune_associations");
-        await saveJob(job);
-        throw e;
-      }
-
-      markRunning(job, "associate");
-      await saveJob(job);
-      try {
+      });
+      await runStep(job, "associate", async () => {
         const insertedAssociations = await associateStationsWithPermits();
         const newAssociations = getNewAssociations(insertedAssociations, associationKeysBeforePrune);
-        if (job.startedAt) {
-          void notifyInternalStationWatchersAboutUkeChanges(job.startedAt, newAssociations).catch((e) =>
-            logger.error("Failed to send internal station UKE change notifications", { error: e instanceof Error ? e.message : String(e) }),
-          );
-        }
-        markSuccess(job, "associate");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "associate");
-        await saveJob(job);
-        throw e;
-      }
+        void notifyInternalStationWatchersAboutUkeChanges(baseline, job.startedAt, newAssociations).catch((e) =>
+          logger.error("Failed to send internal station UKE change notifications", { error: errorMessage(e) }),
+        );
+      });
     } else {
       markSkipped(job, "cleanup_orphaned_uke_entities");
       markSkipped(job, "prune_associations");
@@ -595,81 +610,53 @@ async function runJob(
       await saveJob(job);
     }
 
+    let snapshotCompleted = false;
     if (permitDataChanged && !permitSourceFailed) {
-      markRunning(job, "snapshot");
-      await saveJob(job);
-      try {
-        await takeStatsSnapshot();
-        snapshotCompleted = true;
-        markSuccess(job, "snapshot");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "snapshot");
-        await saveJob(job);
-        logger.error("Stats snapshot failed", { error: e instanceof Error ? e.message : String(e) });
-      }
+      snapshotCompleted = await runStep(job, "snapshot", takeStatsSnapshot, { optional: true });
     } else {
       markSkipped(job, "snapshot");
       await saveJob(job);
     }
 
     if (permitDataChanged || permitSourceFailed) {
-      markRunning(job, "refresh_statistics");
-      await saveJob(job);
-      try {
-        await invalidateStatisticsCache();
-        markSuccess(job, "refresh_statistics");
-        await saveJob(job);
-      } catch (e) {
-        markError(job, "refresh_statistics");
-        await saveJob(job);
-        logger.error("Failed to refresh statistics cache", { error: e instanceof Error ? e.message : String(e) });
-      }
+      await runStep(job, "refresh_statistics", invalidateStatisticsCache, { optional: true });
     } else {
       markSkipped(job, "refresh_statistics");
       await saveJob(job);
     }
 
-    job.state = sourceErrors.length > 0 ? "error" : "success";
+    job.state = failedSourceSteps.length > 0 ? "error" : "success";
     job.finishedAt = new Date().toISOString();
-    if (sourceErrors.length > 0) {
-      job.error = sourceErrors.join("; ");
-      logger.error("UKE import job completed with source errors", { error: job.error });
-    }
     await saveJob(job);
-    if (anySourceChanged)
-      notifyUkeUpdate().catch((e) => logger.error("Failed to send UKE update notifications", { error: e instanceof Error ? e.message : String(e) }));
 
-    const importStartedAt = job.startedAt;
-    if (importStartedAt !== undefined && (anySourceChanged || sourceErrors.length > 0)) {
-      const deltaPromise = anySourceChanged ? computeImportDelta(importStartedAt) : Promise.resolve(undefined);
+    const sourceErrors = describeErrors(failedSourceSteps);
+    if (sourceErrors) logger.error("UKE import job completed with source errors", { error: sourceErrors });
+    if (anySourceChanged) notifyUkeUpdate().catch((e) => logger.error("Failed to send UKE update notifications", { error: errorMessage(e) }));
+
+    if (anySourceChanged || sourceErrors) {
+      const deltaPromise = anySourceChanged ? computeImportDelta(baseline, job.startedAt) : Promise.resolve(undefined);
       const snapshotDeltaPromise = snapshotCompleted ? getSnapshotDelta().catch(() => null) : Promise.resolve(undefined);
       Promise.all([deltaPromise, snapshotDeltaPromise])
         .then(([delta, snapshotDelta]) =>
           redis.publish(
             IMPORT_COMPLETE_CHANNEL,
-            JSON.stringify({ state: job.state, startedAt: importStartedAt, finishedAt: job.finishedAt, error: job.error, delta, snapshotDelta }),
+            JSON.stringify({ state: job.state, startedAt: job.startedAt, finishedAt: job.finishedAt, error: sourceErrors, delta, snapshotDelta }),
           ),
         )
-        .catch((e) => logger.error("Failed to publish import complete event", { error: e instanceof Error ? e.message : String(e) }));
+        .catch((e) => logger.error("Failed to publish import complete event", { error: errorMessage(e) }));
     }
   } catch (e) {
     job.state = "error";
     job.finishedAt = new Date().toISOString();
-    job.error = [...sourceErrors, e instanceof Error ? e.message : String(e)].join("; ");
+    if (!(e instanceof ImportStepError)) job.error = errorMessage(e);
     await saveJob(job);
-    logger.error("UKE import job failed", { error: job.error });
+    logger.error("UKE import job failed", { error: describeErrors(job.steps, job.error) });
   } finally {
-    markRunning(job, "cleanup");
-    await saveJob(job);
     try {
-      await cleanupDownloads();
-      markSuccess(job, "cleanup");
-    } catch (e) {
-      markError(job, "cleanup");
-      logger.error("Failed to cleanup downloads", { error: e instanceof Error ? e.message : String(e) });
+      await runStep(job, "cleanup", cleanupDownloads, { optional: true });
+    } finally {
+      stopLockRenewal();
+      await releaseImportLock(job.id);
     }
-    await saveJob(job);
-    await redis.del(REDIS_LOCK_KEY);
   }
 }

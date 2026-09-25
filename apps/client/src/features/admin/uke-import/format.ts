@@ -10,5 +10,5 @@ export function formatImportStepDuration(step: ImportStep, now: number): string 
   if (step.finishedAt && end < start) return null;
 
   const elapsed = Math.max(0, end - start);
-  return `${formatDuration(elapsed)} ${String(elapsed % 1000).padStart(3, "0")}ms`;
+  return step.finishedAt && elapsed < 1000 ? `${elapsed} ms` : formatDuration(elapsed);
 }

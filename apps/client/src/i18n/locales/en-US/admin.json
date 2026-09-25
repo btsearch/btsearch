@@ -189,16 +189,22 @@
   "ukeImport": {
     "title": "UKE Import",
     "subtitle": "Import data from UKE (Urząd Komunikacji Elektronicznej)",
-    "importPermits": "Import permits",
-    "importRadiolines": "Import microwave links",
-    "importDeviceRegistry": "Import device registry",
+    "hourlySchedule": "Automatic imports run every hour",
+    "sources": {
+      "label": "Sources",
+      "importPermits": "Permits",
+      "importRadiolines": "Microwave links",
+      "importDeviceRegistry": "Device registry"
+    },
     "startImport": "Start Import",
+    "startFailed": "Could not start the import. Try again",
     "alreadyRunning": "Import is already in progress",
     "status": {
       "idle": "Idle",
       "running": "Running",
       "success": "Completed",
-      "error": "Failed"
+      "completedWithErrors": "Completed with errors",
+      "error": "Errored out"
     },
     "steps": {
       "permits": "Import permits",
@@ -220,14 +226,30 @@
       "error": "Error"
     },
     "failure": {
-      "title": "Import errors",
-      "failedSources": "Failed sources",
-      "continuing": "The remaining sources and applicable follow-up steps will continue",
-      "details": "Error details",
       "dashboard": "The UKE import needs attention"
     },
     "startedAt": "Started at",
-    "finishedAt": "Finished at"
+    "finishedAt": "Finished at",
+    "duration": "Duration",
+    "trigger": {
+      "label": "Run type",
+      "manual": "Manual",
+      "scheduled": "Automatic"
+    },
+    "latest": {
+      "title": "Latest import",
+      "loading": "Loading the latest import...",
+      "empty": "No imports have run yet",
+      "loadError": "Could not load the import status"
+    },
+    "history": {
+      "title": "Previous imports",
+      "description": "Runs from the last 7 days",
+      "empty": "No previous imports in the last 7 days",
+      "loading": "Loading previous imports...",
+      "loadError": "Could not load previous imports",
+      "showMore": "Show {{count}} more"
+    }
   },
   "auditLogs": {
     "subtitle": "View system activity and changes",

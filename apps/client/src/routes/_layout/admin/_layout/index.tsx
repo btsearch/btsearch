@@ -1,17 +1,14 @@
 import {
-  AlertCircleIcon,
   ArrowDown01Icon,
   ArrowRight01Icon,
   ArrowUp01Icon,
-  Cancel01Icon,
   CheckmarkCircle02Icon,
-  Clock01Icon,
   Delete02Icon,
   MessageMultiple01Icon,
   MinusSignIcon,
   TaskDone02Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Suspense, lazy, useState } from "react";
@@ -30,7 +27,6 @@ import { cn } from "@/lib/utils";
 const EditorNotes = lazy(() => import("@/features/admin/dashboard/EditorNotes").then((m) => ({ default: m.EditorNotes })));
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
 import {
   fetchDashboardStats,
@@ -39,18 +35,11 @@ import {
   fetchPendingComments,
   fetchRecentAuditOperations,
 } from "@/features/admin/dashboard/api";
-import { type StepStatus, getFailedImportSourceSteps, importStatusQueryOptions, isImportStatusInProgress } from "@/features/admin/uke-import/api";
+import { getFailedImportSourceSteps, importStatusQueryOptions, isImportStatusInProgress } from "@/features/admin/uke-import/api";
 import { StepDuration } from "@/features/admin/uke-import/StepDuration";
+import { StepStatusIcon } from "@/features/admin/uke-import/StepStatusIcon";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { formatRelativeTime, formatShortDate, resolveAvatarUrl } from "@/lib/format";
-
-const STEP_ICON: Record<StepStatus, { icon: IconSvgElement | null; className: string }> = {
-  success: { icon: CheckmarkCircle02Icon, className: "text-emerald-500" },
-  error: { icon: Cancel01Icon, className: "text-destructive" },
-  running: { icon: null, className: "text-primary" },
-  pending: { icon: Clock01Icon, className: "text-muted-foreground/50" },
-  skipped: { icon: AlertCircleIcon, className: "text-muted-foreground/30" },
-};
 
 function AdminDashboardPage() {
   "use no memo";
@@ -593,16 +582,11 @@ function AdminDashboardPage() {
               {importNeedsAttention && (
                 <div className="flex flex-col gap-1" role="list" aria-label={t("items.ukeImport", { ns: "nav" })}>
                   {(importStatus?.steps ?? []).map((step) => {
-                    const cfg = STEP_ICON[step.status];
                     const stepLabel = t(`dashboard.importSteps.${step.key}`, { ns: "admin", defaultValue: step.key });
                     const stepStatus = t(`ukeImport.stepStatus.${step.status}`, { ns: "admin", defaultValue: step.status });
                     return (
                       <div key={step.key} role="listitem" className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40">
-                        {cfg.icon ? (
-                          <HugeiconsIcon icon={cfg.icon} className={cn("size-3 shrink-0", cfg.className)} aria-hidden="true" />
-                        ) : (
-                          <Spinner className={cn("size-3 shrink-0", cfg.className)} aria-hidden="true" />
-                        )}
+                        <StepStatusIcon status={step.status} className="size-3" />
                         <span className="min-w-0 flex-1 text-[11px] font-medium">{stepLabel}</span>
                         <span className="sr-only">{stepStatus}</span>
                         <StepDuration key={step.startedAt} step={step} className="shrink-0 text-[11px] text-muted-foreground tabular-nums" />

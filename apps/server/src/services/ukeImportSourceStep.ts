@@ -1,11 +1,12 @@
+import { errorMessage } from "../utils/errorMessage.js";
+
 export type SourceImportStepKey = "permits" | "radiolines" | "device_registry";
 export type ImportWorkerTask = "importPermits" | "importRadiolines" | "importDeviceRegistry";
 export type SourceImportStepStatus = "running" | "success" | "skipped" | "error";
 
 interface SourceImportStepDependencies {
   runTask: (task: ImportWorkerTask) => Promise<boolean>;
-  persistStatus: (step: SourceImportStepKey, status: SourceImportStepStatus) => Promise<void>;
-  reportError: (step: SourceImportStepKey, message: string) => void;
+  persistStatus: (step: SourceImportStepKey, status: SourceImportStepStatus, error?: string) => Promise<void>;
 }
 
 export async function runSourceImportStep(
@@ -26,9 +27,7 @@ export async function runSourceImportStep(
     await dependencies.persistStatus(step, changed ? "success" : "skipped");
     return changed;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await dependencies.persistStatus(step, "error");
-    dependencies.reportError(step, message);
+    await dependencies.persistStatus(step, "error", errorMessage(error));
     return false;
   }
 }

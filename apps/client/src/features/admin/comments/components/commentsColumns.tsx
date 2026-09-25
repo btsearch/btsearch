@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 
@@ -91,14 +91,14 @@ export function createCommentsColumns({
         const station = row.original.station;
         if (!station) return <span className="text-muted-foreground">-</span>;
         const op = station.operator;
-        const color = op?.mnc ? getOperatorColor(op.mnc) : "#00E1FF";
         return (
-          <Link to="/admin/stations/$id" params={{ id: String(station.id) }} search={{ uke: undefined }} className="flex items-center gap-2 group">
-            <div className="size-3 rounded-[2px] border border-background shrink-0" style={{ backgroundColor: color }} />
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate group-hover:underline">{op?.name ?? "-"}</p>
-              <p className="font-mono text-xs text-muted-foreground truncate">{station.station_id}</p>
-            </div>
+          <Link to="/admin/stations/$id" params={{ id: String(station.id) }} search={{ uke: undefined }} className="group block min-w-0">
+            {op ? (
+              <DialogOperatorName name={op.name} mnc={op.mnc} compact labelClassName="group-hover:underline" />
+            ) : (
+              <span className="block truncate text-sm font-medium text-muted-foreground group-hover:underline">-</span>
+            )}
+            <span className={`block truncate font-mono text-xs text-muted-foreground ${op ? "pl-5.5" : ""}`}>{station.station_id}</span>
           </Link>
         );
       },
