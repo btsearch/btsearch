@@ -16,9 +16,16 @@ import { notifyStationWatchers, notifyUkeStationWatchers, notifyUkeUpdate } from
 import { cleanupOrphanedUkeLocations, cleanupOrphanedUkeStations, pruneStationsPermits } from "./stationsPermitsAssociation.service.js";
 import { getSnapshotDelta, takeStatsSnapshot } from "./statsSnapshot.service.js";
 import { IMPORT_STEP_KEYS, type ImportJobStatus, type ImportStep, type ImportStepKey, type ImportTrigger } from "./ukeImport/schemas.js";
-import { type ImportWorkerTask, type SourceImportStepKey, type SourceImportStepStatus, runSourceImportStep } from "./ukeImportSourceStep.js";
+import {
+  type ImportWorkerTask,
+  SOURCE_IMPORT_STEP_KEYS,
+  type SourceImportStepKey,
+  type SourceImportStepStatus,
+  runSourceImportStep,
+} from "./ukeImportSourceStep.js";
 
-type ImportJob = ImportJobStatus & { id: string; trigger: ImportTrigger; startedAt: string };
+type HistoryJob = ImportJobStatus & { id: string; startedAt: string };
+type ImportJob = HistoryJob & { trigger: ImportTrigger };
 
 interface ImportOptions {
   importPermits?: boolean;
@@ -99,6 +106,7 @@ const LOCK_RENEW_INTERVAL_MS = 60_000;
 const MAX_IMPORT_DURATION_MS = 3 * 60 * 60 * 1000;
 const WORKER_TIMEOUT_MS = 60 * 60 * 1000;
 const INTERRUPTED_JOB_ERROR = "Import was interrupted before it finished";
+const SOURCE_STEP_KEYS = new Set<ImportStepKey>(SOURCE_IMPORT_STEP_KEYS);
 const HISTORY_KEY = "uke:import:history";
 const HISTORY_RETENTION_SECONDS = 7 * 24 * 60 * 60;
 const HISTORY_RETENTION_MS = HISTORY_RETENTION_SECONDS * 1000;
@@ -350,18 +358,18 @@ function makeSteps(): ImportStep[] {
 }
 
 async function saveJob(job: ImportJob): Promise<void> {
-  const serialized = JSON.stringify(job);
-  await redis
-    .multi()
-    .set(REDIS_KEY, serialized)
-    .set(`${HISTORY_KEY}:${job.id}`, serialized, { expiration: { type: "EX", value: HISTORY_RETENTION_SECONDS } })
-    .exec();
+  await redis.set(REDIS_KEY, JSON.stringify(job));
 }
 
-async function addJobToHistory(job: ImportJob): Promise<void> {
+function shouldKeepInHistory(job: ImportJobStatus): boolean {
+  return job.state === "error" || job.steps.some((step) => step.status === "error" || (step.status === "success" && SOURCE_STEP_KEYS.has(step.key)));
+}
+
+async function addJobToHistory(job: HistoryJob): Promise<void> {
   const cutoff = Date.now() - HISTORY_RETENTION_MS;
   await redis
     .multi()
+    .set(`${HISTORY_KEY}:${job.id}`, JSON.stringify(job), { expiration: { type: "EX", value: HISTORY_RETENTION_SECONDS } })
     .zAdd(HISTORY_KEY, { score: new Date(job.startedAt).getTime(), value: job.id })
     .zRemRangeByScore(HISTORY_KEY, "-inf", cutoff - 1)
     .expire(HISTORY_KEY, HISTORY_RETENTION_SECONDS)
@@ -497,16 +505,19 @@ export async function getImportJobStatus(): Promise<ImportJobStatus> {
 }
 
 export async function getImportJobHistory(): Promise<ImportJobStatus[]> {
-  const [ids, activeJobId] = await Promise.all([
-    redis.zRangeByScore(HISTORY_KEY, Date.now() - HISTORY_RETENTION_MS, "+inf"),
-    redis.get(REDIS_LOCK_KEY),
-  ]);
+  const ids = (await redis.zRangeByScore(HISTORY_KEY, Date.now() - HISTORY_RETENTION_MS, "+inf")).reverse();
   if (ids.length === 0) return [];
 
-  const snapshots = await redis.mGet(ids.reverse().map((id) => `${HISTORY_KEY}:${id}`));
-  return snapshots
-    .filter((snapshot): snapshot is string => snapshot !== null)
-    .map((snapshot) => withInterruptedState(JSON.parse(snapshot) as ImportJobStatus, activeJobId));
+  const snapshots = await redis.mGet(ids.map((id) => `${HISTORY_KEY}:${id}`));
+  return snapshots.filter((snapshot): snapshot is string => snapshot !== null).map((snapshot) => JSON.parse(snapshot) as ImportJobStatus);
+}
+
+async function archiveInterruptedJob(): Promise<void> {
+  const raw = await redis.get(REDIS_KEY);
+  if (!raw) return;
+  const previous = JSON.parse(raw) as ImportJobStatus;
+  if (previous.state !== "running" || !previous.id || !previous.startedAt) return;
+  await addJobToHistory({ ...withInterruptedState(previous, null), id: previous.id, startedAt: previous.startedAt });
 }
 
 export async function startImportJob(
@@ -525,7 +536,8 @@ export async function startImportJob(
     steps: makeSteps(),
   };
   try {
-    await Promise.all([saveJob(job), addJobToHistory(job)]);
+    await archiveInterruptedJob().catch((error) => logger.error("Failed to archive interrupted UKE import", { error: errorMessage(error) }));
+    await saveJob(job);
   } catch (error) {
     await releaseImportLock(id);
     throw error;
@@ -654,6 +666,7 @@ async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
   } finally {
     try {
       await runStep(job, "cleanup", cleanupDownloads, { optional: true });
+      if (shouldKeepInHistory(job)) await addJobToHistory(job);
     } finally {
       stopLockRenewal();
       await releaseImportLock(job.id);
