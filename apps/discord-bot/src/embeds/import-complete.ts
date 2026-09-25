@@ -50,18 +50,13 @@ type MessageComponent = NonNullable<BaseMessageOptions["components"]>[number];
 export type ImportCompleteMessage = { flags: typeof MessageFlags.IsComponentsV2; components: MessageComponent[] };
 
 export function buildImportCompleteEmbed(event: ImportCompleteEvent): ImportCompleteMessage {
-  const success = event.state === "success";
   const components: MessageComponent[] = [];
   const duration = formatDuration(event.startedAt, event.finishedAt);
 
-  components.push(
-    new TextDisplayBuilder().setContent(`### ${success ? "✅ Import UKE zakończony" : "❌ Import UKE nieudany"}\n⏱️ Czas trwania: **${duration}**`),
-  );
+  components.push(new TextDisplayBuilder().setContent(`### ✅ Import UKE zakończony\n⏱️ Czas trwania: **${duration}**`));
 
-  if (!success && event.error) {
-    components.push(new TextDisplayBuilder().setContent(`**Błąd**\n\`\`\`${event.error.slice(0, 1000)}\`\`\``));
-    return { flags: MessageFlags.IsComponentsV2, components };
-  }
+  if (event.error)
+    components.push(new TextDisplayBuilder().setContent(`⚠️ **Niektóre etapy importu nie powiodły się**\n\`\`\`${event.error.slice(0, 1000)}\`\`\``));
 
   if (event.delta) {
     const { stations, permits, radiolines } = event.delta;
