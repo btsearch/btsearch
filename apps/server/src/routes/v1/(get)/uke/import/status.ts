@@ -18,7 +18,7 @@ type ResponseData = z.infer<typeof importJobStatusSchema>;
 
 async function handler(_req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseData>>) {
   const status = await getImportJobStatus();
-  res.send({ data: status });
+  return res.send({ data: status });
 }
 
 const getUkeImportStatus: Route<Record<string, never>, ResponseData> = {

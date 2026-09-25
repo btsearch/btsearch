@@ -43,7 +43,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     await audit.log({ entity: "settings", op: "update", recordId: null, old: oldSettings, new: result });
     return result;
   });
-  res.send({ data: updated });
+  return res.send({ data: updated });
 }
 
 const patchSettings: Route<ReqBody, Response> = {

@@ -72,7 +72,7 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
         .limit(50),
     ]);
 
-    res.send({
+    return res.send({
       data: {
         total_deleted: totalResult[0]?.value ?? 0,
         by_source: bySourceResult.map((r) => ({

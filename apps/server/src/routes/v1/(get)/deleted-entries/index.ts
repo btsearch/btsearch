@@ -88,7 +88,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       db.select({ value: count() }).from(deletedEntries).where(where),
     ]);
 
-    res.send({
+    return res.send({
       data: rows,
       totalCount: totalResult[0]?.value ?? 0,
     });

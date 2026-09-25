@@ -203,7 +203,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   });
 
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
-  res.send(response);
+  return res.send(response);
 }
 
 const getStatsSummary: Route<ReqQuery, StatsResponse<Response>> = {

@@ -42,7 +42,7 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
     db.select({ value: count() }).from(submissions).where(gte(submissions.createdAt, since)),
   ]);
 
-  res.send({
+  return res.send({
     data: {
       delta: {
         weekly: {

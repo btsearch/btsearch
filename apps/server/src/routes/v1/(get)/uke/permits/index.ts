@@ -224,7 +224,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       offset,
     });
 
-    res.send({ data: ukePermitsRes });
+    return res.send({ data: ukePermitsRes });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("INTERNAL_SERVER_ERROR", {

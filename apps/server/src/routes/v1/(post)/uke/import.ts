@@ -32,7 +32,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     kind: "uke.import",
     metadata: { config: req.body, status: status.state },
   });
-  res.send({ data: status });
+  return res.send({ data: status });
 }
 
 const importUkeData: Route<ReqBody, ResponseData> = {

@@ -31,7 +31,7 @@ const schemaRoute = {
 
 async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>) {
   const settings = getRuntimeSettings();
-  res.send({ data: settings });
+  return res.send({ data: settings });
 }
 
 const getSettings: Route<never, Response> = {

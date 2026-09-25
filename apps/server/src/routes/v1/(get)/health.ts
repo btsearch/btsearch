@@ -21,7 +21,7 @@ const schemaRoute = {
 };
 
 async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>) {
-  res.send({
+  return res.send({
     data: {
       status: "ok",
       timestamp: new Date().toISOString(),

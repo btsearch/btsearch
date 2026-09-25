@@ -149,7 +149,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     rx: { city: r.rx_city, latitude: r.rx_latitude, longitude: r.rx_longitude },
   }));
 
-  res.send({ data: { stations: permits, radiolines } });
+  return res.send({ data: { stations: permits, radiolines } });
 }
 
 const searchUkeRoute: Route<ReqBody, ResponseBody> = {

@@ -87,7 +87,7 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
 
   const [locationsCount, stationsCount, cellsCount, ukeLocationsCount, ukePermitsCount, ukeRadiolinesCount] = countResults;
 
-  res.send({
+  return res.send({
     data: {
       lastUpdated,
       counts: {

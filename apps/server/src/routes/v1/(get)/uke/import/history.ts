@@ -15,7 +15,7 @@ const schemaRoute = {
 type ResponseData = z.infer<typeof importJobStatusSchema>[];
 
 async function handler(_req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseData>>) {
-  res.send({ data: await getImportJobHistory() });
+  return res.send({ data: await getImportJobHistory() });
 }
 
 const getUkeImportHistory: Route<Record<string, never>, ResponseData> = {

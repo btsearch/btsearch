@@ -233,7 +233,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
     const totalCount = countResult[0]?.count ?? 0;
 
-    res.send({ data, totalCount });
+    return res.send({ data, totalCount });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });

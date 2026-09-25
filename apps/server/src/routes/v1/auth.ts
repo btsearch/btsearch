@@ -25,7 +25,7 @@ async function handler(req: FastifyRequest, res: FastifyReply) {
     res.status(response.status);
     response.headers.forEach((value, key) => res.header(key, value));
     if (response.status === 500) throw new ErrorResponse("AUTH_FAILURE");
-    res.send(response.body ? await response.text() : null);
+    return res.send(response.body ? await response.text() : null);
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     logger.error("auth.handler", { error });
