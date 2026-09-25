@@ -179,6 +179,11 @@ function ImportJobDetails({ job }: { job: ImportJobStatus }) {
                   {step.error}
                 </pre>
               ) : null}
+              {step.warning ? (
+                <pre className="mx-3 mb-2 max-h-40 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-xs text-amber-700 dark:text-amber-400">
+                  {step.warning}
+                </pre>
+              ) : null}
             </li>
           ))}
         </ol>

@@ -225,7 +225,11 @@
     "antennaType": "Antenna Type",
     "transmitterType": "Transmitter Type",
     "receiverType": "Receiver Type",
-    "manufacturer": "Manufacturer"
+    "manufacturer": "Manufacturer",
+    "specsAsOf": "as of {{date}}",
+    "specsAsOfTooltip": "Modulation, data rate and equipment come from the UKE list from {{date}}",
+    "specsMissing": "No technical data",
+    "specsMissingTooltip": "The latest UKE list doesn't include modulation, data rate or equipment for this link"
   },
   "userProfile": {
     "breadcrumb": "User Profile",

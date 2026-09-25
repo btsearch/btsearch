@@ -573,6 +573,8 @@ export const ukeRadiolines = UkeSchema.table(
     decision_type: UKEPermissionType("decision_type").notNull(),
     issue_date: timestamp({ withTimezone: true }),
     expiry_date: timestamp({ withTimezone: true }).notNull(),
+    //* Date of the UKE file the technical columns (modulation, bandwidth, equipment, gains...) were last read from. UKE sometimes publishes files without them, so it can be older than updatedAt or null for links that never had them
+    specs_date: timestamp({ withTimezone: true }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

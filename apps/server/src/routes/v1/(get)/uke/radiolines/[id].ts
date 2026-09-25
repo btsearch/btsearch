@@ -58,6 +58,7 @@ const radioLineResponseSchema = z.object({
   link: linkSchema,
   operator: operatorSchema.optional(),
   permit: permitSchema,
+  specs_date: z.date().optional(),
   updatedAt: z.date(),
   createdAt: z.date(),
 });
@@ -146,6 +147,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
         decision_type: radioLine.decision_type ?? undefined,
         expiry_date: radioLine.expiry_date,
       },
+      specs_date: radioLine.specs_date ?? undefined,
       updatedAt: radioLine.updatedAt,
       createdAt: radioLine.createdAt,
     };

@@ -23,6 +23,7 @@ export interface ImportStep {
   startedAt?: string;
   finishedAt?: string;
   error?: string;
+  warning?: string;
 }
 
 export interface ImportJobStatus {

@@ -101,7 +101,7 @@ async function runScheduledUkeImport(slot: Date): Promise<void> {
     return;
   }
 
-  const { started } = await startImportJob({ importPermits: true, importRadiolines: false, importDeviceRegistry: true }, "scheduled");
+  const { started } = await startImportJob({ importPermits: true, importRadiolines: true, importDeviceRegistry: true }, "scheduled");
   if (!started) {
     logger.info("uke_import_schedule_skipped", { trigger: "six_hourly", slot: slot.toISOString(), reason: "import_running" });
     return;

@@ -29,6 +29,7 @@ export interface ImportCompleteEvent {
   startedAt: string;
   finishedAt: string;
   error?: string;
+  warning?: string;
   delta?: ImportDelta;
   snapshotDelta?: SnapshotDelta | null;
 }
@@ -57,6 +58,8 @@ export function buildImportCompleteEmbed(event: ImportCompleteEvent): ImportComp
 
   if (event.error)
     components.push(new TextDisplayBuilder().setContent(`⚠️ **Niektóre etapy importu nie powiodły się**\n\`\`\`${event.error.slice(0, 1000)}\`\`\``));
+
+  if (event.warning) components.push(new TextDisplayBuilder().setContent(`ℹ️ **Uwagi do importu**\n\`\`\`${event.warning.slice(0, 1000)}\`\`\``));
 
   if (event.delta) {
     const { stations, permits, radiolines } = event.delta;

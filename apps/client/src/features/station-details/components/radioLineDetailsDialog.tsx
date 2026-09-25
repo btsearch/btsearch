@@ -28,6 +28,7 @@ import { StationDialogActionBar, stationDialogInlineActionClassName, stationDial
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
 import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
+import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { DirectionalSpeedBadge } from "@/features/map/components/directionalSpeedBadge";
@@ -104,6 +105,38 @@ function DirectionButtonsRow({
         {selectedDirIndex + 1} / {link.directions.length}
       </span>
     </div>
+  );
+}
+
+const specsBadgeTriggerClassName = "rounded-4xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function SpecsStatusBadge({ specsDate }: { specsDate?: string }) {
+  const { t, i18n } = useTranslation("main");
+
+  if (!specsDate)
+    return (
+      <Tooltip>
+        <TooltipTrigger className={specsBadgeTriggerClassName}>
+          <Badge variant="secondary" className="cursor-help bg-amber-500/10 text-[11px] text-amber-800 dark:text-amber-400">
+            <HugeiconsIcon icon={Alert02Icon} />
+            {t("radiolines.specsMissing")}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{t("radiolines.specsMissingTooltip")}</TooltipContent>
+      </Tooltip>
+    );
+
+  const date = new Date(specsDate).toLocaleDateString(i18n.language);
+  return (
+    <Tooltip>
+      <TooltipTrigger className={specsBadgeTriggerClassName}>
+        <Badge variant="outline" className="cursor-help text-[11px] text-muted-foreground">
+          <HugeiconsIcon icon={Calendar03Icon} />
+          {t("radiolines.specsAsOf", { date })}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>{t("radiolines.specsAsOfTooltip", { date })}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -224,7 +257,13 @@ export function RadioLineDetailsDialogPanel({
             )}
 
             <section className={cn(link.directions.length > 1 && "mt-7")}>
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("radiolines.linkParams")}</h3>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("radiolines.linkParams")}</h3>
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  <SpecsStatusBadge specsDate={radioLine.specs_date ?? radioLine.updatedAt} />
+                  <SpecsStatusBadge />
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
                 <StationInfoItem icon={<HugeiconsIcon icon={Radio01Icon} className="size-4" />} label={t("radiolines.frequency")}>
                   <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.link.freq} MHz (${formatFrequency(radioLine.link.freq)})`}</span>
@@ -325,24 +364,24 @@ export function RadioLineDetailsDialogPanel({
                         <span className="min-w-0 wrap-break-word">{radioLine.rx.type.name}</span>
                       </StationInfoItem>
                     )}
-                    {radioLine.rx.gain !== null && (
+                    {radioLine.rx.gain !== undefined && (
                       <StationInfoItem icon={<HugeiconsIcon icon={SignalFull02Icon} className="size-4" />} label={t("radiolines.antennaGain")}>
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.gain} dBi`}</span>
                       </StationInfoItem>
                     )}
-                    {radioLine.rx.height_antenna !== null && (
+                    {radioLine.rx.height_antenna !== undefined && (
                       <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.antennaHeight")}>
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.height_antenna} m`}</span>
                       </StationInfoItem>
                     )}
-                    {radioLine.rx.noise_figure !== null && (
+                    {radioLine.rx.noise_figure !== undefined && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Activity01Icon} className="size-4" />} label={t("radiolines.noiseFigure")}>
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.noise_figure} dB`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.rx.type?.manufacturer?.name && (
                       <StationInfoItem icon={<HugeiconsIcon icon={Building02Icon} className="size-4" />} label={t("radiolines.manufacturer")}>
-                        <span className="min-w-0 ShareButton">{radioLine.rx.type.manufacturer.name}</span>
+                        <span className="min-w-0 wrap-break-word">{radioLine.rx.type.manufacturer.name}</span>
                       </StationInfoItem>
                     )}
                   </div>

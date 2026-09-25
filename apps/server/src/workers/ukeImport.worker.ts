@@ -5,6 +5,7 @@ if (!parentPort) throw new Error("This file must be run as a worker thread");
 const task = workerData?.task as string;
 
 let didComplete = false;
+const warnings: string[] = [];
 
 const originalLog = console.log;
 console.log = (...args: unknown[]) => {
@@ -22,7 +23,8 @@ try {
     }
     case "importRadiolines": {
       const { importRadiolines } = await import("@openbts/uke-importer/radiolines");
-      await importRadiolines();
+      const result = await importRadiolines();
+      warnings.push(...result.warnings);
       break;
     }
     case "importDeviceRegistry": {
@@ -34,7 +36,7 @@ try {
       throw new Error(`Unknown task: ${task}`);
   }
 
-  parentPort.postMessage({ success: true, result: didComplete });
+  parentPort.postMessage({ success: true, result: didComplete, warnings });
 } catch (e) {
   parentPort.postMessage({ success: false, error: e instanceof Error ? e.message : String(e) });
 }

@@ -49,9 +49,15 @@ const radiolineComparisonFields = [
   "expiry_date",
 ] as const satisfies readonly (keyof UkeRadiolineInsert & keyof UkeRadiolineSelect)[];
 
+interface RadiolineUpdate {
+  id: number;
+  value: UkeRadiolineInsert;
+}
+
 export interface RadiolineChanges {
   toInsert: UkeRadiolineInsert[];
-  toUpdate: Array<{ id: number; value: UkeRadiolineInsert }>;
+  toUpdate: RadiolineUpdate[];
+  toRenew: RadiolineUpdate[];
   staleRadiolines: UkeRadiolineSelect[];
 }
 
@@ -62,7 +68,32 @@ function compareValue(value: unknown): unknown {
 }
 
 function hasRadiolineChanges(existing: UkeRadiolineSelect, next: UkeRadiolineInsert): boolean {
-  return radiolineComparisonFields.some((field) => compareValue(existing[field]) !== compareValue(next[field]));
+  return radiolineComparisonFields.some((field) => next[field] !== undefined && compareValue(existing[field]) !== compareValue(next[field]));
+}
+
+function groupByPhysicalKey<T extends { physical_key: string }>(values: T[]): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const value of values) {
+    const group = groups.get(value.physical_key);
+    if (group) group.push(value);
+    else groups.set(value.physical_key, [value]);
+  }
+  return groups;
+}
+
+function matchRenewedRadiolines(toInsert: UkeRadiolineInsert[], staleRadiolines: UkeRadiolineSelect[]): RadiolineUpdate[] {
+  const staleByPhysicalKey = groupByPhysicalKey(staleRadiolines);
+  const renewals: RadiolineUpdate[] = [];
+
+  for (const [physicalKey, values] of groupByPhysicalKey(toInsert)) {
+    const stale = staleByPhysicalKey.get(physicalKey);
+    const [value] = values;
+    const [existing] = stale ?? [];
+    if (values.length !== 1 || stale?.length !== 1 || !value || !existing) continue;
+    if (value.ch_width === existing.ch_width) renewals.push({ id: existing.id, value });
+  }
+
+  return renewals;
 }
 
 function toRadiolineUpdate(value: UkeRadiolineInsert): Partial<UkeRadiolineInsert> {
@@ -105,12 +136,16 @@ function toRadiolineUpdate(value: UkeRadiolineInsert): Partial<UkeRadiolineInser
     decision_type: value.decision_type,
     issue_date: value.issue_date,
     expiry_date: value.expiry_date,
+    specs_date: value.specs_date,
     updatedAt: value.updatedAt,
   };
 }
 
 export async function loadRadiolineChanges(values: UkeRadiolineInsert[]): Promise<RadiolineChanges> {
-  const existingRadiolines = await db.select().from(ukeRadiolines);
+  return diffRadiolines(await db.select().from(ukeRadiolines), values);
+}
+
+export function diffRadiolines(existingRadiolines: UkeRadiolineSelect[], values: UkeRadiolineInsert[]): RadiolineChanges {
   const existingByKey = new Map<string, UkeRadiolineSelect>();
 
   for (const row of existingRadiolines) {
@@ -119,13 +154,13 @@ export async function loadRadiolineChanges(values: UkeRadiolineInsert[]): Promis
   }
 
   const seenExistingIds = new Set<number>();
-  const toInsert: UkeRadiolineInsert[] = [];
-  const toUpdate: Array<{ id: number; value: UkeRadiolineInsert }> = [];
+  const newValues: UkeRadiolineInsert[] = [];
+  const toUpdate: RadiolineUpdate[] = [];
 
   for (const value of values) {
     const existing = existingByKey.get(buildAuthorizationKey(value));
     if (!existing) {
-      toInsert.push(value);
+      newValues.push(value);
       continue;
     }
 
@@ -133,8 +168,17 @@ export async function loadRadiolineChanges(values: UkeRadiolineInsert[]): Promis
     if (hasRadiolineChanges(existing, value)) toUpdate.push({ id: existing.id, value });
   }
 
-  const staleRadiolines = existingRadiolines.filter((row) => !seenExistingIds.has(row.id));
-  return { toInsert, toUpdate, staleRadiolines };
+  const unmatchedRadiolines = existingRadiolines.filter((row) => !seenExistingIds.has(row.id));
+  const toRenew = matchRenewedRadiolines(newValues, unmatchedRadiolines);
+  const renewedIds = new Set(toRenew.map((renewal) => renewal.id));
+  const renewedValues = new Set(toRenew.map((renewal) => renewal.value));
+
+  return {
+    toInsert: newValues.filter((value) => !renewedValues.has(value)),
+    toUpdate,
+    toRenew,
+    staleRadiolines: unmatchedRadiolines.filter((row) => !renewedIds.has(row.id)),
+  };
 }
 
 export async function insertRadiolines(values: UkeRadiolineInsert[]): Promise<void> {
@@ -143,10 +187,14 @@ export async function insertRadiolines(values: UkeRadiolineInsert[]): Promise<vo
   }
 }
 
-export async function updateRadiolines(updates: Array<{ id: number; value: UkeRadiolineInsert }>): Promise<void> {
+export async function updateRadiolines(updates: RadiolineUpdate[]): Promise<void> {
   for (const item of updates) {
     await db.update(ukeRadiolines).set(toRadiolineUpdate(item.value)).where(eq(ukeRadiolines.id, item.id));
   }
+}
+
+export async function updateRadiolinesSpecsDate(specsDate: Date): Promise<void> {
+  await db.update(ukeRadiolines).set({ specs_date: specsDate });
 }
 
 export async function archiveAndDeleteRadiolines(staleRadiolines: UkeRadiolineSelect[], importMetadataId: number): Promise<void> {

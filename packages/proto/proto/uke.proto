@@ -165,6 +165,7 @@ message Radioline {
 
   string updatedAt = 7;
   string createdAt = 8;
+  optional string specs_date = 9;
 }
 
 message PermitsResponse {

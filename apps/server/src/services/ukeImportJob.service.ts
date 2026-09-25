@@ -21,6 +21,7 @@ import {
   SOURCE_IMPORT_STEP_KEYS,
   type SourceImportStepKey,
   type SourceImportStepStatus,
+  type SourceImportTaskResult,
   runSourceImportStep,
 } from "./ukeImportSourceStep.js";
 
@@ -428,8 +429,8 @@ function markRunning(job: ImportJobStatus, key: ImportStepKey): void {
   updateStep(job, key, { status: "running", startedAt: new Date().toISOString() });
 }
 
-function markSuccess(job: ImportJobStatus, key: ImportStepKey): void {
-  updateStep(job, key, { status: "success", finishedAt: new Date().toISOString() });
+function markSuccess(job: ImportJobStatus, key: ImportStepKey, warning?: string): void {
+  updateStep(job, key, { status: "success", finishedAt: new Date().toISOString(), warning });
 }
 
 function markSkipped(job: ImportJobStatus, key: ImportStepKey): void {
@@ -440,7 +441,7 @@ function markError(job: ImportJobStatus, key: ImportStepKey, error?: string): vo
   updateStep(job, key, { status: "error", finishedAt: new Date().toISOString(), error });
 }
 
-function runInWorker(task: ImportWorkerTask): Promise<boolean> {
+function runInWorker(task: ImportWorkerTask): Promise<SourceImportTaskResult> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(WORKER_PATH, {
       workerData: { task },
@@ -451,10 +452,10 @@ function runInWorker(task: ImportWorkerTask): Promise<boolean> {
       void worker.terminate();
     }, WORKER_TIMEOUT_MS);
 
-    worker.on("message", (msg: { success: boolean; result?: boolean; error?: string }) => {
+    worker.on("message", (msg: { success: boolean; result?: boolean; warnings?: string[]; error?: string }) => {
       clearTimeout(timeout);
       if (msg.success) {
-        resolve(msg.result ?? false);
+        resolve({ changed: msg.result ?? false, warnings: msg.warnings ?? [] });
       } else {
         reject(new Error(msg.error ?? "Worker task failed"));
       }
@@ -471,14 +472,15 @@ function runInWorker(task: ImportWorkerTask): Promise<boolean> {
 async function runJobSourceImportStep(job: ImportJob, step: SourceImportStepKey, task: ImportWorkerTask, enabled: boolean): Promise<boolean> {
   return runSourceImportStep(step, task, enabled, {
     runTask: runInWorker,
-    persistStatus: async (sourceStep, status: SourceImportStepStatus, error?: string) => {
+    persistStatus: async (sourceStep, status: SourceImportStepStatus, { error, warning } = {}) => {
       if (status === "running") markRunning(job, sourceStep);
-      else if (status === "success") markSuccess(job, sourceStep);
+      else if (status === "success") markSuccess(job, sourceStep, warning);
       else if (status === "skipped") markSkipped(job, sourceStep);
       else {
         markError(job, sourceStep, error);
         logger.error("UKE source import failed", { step: sourceStep, error });
       }
+      if (warning) logger.warn("UKE source import finished with warnings", { step: sourceStep, warning });
       await saveJob(job);
     },
   });
@@ -571,6 +573,11 @@ function describeErrors(steps: ImportStep[], jobError?: string): string | undefi
   return errors.length > 0 ? errors.join("; ") : undefined;
 }
 
+function describeWarnings(steps: ImportStep[]): string | undefined {
+  const warnings = steps.flatMap((step) => (step.warning ? [`${step.key}: ${step.warning}`] : []));
+  return warnings.length > 0 ? warnings.join("; ") : undefined;
+}
+
 async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
   const stopLockRenewal = keepImportLockAlive(job.id);
   const {
@@ -642,6 +649,7 @@ async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
     await saveJob(job);
 
     const sourceErrors = describeErrors(failedSourceSteps);
+    const sourceWarnings = describeWarnings(job.steps);
     if (sourceErrors) logger.error("UKE import job completed with source errors", { error: sourceErrors });
     if (anySourceChanged) notifyUkeUpdate().catch((e) => logger.error("Failed to send UKE update notifications", { error: errorMessage(e) }));
 
@@ -652,7 +660,15 @@ async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
         .then(([delta, snapshotDelta]) =>
           redis.publish(
             IMPORT_COMPLETE_CHANNEL,
-            JSON.stringify({ state: job.state, startedAt: job.startedAt, finishedAt: job.finishedAt, error: sourceErrors, delta, snapshotDelta }),
+            JSON.stringify({
+              state: job.state,
+              startedAt: job.startedAt,
+              finishedAt: job.finishedAt,
+              error: sourceErrors,
+              warning: sourceWarnings,
+              delta,
+              snapshotDelta,
+            }),
           ),
         )
         .catch((e) => logger.error("Failed to publish import complete event", { error: errorMessage(e) }));

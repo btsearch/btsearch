@@ -145,6 +145,7 @@ export type RadioLine = {
     decision_type?: string;
     expiry_date: string;
   };
+  specs_date?: string;
   updatedAt: string;
   createdAt: string;
 };

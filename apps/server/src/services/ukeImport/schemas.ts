@@ -19,6 +19,7 @@ const importStepSchema = z.object({
   startedAt: z.string().optional(),
   finishedAt: z.string().optional(),
   error: z.string().optional(),
+  warning: z.string().optional(),
 });
 
 export const importJobStatusSchema = z.object({

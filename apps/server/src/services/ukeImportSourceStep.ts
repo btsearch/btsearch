@@ -5,9 +5,19 @@ export type SourceImportStepKey = (typeof SOURCE_IMPORT_STEP_KEYS)[number];
 export type ImportWorkerTask = "importPermits" | "importRadiolines" | "importDeviceRegistry";
 export type SourceImportStepStatus = "running" | "success" | "skipped" | "error";
 
+export interface SourceImportTaskResult {
+  changed: boolean;
+  warnings: string[];
+}
+
+interface SourceImportStepDetails {
+  error?: string;
+  warning?: string;
+}
+
 interface SourceImportStepDependencies {
-  runTask: (task: ImportWorkerTask) => Promise<boolean>;
-  persistStatus: (step: SourceImportStepKey, status: SourceImportStepStatus, error?: string) => Promise<void>;
+  runTask: (task: ImportWorkerTask) => Promise<SourceImportTaskResult>;
+  persistStatus: (step: SourceImportStepKey, status: SourceImportStepStatus, details?: SourceImportStepDetails) => Promise<void>;
 }
 
 export async function runSourceImportStep(
@@ -24,11 +34,11 @@ export async function runSourceImportStep(
   await dependencies.persistStatus(step, "running");
 
   try {
-    const changed = await dependencies.runTask(task);
-    await dependencies.persistStatus(step, changed ? "success" : "skipped");
+    const { changed, warnings } = await dependencies.runTask(task);
+    await dependencies.persistStatus(step, changed ? "success" : "skipped", { warning: warnings.join("\n") || undefined });
     return changed;
   } catch (error) {
-    await dependencies.persistStatus(step, "error", errorMessage(error));
+    await dependencies.persistStatus(step, "error", { error: errorMessage(error) });
     return false;
   }
 }

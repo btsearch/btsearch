@@ -227,7 +227,7 @@
     "polarization": "Polaryzacja",
     "modulation": "Modulacja",
     "bandwidth": "Przepustowość",
-    "dataRate": "Przepływność",
+    "dataRate": "Szybkość transmisji",
     "height": "Wysokość",
     "antennaGain": "Zysk anteny",
     "antennaHeight": "Wysokość anteny",
@@ -236,7 +236,11 @@
     "antennaType": "Typ anteny",
     "transmitterType": "Typ nadajnika",
     "receiverType": "Typ odbiornika",
-    "manufacturer": "Producent"
+    "manufacturer": "Producent",
+    "specsAsOf": "stan na {{date}}",
+    "specsAsOfTooltip": "Modulacja, szybkość transmisji i dane sprzętu pochodzą z wykazu UKE z {{date}}",
+    "specsMissing": "Brak danych technicznych",
+    "specsMissingTooltip": "Najnowszy wykaz UKE nie zawiera modulacji, szybkości transmisji ani danych sprzętu dla tej linii"
   },
   "userProfile": {
     "breadcrumb": "Profil użytkownika",

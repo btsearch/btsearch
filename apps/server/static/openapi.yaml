@@ -5733,6 +5733,13 @@ components:
             number: { type: string, nullable: true }
             decision_type: { type: string, nullable: true }
             expiry_date: { type: string, format: date-time }
+        specs_date:
+          {
+            type: string,
+            format: date-time,
+            nullable: true,
+            description: "Date of the UKE file the technical fields (modulation, bandwidth, equipment, antenna gains, noise figure, ATPC) come from. Omitted when the link has never had technical data",
+          }
         updatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
 
@@ -5982,6 +5989,7 @@ components:
               startedAt: { type: string, nullable: true }
               finishedAt: { type: string, nullable: true }
               error: { type: string, nullable: true }
+              warning: { type: string, nullable: true, description: "Warning was generated while running the step, e.g. a UKE file missing columns" }
         error: { type: string, nullable: true }
 
     # User Lists schemas

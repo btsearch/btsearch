@@ -9,20 +9,31 @@ import {
   upsertRadiolineManufacturers,
   upsertRadiolineTransmitterTypes,
 } from "./radiolines/equipment.js";
-import { archiveAndDeleteRadiolines, insertRadiolines, loadRadiolineChanges, updateRadiolines } from "./radiolines/persistence.js";
+import {
+  archiveAndDeleteRadiolines,
+  insertRadiolines,
+  loadRadiolineChanges,
+  updateRadiolines,
+  updateRadiolinesSpecsDate,
+} from "./radiolines/persistence.js";
 import { collectRadiolineOperatorNames, prepareRadiolineRecords } from "./radiolines/records.js";
 import { readRadiolineWorkbook } from "./radiolines/workbook.js";
 import { scrapeXlsxLinks } from "./scrape.js";
 import { upsertUkeOperators } from "./upserts.js";
 import { downloadFile, ensureDownloadDir, parseFileDateWithImportTime } from "./utils.js";
 
-export async function importRadiolines(): Promise<boolean> {
+export interface RadiolinesImportResult {
+  imported: boolean;
+  warnings: string[];
+}
+
+export async function importRadiolines(): Promise<RadiolinesImportResult> {
   console.log("[radiolines] Starting microwave links import...");
   console.log("[radiolines] Scraping file links from:", RADIOLINES_URL);
   const links = await scrapeXlsxLinks(RADIOLINES_URL);
   if (!links[0]) {
     console.log("[radiolines] No files found");
-    return false;
+    return { imported: false, warnings: [] };
   }
   console.log(`[radiolines] Found ${links.length} file(s)`);
 
@@ -36,20 +47,22 @@ export async function importRadiolines(): Promise<boolean> {
     } else {
       console.log("[radiolines] Data is up-to-date, skipping import");
     }
-    return false;
+    return { imported: false, warnings: [] };
   }
 
   console.log(`[radiolines] Processing ${newLinks.length} new file(s) (skipping ${links.length - newLinks.length} already imported)`);
 
   ensureDownloadDir();
   const [first] = newLinks;
-  if (!first) return false;
+  if (!first) return { imported: false, warnings: [] };
   const fileName = `${(first.text || path.basename(new url.URL(first.href).pathname)).replace(/\s+/g, "_").replace("_plik_XLSX", "")}.xlsx`;
   const filePath = path.join(DOWNLOAD_DIR, fileName);
   console.log(`[radiolines] Downloading: ${fileName}`);
   await downloadFile(first.href, filePath);
-  const rows = readRadiolineWorkbook(filePath);
+  const { rows, missingTechnicalColumns } = readRadiolineWorkbook(filePath);
   console.log(`[radiolines] Loaded ${rows.length} rows`);
+  if (missingTechnicalColumns.length > 0)
+    console.warn(`[radiolines] File is missing technical columns, keeping stored values for: ${missingTechnicalColumns.join(", ")}`);
 
   console.log("[radiolines] Collecting manufacturers, antenna types, transmitter types...");
   const equipmentNames = collectRadiolineEquipmentNames(rows);
@@ -75,16 +88,19 @@ export async function importRadiolines(): Promise<boolean> {
   const operatorIdByName = await upsertUkeOperators(operatorNames);
 
   console.log("[radiolines] Preparing microwave link records...");
-  const values = prepareRadiolineRecords(rows, { antennaTypeIdByName, transmitterTypeIdByName }, operatorIdByName, fileDate);
+  const values = prepareRadiolineRecords(rows, { antennaTypeIdByName, transmitterTypeIdByName }, operatorIdByName, fileDate, missingTechnicalColumns);
 
   console.log("[radiolines] Loading existing microwave links...");
-  const { toInsert, toUpdate, staleRadiolines } = await loadRadiolineChanges(values);
+  const { toInsert, toUpdate, toRenew, staleRadiolines } = await loadRadiolineChanges(values);
 
   console.log(`[radiolines] Inserting ${toInsert.length} new microwave links...`);
   await insertRadiolines(toInsert);
 
   console.log(`[radiolines] Updating ${toUpdate.length} changed microwave links...`);
   await updateRadiolines(toUpdate);
+
+  console.log(`[radiolines] Updating ${toRenew.length} microwave links with a renewed permit...`);
+  await updateRadiolines(toRenew);
 
   const importMetadataId = await recordImportMetadata("radiolines", links, "success");
 
@@ -93,6 +109,18 @@ export async function importRadiolines(): Promise<boolean> {
 
   console.log(`[radiolines] Deleted ${staleRadiolines.length} stale microwave links`);
 
+  if (missingTechnicalColumns.length === 0) {
+    console.log("[radiolines] Updating technical data date...");
+    await updateRadiolinesSpecsDate(fileDate);
+  }
+
+  const warnings =
+    missingTechnicalColumns.length > 0
+      ? [
+          `UKE file is missing technical columns (${missingTechnicalColumns.join(", ")}). Stored technical data was kept. ${toInsert.length} new links were added without it`,
+        ]
+      : [];
+
   console.log("[radiolines] Import completed successfully");
-  return true;
+  return { imported: true, warnings };
 }
