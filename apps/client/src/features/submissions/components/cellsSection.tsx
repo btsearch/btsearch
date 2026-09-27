@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProposedCellForm, RatType } from "../types";
+import type { CellsChangeHandler, ProposedCellForm, RatType } from "../types";
 import type { CellError } from "../utils/validation";
 import { CellDetailsForm } from "./cellDetailsForm";
 import { EmptyPanel } from "@/components/content/emptyPanel";
@@ -15,7 +15,7 @@ export interface CellsSectionProps {
   sectors: SectorDraft[];
   isNewStation: boolean;
   cellErrors?: Record<string, CellError>;
-  onCellsChange: (rat: RatType, cells: ProposedCellForm[]) => void;
+  onCellsChange: CellsChangeHandler;
   operatorMnc?: number | null;
 }
 

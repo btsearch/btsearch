@@ -20,7 +20,9 @@ import { getRatDetailFieldLabel, getRatDetailFields } from "@/features/shared/ra
 import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
+import { getProposedLocationChanges, getProposedStationChanges } from "@/features/submissions/utils/proposalChanges";
 import { formatFullDate } from "@/lib/format";
+import { uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
 import type { Band, Operator } from "@/types/station";
 
@@ -73,22 +75,12 @@ function CellDetailPair({ label, value, className }: { label: string; value: str
 function StationChanges({ submission, operators }: { submission: SubmissionDetail; operators: Operator[] }) {
   const { t } = useTranslation(["submissions", "common"]);
   const operatorById = useMemo(() => new Map(operators.map((operator) => [operator.id, operator])), [operators]);
-  const { data: regions = [] } = useQuery({ ...regionsQueryOptions(), enabled: submission.proposedLocation !== null });
+  const stationChanges = getProposedStationChanges(submission.proposedStation);
+  const locationChanges = getProposedLocationChanges(submission.proposedLocation);
+  const { data: regions = [] } = useQuery({ ...regionsQueryOptions(), enabled: typeof locationChanges.region_id === "number" });
   const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
-  const proposedStation = submission.proposedStation;
-  const proposedLocation = submission.proposedLocation;
-  const proposedOperator =
-    proposedStation?.operator_id !== null && proposedStation?.operator_id !== undefined ? operatorById.get(proposedStation.operator_id) : undefined;
-  const hasStationFields =
-    proposedStation !== null &&
-    [
-      proposedStation.station_id,
-      proposedStation.operator_id,
-      proposedStation.notes,
-      proposedStation.networks_id,
-      proposedStation.networks_name,
-      proposedStation.mno_name,
-    ].some((value) => value !== null && value !== undefined);
+  const operatorId = stationChanges.operator_id ?? submission.station?.operator_id;
+  const operator = typeof operatorId === "number" ? operatorById.get(operatorId) : undefined;
 
   if (submission.type === "delete") {
     return (
@@ -108,24 +100,48 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
     );
   }
 
-  if (!hasStationFields && proposedLocation === null && submission.sectors.length === 0) return null;
-
-  const stationFields: Array<{ label: string; value: string }> = [];
-  if (proposedStation?.station_id !== null && proposedStation?.station_id !== undefined)
-    stationFields.push({ label: t("common:labels.stationId"), value: proposedStation.station_id });
-  if (proposedStation?.operator_id !== null && proposedStation?.operator_id !== undefined)
+  const stationFields: { label: string; value: string }[] = [];
+  if (typeof stationChanges.station_id === "string") stationFields.push({ label: t("common:labels.stationId"), value: stationChanges.station_id });
+  if (typeof stationChanges.operator_id === "number")
+    stationFields.push({ label: t("common:labels.operator"), value: operator?.name ?? `#${stationChanges.operator_id}` });
+  if (stationChanges.networks_id !== undefined)
     stationFields.push({
-      label: t("common:labels.operator"),
-      value: proposedOperator?.name ?? `#${proposedStation.operator_id}`,
+      label: t("common:labels.networksId"),
+      value: stationChanges.networks_id === null ? "-" : String(stationChanges.networks_id),
     });
-  if (proposedStation?.networks_id !== null && proposedStation?.networks_id !== undefined)
-    stationFields.push({ label: t("common:labels.networksId"), value: String(proposedStation.networks_id) });
-  if (proposedStation?.networks_name !== null && proposedStation?.networks_name !== undefined)
-    stationFields.push({ label: t("common:labels.networksName"), value: proposedStation.networks_name });
-  if (proposedStation?.mno_name !== null && proposedStation?.mno_name !== undefined)
-    stationFields.push({ label: t("common:labels.mnoName", { brand: proposedOperator?.name ?? "MNO" }), value: proposedStation.mno_name });
-  if (proposedStation?.notes !== null && proposedStation?.notes !== undefined)
-    stationFields.push({ label: t("common:labels.notes"), value: proposedStation.notes || "-" });
+  if (stationChanges.networks_name !== undefined)
+    stationFields.push({ label: t("common:labels.networksName"), value: stationChanges.networks_name || "-" });
+  if (stationChanges.mno_name !== undefined)
+    stationFields.push({ label: t("common:labels.mnoName", { brand: operator?.name ?? "MNO" }), value: stationChanges.mno_name || "-" });
+  if (stationChanges.uplink_type !== undefined)
+    stationFields.push({
+      label: t("common:labels.uplinkType"),
+      value: stationChanges.uplink_type ? t(`common:labels.${uplinkTypeKey(stationChanges.uplink_type)}`) : "-",
+    });
+  if (stationChanges.uplink_speed !== undefined)
+    stationFields.push({
+      label: t("common:labels.uplinkSpeed"),
+      value: stationChanges.uplink_speed === null ? "-" : String(stationChanges.uplink_speed),
+    });
+  if (stationChanges.uplink_model !== undefined)
+    stationFields.push({ label: t("common:labels.uplinkModel"), value: stationChanges.uplink_model || "-" });
+  if (typeof stationChanges.notes === "string") stationFields.push({ label: t("common:labels.notes"), value: stationChanges.notes || "-" });
+
+  const locationFields: { label: string; value: string }[] = [];
+  if (typeof locationChanges.region_id === "number")
+    locationFields.push({
+      label: t("common:labels.region"),
+      value: regionById.get(locationChanges.region_id)?.name ?? `#${locationChanges.region_id}`,
+    });
+  if (locationChanges.city !== undefined) locationFields.push({ label: t("common:labels.city"), value: locationChanges.city || "-" });
+  if (locationChanges.address !== undefined) locationFields.push({ label: t("common:labels.address"), value: locationChanges.address || "-" });
+  if (typeof locationChanges.latitude === "number" && typeof locationChanges.longitude === "number")
+    locationFields.push({
+      label: t("common:labels.coordinates"),
+      value: `${locationChanges.latitude.toFixed(6)}, ${locationChanges.longitude.toFixed(6)}`,
+    });
+
+  if (stationFields.length === 0 && locationFields.length === 0 && submission.sectors.length === 0) return null;
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
@@ -143,23 +159,16 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
           </dl>
         ) : null}
 
-        {proposedLocation ? (
+        {locationFields.length > 0 ? (
           <div className="px-3 py-3">
             <div className="flex items-center gap-2">
               <HugeiconsIcon icon={Location01Icon} className="size-3.5 text-muted-foreground" aria-hidden="true" />
               <h4 className="text-sm font-medium">{t("common:labels.location")}</h4>
             </div>
             <dl className="mt-2 grid grid-cols-2 gap-x-5 gap-y-3">
-              <DetailPair
-                label={t("common:labels.region")}
-                value={regionById.get(proposedLocation.region_id)?.name ?? `#${proposedLocation.region_id}`}
-              />
-              <DetailPair label={t("common:labels.city")} value={proposedLocation.city || "-"} />
-              <DetailPair label={t("common:labels.address")} value={proposedLocation.address || "-"} />
-              <DetailPair
-                label={t("common:labels.coordinates")}
-                value={`${proposedLocation.latitude.toFixed(6)}, ${proposedLocation.longitude.toFixed(6)}`}
-              />
+              {locationFields.map((field) => (
+                <DetailPair key={field.label} label={field.label} value={field.value} />
+              ))}
             </dl>
           </div>
         ) : null}

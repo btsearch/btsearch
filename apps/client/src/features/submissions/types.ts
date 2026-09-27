@@ -52,6 +52,8 @@ export type ProposedCellForm = {
   details: Partial<CellFormDetails>;
 };
 
+export type CellsChangeHandler = (rat: RatType, update: (cells: ProposedCellForm[]) => ProposedCellForm[]) => void;
+
 export type ProposedStationForm = {
   station_id?: string;
   operator_id: number | null;
@@ -70,6 +72,26 @@ export type ProposedLocationForm = {
   address?: string;
   longitude: number | null;
   latitude: number | null;
+};
+
+export type StationPayload = {
+  station_id?: string;
+  operator_id?: number | null;
+  notes?: string | null;
+  networks_id?: number | null;
+  networks_name?: string | null;
+  mno_name?: string | null;
+  uplink_type?: UplinkType | null;
+  uplink_speed?: number | null;
+  uplink_model?: string | null;
+};
+
+export type LocationPayload = {
+  region_id?: number | null;
+  city?: string | null;
+  address?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
 };
 
 export type CellOperation = "add" | "update" | "delete";
@@ -97,8 +119,8 @@ export type SubmissionFormData = {
   station_id: number | null;
   type: "new" | "update" | "delete";
   submitter_note?: string;
-  station?: ProposedStationForm;
-  location?: ProposedLocationForm;
+  station?: StationPayload;
+  location?: LocationPayload;
   sectors?: SectorPayload[];
   cells: CellPayload[];
   pending_photos?: number;

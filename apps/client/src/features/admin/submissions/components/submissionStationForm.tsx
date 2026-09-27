@@ -178,6 +178,13 @@ export function SubmissionStationForm({
 
   const renderPreviousAzimuth = useCallback((azimuth: number) => <ChangeBadge label={t("diff.was")} current={`${azimuth}°`} />, [t]);
 
+  const handleLocationChange = useCallback(
+    (patch: Partial<ProposedLocationForm>) => {
+      if (!isFormDisabled) onLocationFormChange(patch);
+    },
+    [isFormDisabled, onLocationFormChange],
+  );
+
   return (
     <>
       <div className="border rounded-xl overflow-hidden bg-card">
@@ -334,7 +341,7 @@ export function SubmissionStationForm({
           <LocationPicker
             location={locationForm}
             azimuthStationId={currentStationId}
-            onLocationChange={(patch) => !isFormDisabled && onLocationFormChange(patch)}
+            onLocationChange={handleLocationChange}
             locationDiffs={locationDiffs}
             currentLocation={currentStation?.location ?? null}
           />

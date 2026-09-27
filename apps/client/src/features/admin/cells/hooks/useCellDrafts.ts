@@ -8,6 +8,30 @@ import { syncByPCI, syncNRByPCI } from "../sectorAssignmentSync";
 import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remainingLteCells";
 import type { Band } from "@/types/station";
 
+const TAC_LAC_FIELD: Partial<Record<string, string>> = {
+  GSM: "lac",
+  UMTS: "lac",
+  LTE: "tac",
+  NR: "nrtac",
+};
+
+function applyCellChange<T extends CellDraftBase>(cells: T[], localId: string, patch: Partial<CellDraftBase>): T[] {
+  const changed = cells.find((cell) => cell._localId === localId);
+  if (!changed) return cells;
+  const field = patch.details ? TAC_LAC_FIELD[changed.rat] : undefined;
+  const syncedValue = field === undefined ? undefined : patch.details?.[field];
+  const syncsSiblings = field !== undefined && syncedValue !== changed.details[field];
+
+  return cells.map((cell) => {
+    if (cell._localId === localId) return { ...cell, ...patch };
+    if (!syncsSiblings || field === undefined || cell.rat !== changed.rat) return cell;
+    const details = { ...cell.details };
+    if (syncedValue === undefined) delete details[field];
+    else details[field] = syncedValue;
+    return { ...cell, details };
+  });
+}
+
 type UseCellDraftsOptions<T extends CellDraftBase> = {
   initialCells: T[];
   initialEnabledRats?: string[];
@@ -95,7 +119,7 @@ export function useCellDrafts<T extends CellDraftBase>({
   const changeCell = useCallback(
     (localId: string, patch: Partial<CellDraftBase>) => {
       if (disabled) return;
-      setCells((prev) => prev.map((cell) => (cell._localId === localId ? { ...cell, ...patch } : cell)));
+      setCells((prev) => applyCellChange(prev, localId, patch));
     },
     [disabled],
   );
@@ -176,28 +200,37 @@ export function useCellDrafts<T extends CellDraftBase>({
     [],
   );
 
+  const cellsRef = useRef(cells);
+  useEffect(() => {
+    cellsRef.current = cells;
+  });
+
   const cloneCell = useCallback(
     (localId: string) => {
       if (disabled) return;
-      const prev = cells;
-      const cell = prev.find((c) => c._localId === localId);
+      const cell = cellsRef.current.find((c) => c._localId === localId);
       if (!cell) return;
       const band = allBands.find((b) => b.id === cell.band_id) ?? allBands.find((b) => b.rat === cell.rat);
       if (!band) return;
       const template = createNewCell(cell.rat, band);
+      const details = { ...cell.details };
+      delete details.pci;
       const cloned = {
         ...template,
         band_id: cell.band_id,
-        _sectorLocalId: cell._sectorLocalId,
+        _sectorLocalId: null,
         type: cell.type ?? template.type,
         is_confirmed: cell.is_confirmed,
         notes: cell.notes,
-        details: { ...cell.details },
+        details,
       };
-      const idx = prev.findIndex((c) => c._localId === localId);
-      const next = [...prev];
-      next.splice(idx + 1, 0, cloned);
-      setCells(next);
+      setCells((prev) => {
+        const index = prev.findIndex((c) => c._localId === localId);
+        if (index === -1) return prev;
+        const next = [...prev];
+        next.splice(index + 1, 0, cloned);
+        return next;
+      });
       const id = cloned._localId;
       setClonedIds((s) => new Set([...s, id]));
       const timer = setTimeout(() => {
@@ -210,7 +243,7 @@ export function useCellDrafts<T extends CellDraftBase>({
       }, 2000);
       cloneTimers.current.set(id, timer);
     },
-    [disabled, cells, allBands, createNewCell],
+    [disabled, allBands, createNewCell],
   );
 
   const deleteCellFn = useCallback(

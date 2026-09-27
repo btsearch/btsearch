@@ -60,7 +60,7 @@ function getOmittedTechnicalFields(missingColumns: readonly TechnicalRadiolineCo
 //* Every "23A56" plan symbol (23 GHz band, 56 MHz channels) exported as the number 1
 function parsePlanSymbol(value: unknown, frequency: number, channelWidth: number | null): string | null | undefined {
   if (typeof value === "number") return value === 1 && channelWidth === 56 && frequency >= 22_000 && frequency <= 23_600 ? "23A56" : undefined;
-  return String(value || "").trim() || null;
+  return typeof value === "string" ? value.trim() || null : null;
 }
 
 export function prepareRadiolineRecords(

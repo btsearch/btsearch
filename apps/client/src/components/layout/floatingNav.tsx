@@ -17,7 +17,18 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { type ComponentType, type PointerEvent, type TouchEvent, memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  type ComponentType,
+  type PointerEvent,
+  type TouchEvent,
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";

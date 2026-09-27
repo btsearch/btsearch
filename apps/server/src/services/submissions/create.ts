@@ -19,8 +19,13 @@ import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
 import { formatARFCNBandErrorMessage } from "../../utils/cellARFCNValidation.js";
 import {
+  type ProposedLocationChanges,
+  type ProposedStationChanges,
+  changedLocationFields,
+  changedStationFields,
   gsmInsertSchema,
   insertProposedCellDetails,
+  isCompleteLocation,
   isNonEmpty,
   locationUpdateDiffers,
   lteInsertSchema,
@@ -39,11 +44,11 @@ export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
 const MAX_SECTORS = 15;
 export const proposedStationInsert = createInsertSchema(proposedStations)
-  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
   .strict();
 export const proposedLocationInsert = createInsertSchema(proposedLocations)
-  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .strict()
   .superRefine((data, ctx) => {
     if (hasGenericAddressMarker(data.address))
@@ -107,6 +112,7 @@ export type SubmissionWithExtras = z.infer<typeof submissionsSelectSchema> & {
 
 export function hasMeaningfulChanges(input: SingleSubmission): boolean {
   if (input.type === "delete") return true;
+  if (input.type === "update" && (Object.keys(input.station ?? {}).length > 0 || Object.keys(input.location ?? {}).length > 0)) return true;
   const { station_id: _, type: __, ...payload } = input;
   return isNonEmpty(payload);
 }
@@ -142,9 +148,15 @@ function validateSectorRefs(input: SingleSubmission, targetStation?: { sectors: 
 export async function validateSubmission(input: SingleSubmission): Promise<void> {
   const { station_id, type, station: stationData, location: locationData } = input;
 
-  const createsPendingStation = (type ?? "new") === "new" && (input.cells?.length ?? 0) === 0;
+  const isNewStation = (type ?? "new") === "new";
+  const createsPendingStation = isNewStation && (input.cells?.length ?? 0) === 0;
   if (createsPendingStation && input.pending_photos === undefined)
     throw new ErrorResponse("BAD_REQUEST", { message: "At least one photo is required when submitting a new station without cells" });
+
+  if (isNewStation && stationData && typeof stationData.operator_id !== "number")
+    throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
+  if (isNewStation && locationData && !isCompleteLocation(locationData))
+    throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required for new station locations" });
 
   if ((type === "update" || type === "delete") && !station_id)
     throw new ErrorResponse("INVALID_QUERY", { message: "station_id is required for update and delete submissions" });
@@ -163,7 +175,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
         })
       : null,
 
-    type === "new" && stationData?.station_id
+    type === "new" && stationData?.station_id && typeof stationData.operator_id === "number"
       ? db.query.stations.findFirst({
           where: {
             station_id: stationData.station_id,
@@ -172,7 +184,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
         })
       : null,
 
-    type === "new" && stationData?.station_id && locationData?.latitude !== undefined && locationData?.longitude !== undefined
+    type === "new" && stationData?.station_id && typeof locationData?.latitude === "number" && typeof locationData.longitude === "number"
       ? db.query.locations.findFirst({
           with: {
             stations: {
@@ -195,6 +207,8 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
   if (stationId !== null && targetStation && targetStation.status !== "published" && targetStation.status !== "pending")
     throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
+  if (type === "update" && locationData && !targetStation?.location && !isCompleteLocation(locationData))
+    throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required when the station has no location" });
   validateSectorRefs(input, targetStation);
 
   if (duplicateStation) {
@@ -317,9 +331,10 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
   if (!hasMeaningfulChanges(input))
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before submitting." });
 
-  let stationDataToStore = stationData;
-  let locationDataToStore = locationData;
-  if (type === "update" && station_id !== undefined && station_id !== null) {
+  let stationDataToStore: ProposedStationChanges | undefined = stationData;
+  let locationDataToStore: ProposedLocationChanges | undefined = locationData;
+  const isStationUpdate = type === "update" && station_id !== undefined && station_id !== null;
+  if (isStationUpdate) {
     const resolved = await stripUnchangedProposalData(tx, Number(station_id), stationData, locationData);
     stationDataToStore = resolved.stationData;
     locationDataToStore = resolved.locationData;
@@ -341,11 +356,17 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
     await tx.insert(proposedStations).values({
       ...stationDataToStore,
       notes: normalizeText(stationDataToStore.notes),
+      changed_fields: isStationUpdate ? changedStationFields(stationDataToStore) : null,
       submission_id: submission.id,
       is_confirmed: false,
     });
 
-  if (locationDataToStore) await tx.insert(proposedLocations).values({ ...locationDataToStore, submission_id: submission.id });
+  if (locationDataToStore)
+    await tx.insert(proposedLocations).values({
+      ...locationDataToStore,
+      changed_fields: isStationUpdate ? changedLocationFields(locationDataToStore) : null,
+      submission_id: submission.id,
+    });
 
   if (sectors && sectors.length > 0) await tx.insert(proposedSectors).values(sectors.map((sector) => ({ ...sector, submission_id: submission.id })));
 

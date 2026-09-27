@@ -1,5 +1,6 @@
 import type { RAT_ORDER } from "../cells/rat";
 import type { LocationPhoto } from "@/features/station-details/api";
+import type { ProposedLocationField, ProposedStationField } from "@/features/submissions/utils/proposalChanges";
 import type { CellType } from "@/types/station";
 
 export type SubmissionLocationPhoto = LocationPhoto & { is_main: boolean };
@@ -53,6 +54,7 @@ export type ProposedStation = {
   uplink_type?: "fiber" | "microwave" | null;
   uplink_speed?: number | null;
   uplink_model?: string | null;
+  changed_fields: ProposedStationField[] | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -60,11 +62,12 @@ export type ProposedStation = {
 export type ProposedLocation = {
   id: number;
   submission_id: string;
-  region_id: number;
+  region_id: number | null;
   city: string | null;
   address: string | null;
-  longitude: number;
-  latitude: number;
+  longitude: number | null;
+  latitude: number | null;
+  changed_fields: ProposedLocationField[] | null;
   createdAt?: string;
   updatedAt?: string;
 };

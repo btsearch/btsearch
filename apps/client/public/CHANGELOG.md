@@ -21,10 +21,16 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - The station dialog can now be made shorter than before
 - Microwave link details now show the date of their technical data, or a warning when the latest UKE list has no technical data for the link
 - Azimuths fetched from SI2PEM or UKE are now sorted from the lowest to the highest
+- Submissions now only save the station and location details you actually changed, and reviewers see the station's current values for everything else
+- The changes view of your submissions now lists only the details a submission changes, including uplink changes
+- The submission form now reacts faster while typing and editing cells, especially for stations with many cells
+- Station change history now also shows changes to the operator's station name made by the automatic UKE import
 - API: photo responses now include `width`, `height`, `has_thumb` and `has_full`
 - API: other websites using an API key or OAuth can now also send `PUT`, `PATCH` and `DELETE` requests from the browser
+- API: proposed stations and locations in submission responses now include `changed_fields`, and update submissions only store the fields that differ from the station
 - Admin: the UKE import page now shows the latest import and the runs from the last 7 days with their durations, errors and warnings, and the dashboard warns when an import needs attention
 - Admin: the station column in the comments table now shows the operator logo and name
+- Admin: the station page and submission review are now faster while editing, because only the edited cell row updates and the location map no longer redraws on every key press
 
 ### 🩹 Fixes
 
@@ -32,12 +38,19 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Shared UKE station links and UKE notification links now open the exact station, and older links still work
 - Comment text now uses the full width of the comments area
 - Fill missing sector cells no longer copies the PCI and azimuth of the source cell into the new cells
+- Copying a cell no longer copies its PCI and azimuth
 - Fetching azimuths from UKE no longer adds an empty sector when UKE lists an antenna without an azimuth
 - Microwave link details no longer show undefined for a missing antenna gain, antenna height or noise figure, and long manufacturer names now wrap
 - Renewed microwave link permits now update the existing link instead of showing up as a deleted link and a new one
 - Microwave link imports no longer fail when UKE publishes a list without technical columns, and the technical values we already have are kept
 - A failure in one UKE import source no longer stops the other sources from importing
 - Other websites can no longer send API requests using your BTSearch login
+- Approving a submission no longer reverts network IDs, uplink or location details that were changed after the submission was sent
+- Photos added in the submission form are no longer sent with another station after you switch the station or switch between a new and an existing station
+- Editing a pending submission now shows the station's azimuths when the submission does not change them
+- Choosing a station without a location in the submission form no longer keeps the location of the previously chosen station
+- Admin: reviewers can now remove the city or address of a location in a submission
+- API: deleting an operator or region that stations still use is now blocked instead of silently removing it from those stations
 
 # 2026-09-22
 

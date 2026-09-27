@@ -16,9 +16,12 @@ import { getRuntimeSettings } from "../../../../../services/settings.service.js"
 import { uplinkSpeedSchema } from "../../../../../services/stations/uplink.js";
 import type { DbTx } from "../../../../../types/global.js";
 import {
+  changedLocationFields,
+  changedStationFields,
   detailsSelectSchema,
   gsmInsertSchema,
   insertProposedCellDetails,
+  isCompleteLocation,
   isNonEmpty,
   lteInsertSchema,
   makeDetailsRatRefine,
@@ -41,13 +44,13 @@ const cellInputSchema = createInsertSchema(proposedCells)
   .superRefine(makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchemaBase }));
 
 const stationInputSchema = createInsertSchema(proposedStations)
-  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
   .partial();
 const sectorInputSchema = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
 
 const locationInputSchema = createInsertSchema(proposedLocations)
-  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .partial()
   .superRefine((data, ctx) => {
     if (hasGenericAddressMarker(data.address))
@@ -99,8 +102,8 @@ function hasActualChanges(body: RequestBody, existing: ExistingSubmission): bool
   if (body.review_notes !== undefined && body.review_notes !== existing.review_notes) return true;
   if (body.submitter_note !== undefined && body.submitter_note !== existing.submitter_note) return true;
 
-  if (isNonEmpty(body.station)) return true;
-  if (isNonEmpty(body.location)) return true;
+  if (body.station !== undefined) return true;
+  if (body.location !== undefined) return true;
   if (body.sectors?.length) return true;
   if (body.cells?.length && body.cells.some(isNonEmpty)) return true;
 
@@ -171,20 +174,27 @@ function validateSectorInputs(sectors: RequestBody["sectors"]): void {
   }
 }
 
-async function replaceProposedStation(tx: DbTx, submissionId: string, station: RequestBody["station"]): Promise<void> {
+async function replaceProposedStation(tx: DbTx, submissionId: string, station: RequestBody["station"], isStationUpdate: boolean): Promise<void> {
   if (!station) return;
 
   await tx.delete(proposedStations).where(eq(proposedStations.submission_id, submissionId));
-  await tx
-    .insert(proposedStations)
-    .values({ ...station, notes: normalizeText(station.notes), submission_id: submissionId } as typeof proposedStations.$inferInsert);
+  await tx.insert(proposedStations).values({
+    ...station,
+    notes: normalizeText(station.notes),
+    changed_fields: isStationUpdate ? changedStationFields(station) : null,
+    submission_id: submissionId,
+  } as typeof proposedStations.$inferInsert);
 }
 
-async function replaceProposedLocation(tx: DbTx, submissionId: string, location: RequestBody["location"]): Promise<void> {
+async function replaceProposedLocation(tx: DbTx, submissionId: string, location: RequestBody["location"], isStationUpdate: boolean): Promise<void> {
   if (!location) return;
 
   await tx.delete(proposedLocations).where(eq(proposedLocations.submission_id, submissionId));
-  await tx.insert(proposedLocations).values({ ...location, submission_id: submissionId } as typeof proposedLocations.$inferInsert);
+  await tx.insert(proposedLocations).values({
+    ...location,
+    changed_fields: isStationUpdate ? changedLocationFields(location) : null,
+    submission_id: submissionId,
+  } as typeof proposedLocations.$inferInsert);
 }
 
 async function replaceProposedSectors(tx: DbTx, submissionId: string, sectors: RequestBody["sectors"]): Promise<void> {
@@ -233,10 +243,11 @@ async function updateSubmissionDraft(
   const submissionId = submission.id;
   await tx.update(submissions).set(buildSubmissionUpdate(body)).where(eq(submissions.id, submissionId));
 
+  const updatedStationId = submission.type === "update" ? submission.station_id : null;
   let stationBody = body.station;
   let locationBody = body.location;
-  if (submission.type === "update" && submission.station_id !== null && (stationBody || locationBody)) {
-    const resolved = await stripUnchangedProposalData(tx, submission.station_id, stationBody, locationBody);
+  if (updatedStationId !== null && (stationBody || locationBody)) {
+    const resolved = await stripUnchangedProposalData(tx, updatedStationId, stationBody, locationBody);
     if (stationBody && !resolved.stationData) await tx.delete(proposedStations).where(eq(proposedStations.submission_id, submissionId));
     if (locationBody && !resolved.locationData) await tx.delete(proposedLocations).where(eq(proposedLocations.submission_id, submissionId));
     stationBody = resolved.stationData;
@@ -244,8 +255,8 @@ async function updateSubmissionDraft(
   }
 
   await Promise.all([
-    replaceProposedStation(tx, submissionId, stationBody),
-    replaceProposedLocation(tx, submissionId, locationBody),
+    replaceProposedStation(tx, submissionId, stationBody, updatedStationId !== null),
+    replaceProposedLocation(tx, submissionId, locationBody, updatedStationId !== null),
     replaceProposedSectors(tx, submissionId, body.sectors),
     replaceProposedCells(tx, submissionId, body.cells, hasAdminPermission),
   ]);
@@ -287,6 +298,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   if (!hasActualChanges(req.body, submission))
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before updating." });
+
+  if (submission.type === "new" && req.body.station && typeof req.body.station.operator_id !== "number")
+    throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
+  if (submission.type === "new" && req.body.location && !isCompleteLocation(req.body.location))
+    throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required for new station locations" });
 
   validateSectorInputs(req.body.sectors);
   await validateCellConflicts(req.body.cells, submission.station_id);

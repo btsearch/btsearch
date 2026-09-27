@@ -1,4 +1,4 @@
-import type { CellPayload, ProposedCellForm, ProposedLocationForm, ProposedStationForm, SectorDraft, SectorPayload, StationAction } from "../types";
+import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, SectorDraft, StationAction } from "../types";
 import type { UplinkType } from "@/types/station";
 
 function isMeaningfulValue(v: unknown): boolean {
@@ -6,37 +6,6 @@ function isMeaningfulValue(v: unknown): boolean {
   if (typeof v === "string") return v !== "";
   if (typeof v === "boolean") return v;
   return typeof v === "number";
-}
-
-export function isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (a === null || b === null) return false;
-  if (typeof a !== typeof b) return false;
-  if (typeof a !== "object") return false;
-
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (!isEqual(a[i], b[i])) return false;
-    }
-    return true;
-  }
-
-  const aObj = a as Record<string, unknown>;
-  const bObj = b as Record<string, unknown>;
-  const aKeys = Object.keys(aObj);
-  const bKeySet = new Set(Object.keys(bObj));
-
-  if (aKeys.length !== bKeySet.size) return false;
-
-  for (const key of aKeys) {
-    if (!bKeySet.has(key)) return false;
-    if (!isEqual(aObj[key], bObj[key])) return false;
-  }
-
-  return true;
 }
 
 function compareCellDetails(a: Partial<Record<string, unknown>>, b: Partial<Record<string, unknown>>): boolean {
@@ -89,35 +58,6 @@ export function isEqualLocation(a: ProposedLocationForm, b: ProposedLocationForm
     a.longitude === b.longitude &&
     a.latitude === b.latitude
   );
-}
-
-export function isEqualCellPayload(a: CellPayload, b: CellPayload): boolean {
-  return (
-    a.operation === b.operation &&
-    a.target_cell_id === b.target_cell_id &&
-    a.target_sector_id === b.target_sector_id &&
-    a.sector_local_id === b.sector_local_id &&
-    a.sector_unassigned === b.sector_unassigned &&
-    a.band_id === b.band_id &&
-    a.rat === b.rat &&
-    (a.type ?? null) === (b.type ?? null) &&
-    (a.notes ?? "") === (b.notes ?? "") &&
-    compareCellDetails((a.details ?? {}) as Record<string, unknown>, (b.details ?? {}) as Record<string, unknown>)
-  );
-}
-
-export function isEqualCellPayloads(a: CellPayload[], b: CellPayload[]): boolean {
-  if (a.length !== b.length) return false;
-
-  const sortKey = (c: CellPayload) => `${c.rat}-${c.band_id}-${c.target_cell_id ?? "new"}`;
-  const aSorted = [...a].sort((x, y) => sortKey(x).localeCompare(sortKey(y)));
-  const bSorted = [...b].sort((x, y) => sortKey(x).localeCompare(sortKey(y)));
-
-  for (let i = 0; i < aSorted.length; i++) {
-    if (!isEqualCellPayload(aSorted[i], bSorted[i])) return false;
-  }
-
-  return true;
 }
 
 export function isEqualSectors(a: SectorDraft[], b: SectorDraft[]): boolean {
@@ -191,45 +131,6 @@ export function hasFormChanges(current: FormState, original: OriginalState): boo
   if (!isEqualSectors(current.sectors, original.sectors ?? [])) return true;
 
   if (current.submitterNote !== (original.submitterNote ?? "")) return true;
-
-  return false;
-}
-
-export interface SubmissionPayload {
-  type: "new" | "update" | "delete";
-  station_id?: number | null;
-  submitter_note?: string | null;
-  station?: ProposedStationForm;
-  location?: ProposedLocationForm;
-  sectors?: SectorPayload[];
-  cells?: CellPayload[];
-}
-
-export function hasSubmissionChanges(payload: SubmissionPayload): boolean {
-  if (payload.submitter_note?.trim()) return true;
-  if (payload.type === "delete") return true;
-
-  if (payload.station) {
-    const { station_id, operator_id, notes } = payload.station;
-    if (station_id || operator_id || notes?.trim()) return true;
-  }
-
-  if (payload.location) {
-    const { region_id, city, address, longitude, latitude } = payload.location;
-    if (region_id !== null || city?.trim() || address?.trim() || longitude !== null || latitude !== null) return true;
-  }
-
-  if (
-    payload.cells?.some(
-      (cell) =>
-        (cell.band_id !== null && cell.band_id !== undefined) ||
-        !!cell.notes?.trim() ||
-        (cell.details && Object.values(cell.details).some(isMeaningfulValue)),
-    )
-  )
-    return true;
-
-  if (payload.sectors?.some((sector) => sector.azimuth >= 0)) return true;
 
   return false;
 }

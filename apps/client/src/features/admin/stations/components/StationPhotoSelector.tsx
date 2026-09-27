@@ -1,7 +1,7 @@
 import { Image01Icon, StarIcon, Tick02Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 
 type Props = { stationId: number; locationId: number };
 
-export function StationPhotoSelector({ stationId, locationId }: Props) {
+export const StationPhotoSelector = memo(function StationPhotoSelector({ stationId, locationId }: Props) {
   const { t } = useTranslation("submissions");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -337,4 +337,4 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
       <PhotoLightbox photos={locationPhotos} {...lightbox.lightboxProps} />
     </>
   );
-}
+});

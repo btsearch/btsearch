@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { Feature, FeatureCollection } from "geojson";
 import type { MapMouseEvent } from "maplibre-gl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type GeocodingResult, fetchLocationsInViewport, fetchUkeLocationsInViewport, reverseGeocode } from "../api";
@@ -128,7 +128,7 @@ type LocationPickerProps = {
   showEditLocationLink?: boolean;
 };
 
-export function LocationPicker({
+export const LocationPicker = memo(function LocationPicker({
   location,
   azimuthStationId,
   errors,
@@ -333,7 +333,7 @@ export function LocationPicker({
       </div>
     </div>
   );
-}
+});
 
 function SelectedLocationMarker() {
   return (

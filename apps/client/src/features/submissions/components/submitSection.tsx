@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { SearchStation } from "../api";
-import type { ProposedStationForm, StationAction, SubmissionMode } from "../types";
+import type { StationAction, SubmissionMode } from "../types";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,8 +12,6 @@ export interface SubmitSectionProps {
   mode: SubmissionMode;
   action: StationAction;
   selectedStation: SearchStation | null;
-  newStation: ProposedStationForm;
-  cellsCount: number;
   submitterNote: string;
   onSubmitterNoteChange: (note: string) => void;
   canSubmit: boolean;

@@ -1,4 +1,14 @@
-import { proposedCells, proposedGSMCells, proposedLTECells, proposedNRCells, proposedUMTSCells } from "@openbts/drizzle";
+import {
+  ProposedLocationFieldEnum,
+  ProposedStationFieldEnum,
+  proposedCells,
+  proposedGSMCells,
+  proposedLTECells,
+  proposedLocations,
+  proposedNRCells,
+  proposedStations,
+  proposedUMTSCells,
+} from "@openbts/drizzle";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
@@ -48,6 +58,11 @@ export const nrSelectSchema = createSelectSchema(proposedNRCells).omit({ propose
 export const detailsSelectSchema = z.union([gsmSelectSchema, umtsSelectSchema, lteSelectSchema, nrSelectSchema]).nullable();
 
 export const proposedCellsSelectSchema = createSelectSchema(proposedCells);
+export const proposedStationsSelectSchema = createSelectSchema(proposedStations);
+export const proposedLocationsSelectSchema = createSelectSchema(proposedLocations);
+
+export type ProposedStationRow = z.infer<typeof proposedStationsSelectSchema>;
+export type ProposedLocationRow = z.infer<typeof proposedLocationsSelectSchema>;
 
 export function makeDetailsRatRefine(schemaMap: Record<string, z.ZodType>) {
   return (data: { rat?: string | null; details?: unknown }, ctx: z.RefinementCtx) => {
@@ -64,70 +79,114 @@ export function computeGnbidLength(gnbid: number | null | undefined): number | u
   return Number(gnbid).toString(2).length;
 }
 
-type ProposedStationDiffInput = {
-  station_id?: string | null;
-  operator_id?: number | null;
-  notes?: string | null;
-  networks_id?: number | null;
-  networks_name?: string | null;
-  mno_name?: string | null;
-  uplink_type?: string | null;
-  uplink_speed?: number | null;
-  uplink_model?: string | null;
-};
+export type ProposedStationField = (typeof ProposedStationFieldEnum.enumValues)[number];
+export type ProposedLocationField = (typeof ProposedLocationFieldEnum.enumValues)[number];
+export type ProposedStationChanges = Partial<Pick<ProposedStationRow, ProposedStationField>>;
+export type ProposedLocationChanges = Partial<Pick<ProposedLocationRow, ProposedLocationField>>;
+
 type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
 type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
+type CurrentUplinkForDiff = { type: string; speed: number | null; model: string | null } | null;
+type CurrentLocationForDiff = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
 
 export function normalizeText(value: string | null | undefined): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
-type CurrentUplinkForDiff = { type: string; speed: number | null; model: string | null } | null;
+function pickFields<T, K extends keyof T>(source: T, fields: readonly K[]): Partial<Pick<T, K>> {
+  const picked: Partial<Pick<T, K>> = {};
+  for (const field of fields) Object.assign(picked, { [field]: source[field] });
+  return picked;
+}
 
-export function stationUpdateDiffers(
-  stationData: ProposedStationDiffInput,
+function listChangedFields<F extends string>(changes: Partial<Record<F, unknown>>, fields: readonly F[]): F[] {
+  return fields.filter((field) => changes[field] !== undefined);
+}
+
+export function changedStationFields(changes: ProposedStationChanges): ProposedStationField[] {
+  return listChangedFields(changes, ProposedStationFieldEnum.enumValues);
+}
+
+export function changedLocationFields(changes: ProposedLocationChanges): ProposedLocationField[] {
+  return listChangedFields(changes, ProposedLocationFieldEnum.enumValues);
+}
+
+export function isCompleteLocation(location: ProposedLocationChanges): boolean {
+  return typeof location.region_id === "number" && typeof location.longitude === "number" && typeof location.latitude === "number";
+}
+
+export function getProposedStationChanges(row: ProposedStationRow): ProposedStationChanges {
+  return pickFields(row, row.changed_fields ?? ProposedStationFieldEnum.enumValues.filter((field) => row[field] !== null));
+}
+
+export function getProposedLocationChanges(row: ProposedLocationRow): ProposedLocationChanges {
+  return pickFields(row, row.changed_fields ?? ProposedLocationFieldEnum.enumValues.filter((field) => row[field] !== null));
+}
+
+export function diffProposedStation(
+  stationData: ProposedStationChanges,
   currentStation: CurrentStationForDiff,
   currentExtraIdentifier: CurrentExtraIdentifierForDiff,
-  currentUplink?: CurrentUplinkForDiff,
-): boolean {
-  if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id) return true;
-  if (stationData.operator_id !== undefined && stationData.operator_id !== currentStation.operator_id) return true;
+  currentUplink: CurrentUplinkForDiff,
+): ProposedStationChanges {
+  const changes: ProposedStationChanges = {};
+  if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id)
+    changes.station_id = stationData.station_id;
+  if (stationData.operator_id !== undefined && stationData.operator_id !== null && stationData.operator_id !== currentStation.operator_id)
+    changes.operator_id = stationData.operator_id;
   const proposedNotes = normalizeText(stationData.notes);
-  if (proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes)) return true;
-  if (stationData.networks_id !== undefined && (stationData.networks_id ?? null) !== (currentExtraIdentifier?.networks_id ?? null)) return true;
+  if (proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes)) changes.notes = proposedNotes;
+  if (stationData.networks_id !== undefined && stationData.networks_id !== (currentExtraIdentifier?.networks_id ?? null))
+    changes.networks_id = stationData.networks_id;
   if (stationData.networks_name !== undefined && normalizeText(stationData.networks_name) !== normalizeText(currentExtraIdentifier?.networks_name))
-    return true;
-  if (stationData.mno_name !== undefined && normalizeText(stationData.mno_name) !== normalizeText(currentExtraIdentifier?.mno_name)) return true;
-  if (stationData.uplink_type !== undefined && (stationData.uplink_type ?? null) !== (currentUplink?.type ?? null)) return true;
-  if (stationData.uplink_speed !== undefined && (stationData.uplink_speed ?? null) !== (currentUplink?.speed ?? null)) return true;
-  if (stationData.uplink_model !== undefined && normalizeText(stationData.uplink_model) !== normalizeText(currentUplink?.model)) return true;
-  return false;
+    changes.networks_name = normalizeText(stationData.networks_name);
+  if (stationData.mno_name !== undefined && normalizeText(stationData.mno_name) !== normalizeText(currentExtraIdentifier?.mno_name))
+    changes.mno_name = normalizeText(stationData.mno_name);
+  if (stationData.uplink_type !== undefined && stationData.uplink_type !== (currentUplink?.type ?? null))
+    changes.uplink_type = stationData.uplink_type;
+  if (stationData.uplink_speed !== undefined && stationData.uplink_speed !== (currentUplink?.speed ?? null))
+    changes.uplink_speed = stationData.uplink_speed;
+  if (stationData.uplink_model !== undefined && normalizeText(stationData.uplink_model) !== normalizeText(currentUplink?.model))
+    changes.uplink_model = normalizeText(stationData.uplink_model);
+  return changes;
 }
 
-type ProposedLocationDiffInput = {
-  region_id?: number | null;
-  city?: string | null;
-  address?: string | null;
-  longitude?: number | null;
-  latitude?: number | null;
-};
-type CurrentLocationForDiff = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
-
-export function locationUpdateDiffers(locationData: ProposedLocationDiffInput, currentLocation: CurrentLocationForDiff): boolean {
-  if (locationData.latitude !== undefined && locationData.latitude !== currentLocation.latitude) return true;
-  if (locationData.longitude !== undefined && locationData.longitude !== currentLocation.longitude) return true;
-  if (locationData.region_id !== undefined && locationData.region_id !== currentLocation.region_id) return true;
-  if (locationData.city !== undefined && normalizeText(locationData.city) !== normalizeText(currentLocation.city)) return true;
-  if (locationData.address !== undefined && normalizeText(locationData.address) !== normalizeText(currentLocation.address)) return true;
-  return false;
+export function diffProposedLocation(locationData: ProposedLocationChanges, currentLocation: CurrentLocationForDiff | null): ProposedLocationChanges {
+  const changes: ProposedLocationChanges = {};
+  const latitude = locationData.latitude ?? currentLocation?.latitude ?? null;
+  const longitude = locationData.longitude ?? currentLocation?.longitude ?? null;
+  if (latitude !== (currentLocation?.latitude ?? null) || longitude !== (currentLocation?.longitude ?? null)) {
+    changes.latitude = latitude;
+    changes.longitude = longitude;
+  }
+  if (locationData.region_id !== undefined && locationData.region_id !== null && locationData.region_id !== currentLocation?.region_id)
+    changes.region_id = locationData.region_id;
+  if (locationData.city !== undefined && normalizeText(locationData.city) !== normalizeText(currentLocation?.city))
+    changes.city = normalizeText(locationData.city);
+  if (locationData.address !== undefined && normalizeText(locationData.address) !== normalizeText(currentLocation?.address))
+    changes.address = normalizeText(locationData.address);
+  return changes;
 }
 
-export async function stripUnchangedProposalData<S extends ProposedStationDiffInput, L extends ProposedLocationDiffInput>(
+export function stationUpdateDiffers(
+  stationData: ProposedStationChanges,
+  currentStation: CurrentStationForDiff,
+  currentExtraIdentifier: CurrentExtraIdentifierForDiff,
+  currentUplink: CurrentUplinkForDiff,
+): boolean {
+  return changedStationFields(diffProposedStation(stationData, currentStation, currentExtraIdentifier, currentUplink)).length > 0;
+}
+
+export function locationUpdateDiffers(locationData: ProposedLocationChanges, currentLocation: CurrentLocationForDiff | null): boolean {
+  return changedLocationFields(diffProposedLocation(locationData, currentLocation)).length > 0;
+}
+
+export async function stripUnchangedProposalData(
   tx: DbTx,
   targetStationId: number,
-  stationData: S | undefined,
-  locationData: L | undefined,
-): Promise<{ stationData: S | undefined; locationData: L | undefined }> {
+  stationData: ProposedStationChanges | undefined,
+  locationData: ProposedLocationChanges | undefined,
+): Promise<{ stationData: ProposedStationChanges | undefined; locationData: ProposedLocationChanges | undefined }> {
   if (!stationData && !locationData) return { stationData, locationData };
 
   const [targetStation, targetExtraIdentifier, targetUplink] = await Promise.all([
@@ -137,28 +196,13 @@ export async function stripUnchangedProposalData<S extends ProposedStationDiffIn
   ]);
   if (!targetStation) return { stationData, locationData };
 
-  let resolvedStation: S | undefined = stationData;
-  if (stationData) {
-    if (stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null)) {
-      const proposedNotes = normalizeText(stationData.notes);
-      resolvedStation = {
-        ...stationData,
-        station_id:
-          stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== targetStation.station_id
-            ? stationData.station_id
-            : null,
-        notes: proposedNotes !== null && proposedNotes !== normalizeText(targetStation.notes) ? proposedNotes : null,
-        ...(stationData.uplink_type === undefined
-          ? { uplink_type: targetUplink?.type ?? null, uplink_speed: targetUplink?.speed ?? null, uplink_model: targetUplink?.model ?? null }
-          : {}),
-      };
-    } else resolvedStation = undefined;
-  }
+  const stationChanges = stationData && diffProposedStation(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null);
+  const locationChanges = locationData && diffProposedLocation(locationData, targetStation.location);
 
-  let resolvedLocation: L | undefined = locationData;
-  if (locationData && targetStation.location && !locationUpdateDiffers(locationData, targetStation.location)) resolvedLocation = undefined;
-
-  return { stationData: resolvedStation, locationData: resolvedLocation };
+  return {
+    stationData: stationChanges && changedStationFields(stationChanges).length > 0 ? stationChanges : undefined,
+    locationData: locationChanges && changedLocationFields(locationChanges).length > 0 ? locationChanges : undefined,
+  };
 }
 
 export function isNonEmpty(value: unknown): boolean {

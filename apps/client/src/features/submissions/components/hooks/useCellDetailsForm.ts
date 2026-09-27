@@ -2,9 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProposedCellForm, RatType } from "../../types";
+import type { CellsChangeHandler, ProposedCellForm, RatType } from "../../types";
 import { buildOriginalCellsMap, generateCellId, getCellDiffStatus, getDefaultCellDetails } from "../../utils/cells";
-import { syncByPCI } from "@/features/admin/cells/sectorAssignmentSync";
 import { buildRemainingLTECells, createRemainingLTEDetails } from "@/features/cells/lib/remainingLteCells";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { bandsQueryOptions } from "@/features/shared/queries";
@@ -40,7 +39,7 @@ export type UseCellDetailsFormProps = {
   originalCells: ProposedCellForm[];
   isNewStation: boolean;
   operatorMnc?: number | null;
-  onCellsChange: (rat: RatType, cells: ProposedCellForm[]) => void;
+  onCellsChange: CellsChangeHandler;
 };
 
 export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, operatorMnc, onCellsChange }: UseCellDetailsFormProps) {
@@ -91,47 +90,45 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
     return { added, modified, deleted };
   }, [cells, originalsMap, isNewStation, originalCells, rat]);
 
+  const updateCells = useCallback((update: (current: ProposedCellForm[]) => ProposedCellForm[]) => onCellsChange(rat, update), [onCellsChange, rat]);
+
   const handleAddCell = useCallback(() => {
-    const defaults = getDefaultCellDetails(rat);
-    const existingSibling = cells[0] ?? originalCells.find((c) => c.rat === rat);
-    if (existingSibling) {
-      const sharedFields = getSharedDetailFields(rat);
-      for (const field of sharedFields) {
-        if ((existingSibling.details as Record<string, unknown>)[field] !== undefined)
-          (defaults as Record<string, unknown>)[field] = (existingSibling.details as Record<string, unknown>)[field];
+    updateCells((current) => {
+      const defaults = getDefaultCellDetails(rat);
+      const existingSibling = current[0] ?? originalCells.find((c) => c.rat === rat);
+      if (existingSibling) {
+        const sharedFields = getSharedDetailFields(rat);
+        for (const field of sharedFields) {
+          if ((existingSibling.details as Record<string, unknown>)[field] !== undefined)
+            (defaults as Record<string, unknown>)[field] = (existingSibling.details as Record<string, unknown>)[field];
+        }
       }
-    }
-    const newCell: ProposedCellForm = {
-      id: generateCellId(),
-      rat,
-      band_id: null,
-      type: DEFAULT_CELL_TYPE,
-      details: defaults,
-    };
-    onCellsChange(rat, [...cells, newCell]);
-  }, [cells, originalCells, rat, onCellsChange]);
+      return [...current, { id: generateCellId(), rat, band_id: null, type: DEFAULT_CELL_TYPE, details: defaults }];
+    });
+  }, [originalCells, rat, updateCells]);
 
   const handleAddRemainingLteCells = useCallback(() => {
     if (rat !== "LTE") return;
-    const additions = buildRemainingLTECells({
-      operatorMnc,
-      cells,
-      getBandId: (cell) => cell.band_id,
-      getDetails: (cell) => cell.details as Readonly<Record<string, unknown>>,
-      createCell: (source, clid) => ({
-        id: generateCellId(),
-        rat,
-        band_id: source.band_id,
-        _sectorLocalId: null,
-        type: source.type ?? DEFAULT_CELL_TYPE,
-        notes: source.notes,
-        is_confirmed: source.is_confirmed,
-        details: createRemainingLTEDetails(source.details as Readonly<Record<string, unknown>>, clid),
+    updateCells((current) => [
+      ...current,
+      ...buildRemainingLTECells({
+        operatorMnc,
+        cells: current,
+        getBandId: (cell) => cell.band_id,
+        getDetails: (cell) => cell.details as Readonly<Record<string, unknown>>,
+        createCell: (source, clid) => ({
+          id: generateCellId(),
+          rat,
+          band_id: source.band_id,
+          _sectorLocalId: null,
+          type: source.type ?? DEFAULT_CELL_TYPE,
+          notes: source.notes,
+          is_confirmed: source.is_confirmed,
+          details: createRemainingLTEDetails(source.details as Readonly<Record<string, unknown>>, clid),
+        }),
       }),
-    });
-    if (additions.length === 0) return;
-    onCellsChange(rat, [...cells, ...additions]);
-  }, [cells, onCellsChange, operatorMnc, rat]);
+    ]);
+  }, [operatorMnc, rat, updateCells]);
 
   const [clonedIds, setClonedIds] = useState<ReadonlySet<string>>(new Set());
   const cloneTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -145,14 +142,24 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
 
   const handleCloneCell = useCallback(
     (id: string) => {
-      const cell = cells.find((c) => c.id === id);
-      if (!cell) return;
       const newId = generateCellId();
-      const cloned: ProposedCellForm = { ...cell, id: newId, existingCellId: undefined, type: cell.type ?? DEFAULT_CELL_TYPE };
-      const idx = cells.findIndex((c) => c.id === id);
-      const next = [...cells];
-      next.splice(idx + 1, 0, cloned);
-      onCellsChange(rat, next);
+      updateCells((current) => {
+        const index = current.findIndex((c) => c.id === id);
+        const cell = current[index];
+        if (!cell) return current;
+        const details: Record<string, unknown> = { ...cell.details };
+        delete details.pci;
+        const next = [...current];
+        next.splice(index + 1, 0, {
+          ...cell,
+          id: newId,
+          existingCellId: undefined,
+          _sectorLocalId: null,
+          type: cell.type ?? DEFAULT_CELL_TYPE,
+          details: details as ProposedCellForm["details"],
+        });
+        return next;
+      });
       setClonedIds((prev) => new Set([...prev, newId]));
       const timer = setTimeout(() => {
         setClonedIds((prev) => {
@@ -164,65 +171,37 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
       }, 2000);
       cloneTimers.current.set(newId, timer);
     },
-    [cells, onCellsChange, rat],
+    [updateCells],
   );
 
-  const handleRemoveCell = useCallback(
-    (id: string) => {
-      onCellsChange(
-        rat,
-        cells.filter((cell) => cell.id !== id),
-      );
-    },
-    [cells, onCellsChange, rat],
-  );
+  const handleRemoveCell = useCallback((id: string) => updateCells((current) => current.filter((cell) => cell.id !== id)), [updateCells]);
 
-  const handleRestoreCell = useCallback(
-    (cell: ProposedCellForm) => {
-      onCellsChange(rat, [...cells, cell]);
-    },
-    [cells, onCellsChange, rat],
-  );
+  const handleRestoreCell = useCallback((cell: ProposedCellForm) => updateCells((current) => [...current, cell]), [updateCells]);
 
   const handleCellUpdate = useCallback(
-    (cellId: string, patch: Partial<ProposedCellForm>) => {
-      onCellsChange(
-        rat,
-        cells.map((cell) => (cell.id === cellId ? { ...cell, ...patch } : cell)),
-      );
-    },
-    [cells, onCellsChange, rat],
+    (cellId: string, patch: Partial<ProposedCellForm>) =>
+      updateCells((current) => current.map((cell) => (cell.id === cellId ? { ...cell, ...patch } : cell))),
+    [updateCells],
   );
 
-  const syncMissingSectorsByPCI = useCallback(() => {
-    onCellsChange(rat, syncByPCI(cells));
-  }, [cells, onCellsChange, rat]);
-
   const handleDetailsChange = useCallback(
-    (id: string, field: string, value: number | boolean | string | undefined) => {
-      const syncSiblings = getRatSiblingSyncField(rat) === field && cells.length >= 2;
-      onCellsChange(
-        rat,
-        cells.map((cell) => {
+    (id: string, field: string, value: number | boolean | string | undefined) =>
+      updateCells((current) => {
+        const syncSiblings = getRatSiblingSyncField(rat) === field && current.length >= 2;
+        return current.map((cell) => {
           if (cell.id !== id && !syncSiblings) return cell;
           const newDetails = { ...cell.details } as Record<string, unknown>;
           if (value === undefined) delete newDetails[field];
           else newDetails[field] = value;
           return { ...cell, details: newDetails as ProposedCellForm["details"] };
-        }),
-      );
-    },
-    [cells, onCellsChange, rat],
+        });
+      }),
+    [rat, updateCells],
   );
 
   const handleNotesChange = useCallback(
-    (id: string, notes: string) => {
-      onCellsChange(
-        rat,
-        cells.map((cell) => (cell.id === id ? { ...cell, notes: notes || undefined } : cell)),
-      );
-    },
-    [cells, onCellsChange, rat],
+    (id: string, notes: string) => updateCells((current) => current.map((cell) => (cell.id === id ? { ...cell, notes: notes || undefined } : cell))),
+    [updateCells],
   );
 
   return {
@@ -232,7 +211,6 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
     sortedCells,
     originalsMap,
     diffCounts,
-    isNewStation,
     handleAddCell,
     handleAddRemainingLteCells,
     handleCloneCell,
@@ -240,7 +218,6 @@ export function useCellDetailsForm({ rat, cells, originalCells, isNewStation, op
     handleRemoveCell,
     handleRestoreCell,
     handleCellUpdate,
-    syncMissingSectorsByPCI,
     handleDetailsChange,
     handleNotesChange,
   };

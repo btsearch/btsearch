@@ -28,7 +28,13 @@ import {
   isNormalRat,
   updateRATCellDetailsReturning,
 } from "../../utils/ratCellPersistence.js";
-import { normalizeText } from "../../utils/submission.helpers.js";
+import {
+  type ProposedLocationChanges,
+  type ProposedStationChanges,
+  getProposedLocationChanges,
+  getProposedStationChanges,
+  normalizeText,
+} from "../../utils/submission.helpers.js";
 import {
   type AuditRecorder,
   type CellSnapshot,
@@ -51,12 +57,20 @@ import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.s
 type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
 type LocationChange = { op: "create"; old?: never; new: LocationRow } | { op: "update"; old: LocationRow; new: LocationRow };
 type UpsertLocationResult = { locationId: number; change: LocationChange | null };
+type LocationValues = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
 
-async function upsertLocation(
-  tx: DbTx,
-  proposedLocation: { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number },
-  knownLocationAtCoords?: LocationRow | null,
-): Promise<UpsertLocationResult> {
+function toLocationValues(location: ProposedLocationChanges): LocationValues {
+  const { region_id, longitude, latitude } = location;
+  if (typeof region_id !== "number" || typeof longitude !== "number" || typeof latitude !== "number")
+    throw new ErrorResponse("BAD_REQUEST", { message: "Proposed location is missing a region or coordinates" });
+  return { region_id, city: location.city ?? null, address: location.address ?? null, longitude, latitude };
+}
+
+function resolveChange<T>(change: T | undefined, current: T): T {
+  return change === undefined ? current : change;
+}
+
+async function upsertLocation(tx: DbTx, proposedLocation: LocationValues, knownLocationAtCoords?: LocationRow | null): Promise<UpsertLocationResult> {
   const existingLocation =
     knownLocationAtCoords !== undefined
       ? knownLocationAtCoords
@@ -321,18 +335,14 @@ async function createUplinkForNewStation(
   if (await saveStationUplink(audit, stationId, values, submissionId)) await syncSiblingUplink(audit, stationId, values, submissionId);
 }
 
-async function applyUplinkUpdate(
-  audit: AuditRecorder,
-  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
-  stationId: number,
-  submissionId: string,
-): Promise<void> {
-  const { tx } = audit;
-  const { type: proposedType, speed: proposedSpeed, model: proposedModel } = extractUplinkFields(proposedStation);
-  if (proposedType === undefined) return;
+async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationChanges, stationId: number, submissionId: string): Promise<void> {
+  if (changes.uplink_type === undefined && changes.uplink_speed === undefined && changes.uplink_model === undefined) return;
 
-  if (!isUplinkType(proposedType)) {
-    const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+  const { tx } = audit;
+  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+  const proposedType = resolveChange(changes.uplink_type, existing?.type ?? null);
+
+  if (proposedType === null) {
     if (!existing) return;
     await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
     await audit.log({
@@ -348,8 +358,8 @@ async function applyUplinkUpdate(
 
   const values = {
     type: proposedType,
-    speed: proposedSpeed,
-    model: proposedType === "fiber" ? null : proposedModel,
+    speed: resolveChange(changes.uplink_speed, existing?.speed ?? null),
+    model: proposedType === "fiber" ? null : resolveChange(changes.uplink_model, existing?.model ?? null),
   };
 
   if (await saveStationUplink(audit, stationId, values, submissionId)) await syncSiblingUplink(audit, stationId, values, submissionId);
@@ -397,7 +407,7 @@ async function applyNewSubmission(
 ): Promise<{ stationId: number | null; resolvedLocationId: number | null }> {
   let locationResult: UpsertLocationResult | null = null;
 
-  if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, draft.proposedLocation);
+  if (draft.proposedLocation) locationResult = await upsertLocation(audit.tx, toLocationValues(draft.proposedLocation));
   const locationId = locationResult?.locationId ?? null;
 
   let stationId: number | null = null;
@@ -443,7 +453,7 @@ async function updateStationLocation(audit: AuditRecorder, stationId: number, lo
 async function updateLocationMetadata(
   audit: AuditRecorder,
   currentLocation: LocationRow,
-  proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
+  proposedLocation: LocationValues,
   submissionId: string,
   stationId: number,
 ): Promise<void> {
@@ -475,7 +485,7 @@ type UpdatedLocationResult = { locationId: number; migratedPhotoIds: Map<number,
 
 async function applyUpdatedLocation(
   audit: AuditRecorder,
-  proposedLocation: NonNullable<ApprovalDraft["proposedLocation"]>,
+  changes: ProposedLocationChanges,
   stationId: number,
   submissionId: string,
 ): Promise<UpdatedLocationResult> {
@@ -486,6 +496,7 @@ async function applyUpdatedLocation(
   });
 
   const currentLocation = currentStation?.location ?? null;
+  const proposedLocation = toLocationValues(currentLocation ? { ...currentLocation, ...changes } : changes);
   const coordsUnchanged =
     currentLocation && currentLocation.longitude === proposedLocation.longitude && currentLocation.latitude === proposedLocation.latitude;
 
@@ -515,7 +526,7 @@ async function applyUpdatedLocation(
 
 async function applyStationIdentityUpdate(
   audit: AuditRecorder,
-  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
+  changes: ProposedStationChanges,
   stationId: number,
   submissionId: string,
 ): Promise<void> {
@@ -525,11 +536,11 @@ async function applyStationIdentityUpdate(
   });
   if (!currentStation) return;
 
-  const proposedNotes = normalizeText(proposedStation.notes);
+  const proposedNotes = normalizeText(changes.notes);
   const nextStationStringId =
-    proposedStation.station_id !== null && proposedStation.station_id !== currentStation.station_id ? proposedStation.station_id : undefined;
+    typeof changes.station_id === "string" && changes.station_id !== currentStation.station_id ? changes.station_id : undefined;
   const nextOperatorId =
-    proposedStation.operator_id !== null && proposedStation.operator_id !== currentStation.operator_id ? proposedStation.operator_id : undefined;
+    typeof changes.operator_id === "number" && changes.operator_id !== currentStation.operator_id ? changes.operator_id : undefined;
   const nextNotes = proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes) ? proposedNotes : undefined;
 
   if (nextStationStringId === undefined && nextOperatorId === undefined && nextNotes === undefined) return;
@@ -567,15 +578,17 @@ async function applyStationIdentityUpdate(
 
 async function applyExtraIdentifierUpdate(
   audit: AuditRecorder,
-  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
+  changes: ProposedStationChanges,
   stationId: number,
   submissionId: string,
 ): Promise<void> {
+  if (changes.networks_id === undefined && changes.networks_name === undefined && changes.mno_name === undefined) return;
+
   const { tx } = audit;
   const existingIdentifier = await tx.query.extraIdentificators.findFirst({ where: { station_id: stationId } });
-  const proposedNetworksId = proposedStation.networks_id ?? null;
-  const proposedNetworksName = normalizeText(proposedStation.networks_name);
-  const proposedMnoName = normalizeText(proposedStation.mno_name);
+  const proposedNetworksId = resolveChange(changes.networks_id, existingIdentifier?.networks_id ?? null);
+  const proposedNetworksName = normalizeText(resolveChange(changes.networks_name, existingIdentifier?.networks_name ?? null));
+  const proposedMnoName = normalizeText(resolveChange(changes.mno_name, existingIdentifier?.mno_name ?? null));
 
   if (proposedNetworksId === null && proposedNetworksName === null && proposedMnoName === null) {
     if (!existingIdentifier) return;
@@ -1407,15 +1420,16 @@ async function runApprovalTransaction({
 
   let migratedPhotoIds = new Map<number, number>();
   if (submission.type === "update" && draft.proposedLocation && stationId) {
-    const locationResult = await applyUpdatedLocation(audit, draft.proposedLocation, stationId, submissionId);
+    const locationResult = await applyUpdatedLocation(audit, getProposedLocationChanges(draft.proposedLocation), stationId, submissionId);
     resolvedLocationId = locationResult.locationId;
     migratedPhotoIds = locationResult.migratedPhotoIds;
   }
 
   if (submission.type === "update" && draft.proposedStation && stationId) {
-    await applyStationIdentityUpdate(audit, draft.proposedStation, stationId, submissionId);
-    await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId, submissionId);
-    await applyUplinkUpdate(audit, draft.proposedStation, stationId, submissionId);
+    const stationChanges = getProposedStationChanges(draft.proposedStation);
+    await applyStationIdentityUpdate(audit, stationChanges, stationId, submissionId);
+    await applyExtraIdentifierUpdate(audit, stationChanges, stationId, submissionId);
+    await applyUplinkUpdate(audit, stationChanges, stationId, submissionId);
   }
 
   if (submission.type === "delete") await applyDeletedSubmission(audit, stationId, submissionId);

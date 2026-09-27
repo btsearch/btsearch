@@ -3,7 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProposedCellForm, RatType } from "../types";
+import type { CellsChangeHandler, ProposedCellForm, RatType } from "../types";
 import { type CellDiffStatus, getCellDiffStatus } from "../utils/cells";
 import type { CellError } from "../utils/validation";
 import { useCellDetailsForm } from "./hooks/useCellDetailsForm";
@@ -33,7 +33,7 @@ type CellDetailsFormProps = {
   sectors: SectorDraft[];
   isNewStation: boolean;
   cellErrors?: Record<string, CellError>;
-  onCellsChange: (rat: RatType, cells: ProposedCellForm[]) => void;
+  onCellsChange: CellsChangeHandler;
   operatorMnc?: number | null;
 };
 
@@ -59,18 +59,18 @@ export function CellDetailsForm({ rat, cells, originalCells, sectors, isNewStati
 
   const handleFillEARFCN =
     rat === "LTE" && operatorMnc
-      ? () => {
-          const updated = cells.map((cell) => {
-            const earfcn = (cell.details as Record<string, unknown>)?.earfcn;
-            if (earfcn !== undefined && earfcn !== null && earfcn !== "" && earfcn !== 0) return cell;
-            const band = bandsForRat.find((b) => b.id === (cell.band_id ?? -1));
-            if (!band) return cell;
-            const known = getKnownEARFCN(operatorMnc, band.value, band.duplex);
-            if (known === null) return cell;
-            return { ...cell, details: { ...(cell.details as Record<string, unknown>), earfcn: known } } as typeof cell;
-          });
-          onCellsChange(rat, updated);
-        }
+      ? () =>
+          onCellsChange(rat, (current) =>
+            current.map((cell) => {
+              const earfcn = (cell.details as Record<string, unknown>)?.earfcn;
+              if (earfcn !== undefined && earfcn !== null && earfcn !== "" && earfcn !== 0) return cell;
+              const band = bandsForRat.find((b) => b.id === (cell.band_id ?? -1));
+              if (!band) return cell;
+              const known = getKnownEARFCN(operatorMnc, band.value, band.duplex);
+              if (known === null) return cell;
+              return { ...cell, details: { ...(cell.details as Record<string, unknown>), earfcn: known } } as typeof cell;
+            }),
+          )
       : undefined;
 
   return (
@@ -113,7 +113,7 @@ export function CellDetailsForm({ rat, cells, originalCells, sectors, isNewStati
                         onRemove={handleRemoveCell}
                         onClone={!isDeleted ? handleCloneCell : undefined}
                         isCloned={clonedIds.has(cell.id)}
-                        onRestore={isDeleted ? () => handleRestoreCell(cell) : undefined}
+                        onRestore={isDeleted ? handleRestoreCell : undefined}
                       />
                     );
                   })}
@@ -140,7 +140,7 @@ type CellRowProps = {
   onRemove: (id: string) => void;
   onClone?: (id: string) => void;
   isCloned?: boolean;
-  onRestore?: () => void;
+  onRestore?: (cell: ProposedCellForm) => void;
 };
 
 const DebouncedNotesInput = memo(function DebouncedNotesInput({
@@ -360,7 +360,13 @@ const CellRow = memo(function CellRow({
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button type="button" variant="ghost" size="sm" onClick={onRestore} className="h-6 w-6 p-0 text-yellow-600 hover:text-yellow-500">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRestore(cell)}
+                  className="h-6 w-6 p-0 text-yellow-600 hover:text-yellow-500"
+                >
                   <HugeiconsIcon icon={DeletePutBackIcon} className="size-3.5" />
                 </Button>
               }

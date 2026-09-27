@@ -25,6 +25,7 @@ import { adminStationQueryOptions } from "@/features/admin/stations/queries";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { groupPermitsByStation } from "@/features/map/utils";
 import { DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
+import { useSectorPanelState } from "@/features/shared/sectorPanelState";
 import { uploadAndAssignStationPhotos } from "@/features/station-details/api";
 import { PhotoUploadSection } from "@/features/submissions/components/photoUploadSection";
 import type { ProposedLocationForm } from "@/features/submissions/types";
@@ -388,6 +389,26 @@ function StationDetailForm({
     [],
   );
 
+  const stationFieldHandlers = useMemo(
+    () => ({
+      onStationIdChange: (value: string) => dispatch({ type: "SET_STATION_ID", payload: value }),
+      onOperatorIdChange: (value: number | null) => dispatch({ type: "SET_OPERATOR_ID", payload: value }),
+      onNotesChange: (value: string) => dispatch({ type: "SET_NOTES", payload: value }),
+      onExtraAddressChange: (value: string) => dispatch({ type: "SET_EXTRA_ADDRESS", payload: value }),
+      onIsConfirmedChange: (value: boolean) => dispatch({ type: "SET_CONFIRMED", payload: value }),
+      onStatusChange: (value: StationStatus) => dispatch({ type: "SET_STATUS", payload: value }),
+      onNetworksIdChange: (value: number | null) => dispatch({ type: "SET_NETWORKS_ID", payload: value }),
+      onNetworksNameChange: (value: string) => dispatch({ type: "SET_NETWORKS_NAME", payload: value }),
+      onMnoNameChange: (value: string) => dispatch({ type: "SET_MNO_NAME", payload: value }),
+      onUplinkTypeChange: (value: UplinkType | null) => dispatch({ type: "SET_UPLINK_TYPE", payload: value }),
+      onUplinkSpeedChange: (value: number | null) => dispatch({ type: "SET_UPLINK_SPEED", payload: value }),
+      onUplinkModelChange: (value: string) => dispatch({ type: "SET_UPLINK_MODEL", payload: value }),
+    }),
+    [],
+  );
+
+  const { derivedSectorCount, assignedSectorLocalIds } = useSectorPanelState(localCells);
+
   const handleUkeStationSelect = useCallback(
     (ukeStation: UkeStation) => {
       dispatch({ type: "SET_STATION_ID", payload: ukeStation.station_id });
@@ -568,12 +589,12 @@ function StationDetailForm({
   const originalCells = useMemo(() => station?.cells ?? [], [station]);
   const originalCellsById = useMemo(() => new Map(originalCells.map((cell) => [cell.id, cell])), [originalCells]);
   const deletedServerCellIdSet = useMemo(() => new Set(deletedServerCellIds), [deletedServerCellIds]);
+  const initial = useMemo(() => getInitialFormState(station), [station]);
 
   const hasChanges = useMemo(() => {
     if (isCreateMode) return true;
     if (!station) return false;
 
-    const initial = getInitialFormState(station);
     if (stationId !== initial.stationId) return true;
     if (operatorId !== initial.operatorId) return true;
     if (notes !== initial.notes) return true;
@@ -597,6 +618,7 @@ function StationDetailForm({
   }, [
     isCreateMode,
     station,
+    initial,
     stationId,
     operatorId,
     notes,
@@ -700,18 +722,14 @@ function StationDetailForm({
         <div className="flex flex-wrap gap-3 p-3">
           <div className="flex-[2_0_420px] min-w-0 max-md:flex-[1_1_auto] space-y-2">
             <StationInfoForm
+              {...stationFieldHandlers}
               stationDbId={station?.id}
               stationId={stationId}
-              onStationIdChange={(v) => dispatch({ type: "SET_STATION_ID", payload: v })}
               operatorId={operatorId}
-              onOperatorIdChange={(v) => dispatch({ type: "SET_OPERATOR_ID", payload: v })}
               notes={notes}
-              onNotesChange={(v) => dispatch({ type: "SET_NOTES", payload: v })}
-              {...(!isCreateMode && { extraAddress, onExtraAddressChange: (v: string) => dispatch({ type: "SET_EXTRA_ADDRESS", payload: v }) })}
+              {...(!isCreateMode && { extraAddress })}
               isConfirmed={isConfirmed}
-              onIsConfirmedChange={(v) => dispatch({ type: "SET_CONFIRMED", payload: v })}
               status={!isCreateMode ? stationStatus : undefined}
-              onStatusChange={!isCreateMode ? (v) => dispatch({ type: "SET_STATUS", payload: v }) : undefined}
               location={location}
               onLocationChange={handleLocationChange}
               onExistingLocationSelect={handleExistingLocationSelect}
@@ -719,22 +737,17 @@ function StationDetailForm({
               selectedOperator={selectedOperator}
               onUkeStationSelect={handleUkeStationSelect}
               networksId={networksId}
-              onNetworksIdChange={(v) => dispatch({ type: "SET_NETWORKS_ID", payload: v ?? null })}
               networksName={networksName}
-              onNetworksNameChange={(v) => dispatch({ type: "SET_NETWORKS_NAME", payload: v })}
               mnoName={mnoName}
-              onMnoNameChange={(v) => dispatch({ type: "SET_MNO_NAME", payload: v })}
               currentLocation={station?.location ?? null}
               showEditLocationLink={!isCreateMode}
               sectors={sectors}
               onSectorsChange={handleSectorsChange}
-              cells={localCells}
+              derivedSectorCount={derivedSectorCount}
+              assignedSectorLocalIds={assignedSectorLocalIds}
               uplinkType={formState.uplinkType}
-              onUplinkTypeChange={(v) => dispatch({ type: "SET_UPLINK_TYPE", payload: v })}
               uplinkSpeed={formState.uplinkSpeed}
-              onUplinkSpeedChange={(v: number | null) => dispatch({ type: "SET_UPLINK_SPEED", payload: v })}
               uplinkModel={formState.uplinkModel}
-              onUplinkModelChange={(v) => dispatch({ type: "SET_UPLINK_MODEL", payload: v })}
             />
 
             {isCreateMode ? (

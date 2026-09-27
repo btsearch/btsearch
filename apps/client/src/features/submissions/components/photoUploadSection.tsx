@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -48,7 +48,15 @@ type Props = {
   editSubmissionId?: string;
 };
 
-export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChange, takenAts, onTakenAtsChange, editSubmissionId }: Props) {
+export const PhotoUploadSection = memo(function PhotoUploadSection({
+  photos,
+  onPhotosChange,
+  notes,
+  onNotesChange,
+  takenAts,
+  onTakenAtsChange,
+  editSubmissionId,
+}: Props) {
   const { t } = useTranslation("submissions");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -465,4 +473,4 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
       />
     </>
   );
-}
+});

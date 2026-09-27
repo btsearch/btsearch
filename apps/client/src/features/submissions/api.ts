@@ -169,14 +169,7 @@ function buildSubmissionPayload(data: SubmissionFormData, preservePartialCellDet
 
   if (data.station_id) payload.station_id = data.station_id;
   if (data.submitter_note) payload.submitter_note = data.submitter_note;
-  if (data.station) {
-    const { networks_id, networks_name, mno_name, ...stationBase } = data.station;
-    const hasAnyExtraIdField = "networks_id" in data.station || "networks_name" in data.station || "mno_name" in data.station;
-    payload.station = {
-      ...stationBase,
-      ...(hasAnyExtraIdField ? { networks_id: networks_id ?? null, networks_name: networks_name ?? null, mno_name: mno_name ?? null } : {}),
-    };
-  }
+  if (data.station) payload.station = data.station;
   if (data.location) payload.location = data.location;
   if (data.sectors && data.sectors.length > 0) payload.sectors = data.sectors;
   if (data.cells.length > 0) {

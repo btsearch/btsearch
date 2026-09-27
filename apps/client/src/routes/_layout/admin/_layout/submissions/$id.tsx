@@ -27,6 +27,17 @@ import { countCellOperations } from "@/features/admin/submissions/utils";
 import { CELL_TYPE_LABELS, DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import type { ProposedLocationForm } from "@/features/submissions/types";
+import {
+  EMPTY_STATION_VALUES,
+  applyProposedLocation,
+  applyProposedStation,
+  diffLocationValues,
+  diffStationValues,
+  toLocationPayload,
+  toLocationValues,
+  toStationPayload,
+  toStationValues,
+} from "@/features/submissions/utils/proposalChanges";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { fetchApiData, showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -256,14 +267,18 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   const { mutate: approveSubmission, isPending: isApproving } = useApproveSubmissionMutation();
   const { mutate: rejectSubmission, isPending: isRejecting } = useRejectSubmissionMutation();
 
+  const [initialStationValues] = useState(() =>
+    applyProposedStation(currentStation ? toStationValues(currentStation) : EMPTY_STATION_VALUES, submission.proposedStation),
+  );
+
   const [stationForm, setStationForm] = useState<{
     station_id: string;
     operator_id: number | null;
     notes: string;
   }>(() => ({
-    station_id: submission.proposedStation?.station_id ?? submission.station?.station_id ?? "",
-    operator_id: submission.proposedStation?.operator_id ?? submission.station?.operator_id ?? null,
-    notes: submission.proposedStation?.notes ?? submission.station?.notes ?? "",
+    station_id: initialStationValues.station_id,
+    operator_id: initialStationValues.operator_id,
+    notes: initialStationValues.notes,
   }));
 
   const [extraForm, setExtraForm] = useState<{
@@ -271,56 +286,29 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     networks_name: string;
     mno_name: string;
   }>(() => ({
-    networks_id: submission.proposedStation?.networks_id ?? currentStation?.extra_identificators?.networks_id ?? null,
-    networks_name: submission.proposedStation?.networks_name ?? currentStation?.extra_identificators?.networks_name ?? "",
-    mno_name: submission.proposedStation?.mno_name ?? currentStation?.extra_identificators?.mno_name ?? "",
+    networks_id: initialStationValues.networks_id,
+    networks_name: initialStationValues.networks_name,
+    mno_name: initialStationValues.mno_name,
   }));
 
   const [uplinkForm, setUplinkForm] = useState<{
     uplink_type: "fiber" | "microwave" | null;
     uplink_speed: number | null;
     uplink_model: string;
-  }>(() => {
-    const proposed = submission.proposedStation;
-    if (proposed)
-      return { uplink_type: proposed.uplink_type ?? null, uplink_speed: proposed.uplink_speed ?? null, uplink_model: proposed.uplink_model ?? "" };
-    const current = currentStation?.uplink;
-    return { uplink_type: current?.type ?? null, uplink_speed: current?.speed ?? null, uplink_model: current?.model ?? "" };
-  });
+  }>(() => ({
+    uplink_type: initialStationValues.uplink_type,
+    uplink_speed: initialStationValues.uplink_speed,
+    uplink_model: initialStationValues.uplink_model,
+  }));
 
   const isReadOnly = submission.status !== "pending";
   const isDeleteSubmission = submission.type === "delete";
   const isFormDisabled = isReadOnly || isDeleteSubmission;
 
-  const [locationForm, setLocationForm] = useState<ProposedLocationForm>(() => {
-    if (submission.proposedLocation) {
-      return {
-        region_id: submission.proposedLocation.region_id ?? null,
-        city: submission.proposedLocation.city ?? "",
-        address: submission.proposedLocation.address ?? "",
-        longitude: submission.proposedLocation.longitude ?? null,
-        latitude: submission.proposedLocation.latitude ?? null,
-      };
-    }
-
-    if (currentStation?.location) {
-      return {
-        region_id: currentStation.location.region.id,
-        city: currentStation.location.city ?? "",
-        address: currentStation.location.address ?? "",
-        longitude: currentStation.location.longitude,
-        latitude: currentStation.location.latitude,
-      };
-    }
-
-    return {
-      region_id: null,
-      city: "",
-      address: "",
-      longitude: null,
-      latitude: null,
-    };
-  });
+  const [locationForm, setLocationForm] = useState<ProposedLocationForm>(() =>
+    applyProposedLocation(toLocationValues(currentStation?.location ?? null), submission.proposedLocation),
+  );
+  const handleLocationFormChange = useCallback((patch: Partial<ProposedLocationForm>) => setLocationForm((prev) => ({ ...prev, ...patch })), []);
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
   const { data: allBands = [] } = useQuery(bandsQueryOptions());
@@ -352,6 +340,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     cells: localCells,
     cellsByRat,
     enabledRats,
+    visibleRats,
     toggleRat: handleToggleRat,
     changeCell: handleCellChange,
     syncMissingSectorsByPCIInRat: handleSyncMissingSectorsByPCIInRat,
@@ -367,8 +356,6 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     disabled: isFormDisabled,
     operatorMnc: selectedOperator?.mnc ?? null,
   });
-
-  const visibleRats = useMemo(() => RAT_ORDER.filter((r) => enabledRats.includes(r)), [enabledRats]);
 
   const isProcessing = isSaving || isApproving || isRejecting;
 
@@ -387,14 +374,19 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   }, [submission.id, t, queryClient]);
 
   const handleSave = useCallback(() => {
+    const stationValues = { ...stationForm, ...extraForm, ...uplinkForm };
     saveSubmission(
       {
         submissionId: submission.id,
         reviewNotes,
-        stationForm,
-        extraForm,
-        uplinkForm,
-        locationForm,
+        station:
+          submission.type === "update" && currentStation
+            ? diffStationValues(stationValues, toStationValues(currentStation))
+            : toStationPayload(stationValues),
+        location:
+          submission.type === "update" && currentStation
+            ? diffLocationValues(locationForm, toLocationValues(currentStation.location))
+            : toLocationPayload(locationForm),
         sectors,
         localCells,
       },
@@ -407,7 +399,20 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onError: (error) => showApiError(error),
       },
     );
-  }, [extraForm, localCells, locationForm, reviewNotes, saveSubmission, sectors, stationForm, submission.id, t, uplinkForm]);
+  }, [
+    currentStation,
+    extraForm,
+    localCells,
+    locationForm,
+    reviewNotes,
+    saveSubmission,
+    sectors,
+    stationForm,
+    submission.id,
+    submission.type,
+    t,
+    uplinkForm,
+  ]);
 
   useSaveShortcut({
     canSave: !isReadOnly && !isProcessing,
@@ -450,24 +455,24 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
 
   const stationDiffs = useMemo(() => {
     if (submission.type !== "update" || !submission.station || !submission.proposedStation) return null;
-    const cur = submission.station;
-    const proposed = submission.proposedStation;
+    const current = toStationValues(submission.station);
+    const proposed = applyProposedStation(current, submission.proposedStation);
     return {
-      station_id: proposed.station_id !== null && proposed.station_id !== cur.station_id,
-      operator_id: proposed.operator_id !== null && proposed.operator_id !== cur.operator_id,
-      notes: proposed.notes !== null && proposed.notes !== (cur.notes ?? null),
+      station_id: proposed.station_id !== current.station_id,
+      operator_id: proposed.operator_id !== current.operator_id,
+      notes: proposed.notes !== current.notes,
     };
   }, [submission]);
 
   const locationDiffs = useMemo(() => {
     if (submission.type !== "update" || !currentStation?.location || !submission.proposedLocation) return null;
-    const cur = currentStation.location;
-    const proposed = submission.proposedLocation;
+    const current = toLocationValues(currentStation.location);
+    const proposed = applyProposedLocation(current, submission.proposedLocation);
     return {
-      coords: proposed.latitude !== cur.latitude || proposed.longitude !== cur.longitude,
-      city: (proposed.city ?? "") !== (cur.city ?? ""),
-      address: (proposed.address ?? "") !== (cur.address ?? ""),
-      region: proposed.region_id !== cur.region.id,
+      coords: proposed.latitude !== current.latitude || proposed.longitude !== current.longitude,
+      city: proposed.city !== current.city,
+      address: proposed.address !== current.address,
+      region: proposed.region_id !== current.region_id,
     };
   }, [submission, currentStation]);
 
@@ -615,7 +620,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
               uplinkForm={uplinkForm}
               onUplinkFormChange={(patch) => setUplinkForm((prev) => ({ ...prev, ...patch }))}
               locationForm={locationForm}
-              onLocationFormChange={(patch) => setLocationForm((prev) => ({ ...prev, ...patch }))}
+              onLocationFormChange={handleLocationFormChange}
               sectors={sectors}
               onSectorsChange={setSectors}
               cells={localCells}

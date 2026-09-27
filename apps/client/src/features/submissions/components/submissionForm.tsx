@@ -1,7 +1,8 @@
 import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useSelector } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type SearchStation, fetchSiblingSectors } from "../api";
@@ -26,6 +27,7 @@ import OrangeIcon from "@/features/station-details/components/logos/orange.svg?r
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { useSettings } from "@/hooks/useSettings";
 import { EXTRA_IDENTIFICATORS_MNCS, getMnoBrand } from "@/lib/cellular/operators";
+import { shallowEqual } from "@/lib/shallowEqual";
 import type { SectorDraft } from "@/types/station";
 
 export interface SubmissionFormProps {
@@ -132,6 +134,21 @@ function SubmissionSectorsPanelFields({
   );
 }
 
+type SubmissionFormApi = ReturnType<typeof useSubmissionForm>["form"];
+
+function FormSlice<TSlice extends Record<string, unknown>>({
+  form,
+  select,
+  children,
+}: {
+  form: SubmissionFormApi;
+  select: (state: SubmissionFormApi["state"]) => TSlice;
+  children: (slice: TSlice) => ReactNode;
+}) {
+  const slice = useSelector(form.store, select, { compare: shallowEqual });
+  return children(slice);
+}
+
 export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId }: SubmissionFormProps) {
   const { t } = useTranslation(["submissions", "common", "stationDetails"]);
   const { data: settings } = useSettings();
@@ -143,40 +160,25 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
     isEditMode,
     cellErrors,
     formErrors,
-    computeHasChanges,
-    photos,
-    setPhotos,
-    photoNotes,
-    setPhotoNotes,
-    photoTakenAts,
-    setPhotoTakenAts,
-    locationPhotoIds,
-    setLocationPhotoIds,
-    locationPhotoIdsToRemove,
-    setLocationPhotoIdsToRemove,
-    mainLocationPhotoId,
-    setMainLocationPhotoId,
-    mainUploadPhotoIndex,
-    setMainUploadPhotoIndex,
+    hasChanges,
+    photoDraft,
     handlers: {
       handleModeChange,
       handleActionChange,
       loadStation,
       handleUkeStationSelect,
-      handleRatsChange,
       handleCellsChange,
-      handleSectorsChange,
       handleLocationChange,
-      handleNewStationChange,
-      handleSubmitterNoteChange,
-      handleNetworksIdChange,
-      handleNetworksNameChange,
-      handleMnoNameChange,
       handleUplinkTypeChange,
-      handleUplinkSpeedChange,
-      handleUplinkModelChange,
     },
   } = useSubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId });
+
+  const stationFieldHandlers = {
+    onStationChange: (station: ProposedStationForm) => form.setFieldValue("newStation", station),
+    onUplinkTypeChange: handleUplinkTypeChange,
+    onUplinkSpeedChange: (value: number | null) => form.setFieldValue("uplinkSpeed", value),
+    onUplinkModelChange: (value: string) => form.setFieldValue("uplinkModel", value),
+  };
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -208,22 +210,23 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
         )}
 
         <div className="relative rounded-xl border">
-          <form.Subscribe selector={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
+          <FormSlice form={form} select={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
             {({ mode, selectedStation }) => (
               <StationSelector mode={mode} selectedStation={selectedStation} onModeChange={handleModeChange} onStationSelect={loadStation} />
             )}
-          </form.Subscribe>
+          </FormSlice>
 
-          <form.Subscribe selector={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation })}>
+          <FormSlice form={form} select={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation })}>
             {({ mode, action, selectedStation }) => {
               if (mode !== "existing" || !selectedStation) return null;
               return <ActionSelector action={action} onActionChange={handleActionChange} />;
             }}
-          </form.Subscribe>
+          </FormSlice>
         </div>
 
-        <form.Subscribe
-          selector={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation, location: s.values.location })}
+        <FormSlice
+          form={form}
+          select={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation, location: s.values.location })}
         >
           {({ mode, action, selectedStation, location }) => {
             if (mode === "existing" && action === "delete") return null;
@@ -239,10 +242,11 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
               />
             );
           }}
-        </form.Subscribe>
+        </FormSlice>
 
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             mode: s.values.mode,
             newStation: s.values.newStation,
             location: s.values.location,
@@ -257,23 +261,21 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
 
             return (
               <NewStationForm
+                {...stationFieldHandlers}
                 station={newStation}
                 errors={formErrors.station}
-                onStationChange={handleNewStationChange}
                 checkExisting
                 uplinkType={uplinkType}
-                onUplinkTypeChange={handleUplinkTypeChange}
                 uplinkSpeed={uplinkSpeed}
-                onUplinkSpeedChange={handleUplinkSpeedChange}
                 uplinkModel={uplinkModel}
-                onUplinkModelChange={handleUplinkModelChange}
               />
             );
           }}
-        </form.Subscribe>
+        </FormSlice>
 
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             mode: s.values.mode,
             action: s.values.action,
             selectedStation: s.values.selectedStation,
@@ -291,32 +293,30 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             return (
               <>
                 <NewStationForm
+                  {...stationFieldHandlers}
                   station={newStation}
-                  onStationChange={handleNewStationChange}
                   hideExtraIdentifiers
                   uplinkType={uplinkType}
-                  onUplinkTypeChange={handleUplinkTypeChange}
                   uplinkSpeed={uplinkSpeed}
-                  onUplinkSpeedChange={handleUplinkSpeedChange}
                   uplinkModel={uplinkModel}
-                  onUplinkModelChange={handleUplinkModelChange}
                 />
                 <ExtraIdentificatorsSection
                   selectedStation={selectedStation}
                   networksId={networksId}
                   networksName={networksName}
                   mnoName={mnoName}
-                  onNetworksIdChange={handleNetworksIdChange}
-                  onNetworksNameChange={handleNetworksNameChange}
-                  onMnoNameChange={handleMnoNameChange}
+                  onNetworksIdChange={(value) => form.setFieldValue("networksId", value)}
+                  onNetworksNameChange={(value) => form.setFieldValue("networksName", value)}
+                  onMnoNameChange={(value) => form.setFieldValue("mnoName", value)}
                 />
               </>
             );
           }}
-        </form.Subscribe>
+        </FormSlice>
 
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             mode: s.values.mode,
             action: s.values.action,
             selectedStation: s.values.selectedStation,
@@ -339,51 +339,38 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
                 cells={cells}
                 sectors={sectors}
                 mncById={mncById}
-                onSectorsChange={handleSectorsChange}
+                onSectorsChange={(nextSectors) => form.setFieldValue("sectors", nextSectors)}
               />
             );
           }}
-        </form.Subscribe>
+        </FormSlice>
 
         {settings?.photosEnabled && (
-          <form.Subscribe
-            selector={(s) => ({
+          <FormSlice
+            form={form}
+            select={(s) => ({
               mode: s.values.mode,
               selectedStation: s.values.selectedStation,
               location: s.values.location,
               action: s.values.action,
             })}
           >
-            {({ mode, selectedStation, location, action }) => {
-              return (
-                <SubmissionPhotosPanel
-                  mode={mode}
-                  action={action}
-                  selectedStation={selectedStation}
-                  location={location}
-                  photos={photos}
-                  onPhotosChange={setPhotos}
-                  notes={photoNotes}
-                  onNotesChange={setPhotoNotes}
-                  takenAts={photoTakenAts}
-                  onTakenAtsChange={setPhotoTakenAts}
-                  locationPhotoIds={locationPhotoIds}
-                  onLocationPhotoIdsChange={setLocationPhotoIds}
-                  locationPhotoIdsToRemove={locationPhotoIdsToRemove}
-                  onLocationPhotoIdsToRemoveChange={setLocationPhotoIdsToRemove}
-                  mainLocationPhotoId={mainLocationPhotoId}
-                  onMainLocationPhotoIdChange={setMainLocationPhotoId}
-                  mainUploadPhotoIndex={mainUploadPhotoIndex}
-                  onMainUploadPhotoIndexChange={setMainUploadPhotoIndex}
-                  editSubmissionId={editSubmissionId}
-                />
-              );
-            }}
-          </form.Subscribe>
+            {({ mode, selectedStation, location, action }) => (
+              <SubmissionPhotosPanel
+                {...photoDraft}
+                mode={mode}
+                action={action}
+                selectedStation={selectedStation}
+                location={location}
+                editSubmissionId={editSubmissionId}
+              />
+            )}
+          </FormSlice>
         )}
 
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             mode: s.values.mode,
             action: s.values.action,
             selectedStation: s.values.selectedStation,
@@ -399,88 +386,43 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
               return null;
             }
 
-            return <RatSelector selectedRats={selectedRats} onRatsChange={handleRatsChange} />;
+            return <RatSelector selectedRats={selectedRats} onRatsChange={(rats) => form.setFieldValue("selectedRats", rats)} />;
           }}
-        </form.Subscribe>
+        </FormSlice>
 
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             mode: s.values.mode,
             action: s.values.action,
             selectedStation: s.values.selectedStation,
-            newStation: s.values.newStation,
-            location: s.values.location,
-            cells: s.values.cells,
-            sectors: s.values.sectors,
             submitterNote: s.values.submitterNote,
-            networksId: s.values.networksId,
-            networksName: s.values.networksName,
-            mnoName: s.values.mnoName,
-            uplinkType: s.values.uplinkType,
-            uplinkSpeed: s.values.uplinkSpeed,
-            uplinkModel: s.values.uplinkModel,
-            selectedRats: s.values.selectedRats,
             canSubmit: s.canSubmit,
             isSubmitting: s.isSubmitting,
           })}
         >
-          {({
-            mode,
-            action,
-            selectedStation,
-            newStation,
-            location,
-            cells,
-            sectors,
-            submitterNote,
-            networksId,
-            networksName,
-            mnoName,
-            uplinkType,
-            uplinkSpeed,
-            uplinkModel,
-            selectedRats,
-            canSubmit,
-            isSubmitting,
-          }) => {
-            const hasChanges = computeHasChanges(
-              mode,
-              action,
-              newStation,
-              location,
-              cells,
-              sectors,
-              submitterNote,
-              networksId,
-              networksName,
-              mnoName,
-              { uplinkType, uplinkSpeed, uplinkModel },
-            );
-            const cellsCount = cells.filter((c) => selectedRats.includes(c.rat)).length;
-            return (
-              <SubmitSection
-                mode={mode}
-                action={action}
-                selectedStation={selectedStation}
-                newStation={newStation}
-                cellsCount={cellsCount}
-                submitterNote={submitterNote}
-                onSubmitterNoteChange={handleSubmitterNoteChange}
-                canSubmit={canSubmit && hasChanges && (mode === "new" || selectedStation !== null)}
-                isSubmitting={isSubmitting}
-                isPending={mutation.isPending}
-                isSuccess={mutation.isSuccess}
-                isEditMode={isEditMode}
-                hasChanges={hasChanges}
-              />
-            );
-          }}
-        </form.Subscribe>
+          {({ mode, action, selectedStation, submitterNote, canSubmit, isSubmitting }) => (
+            <SubmitSection
+              mode={mode}
+              action={action}
+              selectedStation={selectedStation}
+              submitterNote={submitterNote}
+              onSubmitterNoteChange={(note) => form.setFieldValue("submitterNote", note)}
+              canSubmit={canSubmit && hasChanges && (mode === "new" || selectedStation !== null)}
+              isSubmitting={isSubmitting}
+              isPending={mutation.isPending}
+              isSuccess={mutation.isSuccess}
+              isEditMode={isEditMode}
+              hasChanges={hasChanges}
+            />
+          )}
+        </FormSlice>
       </div>
 
       <div className="flex-[3_0_500px] min-w-0 max-md:flex-[1_1_100%]">
-        <form.Subscribe
-          selector={(s) => ({
+        <FormSlice
+          form={form}
+          select={(s) => ({
             selectedRats: s.values.selectedRats,
             cells: s.values.cells,
             originalCells: s.values.originalCells,
@@ -510,7 +452,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
               />
             );
           }}
-        </form.Subscribe>
+        </FormSlice>
       </div>
     </form>
   );

@@ -22,6 +22,18 @@ export const SubmissionStatus = pgEnum("submission_status", ["pending", "approve
 export const SubmissionTypeEnum = pgEnum("submission_type", ["new", "update", "delete"]);
 export const CellOperationEnum = pgEnum("cell_operation", ["add", "update", "delete"]);
 export const StationOperationEnum = pgEnum("station_operation", ["add", "update", "delete"]);
+export const ProposedStationFieldEnum = pgEnum("proposed_station_field", [
+  "station_id",
+  "operator_id",
+  "notes",
+  "networks_id",
+  "networks_name",
+  "mno_name",
+  "uplink_type",
+  "uplink_speed",
+  "uplink_model",
+]);
+export const ProposedLocationFieldEnum = pgEnum("proposed_location_field", ["region_id", "city", "address", "longitude", "latitude"]);
 export const SubmissionsSchema = pgSchema("submissions");
 
 /**
@@ -181,9 +193,7 @@ export const proposedStations = SubmissionsSchema.table(
     operation: StationOperationEnum("operation").notNull().default("add"),
     target_station_id: integer("target_station_id").references(() => stations.id, { onDelete: "set null", onUpdate: "cascade" }),
     station_id: varchar("station_id", { length: 16 }),
-    operator_id: integer("operator_id")
-      .references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" })
-      .notNull(),
+    operator_id: integer("operator_id").references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
     notes: text("notes"),
     networks_id: integer("networks_id"),
     networks_name: varchar("networks_name", { length: 50 }),
@@ -191,6 +201,7 @@ export const proposedStations = SubmissionsSchema.table(
     uplink_type: UplinkType("uplink_type"),
     uplink_speed: integer("uplink_speed"),
     uplink_model: varchar("uplink_model", { length: 100 }),
+    changed_fields: ProposedStationFieldEnum("changed_fields").array(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     is_confirmed: boolean("is_confirmed").default(false),
@@ -207,13 +218,12 @@ export const proposedLocations = SubmissionsSchema.table(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     submission_id: uuid("submission_id").references(() => submissions.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    region_id: integer("region_id")
-      .references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" })
-      .notNull(),
+    region_id: integer("region_id").references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" }),
     city: varchar("city", { length: 100 }),
     address: text("address"),
-    longitude: doublePrecision("longitude").notNull(),
-    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude"),
+    latitude: doublePrecision("latitude"),
+    changed_fields: ProposedLocationFieldEnum("changed_fields").array(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

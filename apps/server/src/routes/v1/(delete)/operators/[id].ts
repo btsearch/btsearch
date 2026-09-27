@@ -1,4 +1,4 @@
-import { operators } from "@openbts/drizzle";
+import { operators, stations } from "@openbts/drizzle";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -27,6 +27,8 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
 
   try {
     await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.delete" }, async (tx, audit) => {
+      const [station] = await tx.select({ id: stations.id }).from(stations).where(eq(stations.operator_id, id)).limit(1);
+      if (station) throw new ErrorResponse("CONFLICT", { message: "Cannot delete an operator that still has stations" });
       await tx.delete(operators).where(eq(operators.id, id));
       await audit.log({ entity: "operators", op: "delete", recordId: id, old: operator });
     });

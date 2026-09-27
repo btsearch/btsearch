@@ -1,7 +1,7 @@
 import { ArrowDown01Icon, Calendar03Icon, Delete02Icon, Image01Icon, Message01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -29,7 +29,7 @@ type StationCommentsSectionProps = {
   stationId: number;
 };
 
-export function StationCommentsSection({ stationId }: StationCommentsSectionProps) {
+export const StationCommentsSection = memo(function StationCommentsSection({ stationId }: StationCommentsSectionProps) {
   const { t, i18n } = useTranslation(["submissions", "stationDetails"]);
   const { t: tAdmin } = useTranslation("admin");
   const { data: session } = authClient.useSession();
@@ -173,4 +173,4 @@ export function StationCommentsSection({ stationId }: StationCommentsSectionProp
       </AlertDialog>
     </>
   );
-}
+});

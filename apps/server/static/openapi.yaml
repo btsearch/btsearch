@@ -5125,6 +5125,7 @@ components:
           { type: integer, nullable: true, description: "ID from `location_photo_ids` to mark as the main station photo when approved" }
     ProposedStationInsert:
       type: object
+      description: New stations need `operator_id`. Updates store only the fields that changed, and `null` clears extra identifiers or uplink fields
       properties:
         operation: { type: string, enum: [add, update, delete], default: add }
         target_station_id: { type: integer, nullable: true }
@@ -5132,7 +5133,7 @@ components:
         operator_id: { type: integer, nullable: true }
         notes: { type: string, nullable: true }
         networks_id: { type: integer, nullable: true }
-        networks_name: { type: string, nullable: true, maxLength: 150 }
+        networks_name: { type: string, nullable: true, maxLength: 50 }
         mno_name: { type: string, nullable: true, maxLength: 50 }
         uplink_type:
           {
@@ -5145,13 +5146,13 @@ components:
         uplink_model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model" }
     ProposedLocationInsert:
       type: object
-      required: [region_id, longitude, latitude]
+      description: New stations and stations without a location need a region and coordinates. Updates store only the fields that changed, and `null` clears city or address
       properties:
-        region_id: { type: integer }
+        region_id: { type: integer, nullable: true }
         city: { type: string, nullable: true }
         address: { type: string, nullable: true }
-        longitude: { type: number }
-        latitude: { type: number }
+        longitude: { type: number, nullable: true }
+        latitude: { type: number, nullable: true }
     ProposedSectorInsert:
       type: object
       required: [local_id, azimuth]
@@ -5318,8 +5319,13 @@ components:
         uplink_type: { type: string, enum: [fiber, microwave], nullable: true }
         uplink_speed: { type: integer, nullable: true, description: "Uplink capacity in Mbps" }
         uplink_model: { type: string, nullable: true }
+        changed_fields:
+          type: array
+          nullable: true
+          items:
+            { type: string, enum: [station_id, operator_id, notes, networks_id, networks_name, mno_name, uplink_type, uplink_speed, uplink_model] }
+          description: Fields this update changes; listed `null` fields get cleared. `null` for new stations and older submissions, where every non-null field is a change
         is_confirmed: { type: boolean, nullable: true }
-        status: { type: string, enum: [published, inactive, pending] }
         updatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
     ProposedLocation:
@@ -5327,11 +5333,16 @@ components:
       properties:
         id: { type: integer }
         submission_id: { type: string, format: uuid, nullable: true }
-        region_id: { type: integer }
+        region_id: { type: integer, nullable: true }
         city: { type: string, nullable: true }
         address: { type: string, nullable: true }
-        longitude: { type: number }
-        latitude: { type: number }
+        longitude: { type: number, nullable: true }
+        latitude: { type: number, nullable: true }
+        changed_fields:
+          type: array
+          nullable: true
+          items: { type: string, enum: [region_id, city, address, longitude, latitude] }
+          description: Fields this update changes; listed `null` fields get cleared. `null` for new stations and older submissions, where every non-null field is a change
         updatedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
     UserPublic:

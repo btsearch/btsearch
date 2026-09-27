@@ -1,4 +1,4 @@
-import { regions } from "@openbts/drizzle";
+import { locations, regions, stations } from "@openbts/drizzle";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -27,6 +27,13 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
 
   try {
     await runAuditedOperation(auditContextFromRequest(req), { kind: "region.delete" }, async (tx, audit) => {
+      const [station] = await tx
+        .select({ id: stations.id })
+        .from(stations)
+        .innerJoin(locations, eq(locations.id, stations.location_id))
+        .where(eq(locations.region_id, id))
+        .limit(1);
+      if (station) throw new ErrorResponse("CONFLICT", { message: "Cannot delete a region that still has stations" });
       await tx.delete(regions).where(eq(regions.id, id));
       await audit.log({ entity: "regions", op: "delete", recordId: id, old: region });
     });

@@ -9,11 +9,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import type { CellDraftBase } from "../../cells/cellEditRow";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "./sectorsEditor";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,7 +23,6 @@ import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stat
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
-import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
 import { UplinkFields } from "@/features/shared/UplinkFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
@@ -80,7 +78,8 @@ type StationInfoFormProps = {
   showEditLocationLink?: boolean;
   sectors: SectorDraft[];
   onSectorsChange: (sectors: SectorDraft[]) => void;
-  cells: CellDraftBase[];
+  derivedSectorCount: number;
+  assignedSectorLocalIds: ReadonlySet<string>;
   uplinkType: UplinkType | null;
   onUplinkTypeChange: (value: UplinkType | null) => void;
   uplinkSpeed: number | null;
@@ -89,7 +88,7 @@ type StationInfoFormProps = {
   onUplinkModelChange: (value: string) => void;
 };
 
-export function StationInfoForm({
+export const StationInfoForm = memo(function StationInfoForm({
   stationDbId,
   stationId,
   onStationIdChange,
@@ -119,7 +118,8 @@ export function StationInfoForm({
   showEditLocationLink,
   sectors,
   onSectorsChange,
-  cells,
+  derivedSectorCount,
+  assignedSectorLocalIds,
   uplinkType,
   onUplinkTypeChange,
   uplinkSpeed,
@@ -142,7 +142,6 @@ export function StationInfoForm({
   const trimmedStationId = stationId.trim();
   const { latitude, longitude } = location;
 
-  const { derivedSectorCount, assignedSectorLocalIds } = useMemo(() => deriveSectorPanelState(cells), [cells]);
   const selectedStatusOption = status ? STATION_STATUS_OPTIONS.find((option) => option.status === status) : undefined;
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
@@ -392,4 +391,4 @@ export function StationInfoForm({
       />
     </div>
   );
-}
+});
