@@ -30,6 +30,7 @@ import { ChartTooltip, ChartTooltipContent, type TooltipRoundness, type TooltipV
 // Constants
 const DEFAULT_BAR_RADIUS = 2;
 const MIN_VISIBLE_VERTICAL_BAR_HEIGHT = 4;
+const BAR_BASE_GAP = 3;
 const LOADING_BAR_DATA_KEY = "loading";
 const LOADING_ANIMATION_DURATION = 2000; // in milliseconds
 const STACK_ID = "evil-stacked";
@@ -612,13 +613,11 @@ const CustomBar = (props: CustomBarProps) => {
       : hasNegativeValue
         ? [barRadius, barRadius, 0, 0]
         : [0, 0, barRadius, barRadius];
-  const positiveStackKeys = Object.keys(config).filter((key) => {
-    const val = props.payload?.[key];
-    return typeof val === "number" && val > 0;
-  });
-  const tinyStackOffset = Math.max(0, positiveStackKeys.indexOf(dataKey));
-  const visibleHeight = getVisibleVerticalBarHeight(height, hasPositiveValue);
-  const visibleY = hasPositiveValue && visibleHeight > height ? y + height - visibleHeight - (isStacked ? tinyStackOffset * visibleHeight : 0) : y;
+  const minimumHeight = getVisibleVerticalBarHeight(height, hasPositiveValue);
+  const { y: visibleY, height: visibleHeight } =
+    isStacked && !isHorizontal && hasPositiveValue
+      ? getStackedSegmentRect(y, height, dataKey, props.payload, Object.keys(config))
+      : { y: hasPositiveValue && minimumHeight > height ? y + height - minimumHeight : y, height: minimumHeight };
 
   // The visible, painted bar — plus the stripped variant's solid top strip
   const visibleBar = (
@@ -681,7 +680,30 @@ function getVisibleVerticalBarHeight(height: number, hasPositiveValue: boolean) 
   if (height < 0) return height;
   if (!hasPositiveValue) return Math.max(0, height);
   if (height <= MIN_VISIBLE_VERTICAL_BAR_HEIGHT) return MIN_VISIBLE_VERTICAL_BAR_HEIGHT;
-  return Math.max(0, height - 3);
+  return Math.max(0, height - BAR_BASE_GAP);
+}
+
+function getStackedSegmentRect(y: number, height: number, dataKey: string, payload: Record<string, unknown> | undefined, stackKeys: string[]) {
+  const ownValue = payload?.[dataKey];
+  if (typeof ownValue !== "number" || ownValue <= 0 || height <= 0) return { y, height: Math.max(0, height) };
+
+  const pixelsPerUnit = height / ownValue;
+  const segments = stackKeys.flatMap((key) => {
+    const value = payload?.[key];
+    return typeof value === "number" && value > 0 ? [{ key, height: value * pixelsPerUnit }] : [];
+  });
+  const ownIndex = segments.findIndex((segment) => segment.key === dataKey);
+  if (ownIndex === -1) return { y, height };
+
+  const minSlot = MIN_VISIBLE_VERTICAL_BAR_HEIGHT + BAR_BASE_GAP;
+  const tinySegments = segments.filter((segment) => segment.height < minSlot);
+  const columnHeight = segments.reduce((sum, segment) => sum + segment.height, 0);
+  const normalHeight = columnHeight - tinySegments.reduce((sum, segment) => sum + segment.height, 0);
+  const normalScale = normalHeight > 0 ? Math.max(0, (columnHeight - tinySegments.length * minSlot) / normalHeight) : 1;
+  const slots = segments.map((segment) => Math.max(minSlot, segment.height * normalScale));
+  const baseline = y + height + segments.slice(0, ownIndex).reduce((sum, segment) => sum + segment.height, 0);
+  const slotBottom = baseline - slots.slice(0, ownIndex).reduce((sum, slot) => sum + slot, 0);
+  return { y: slotBottom - slots[ownIndex], height: slots[ownIndex] - BAR_BASE_GAP };
 }
 
 /**

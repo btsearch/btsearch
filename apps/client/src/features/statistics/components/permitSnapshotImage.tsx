@@ -7,7 +7,8 @@ import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric } from 
 const IMAGE_WIDTH = 1920;
 const IMAGE_HEIGHT = 1080;
 const IMAGE_PIXEL_RATIO = 2;
-const MAX_GRID_ROWS = 4;
+const OPERATOR_SLOT_WIDTH = 90;
+const MIN_OPERATOR_SLOTS = 1.5;
 
 type ExportCanvasStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -44,44 +45,42 @@ export const PermitSnapshotImage = forwardRef<
 >(function PermitSnapshotImage({ bands, description, metric, month }, ref) {
   const { t, i18n } = useTranslation("statistics");
   const localizedMonth = getLocalizedMonth(month, i18n.language);
-  const columns = Math.max(4, Math.ceil(bands.length / MAX_GRID_ROWS));
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed left-[-10000px] top-0 z-[-1]">
-      <div ref={ref} className="box-border overflow-hidden bg-black p-12 font-sans text-white" style={EXPORT_CANVAS_STYLE}>
-        <header className="flex h-26 items-center justify-between border-b border-white/20 pb-6">
+      <div ref={ref} className="box-border flex flex-col overflow-hidden bg-black px-12 py-10 font-sans text-white" style={EXPORT_CANVAS_STYLE}>
+        <header className="flex h-28 shrink-0 items-center justify-between border-b border-white/20 pb-6">
           <div className="flex min-w-0 items-center gap-8">
             <img src="/btsearch.webp" alt="" width={185} height={65} className="h-[65px] w-[185px] shrink-0 brightness-0 invert" draggable={false} />
             <div className="min-w-0 border-l border-white/20 pl-8">
-              <h1 className="truncate text-[34px] font-semibold leading-none tracking-[-0.02em]">
+              <h1 className="truncate text-[42px] font-semibold leading-tight tracking-[-0.02em]">
                 {t("permitsByMonth.export.imageTitle", localizedMonth)}
               </h1>
-              <p className="mt-3 text-sm text-zinc-400">
+              <p className="mt-1 text-lg text-zinc-400">
                 {t(`permitsByMonth.views.${metric}`)} · {description}
               </p>
             </div>
           </div>
-          <div className="ml-8 flex shrink-0 items-center gap-6 text-xs text-zinc-400">
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-5 bg-white" />
+          <div className="ml-8 flex shrink-0 items-center gap-8 text-lg text-zinc-300">
+            <span className="flex items-center gap-3">
+              <span className="h-4 w-7 bg-white" />
               {t("permitsByMonth.all")}
             </span>
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-5 border border-white bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,white_3px,white_4px)]" />
+            <span className="flex items-center gap-3">
+              <span className="h-4 w-7 border border-white bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,white_3px,white_4px)]" />
               {t("permitsByMonth.new")}
             </span>
           </div>
         </header>
-        <div
-          className="mt-3 grid h-217 overflow-hidden border-l border-t border-white/15 bg-black"
-          style={{
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${MAX_GRID_ROWS}, minmax(0, 1fr))`,
-          }}
-        >
-          {bands.map((band) => (
-            <PermitSnapshotBandChart key={band.id} band={band} metric={metric} mode="export" />
-          ))}
+        <div className="mt-4 flex min-h-0 flex-1 flex-wrap overflow-hidden border-l border-t border-white/15">
+          {bands.map((band) => {
+            const slots = Math.max(band.rows.length, MIN_OPERATOR_SLOTS);
+            return (
+              <div key={band.id} className="flex min-w-0" style={{ flex: `${slots} 1 ${slots * OPERATOR_SLOT_WIDTH}px` }}>
+                <PermitSnapshotBandChart band={band} metric={metric} mode="export" />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

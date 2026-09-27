@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { memo, useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { LabelList, Rectangle } from "recharts";
+import { LabelList, Rectangle, ReferenceLine, useYAxisScale } from "recharts";
 
 import type { PermitSnapshot } from "../api";
 import { compareBandNames } from "../lib/bandOrder";
@@ -17,20 +17,54 @@ export type SnapshotBand = {
   rows: PermitSnapshot["rows"];
 };
 
-type SnapshotChartDatum = { operator: string; all: number; delta: number; deltaLabel: string; color: string };
+type SnapshotChartDatum = { operator: string; all: number; delta: number; deltaBar: number; deltaLabel: string; color: string };
 type SnapshotBarShapeProps = ComponentProps<typeof Rectangle> & {
   dataKey?: string;
   index?: number;
   payload?: Partial<SnapshotChartDatum>;
 };
+type BarLabelViewBox = { x?: number | string; y?: number | string; height?: number | string; width?: number | string };
+type SnapshotChartMode = "page" | "export";
+type BarLabelProps = { value?: unknown; viewBox?: BarLabelViewBox; index?: number; data: SnapshotChartDatum[]; mode: SnapshotChartMode };
 
-const PAGE_BAR_SIZE = 32;
-const EXPORT_BAR_SIZE = 17;
-const EXPORT_LABEL_HALO_STYLE = {
-  stroke: "rgba(255,255,255,0.9)",
-  strokeWidth: 2,
-  paintOrder: "stroke",
+const DELTA_MIN_POINT_SIZE = 3;
+const VALUE_LABEL_OFFSET = 5;
+const NEGATIVE_AXIS_SHARE = 0.2;
+const MIN_NEGATIVE_AXIS = 10;
+const SNAPSHOT_LAYOUT = {
+  page: {
+    barSize: 28,
+    barGap: 6,
+    margin: { top: 20, left: 8, right: 8 },
+    tickFontSize: 13,
+    valueFontSize: 13,
+    deltaFontSize: 12,
+    percentFontSize: 11,
+    deltaLineHeight: 13,
+    deltaLabelHeight: 24,
+    labelGap: 6,
+    conflictDistance: 28,
+    valueFill: "var(--foreground)",
+    halo: { stroke: "var(--background)", strokeWidth: 3, strokeLinejoin: "round", paintOrder: "stroke" },
+  },
+  export: {
+    barSize: 24,
+    barGap: 10,
+    margin: { top: 26, left: 6, right: 6, bottom: 0 },
+    tickFontSize: 15,
+    valueFontSize: 18,
+    deltaFontSize: 15,
+    percentFontSize: 13,
+    deltaLineHeight: 15,
+    deltaLabelHeight: 28,
+    labelGap: 7,
+    conflictDistance: 34,
+    valueFill: "#fafafa",
+    halo: { stroke: "#000000", strokeWidth: 4, strokeLinejoin: "round", paintOrder: "stroke" },
+  },
 } as const;
+const DELTA_TONE_CLASS_NAMES = { positive: "fill-emerald-700 dark:fill-emerald-400", negative: "fill-red-600 dark:fill-red-400" } as const;
+const EXPORT_COLORS = { operator: "#d4d4d8", baseline: "#52525b", positive: "#34d399", negative: "#f87171" } as const;
 
 export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined): SnapshotBand[] {
   const bands = new Map<string, SnapshotBand>();
@@ -105,46 +139,88 @@ function createSnapshotBarShape(patternPrefix: string, variant: "solid" | "hatch
   };
 }
 
-function NewBarLabel({
-  x,
-  y,
-  height,
-  width,
-  value,
-  viewBox,
-  outlined,
-}: {
-  x?: number | string;
-  y?: number | string;
-  height?: number | string;
-  width?: number | string;
-  value?: unknown;
-  viewBox?: { x?: number | string; y?: number | string; height?: number | string; width?: number | string };
-  outlined?: boolean;
-}) {
-  const [amountLabel, percentLabel, deltaTone] = typeof value === "string" ? value.split("|") : [];
-  const xValue = Number(viewBox?.x ?? x);
-  const yValue = Number(viewBox?.y ?? y);
-  const heightValue = Number(viewBox?.height ?? height);
-  const widthValue = Number(viewBox?.width ?? width);
-  if (!amountLabel || !percentLabel || !Number.isFinite(xValue) || !Number.isFinite(yValue) || !Number.isFinite(widthValue)) return null;
+function roundUpToNice(value: number): number {
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  return ([1, 2, 5].find((factor) => factor * magnitude >= value) ?? 10) * magnitude;
+}
 
-  const labelLift = Number.isFinite(heightValue) && heightValue < 3 ? 22 : 18;
-  const labelY = Math.max(12, yValue - labelLift);
-  const labelFill = deltaTone === "negative" ? "#ef4444" : "#10b981";
+function getTickStep(maxValue: number): number {
+  if (maxValue <= 0) return 1;
+  const rawStep = maxValue / 4;
+  const halfMagnitude = 10 ** Math.floor(Math.log10(rawStep)) / 2;
+  return Math.ceil(Math.ceil(rawStep / halfMagnitude) * halfMagnitude);
+}
+
+function getValueAxis(values: { all: number; delta: number }[], fitToData: boolean) {
+  const maxValue = Math.max(0, ...values.flatMap((value) => [value.all, value.delta]));
+  const minDelta = Math.min(0, ...values.map((value) => value.delta));
+  const step = getTickStep(maxValue);
+  const max = fitToData ? Math.max(1, maxValue) : Math.max(step, Math.ceil(maxValue / step) * step);
+  const positiveTicks = Array.from({ length: Math.floor(max / step) + 1 }, (_, index) => index * step);
+  if (minDelta === 0) return { min: 0, max, ticks: positiveTicks, negativeScale: 1 };
+
+  const negativeFloor = Math.max(MIN_NEGATIVE_AXIS, roundUpToNice(-minDelta));
+  const min = (-max * NEGATIVE_AXIS_SHARE) / (1 - NEGATIVE_AXIS_SHARE);
+  return { min, max, ticks: [min, ...positiveTicks], negativeScale: -min / negativeFloor };
+}
+
+function useLabelConflict(datum: SnapshotChartDatum | undefined, conflictDistance: number): boolean {
+  const yScale = useYAxisScale();
+  if (datum === undefined || datum.deltaLabel === "" || yScale === undefined) return false;
+
+  const allTop = yScale(datum.all);
+  const zeroY = yScale(0);
+  const deltaY = yScale(datum.deltaBar);
+  if (allTop === undefined || zeroY === undefined || deltaY === undefined) return false;
+
+  const deltaTop = datum.delta > 0 ? Math.min(deltaY, zeroY - DELTA_MIN_POINT_SIZE) : zeroY;
+  return deltaTop - allTop < conflictDistance;
+}
+
+function ValueBarLabel({ value, viewBox, index, data, mode, locale }: BarLabelProps & { locale: string }) {
+  const layout = SNAPSHOT_LAYOUT[mode];
+  const hasConflict = useLabelConflict(index === undefined ? undefined : data[index], layout.conflictDistance);
+  const x = Number(viewBox?.x);
+  const y = Number(viewBox?.y);
+  const width = Number(viewBox?.width);
+  if (![x, y, width].every(Number.isFinite)) return null;
+
   return (
     <text
-      x={xValue + widthValue / 2}
-      y={labelY}
-      textAnchor="middle"
-      fill={labelFill}
-      className="text-[10px]"
-      style={outlined ? EXPORT_LABEL_HALO_STYLE : undefined}
+      x={hasConflict ? x + width : x + width / 2}
+      y={y - VALUE_LABEL_OFFSET}
+      textAnchor={hasConflict ? "end" : "middle"}
+      style={{ ...layout.halo, fontSize: layout.valueFontSize, fontWeight: 600, fill: layout.valueFill }}
     >
-      <tspan x={xValue + widthValue / 2} dy={0}>
+      {formatWholeNumber(value, locale)}
+    </text>
+  );
+}
+
+function DeltaBarLabel({ value, viewBox, index, data, mode }: BarLabelProps) {
+  const layout = SNAPSHOT_LAYOUT[mode];
+  const hasConflict = useLabelConflict(index === undefined ? undefined : data[index], layout.conflictDistance);
+  const [amountLabel, percentLabel, deltaTone] = typeof value === "string" ? value.split("|") : [];
+  const x = Number(viewBox?.x);
+  const y = Number(viewBox?.y);
+  const width = Number(viewBox?.width);
+  const height = Number(viewBox?.height);
+  if (!amountLabel || !percentLabel || ![x, y, width, height].every(Number.isFinite)) return null;
+
+  const tone = deltaTone === "negative" ? "negative" : "positive";
+  const percentY = Math.max(layout.deltaLabelHeight, Math.min(y, y + height) - layout.labelGap);
+  const labelX = hasConflict ? x : x + width / 2;
+  return (
+    <text
+      textAnchor={hasConflict ? "start" : "middle"}
+      fill={mode === "export" ? EXPORT_COLORS[tone] : undefined}
+      className={mode === "export" ? undefined : DELTA_TONE_CLASS_NAMES[tone]}
+      style={layout.halo}
+    >
+      <tspan x={labelX} y={percentY - layout.deltaLineHeight} fontSize={layout.deltaFontSize} fontWeight={600}>
         {amountLabel}
       </tspan>
-      <tspan x={xValue + widthValue / 2} dy={11}>
+      <tspan x={labelX} y={percentY} fontSize={layout.percentFontSize}>
         {percentLabel}
       </tspan>
     </text>
@@ -158,16 +234,17 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
 }: {
   band: SnapshotBand;
   metric: SnapshotMetric;
-  mode?: "page" | "export";
+  mode?: SnapshotChartMode;
 }) {
   const { t, i18n } = useTranslation("statistics");
   const { EvilBarChart, Bar, XAxis, YAxis, Grid, Tooltip } = BarChartImport;
   const patternPrefix = useId().replace(/:/g, "");
   const isExport = mode === "export";
+  const layout = SNAPSHOT_LAYOUT[mode];
   const valueFormatter = useMemo(
     () =>
       (value: number, dataKey: string, payload: Record<string, unknown>): ReactNode => {
-        if (dataKey === "delta") {
+        if (dataKey === "deltaBar") {
           const delta = payload["delta"];
           const displayValue = typeof delta === "number" ? delta : value;
           if (displayValue === 0) return formatSignedDelta(displayValue, i18n.language);
@@ -181,20 +258,25 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
     [i18n.language],
   );
 
-  const { data, config } = useMemo(() => {
-    const chartData: SnapshotChartDatum[] = band.rows.map((row) => ({
+  const { data, config, valueAxis } = useMemo(() => {
+    const values = band.rows.map((row) => ({
       operator: row.operator.name,
       color: operatorColor(row.operator),
       ...getMetricValues(row, metric, i18n.language),
     }));
+    const axis = getValueAxis(values, isExport);
+    const chartData: SnapshotChartDatum[] = values.map((value) => ({
+      ...value,
+      deltaBar: value.delta < 0 ? value.delta * axis.negativeScale : value.delta,
+    }));
     const chartConfig = {
       all: { label: t("permitsByMonth.all"), colors: { light: ["var(--chart-1)"], dark: ["var(--chart-1)"] } },
-      delta: { label: t("permitsByMonth.new"), colors: { light: ["var(--chart-2)"], dark: ["var(--chart-2)"] } },
-    } satisfies Record<"all" | "delta", ChartConfig[string]>;
-    return { data: chartData, config: chartConfig };
-  }, [band.rows, i18n.language, metric, t]);
+      deltaBar: { label: t("permitsByMonth.new"), colors: { light: ["var(--chart-2)"], dark: ["var(--chart-2)"] } },
+    } satisfies Record<"all" | "deltaBar", ChartConfig[string]>;
+    return { data: chartData, config: chartConfig, valueAxis: axis };
+  }, [band.rows, i18n.language, isExport, metric, t]);
 
-  const chartMinWidth = Math.max(320, data.length * (PAGE_BAR_SIZE * 2 + 12) + 72);
+  const chartMinWidth = Math.max(320, data.length * (layout.barSize * 2 + layout.barGap + 14) + 72);
   const allBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-${band.id}-all`, "solid"), [band.id, patternPrefix]);
   const deltaBarShape = useMemo(() => createSnapshotBarShape(`snapshot-${patternPrefix}-${band.id}-delta`, "hatched"), [band.id, patternPrefix]);
 
@@ -202,49 +284,51 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
     <EvilBarChart
       config={config}
       data={data}
-      className={isExport ? "h-42 text-[9px]" : "h-56"}
+      className={isExport ? "aspect-auto" : "h-56"}
       xDataKey="operator"
       animationType={isExport ? "none" : undefined}
       barCategoryGap={isExport ? 8 : 30}
-      barGap={isExport ? 1 : 3}
-      chartProps={{ margin: isExport ? { top: 20, left: 0, right: 0, bottom: 0 } : { top: 20, left: 8, right: 8 } }}
+      barGap={layout.barGap}
+      chartProps={{ margin: layout.margin }}
     >
-      <Grid />
-      <XAxis dataKey="operator" tick={isExport ? { fontSize: 9 } : undefined} />
-      <YAxis width={isExport ? 46 : 54} locale={i18n.language} tick={isExport ? { fontSize: 9 } : undefined} />
+      {isExport ? null : <Grid />}
+      <XAxis
+        dataKey="operator"
+        interval={0}
+        tick={isExport ? { fontSize: layout.tickFontSize, fill: EXPORT_COLORS.operator } : { fontSize: layout.tickFontSize }}
+      />
+      {isExport ? (
+        <YAxis hide domain={[valueAxis.min, valueAxis.max]} />
+      ) : (
+        <YAxis
+          width={54}
+          domain={[valueAxis.min, valueAxis.max]}
+          ticks={valueAxis.ticks}
+          tickFormatter={(value: number) => Math.round(value < 0 ? value / valueAxis.negativeScale : value).toLocaleString(i18n.language)}
+        />
+      )}
+      <ReferenceLine y={0} stroke={isExport ? EXPORT_COLORS.baseline : undefined} />
       {isExport ? null : <Tooltip valueFormatter={valueFormatter} />}
       <Bar
         dataKey="all"
         barProps={{
-          barSize: isExport ? EXPORT_BAR_SIZE : PAGE_BAR_SIZE,
-          maxBarSize: isExport ? 20 : 40,
+          barSize: layout.barSize,
+          maxBarSize: layout.barSize,
           shape: allBarShape,
           activeBar: allBarShape,
-          children: [
-            <LabelList
-              key="lbl"
-              dataKey="all"
-              position="top"
-              formatter={(value) => formatWholeNumber(value, i18n.language)}
-              style={{
-                fontSize: isExport ? 9 : 10,
-                fill: "var(--muted-foreground)",
-                ...(isExport ? EXPORT_LABEL_HALO_STYLE : {}),
-              }}
-            />,
-          ],
+          children: [<LabelList key="lbl" dataKey="all" content={<ValueBarLabel data={data} mode={mode} locale={i18n.language} />} />],
         }}
       />
       <Bar
-        dataKey="delta"
+        dataKey="deltaBar"
         variant="hatched"
         barProps={{
-          barSize: isExport ? EXPORT_BAR_SIZE : PAGE_BAR_SIZE,
-          maxBarSize: isExport ? 20 : 40,
-          minPointSize: (value) => (typeof value === "number" && value !== 0 ? 3 : 0),
+          barSize: layout.barSize,
+          maxBarSize: layout.barSize,
+          minPointSize: (value) => (typeof value === "number" && value !== 0 ? DELTA_MIN_POINT_SIZE : 0),
           shape: deltaBarShape,
           activeBar: deltaBarShape,
-          children: [<LabelList key="lbl" dataKey="deltaLabel" content={<NewBarLabel outlined={isExport} />} />],
+          children: [<LabelList key="lbl" dataKey="deltaLabel" content={<DeltaBarLabel data={data} mode={mode} />} />],
         }}
       />
     </EvilBarChart>
@@ -254,11 +338,11 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
     <div
       className={
         isExport
-          ? "min-w-0 overflow-hidden border-r border-b border-white/15 bg-black px-2.5 py-2"
+          ? "flex min-w-0 flex-1 flex-col overflow-hidden border-r border-b border-white/15 bg-black px-3 py-2.5"
           : "p-4 [contain-intrinsic-size:360px] [content-visibility:auto]"
       }
     >
-      <h3 className={isExport ? "mb-0.5 truncate text-xs font-semibold text-white" : "mb-3 text-sm font-medium"}>{band.name}</h3>
+      <h3 className={isExport ? "mb-1 truncate text-[22px] leading-6 font-semibold text-white" : "mb-3 text-sm font-semibold"}>{band.name}</h3>
       {isExport ? (
         chart
       ) : (
