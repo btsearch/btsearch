@@ -50,6 +50,9 @@ export type ProposedStation = {
   networks_id?: number | null;
   networks_name?: string | null;
   mno_name?: string | null;
+  uplink_type?: "fiber" | "microwave" | null;
+  uplink_speed?: number | null;
+  uplink_model?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

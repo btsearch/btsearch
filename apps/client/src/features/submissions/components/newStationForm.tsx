@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
 import { operatorsQueryOptions } from "@/features/shared/queries";
+import { UplinkFields } from "@/features/shared/UplinkFields";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
+import type { UplinkType } from "@/types/station";
 
 type NewStationFormProps = {
   station: ProposedStationForm;
@@ -21,11 +23,30 @@ type NewStationFormProps = {
   onStationChange: (station: ProposedStationForm) => void;
   hideExtraIdentifiers?: boolean;
   checkExisting?: boolean;
+  uplinkType?: UplinkType | null;
+  onUplinkTypeChange?: (value: UplinkType | null) => void;
+  uplinkSpeed?: number | null;
+  onUplinkSpeedChange?: (value: number | null) => void;
+  uplinkModel?: string;
+  onUplinkModelChange?: (value: string) => void;
 };
 
-export function NewStationForm({ station, errors, onStationChange, hideExtraIdentifiers, checkExisting }: NewStationFormProps) {
-  const { t } = useTranslation("submissions");
+export function NewStationForm({
+  station,
+  errors,
+  onStationChange,
+  hideExtraIdentifiers,
+  checkExisting,
+  uplinkType,
+  onUplinkTypeChange,
+  uplinkSpeed,
+  onUplinkSpeedChange,
+  uplinkModel,
+  onUplinkModelChange,
+}: NewStationFormProps) {
+  const { t } = useTranslation(["submissions", "common"]);
   const [stationIdFocused, setStationIdFocused] = useState(false);
+  const showUplink = onUplinkTypeChange !== undefined;
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
 
@@ -100,6 +121,19 @@ export function NewStationForm({ station, errors, onStationChange, hideExtraIden
               className="text-sm resize-none"
             />
           </div>
+          {showUplink ? (
+            <div className="border-t border-border/60 pt-3 space-y-3">
+              <UplinkFields
+                uplinkType={uplinkType ?? null}
+                onUplinkTypeChange={onUplinkTypeChange!}
+                uplinkSpeed={uplinkSpeed ?? null}
+                onUplinkSpeedChange={onUplinkSpeedChange!}
+                uplinkModel={uplinkModel ?? ""}
+                onUplinkModelChange={onUplinkModelChange!}
+                size="compact"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

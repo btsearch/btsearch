@@ -1,4 +1,17 @@
-import { bands, cells, extraIdentificators, gsmCells, locations, lteCells, nrCells, operators, regions, stations, umtsCells } from "@openbts/drizzle";
+import {
+  bands,
+  cells,
+  extraIdentificators,
+  gsmCells,
+  locations,
+  lteCells,
+  nrCells,
+  operators,
+  regions,
+  stationUplinks,
+  stations,
+  umtsCells,
+} from "@openbts/drizzle";
 import { type SQL, and, eq, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -22,6 +35,7 @@ const locationSelectSchema = createSelectSchema(locations).omit({ point: true, r
 const regionSelectSchema = createSelectSchema(regions);
 const operatorsSelectSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
+const uplinkSchema = createSelectSchema(stationUplinks).omit({ station_id: true });
 const cellWithDetailsSchema = cellsSelectSchema.extend({ band: bandsSchema, details: cellDetailsSchema });
 
 type ReqBody = {
@@ -40,10 +54,12 @@ type StationWithRatCells = z.infer<typeof stationsSelectSchema> & {
   location: z.infer<typeof locationSelectSchema> | null;
   operator: z.infer<typeof operatorsSelectSchema> | null;
   extra_identificators?: z.infer<typeof extraIdentificatorsSchema> | null;
+  uplink?: z.infer<typeof uplinkSchema> | null;
 };
 type StationWithCells = z.infer<typeof stationsSelectSchema> & {
   cells: z.infer<typeof cellWithDetailsSchema>[];
   extra_identificators?: z.infer<typeof extraIdentificatorsSchema>;
+  uplink?: z.infer<typeof uplinkSchema>;
   location: z.infer<typeof locationSelectSchema> | null;
   operator: z.infer<typeof operatorsSelectSchema> | null;
 };
@@ -69,6 +85,7 @@ const schemaRoute = {
             .nullable(),
           operator: operatorsSelectSchema.nullable(),
           extra_identificators: extraIdentificatorsSchema.optional(),
+          uplink: uplinkSchema.optional(),
         }),
       ),
     }),
@@ -81,6 +98,7 @@ const stationQueryConfig = {
     location: { with: { region: true }, columns: { point: false, region_id: false } },
     operator: true,
     extra_identificators: { columns: { station_id: false } },
+    uplink: { columns: { station_id: false } },
   },
   columns: { operator_id: false, location_id: false },
 } as const;
@@ -97,8 +115,9 @@ const withCellDetails = (station: StationWithRatCells): StationWithCells => {
     ...rest,
     details: gsm ?? umts ?? lte ?? nr ?? null,
   }));
-  const result = { ...station, cells: transformedCells } as StationWithCells & { extra_identificators?: unknown };
+  const result = { ...station, cells: transformedCells } as StationWithCells & { extra_identificators?: unknown; uplink?: unknown };
   if (!result.extra_identificators) delete result.extra_identificators;
+  if (!result.uplink) delete result.uplink;
   return result;
 };
 

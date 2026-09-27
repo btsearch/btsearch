@@ -35,6 +35,7 @@ export function strategyFor(entity: AuditEntity): RevertStrategy | null {
     case "submission_photos":
     case "user_lists":
     case "settings":
+    default:
       return null;
   }
 }

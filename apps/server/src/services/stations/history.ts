@@ -20,7 +20,7 @@ export type StationHistoryAuthor = {
 };
 
 export type StationHistorySection = {
-  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
+  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "uplink" | "photos";
   action: "create" | "update" | "delete";
   changes: StationHistoryChange[];
 };
@@ -39,6 +39,7 @@ type HistoryObject = Record<string, unknown>;
 const STATION_FIELDS = ["station_id", "status", "notes", "extra_address", "operator_id", "location_id", "is_confirmed"] as const;
 const LOCATION_FIELDS = ["region_id", "city", "address", "longitude", "latitude"] as const;
 const EXTRA_IDENTIFIER_FIELDS = ["networks_id", "networks_name", "mno_name"] as const;
+const UPLINK_FIELDS = ["type", "speed", "model"] as const;
 const CELL_FIELDS = ["rat", "band_id", "sector_id", "notes", "is_confirmed"] as const;
 const CELL_DETAIL_FIELDS = [
   "lac",
@@ -309,6 +310,12 @@ export function transformEntry(row: AuditRow, operationKind: AuditOperationKind,
     case "extra_identificators": {
       kind = "network_ids";
       changes = diffFields(oldValues, newValues, EXTRA_IDENTIFIER_FIELDS, lookups);
+      break;
+    }
+    case "station_uplinks": {
+      kind = "uplink";
+      const raw = diffFields(oldValues, newValues, UPLINK_FIELDS, lookups);
+      changes = raw.map((c) => ({ ...c, field: `uplink_${c.field}` }));
       break;
     }
     case "station_sectors": {

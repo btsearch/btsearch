@@ -1,5 +1,5 @@
 import type { RatType } from "@/features/shared/rat";
-import type { Band, CellType, Operator, Region, SectorDraft } from "@/types/station";
+import type { Band, CellType, Operator, Region, SectorDraft, UplinkType } from "@/types/station";
 
 export type { RatType };
 
@@ -59,6 +59,9 @@ export type ProposedStationForm = {
   networks_id?: number | null;
   networks_name?: string | null;
   mno_name?: string | null;
+  uplink_type?: UplinkType | null;
+  uplink_speed?: number | null;
+  uplink_model?: string | null;
 };
 
 export type ProposedLocationForm = {

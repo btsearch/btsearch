@@ -25,6 +25,7 @@ const HISTORY_ENTITIES: readonly AuditEntity[] = [
   "cells",
   "station_sectors",
   "extra_identificators",
+  "station_uplinks",
   "station_photo_selections",
 ];
 
@@ -52,7 +53,7 @@ const historyItemSchema = z.object({
   operationId: z.number(),
   createdAt: z.date(),
   author: historyAuthorSchema.nullable().optional(),
-  kind: z.enum(["station", "location", "cells", "sectors", "network_ids", "photos"]),
+  kind: z.enum(["station", "location", "cells", "sectors", "network_ids", "uplink", "photos"]),
   action: z.enum(["create", "update", "delete"]),
   changes: z.array(historyChangeSchema),
   entryIds: z.array(z.number()),

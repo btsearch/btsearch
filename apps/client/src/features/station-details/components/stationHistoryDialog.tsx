@@ -9,6 +9,7 @@ import {
   EarthIcon,
   FullSignalIcon,
   Image01Icon,
+  LinkIcon,
   Location01Icon,
   Undo02Icon,
 } from "@hugeicons/core-free-icons";
@@ -52,6 +53,7 @@ const KIND_ICONS: Record<StationHistorySection["kind"], IconSvgElement> = {
   cells: FullSignalIcon,
   sectors: CompassIcon,
   network_ids: EarthIcon,
+  uplink: LinkIcon,
   photos: Image01Icon,
 };
 
@@ -264,6 +266,9 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
     if (CELL_DETAIL_FIELD_KEYS.has(field)) return CELL_DETAIL_LABEL_OVERRIDES[field] ?? getRatDetailFieldLabel(rat ?? "", field);
     if (field === "rat") return "RAT";
     if (field === "mno_name") return t("history.fields.mnoName");
+    if (field === "uplink_type") return t("history.fields.uplinkType");
+    if (field === "uplink_speed") return t("history.fields.uplinkSpeed");
+    if (field === "uplink_model") return t("history.fields.uplinkModel");
     if (field === "azimuth") return t("sectors.azimuth");
     if (field === "azimuths") return t("sectors.title");
     if (field === "cell") return t("history.fields.cell");

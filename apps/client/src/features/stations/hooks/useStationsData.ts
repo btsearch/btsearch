@@ -176,6 +176,7 @@ export function useStationsData() {
       recentDateFields: ["createdAt"],
       radiolineOperators: [],
       showPlannedMeasurements: false,
+      uplinkTypes: [],
     }),
     [state.operators, state.bands, state.rat, state.status, state.recentDays],
   );
@@ -203,6 +204,7 @@ export function useStationsData() {
         recentDateFields: ["createdAt"],
         radiolineOperators: [],
         showPlannedMeasurements: false,
+        uplinkTypes: [],
       };
       const resolved = typeof newFilters === "function" ? newFilters(current) : newFilters;
       commit({

@@ -1,4 +1,5 @@
 import type { CellPayload, ProposedCellForm, ProposedLocationForm, ProposedStationForm, SectorDraft, SectorPayload, StationAction } from "../types";
+import type { UplinkType } from "@/types/station";
 
 function isMeaningfulValue(v: unknown): boolean {
   if (v === undefined || v === null) return false;
@@ -148,6 +149,9 @@ export interface OriginalState {
   networksId?: number | null;
   networksName?: string;
   mnoName?: string;
+  uplinkType?: UplinkType | null;
+  uplinkSpeed?: number | null;
+  uplinkModel?: string;
   submitterNote?: string;
 }
 

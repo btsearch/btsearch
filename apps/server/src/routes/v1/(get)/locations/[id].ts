@@ -10,6 +10,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
+import { buildUplinkCondition, parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);
@@ -76,6 +77,11 @@ const schemaRoute = {
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
         return { fields, cutoff };
       }),
+    uplink: z
+      .string()
+      .regex(/^(?:fiber|microwave)(?:,(?:fiber|microwave))*$/)
+      .optional()
+      .transform(parseUplinkTypesParam),
   }),
   response: {
     200: z.object({
@@ -93,7 +99,7 @@ type ResponseData = z.infer<typeof locationsSchema> & { region: z.infer<typeof r
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { id } = req.params;
-  const { rat, status: selectedStatuses, operators: operatorMncs, bands: bandValues, since } = req.query;
+  const { rat, status: selectedStatuses, operators: operatorMncs, bands: bandValues, since, uplink: uplinkTypes } = req.query;
 
   const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
 
@@ -182,6 +188,8 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       const sinceConditions = parts.length > 1 ? sql`(${sql.join(parts, sql` OR `)})` : parts[0];
       conditions.push(sinceConditions!);
     }
+
+    if (uplinkTypes?.length) conditions.push(buildUplinkCondition(stationFields.id, uplinkTypes));
 
     return conditions.length > 1 ? sql`(${sql.join(conditions, sql` AND `)})` : conditions[0];
   };

@@ -78,6 +78,7 @@ export function useFilterHandlers({ filters, onFiltersChange }: UseFilterHandler
       radiolineOperators: [],
       showHeatmap: current.showHeatmap,
       showPlannedMeasurements: current.showPlannedMeasurements,
+      uplinkTypes: [],
     }));
   }, [onFiltersChange]);
 
@@ -87,7 +88,8 @@ export function useFilterHandlers({ filters, onFiltersChange }: UseFilterHandler
     filters.rat.length +
     (filters.status.length === 1 && filters.status.includes("published") ? 0 : filters.status.length) +
     (filters.recentDays !== null ? 1 : 0) +
-    (filters.showRadiolines ? (filters.radiolineOperators?.length ?? 0) : 0);
+    (filters.showRadiolines ? (filters.radiolineOperators?.length ?? 0) : 0) +
+    (filters.source === "internal" ? (filters.uplinkTypes?.length ?? 0) : 0);
 
   return {
     handleToggleOperator,

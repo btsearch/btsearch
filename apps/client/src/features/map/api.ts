@@ -26,6 +26,7 @@ export function buildFilterParams(filters?: StationFilters): URLSearchParams {
   if (filters.source === "internal" && status.length) params.set("status", status.join(","));
   if (recentDays !== null && (filters.source === "internal" || filters.source === "uke"))
     params.set("since", `${recentDateFields.join(",")}:${recentDays}`);
+  if (filters.source === "internal" && filters.uplinkTypes?.length) params.set("uplink", filters.uplinkTypes.join(","));
 
   return params;
 }

@@ -24,6 +24,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 import { getUserListMembership, getVisibleUserList } from "../../../../services/lists/visibility.js";
 import { type GroupedFilters, defaultFilterRefs, groupFiltersByTable, parseFilterQuery } from "../../../../services/search/filters.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
+import { buildUplinkCondition, parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);
@@ -105,6 +106,11 @@ const schemaRoute = {
     sort: z.enum(["asc", "desc"]).optional().default("desc"),
     sortBy: z.enum(["id", "updatedAt", "createdAt"]).optional(),
     list: z.string().optional(),
+    uplink: z
+      .string()
+      .regex(/^(?:fiber|microwave)(?:,(?:fiber|microwave))*$/)
+      .optional()
+      .transform(parseUplinkTypesParam),
   }),
   response: {
     200: z.object({
@@ -190,6 +196,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     sortBy,
     q: query,
     list: listUuid,
+    uplink: uplinkTypes,
   } = req.query;
   const offset = (page - 1) * limit;
 
@@ -341,6 +348,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       const sinceConditions = parts.length > 1 ? sql`(${sql.join(parts, sql` OR `)})` : parts[0];
       conditions.push(sinceConditions!);
     }
+
+    if (uplinkTypes?.length) conditions.push(buildUplinkCondition(stationFields.id, uplinkTypes));
 
     for (const condition of stationGroupedFilters.stations) conditions.push(condition);
     appendStationScopedFilterConditions(conditions, stationGroupedFilters, stationFields);

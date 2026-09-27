@@ -28,6 +28,7 @@ export const StationStatus = pgEnum("station_status", ["published", "inactive", 
 export const PermitsSource = pgEnum("permits_source", ["permits", "device_registry"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
+export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave"]);
 export const UkeSchema = pgSchema("uke");
 export const StatisticsSchema = pgSchema("statistics");
 
@@ -185,6 +186,20 @@ export const stationSectors = pgTable(
     unique("station_sectors_station_azimuth_unique").on(t.station_id, t.azimuth),
     check("station_sectors_azimuth_range", sql`${t.azimuth} BETWEEN 0 AND 360`),
   ],
+);
+
+export const stationUplinks = pgTable(
+  "station_uplinks",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    station_id: integer("station_id")
+      .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    type: UplinkType("type").notNull(),
+    speed: integer("speed"),
+    model: varchar("model", { length: 100 }),
+  },
+  (t) => [unique("station_uplinks_station_id_unique").on(t.station_id)],
 );
 
 /**

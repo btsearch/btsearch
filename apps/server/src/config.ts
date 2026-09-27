@@ -28,3 +28,4 @@ export const baseUrl = normalizeHttpOrigin("BASE_URL", process.env.NODE_ENV === 
 export const siteName = APP_NAME;
 export const clientOrigin = normalizeHttpOrigin("CLIENT_ORIGIN", "http://localhost:5173");
 export const ogRendererUrl = normalizeHttpOrigin("OG_RENDERER_URL", "http://localhost:3040");
+export const ukeAutoImportEnabled = process.env.UKE_AUTO_IMPORT?.trim().toLowerCase() !== "false";

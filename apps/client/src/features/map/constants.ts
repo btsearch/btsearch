@@ -74,6 +74,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "status:", descriptionKey: "status", group: "common", availableOn: ["stations"] },
   { key: "has_photo:", descriptionKey: "hasPhoto", group: "common", availableOn: ["map", "stations"] },
   { key: "has_azimuth:", descriptionKey: "hasAzimuth", group: "common", availableOn: ["map", "stations"] },
+  { key: "uplink:", descriptionKey: "uplink", group: "common", availableOn: ["map", "stations"] },
   { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"] },
   { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"] },
   { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"] },

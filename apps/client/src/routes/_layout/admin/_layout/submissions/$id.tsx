@@ -276,6 +276,18 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     mno_name: submission.proposedStation?.mno_name ?? currentStation?.extra_identificators?.mno_name ?? "",
   }));
 
+  const [uplinkForm, setUplinkForm] = useState<{
+    uplink_type: "fiber" | "microwave" | null;
+    uplink_speed: number | null;
+    uplink_model: string;
+  }>(() => {
+    const proposed = submission.proposedStation;
+    if (proposed)
+      return { uplink_type: proposed.uplink_type ?? null, uplink_speed: proposed.uplink_speed ?? null, uplink_model: proposed.uplink_model ?? "" };
+    const current = currentStation?.uplink;
+    return { uplink_type: current?.type ?? null, uplink_speed: current?.speed ?? null, uplink_model: current?.model ?? "" };
+  });
+
   const isReadOnly = submission.status !== "pending";
   const isDeleteSubmission = submission.type === "delete";
   const isFormDisabled = isReadOnly || isDeleteSubmission;
@@ -381,6 +393,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         reviewNotes,
         stationForm,
         extraForm,
+        uplinkForm,
         locationForm,
         sectors,
         localCells,
@@ -394,7 +407,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onError: (error) => showApiError(error),
       },
     );
-  }, [extraForm, localCells, locationForm, reviewNotes, saveSubmission, sectors, stationForm, submission.id, t]);
+  }, [extraForm, localCells, locationForm, reviewNotes, saveSubmission, sectors, stationForm, submission.id, t, uplinkForm]);
 
   useSaveShortcut({
     canSave: !isReadOnly && !isProcessing,
@@ -599,6 +612,8 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
               onStationFormChange={(patch) => setStationForm((prev) => ({ ...prev, ...patch }))}
               extraIdsForm={extraForm}
               onExtraIdsChange={(patch) => setExtraForm((prev) => ({ ...prev, ...patch }))}
+              uplinkForm={uplinkForm}
+              onUplinkFormChange={(patch) => setUplinkForm((prev) => ({ ...prev, ...patch }))}
               locationForm={locationForm}
               onLocationFormChange={(patch) => setLocationForm((prev) => ({ ...prev, ...patch }))}
               sectors={sectors}

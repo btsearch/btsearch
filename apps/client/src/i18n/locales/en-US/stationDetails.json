@@ -211,6 +211,9 @@
       "network_ids_create": "Network identifiers added",
       "network_ids_update": "Network identifiers updated",
       "network_ids_delete": "Network identifiers removed",
+      "uplink_create": "Uplink added",
+      "uplink_update": "Uplink updated",
+      "uplink_delete": "Uplink removed",
       "photos_create": "Photos added",
       "photos_update": "Photo selection updated",
       "photos_delete": "Photos removed"
@@ -219,7 +222,10 @@
       "cell": "Cell",
       "photo": "Photo",
       "mainPhoto": "Main photo",
-      "mnoName": "MNO name"
+      "mnoName": "MNO name",
+      "uplinkType": "Type of uplink",
+      "uplinkSpeed": "Speed (Mbps)",
+      "uplinkModel": "Microwave link model"
     }
   }
 }

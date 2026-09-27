@@ -12,13 +12,14 @@ import {
   patchStation,
   putStationSectors,
   updateExtraIds,
+  updateUplink,
 } from "./api";
 import { type StationUpdateImpact, invalidateStationUpdateQueries } from "./queries";
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { pickCellDetails } from "@/features/submissions/api";
 import { createAuditOperationHandle } from "@/lib/api";
 import { shallowEqual } from "@/lib/shallowEqual";
-import type { Cell, Sector, SectorDraft, Station, StationStatus } from "@/types/station";
+import type { Cell, Sector, SectorDraft, Station, StationStatus, UplinkType } from "@/types/station";
 
 export type LocalCell = CellDraftBase & {
   _serverId?: number;
@@ -145,6 +146,9 @@ export interface SaveStationPayload {
   mnoName?: string;
   skipExtraIds?: boolean;
   stationStatus?: StationStatus;
+  uplinkType?: UplinkType | null;
+  uplinkSpeed?: number | null;
+  uplinkModel?: string;
 }
 
 const partiallyCreatedStationIds = new WeakMap<SaveStationPayload, number>();
@@ -232,6 +236,18 @@ export function useSaveStationMutation() {
               networks_id: payload.networksId ?? null,
               networks_name: payload.networksName || null,
               mno_name: payload.mnoName || null,
+            },
+            auditOperation,
+          );
+        }
+
+        if (payload.uplinkType) {
+          await updateUplink(
+            res.data.id,
+            {
+              type: payload.uplinkType,
+              speed: payload.uplinkSpeed ?? null,
+              model: payload.uplinkModel || null,
             },
             auditOperation,
           );
@@ -409,6 +425,23 @@ export function useSaveStationMutation() {
             networks_id: payload.networksId ?? null,
             networks_name: payload.networksName || null,
             mno_name: payload.mnoName || null,
+          },
+          auditOperation,
+        );
+      }
+
+      const existingUplink = payload.originalStation?.uplink;
+      const uplinkChanged =
+        (payload.uplinkType ?? null) !== (existingUplink?.type ?? null) ||
+        (payload.uplinkSpeed ?? null) !== (existingUplink?.speed ?? null) ||
+        (payload.uplinkModel || null) !== (existingUplink?.model ?? null);
+      if (uplinkChanged) {
+        await updateUplink(
+          station.id,
+          {
+            type: payload.uplinkType ?? null,
+            speed: payload.uplinkSpeed ?? null,
+            model: payload.uplinkModel || null,
           },
           auditOperation,
         );

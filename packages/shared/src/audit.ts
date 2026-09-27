@@ -57,6 +57,7 @@ export const AUDIT_ENTITIES = [
   "locations",
   "station_sectors",
   "extra_identificators",
+  "station_uplinks",
   "station_photo_selections",
   "location_photos",
   "station_comments",

@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file stations.proto.
  */
 export const file_stations: GenFile = /*@__PURE__*/
-  fileDesc("Cg5zdGF0aW9ucy5wcm90bxIQb3BlbmJ0cy5zdGF0aW9ucyL6AQoLU3RhdGlvbkNlbGwSCgoCaWQYASABKAUSGQoDcmF0GAIgASgOMgwub3BlbmJ0cy5SYXQSDQoFbm90ZXMYAyABKAkSGwoEYmFuZBgEIAEoCzINLm9wZW5idHMuQmFuZBIUCgxpc19jb25maXJtZWQYBSABKAgSKAoHZGV0YWlscxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEQoJc2VjdG9yX2lkGAcgASgFEhEKCXVwZGF0ZWRBdBgIIAEoCRIRCgljcmVhdGVkQXQYCSABKAkSHwoEdHlwZRgKIAEoDjIRLm9wZW5idHMuQ2VsbFR5cGUihwIKBENlbGwSCgoCaWQYASABKAUSEgoKc3RhdGlvbl9pZBgCIAEoBRIZCgNyYXQYAyABKA4yDC5vcGVuYnRzLlJhdBINCgVub3RlcxgEIAEoCRIbCgRiYW5kGAUgASgLMg0ub3BlbmJ0cy5CYW5kEhQKDGlzX2NvbmZpcm1lZBgGIAEoCBIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIRCglzZWN0b3JfaWQYCCABKAUSEQoJdXBkYXRlZEF0GAkgASgJEhEKCWNyZWF0ZWRBdBgKIAEoCRIfCgR0eXBlGAsgASgOMhEub3BlbmJ0cy5DZWxsVHlwZSK3AwoHU3RhdGlvbhIKCgJpZBgBIAEoBRISCgpzdGF0aW9uX2lkGAIgASgJEg0KBW5vdGVzGAMgASgJEhUKDWV4dHJhX2FkZHJlc3MYBCABKAkSLAoFY2VsbHMYBSADKAsyHS5vcGVuYnRzLnN0YXRpb25zLlN0YXRpb25DZWxsEkMKFGV4dHJhX2lkZW50aWZpY2F0b3JzGAYgASgLMiUub3BlbmJ0cy5zdGF0aW9ucy5FeHRyYUlkZW50aWZpY2F0b3JzEi0KCGxvY2F0aW9uGAcgASgLMhsub3BlbmJ0cy5sb2NhdGlvbnMuTG9jYXRpb24SIwoIb3BlcmF0b3IYCCABKAsyES5vcGVuYnRzLk9wZXJhdG9yEhQKDGlzX2NvbmZpcm1lZBgJIAEoCBIqCgdzZWN0b3JzGAogAygLMhkub3BlbmJ0cy5sb2NhdGlvbnMuU2VjdG9yEhEKCXVwZGF0ZWRBdBgLIAEoCRIRCgljcmVhdGVkQXQYDCABKAkSEwoGc3RhdHVzGA0gASgJSACIAQESFwoPc3RhdHVzQ2hhbmdlZEF0GA4gASgJQgkKB19zdGF0dXMiTwoQU3RhdGlvbnNSZXNwb25zZRInCgRkYXRhGAEgAygLMhkub3BlbmJ0cy5zdGF0aW9ucy5TdGF0aW9uEhIKCnRvdGFsQ291bnQYAiABKAUiOgoPU3RhdGlvblJlc3BvbnNlEicKBGRhdGEYASABKAsyGS5vcGVuYnRzLnN0YXRpb25zLlN0YXRpb24iNQoNQ2VsbHNSZXNwb25zZRIkCgRkYXRhGAEgAygLMhYub3BlbmJ0cy5zdGF0aW9ucy5DZWxsIjQKDENlbGxSZXNwb25zZRIkCgRkYXRhGAEgASgLMhYub3BlbmJ0cy5zdGF0aW9ucy5DZWxsKi4KBk5SVHlwZRITCg9OUl9UWVBFX1VOS05PV04QABIHCgNuc2EQARIGCgJzYRACYgZwcm90bzM", [file_common, file_station_cells, file_locations, file_google_protobuf_struct]);
+  fileDesc("Cg5zdGF0aW9ucy5wcm90bxIQb3BlbmJ0cy5zdGF0aW9ucyL6AQoLU3RhdGlvbkNlbGwSCgoCaWQYASABKAUSGQoDcmF0GAIgASgOMgwub3BlbmJ0cy5SYXQSDQoFbm90ZXMYAyABKAkSGwoEYmFuZBgEIAEoCzINLm9wZW5idHMuQmFuZBIUCgxpc19jb25maXJtZWQYBSABKAgSKAoHZGV0YWlscxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEQoJc2VjdG9yX2lkGAcgASgFEhEKCXVwZGF0ZWRBdBgIIAEoCRIRCgljcmVhdGVkQXQYCSABKAkSHwoEdHlwZRgKIAEoDjIRLm9wZW5idHMuQ2VsbFR5cGUihwIKBENlbGwSCgoCaWQYASABKAUSEgoKc3RhdGlvbl9pZBgCIAEoBRIZCgNyYXQYAyABKA4yDC5vcGVuYnRzLlJhdBINCgVub3RlcxgEIAEoCRIbCgRiYW5kGAUgASgLMg0ub3BlbmJ0cy5CYW5kEhQKDGlzX2NvbmZpcm1lZBgGIAEoCBIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIRCglzZWN0b3JfaWQYCCABKAUSEQoJdXBkYXRlZEF0GAkgASgJEhEKCWNyZWF0ZWRBdBgKIAEoCRIfCgR0eXBlGAsgASgOMhEub3BlbmJ0cy5DZWxsVHlwZSL4AwoHU3RhdGlvbhIKCgJpZBgBIAEoBRISCgpzdGF0aW9uX2lkGAIgASgJEg0KBW5vdGVzGAMgASgJEhUKDWV4dHJhX2FkZHJlc3MYBCABKAkSLAoFY2VsbHMYBSADKAsyHS5vcGVuYnRzLnN0YXRpb25zLlN0YXRpb25DZWxsEkMKFGV4dHJhX2lkZW50aWZpY2F0b3JzGAYgASgLMiUub3BlbmJ0cy5zdGF0aW9ucy5FeHRyYUlkZW50aWZpY2F0b3JzEi0KCGxvY2F0aW9uGAcgASgLMhsub3BlbmJ0cy5sb2NhdGlvbnMuTG9jYXRpb24SIwoIb3BlcmF0b3IYCCABKAsyES5vcGVuYnRzLk9wZXJhdG9yEhQKDGlzX2NvbmZpcm1lZBgJIAEoCBIqCgdzZWN0b3JzGAogAygLMhkub3BlbmJ0cy5sb2NhdGlvbnMuU2VjdG9yEhEKCXVwZGF0ZWRBdBgLIAEoCRIRCgljcmVhdGVkQXQYDCABKAkSEwoGc3RhdHVzGA0gASgJSACIAQESFwoPc3RhdHVzQ2hhbmdlZEF0GA4gASgJEjQKBnVwbGluaxgPIAEoCzIfLm9wZW5idHMuc3RhdGlvbnMuU3RhdGlvblVwbGlua0gBiAEBQgkKB19zdGF0dXNCCQoHX3VwbGluayJlCg1TdGF0aW9uVXBsaW5rEgoKAmlkGAEgASgFEgwKBHR5cGUYAiABKAkSEgoFc3BlZWQYAyABKAVIAIgBARISCgVtb2RlbBgEIAEoCUgBiAEBQggKBl9zcGVlZEIICgZfbW9kZWwiTwoQU3RhdGlvbnNSZXNwb25zZRInCgRkYXRhGAEgAygLMhkub3BlbmJ0cy5zdGF0aW9ucy5TdGF0aW9uEhIKCnRvdGFsQ291bnQYAiABKAUiOgoPU3RhdGlvblJlc3BvbnNlEicKBGRhdGEYASABKAsyGS5vcGVuYnRzLnN0YXRpb25zLlN0YXRpb24iNQoNQ2VsbHNSZXNwb25zZRIkCgRkYXRhGAEgAygLMhYub3BlbmJ0cy5zdGF0aW9ucy5DZWxsIjQKDENlbGxSZXNwb25zZRIkCgRkYXRhGAEgASgLMhYub3BlbmJ0cy5zdGF0aW9ucy5DZWxsKi4KBk5SVHlwZRITCg9OUl9UWVBFX1VOS05PV04QABIHCgNuc2EQARIGCgJzYRACYgZwcm90bzM", [file_common, file_station_cells, file_locations, file_google_protobuf_struct]);
 
 /**
  * @generated from message openbts.stations.StationCell
@@ -221,6 +221,11 @@ export type Station = Message<"openbts.stations.Station"> & {
    * @generated from field: string statusChangedAt = 14;
    */
   statusChangedAt: string;
+
+  /**
+   * @generated from field: optional openbts.stations.StationUplink uplink = 15;
+   */
+  uplink?: StationUplink | undefined;
 };
 
 /**
@@ -229,6 +234,38 @@ export type Station = Message<"openbts.stations.Station"> & {
  */
 export const StationSchema: GenMessage<Station> = /*@__PURE__*/
   messageDesc(file_stations, 2);
+
+/**
+ * @generated from message openbts.stations.StationUplink
+ */
+export type StationUplink = Message<"openbts.stations.StationUplink"> & {
+  /**
+   * @generated from field: int32 id = 1;
+   */
+  id: number;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: optional int32 speed = 3;
+   */
+  speed?: number | undefined;
+
+  /**
+   * @generated from field: optional string model = 4;
+   */
+  model?: string | undefined;
+};
+
+/**
+ * Describes the message openbts.stations.StationUplink.
+ * Use `create(StationUplinkSchema)` to create a new message.
+ */
+export const StationUplinkSchema: GenMessage<StationUplink> = /*@__PURE__*/
+  messageDesc(file_stations, 3);
 
 /**
  * @generated from message openbts.stations.StationsResponse
@@ -250,7 +287,7 @@ export type StationsResponse = Message<"openbts.stations.StationsResponse"> & {
  * Use `create(StationsResponseSchema)` to create a new message.
  */
 export const StationsResponseSchema: GenMessage<StationsResponse> = /*@__PURE__*/
-  messageDesc(file_stations, 3);
+  messageDesc(file_stations, 4);
 
 /**
  * @generated from message openbts.stations.StationResponse
@@ -267,7 +304,7 @@ export type StationResponse = Message<"openbts.stations.StationResponse"> & {
  * Use `create(StationResponseSchema)` to create a new message.
  */
 export const StationResponseSchema: GenMessage<StationResponse> = /*@__PURE__*/
-  messageDesc(file_stations, 4);
+  messageDesc(file_stations, 5);
 
 /**
  * @generated from message openbts.stations.CellsResponse
@@ -284,7 +321,7 @@ export type CellsResponse = Message<"openbts.stations.CellsResponse"> & {
  * Use `create(CellsResponseSchema)` to create a new message.
  */
 export const CellsResponseSchema: GenMessage<CellsResponse> = /*@__PURE__*/
-  messageDesc(file_stations, 5);
+  messageDesc(file_stations, 6);
 
 /**
  * @generated from message openbts.stations.CellResponse
@@ -301,7 +338,7 @@ export type CellResponse = Message<"openbts.stations.CellResponse"> & {
  * Use `create(CellResponseSchema)` to create a new message.
  */
 export const CellResponseSchema: GenMessage<CellResponse> = /*@__PURE__*/
-  messageDesc(file_stations, 6);
+  messageDesc(file_stations, 7);
 
 /**
  * @generated from enum openbts.stations.NRType

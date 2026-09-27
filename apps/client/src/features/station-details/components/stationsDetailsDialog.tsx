@@ -20,6 +20,7 @@ import { WatchButton } from "./watchButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
+import { UplinkBadge } from "@/features/stations/components/UplinkBadge";
 import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -117,6 +118,7 @@ export function StationDetailsDialogPanel({
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="min-w-0 truncate text-sm font-semibold text-foreground">{station.location.city}</p>
                     {station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
+                    {station.uplink ? <UplinkBadge uplink={station.uplink} /> : null}
                   </div>
                   <p className="text-xs leading-4 text-muted-foreground">
                     {station.extra_address || station.location.address || t("dialog.btsStation")}

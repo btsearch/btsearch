@@ -1,7 +1,8 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
-import type { StationFilters, StationSource, StationStatus } from "@/types/station";
+import { isUplinkType } from "@/lib/format/uplink";
+import type { StationFilters, StationSource, StationStatus, UplinkType } from "@/types/station";
 
 type UseUrlSyncArgs = {
   map: MapLibreMap | null;
@@ -101,6 +102,7 @@ function parseTokenFilters(tokens: string[]): Partial<StationFilters> | null {
   let showPlannedMeasurements = false;
   let source: StationSource = "internal";
   let radiolineOperators: number[] = [];
+  let uplinkTypes: UplinkType[] = [];
 
   for (const token of tokens) {
     const key = token[0];
@@ -145,6 +147,9 @@ function parseTokenFilters(tokens: string[]): Partial<StationFilters> | null {
           .map(Number)
           .filter((n) => !Number.isNaN(n));
         break;
+      case "u":
+        uplinkTypes = [...new Set(value.split(",").filter(isUplinkType))];
+        break;
       case "f":
         showRadiolines = value.includes("r");
         showHeatmap = value.includes("h");
@@ -168,6 +173,7 @@ function parseTokenFilters(tokens: string[]): Partial<StationFilters> | null {
     radiolineOperators,
     showHeatmap,
     showPlannedMeasurements,
+    uplinkTypes,
   };
 }
 
@@ -249,6 +255,7 @@ function buildUrlHash(filters: StationFilters, map: MapLibreMap, zoomOverride?: 
     const suffix = fields === "c" ? "" : fields;
     tokens.push(`n${filters.recentDays}${suffix}`);
   }
+  if (filters.uplinkTypes.length > 0) tokens.push(`u${filters.uplinkTypes.join(",")}`);
 
   const flags = [
     filters.showRadiolines && "r",
@@ -314,6 +321,7 @@ export function useUrlSync({ map, isLoaded, filters, enabled = true, onInitializ
             radiolineOperators: urlFilters.radiolineOperators || [],
             showHeatmap: urlFilters.showHeatmap ?? false,
             showPlannedMeasurements: urlFilters.showPlannedMeasurements ?? false,
+            uplinkTypes: urlFilters.uplinkTypes ?? [],
           }
         : undefined,
       center,

@@ -52,6 +52,7 @@ services:
       - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
       - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
       - WORKERS=4 # Number of server workers, since javascript is single-threaded, this will improve performance of the server
+      - UKE_AUTO_IMPORT=${UKE_AUTO_IMPORT:-true}
       # Resend (email)
       - RESEND_API_KEY=
       - RESEND_FROM=noreply@openbts.sakilabs.com

@@ -13,6 +13,7 @@ import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates, getOperatorIdForStation } from "../../../../../services/cellDuplicateCheck.service.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
+import { uplinkSpeedSchema } from "../../../../../services/stations/uplink.js";
 import type { DbTx } from "../../../../../types/global.js";
 import {
   detailsSelectSchema,
@@ -39,7 +40,10 @@ const cellInputSchema = createInsertSchema(proposedCells)
   })
   .superRefine(makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchemaBase }));
 
-const stationInputSchema = createInsertSchema(proposedStations).omit({ createdAt: true, updatedAt: true, submission_id: true }).partial();
+const stationInputSchema = createInsertSchema(proposedStations)
+  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
+  .partial();
 const sectorInputSchema = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
 
 const locationInputSchema = createInsertSchema(proposedLocations)

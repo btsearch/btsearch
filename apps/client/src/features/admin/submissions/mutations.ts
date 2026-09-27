@@ -26,6 +26,11 @@ export interface SaveSubmissionPayload {
     networks_name: string;
     mno_name: string;
   };
+  uplinkForm: {
+    uplink_type: "fiber" | "microwave" | null;
+    uplink_speed: number | null;
+    uplink_model: string;
+  };
   locationForm: ProposedLocationForm;
   sectors: SectorDraft[];
   localCells: LocalCell[];
@@ -55,6 +60,9 @@ export function useSaveSubmissionMutation() {
             networks_id: payload.extraForm.networks_id,
             networks_name: payload.extraForm.networks_name || null,
             mno_name: payload.extraForm.mno_name || null,
+            uplink_type: payload.uplinkForm.uplink_type,
+            uplink_speed: payload.uplinkForm.uplink_speed,
+            uplink_model: payload.uplinkForm.uplink_model || null,
           },
           location: {
             region_id: payload.locationForm.region_id,

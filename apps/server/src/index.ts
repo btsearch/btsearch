@@ -3,7 +3,7 @@ import cluster from "node:cluster";
 import { availableParallelism } from "node:os";
 
 import App from "./app.js";
-import { port } from "./config.js";
+import { port, ukeAutoImportEnabled } from "./config.js";
 import redis from "./database/redis.js";
 import { takeContributionSnapshot } from "./services/contributionSnapshot.service.ts";
 import { refreshDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
@@ -55,7 +55,8 @@ async function runAsScheduler() {
     (SCHEDULER_LOCK_TTL / 2) * 1000,
   );
 
-  scheduleUkeImport();
+  if (ukeAutoImportEnabled) scheduleUkeImport();
+  else logger.info("uke_import_schedule_disabled", { reason: "UKE_AUTO_IMPORT=false" });
   scheduleSubmissionCleanup();
   scheduleInactiveStationCleanup();
   scheduleNotificationDigests();

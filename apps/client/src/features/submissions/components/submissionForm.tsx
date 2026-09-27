@@ -172,6 +172,9 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
       handleNetworksIdChange,
       handleNetworksNameChange,
       handleMnoNameChange,
+      handleUplinkTypeChange,
+      handleUplinkSpeedChange,
+      handleUplinkModelChange,
     },
   } = useSubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId });
 
@@ -238,12 +241,34 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
           }}
         </form.Subscribe>
 
-        <form.Subscribe selector={(s) => ({ mode: s.values.mode, newStation: s.values.newStation, location: s.values.location })}>
-          {({ mode, newStation, location }) => {
+        <form.Subscribe
+          selector={(s) => ({
+            mode: s.values.mode,
+            newStation: s.values.newStation,
+            location: s.values.location,
+            uplinkType: s.values.uplinkType,
+            uplinkSpeed: s.values.uplinkSpeed,
+            uplinkModel: s.values.uplinkModel,
+          })}
+        >
+          {({ mode, newStation, location, uplinkType, uplinkSpeed, uplinkModel }) => {
             if (mode !== "new") return null;
             if (!hasCompleteLocation(location)) return null;
 
-            return <NewStationForm station={newStation} errors={formErrors.station} onStationChange={handleNewStationChange} checkExisting />;
+            return (
+              <NewStationForm
+                station={newStation}
+                errors={formErrors.station}
+                onStationChange={handleNewStationChange}
+                checkExisting
+                uplinkType={uplinkType}
+                onUplinkTypeChange={handleUplinkTypeChange}
+                uplinkSpeed={uplinkSpeed}
+                onUplinkSpeedChange={handleUplinkSpeedChange}
+                uplinkModel={uplinkModel}
+                onUplinkModelChange={handleUplinkModelChange}
+              />
+            );
           }}
         </form.Subscribe>
 
@@ -256,13 +281,26 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             networksId: s.values.networksId,
             networksName: s.values.networksName,
             mnoName: s.values.mnoName,
+            uplinkType: s.values.uplinkType,
+            uplinkSpeed: s.values.uplinkSpeed,
+            uplinkModel: s.values.uplinkModel,
           })}
         >
-          {({ mode, action, selectedStation, newStation, networksId, networksName, mnoName }) => {
+          {({ mode, action, selectedStation, newStation, networksId, networksName, mnoName, uplinkType, uplinkSpeed, uplinkModel }) => {
             if (mode !== "existing" || !selectedStation || action === "delete") return null;
             return (
               <>
-                <NewStationForm station={newStation} onStationChange={handleNewStationChange} hideExtraIdentifiers />
+                <NewStationForm
+                  station={newStation}
+                  onStationChange={handleNewStationChange}
+                  hideExtraIdentifiers
+                  uplinkType={uplinkType}
+                  onUplinkTypeChange={handleUplinkTypeChange}
+                  uplinkSpeed={uplinkSpeed}
+                  onUplinkSpeedChange={handleUplinkSpeedChange}
+                  uplinkModel={uplinkModel}
+                  onUplinkModelChange={handleUplinkModelChange}
+                />
                 <ExtraIdentificatorsSection
                   selectedStation={selectedStation}
                   networksId={networksId}
@@ -378,6 +416,9 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             networksId: s.values.networksId,
             networksName: s.values.networksName,
             mnoName: s.values.mnoName,
+            uplinkType: s.values.uplinkType,
+            uplinkSpeed: s.values.uplinkSpeed,
+            uplinkModel: s.values.uplinkModel,
             selectedRats: s.values.selectedRats,
             canSubmit: s.canSubmit,
             isSubmitting: s.isSubmitting,
@@ -395,6 +436,9 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
             networksId,
             networksName,
             mnoName,
+            uplinkType,
+            uplinkSpeed,
+            uplinkModel,
             selectedRats,
             canSubmit,
             isSubmitting,
@@ -410,6 +454,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
               networksId,
               networksName,
               mnoName,
+              { uplinkType, uplinkSpeed, uplinkModel },
             );
             const cellsCount = cells.filter((c) => selectedRats.includes(c.rat)).length;
             return (

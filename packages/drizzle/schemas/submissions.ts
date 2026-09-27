@@ -16,7 +16,7 @@ import {
 import { sql } from "drizzle-orm/sql";
 
 import { locationPhotos, users } from "./auth.ts";
-import { CellType, NRType, bands, cells, operators, ratEnum, regions, stationSectors, stations } from "./bts.ts";
+import { CellType, NRType, UplinkType, bands, cells, operators, ratEnum, regions, stationSectors, stations } from "./bts.ts";
 
 export const SubmissionStatus = pgEnum("submission_status", ["pending", "approved", "rejected"]);
 export const SubmissionTypeEnum = pgEnum("submission_type", ["new", "update", "delete"]);
@@ -188,6 +188,9 @@ export const proposedStations = SubmissionsSchema.table(
     networks_id: integer("networks_id"),
     networks_name: varchar("networks_name", { length: 50 }),
     mno_name: varchar("mno_name", { length: 50 }),
+    uplink_type: UplinkType("uplink_type"),
+    uplink_speed: integer("uplink_speed"),
+    uplink_model: varchar("uplink_model", { length: 100 }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     is_confirmed: boolean("is_confirmed").default(false),

@@ -33,7 +33,7 @@ import { bandsQueryOptions } from "@/features/shared/queries";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { showApiError } from "@/lib/api";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
-import type { SectorDraft, UkeStation } from "@/types/station";
+import type { SectorDraft, UkeStation, UplinkType } from "@/types/station";
 
 export type FormValues = {
   mode: SubmissionMode;
@@ -50,6 +50,9 @@ export type FormValues = {
   networksId: number | null;
   networksName: string;
   mnoName: string;
+  uplinkType: UplinkType | null;
+  uplinkSpeed: number | null;
+  uplinkModel: string;
 };
 
 const INITIAL_VALUES: FormValues = {
@@ -67,6 +70,9 @@ const INITIAL_VALUES: FormValues = {
   networksId: null,
   networksName: "",
   mnoName: "",
+  uplinkType: null,
+  uplinkSpeed: null,
+  uplinkModel: "",
 };
 
 function buildOriginalState(values: FormValues): OriginalState {
@@ -79,8 +85,25 @@ function buildOriginalState(values: FormValues): OriginalState {
     networksId: values.mode === "existing" ? values.networksId : null,
     networksName: values.mode === "existing" && values.networksId !== null ? values.networksName : "",
     mnoName: values.mode === "existing" ? values.mnoName : "",
+    uplinkType: values.uplinkType,
+    uplinkSpeed: values.uplinkSpeed,
+    uplinkModel: values.uplinkModel,
     submitterNote: values.submitterNote,
   };
+}
+
+type UplinkValues = Pick<FormValues, "uplinkType" | "uplinkSpeed" | "uplinkModel">;
+
+function toUplinkValues(uplink: SearchStation["uplink"]): UplinkValues {
+  return { uplinkType: uplink?.type ?? null, uplinkSpeed: uplink?.speed ?? null, uplinkModel: uplink?.model ?? "" };
+}
+
+function uplinkDiffers(values: UplinkValues, originalState: OriginalState): boolean {
+  return (
+    values.uplinkType !== (originalState.uplinkType ?? null) ||
+    values.uplinkSpeed !== (originalState.uplinkSpeed ?? null) ||
+    values.uplinkModel !== (originalState.uplinkModel ?? "")
+  );
 }
 
 function requiresUploadedPhoto(data: SubmissionFormData): boolean {
@@ -187,11 +210,13 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       networksId: number | null,
       networksName: string | null,
       mnoName: string | null,
+      uplink: UplinkValues,
     ): boolean => {
       if (photos.length > 0) return true;
       if (locationPhotoIds.length > 0) return true;
       if (locationPhotoIdsToRemove.length > 0) return true;
       if (hasFormChanges({ mode, action, newStation, location, sectors, cells, submitterNote }, originalState)) return true;
+      if (uplinkDiffers(uplink, originalState)) return true;
       if (mode === "existing") {
         if (originalState.station && !isEqualStation(newStation, originalState.station)) return true;
         if (networksId !== (originalState.networksId ?? null)) return true;
@@ -244,10 +269,12 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         value.networksId !== (originalState.networksId ?? null) ||
         value.networksName !== (originalState.networksName ?? "") ||
         value.mnoName !== (originalState.mnoName ?? "");
+      const uplinkChanged = uplinkDiffers(value, originalState);
+      const uplinkPayload = { uplink_type: value.uplinkType, uplink_speed: value.uplinkSpeed, uplink_model: value.uplinkModel || null };
       const stationInfoChanged =
         originalState.station !== null && originalState.station !== undefined && !isEqualStation(value.newStation, originalState.station);
       const existingStation =
-        !isNewStation && !isDeleteMode && (extraIdsChanged || stationInfoChanged)
+        !isNewStation && !isDeleteMode && (extraIdsChanged || stationInfoChanged || uplinkChanged)
           ? {
               station_id: value.newStation.station_id?.trim() || undefined,
               operator_id: value.newStation.operator_id ?? value.selectedStation!.operator?.id ?? value.selectedStation!.operator_id,
@@ -255,6 +282,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
               networks_id: value.networksId,
               networks_name: value.networksName || null,
               mno_name: value.mnoName || null,
+              ...uplinkPayload,
             }
           : undefined;
 
@@ -264,7 +292,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         station_id: isNewStation ? null : (value.selectedStation?.id ?? null),
         type: submissionType,
         submitter_note: value.submitterNote || undefined,
-        station: isNewStation ? value.newStation : existingStation,
+        station: isNewStation ? { ...value.newStation, ...uplinkPayload } : existingStation,
         location: hasLocation && !isDeleteMode && locationChanged ? value.location : undefined,
         sectors: !isDeleteMode ? sectors : undefined,
         cells: isDeleteMode ? [] : cells,
@@ -339,6 +367,9 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       form.setFieldValue("networksId", null);
       form.setFieldValue("networksName", "");
       form.setFieldValue("mnoName", "");
+      form.setFieldValue("uplinkType", null);
+      form.setFieldValue("uplinkSpeed", null);
+      form.setFieldValue("uplinkModel", "");
       form.setFieldValue("newStation", INITIAL_VALUES.newStation);
       form.setFieldValue("selectedStation", null);
       form.setFieldValue("cells", []);
@@ -385,6 +416,11 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         form.setFieldValue("networksName", networksName);
         form.setFieldValue("mnoName", mnoName);
 
+        const uplink = toUplinkValues(station.uplink);
+        form.setFieldValue("uplinkType", uplink.uplinkType);
+        form.setFieldValue("uplinkSpeed", uplink.uplinkSpeed);
+        form.setFieldValue("uplinkModel", uplink.uplinkModel);
+
         const stationInfo = {
           station_id: station.station_id,
           operator_id: station.operator?.id ?? station.operator_id,
@@ -410,6 +446,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
             networksId,
             networksName,
             mnoName,
+            ...uplink,
           });
         } else {
           setOriginalState({
@@ -420,6 +457,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
             networksId,
             networksName,
             mnoName,
+            ...uplink,
           });
         }
       } else {
@@ -432,6 +470,9 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
         form.setFieldValue("networksId", null);
         form.setFieldValue("networksName", "");
         form.setFieldValue("mnoName", "");
+        form.setFieldValue("uplinkType", null);
+        form.setFieldValue("uplinkSpeed", null);
+        form.setFieldValue("uplinkModel", "");
         form.setFieldValue("newStation", INITIAL_VALUES.newStation);
         setOriginalState({});
       }
@@ -534,6 +575,21 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     [form],
   );
 
+  const handleUplinkTypeChange = useCallback(
+    (value: UplinkType | null) => {
+      form.setFieldValue("uplinkType", value);
+      if (!value) {
+        form.setFieldValue("uplinkSpeed", null);
+        form.setFieldValue("uplinkModel", "");
+      }
+    },
+    [form],
+  );
+
+  const handleUplinkSpeedChange = useCallback((value: number | null) => form.setFieldValue("uplinkSpeed", value), [form]);
+
+  const handleUplinkModelChange = useCallback((value: string) => form.setFieldValue("uplinkModel", value), [form]);
+
   const hasAppliedUkePreload = useRef(false);
 
   useEffect(() => {
@@ -578,6 +634,18 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     setMainLocationPhotoId(submission.locationPhotoSelections.find((photo) => photo.is_main)?.id ?? null);
 
     const isNew = submission.type === "new";
+    const proposedUplink: UplinkValues | null = submission.proposedStation
+      ? {
+          uplinkType: submission.proposedStation.uplink_type ?? null,
+          uplinkSpeed: submission.proposedStation.uplink_speed ?? null,
+          uplinkModel: submission.proposedStation.uplink_model ?? "",
+        }
+      : null;
+    const applyUplink = (uplink: UplinkValues) => {
+      form.setFieldValue("uplinkType", uplink.uplinkType);
+      form.setFieldValue("uplinkSpeed", uplink.uplinkSpeed);
+      form.setFieldValue("uplinkModel", uplink.uplinkModel);
+    };
     const proposedCells: ProposedCellForm[] = submission.cells.map((cell) => ({
       id: generateCellId(),
       existingCellId: cell.target_cell_id ?? undefined,
@@ -620,6 +688,8 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           mno_name: submission.proposedStation.mno_name ?? undefined,
         });
       }
+
+      if (isNew && proposedUplink) applyUplink(proposedUplink);
 
       if (!isNew && submission.proposedStation) {
         if (submission.proposedStation.networks_id) {
@@ -687,6 +757,9 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           };
           form.setFieldValue("newStation", stationInfo);
 
+          const uplink = proposedUplink ?? toUplinkValues(station.uplink);
+          applyUplink(uplink);
+
           setOriginalState({
             action: submission.type === "delete" ? "delete" : "update",
             station: structuredClone(stationInfo),
@@ -696,6 +769,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
             networksId: submission.proposedStation?.networks_id ?? null,
             networksName: submission.proposedStation?.networks_name ?? "",
             mnoName: submission.proposedStation?.mno_name ?? "",
+            ...uplink,
             submitterNote: submission.submitter_note ?? "",
           });
         });
@@ -726,6 +800,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
           location: newLocation,
           sectors: structuredClone(proposedSectors),
           cells: structuredClone(proposedCells),
+          ...proposedUplink,
           submitterNote: submission.submitter_note ?? "",
         });
       }
@@ -767,6 +842,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       s.values.networksId,
       s.values.networksName,
       s.values.mnoName,
+      s.values,
     ),
   );
   useBeforeUnloadGuard(isDirty);
@@ -808,6 +884,9 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       handleNetworksIdChange,
       handleNetworksNameChange,
       handleMnoNameChange,
+      handleUplinkTypeChange,
+      handleUplinkSpeedChange,
+      handleUplinkModelChange,
     },
   };
 }

@@ -26,13 +26,22 @@ import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
+import { UplinkFields } from "@/features/shared/UplinkFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
-import { type Location, type LocationWithStations, type Operator, type SectorDraft, type StationStatus, type UkeStation } from "@/types/station";
+import {
+  type Location,
+  type LocationWithStations,
+  type Operator,
+  type SectorDraft,
+  type StationStatus,
+  type UkeStation,
+  type UplinkType,
+} from "@/types/station";
 type StationStatusOption = { status: StationStatus; icon: IconSvgElement };
 
 const STATION_STATUS_OPTIONS: StationStatusOption[] = [
@@ -72,6 +81,12 @@ type StationInfoFormProps = {
   sectors: SectorDraft[];
   onSectorsChange: (sectors: SectorDraft[]) => void;
   cells: CellDraftBase[];
+  uplinkType: UplinkType | null;
+  onUplinkTypeChange: (value: UplinkType | null) => void;
+  uplinkSpeed: number | null;
+  onUplinkSpeedChange: (value: number | null) => void;
+  uplinkModel: string;
+  onUplinkModelChange: (value: string) => void;
 };
 
 export function StationInfoForm({
@@ -105,6 +120,12 @@ export function StationInfoForm({
   sectors,
   onSectorsChange,
   cells,
+  uplinkType,
+  onUplinkTypeChange,
+  uplinkSpeed,
+  onUplinkSpeedChange,
+  uplinkModel,
+  onUplinkModelChange,
 }: StationInfoFormProps) {
   const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
   const { openStationDialog } = useFloatingDialogStack();
@@ -290,6 +311,14 @@ export function StationInfoForm({
             <Checkbox checked={isConfirmed} onCheckedChange={(checked) => onIsConfirmedChange(checked === true)} />
             <Label>{t("common:labels.confirmed")}</Label>
           </div>
+          <UplinkFields
+            uplinkType={uplinkType}
+            onUplinkTypeChange={onUplinkTypeChange}
+            uplinkSpeed={uplinkSpeed}
+            onUplinkSpeedChange={onUplinkSpeedChange}
+            uplinkModel={uplinkModel}
+            onUplinkModelChange={onUplinkModelChange}
+          />
         </div>
       </div>
 

@@ -83,6 +83,15 @@ export type ExtraIdentificator = {
   createdAt: string;
 };
 
+export type UplinkType = "fiber" | "microwave";
+
+export type StationUplink = {
+  id: number;
+  type: UplinkType;
+  speed: number | null;
+  model: string | null;
+};
+
 export type StationStatus = "published" | "inactive" | "pending";
 
 export type Station = {
@@ -101,6 +110,7 @@ export type Station = {
   operator: Operator;
   extra_identificators?: ExtraIdentificator;
   sectors?: Sector[];
+  uplink?: StationUplink;
 };
 
 export type RadioLineEquipmentType = {
@@ -171,6 +181,7 @@ export type StationFilters = {
   radiolineOperators: number[];
   showHeatmap: boolean;
   showPlannedMeasurements: boolean;
+  uplinkTypes: UplinkType[];
 };
 
 export type StationWithoutCells = Omit<Station, "location" | "cells"> & {

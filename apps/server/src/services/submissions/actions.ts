@@ -7,6 +7,7 @@ import {
   operators,
   stationPhotoSelections,
   stationSectors,
+  stationUplinks,
   stations,
   submissions,
 } from "@openbts/drizzle";
@@ -45,6 +46,7 @@ import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
+import { isUplinkType } from "../stations/uplink.js";
 import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.service.js";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
@@ -243,6 +245,100 @@ async function createExtraIdentifierForNewStation(
   });
 }
 
+function extractUplinkFields(proposedStation: NonNullable<ApprovalDraft["proposedStation"]>) {
+  const raw = proposedStation as Record<string, unknown>;
+  return {
+    type: raw.uplink_type as string | null | undefined,
+    speed: (raw.uplink_speed as number) ?? null,
+    model: (raw.uplink_model as string) ?? null,
+  };
+}
+
+async function createUplinkForNewStation(
+  audit: AuditRecorder,
+  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
+  stationId: number,
+  submissionId: string,
+): Promise<void> {
+  const { type, speed, model } = extractUplinkFields(proposedStation);
+  if (!isUplinkType(type)) return;
+
+  const [newUplink] = await audit.tx
+    .insert(stationUplinks)
+    .values({
+      station_id: stationId,
+      type,
+      speed,
+      model: type === "microwave" ? model : null,
+    })
+    .returning();
+
+  if (!newUplink) return;
+
+  await audit.log({
+    entity: "station_uplinks",
+    op: "create",
+    recordId: newUplink.id,
+    stationId,
+    new: newUplink,
+    metadata: { submission_id: submissionId },
+  });
+}
+
+async function applyUplinkUpdate(
+  audit: AuditRecorder,
+  proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
+  stationId: number,
+  submissionId: string,
+): Promise<void> {
+  const { tx } = audit;
+  const { type: proposedType, speed: proposedSpeed, model: proposedModel } = extractUplinkFields(proposedStation);
+  if (proposedType === undefined) return;
+
+  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+
+  if (!isUplinkType(proposedType)) {
+    if (!existing) return;
+    await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
+    await audit.log({
+      entity: "station_uplinks",
+      op: "delete",
+      recordId: existing.id,
+      stationId,
+      old: existing,
+      metadata: { submission_id: submissionId },
+    });
+    return;
+  }
+
+  const values = {
+    type: proposedType,
+    speed: proposedSpeed,
+    model: proposedType === "fiber" ? null : proposedModel,
+  };
+
+  if (existing && existing.type === values.type && existing.speed === values.speed && existing.model === values.model) return;
+
+  const [saved] = existing
+    ? await tx.update(stationUplinks).set(values).where(eq(stationUplinks.id, existing.id)).returning()
+    : await tx
+        .insert(stationUplinks)
+        .values({ station_id: stationId, ...values })
+        .returning();
+
+  if (!saved) return;
+
+  await audit.log({
+    entity: "station_uplinks",
+    op: existing ? "update" : "create",
+    recordId: saved.id,
+    stationId,
+    old: existing ?? null,
+    new: saved,
+    metadata: { submission_id: submissionId },
+  });
+}
+
 async function createStationFromProposal(
   audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
@@ -274,6 +370,7 @@ async function createStationFromProposal(
   });
 
   await createExtraIdentifierForNewStation(audit, proposedStation, newStation.id, submissionId);
+  await createUplinkForNewStation(audit, proposedStation, newStation.id, submissionId);
   return newStation.id;
 }
 
@@ -1315,6 +1412,7 @@ async function runApprovalTransaction({
   if (submission.type === "update" && draft.proposedStation && stationId) {
     await applyStationIdentityUpdate(audit, draft.proposedStation, stationId, submissionId);
     await applyExtraIdentifierUpdate(audit, draft.proposedStation, stationId, submissionId);
+    await applyUplinkUpdate(audit, draft.proposedStation, stationId, submissionId);
   }
 
   if (submission.type === "delete") await applyDeletedSubmission(audit, stationId, submissionId);

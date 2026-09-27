@@ -15,14 +15,16 @@ import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import { StationBasicsFields } from "@/features/shared/StationBasicsFields";
+import { UplinkFields } from "@/features/shared/UplinkFields";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
+import { formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
-import type { Operator, SectorDraft, Station } from "@/types/station";
+import type { Operator, SectorDraft, Station, UplinkType } from "@/types/station";
 
 type ExtraIdentificatorsType = {
   networks_id: number | null;
@@ -40,6 +42,8 @@ type SubmissionStationFormProps = {
   onStationFormChange: (patch: Partial<{ station_id: string; operator_id: number | null; notes: string }>) => void;
   extraIdsForm: ExtraIdentificatorsType;
   onExtraIdsChange: (patch: Partial<ExtraIdentificatorsType>) => void;
+  uplinkForm: { uplink_type: UplinkType | null; uplink_speed: number | null; uplink_model: string };
+  onUplinkFormChange: (patch: Partial<{ uplink_type: UplinkType | null; uplink_speed: number | null; uplink_model: string }>) => void;
   locationForm: ProposedLocationForm;
   onLocationFormChange: (patch: Partial<ProposedLocationForm>) => void;
   sectors: SectorDraft[];
@@ -61,6 +65,8 @@ export function SubmissionStationForm({
   onStationFormChange,
   extraIdsForm,
   onExtraIdsChange,
+  uplinkForm,
+  onUplinkFormChange,
   locationForm,
   onLocationFormChange,
   sectors,
@@ -98,6 +104,7 @@ export function SubmissionStationForm({
   const siblingBrand = selectedOperatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
   const SiblingLogo = selectedOperatorMnc === 26002 ? OrangeIcon : TMobileIcon;
   const currentStationId = currentStation?.id;
+  const currentUplink = currentStation?.uplink;
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
 
@@ -204,6 +211,37 @@ export function SubmissionStationForm({
             operatorMeta={stationDiffs?.operator_id && currentOperator && <ChangeBadge label={t("diff.was")} current={currentOperator.name} />}
             notesMeta={stationDiffs?.notes && <ChangeBadge label={t("diff.was")} current={submission.station?.notes ?? "-"} />}
           />
+          <div className="border-t border-border/60 pt-3 space-y-3">
+            <UplinkFields
+              uplinkType={uplinkForm.uplink_type}
+              onUplinkTypeChange={(value) => onUplinkFormChange({ uplink_type: value })}
+              uplinkSpeed={uplinkForm.uplink_speed}
+              onUplinkSpeedChange={(value) => onUplinkFormChange({ uplink_speed: value })}
+              uplinkModel={uplinkForm.uplink_model}
+              onUplinkModelChange={(value) => onUplinkFormChange({ uplink_model: value })}
+              size="compact"
+              readOnly={isFormDisabled}
+              typeMeta={
+                currentStation &&
+                uplinkForm.uplink_type !== (currentUplink?.type ?? null) && (
+                  <ChangeBadge
+                    label={t("diff.was")}
+                    current={currentUplink ? t(`common:labels.${uplinkTypeKey(currentUplink.type)}`) : t("common:labels.uplinkUnknown")}
+                  />
+                )
+              }
+              speedMeta={
+                currentUplink &&
+                uplinkForm.uplink_speed !== (currentUplink.speed ?? null) && (
+                  <ChangeBadge label={t("diff.was")} current={typeof currentUplink.speed === "number" ? formatSpeedMbps(currentUplink.speed) : "-"} />
+                )
+              }
+              modelMeta={
+                currentUplink &&
+                uplinkForm.uplink_model !== (currentUplink.model ?? "") && <ChangeBadge label={t("diff.was")} current={currentUplink.model ?? "-"} />
+              }
+            />
+          </div>
         </div>
       </div>
 

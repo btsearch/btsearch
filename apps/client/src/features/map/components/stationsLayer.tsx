@@ -92,6 +92,7 @@ export const DEFAULT_FILTERS: StationFilters = {
   radiolineOperators: [],
   showHeatmap: false,
   showPlannedMeasurements: false,
+  uplinkTypes: [],
 };
 
 const MAP_FILTERS_STORAGE_KEY = "map:filters";
@@ -122,6 +123,7 @@ export function loadMapFilters(storageKey = MAP_FILTERS_STORAGE_KEY): StationFil
       radiolineOperators: parsed.radiolineOperators ?? [],
       showHeatmap: parsed.showHeatmap ?? false,
       showPlannedMeasurements: parsed.showPlannedMeasurements ?? false,
+      uplinkTypes: parsed.uplinkTypes ?? [],
     };
   } catch {
     return null;

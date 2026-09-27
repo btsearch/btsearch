@@ -41,6 +41,7 @@ function clearFilters(filters: StationFilters): StationFilters {
     radiolineOperators: [],
     showHeatmap: filters.showHeatmap,
     showPlannedMeasurements: filters.showPlannedMeasurements,
+    uplinkTypes: [],
   };
 }
 

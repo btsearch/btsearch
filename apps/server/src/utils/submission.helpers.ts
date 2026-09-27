@@ -71,6 +71,9 @@ type ProposedStationDiffInput = {
   networks_id?: number | null;
   networks_name?: string | null;
   mno_name?: string | null;
+  uplink_type?: string | null;
+  uplink_speed?: number | null;
+  uplink_model?: string | null;
 };
 type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
 type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
@@ -79,10 +82,13 @@ export function normalizeText(value: string | null | undefined): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
+type CurrentUplinkForDiff = { type: string; speed: number | null; model: string | null } | null;
+
 export function stationUpdateDiffers(
   stationData: ProposedStationDiffInput,
   currentStation: CurrentStationForDiff,
   currentExtraIdentifier: CurrentExtraIdentifierForDiff,
+  currentUplink?: CurrentUplinkForDiff,
 ): boolean {
   if (stationData.station_id !== undefined && stationData.station_id !== null && stationData.station_id !== currentStation.station_id) return true;
   if (stationData.operator_id !== undefined && stationData.operator_id !== currentStation.operator_id) return true;
@@ -92,6 +98,9 @@ export function stationUpdateDiffers(
   if (stationData.networks_name !== undefined && normalizeText(stationData.networks_name) !== normalizeText(currentExtraIdentifier?.networks_name))
     return true;
   if (stationData.mno_name !== undefined && normalizeText(stationData.mno_name) !== normalizeText(currentExtraIdentifier?.mno_name)) return true;
+  if (stationData.uplink_type !== undefined && (stationData.uplink_type ?? null) !== (currentUplink?.type ?? null)) return true;
+  if (stationData.uplink_speed !== undefined && (stationData.uplink_speed ?? null) !== (currentUplink?.speed ?? null)) return true;
+  if (stationData.uplink_model !== undefined && normalizeText(stationData.uplink_model) !== normalizeText(currentUplink?.model)) return true;
   return false;
 }
 
@@ -121,15 +130,16 @@ export async function stripUnchangedProposalData<S extends ProposedStationDiffIn
 ): Promise<{ stationData: S | undefined; locationData: L | undefined }> {
   if (!stationData && !locationData) return { stationData, locationData };
 
-  const [targetStation, targetExtraIdentifier] = await Promise.all([
+  const [targetStation, targetExtraIdentifier, targetUplink] = await Promise.all([
     tx.query.stations.findFirst({ where: { id: targetStationId }, with: { location: true } }),
     tx.query.extraIdentificators.findFirst({ where: { station_id: targetStationId } }),
+    tx.query.stationUplinks.findFirst({ where: { station_id: targetStationId } }),
   ]);
   if (!targetStation) return { stationData, locationData };
 
   let resolvedStation: S | undefined = stationData;
   if (stationData) {
-    if (stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null)) {
+    if (stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null)) {
       const proposedNotes = normalizeText(stationData.notes);
       resolvedStation = {
         ...stationData,
@@ -138,6 +148,9 @@ export async function stripUnchangedProposalData<S extends ProposedStationDiffIn
             ? stationData.station_id
             : null,
         notes: proposedNotes !== null && proposedNotes !== normalizeText(targetStation.notes) ? proposedNotes : null,
+        ...(stationData.uplink_type === undefined
+          ? { uplink_type: targetUplink?.type ?? null, uplink_speed: targetUplink?.speed ?? null, uplink_model: targetUplink?.model ?? null }
+          : {}),
       };
     } else resolvedStation = undefined;
   }

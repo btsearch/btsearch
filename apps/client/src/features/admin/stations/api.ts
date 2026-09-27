@@ -1,6 +1,6 @@
 import { API_BASE, fetchJson } from "@/lib/api";
 import type { AuditOperationHandle } from "@/lib/api";
-import type { Cell, Sector, Station } from "@/types/station";
+import type { Cell, Sector, Station, StationUplink, UplinkType } from "@/types/station";
 
 export async function patchStation(stationId: number, body: Record<string, unknown>, auditOperation?: AuditOperationHandle) {
   return fetchJson<{ data: Station }>(`${API_BASE}/stations/${stationId}`, {
@@ -110,6 +110,19 @@ export async function putStationSectors(stationId: number, sectors: { id?: numbe
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sectors }),
+    auditOperation,
+  });
+}
+
+export async function updateUplink(
+  stationId: number,
+  body: { type: UplinkType | null; speed?: number | null; model?: string | null },
+  auditOperation?: AuditOperationHandle,
+) {
+  return fetchJson<{ data: StationUplink | null }>(`${API_BASE}/stations/${stationId}/uplink`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
     auditOperation,
   });
 }

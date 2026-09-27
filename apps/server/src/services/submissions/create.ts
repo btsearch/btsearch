@@ -33,11 +33,15 @@ import {
   validateCellDuplicates,
 } from "../../utils/submission.helpers.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../cellDuplicateCheck.service.js";
+import { uplinkSpeedSchema } from "../stations/uplink.js";
 
 export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
 const MAX_SECTORS = 15;
-export const proposedStationInsert = createInsertSchema(proposedStations).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
+export const proposedStationInsert = createInsertSchema(proposedStations)
+  .omit({ createdAt: true, updatedAt: true, submission_id: true })
+  .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
+  .strict();
 export const proposedLocationInsert = createInsertSchema(proposedLocations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true })
   .strict()
@@ -148,7 +152,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   const stationId = station_id !== undefined ? Number(station_id) : null;
   if (stationId !== null && Number.isNaN(stationId)) throw new ErrorResponse("INVALID_QUERY");
 
-  const [targetStation, duplicateStation, existingLocation, targetExtraIdentifier] = await Promise.all([
+  const [targetStation, duplicateStation, existingLocation, targetExtraIdentifier, targetUplink] = await Promise.all([
     stationId !== null
       ? db.query.stations.findFirst({
           where: { id: stationId },
@@ -185,6 +189,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
       : null,
 
     type === "update" && stationId !== null ? db.query.extraIdentificators.findFirst({ where: { station_id: stationId } }) : null,
+    type === "update" && stationId !== null ? db.query.stationUplinks.findFirst({ where: { station_id: stationId } }) : null,
   ]);
 
   if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
@@ -282,7 +287,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   }
 
   if (type === "update" && targetStation) {
-    const hasStationChanges = !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null);
+    const hasStationChanges = !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null);
 
     const currentLocation = targetStation.location;
     const hasLocationChanges = !!locationData && (!currentLocation || locationUpdateDiffers(locationData, currentLocation));

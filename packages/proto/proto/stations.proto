@@ -56,6 +56,14 @@ message Station {
   string createdAt = 12;
   optional string status = 13;
   string statusChangedAt = 14;
+  optional StationUplink uplink = 15;
+}
+
+message StationUplink {
+  int32 id = 1;
+  string type = 2;
+  optional int32 speed = 3;
+  optional string model = 4;
 }
 
 message StationsResponse {

@@ -9,6 +9,7 @@ import {
   operators,
   regions,
   stationSectors,
+  stationUplinks,
   stations,
   umtsCells,
 } from "@openbts/drizzle";
@@ -37,6 +38,7 @@ const locationSchema = createSelectSchema(locations).omit({ point: true, region_
 const operatorSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
 const sectorsSchema = createSelectSchema(stationSectors).omit({ station_id: true });
+const uplinkSchema = createSelectSchema(stationUplinks).omit({ station_id: true });
 type StationBase = z.infer<typeof stationSchema>;
 type CellDetails = z.infer<typeof cellDetailsSchema>;
 type CellWithRats = z.infer<typeof cellsSchema> & {
@@ -65,6 +67,7 @@ const schemaRoute = {
         operator: operatorSchema,
         extra_identificators: extraIdentificatorsSchema.optional(),
         sectors: z.array(sectorsSchema).optional(),
+        uplink: uplinkSchema.optional(),
       }),
     }),
   },
@@ -84,6 +87,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
         columns: { station_id: false },
         orderBy: { id: "asc" },
       },
+      uplink: { columns: { station_id: false } },
     },
     columns: { operator_id: false, location_id: false },
   });
@@ -98,6 +102,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 
   const data = { ...station, cells } as StationResponse & { extra_identificators?: z.infer<typeof extraIdentificatorsSchema> | null };
   if (!data.extra_identificators) delete (data as { extra_identificators?: unknown }).extra_identificators;
+  if (!(data as { uplink?: unknown }).uplink) delete (data as { uplink?: unknown }).uplink;
 
   return res.send({ data });
 }

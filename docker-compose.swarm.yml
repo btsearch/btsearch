@@ -16,6 +16,7 @@ x-server-common: &server-common
     - CLIENT_ORIGIN=${CLIENT_ORIGIN:-http://client}
     - OG_RENDERER_URL=${OG_RENDERER_URL:-http://og-renderer:3040}
     - WORKERS=1
+    - UKE_AUTO_IMPORT=${UKE_AUTO_IMPORT:-true}
     # Resend (email)
     - RESEND_API_KEY=${RESEND_API_KEY}
     - RESEND_FROM=${RESEND_FROM:-noreply@openbts.sakilabs.com}

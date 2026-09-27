@@ -35,7 +35,7 @@ import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { isRecent } from "@/lib/dateUtils";
 import { shallowEqual } from "@/lib/shallowEqual";
-import { type Band, type Cell, type SectorDraft, type Station, type StationStatus, type UkeStation } from "@/types/station";
+import { type Band, type Cell, type SectorDraft, type Station, type StationStatus, type UkeStation, type UplinkType } from "@/types/station";
 
 function cellToLocal(cell: Cell): LocalCell {
   return {
@@ -162,6 +162,9 @@ function getInitialFormState(station: Station | undefined): {
   networksName: string;
   mnoName: string;
   stationStatus: StationStatus;
+  uplinkType: UplinkType | null;
+  uplinkSpeed: number | null;
+  uplinkModel: string;
 } {
   return {
     stationId: station?.station_id ?? "",
@@ -184,6 +187,9 @@ function getInitialFormState(station: Station | undefined): {
     networksName: station?.extra_identificators?.networks_name ?? "",
     mnoName: station?.extra_identificators?.mno_name ?? "",
     stationStatus: station?.status ?? "pending",
+    uplinkType: station?.uplink?.type ?? null,
+    uplinkSpeed: station?.uplink?.speed ?? null,
+    uplinkModel: station?.uplink?.model ?? "",
   };
 }
 
@@ -203,7 +209,10 @@ type FormAction =
   | { type: "SET_NETWORKS_ID"; payload: number | null }
   | { type: "SET_NETWORKS_NAME"; payload: string }
   | { type: "SET_MNO_NAME"; payload: string }
-  | { type: "SET_STATUS"; payload: StationStatus };
+  | { type: "SET_STATUS"; payload: StationStatus }
+  | { type: "SET_UPLINK_TYPE"; payload: UplinkType | null }
+  | { type: "SET_UPLINK_SPEED"; payload: number | null }
+  | { type: "SET_UPLINK_MODEL"; payload: string };
 
 function formReducer(state: ReturnType<typeof getInitialFormState>, action: FormAction): ReturnType<typeof getInitialFormState> {
   switch (action.type) {
@@ -239,6 +248,17 @@ function formReducer(state: ReturnType<typeof getInitialFormState>, action: Form
       return { ...state, mnoName: action.payload };
     case "SET_STATUS":
       return { ...state, stationStatus: action.payload };
+    case "SET_UPLINK_TYPE":
+      return {
+        ...state,
+        uplinkType: action.payload,
+        uplinkSpeed: action.payload ? state.uplinkSpeed : null,
+        uplinkModel: action.payload === "microwave" ? state.uplinkModel : "",
+      };
+    case "SET_UPLINK_SPEED":
+      return { ...state, uplinkSpeed: action.payload };
+    case "SET_UPLINK_MODEL":
+      return { ...state, uplinkModel: action.payload };
     default:
       return state;
   }
@@ -478,6 +498,9 @@ function StationDetailForm({
         mnoName: mnoName || undefined,
         skipExtraIds: false,
         stationStatus,
+        uplinkType: formState.uplinkType,
+        uplinkSpeed: formState.uplinkSpeed ?? undefined,
+        uplinkModel: formState.uplinkModel || undefined,
       },
       {
         onSuccess: (result) => {
@@ -559,6 +582,9 @@ function StationDetailForm({
     if (networksName !== initial.networksName) return true;
     if (mnoName !== initial.mnoName) return true;
     if (stationStatus !== initial.stationStatus) return true;
+    if (formState.uplinkType !== initial.uplinkType) return true;
+    if (formState.uplinkSpeed !== initial.uplinkSpeed) return true;
+    if (formState.uplinkModel !== initial.uplinkModel) return true;
     if (!sectorsMatchDrafts(sectors, station)) return true;
     for (const lc of localCells) {
       if (getLocalCellDiffStatus(lc, originalCells) !== "unchanged") return true;
@@ -580,6 +606,9 @@ function StationDetailForm({
     networksName,
     mnoName,
     stationStatus,
+    formState.uplinkType,
+    formState.uplinkSpeed,
+    formState.uplinkModel,
     sectors,
   ]);
 
@@ -696,6 +725,12 @@ function StationDetailForm({
               sectors={sectors}
               onSectorsChange={handleSectorsChange}
               cells={localCells}
+              uplinkType={formState.uplinkType}
+              onUplinkTypeChange={(v) => dispatch({ type: "SET_UPLINK_TYPE", payload: v })}
+              uplinkSpeed={formState.uplinkSpeed}
+              onUplinkSpeedChange={(v: number | null) => dispatch({ type: "SET_UPLINK_SPEED", payload: v })}
+              uplinkModel={formState.uplinkModel}
+              onUplinkModelChange={(v) => dispatch({ type: "SET_UPLINK_MODEL", payload: v })}
             />
 
             {isCreateMode ? (

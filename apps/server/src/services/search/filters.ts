@@ -17,6 +17,8 @@ import { CELL_TYPES, CELL_TYPE_SHORT_LABELS, type CellType } from "@openbts/shar
 import { type SQL, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 
+import { buildUplinkCondition, isUplinkType } from "../stations/uplink.js";
+
 export type FilterValue = string | number | boolean;
 export type FilterTable = "stations" | "cells" | "gsmCells" | "umtsCells" | "lteCells" | "nrCells" | "locations" | "extraIdentificators";
 type SearchFilterRefs = {
@@ -233,6 +235,10 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
       const subquery = sql`(SELECT 1 FROM ${refs.stationSectors} WHERE ${refs.stationSectors.station_id} = ${refs.stations.id})`;
       return hasAzimuth ? sql`EXISTS ${subquery}` : sql`NOT EXISTS ${subquery}`;
     },
+  },
+  uplink: {
+    table: "stations",
+    buildCondition: (value, refs) => buildUplinkCondition(refs.stations.id, parseStrings(value).filter(isUplinkType)),
   },
 
   // cells

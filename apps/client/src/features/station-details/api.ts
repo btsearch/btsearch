@@ -28,7 +28,7 @@ export type StationHistoryAuthor = {
 export type StationHistoryPhotoReference = { id: number; attachment_uuid: string };
 
 export type StationHistorySection = {
-  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "photos";
+  kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "uplink" | "photos";
   action: "create" | "update" | "delete";
   changes: StationHistoryChange[];
 };

@@ -38,6 +38,7 @@ import { FacetPill, FilterPanelSection, KbdHint, OperatorCheckboxGrid, sortBands
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { StationStatusPills } from "@/features/stations/components/stationStatusFilter";
 import { usePreferences } from "@/hooks/usePreferences";
+import { UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
 import type { Operator, StationFilters, StationSource, StationStatus } from "@/types/station";
 
@@ -452,6 +453,33 @@ export function FilterPanel({
             onClear={!isDefaultStatus ? () => onFiltersChange((current) => ({ ...current, status: ["published"] })) : undefined}
           >
             <StationStatusPills statuses={filters.status} onToggleStatus={onToggleStatus} />
+          </FilterPanelSection>
+        ) : null}
+
+        {filters.source === "internal" ? (
+          <FilterPanelSection
+            title={t("main:filters.uplinkType")}
+            onClear={filters.uplinkTypes.length > 0 ? () => onFiltersChange((current) => ({ ...current, uplinkTypes: [] })) : undefined}
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {UPLINK_TYPES.map((type) => {
+                const isActive = filters.uplinkTypes.includes(type);
+                return (
+                  <FacetPill
+                    key={type}
+                    active={isActive}
+                    onClick={() =>
+                      onFiltersChange((current) => ({
+                        ...current,
+                        uplinkTypes: isActive ? current.uplinkTypes.filter((entry) => entry !== type) : [...current.uplinkTypes, type],
+                      }))
+                    }
+                  >
+                    {t(`common:labels.${uplinkTypeKey(type)}`)}
+                  </FacetPill>
+                );
+              })}
+            </div>
           </FilterPanelSection>
         ) : null}
 

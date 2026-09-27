@@ -42,6 +42,7 @@ import {
   radiolinesTransmitterTypes,
   regions,
   stationSectors,
+  stationUplinks,
   stations,
   stationsPermits,
   statsSnapshots,
@@ -77,6 +78,7 @@ export const relations = defineRelations(
     regions,
     stations,
     stationSectors,
+    stationUplinks,
     ukeStations,
     ukePermits,
     ukePermitSectors,
@@ -171,11 +173,22 @@ export const relations = defineRelations(
         to: helpers.extraIdentificators.station_id,
       }),
       sectors: helpers.many.stationSectors(),
+      uplink: helpers.one.stationUplinks({
+        from: helpers.stations.id,
+        to: helpers.stationUplinks.station_id,
+      }),
       stationWatches: helpers.many.stationWatches(),
     },
     stationSectors: {
       station: helpers.one.stations({
         from: helpers.stationSectors.station_id,
+        to: helpers.stations.id,
+        optional: false,
+      }),
+    },
+    stationUplinks: {
+      station: helpers.one.stations({
+        from: helpers.stationUplinks.station_id,
         to: helpers.stations.id,
         optional: false,
       }),

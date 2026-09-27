@@ -63,6 +63,7 @@ export type SearchStation = {
   location: (Location & { region: Region }) | null;
   operator: Operator | null;
   extra_identificators?: { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
+  uplink?: { type: "fiber" | "microwave"; speed: number | null; model: string | null } | null;
 };
 
 export async function searchStations(query: string): Promise<SearchStation[]> {
@@ -142,6 +143,7 @@ export async function fetchStationForSubmission(id: number): Promise<SearchStati
           mno_name: station.extra_identificators.mno_name,
         }
       : null,
+    uplink: station.uplink ?? null,
   };
 }
 

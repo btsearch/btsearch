@@ -213,6 +213,9 @@
       "network_ids_create": "Dodano identyfikatory sieci",
       "network_ids_update": "Zaktualizowano identyfikatory sieci",
       "network_ids_delete": "Usunięto identyfikatory sieci",
+      "uplink_create": "Dodano uplink",
+      "uplink_update": "Zaktualizowano uplink",
+      "uplink_delete": "Usunięto uplink",
       "photos_create": "Dodano zdjęcia",
       "photos_update": "Zaktualizowano wybór zdjęć",
       "photos_delete": "Usunięto zdjęcia"
@@ -221,7 +224,10 @@
       "cell": "Komórka",
       "photo": "Zdjęcie",
       "mainPhoto": "Główne zdjęcie",
-      "mnoName": "Nazwa MNO"
+      "mnoName": "Nazwa MNO",
+      "uplinkType": "Typ podłączenia",
+      "uplinkSpeed": "Prędkość łącza (Mbps)",
+      "uplinkModel": "Model radiolinii"
     }
   }
 }
