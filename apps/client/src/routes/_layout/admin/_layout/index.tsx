@@ -611,13 +611,7 @@ function AdminDashboardPage() {
           ) : null}
         </div>
       </div>
-      <PhotoLightbox
-        photos={lightboxPhotos}
-        index={lightbox?.index ?? null}
-        onIndexChange={(index) => setLightbox((s) => (s ? { ...s, index } : s))}
-        onClose={() => setLightbox(null)}
-        loop={false}
-      />
+      <PhotoLightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onClose={() => setLightbox(null)} loop={false} />
     </main>
   );
 }

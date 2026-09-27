@@ -1,9 +1,8 @@
-import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from "motion/react";
 import type { MotionValue } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
 import { LightboxCaption } from "./lightboxCaption";
 import { LightboxDetails } from "./lightboxDetails";
@@ -11,11 +10,12 @@ import { LightboxFilmstrip } from "./lightboxFilmstrip";
 import { LightboxShortcuts } from "./lightboxShortcuts";
 import { LightboxStage } from "./lightboxStage";
 import { LightboxToolbar } from "./lightboxToolbar";
+import { hasSlideAt, mod } from "./reelLayout";
 import type { LightboxProps, Size } from "./types";
-import { setPeekPreference, usePeekPreference } from "./usePeekPreference";
-import { ZOOMED_THRESHOLD, useZoomPan } from "./useZoomPan";
+import { useFullscreen } from "./useFullscreen";
+import { togglePeekPreference, usePeekPreference } from "./usePeekPreference";
+import { useZoomPan } from "./useZoomPan";
 import { useIsMobile } from "@/hooks/useMobile";
-import { hasCoarsePointer } from "@/lib/dom/pointer";
 import { cn } from "@/lib/utils";
 
 const PAN_STEP = 120;
@@ -25,52 +25,29 @@ export type LightboxViewerHandle = {
   handleEscape: () => boolean;
 };
 
-type Props = Omit<LightboxProps, "index"> & {
+type Props = Omit<LightboxProps, "index" | "onIndexChange"> & {
   index: number;
+  onIndexChange: (index: number) => void;
   closing: boolean;
   onExited: () => void;
   backdrop: MotionValue<number>;
   handleRef: RefObject<LightboxViewerHandle | null>;
 };
 
-function mod(value: number, divisor: number) {
-  return ((value % divisor) + divisor) % divisor;
-}
-
-function getShareMode(): "share" | "copy" | null {
-  if (typeof navigator.share === "function" && hasCoarsePointer()) return "share";
-  if (typeof navigator.clipboard?.writeText === "function") return "copy";
-  return null;
-}
-
-export function LightboxViewer({
-  slides,
-  index,
-  onIndexChange,
-  onClose,
-  loop = true,
-  title,
-  actions,
-  getTrigger,
-  closing,
-  onExited,
-  backdrop,
-  handleRef,
-}: Props) {
+export function LightboxViewer({ slides, index, onIndexChange, onClose, loop = true, getTrigger, closing, onExited, backdrop, handleRef }: Props) {
   const { t } = useTranslation("lightbox");
   const compact = useIsMobile();
   const reduceMotion = useReducedMotion();
   const peekPreference = usePeekPreference();
   const zoom = useZoomPan();
+  const fullscreen = useFullscreen();
   const chrome = useMotionValue(0);
   const [position, setPosition] = useState(index);
   const [generation, setGeneration] = useState(0);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, Size>>({});
-  const enteredFullscreenRef = useRef(false);
 
   const count = slides.length;
   const effectiveLoop = loop && count > 2;
@@ -81,18 +58,9 @@ export function LightboxViewer({
 
   const slide = slides[index];
   const peek = peekPreference && !compact;
-  const canFullscreen = document.fullscreenEnabled;
-  const shareMode = getShareMode();
-  const fitLabel = t("fit");
-  const zoomLabel = useTransform(() => {
-    const scale = zoom.scale.get();
-    const fitRatio = zoom.fitRatio.get();
-    return scale <= ZOOMED_THRESHOLD ? fitLabel : `${Math.round(scale * fitRatio * 100)}%`;
-  });
 
   function canNavigate(delta: -1 | 1) {
-    if (count < 2) return false;
-    return effectiveLoop || (index + delta >= 0 && index + delta < count);
+    return hasSlideAt(index, delta, count, effectiveLoop);
   }
 
   function goTo(delta: -1 | 1) {
@@ -105,11 +73,11 @@ export function LightboxViewer({
 
   function jumpTo(target: number) {
     if (closing || target === index || target < 0 || target >= count) return;
-    if (effectiveLoop ? mod(target - index, count) === 1 : target === index + 1) {
+    if (target === mod(index + 1, count) && canNavigate(1)) {
       goTo(1);
       return;
     }
-    if (effectiveLoop ? mod(index - target, count) === 1 : target === index - 1) {
+    if (target === mod(index - 1, count) && canNavigate(-1)) {
       goTo(-1);
       return;
     }
@@ -135,28 +103,8 @@ export function LightboxViewer({
     setChromeVisible((value) => !value);
   }
 
-  function toggleFullscreen() {
-    if (!canFullscreen) return;
-    if (document.fullscreenElement !== null) {
-      void document.exitFullscreen().catch(() => undefined);
-      return;
-    }
-    enteredFullscreenRef.current = true;
-    void document.documentElement.requestFullscreen().catch(() => undefined);
-  }
-
-  async function share() {
-    const url = new URL(slide.src, window.location.href).href;
-    if (shareMode === "share") {
-      await navigator.share({ url, title: slide.alt }).catch(() => undefined);
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success(t("linkCopied"));
-    } catch {
-      toast.error(t("copyFailed"));
-    }
+  function toggleDetails() {
+    setDetailsOpen((value) => !value);
   }
 
   function handleEscape() {
@@ -216,16 +164,16 @@ export function LightboxViewer({
         break;
       case "f":
       case "F":
-        toggleFullscreen();
+        fullscreen.toggle();
         break;
       case "i":
       case "I":
-        setDetailsOpen((value) => !value);
+        toggleDetails();
         break;
       case "p":
       case "P":
         if (compact) return;
-        setPeekPreference(!peekPreference);
+        togglePeekPreference();
         break;
       case "?":
         if (compact) return;
@@ -237,12 +185,7 @@ export function LightboxViewer({
     event.preventDefault();
   }
 
-  useLayoutEffect(() => {
-    handleRef.current = { handleKeyDown, handleEscape };
-    return () => {
-      handleRef.current = null;
-    };
-  });
+  useImperativeHandle(handleRef, () => ({ handleKeyDown, handleEscape }));
 
   useEffect(() => {
     if (closing) {
@@ -252,15 +195,6 @@ export function LightboxViewer({
     if (reduceMotion) chrome.jump(chromeVisible ? 1 : 0);
     else animate(chrome, chromeVisible ? 1 : 0, { duration: 0.2 });
   }, [chrome, chromeVisible, closing, reduceMotion]);
-
-  useEffect(() => {
-    const handleChange = () => setIsFullscreen(document.fullscreenElement !== null);
-    document.addEventListener("fullscreenchange", handleChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleChange);
-      if (enteredFullscreenRef.current && document.fullscreenElement !== null) void document.exitFullscreen().catch(() => undefined);
-    };
-  }, []);
 
   return (
     <div className={cn("absolute inset-0 flex flex-col", closing ? "pointer-events-none" : undefined)}>
@@ -273,22 +207,13 @@ export function LightboxViewer({
           slide={slide}
           index={index}
           count={count}
-          title={title}
-          actions={actions?.(slide, index)}
-          zoomLabel={zoomLabel}
-          onZoomIn={() => zoom.zoomIn()}
-          onZoomOut={() => zoom.zoomOut()}
-          onToggleActualSize={zoom.toggleActualSize}
+          zoom={zoom}
           showPeekToggle={!compact && count > 1}
           peek={peekPreference}
-          onTogglePeek={() => setPeekPreference(!peekPreference)}
+          onTogglePeek={togglePeekPreference}
           detailsOpen={detailsOpen}
-          onToggleDetails={() => setDetailsOpen((value) => !value)}
-          shareMode={shareMode}
-          onShare={() => void share()}
-          canFullscreen={canFullscreen}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
+          onToggleDetails={toggleDetails}
+          fullscreen={fullscreen}
           onShowShortcuts={() => setShortcutsOpen(true)}
           onClose={onClose}
         />

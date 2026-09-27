@@ -1,5 +1,7 @@
-import { type AnimationPlaybackControls, animate, useMotionValue, useMotionValueEvent, useReducedMotion } from "motion/react";
+import { type AnimationPlaybackControls, animate, clamp, useMotionValue, useMotionValueEvent, useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
+
+import { shallowEqual } from "@/lib/shallowEqual";
 
 export const MAX_ZOOM = 5;
 export const ZOOMED_THRESHOLD = 1.01;
@@ -18,10 +20,6 @@ export type ZoomBounds = {
   stageHeight: number;
   naturalWidth: number;
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function rubberBand(value: number, min: number, max: number) {
   if (value < min) return min - (min - value) * RUBBER_BAND;
@@ -57,20 +55,37 @@ export function useZoomPan() {
     };
   }
 
+  function clampPan(point: Point, targetScale: number): Point {
+    const limit = limits(targetScale);
+    return { x: clamp(-limit.x, limit.x, point.x), y: clamp(-limit.y, limit.y, point.y) };
+  }
+
+  function setPan(point: Point) {
+    x.set(point.x);
+    y.set(point.y);
+  }
+
+  function springPan(to: Point) {
+    stop();
+    if (reduceMotion) {
+      setPan(to);
+      return;
+    }
+    animationsRef.current = [animate(x, to.x, ZOOM_SPRING), animate(y, to.y, ZOOM_SPRING)];
+  }
+
   function zoomTo(nextScale: number, anchor: Point = { x: 0, y: 0 }, animated = true) {
-    const target = clamp(nextScale, 1, MAX_ZOOM);
+    const target = clamp(1, MAX_ZOOM, nextScale);
     const from = { scale: scale.get(), x: x.get(), y: y.get() };
-    const bounds = limits(target);
     const ratio = target / from.scale;
-    const toX = target <= 1 ? 0 : clamp(anchor.x - (anchor.x - from.x) * ratio, -bounds.x, bounds.x);
-    const toY = target <= 1 ? 0 : clamp(anchor.y - (anchor.y - from.y) * ratio, -bounds.y, bounds.y);
+    const anchoredPan = { x: anchor.x - (anchor.x - from.x) * ratio, y: anchor.y - (anchor.y - from.y) * ratio };
+    const to = target <= 1 ? { x: 0, y: 0 } : clampPan(anchoredPan, target);
 
     stop();
     targetScaleRef.current = target;
     if (!animated || reduceMotion) {
       scale.set(target);
-      x.set(toX);
-      y.set(toY);
+      setPan(to);
       return;
     }
 
@@ -79,15 +94,15 @@ export function useZoomPan() {
         ...ZOOM_SPRING,
         onUpdate: (progress) => {
           scale.set(from.scale + (target - from.scale) * progress);
-          x.set(from.x + (toX - from.x) * progress);
-          y.set(from.y + (toY - from.y) * progress);
+          x.set(from.x + (to.x - from.x) * progress);
+          y.set(from.y + (to.y - from.y) * progress);
         },
       }),
     ];
   }
 
-  function zoomBy(factor: number, anchor?: Point, animated = true) {
-    zoomTo(targetScaleRef.current * factor, anchor, animated);
+  function zoomBy(factor: number, anchor?: Point) {
+    zoomTo(targetScaleRef.current * factor, anchor);
   }
 
   function actualSizeScale() {
@@ -96,7 +111,7 @@ export function useZoomPan() {
   }
 
   function toggleActualSize() {
-    const actual = actualSizeScale();
+    const actual = Math.min(actualSizeScale(), MAX_ZOOM);
     if (actual <= ZOOMED_THRESHOLD || Math.abs(targetScaleRef.current - actual) < 0.01) zoomTo(1);
     else zoomTo(actual);
   }
@@ -107,16 +122,7 @@ export function useZoomPan() {
   }
 
   function panBy(deltaX: number, deltaY: number) {
-    const bounds = limits(scale.get());
-    const toX = clamp(x.get() + deltaX, -bounds.x, bounds.x);
-    const toY = clamp(y.get() + deltaY, -bounds.y, bounds.y);
-    stop();
-    if (reduceMotion) {
-      x.set(toX);
-      y.set(toY);
-      return;
-    }
-    animationsRef.current = [animate(x, toX, ZOOM_SPRING), animate(y, toY, ZOOM_SPRING)];
+    springPan(clampPan({ x: x.get() + deltaX, y: y.get() + deltaY }, scale.get()));
   }
 
   function beginGesture() {
@@ -132,23 +138,22 @@ export function useZoomPan() {
   }
 
   function panTo(nextX: number, nextY: number) {
-    const bounds = limits(scale.get());
-    x.set(rubberBand(nextX, -bounds.x, bounds.x));
-    y.set(rubberBand(nextY, -bounds.y, bounds.y));
+    const limit = limits(scale.get());
+    x.set(rubberBand(nextX, -limit.x, limit.x));
+    y.set(rubberBand(nextY, -limit.y, limit.y));
   }
 
   function releasePan() {
-    const bounds = limits(scale.get());
+    const limit = limits(scale.get());
     stop();
     if (reduceMotion) {
-      x.set(clamp(x.get(), -bounds.x, bounds.x));
-      y.set(clamp(y.get(), -bounds.y, bounds.y));
+      setPan(clampPan({ x: x.get(), y: y.get() }, scale.get()));
       return;
     }
     // Motion skips animations whose target equals the current value; inertia ignores the target, so any other value works
     animationsRef.current = [
-      animate(x, x.get() + 1, { type: "inertia", velocity: x.getVelocity(), min: -bounds.x, max: bounds.x, ...PAN_INERTIA }),
-      animate(y, y.get() + 1, { type: "inertia", velocity: y.getVelocity(), min: -bounds.y, max: bounds.y, ...PAN_INERTIA }),
+      animate(x, x.get() + 1, { type: "inertia", velocity: x.getVelocity(), min: -limit.x, max: limit.x, ...PAN_INERTIA }),
+      animate(y, y.get() + 1, { type: "inertia", velocity: y.getVelocity(), min: -limit.y, max: limit.y, ...PAN_INERTIA }),
     ];
   }
 
@@ -160,36 +165,15 @@ export function useZoomPan() {
     }
 
     targetScaleRef.current = current;
-    const bounds = limits(current);
-    const toX = clamp(x.get(), -bounds.x, bounds.x);
-    const toY = clamp(y.get(), -bounds.y, bounds.y);
-    if (toX === x.get() && toY === y.get()) return;
-    stop();
-    if (reduceMotion) {
-      x.set(toX);
-      y.set(toY);
-      return;
-    }
-    animationsRef.current = [animate(x, toX, ZOOM_SPRING), animate(y, toY, ZOOM_SPRING)];
+    const to = clampPan({ x: x.get(), y: y.get() }, current);
+    if (to.x !== x.get() || to.y !== y.get()) springPan(to);
   }
 
   function setBounds(bounds: ZoomBounds) {
-    const previous = boundsRef.current;
-    if (
-      previous.fitWidth === bounds.fitWidth &&
-      previous.fitHeight === bounds.fitHeight &&
-      previous.stageWidth === bounds.stageWidth &&
-      previous.stageHeight === bounds.stageHeight &&
-      previous.naturalWidth === bounds.naturalWidth
-    )
-      return;
-
+    if (shallowEqual(boundsRef.current, bounds)) return;
     boundsRef.current = bounds;
     fitRatio.set(bounds.naturalWidth > 0 ? bounds.fitWidth / bounds.naturalWidth : 1);
-    if (scale.get() <= ZOOMED_THRESHOLD) return;
-    const panLimits = limits(scale.get());
-    x.set(clamp(x.get(), -panLimits.x, panLimits.x));
-    y.set(clamp(y.get(), -panLimits.y, panLimits.y));
+    if (scale.get() > ZOOMED_THRESHOLD) setPan(clampPan({ x: x.get(), y: y.get() }, scale.get()));
   }
 
   return {
@@ -200,8 +184,8 @@ export function useZoomPan() {
     isZoomed,
     isZoomedNow: () => scale.get() > ZOOMED_THRESHOLD,
     zoomTo,
-    zoomIn: (anchor?: Point) => zoomBy(ZOOM_STEP, anchor),
-    zoomOut: (anchor?: Point) => zoomBy(1 / ZOOM_STEP, anchor),
+    zoomIn: () => zoomBy(ZOOM_STEP),
+    zoomOut: () => zoomBy(1 / ZOOM_STEP),
     zoomBy,
     reset: (animated = true) => zoomTo(1, undefined, animated),
     toggleActualSize,

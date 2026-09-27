@@ -16,15 +16,22 @@ export function preloadLightbox() {
   void loadViewer();
 }
 
+function preloadImage(src: string) {
+  const image = new Image();
+  image.setAttribute("fetchpriority", "high");
+  image.src = src;
+}
+
 function focusTarget(trigger: HTMLElement | null) {
   if (!trigger?.isConnected) return null;
   if (trigger.matches(FOCUSABLE_SELECTOR)) return trigger;
   return trigger.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
 }
 
-export function Lightbox({ slides, index, onIndexChange, onClose, loop, title, actions, getTrigger }: LightboxProps) {
+export function Lightbox({ slides, index, onIndexChange, onClose, loop, getTrigger }: LightboxProps) {
   const { t } = useTranslation("lightbox");
   const [shownIndex, setShownIndex] = useState<number | null>(null);
+  const [prevIndex, setPrevIndex] = useState(index);
   const [retainedSlides, setRetainedSlides] = useState<LightboxSlide[]>(slides);
   const backdrop = useMotionValue(0);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -34,7 +41,9 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, title, a
   if (slides.length > 0 && slides !== retainedSlides) setRetainedSlides(slides);
   const displaySlides = slides.length > 0 ? slides : retainedSlides;
   const requestedIndex = index !== null && slides.length > 0 ? Math.min(Math.max(index, 0), slides.length - 1) : null;
-  if (requestedIndex !== null && requestedIndex !== shownIndex) setShownIndex(requestedIndex);
+  const indexChanged = index !== prevIndex;
+  if (indexChanged) setPrevIndex(index);
+  if (requestedIndex !== null && (indexChanged || shownIndex === null)) setShownIndex(requestedIndex);
 
   const open = shownIndex !== null && displaySlides.length > 0;
   const closing = open && requestedIndex === null;
@@ -47,6 +56,17 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, title, a
   useEffect(() => {
     if (open && !closing) finalFocusRef.current = focusTarget(getTrigger?.(viewerIndex) ?? null);
   });
+
+  const preloadShownImage = useEffectEvent(() => preloadImage(displaySlides[viewerIndex].src));
+
+  useEffect(() => {
+    if (open) preloadShownImage();
+  }, [open]);
+
+  function handleIndexChange(nextIndex: number) {
+    setShownIndex(nextIndex);
+    onIndexChange?.(nextIndex);
+  }
 
   function finishClose() {
     backdrop.jump(0);
@@ -70,7 +90,7 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, title, a
         <Dialog.Popup
           ref={popupRef}
           initialFocus={popupRef}
-          finalFocus={() => finalFocusRef.current}
+          finalFocus={finalFocusRef}
           onKeyDown={(event) => handleRef.current?.handleKeyDown(event)}
           className="dark fixed inset-0 z-300 overscroll-none text-foreground outline-none select-none"
         >
@@ -81,11 +101,9 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, title, a
               <LightboxViewer
                 slides={displaySlides}
                 index={viewerIndex}
-                onIndexChange={onIndexChange}
+                onIndexChange={handleIndexChange}
                 onClose={onClose}
                 loop={loop}
-                title={title}
-                actions={actions}
                 getTrigger={getTrigger}
                 closing={closing}
                 onExited={finishClose}

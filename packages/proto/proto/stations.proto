@@ -64,6 +64,8 @@ message StationUplink {
   string type = 2;
   optional int32 speed = 3;
   optional string model = 4;
+
+  string updatedAt = 5;
 }
 
 message StationsResponse {

@@ -1,12 +1,11 @@
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion } from "motion/react";
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 
-function Key({ children }: { children: ReactNode }) {
+function Key({ children }: { children: string }) {
   return (
     <kbd className="inline-flex min-w-5 items-center justify-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-foreground">
       {children}
@@ -16,52 +15,18 @@ function Key({ children }: { children: ReactNode }) {
 
 export function LightboxShortcuts({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation("lightbox");
-  const rows: { label: string; keys: ReactNode }[] = [
-    {
-      label: t("shortcut.navigate"),
-      keys: (
-        <>
-          <Key>←</Key>
-          <Key>→</Key>
-        </>
-      ),
-    },
-    {
-      label: t("shortcut.firstLast"),
-      keys: (
-        <>
-          <Key>Home</Key>
-          <Key>End</Key>
-        </>
-      ),
-    },
-    {
-      label: t("shortcut.zoom"),
-      keys: (
-        <>
-          <Key>+</Key>
-          <Key>−</Key>
-        </>
-      ),
-    },
-    { label: t("shortcut.fit"), keys: <Key>0</Key> },
-    { label: t("shortcut.actualSize"), keys: <Key>1</Key> },
-    {
-      label: t("shortcut.pan"),
-      keys: (
-        <>
-          <Key>↑</Key>
-          <Key>↓</Key>
-          <Key>←</Key>
-          <Key>→</Key>
-        </>
-      ),
-    },
-    { label: t("shortcut.peek"), keys: <Key>P</Key> },
-    { label: t("shortcut.details"), keys: <Key>I</Key> },
-    { label: t("shortcut.fullscreen"), keys: <Key>F</Key> },
-    { label: t("shortcut.shortcuts"), keys: <Key>?</Key> },
-    { label: t("shortcut.close"), keys: <Key>Esc</Key> },
+  const rows = [
+    { label: t("shortcut.navigate"), keys: ["←", "→"] },
+    { label: t("shortcut.firstLast"), keys: ["Home", "End"] },
+    { label: t("shortcut.zoom"), keys: ["+", "−"] },
+    { label: t("shortcut.fit"), keys: ["0"] },
+    { label: t("shortcut.actualSize"), keys: ["1"] },
+    { label: t("shortcut.pan"), keys: ["↑", "↓", "←", "→"] },
+    { label: t("shortcut.peek"), keys: ["P"] },
+    { label: t("shortcut.details"), keys: ["I"] },
+    { label: t("shortcut.fullscreen"), keys: ["F"] },
+    { label: t("shortcut.shortcuts"), keys: ["?"] },
+    { label: t("shortcut.close"), keys: ["Esc"] },
   ];
 
   return (
@@ -86,7 +51,11 @@ export function LightboxShortcuts({ onClose }: { onClose: () => void }) {
           {rows.map((row) => (
             <li key={row.label} className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">{row.label}</span>
-              <span className="flex shrink-0 gap-1">{row.keys}</span>
+              <span className="flex shrink-0 gap-1">
+                {row.keys.map((key) => (
+                  <Key key={key}>{key}</Key>
+                ))}
+              </span>
             </li>
           ))}
         </ul>

@@ -90,6 +90,7 @@ export type StationUplink = {
   type: UplinkType;
   speed: number | null;
   model: string | null;
+  updatedAt: string;
 };
 
 export type StationStatus = "published" | "inactive" | "pending";

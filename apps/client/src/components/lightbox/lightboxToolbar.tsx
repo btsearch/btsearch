@@ -11,28 +11,40 @@ import {
   SearchMinusIcon,
   Share08Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { type MotionValue, motion } from "motion/react";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { motion, useTransform } from "motion/react";
+import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import type { LightboxSlide } from "./types";
+import type { FullscreenController } from "./useFullscreen";
+import { ZOOMED_THRESHOLD, type ZoomController } from "./useZoomPan";
 import { buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { hasCoarsePointer } from "@/lib/dom/pointer";
 import { cn } from "@/lib/utils";
 
-type IconType = ComponentProps<typeof HugeiconsIcon>["icon"];
-
 const TOOLBAR_BUTTON = cn(buttonVariants({ variant: "ghost", size: "icon-lg" }), "cursor-pointer max-md:size-10");
-const TOOLTIP = "dark flex items-center gap-2";
 
-function ShortcutHint({ children }: { children: ReactNode }) {
-  return <kbd className="rounded border border-background/30 px-1 font-sans text-[10px] leading-4 opacity-70">{children}</kbd>;
+function getShareMode(): "share" | "copy" | null {
+  if (typeof navigator.share === "function" && hasCoarsePointer()) return "share";
+  if (typeof navigator.clipboard?.writeText === "function") return "copy";
+  return null;
+}
+
+function ToolbarTooltip({ label, shortcut }: { label: string; shortcut?: string }) {
+  return (
+    <TooltipContent side="bottom" className="dark flex items-center gap-2">
+      {label}
+      {shortcut ? <kbd className="rounded border border-background/30 px-1 font-sans text-[10px] leading-4 opacity-70">{shortcut}</kbd> : null}
+    </TooltipContent>
+  );
 }
 
 type ToolbarButtonProps = {
   label: string;
-  icon: IconType;
+  icon: IconSvgElement;
   shortcut?: string;
   pressed?: boolean;
   onClick?: () => void;
@@ -52,10 +64,7 @@ function ToolbarButton({ label, icon, shortcut, pressed, onClick, render, classN
       >
         <HugeiconsIcon icon={icon} className="size-5" aria-hidden="true" />
       </TooltipTrigger>
-      <TooltipContent side="bottom" className={TOOLTIP}>
-        {label}
-        {shortcut ? <ShortcutHint>{shortcut}</ShortcutHint> : null}
-      </TooltipContent>
+      <ToolbarTooltip label={label} shortcut={shortcut} />
     </Tooltip>
   );
 }
@@ -64,22 +73,13 @@ type Props = {
   slide: LightboxSlide;
   index: number;
   count: number;
-  title?: ReactNode;
-  actions?: ReactNode;
-  zoomLabel: MotionValue<string>;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onToggleActualSize: () => void;
+  zoom: ZoomController;
   showPeekToggle: boolean;
   peek: boolean;
   onTogglePeek: () => void;
   detailsOpen: boolean;
   onToggleDetails: () => void;
-  shareMode: "share" | "copy" | null;
-  onShare: () => void;
-  canFullscreen: boolean;
-  isFullscreen: boolean;
-  onToggleFullscreen: () => void;
+  fullscreen: FullscreenController;
   onShowShortcuts: () => void;
   onClose: () => void;
 };
@@ -88,27 +88,39 @@ export function LightboxToolbar({
   slide,
   index,
   count,
-  title,
-  actions,
-  zoomLabel,
-  onZoomIn,
-  onZoomOut,
-  onToggleActualSize,
+  zoom,
   showPeekToggle,
   peek,
   onTogglePeek,
   detailsOpen,
   onToggleDetails,
-  shareMode,
-  onShare,
-  canFullscreen,
-  isFullscreen,
-  onToggleFullscreen,
+  fullscreen,
   onShowShortcuts,
   onClose,
 }: Props) {
   const { t } = useTranslation("lightbox");
   const isLocalFile = slide.src.startsWith("blob:");
+  const shareMode = getShareMode();
+  const fitLabel = t("fit");
+  const zoomLabel = useTransform(() => {
+    const scale = zoom.scale.get();
+    const fitRatio = zoom.fitRatio.get();
+    return scale <= ZOOMED_THRESHOLD ? fitLabel : `${Math.round(scale * fitRatio * 100)}%`;
+  });
+
+  async function share() {
+    const url = new URL(slide.src, window.location.href).href;
+    if (shareMode === "share") {
+      await navigator.share({ url, title: slide.alt }).catch(() => undefined);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(t("linkCopied"));
+    } catch {
+      toast.error(t("copyFailed"));
+    }
+  }
 
   return (
     <div className="flex h-14 items-center gap-0.5 px-2 md:gap-1 md:px-3">
@@ -118,25 +130,22 @@ export function LightboxToolbar({
           {index + 1} / {count}
         </span>
       ) : null}
-      <div className="min-w-0 flex-1 truncate px-2 text-sm text-foreground/70">{title}</div>
+      <div className="min-w-0 flex-1 px-2" />
 
       <div className="flex items-center max-md:hidden">
-        <ToolbarButton label={t("zoomOut")} icon={SearchMinusIcon} shortcut="−" onClick={onZoomOut} />
+        <ToolbarButton label={t("zoomOut")} icon={SearchMinusIcon} shortcut="−" onClick={zoom.zoomOut} />
         <Tooltip>
           <TooltipTrigger
             render={<button type="button" />}
             aria-label={t("actualSize")}
-            onClick={onToggleActualSize}
+            onClick={zoom.toggleActualSize}
             className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "min-w-14 cursor-pointer px-2 text-xs text-foreground/80 tabular-nums")}
           >
             <motion.span>{zoomLabel}</motion.span>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className={TOOLTIP}>
-            {t("actualSize")}
-            <ShortcutHint>1</ShortcutHint>
-          </TooltipContent>
+          <ToolbarTooltip label={t("actualSize")} shortcut="1" />
         </Tooltip>
-        <ToolbarButton label={t("zoomIn")} icon={SearchAddIcon} shortcut="+" onClick={onZoomIn} />
+        <ToolbarButton label={t("zoomIn")} icon={SearchAddIcon} shortcut="+" onClick={zoom.zoomIn} />
         <span aria-hidden="true" className="mx-1.5 h-5 w-px shrink-0 bg-border" />
       </div>
 
@@ -151,7 +160,6 @@ export function LightboxToolbar({
         />
       ) : null}
       <ToolbarButton label={t("details")} icon={InformationCircleIcon} shortcut="I" pressed={detailsOpen} onClick={onToggleDetails} />
-      {actions}
       <ToolbarButton
         label={t("download")}
         icon={Download04Icon}
@@ -162,15 +170,15 @@ export function LightboxToolbar({
         <ToolbarButton
           label={shareMode === "share" ? t("share") : t("copyLink")}
           icon={shareMode === "share" ? Share08Icon : Link01Icon}
-          onClick={onShare}
+          onClick={() => void share()}
         />
       ) : null}
-      {canFullscreen ? (
+      {fullscreen.supported ? (
         <ToolbarButton
-          label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
-          icon={isFullscreen ? MinimizeScreenIcon : MaximizeScreenIcon}
+          label={fullscreen.active ? t("exitFullscreen") : t("fullscreen")}
+          icon={fullscreen.active ? MinimizeScreenIcon : MaximizeScreenIcon}
           shortcut="F"
-          onClick={onToggleFullscreen}
+          onClick={fullscreen.toggle}
           className="max-md:hidden"
         />
       ) : null}

@@ -6,7 +6,7 @@ import {
   type MotionValue,
   animate,
   motion,
-  useMotionTemplate,
+  motionValue,
   useMotionValue,
   useReducedMotion,
   useTransform,
@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { LightboxMinimap } from "./lightboxMinimap";
 import { type FlightValues, LightboxSlideView } from "./lightboxSlide";
-import { REEL_PARAM_KEYS, type ReelParams, computeReel, createReelMotion, fitSize } from "./reelLayout";
+import { REEL_PARAM_KEYS, type ReelParams, computeReel, createReelMotion, fitSize, hasSlideAt, mod } from "./reelLayout";
 import type { LightboxSlide, Size } from "./types";
 import { MAX_ZOOM, type Point, type ZoomController } from "./useZoomPan";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 const SLIDE_SPRING = { type: "spring", stiffness: 340, damping: 36, mass: 0.9 } as const;
 const FLIGHT_TRANSITION = { type: "spring", bounce: 0, duration: 0.42 } as const;
+const FALLBACK_SCALE = 0.94;
 const DESKTOP_GUTTER = 72;
 const DESKTOP_VERTICAL_PADDING = 12;
 const DRAG_THRESHOLD = 8;
@@ -50,18 +51,21 @@ type FlightState = { x: number; y: number; scale: number; insetX: number; insetY
 
 const IDENTITY_FLIGHT: FlightState = { x: 0, y: 0, scale: 1, insetX: 0, insetY: 0, radius: 0 };
 
-function mod(value: number, divisor: number) {
-  return ((value % divisor) + divisor) % divisor;
-}
-
-function findTriggerImage(trigger: HTMLElement | null) {
-  if (!trigger?.isConnected) return null;
-  if (trigger instanceof HTMLImageElement) return trigger;
-  return trigger.querySelector("img");
-}
-
 function isOnScreen(rect: DOMRect) {
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
+}
+
+function findFlightAnchor(trigger: HTMLElement | null | undefined) {
+  if (!trigger?.isConnected) return null;
+  const image = trigger instanceof HTMLImageElement ? trigger : trigger.querySelector("img");
+  if (!image || !isOnScreen(image.getBoundingClientRect())) return null;
+  return { trigger, image };
+}
+
+function contentBox(stage: Size, compact: boolean): Size {
+  const gutterX = compact ? 0 : DESKTOP_GUTTER;
+  const gutterY = compact ? 0 : DESKTOP_VERTICAL_PADDING;
+  return { width: Math.max(0, stage.width - gutterX * 2), height: Math.max(0, stage.height - gutterY * 2) };
 }
 
 function flightFromTrigger(image: HTMLImageElement, trigger: HTMLElement, fitted: Size, stageRect: DOMRect): FlightState {
@@ -93,6 +97,10 @@ function mixFlight(from: FlightState, to: FlightState, progress: number): Flight
     insetY: mix(from.insetY, to.insetY),
     radius: mix(from.radius, to.radius),
   };
+}
+
+function createFlightValues(): FlightValues {
+  return { x: motionValue(0), y: motionValue(0), scale: motionValue(1), clipPath: motionValue("none") };
 }
 
 type Props = {
@@ -144,6 +152,7 @@ export function LightboxStage({
   const [stageSize, setStageSize] = useState<Size>({ width: 0, height: 0 });
   const registryRef = useRef(new Map<string, RegistryEntry>());
   const [reelMotion] = useState(createReelMotion);
+  const [flight] = useState(createFlightValues);
   const appliedRef = useRef<AppliedLayout | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -151,29 +160,26 @@ export function LightboxStage({
   const tapTimerRef = useRef<number | null>(null);
   const wheelRef = useRef({ accumulated: 0, locked: false, timer: 0 });
   const fade = useMotionValue(0);
-  const maskImage = useMotionTemplate`linear-gradient(to right, transparent 0px, #000 ${fade}px, #000 calc(100% - ${fade}px), transparent 100%)`;
+  const maskImage = useTransform(() => {
+    const width = fade.get();
+    return width > 0 ? `linear-gradient(to right, transparent 0px, #000 ${width}px, #000 calc(100% - ${width}px), transparent 100%)` : "none";
+  });
   const dismissY = useMotionValue(0);
   const dismissScale = useTransform(dismissY, [0, 800], [1, 0.7]);
   const reelOpacity = useMotionValue(1);
-  const flightX = useMotionValue(0);
-  const flightY = useMotionValue(0);
-  const flightScale = useMotionValue(1);
-  const flightClip = useMotionValue("none");
   const flightAnimationRef = useRef<AnimationPlaybackControls | null>(null);
   const flightStateRef = useRef<FlightState>(IDENTITY_FLIGHT);
 
   const count = slides.length;
   const index = mod(position, count);
   const current = slides[index];
-  const gutterX = compact ? 0 : DESKTOP_GUTTER;
-  const gutterY = compact ? 0 : DESKTOP_VERTICAL_PADDING;
-  const box: Size = { width: Math.max(0, stageSize.width - gutterX * 2), height: Math.max(0, stageSize.height - gutterY * 2) };
+  const currentNatural = current.size ?? naturalSizes[current.src];
+  const box = contentBox(stageSize, compact);
 
   const items: { offset: number; virtual: number; slide: LightboxSlide; size: Size }[] = [];
   for (let offset = -2; offset <= 2; offset++) {
+    if (!hasSlideAt(position, offset, count, loop)) continue;
     const virtual = position + offset;
-    if (offset !== 0 && count < 2) continue;
-    if (!loop && (virtual < 0 || virtual >= count)) continue;
     const slide = slides[mod(virtual, count)];
     items.push({ offset, virtual, slide, size: fitSize(slide.size ?? naturalSizes[slide.src], box) });
   }
@@ -181,8 +187,6 @@ export function LightboxStage({
   const currentSize = items.find((item) => item.offset === 0)?.size ?? { width: 0, height: 0 };
   const reel = computeReel(new Map(items.map((item) => [item.offset, item.size.width])), stageSize.width, peek, !zoom.isZoomed);
   const fadeTarget = zoom.isZoomed ? 0 : reel.fade;
-  const flight: FlightValues = { x: flightX, y: flightY, scale: flightScale, clipPath: flightClip };
-  const zoomValues = { x: zoom.x, y: zoom.y, scale: zoom.scale };
 
   const register = useCallback((key: string, x: MotionValue<number>) => {
     const entry: RegistryEntry = { x, target: x.get() };
@@ -192,9 +196,12 @@ export function LightboxStage({
     };
   }, []);
 
+  function registryKey(virtual: number) {
+    return `${generation}:${virtual}`;
+  }
+
   function canNavigate(delta: -1 | 1) {
-    if (count < 2) return false;
-    return loop || (index + delta >= 0 && index + delta < count);
+    return hasSlideAt(index, delta, count, loop);
   }
 
   function toStagePoint(clientX: number, clientY: number): Point {
@@ -209,18 +216,23 @@ export function LightboxStage({
     tapTimerRef.current = null;
   }
 
+  function resetTaps() {
+    lastTapRef.current = null;
+    cancelTapTimer();
+  }
+
   function applyFlight(state: FlightState) {
     flightStateRef.current = state;
-    flightX.set(state.x);
-    flightY.set(state.y);
-    flightScale.set(state.scale);
-    flightClip.set(`inset(${state.insetY}px ${state.insetX}px round ${state.radius}px)`);
+    flight.x.set(state.x);
+    flight.y.set(state.y);
+    flight.scale.set(state.scale);
+    flight.clipPath.set(`inset(${state.insetY}px ${state.insetX}px round ${state.radius}px)`);
   }
 
   function stopFlight() {
     flightAnimationRef.current?.stop();
     flightAnimationRef.current = null;
-    flightScale.stop();
+    flight.scale.stop();
     reelOpacity.stop();
   }
 
@@ -238,7 +250,7 @@ export function LightboxStage({
 
   function settleReel() {
     for (const item of items) {
-      const entry = registryRef.current.get(`${generation}:${item.virtual}`);
+      const entry = registryRef.current.get(registryKey(item.virtual));
       if (!entry) continue;
       entry.target = reel.targets.get(item.offset) ?? 0;
       moveValue(entry.x, entry.target, true);
@@ -246,8 +258,7 @@ export function LightboxStage({
   }
 
   function restoreDismiss() {
-    if (reduceMotion) dismissY.jump(0);
-    else animate(dismissY, 0, SLIDE_SPRING);
+    moveValue(dismissY, 0, true);
     animate(backdrop, 1, { duration: 0.2 });
     animate(chrome, chromeVisible ? 1 : 0, { duration: 0.2 });
   }
@@ -272,7 +283,7 @@ export function LightboxStage({
       fitHeight: currentSize.height,
       stageWidth: stageSize.width,
       stageHeight: stageSize.height,
-      naturalWidth: (current.size ?? naturalSizes[current.src])?.width ?? currentSize.width,
+      naturalWidth: currentNatural?.width ?? currentSize.width,
     });
     if (stageSize.width === 0 || stageSize.height === 0) return;
 
@@ -289,7 +300,7 @@ export function LightboxStage({
     if (gestureRef.current?.kind === "swipe") return;
 
     for (const item of items) {
-      const entry = registryRef.current.get(`${generation}:${item.virtual}`);
+      const entry = registryRef.current.get(registryKey(item.virtual));
       if (!entry) continue;
       const target = reel.targets.get(item.offset) ?? 0;
       if (entry.target === target) continue;
@@ -302,28 +313,23 @@ export function LightboxStage({
     const stage = stageRef.current;
     if (!stage || reduceMotion) return;
 
-    const trigger = getTrigger?.(index) ?? null;
-    const image = findTriggerImage(trigger);
-    if (trigger && image && image.naturalWidth > 0 && isOnScreen(image.getBoundingClientRect())) {
+    const anchor = findFlightAnchor(getTrigger?.(index));
+    if (anchor && anchor.image.naturalWidth > 0) {
       const stageRect = stage.getBoundingClientRect();
-      const known = current.size ?? naturalSizes[current.src];
-      const natural = known ?? { width: image.naturalWidth, height: image.naturalHeight };
-      const fitted = fitSize(natural, {
-        width: Math.max(0, stageRect.width - gutterX * 2),
-        height: Math.max(0, stageRect.height - gutterY * 2),
-      });
+      const natural = currentNatural ?? { width: anchor.image.naturalWidth, height: anchor.image.naturalHeight };
+      const fitted = fitSize(natural, contentBox(stageRect, compact));
       if (fitted.width > 0) {
-        if (!known) onNaturalSize(current.src, natural);
-        const from = flightFromTrigger(image, trigger, fitted, stageRect);
+        if (!currentNatural) onNaturalSize(current.src, natural);
+        const from = flightFromTrigger(anchor.image, anchor.trigger, fitted, stageRect);
         applyFlight(from);
-        void animateFlight(from, IDENTITY_FLIGHT).finished.then(() => flightClip.set("none"));
+        void animateFlight(from, IDENTITY_FLIGHT).finished.then(() => flight.clipPath.set("none"));
         return;
       }
     }
 
-    flightScale.set(0.94);
+    flight.scale.set(FALLBACK_SCALE);
     reelOpacity.set(0);
-    animate(flightScale, 1, FLIGHT_TRANSITION);
+    animate(flight.scale, 1, FLIGHT_TRANSITION);
     animate(reelOpacity, 1, { duration: 0.2, ease: "easeOut" });
   });
 
@@ -347,16 +353,19 @@ export function LightboxStage({
     }
 
     const zoomedNow = Math.abs(zoom.scale.get() - 1) > 0.01;
-    const trigger = zoomedNow ? null : (getTrigger?.(index) ?? null);
-    const image = findTriggerImage(trigger);
+    const anchor = zoomedNow ? null : findFlightAnchor(getTrigger?.(index));
     const stage = stageRef.current;
-    if (stage && trigger && image && currentSize.width > 0 && isOnScreen(image.getBoundingClientRect())) {
-      const target = flightFromTrigger(image, trigger, currentSize, stage.getBoundingClientRect());
+    if (stage && anchor && currentSize.width > 0) {
+      const target = flightFromTrigger(anchor.image, anchor.trigger, currentSize, stage.getBoundingClientRect());
       await Promise.all([backdropFade, animateFlight(flightStateRef.current, target).finished]);
       return;
     }
 
-    await Promise.all([backdropFade, animate(reelOpacity, 0, { duration: 0.2 }).finished, animate(flightScale, 0.94, { duration: 0.2 }).finished]);
+    await Promise.all([
+      backdropFade,
+      animate(reelOpacity, 0, { duration: 0.2 }).finished,
+      animate(flight.scale, FALLBACK_SCALE, { duration: 0.2 }).finished,
+    ]);
   });
 
   const restoreAfterReopen = useEffectEvent(() => {
@@ -364,7 +373,7 @@ export function LightboxStage({
     dismissY.jump(0);
     reelOpacity.jump(1);
     applyFlight(IDENTITY_FLIGHT);
-    flightClip.set("none");
+    flight.clipPath.set("none");
   });
 
   const notifyExited = useEffectEvent(() => onExited());
@@ -455,32 +464,40 @@ export function LightboxStage({
     return { kind: "ignored" };
   }
 
+  function measurePinch() {
+    const [first, second] = pointersRef.current.values();
+    if (!first || !second) return null;
+    return {
+      center: toStagePoint((first.x + second.x) / 2, (first.y + second.y) / 2),
+      distance: Math.hypot(second.x - first.x, second.y - first.y),
+    };
+  }
+
   function startPinch() {
-    const [first, second] = [...pointersRef.current.values()];
+    const pinch = measurePinch();
+    if (!pinch) return;
     const previous = gestureRef.current;
     if (previous?.kind === "swipe") settleReel();
     if (previous?.kind === "dismiss") restoreDismiss();
-    cancelTapTimer();
-    lastTapRef.current = null;
+    resetTaps();
 
     const origin = zoom.beginGesture();
-    const center = toStagePoint((first.x + second.x) / 2, (first.y + second.y) / 2);
     gestureRef.current = {
       kind: "pinch",
-      startDistance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      startDistance: Math.max(1, pinch.distance),
       startScale: origin.scale,
       originX: origin.x,
       originY: origin.y,
-      center,
-      lastCenter: center,
+      center: pinch.center,
+      lastCenter: pinch.center,
     };
   }
 
   function updatePinch(gesture: PinchGesture) {
-    const [first, second] = [...pointersRef.current.values()];
-    if (!first || !second) return;
-    const center = toStagePoint((first.x + second.x) / 2, (first.y + second.y) / 2);
-    let nextScale = gesture.startScale * (Math.hypot(second.x - first.x, second.y - first.y) / gesture.startDistance);
+    const pinch = measurePinch();
+    if (!pinch) return;
+    const { center, distance } = pinch;
+    let nextScale = gesture.startScale * (distance / gesture.startDistance);
     if (nextScale < 1) nextScale = 1 - (1 - nextScale) * 0.55;
     else if (nextScale > MAX_ZOOM) nextScale = MAX_ZOOM + (nextScale - MAX_ZOOM) * 0.3;
     const ratio = nextScale / gesture.startScale;
@@ -503,7 +520,7 @@ export function LightboxStage({
   }
 
   function endSwipe(gesture: SwipeGesture, cancelled: boolean) {
-    const velocity = registryRef.current.get(`${generation}:${position}`)?.x.getVelocity() ?? 0;
+    const velocity = registryRef.current.get(registryKey(position))?.x.getVelocity() ?? 0;
     const threshold = Math.min(stageSize.width * 0.18, 140);
     let direction: -1 | 0 | 1 = 0;
     if (!cancelled && (gesture.delta < -threshold || (velocity < -SWIPE_VELOCITY && gesture.delta < 0))) direction = 1;
@@ -528,16 +545,14 @@ export function LightboxStage({
   function handleTap(event: ReactPointerEvent<HTMLDivElement>, gesture: PendingGesture) {
     if (gesture.afterPinch) return;
     if ((gesture.offset === -1 || gesture.offset === 1) && reel.params.peek > 0 && reel.params.visibility > 0) {
-      lastTapRef.current = null;
-      cancelTapTimer();
+      resetTaps();
       onNavigate(gesture.offset);
       return;
     }
 
     const last = lastTapRef.current;
     if (last && event.timeStamp - last.time < DOUBLE_TAP_MS && Math.hypot(event.clientX - last.x, event.clientY - last.y) < 30) {
-      lastTapRef.current = null;
-      cancelTapTimer();
+      resetTaps();
       zoom.toggleZoomAt(toStagePoint(event.clientX, event.clientY));
       return;
     }
@@ -585,8 +600,7 @@ export function LightboxStage({
 
     if (gesture.kind === "pending") {
       if (Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < DRAG_THRESHOLD) return;
-      cancelTapTimer();
-      lastTapRef.current = null;
+      resetTaps();
       gesture = resolvePending(gesture, event.clientX, event.clientY);
       gestureRef.current = gesture;
     }
@@ -667,17 +681,16 @@ export function LightboxStage({
           >
             {items.map((item) => (
               <LightboxSlideView
-                key={item.virtual}
+                key={`${item.virtual}:${item.slide.key}`}
                 slide={item.slide}
                 offset={item.offset}
-                registryKey={`${generation}:${item.virtual}`}
+                registryKey={registryKey(item.virtual)}
                 size={item.size}
                 initialX={reel.targets.get(item.offset) ?? 0}
-                isCurrent={item.offset === 0}
                 reel={reelMotion}
                 backdrop={backdrop}
                 flight={flight}
-                zoom={zoomValues}
+                zoom={zoom}
                 register={register}
                 onNaturalSize={onNaturalSize}
               />

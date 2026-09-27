@@ -27,7 +27,7 @@ import type { ProposedLocationForm, StationAction, SubmissionMode } from "../typ
 import { Lightbox, LightboxDetailRow, type LightboxProps, type LightboxSlide, useLightbox } from "@/components/lightbox";
 import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, PhotoMeta, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { PhotoCaption, PhotoDetails, PhotoLightbox, photoSlideSources } from "@/components/photos/photoLightbox";
+import { PhotoLightbox, photoSlides } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import { type LocationPhoto, fetchLocationPhotos, fetchStationPhotos } from "@/features/station-details/api";
+import { formatMonthYear } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type SubmissionPhotosPanelProps = {
@@ -812,16 +813,10 @@ export function UploadPhotosLightbox({
 }) {
   const { t } = useTranslation("stationDetails");
   const slides = [
-    ...submissionPhotos.map((photo, index): LightboxSlide => {
-      const lightboxPhoto = { ...photo, is_main: false };
-      return {
-        key: photo.attachment_uuid,
-        ...photoSlideSources(photo),
-        alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
-        caption: <PhotoCaption photo={lightboxPhoto} />,
-        details: <PhotoDetails photo={lightboxPhoto} />,
-      };
-    }),
+    ...photoSlides(
+      submissionPhotos.map((photo) => ({ ...photo, is_main: false })),
+      t,
+    ),
     ...files.map((file, index): LightboxSlide => {
       const url = previewUrls[index] ?? "";
       const note = (notes[index] ?? "").trim();
@@ -857,7 +852,7 @@ function LocalPhotoCaption({ name, note, takenAt }: { name: string; note: string
             <span className="flex items-center gap-1 tabular-nums">
               <HugeiconsIcon icon={Camera01Icon} className="size-3.5" aria-hidden="true" />
               <span className="sr-only">{t("photos.takenAt")}: </span>
-              <time dateTime={takenAt.toISOString()}>{takenAt.toLocaleDateString(i18n.language, { year: "numeric", month: "short" })}</time>
+              <time dateTime={takenAt.toISOString()}>{formatMonthYear(takenAt, i18n.language, "short")}</time>
             </span>
           </>
         ) : null}
@@ -875,7 +870,7 @@ function LocalPhotoDetails({ name, note, takenAt }: { name: string; note: string
       <p className="text-sm wrap-break-word text-white/80">{name}</p>
       {takenAt ? (
         <LightboxDetailRow label={t("photos.takenAt")}>
-          <time dateTime={takenAt.toISOString()}>{takenAt.toLocaleDateString(i18n.language, { year: "numeric", month: "long" })}</time>
+          <time dateTime={takenAt.toISOString()}>{formatMonthYear(takenAt, i18n.language, "long")}</time>
         </LightboxDetailRow>
       ) : null}
     </>

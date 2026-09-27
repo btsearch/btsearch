@@ -20,6 +20,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - You can now paste images or drag and drop them into the station comment box
 - The station dialog can now be made shorter than before
 - Microwave link details now show the date of their technical data, or a warning when the latest UKE list has no technical data for the link
+- Azimuths fetched from SI2PEM or UKE are now sorted from the lowest to the highest
 - API: photo responses now include `width`, `height`, `has_thumb` and `has_full`
 - API: other websites using an API key or OAuth can now also send `PUT`, `PATCH` and `DELETE` requests from the browser
 - Admin: the UKE import page now shows the latest import and the runs from the last 7 days with their durations, errors and warnings, and the dashboard warns when an import needs attention
@@ -31,6 +32,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Shared UKE station links and UKE notification links now open the exact station, and older links still work
 - Comment text now uses the full width of the comments area
 - Fill missing sector cells no longer copies the PCI and azimuth of the source cell into the new cells
+- Fetching azimuths from UKE no longer adds an empty sector when UKE lists an antenna without an azimuth
 - Microwave link details no longer show undefined for a missing antenna gain, antenna height or noise figure, and long manufacturer names now wrap
 - Renewed microwave link permits now update the existing link instead of showing up as a deleted link and a new one
 - Microwave link imports no longer fail when UKE publishes a list without technical columns, and the technical values we already have are kept

@@ -38,7 +38,7 @@ import { FacetPill, FilterPanelSection, KbdHint, OperatorCheckboxGrid, sortBands
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { StationStatusPills } from "@/features/stations/components/stationStatusFilter";
 import { usePreferences } from "@/hooks/usePreferences";
-import { UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
+import { UPLINK_APPEARANCE, UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
 import type { Operator, StationFilters, StationSource, StationStatus } from "@/types/station";
 
@@ -464,6 +464,7 @@ export function FilterPanel({
             <div className="flex flex-wrap gap-1.5">
               {UPLINK_TYPES.map((type) => {
                 const isActive = filters.uplinkTypes.includes(type);
+                const { icon, iconClassName } = UPLINK_APPEARANCE[type];
                 return (
                   <FacetPill
                     key={type}
@@ -475,7 +476,8 @@ export function FilterPanel({
                       }))
                     }
                   >
-                    {t(`common:labels.${uplinkTypeKey(type)}`)}
+                    <HugeiconsIcon icon={icon} className={cn("size-3 shrink-0", !isActive && iconClassName)} aria-hidden="true" />
+                    <span>{t(`common:labels.${uplinkTypeKey(type)}`)}</span>
                   </FacetPill>
                 );
               })}

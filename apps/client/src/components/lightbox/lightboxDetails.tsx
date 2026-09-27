@@ -80,7 +80,6 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
   return (
     <motion.aside
       aria-label={t("details")}
-      aria-hidden={open ? undefined : true}
       inert={!open}
       initial={false}
       animate={{ width: open ? PANEL_WIDTH : 0 }}

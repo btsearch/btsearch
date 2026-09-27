@@ -19,6 +19,10 @@ export function photoFullUrl(photo: PhotoFile) {
   return photo.has_full ? `/uploads/${photo.attachment_uuid}.full.avif` : undefined;
 }
 
+export function photoDownloadName(photo: PhotoFile) {
+  return `btsearch-${photo.attachment_uuid}.${photo.has_full ? "avif" : "webp"}`;
+}
+
 export function photoSize(photo: PhotoFile) {
   return photo.width && photo.height ? { width: photo.width, height: photo.height } : undefined;
 }

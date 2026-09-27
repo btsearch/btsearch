@@ -198,6 +198,7 @@ export const stationUplinks = pgTable(
     type: UplinkType("type").notNull(),
     speed: integer("speed"),
     model: varchar("model", { length: 100 }),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("station_uplinks_station_id_unique").on(t.station_id)],
 );

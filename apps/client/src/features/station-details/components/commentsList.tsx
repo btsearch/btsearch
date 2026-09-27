@@ -102,7 +102,6 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
   );
 
   const closeLightbox = useCallback(() => setLightbox(null), []);
-  const changeLightboxIndex = (index: number) => setLightbox((prev) => (prev ? { ...prev, index } : null));
 
   if (isLoading) {
     return (
@@ -255,7 +254,7 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
           <AddCommentForm key={`${stationId}:${currentUserId}`} stationId={stationId} />
         </div>
       ) : null}
-      <PhotoLightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onIndexChange={changeLightboxIndex} onClose={closeLightbox} />
+      <PhotoLightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onClose={closeLightbox} />
     </div>
   );
 }

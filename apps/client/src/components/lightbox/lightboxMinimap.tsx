@@ -1,12 +1,13 @@
-import { AnimatePresence, motion, useTransform } from "motion/react";
+import { AnimatePresence, clamp, motion, useTransform } from "motion/react";
 
 import type { Size } from "./types";
 import type { ZoomController } from "./useZoomPan";
 
 function visibleRange(offset: number, stageLength: number, displayLength: number) {
-  const clamp = (value: number) => Math.min(1, Math.max(0, value));
   const length = Math.max(1, displayLength);
-  return { start: clamp((-stageLength / 2 - offset) / length + 0.5), end: clamp((stageLength / 2 - offset) / length + 0.5) };
+  const start = clamp(0, 1, (-stageLength / 2 - offset) / length + 0.5);
+  const end = clamp(0, 1, (stageLength / 2 - offset) / length + 0.5);
+  return { start, size: end - start };
 }
 
 type Props = {
@@ -21,16 +22,12 @@ type Props = {
 export function LightboxMinimap({ src, visible, fitSize, stageSize, zoom, compact }: Props) {
   const width = compact ? 88 : 128;
   const height = fitSize.width > 0 ? (width * fitSize.height) / fitSize.width : 0;
-  const left = useTransform(() => visibleRange(zoom.x.get(), stageSize.width, fitSize.width * zoom.scale.get()).start * width);
-  const top = useTransform(() => visibleRange(zoom.y.get(), stageSize.height, fitSize.height * zoom.scale.get()).start * height);
-  const rectWidth = useTransform(() => {
-    const range = visibleRange(zoom.x.get(), stageSize.width, fitSize.width * zoom.scale.get());
-    return (range.end - range.start) * width;
-  });
-  const rectHeight = useTransform(() => {
-    const range = visibleRange(zoom.y.get(), stageSize.height, fitSize.height * zoom.scale.get());
-    return (range.end - range.start) * height;
-  });
+  const rangeX = () => visibleRange(zoom.x.get(), stageSize.width, fitSize.width * zoom.scale.get());
+  const rangeY = () => visibleRange(zoom.y.get(), stageSize.height, fitSize.height * zoom.scale.get());
+  const left = useTransform(() => rangeX().start * width);
+  const top = useTransform(() => rangeY().start * height);
+  const rectWidth = useTransform(() => rangeX().size * width);
+  const rectHeight = useTransform(() => rangeY().size * height);
 
   return (
     <AnimatePresence>

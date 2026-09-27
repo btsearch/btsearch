@@ -22,9 +22,16 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getUserListMembership, getVisibleUserList } from "../../../../services/lists/visibility.js";
-import { type GroupedFilters, defaultFilterRefs, groupFiltersByTable, parseFilterQuery } from "../../../../services/search/filters.js";
+import {
+  FILTER_DEFINITIONS,
+  type GroupedFilters,
+  defaultFilterRefs,
+  groupFiltersByTable,
+  parseFilterQuery,
+} from "../../../../services/search/filters.js";
+import { buildStationFilterConditions, hasStationFilterCriteria, resolveStationFilter } from "../../../../services/stations/filter.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
-import { buildUplinkCondition, parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
+import { parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);
@@ -184,19 +191,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     bounds,
     limit,
     page,
-    rat,
-    operators: operatorMncs,
-    bands: bandValues,
     regions: regionNames,
     status: selectedStatuses,
-    since,
     orphaned,
     azimuths,
     sort,
     sortBy,
     q: query,
     list: listUuid,
-    uplink: uplinkTypes,
   } = req.query;
   const offset = (page - 1) * limit;
 
@@ -216,8 +218,6 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       )}]::int4[]`
     : undefined;
 
-  const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
-
   let envelope: ReturnType<typeof sql> | undefined;
   if (bounds) {
     const [la1, lo1, la2, lo2] = bounds as [number, number, number, number];
@@ -226,27 +226,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     envelope = sql`ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)`;
   }
 
-  const [bandRows, operatorRows, regionsRows] = await Promise.all([
-    bandValues?.length
-      ? db.query.bands.findMany({
-          columns: { id: true },
-          where: {
-            value: {
-              in: bandValues,
-            },
-          },
-        })
-      : [],
-    expandedOperatorMncs?.length
-      ? db.query.operators.findMany({
-          columns: { id: true },
-          where: {
-            mnc: {
-              in: expandedOperatorMncs,
-            },
-          },
-        })
-      : [],
+  const [stationFilter, regionsRows] = await Promise.all([
+    resolveStationFilter(req.query),
     regionNames?.length
       ? db.query.regions.findMany({
           columns: { id: true },
@@ -259,102 +240,26 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       : [],
   ]);
 
-  const bandIds = bandRows.map((b) => b.id);
-  const operatorIds = operatorRows.map((r) => r.id);
   const regionIds = regionsRows.map((r) => r.id);
 
-  if (bandValues?.length && !bandIds.length) return res.send({ data: [], totalCount: 0 });
-  if (operatorMncs?.length && !operatorIds.length) return res.send({ data: [], totalCount: 0 });
+  if (!stationFilter) return res.send({ data: [], totalCount: 0 });
 
-  const requestedRats = rat ?? [];
-  type NonIotRat = "GSM" | "UMTS" | "LTE" | "NR";
-  const ratMap: Record<string, NonIotRat> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" } as const;
-  const nonIotRats: NonIotRat[] = requestedRats.map((r) => ratMap[r]).filter((r): r is NonIotRat => r !== undefined);
-  const iotRequested = requestedRats.includes("iot");
-
-  const hasStationFilters = operatorIds.length || bandIds.length || nonIotRats.length || iotRequested || listIdsArray !== undefined;
   const { filters, remainingQuery: remainingSearch } = query ? parseFilterQuery(query) : { filters: {}, remainingQuery: "" };
+  const hasStationQueryFilters = Object.keys(filters).some((key) => FILTER_DEFINITIONS[key]?.table !== "locations");
+  const hasStationFilters = hasStationFilterCriteria(stationFilter) || listIdsArray !== undefined || hasStationQueryFilters;
 
   const buildStationFilter = (stationFields: typeof stations) => {
-    const conditions: ReturnType<typeof sql>[] = [buildStatusCondition(stationFields, selectedStatuses)];
+    const conditions = buildStationFilterConditions(stationFields, stationFilter);
     const stationGroupedFilters = groupFiltersByTable(filters, {
       ...defaultFilterRefs,
       stations: stationFields,
     });
 
     if (listIdsArray) conditions.push(sql`${stationFields.id} = ANY(${listIdsArray})`);
-    if (operatorIds.length) {
-      conditions.push(
-        sql`${stationFields.operator_id} = ANY(ARRAY[${sql.join(
-          operatorIds.map((id) => sql`${id}`),
-          sql`,`,
-        )}]::int4[])`,
-      );
-    }
-
-    if (bandIds.length || nonIotRats.length || iotRequested) {
-      const cellExistsConditions: ReturnType<typeof sql>[] = [];
-
-      if (bandIds.length || nonIotRats.length) {
-        const cellAndConditions: ReturnType<typeof sql>[] = [];
-        if (bandIds.length) {
-          cellAndConditions.push(
-            sql`${cells.band_id} = ANY(ARRAY[${sql.join(
-              bandIds.map((id) => sql`${id}`),
-              sql`,`,
-            )}]::int4[])`,
-          );
-        }
-        if (nonIotRats.length) {
-          cellAndConditions.push(
-            sql`${cells.rat} IN (${sql.join(
-              nonIotRats.map((r) => sql`${r}`),
-              sql`,`,
-            )})`,
-          );
-        }
-        cellExistsConditions.push(sql`EXISTS (
-					SELECT 1 FROM ${cells}
-					WHERE ${cells.station_id} = ${stationFields.id}
-					AND ${sql.join(cellAndConditions, sql` AND `)}
-				)`);
-      }
-
-      if (iotRequested) {
-        const iotBandCond = bandIds.length
-          ? sql`AND ${cells.band_id} = ANY(ARRAY[${sql.join(
-              bandIds.map((id) => sql`${id}`),
-              sql`,`,
-            )}]::int4[])`
-          : sql``;
-        cellExistsConditions.push(sql`EXISTS (
-					SELECT 1 FROM ${cells}
-					WHERE ${cells.station_id} = ${stationFields.id}
-					${iotBandCond}
-					AND (
-						EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)
-						OR EXISTS (SELECT 1 FROM ${nrCells} WHERE ${nrCells.cell_id} = ${cells.id} AND ${nrCells.supports_nr_redcap} = true)
-					)
-				)`);
-      }
-
-      const cellWhere = cellExistsConditions.length > 1 ? sql`(${sql.join(cellExistsConditions, sql` OR `)})` : cellExistsConditions[0];
-
-      conditions.push(cellWhere!);
-    }
-
-    if (since) {
-      const parts = since.fields.map((field) => sql`${stationFields[field]} >= ${since.cutoff.toISOString()}`);
-      const sinceConditions = parts.length > 1 ? sql`(${sql.join(parts, sql` OR `)})` : parts[0];
-      conditions.push(sinceConditions!);
-    }
-
-    if (uplinkTypes?.length) conditions.push(buildUplinkCondition(stationFields.id, uplinkTypes));
-
     for (const condition of stationGroupedFilters.stations) conditions.push(condition);
     appendStationScopedFilterConditions(conditions, stationGroupedFilters, stationFields);
 
-    return conditions.length > 1 ? sql`(${sql.join(conditions, sql` AND `)})` : conditions[0];
+    return sql`(${sql.join(conditions, sql` AND `)})`;
   };
 
   const buildLocationConditions = (locFields: typeof locations) => {
@@ -388,127 +293,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         )}]::int4[])`,
       );
     }
-    if (since) {
-      const parts = since.fields.map((field) => sql`${stations[field]} >= ${since.cutoff.toISOString()}`);
-      const sinceConditions = parts.length > 1 ? sql`(${sql.join(parts, sql` OR `)})` : parts[0];
+    if (hasStationFilters || !showOrphaned)
       conditions.push(sql`EXISTS (
         SELECT 1 FROM ${stations}
         WHERE ${stations.location_id} = ${locFields.id}
-        AND ${buildStatusCondition(stations, selectedStatuses)}
-        AND (${sinceConditions})
-        ${listCond}
+        AND ${buildStationFilter(stations)}
       )`);
-    }
-    if (hasStationFilters) {
-      const operatorCond = operatorIds.length
-        ? sql` AND ${stations.operator_id} = ANY(ARRAY[${sql.join(
-            operatorIds.map((id) => sql`${id}`),
-            sql`,`,
-          )}]::int4[])`
-        : sql``;
-
-      if (bandIds.length || nonIotRats.length || iotRequested) {
-        const existsClauses: ReturnType<typeof sql>[] = [];
-
-        if (bandIds.length || nonIotRats.length) {
-          const cellAndConditions: ReturnType<typeof sql>[] = [];
-          if (bandIds.length) {
-            cellAndConditions.push(
-              sql`${cells.band_id} = ANY(ARRAY[${sql.join(
-                bandIds.map((id) => sql`${id}`),
-                sql`,`,
-              )}]::int4[])`,
-            );
-          }
-          if (nonIotRats.length) {
-            cellAndConditions.push(
-              sql`${cells.rat} IN (${sql.join(
-                nonIotRats.map((r) => sql`${r}`),
-                sql`,`,
-              )})`,
-            );
-          }
-          existsClauses.push(sql`EXISTS (
-						SELECT 1
-						FROM ${stations}
-						JOIN ${cells} ON ${cells.station_id} = ${stations.id}
-						WHERE ${stations.location_id} = ${locFields.id}
-						AND ${buildStatusCondition(stations, selectedStatuses)}
-						${operatorCond}
-						${listCond}
-						AND ${sql.join(cellAndConditions, sql` AND `)}
-					)`);
-        }
-
-        if (iotRequested) {
-          const iotBandCond = bandIds.length
-            ? sql`AND ${cells.band_id} = ANY(ARRAY[${sql.join(
-                bandIds.map((id) => sql`${id}`),
-                sql`,`,
-              )}]::int4[])`
-            : sql``;
-          existsClauses.push(sql`EXISTS (
-						SELECT 1
-						FROM ${stations}
-						JOIN ${cells} ON ${cells.station_id} = ${stations.id}
-						WHERE ${stations.location_id} = ${locFields.id}
-						AND ${buildStatusCondition(stations, selectedStatuses)}
-						${operatorCond}
-						${listCond}
-						${iotBandCond}
-						AND (
-							EXISTS (SELECT 1 FROM ${lteCells} WHERE ${lteCells.cell_id} = ${cells.id} AND ${lteCells.supports_iot} = true)
-							OR EXISTS (SELECT 1 FROM ${nrCells} WHERE ${nrCells.cell_id} = ${cells.id} AND ${nrCells.supports_nr_redcap} = true)
-						)
-					)`);
-        }
-
-        conditions.push(existsClauses.length > 1 ? sql`(${sql.join(existsClauses, sql` OR `)})` : existsClauses[0]!);
-      } else {
-        conditions.push(sql`
-					EXISTS (
-						SELECT 1
-						FROM ${stations}
-						WHERE ${stations.location_id} = ${locFields.id}
-						AND ${buildStatusCondition(stations, selectedStatuses)}
-						${operatorCond}
-						${listCond}
-					)
-				`);
-      }
-    } else if (!showOrphaned) {
-      conditions.push(sql`
-				EXISTS (
-					SELECT 1
-					FROM ${stations}
-					WHERE ${stations.location_id} = ${locFields.id}
-					AND ${buildStatusCondition(stations, selectedStatuses)}
-				)
-			`);
-    }
 
     for (const condition of locationGroupedFilters.locations) conditions.push(condition);
-
-    const hasNonLocationFilters =
-      locationGroupedFilters.stations.length > 0 ||
-      locationGroupedFilters.cells.length > 0 ||
-      locationGroupedFilters.gsmCells.length > 0 ||
-      locationGroupedFilters.umtsCells.length > 0 ||
-      locationGroupedFilters.lteCells.length > 0 ||
-      locationGroupedFilters.nrCells.length > 0 ||
-      locationGroupedFilters.extraIdentificators.length > 0;
-
-    if (hasNonLocationFilters) {
-      const innerConditions: ReturnType<typeof sql>[] = [
-        sql`${stations.location_id} = ${locFields.id}`,
-        buildStatusCondition(stations, selectedStatuses),
-      ];
-      if (listIdsArray) innerConditions.push(sql`${stations.id} = ANY(${listIdsArray})`);
-      for (const condition of locationGroupedFilters.stations) innerConditions.push(condition);
-      appendStationScopedFilterConditions(innerConditions, locationGroupedFilters, stations);
-
-      conditions.push(sql`EXISTS (SELECT 1 FROM ${stations} WHERE ${and(...innerConditions)})`);
-    }
 
     return conditions;
   };
@@ -524,7 +316,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
           region: true,
           stations: {
             columns: { location_id: false },
-            where: { RAW: (fields) => buildStationFilter(fields) ?? sql`true` },
+            where: { RAW: (fields) => buildStationFilter(fields) },
             with: {
               operator: true,
               ...(azimuths ? { sectors: { columns: { station_id: false }, orderBy: { id: "asc" } } } : {}),

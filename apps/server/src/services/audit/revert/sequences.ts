@@ -8,6 +8,7 @@ const TABLE_SQL: Record<SequenceTable, ReturnType<typeof sql.raw>> = {
   locations: sql.raw('"locations"'),
   station_sectors: sql.raw('"station_sectors"'),
   extra_identificators: sql.raw('"extra_identificators"'),
+  station_uplinks: sql.raw('"station_uplinks"'),
   operators: sql.raw('"operators"'),
   bands: sql.raw('"bands"'),
   regions: sql.raw('"regions"'),

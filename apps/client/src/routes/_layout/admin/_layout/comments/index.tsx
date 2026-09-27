@@ -413,7 +413,7 @@ function AdminCommentsPage() {
         </DialogContent>
       </Dialog>
 
-      <PhotoLightbox photos={lightboxPhotos} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={handleCloseLightbox} loop={false} />
+      <PhotoLightbox photos={lightboxPhotos} index={lightboxIndex} onClose={handleCloseLightbox} loop={false} />
     </>
   );
 }

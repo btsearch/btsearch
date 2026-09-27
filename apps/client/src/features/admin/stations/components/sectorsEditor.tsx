@@ -233,13 +233,17 @@ function applyFetchedAzimuths(sectors: SectorDraft[], fetchedSectors: Array<{ az
   return next;
 }
 
+function sortByAzimuth(sectors: Array<{ azimuth: number }>) {
+  return [...sectors].sort((a, b) => a.azimuth - b.azimuth);
+}
+
 export function ukePermitsToAzimuthSectors(permits: Array<{ sectors?: Array<{ azimuth: number | null }> }>): Array<{ azimuth: number }> {
   const seen = new Set<number>();
   const sectors: Array<{ azimuth: number }> = [];
 
   for (const permit of permits) {
     for (const sector of permit.sectors ?? []) {
-      if (sector.azimuth === null || seen.has(sector.azimuth)) continue;
+      if (typeof sector.azimuth !== "number" || seen.has(sector.azimuth)) continue;
       seen.add(sector.azimuth);
       sectors.push({ azimuth: sector.azimuth });
     }
@@ -303,7 +307,7 @@ export function SectorsPanel({
         toast.info(t("ukeSectors.notFound", { ns: "submissions" }));
         return;
       }
-      handleSectorsChange(applyFetchedAzimuths(sectors, fetchedSectors));
+      handleSectorsChange(applyFetchedAzimuths(sectors, sortByAzimuth(fetchedSectors)));
       toast.success(t("ukeSectors.fetched", { ns: "submissions" }));
     } catch {
       toast.error(t("ukeSectors.fetchFailed", { ns: "submissions" }));
@@ -335,7 +339,7 @@ export function SectorsPanel({
           toast.info(messages.notFound);
           return;
         }
-        handleSectorsChange(applyFetchedAzimuths(sectors, fetchedSectors));
+        handleSectorsChange(applyFetchedAzimuths(sectors, sortByAzimuth(fetchedSectors)));
         toast.success(messages.fetched);
       } catch {
         toast.error(messages.fetchFailed);

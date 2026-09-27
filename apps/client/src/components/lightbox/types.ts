@@ -15,11 +15,9 @@ export type LightboxSlide = {
 export type LightboxProps = {
   slides: LightboxSlide[];
   index: number | null;
-  onIndexChange: (index: number) => void;
+  onIndexChange?: (index: number) => void;
   onClose: () => void;
   loop?: boolean;
-  title?: ReactNode;
-  actions?: (slide: LightboxSlide, index: number) => ReactNode;
   getTrigger?: (index: number) => HTMLElement | null;
 };
 

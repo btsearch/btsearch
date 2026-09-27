@@ -18,10 +18,9 @@ type Props = {
   index: number;
   compact: boolean;
   onSelect: (index: number) => void;
-  className?: string;
 };
 
-export function LightboxFilmstrip({ slides, index, compact, onSelect, className }: Props) {
+export function LightboxFilmstrip({ slides, index, compact, onSelect }: Props) {
   const { t } = useTranslation("lightbox");
   const reduceMotion = useReducedMotion();
   const groupId = useId();
@@ -37,6 +36,7 @@ export function LightboxFilmstrip({ slides, index, compact, onSelect, className 
     getScrollElement: () => scrollRef.current,
     estimateSize: () => thumbSize,
     getItemKey: (slideIndex) => slides[slideIndex].key,
+    initialOffset: () => Math.max(0, STRIP_PADDING + index * (thumbSize + THUMB_GAP) + (thumbSize - window.innerWidth) / 2),
     gap: THUMB_GAP,
     paddingStart: STRIP_PADDING,
     paddingEnd: STRIP_PADDING,
@@ -60,11 +60,12 @@ export function LightboxFilmstrip({ slides, index, compact, onSelect, className 
     <motion.div
       ref={setScrollElement}
       layoutScroll
-      className={cn("overflow-x-auto overscroll-x-contain py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}
+      className="overflow-x-auto overscroll-x-contain py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <div className="relative mx-auto h-11 md:h-14" style={{ width: virtualizer.getTotalSize() }}>
         <LayoutGroup id={groupId}>
           {virtualizer.getVirtualItems().map((item) => {
+            const slide = slides[item.index];
             const active = item.index === index;
             return (
               <button
@@ -80,10 +81,11 @@ export function LightboxFilmstrip({ slides, index, compact, onSelect, className 
                 )}
               >
                 <img
-                  src={slides[item.index].thumbSrc ?? slides[item.index].src}
+                  src={slide.thumbSrc ?? slide.src}
                   alt=""
                   loading="lazy"
                   decoding="async"
+                  fetchPriority="low"
                   draggable={false}
                   className="size-full object-cover"
                 />

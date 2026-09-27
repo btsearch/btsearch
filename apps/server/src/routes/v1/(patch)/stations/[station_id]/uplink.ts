@@ -76,7 +76,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const current = await tx.query.stationUplinks.findFirst({ where: { station_id } });
 
     const [saved] = current
-      ? await tx.update(stationUplinks).set(values).where(eq(stationUplinks.id, current.id)).returning()
+      ? await tx
+          .update(stationUplinks)
+          .set({ ...values, updatedAt: new Date() })
+          .where(eq(stationUplinks.id, current.id))
+          .returning()
       : await tx
           .insert(stationUplinks)
           .values({ station_id, ...values })

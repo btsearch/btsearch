@@ -54,6 +54,10 @@ export function formatShortDate(dateString: string | null, locale: string): stri
   });
 }
 
+export function formatMonthYear(date: string | Date, locale: string, month: "short" | "long"): string {
+  return new Date(date).toLocaleDateString(locale, { year: "numeric", month });
+}
+
 export function formatDayMonthYear(dateString: string | null): string {
   if (!dateString) return "-";
   const date = new Date(dateString);

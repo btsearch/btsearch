@@ -9,8 +9,9 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
-import { buildUplinkCondition, parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
+import { buildStationFilterConditions, resolveStationFilter } from "../../../../services/stations/filter.js";
+import { parseStationStatusParam } from "../../../../services/stations/status.js";
+import { parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);
@@ -99,100 +100,10 @@ type ResponseData = z.infer<typeof locationsSchema> & { region: z.infer<typeof r
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { id } = req.params;
-  const { rat, status: selectedStatuses, operators: operatorMncs, bands: bandValues, since, uplink: uplinkTypes } = req.query;
+  const stationFilter = await resolveStationFilter(req.query);
 
-  const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
-
-  const [bandRows, operatorRows] = await Promise.all([
-    bandValues?.length
-      ? db.query.bands.findMany({
-          columns: { id: true },
-          where: {
-            RAW: (fields, { inArray }) => inArray(fields.value, bandValues),
-          },
-        })
-      : [],
-    expandedOperatorMncs?.length
-      ? db.query.operators.findMany({
-          columns: { id: true },
-          where: {
-            RAW: (fields, { inArray }) => inArray(fields.mnc, expandedOperatorMncs),
-          },
-        })
-      : [],
-  ]);
-
-  const bandIds = bandRows.map((b) => b.id);
-  const operatorIds = operatorRows.map((r) => r.id);
-
-  const requestedRats = rat ?? [];
-  type NonIotRat = "GSM" | "UMTS" | "LTE" | "NR";
-  const ratMap: Record<string, NonIotRat> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" } as const;
-  const nonIotRats: NonIotRat[] = requestedRats.map((r) => ratMap[r]).filter((r): r is NonIotRat => r !== undefined);
-  const iotRequested = requestedRats.includes("iot");
-
-  const buildStationFilter = (stationFields: typeof stations) => {
-    const conditions: ReturnType<typeof sql>[] = [buildStatusCondition(stationFields, selectedStatuses)];
-    if (operatorIds.length) {
-      conditions.push(
-        sql`${stationFields.operator_id} = ANY(ARRAY[${sql.join(
-          operatorIds.map((id) => sql`${id}`),
-          sql`,`,
-        )}]::int4[])`,
-      );
-    }
-
-    if (bandIds.length || nonIotRats.length || iotRequested) {
-      const cellExistsConditions: ReturnType<typeof sql>[] = [];
-
-      if (bandIds.length) {
-        cellExistsConditions.push(sql`EXISTS (
-          SELECT 1 FROM ${cells}
-          WHERE ${cells.station_id} = ${stationFields.id}
-          AND ${cells.band_id} = ANY(ARRAY[${sql.join(
-            bandIds.map((id) => sql`${id}`),
-            sql`,`,
-          )}]::int4[])
-        )`);
-      }
-
-      if (nonIotRats.length) {
-        cellExistsConditions.push(sql`EXISTS (
-          SELECT 1 FROM ${cells}
-          WHERE ${cells.station_id} = ${stationFields.id}
-          AND ${cells.rat} IN (${sql.join(
-            nonIotRats.map((r) => sql`${r}`),
-            sql`,`,
-          )})
-        )`);
-      }
-
-      if (iotRequested) {
-        cellExistsConditions.push(sql`EXISTS (
-          SELECT 1 FROM ${cells}
-          WHERE ${cells.station_id} = ${stationFields.id}
-          AND (
-            EXISTS (SELECT 1 FROM lte_cells lc WHERE lc.cell_id = ${cells.id} AND lc.supports_iot = true)
-            OR EXISTS (SELECT 1 FROM nr_cells nc WHERE nc.cell_id = ${cells.id} AND nc.supports_nr_redcap = true)
-          )
-        )`);
-      }
-
-      const cellWhere = cellExistsConditions.length > 1 ? sql`(${sql.join(cellExistsConditions, sql` OR `)})` : cellExistsConditions[0];
-
-      conditions.push(cellWhere!);
-    }
-
-    if (since) {
-      const parts = since.fields.map((field) => sql`${stationFields[field]} >= ${since.cutoff.toISOString()}`);
-      const sinceConditions = parts.length > 1 ? sql`(${sql.join(parts, sql` OR `)})` : parts[0];
-      conditions.push(sinceConditions!);
-    }
-
-    if (uplinkTypes?.length) conditions.push(buildUplinkCondition(stationFields.id, uplinkTypes));
-
-    return conditions.length > 1 ? sql`(${sql.join(conditions, sql` AND `)})` : conditions[0];
-  };
+  const buildStationFilter = (stationFields: typeof stations) =>
+    stationFilter ? sql`(${sql.join(buildStationFilterConditions(stationFields, stationFilter), sql` AND `)})` : sql`false`;
 
   const location = await db.query.locations.findFirst({
     where: {
@@ -206,7 +117,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       region: true,
       stations: {
         columns: { location_id: false, operator_id: false },
-        where: { RAW: (fields) => buildStationFilter(fields) ?? sql`true` },
+        where: { RAW: (fields) => buildStationFilter(fields) },
         with: {
           cells: {
             columns: { band_id: false, station_id: false },

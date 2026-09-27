@@ -10,6 +10,16 @@ registerRoute(
   new NavigationRoute(createHandlerBoundToURL("/index.html"), { denylist: [/^\/api\//, /^\/uploads\//, /^\/kmz/, /^\/szukaj\.php(?:\?|$)/] }),
 );
 
+type InstallEventWithRoutes = ExtendableEvent & {
+  addRoutes?: (rules: { condition: { urlPattern: string }; source: "network" }) => Promise<void>;
+};
+
+self.addEventListener("install", (event) => {
+  const installEvent = event as InstallEventWithRoutes;
+  if (!installEvent.addRoutes) return;
+  void installEvent.addRoutes({ condition: { urlPattern: "/uploads/*" }, source: "network" }).catch(() => {});
+});
+
 const RUNTIME_ASSET_CACHE = "assets-runtime-v1";
 const RUNTIME_ASSET_CACHE_MAX_ENTRIES = 200;
 const runtimeAssetCache = caches.open(RUNTIME_ASSET_CACHE);

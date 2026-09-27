@@ -43,11 +43,13 @@ export function ExtraIdentificatorsDisplay({ data, operatorMnc }: ExtraIdentific
       ) : null}
       {data.networks_name && (
         <StationInfoItem icon={<NetWorksIcon className="size-4" />} label={t("labels.networksName")}>
-          <Tooltip>
-            <TooltipTrigger render={<span className="min-w-0 truncate" />}>{data.networks_name}</TooltipTrigger>
-            <TooltipContent>{data.networks_name}</TooltipContent>
-          </Tooltip>
-          <CopyButton text={data.networks_name} />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger render={<span className="min-w-0 truncate" />}>{data.networks_name}</TooltipTrigger>
+              <TooltipContent>{data.networks_name}</TooltipContent>
+            </Tooltip>
+            <CopyButton text={data.networks_name} />
+          </div>
         </StationInfoItem>
       )}
       {data.mno_name && (

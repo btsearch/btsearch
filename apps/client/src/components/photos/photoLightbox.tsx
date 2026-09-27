@@ -1,19 +1,15 @@
 import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { TFunction } from "i18next";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type PhotoFile, photoFullUrl, photoSize, photoThumbUrl, photoUrl } from "./photoFiles";
+import { type PhotoFile, photoDownloadName, photoFullUrl, photoSize, photoThumbUrl, photoUrl } from "./photoFiles";
 import { Lightbox, LightboxDetailRow } from "@/components/lightbox";
 import type { LightboxProps, LightboxSlide } from "@/components/lightbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { resolveAvatarUrl } from "@/lib/format";
+import { formatFullDate, formatMonthYear, formatShortDate, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
-const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" };
-const MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short" };
-const LONG_MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "long" };
 
 export type LightboxPhoto = PhotoFile & {
   note: string | null;
@@ -35,40 +31,30 @@ function AuthorAvatar({ author, large = false }: { author: LightboxPhoto["author
   );
 }
 
-export function photoSlideSources(photo: PhotoFile): Pick<LightboxSlide, "src" | "thumbSrc" | "fullSrc" | "size" | "downloadName"> {
-  return {
+export function photoSlides(photos: LightboxPhoto[], t: TFunction<"stationDetails">): LightboxSlide[] {
+  return photos.map((photo, index) => ({
+    key: photo.attachment_uuid,
     src: photoUrl(photo.attachment_uuid),
     thumbSrc: photo.has_thumb ? photoThumbUrl(photo) : undefined,
     fullSrc: photoFullUrl(photo),
     size: photoSize(photo),
-    downloadName: `btsearch-${photo.attachment_uuid}.${photo.has_full ? "avif" : "webp"}`,
-  };
-}
-
-function formatDate(value: string, locale: string, options: Intl.DateTimeFormatOptions) {
-  return new Date(value).toLocaleDateString(locale, options);
+    downloadName: photoDownloadName(photo),
+    alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
+    caption: <PhotoCaption photo={photo} />,
+    details: <PhotoDetails photo={photo} />,
+  }));
 }
 
 type PhotoLightboxProps = Omit<LightboxProps, "slides"> & { photos: LightboxPhoto[] };
 
 export function PhotoLightbox({ photos, ...props }: PhotoLightboxProps) {
   const { t } = useTranslation("stationDetails");
-  const slides = useMemo(
-    () =>
-      photos.map((photo, index): LightboxSlide => ({
-        key: photo.attachment_uuid,
-        ...photoSlideSources(photo),
-        alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
-        caption: <PhotoCaption photo={photo} />,
-        details: <PhotoDetails photo={photo} />,
-      })),
-    [photos, t],
-  );
+  const slides = useMemo(() => photoSlides(photos, t), [photos, t]);
 
   return <Lightbox slides={slides} {...props} />;
 }
 
-export function PhotoCaption({ photo }: { photo: LightboxPhoto }) {
+function PhotoCaption({ photo }: { photo: LightboxPhoto }) {
   const { t, i18n } = useTranslation("stationDetails");
   const note = photo.note?.trim();
   const username = photo.author?.username.trim();
@@ -86,13 +72,13 @@ export function PhotoCaption({ photo }: { photo: LightboxPhoto }) {
           <span className="flex items-center gap-1 tabular-nums">
             <HugeiconsIcon icon={Camera01Icon} className="size-3.5" aria-hidden="true" />
             <span className="sr-only">{t("photos.takenAt")}: </span>
-            <time dateTime={photo.taken_at}>{formatDate(photo.taken_at, i18n.language, MONTH_FORMAT)}</time>
+            <time dateTime={photo.taken_at}>{formatMonthYear(photo.taken_at, i18n.language, "short")}</time>
           </span>
         ) : (
           <span className="flex items-center gap-1 tabular-nums">
             <HugeiconsIcon icon={Upload04Icon} className="size-3.5" aria-hidden="true" />
             <span className="sr-only">{t("photos.uploadedAt")}: </span>
-            <time dateTime={photo.createdAt}>{formatDate(photo.createdAt, i18n.language, DATE_FORMAT)}</time>
+            <time dateTime={photo.createdAt}>{formatShortDate(photo.createdAt, i18n.language)}</time>
           </span>
         )}
         {photo.is_main ? (
@@ -110,11 +96,12 @@ export function PhotoCaption({ photo }: { photo: LightboxPhoto }) {
   );
 }
 
-export function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
+function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
   const { t, i18n } = useTranslation("stationDetails");
   const note = photo.note?.trim();
   const username = photo.author?.username.trim();
   const name = photo.author?.name?.trim();
+  const displayName = name && name !== username ? name : undefined;
 
   return (
     <>
@@ -124,8 +111,8 @@ export function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
           <span className="flex items-center gap-2">
             <AuthorAvatar author={photo.author} large />
             <span>
-              {name && name !== username ? <span>{name} </span> : null}
-              <span className={name && name !== username ? "text-white/60" : undefined}>@{username}</span>
+              {displayName ? <span>{displayName} </span> : null}
+              <span className={displayName ? "text-white/60" : undefined}>@{username}</span>
             </span>
           </span>
         ) : (
@@ -133,11 +120,11 @@ export function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
         )}
       </LightboxDetailRow>
       <LightboxDetailRow label={t("photos.uploadedAt")}>
-        <time dateTime={photo.createdAt}>{formatDate(photo.createdAt, i18n.language, DATE_TIME_FORMAT)}</time>
+        <time dateTime={photo.createdAt}>{formatFullDate(photo.createdAt, i18n.language)}</time>
       </LightboxDetailRow>
       {photo.taken_at ? (
         <LightboxDetailRow label={t("photos.takenAt")}>
-          <time dateTime={photo.taken_at}>{formatDate(photo.taken_at, i18n.language, LONG_MONTH_FORMAT)}</time>
+          <time dateTime={photo.taken_at}>{formatMonthYear(photo.taken_at, i18n.language, "long")}</time>
         </LightboxDetailRow>
       ) : null}
       {photo.extra ? <div className="text-sm text-white/80">{photo.extra}</div> : null}

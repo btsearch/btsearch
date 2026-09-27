@@ -168,6 +168,19 @@ function getSiblingMnc(mnc: number | null | undefined): number | null {
   return null;
 }
 
+async function findSiblingStationId(tx: DbTx, locationId: number, mnc: number | null | undefined): Promise<number | null> {
+  const siblingMnc = getSiblingMnc(mnc);
+  if (siblingMnc === null) return null;
+
+  const [siblingStation] = await tx
+    .select({ id: stations.id })
+    .from(stations)
+    .innerJoin(operators, eq(stations.operator_id, operators.id))
+    .where(and(eq(stations.location_id, locationId), eq(operators.mnc, siblingMnc)))
+    .limit(1);
+  return siblingStation?.id ?? null;
+}
+
 function getProposedCellDetails(proposed: ProposedCellRow): Record<string, unknown> | null {
   return (proposed.lte ?? proposed.gsm ?? proposed.umts ?? proposed.nr) as Record<string, unknown> | null;
 }
@@ -251,6 +264,50 @@ function extractUplinkFields(proposedStation: NonNullable<ApprovalDraft["propose
   };
 }
 
+type UplinkValues = Pick<typeof stationUplinks.$inferSelect, "type" | "speed" | "model">;
+
+async function saveStationUplink(audit: AuditRecorder, stationId: number, values: UplinkValues, submissionId: string): Promise<boolean> {
+  const { tx } = audit;
+  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
+  if (existing && existing.type === values.type && existing.speed === values.speed && existing.model === values.model) return false;
+
+  const [saved] = existing
+    ? await tx
+        .update(stationUplinks)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(stationUplinks.id, existing.id))
+        .returning()
+    : await tx
+        .insert(stationUplinks)
+        .values({ station_id: stationId, ...values })
+        .returning();
+
+  if (!saved) return false;
+
+  await audit.log({
+    entity: "station_uplinks",
+    op: existing ? "update" : "create",
+    recordId: saved.id,
+    stationId,
+    old: existing ?? null,
+    new: saved,
+    metadata: { submission_id: submissionId },
+  });
+  return true;
+}
+
+async function syncSiblingUplink(audit: AuditRecorder, stationId: number, values: UplinkValues, submissionId: string): Promise<void> {
+  const { tx } = audit;
+  const site = await loadStationSiteContext(tx, stationId);
+  if (!site?.locationId) return;
+
+  const siblingStationId = await findSiblingStationId(tx, site.locationId, site.mnc);
+  if (siblingStationId === null) return;
+
+  if (await saveStationUplink(audit, siblingStationId, values, submissionId))
+    await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, siblingStationId));
+}
+
 async function createUplinkForNewStation(
   audit: AuditRecorder,
   proposedStation: NonNullable<ApprovalDraft["proposedStation"]>,
@@ -260,26 +317,8 @@ async function createUplinkForNewStation(
   const { type, speed, model } = extractUplinkFields(proposedStation);
   if (!isUplinkType(type)) return;
 
-  const [newUplink] = await audit.tx
-    .insert(stationUplinks)
-    .values({
-      station_id: stationId,
-      type,
-      speed,
-      model: type === "microwave" ? model : null,
-    })
-    .returning();
-
-  if (!newUplink) return;
-
-  await audit.log({
-    entity: "station_uplinks",
-    op: "create",
-    recordId: newUplink.id,
-    stationId,
-    new: newUplink,
-    metadata: { submission_id: submissionId },
-  });
+  const values = { type, speed, model: type === "microwave" ? model : null };
+  if (await saveStationUplink(audit, stationId, values, submissionId)) await syncSiblingUplink(audit, stationId, values, submissionId);
 }
 
 async function applyUplinkUpdate(
@@ -292,9 +331,8 @@ async function applyUplinkUpdate(
   const { type: proposedType, speed: proposedSpeed, model: proposedModel } = extractUplinkFields(proposedStation);
   if (proposedType === undefined) return;
 
-  const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
-
   if (!isUplinkType(proposedType)) {
+    const existing = await tx.query.stationUplinks.findFirst({ where: { station_id: stationId } });
     if (!existing) return;
     await tx.delete(stationUplinks).where(eq(stationUplinks.id, existing.id));
     await audit.log({
@@ -314,26 +352,7 @@ async function applyUplinkUpdate(
     model: proposedType === "fiber" ? null : proposedModel,
   };
 
-  if (existing && existing.type === values.type && existing.speed === values.speed && existing.model === values.model) return;
-
-  const [saved] = existing
-    ? await tx.update(stationUplinks).set(values).where(eq(stationUplinks.id, existing.id)).returning()
-    : await tx
-        .insert(stationUplinks)
-        .values({ station_id: stationId, ...values })
-        .returning();
-
-  if (!saved) return;
-
-  await audit.log({
-    entity: "station_uplinks",
-    op: existing ? "update" : "create",
-    recordId: saved.id,
-    stationId,
-    old: existing ?? null,
-    new: saved,
-    metadata: { submission_id: submissionId },
-  });
+  if (await saveStationUplink(audit, stationId, values, submissionId)) await syncSiblingUplink(audit, stationId, values, submissionId);
 }
 
 async function createStationFromProposal(
@@ -965,7 +984,7 @@ async function logCellChanges(audit: AuditRecorder, changes: CellAuditChanges, s
   ]);
 }
 
-async function loadStationPhotoContext(tx: DbTx, stationId: number): Promise<{ locationId: number | null; mnc: number | null } | null> {
+async function loadStationSiteContext(tx: DbTx, stationId: number): Promise<{ locationId: number | null; mnc: number | null } | null> {
   const [stationPhotoContext] = await tx
     .select({ locationId: stations.location_id, mnc: operators.mnc })
     .from(stations)
@@ -987,10 +1006,10 @@ async function applyUploadedSubmissionPhotos(
   if (photos.length === 0) return false;
   const { tx } = audit;
 
-  let stationPhotoContext: Awaited<ReturnType<typeof loadStationPhotoContext>> = null;
+  let stationPhotoContext: Awaited<ReturnType<typeof loadStationSiteContext>> = null;
   let photoLocationId = resolvedLocationId;
   if (!photoLocationId) {
-    stationPhotoContext = await loadStationPhotoContext(tx, stationId);
+    stationPhotoContext = await loadStationSiteContext(tx, stationId);
     photoLocationId = stationPhotoContext?.locationId ?? null;
   }
   if (!photoLocationId) return false;
@@ -1041,7 +1060,7 @@ async function applyUploadedSubmissionPhotos(
     tx.query.stationPhotoSelections.findFirst({
       where: { station_id: stationId, is_main: true },
     }),
-    stationPhotoContext ? Promise.resolve(stationPhotoContext) : loadStationPhotoContext(tx, stationId),
+    stationPhotoContext ? Promise.resolve(stationPhotoContext) : loadStationSiteContext(tx, stationId),
   ]);
 
   const resolveIsMain = (locationPhotoId: number, index: number, hasExistingMain: boolean) =>
@@ -1060,35 +1079,27 @@ async function applyUploadedSubmissionPhotos(
 
   if (explicitMainId !== null) await forceMainSelection(tx, stationId, explicitMainId);
 
-  const siblingMnc = getSiblingMnc(loadedStationPhotoContext?.mnc);
-  if (siblingMnc === null) return explicitMainId !== null;
+  const siblingStationId = await findSiblingStationId(tx, photoLocationId, loadedStationPhotoContext?.mnc);
+  if (siblingStationId === null) return explicitMainId !== null;
 
-  const [siblingStation] = await tx
-    .select({ id: stations.id })
-    .from(stations)
-    .innerJoin(operators, eq(stations.operator_id, operators.id))
-    .where(and(eq(stations.location_id, photoLocationId), eq(operators.mnc, siblingMnc)));
-
-  if (!siblingStation) return explicitMainId !== null;
-
-  const siblingPreviousSelections = await loadPhotoSelectionSnapshots(tx, [siblingStation.id]);
-  previousSelections.set(siblingStation.id, siblingPreviousSelections.get(siblingStation.id) ?? []);
+  const siblingPreviousSelections = await loadPhotoSelectionSnapshots(tx, [siblingStationId]);
+  previousSelections.set(siblingStationId, siblingPreviousSelections.get(siblingStationId) ?? []);
 
   const siblingExistingMain = await tx.query.stationPhotoSelections.findFirst({
-    where: { station_id: siblingStation.id, is_main: true },
+    where: { station_id: siblingStationId, is_main: true },
   });
   await tx
     .insert(stationPhotoSelections)
     .values(
       locationPhotoRows.map((locationPhoto, index) => ({
-        station_id: siblingStation.id,
+        station_id: siblingStationId,
         location_photo_id: locationPhoto.id,
         is_main: resolveIsMain(locationPhoto.id, index, !!siblingExistingMain),
       })),
     )
     .onConflictDoNothing();
 
-  if (explicitMainId !== null) await forceMainSelection(tx, siblingStation.id, explicitMainId);
+  if (explicitMainId !== null) await forceMainSelection(tx, siblingStationId, explicitMainId);
 
   return explicitMainId !== null;
 }

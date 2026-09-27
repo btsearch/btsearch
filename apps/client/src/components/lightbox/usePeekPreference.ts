@@ -30,7 +30,8 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-export function setPeekPreference(value: boolean) {
+export function togglePeekPreference() {
+  const value = !getSnapshot();
   snapshot = value;
   writeStoredValue(value);
   for (const listener of listeners) listener();

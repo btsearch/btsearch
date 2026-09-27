@@ -2,8 +2,8 @@ import { type MotionValue, motionValue } from "motion/react";
 
 import type { Size } from "./types";
 
-export const PEEK_SCALE = 0.86;
-export const PEEK_OPACITY = 0.5;
+const PEEK_SCALE = 0.86;
+const PEEK_OPACITY = 0.5;
 const PEEK_GAP = 24;
 const PEEK_MIN_SPACE = 96;
 const SLIDE_GAP = 40;
@@ -28,6 +28,15 @@ export type ReelLayout = {
   params: ReelParams;
   fade: number;
 };
+
+export function mod(value: number, divisor: number) {
+  return ((value % divisor) + divisor) % divisor;
+}
+
+export function hasSlideAt(from: number, offset: number, count: number, loop: boolean) {
+  if (offset !== 0 && count < 2) return false;
+  return loop || (from + offset >= 0 && from + offset < count);
+}
 
 export function createReelMotion(): ReelMotion {
   return {

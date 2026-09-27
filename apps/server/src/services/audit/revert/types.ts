@@ -66,7 +66,15 @@ export type RevertOperationInput = {
   ctx: AuditContext;
 };
 
-export type SequenceTable = "cells" | "locations" | "station_sectors" | "extra_identificators" | "operators" | "bands" | "regions";
+export type SequenceTable =
+  | "cells"
+  | "locations"
+  | "station_sectors"
+  | "extra_identificators"
+  | "station_uplinks"
+  | "operators"
+  | "bands"
+  | "regions";
 
 type CellChangeKind = "added" | "removed" | "updated";
 

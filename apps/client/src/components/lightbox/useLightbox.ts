@@ -30,12 +30,11 @@ export function useLightbox() {
   }
 
   return {
-    index,
     open: setIndex,
     close,
     triggerRef,
     getTriggerProps,
     getTrigger,
-    lightboxProps: { index, onIndexChange: setIndex, onClose: close, getTrigger },
+    lightboxProps: { index, onClose: close, getTrigger },
   };
 }
