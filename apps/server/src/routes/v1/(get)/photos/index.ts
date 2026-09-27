@@ -8,7 +8,7 @@ import db from "../../../../database/psql.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const authorSchema = z.object({ uuid: z.string(), username: z.string(), name: z.string() }).nullable();
+const authorSchema = z.object({ uuid: z.string(), username: z.string(), name: z.string(), image: z.string().nullable() }).nullable();
 const operatorSchema = z.object({ id: z.number(), name: z.string(), mnc: z.number().nullable() }).nullable();
 
 const photoItemSchema = z.object({
@@ -138,6 +138,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         author_uuid: users.id,
         author_username: users.username,
         author_name: users.name,
+        author_image: users.image,
         station_id: stations.id,
         station_identifier: stations.station_id,
         station_status: stations.status,
@@ -176,7 +177,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     createdAt: row.createdAt.toISOString(),
     author:
       row.author_uuid && row.author_username && row.author_name
-        ? { uuid: row.author_uuid, username: row.author_username, name: row.author_name }
+        ? { uuid: row.author_uuid, username: row.author_username, name: row.author_name, image: row.author_image }
         : null,
     station: {
       id: row.station_id,

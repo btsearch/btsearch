@@ -21,7 +21,7 @@ const schemaRoute = {
           note: z.string().nullable(),
           taken_at: z.string().nullable(),
           createdAt: z.string(),
-          author: z.object({ uuid: z.string(), username: z.string(), name: z.string() }).nullable(),
+          author: z.object({ uuid: z.string(), username: z.string(), name: z.string(), image: z.string().nullable() }).nullable(),
         }),
       ),
     }),
@@ -37,7 +37,7 @@ type PhotoItem = {
   note: string | null;
   taken_at: string | null;
   createdAt: string;
-  author: { uuid: string; username: string; name: string } | null;
+  author: { uuid: string; username: string; name: string; image: string | null } | null;
 };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
@@ -58,6 +58,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       author_uuid: users.id,
       author_username: users.username,
       author_name: users.name,
+      author_image: users.image,
     })
     .from(stationPhotoSelections)
     .innerJoin(locationPhotos, eq(stationPhotoSelections.location_photo_id, locationPhotos.id))
@@ -75,7 +76,10 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       note: r.note,
       taken_at: r.taken_at?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),
-      author: r.author_uuid && r.author_username && r.author_name ? { uuid: r.author_uuid, username: r.author_username, name: r.author_name } : null,
+      author:
+        r.author_uuid && r.author_username && r.author_name
+          ? { uuid: r.author_uuid, username: r.author_username, name: r.author_name, image: r.author_image }
+          : null,
     })),
   });
 }

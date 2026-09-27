@@ -5,6 +5,7 @@ import enUSClfExport from "./clfExport.json";
 import enUSCommon from "./common.json";
 import enUSDeletedEntries from "./deletedEntries.json";
 import enUSKMZ from "./kmz.json";
+import enUSLightbox from "./lightbox.json";
 import enUSLists from "./lists.json";
 import enUSMain from "./main.json";
 import enUSNav from "./nav.json";
@@ -42,4 +43,5 @@ export const enUSResources = {
   kmz: enUSKMZ,
   terrainProfile: enUSTerrainProfile,
   oauth: enUSOAuth,
+  lightbox: enUSLightbox,
 };

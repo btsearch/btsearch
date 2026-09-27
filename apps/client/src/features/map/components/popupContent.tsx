@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 
 import { getPermitBands, getStationBands } from "../utils";
 import { TechnologySummary } from "./technologySummary";
-import { Lightbox } from "@/components/photos/lightbox";
+import { useLightbox } from "@/components/lightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
 import { CopyButton } from "@/features/station-details/components/copyButton";
@@ -209,7 +210,7 @@ function PopupShareButton({ location, source }: { location: LocationInfo; source
 }
 
 function PopupPhotosButton({ locationId }: { locationId: number }) {
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightbox = useLightbox();
 
   const { data: photos = [] } = useQuery({
     queryKey: ["location-photos", locationId],
@@ -217,24 +218,20 @@ function PopupPhotosButton({ locationId }: { locationId: number }) {
     staleTime: 1000 * 60 * 5,
   });
 
-  const closeLightbox = () => setLightboxIndex(null);
-  const prev = useCallback(() => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)), [photos.length]);
-  const next = useCallback(() => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null)), [photos.length]);
-
   if (photos.length === 0) return null;
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setLightboxIndex(0)}
+        {...lightbox.getTriggerProps(0)}
         className="flex items-center gap-0.5 p-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0"
         aria-label={`View ${photos.length} photos`}
       >
         <HugeiconsIcon icon={Image01Icon} className="size-3 text-muted-foreground" />
         <span className="text-[10px] text-muted-foreground tabular-nums">{photos.length}</span>
       </button>
-      <Lightbox photos={photos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
+      <PhotoLightbox photos={photos} {...lightbox.lightboxProps} />
     </>
   );
 }

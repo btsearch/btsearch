@@ -5,8 +5,9 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox } from "@/components/photos/lightbox";
+import { useLightbox } from "@/components/lightbox";
 import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
+import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +67,7 @@ export function PhotosSection({
 
   const [deletePhotoId, setDeletePhotoId] = useState<number | null>(null);
   const [editState, setEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightbox = useLightbox();
 
   const { data: photos = [], isLoading } = useQuery({
     queryKey: queryKey as unknown[],
@@ -135,10 +136,6 @@ export function PhotosSection({
     },
     onError: (error) => toast.error(t(photoQualityErrorKey(error) ?? "photos.uploadFailed")),
   });
-
-  const closeLightbox = () => setLightboxIndex(null);
-  const prev = useCallback(() => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)), [photos.length]);
-  const next = useCallback(() => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null)), [photos.length]);
 
   function openEdit(photo: Photo) {
     setEditState({ id: photo.id, note: photo.note ?? "", takenAt: photo.taken_at ? new Date(photo.taken_at) : null });
@@ -249,7 +246,12 @@ export function PhotosSection({
                     className="rounded-lg overflow-hidden border bg-muted animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none"
                     style={{ animationDelay: `${Math.min(idx * 40, 400)}ms`, animationFillMode: "both" }}
                   >
-                    <PhotoImage src={`/uploads/${photo.attachment_uuid}.webp`} alt={photo.note ?? ""} onOpen={() => setLightboxIndex(idx)}>
+                    <PhotoImage
+                      ref={lightbox.triggerRef(idx)}
+                      src={photoUrl(photo.attachment_uuid)}
+                      alt={photo.note ?? ""}
+                      onOpen={() => lightbox.open(idx)}
+                    >
                       {photo.is_main ? (
                         <span className="absolute top-1.5 left-1.5 bg-amber-500 text-white rounded-full p-0.5">
                           <HugeiconsIcon icon={StarIcon} className="size-3" />
@@ -333,7 +335,7 @@ export function PhotosSection({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Lightbox photos={photos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
+      <PhotoLightbox photos={photos} {...lightbox.lightboxProps} />
     </>
   );
 }

@@ -1,8 +1,5 @@
 import {
   ArrowDown01Icon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  Camera01Icon,
   Cancel01Icon,
   Delete02Icon,
   Image01Icon,
@@ -15,12 +12,14 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { type SubmissionPhoto, deleteSubmissionPhoto, fetchSubmissionPhotos, updateSubmissionPhotoNote, updateSubmissionPhotoTakenAt } from "../api";
+import { UploadPhotosLightbox } from "./submissionPhotosPanel";
+import { preloadLightbox, useLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { photoUrl } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +35,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";
 
 const MAX_FILES = 5;
@@ -52,10 +50,8 @@ type Props = {
   editSubmissionId?: string;
 };
 
-type LightboxItem = { type: "existing"; photo: SubmissionPhoto } | { type: "local"; url: string; name: string; note: string; takenAt: Date | null };
-
 export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChange, takenAts, onTakenAtsChange, editSubmissionId }: Props) {
-  const { t, i18n } = useTranslation("submissions");
+  const { t } = useTranslation("submissions");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -65,7 +61,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
   const [deleteTarget, setDeleteTarget] = useState<{ type: "existing"; id: number } | { type: "local"; index: number } | null>(null);
   const [localEditState, setLocalEditState] = useState<{ index: number; note: string; takenAt: Date | null } | null>(null);
   const [existingEditState, setExistingEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightbox = useLightbox();
 
   const { data: existingPhotos = [], isLoading: isLoadingExisting } = useQuery({
     queryKey: ["submission-photos", editSubmissionId],
@@ -199,24 +195,6 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
     setExistingEditState({ id: photo.id, note: photo.note ?? "", takenAt: photo.taken_at ? new Date(photo.taken_at) : null });
   }
 
-  const lightboxItems: LightboxItem[] = [
-    ...existingPhotos.map((p): LightboxItem => ({ type: "existing", photo: p })),
-    ...photos.map((_, idx): LightboxItem => ({
-      type: "local",
-      url: previewUrls[idx] ?? "",
-      name: photos[idx].name,
-      note: notes[idx] ?? "",
-      takenAt: takenAts[idx] ?? null,
-    })),
-  ];
-
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-  useEscapeKey(closeLightbox, lightboxIndex !== null);
-
-  const prev = useCallback(() => setLightboxIndex((i) => (i !== null ? (i - 1 + totalCount) % totalCount : null)), [totalCount]);
-  const next = useCallback(() => setLightboxIndex((i) => (i !== null ? (i + 1) % totalCount : null)), [totalCount]);
-  const activeLightbox = lightboxIndex !== null ? (lightboxItems[lightboxIndex] ?? null) : null;
-
   const isEmpty = totalCount === 0 && !isLoadingExisting;
 
   return (
@@ -264,9 +242,9 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
               <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
                 {existingPhotos.map((photo, idx) => (
                   <div key={`existing-${photo.id}`} className="rounded-lg overflow-hidden border bg-muted">
-                    <div className="relative aspect-square">
+                    <div ref={lightbox.triggerRef(idx)} className="relative aspect-square">
                       <PhotoWithFallback
-                        src={`/uploads/${photo.attachment_uuid}.webp`}
+                        src={photoUrl(photo.attachment_uuid)}
                         alt={photo.note ?? ""}
                         className="w-full h-full object-cover"
                         loading="lazy"
@@ -274,7 +252,10 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                       <button
                         type="button"
                         className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
-                        onClick={() => setLightboxIndex(idx)}
+                        onClick={() => lightbox.open(idx)}
+                        onPointerEnter={preloadLightbox}
+                        onFocus={preloadLightbox}
+                        aria-haspopup="dialog"
                         aria-label="View full size"
                       >
                         <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />
@@ -360,12 +341,15 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
 
                 {photos.map((file, idx) => (
                   <div key={`local-${file.name}-${idx}`} className="rounded-lg overflow-hidden border bg-muted">
-                    <div className="relative aspect-square">
+                    <div ref={lightbox.triggerRef(existingPhotos.length + idx)} className="relative aspect-square">
                       <PhotoWithFallback src={previewUrls[idx]} alt={file.name} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
-                        onClick={() => setLightboxIndex(existingPhotos.length + idx)}
+                        onClick={() => lightbox.open(existingPhotos.length + idx)}
+                        onPointerEnter={preloadLightbox}
+                        onFocus={preloadLightbox}
+                        aria-haspopup="dialog"
                         aria-label="View full size"
                       >
                         <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />
@@ -478,104 +462,14 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
         </AlertDialogContent>
       </AlertDialog>
 
-      {lightboxIndex !== null && activeLightbox
-        ? createPortal(
-            <div
-              role="dialog"
-              aria-modal="true"
-              tabIndex={-1}
-              className="fixed inset-0 z-60 flex items-center justify-center bg-black/90"
-              onClick={closeLightbox}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") closeLightbox();
-              }}
-            >
-              <button
-                type="button"
-                className="absolute top-4 right-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-                onClick={closeLightbox}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-6" />
-              </button>
-              {lightboxItems.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    className="absolute left-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      prev();
-                    }}
-                  >
-                    <HugeiconsIcon icon={ArrowLeft01Icon} className="size-6" />
-                  </button>
-                  <button
-                    type="button"
-                    className="absolute right-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      next();
-                    }}
-                  >
-                    <HugeiconsIcon icon={ArrowRight01Icon} className="size-6" />
-                  </button>
-                </>
-              ) : null}
-              <div role="presentation" className="flex flex-col items-center gap-3 max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                <PhotoWithFallback
-                  src={activeLightbox.type === "existing" ? `/uploads/${activeLightbox.photo.attachment_uuid}.webp` : activeLightbox.url}
-                  alt={activeLightbox.type === "existing" ? (activeLightbox.photo.note ?? "") : activeLightbox.name}
-                  className="max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg"
-                  fallbackClassName="min-h-40 min-w-64 bg-white/5 px-6 text-white/70"
-                />
-                <div className="flex flex-col items-center gap-1 text-white/80 text-xs">
-                  {activeLightbox.type === "existing" ? (
-                    <>
-                      <span className="font-medium">@{activeLightbox.photo.author?.username ?? "-"}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          <HugeiconsIcon icon={Upload04Icon} className="size-3 opacity-60" />
-                          <span className="tabular-nums">
-                            {new Date(activeLightbox.photo.createdAt).toLocaleDateString(i18n.language, {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </span>
-                        </div>
-                        {activeLightbox.photo.taken_at ? (
-                          <div className="flex items-center gap-1.5">
-                            <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" />
-                            <span className="tabular-nums">
-                              {new Date(activeLightbox.photo.taken_at).toLocaleDateString(i18n.language, { year: "numeric", month: "short" })}
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-                      {activeLightbox.photo.note ? <span className="italic opacity-70">{activeLightbox.photo.note}</span> : null}
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-medium">{activeLightbox.name}</span>
-                      <div className="flex items-center gap-3">
-                        {activeLightbox.takenAt ? (
-                          <div className="flex items-center gap-1.5">
-                            <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" />
-                            <span className="tabular-nums">
-                              {activeLightbox.takenAt.toLocaleDateString(i18n.language, { year: "numeric", month: "short" })}
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-                      {activeLightbox.note ? <span className="italic opacity-70">{activeLightbox.note}</span> : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <UploadPhotosLightbox
+        files={photos}
+        notes={notes}
+        previewUrls={previewUrls}
+        submissionPhotos={existingPhotos}
+        takenAts={takenAts}
+        {...lightbox.lightboxProps}
+      />
     </>
   );
 }

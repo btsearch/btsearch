@@ -5,7 +5,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
 import type { AdminComment } from "../types";
+import { preloadLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { photoUrl } from "@/components/photos/photoLightbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,13 +141,16 @@ export function createCommentsColumns({
                 type="button"
                 className="size-10 rounded overflow-hidden border bg-muted hover:opacity-80 transition-opacity shrink-0"
                 aria-label={tCommon("actions.openPhoto")}
+                aria-haspopup="dialog"
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenLightbox(row.original, i);
                 }}
+                onPointerEnter={preloadLightbox}
+                onFocus={preloadLightbox}
               >
                 <PhotoWithFallback
-                  src={`/uploads/${att.uuid}.webp`}
+                  src={photoUrl(att.uuid)}
                   alt=""
                   className="size-full object-cover"
                   fallbackClassName="[&_svg]:size-4"

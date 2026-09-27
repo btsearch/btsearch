@@ -9,9 +9,10 @@ import {
   ZoomInAreaIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ComponentPropsWithoutRef, type ReactNode, useState } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, type Ref, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { preloadLightbox } from "@/components/lightbox";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
@@ -96,6 +97,7 @@ export function PhotoImage({
   frameClassName,
   imageClassName,
   onOpen,
+  ref,
   src,
 }: {
   alt: string;
@@ -103,10 +105,11 @@ export function PhotoImage({
   frameClassName?: string;
   imageClassName?: string;
   onOpen: () => void;
+  ref?: Ref<HTMLDivElement>;
   src: string;
 }) {
   return (
-    <div className={cn("relative h-36", frameClassName)}>
+    <div ref={ref} className={cn("relative h-36", frameClassName)}>
       <PhotoWithFallback src={src} alt={alt} className={cn("w-full h-full object-cover", imageClassName)} loading="lazy" />
       {children}
       <button
@@ -116,6 +119,9 @@ export function PhotoImage({
           event.stopPropagation();
           onOpen();
         }}
+        onPointerEnter={preloadLightbox}
+        onFocus={preloadLightbox}
+        aria-haspopup="dialog"
         aria-label="View full size"
       >
         <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />

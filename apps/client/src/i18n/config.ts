@@ -8,6 +8,7 @@ import plPLClfExport from "./locales/pl-PL/clfExport.json";
 import plPLCommon from "./locales/pl-PL/common.json";
 import plPLDeletedEntries from "./locales/pl-PL/deletedEntries.json";
 import plPLKMZ from "./locales/pl-PL/kmz.json";
+import plPLLightbox from "./locales/pl-PL/lightbox.json";
 import plPLLists from "./locales/pl-PL/lists.json";
 import plPLMain from "./locales/pl-PL/main.json";
 import plPLNav from "./locales/pl-PL/nav.json";
@@ -47,6 +48,7 @@ export const resources = {
     kmz: plPLKMZ,
     terrainProfile: plPLTerrainProfile,
     oauth: plPLOAuth,
+    lightbox: plPLLightbox,
   },
 } as const;
 

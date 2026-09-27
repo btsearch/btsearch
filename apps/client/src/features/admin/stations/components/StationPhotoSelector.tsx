@@ -1,12 +1,13 @@
 import { Image01Icon, StarIcon, Tick02Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox } from "@/components/photos/lightbox";
+import { useLightbox } from "@/components/lightbox";
 import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
+import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { LocationPhoto } from "@/features/station-details/api";
@@ -50,13 +51,7 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
   const mainId = mainIdOverride === "unset" ? (stationPhotos.find((p) => p.is_main)?.id ?? null) : mainIdOverride;
 
   const [editState, setEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-  const prevLightbox = useCallback(
-    () => setLightboxIndex((i) => (i !== null ? (i - 1 + locationPhotos.length) % locationPhotos.length : null)),
-    [locationPhotos.length],
-  );
-  const nextLightbox = useCallback(() => setLightboxIndex((i) => (i !== null ? (i + 1) % locationPhotos.length : null)), [locationPhotos.length]);
+  const lightbox = useLightbox();
 
   const editMutation = useMutation({
     mutationFn: async ({
@@ -250,7 +245,7 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
 
         <input ref={fileInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFileChange} />
         <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-96 overflow-y-auto">
-          {locationPhotos.map((photo) => {
+          {locationPhotos.map((photo, index) => {
             const isSelected = selected.has(photo.id);
             const isMain = mainId === photo.id;
 
@@ -269,10 +264,11 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
                 }}
               >
                 <PhotoImage
-                  src={`/uploads/${photo.attachment_uuid}.webp`}
+                  ref={lightbox.triggerRef(index)}
+                  src={photoUrl(photo.attachment_uuid)}
                   alt={photo.note ?? ""}
                   imageClassName={cn("transition-opacity", isSelected ? "" : "opacity-40")}
-                  onOpen={() => setLightboxIndex(locationPhotos.indexOf(photo))}
+                  onOpen={() => lightbox.open(index)}
                 >
                   {isMain && (
                     <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
@@ -333,7 +329,7 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
           <AddPhotoTile onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending} isLoading={uploadMutation.isPending} />
         </div>
       </div>
-      <Lightbox photos={locationPhotos} index={lightboxIndex} onClose={closeLightbox} onPrev={prevLightbox} onNext={nextLightbox} />
+      <PhotoLightbox photos={locationPhotos} {...lightbox.lightboxProps} />
     </>
   );
 }

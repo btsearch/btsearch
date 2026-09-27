@@ -10,7 +10,7 @@ export type GalleryPhoto = {
   note: string | null;
   taken_at: string | null;
   createdAt: string;
-  author: { uuid: string; username: string; name: string } | null;
+  author: { uuid: string; username: string; name: string; image?: string | null } | null;
   station: {
     id: number;
     station_id: string;

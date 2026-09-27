@@ -8,8 +8,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import type { LightboxPhoto } from "@/components/photos/lightbox";
-import { Lightbox } from "@/components/photos/lightbox";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -258,21 +257,17 @@ function AdminCommentsPage() {
         createdAt: lightboxComment?.createdAt ?? "",
         author: lightboxComment?.author
           ? {
-              uuid: lightboxComment.author.id,
               username: lightboxComment.author.username ?? lightboxComment.author.name,
               name: lightboxComment.author.name,
+              image: lightboxComment.author.image,
             }
           : null,
+        extra: lightboxComment?.station ? `${tCommon("labels.station")}: ${lightboxComment.station.station_id}` : undefined,
       })),
-    [lightboxComment],
+    [lightboxComment, tCommon],
   );
 
   const handleCloseLightbox = useCallback(() => setLightboxIndex(null), []);
-  const handlePrevLightbox = useCallback(() => setLightboxIndex((i) => (i !== null && i > 0 ? i - 1 : i)), []);
-  const handleNextLightbox = useCallback(
-    () => setLightboxIndex((i) => (i !== null && i < lightboxPhotos.length - 1 ? i + 1 : i)),
-    [lightboxPhotos.length],
-  );
 
   const handleSort = useCallback(
     (col: "createdAt" | "id") => {
@@ -418,7 +413,7 @@ function AdminCommentsPage() {
         </DialogContent>
       </Dialog>
 
-      <Lightbox photos={lightboxPhotos} index={lightboxIndex} onClose={handleCloseLightbox} onPrev={handlePrevLightbox} onNext={handleNextLightbox} />
+      <PhotoLightbox photos={lightboxPhotos} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={handleCloseLightbox} loop={false} />
     </>
   );
 }

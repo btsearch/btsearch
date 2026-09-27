@@ -1,12 +1,13 @@
 import { ArrowDown01Icon, ArrowUp01Icon, Camera01Icon, Image01Icon, Note02Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
-import { Lightbox } from "@/components/photos/lightbox";
+import { useLightbox } from "@/components/lightbox";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
+import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,7 @@ function PhotoMeta({ photo, locale }: { photo: StationPhoto; locale: string }) {
 export function PhotoGallery({ stationId, isAdmin }: Props) {
   const { t, i18n } = useTranslation("stationDetails");
   const queryClient = useQueryClient();
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightbox = useLightbox();
   const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("desc");
 
   const { data: photos, isLoading } = useQuery({
@@ -74,8 +75,6 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
   });
 
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -96,8 +95,6 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
     );
   }
 
-  const prev = () => setLightboxIndex((i) => (i !== null ? (i - 1 + sortedPhotos.length) % sortedPhotos.length : null));
-  const next = () => setLightboxIndex((i) => (i !== null ? (i + 1) % sortedPhotos.length : null));
   const sortLabel = sortOrder === "asc" ? t("photos.sortOldestFirst") : t("photos.sortNewestFirst");
 
   return (
@@ -124,12 +121,11 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
             <button
               type="button"
               aria-label={t("photos.openPhoto", { number: idx + 1 })}
-              aria-haspopup="dialog"
-              onClick={() => setLightboxIndex(idx)}
+              {...lightbox.getTriggerProps(idx)}
               className="block w-full cursor-zoom-in text-left"
             >
               <PhotoWithFallback
-                src={`/uploads/${photo.attachment_uuid}.webp`}
+                src={photoUrl(photo.attachment_uuid)}
                 alt={t("photos.photoAlt", { number: idx + 1 })}
                 loading="lazy"
                 decoding="async"
@@ -177,7 +173,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
         ))}
       </div>
 
-      <Lightbox photos={sortedPhotos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
+      <PhotoLightbox photos={sortedPhotos} {...lightbox.lightboxProps} />
     </>
   );
 }

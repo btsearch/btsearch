@@ -6,8 +6,9 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
+import { preloadLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { type LightboxPhoto, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,9 +88,9 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
               createdAt: lightboxComment.createdAt,
               author: lightboxComment.author
                 ? {
-                    uuid: lightboxComment.author.id,
                     username: lightboxComment.author.username ?? "",
                     name: lightboxComment.author.name,
+                    image: lightboxComment.author.image,
                   }
                 : null,
             })) ?? [])
@@ -98,14 +99,7 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
   );
 
   const closeLightbox = useCallback(() => setLightbox(null), []);
-  const prevPhoto = useCallback(
-    () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index - 1 + lightboxPhotos.length) % lightboxPhotos.length } : null)),
-    [lightboxPhotos.length],
-  );
-  const nextPhoto = useCallback(
-    () => setLightbox((prev) => (prev ? { ...prev, index: (prev.index + 1) % lightboxPhotos.length } : null)),
-    [lightboxPhotos.length],
-  );
+  const changeLightboxIndex = (index: number) => setLightbox((prev) => (prev ? { ...prev, index } : null));
 
   if (isLoading) {
     return (
@@ -220,11 +214,14 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
                           type="button"
                           key={attachment.uuid}
                           onClick={() => setLightbox({ commentId: comment.id, index: photoIndex(comment.attachments ?? [], attachmentIndex) })}
+                          onPointerEnter={preloadLightbox}
+                          onFocus={preloadLightbox}
+                          aria-haspopup="dialog"
                           aria-label={t("photos.openPhoto", { number: photoIndex(comment.attachments ?? [], attachmentIndex) + 1 })}
                           className="overflow-hidden rounded-lg border bg-muted/20 transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <PhotoWithFallback
-                            src={`/uploads/${attachment.uuid}.webp`}
+                            src={photoUrl(attachment.uuid)}
                             alt=""
                             className="size-20 object-cover sm:size-24"
                             fallbackClassName="gap-1 px-1 text-[9px] leading-tight [&_svg]:size-4"
@@ -250,7 +247,7 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
           ))}
         </div>
       )}
-      <Lightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onClose={closeLightbox} onPrev={prevPhoto} onNext={nextPhoto} />
+      <PhotoLightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onIndexChange={changeLightboxIndex} onClose={closeLightbox} />
     </div>
   );
 }

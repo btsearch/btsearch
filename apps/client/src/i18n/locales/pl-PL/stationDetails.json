@@ -134,6 +134,8 @@
     "setAsMain": "Ustaw jako główne",
     "uploadedBy": "Przesłane przez {{username}}",
     "unknownUser": "Nieznany",
+    "main": "Zdjęcie główne",
+    "author": "Autor",
     "sortOldestFirst": "Od najstarszych",
     "sortNewestFirst": "Od najnowszych"
   },

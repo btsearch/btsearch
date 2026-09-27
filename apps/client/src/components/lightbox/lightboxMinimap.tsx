@@ -1,0 +1,57 @@
+import { AnimatePresence, motion, useTransform } from "motion/react";
+
+import type { Size } from "./types";
+import type { ZoomController } from "./useZoomPan";
+
+function visibleRange(offset: number, stageLength: number, displayLength: number) {
+  const clamp = (value: number) => Math.min(1, Math.max(0, value));
+  const length = Math.max(1, displayLength);
+  return { start: clamp((-stageLength / 2 - offset) / length + 0.5), end: clamp((stageLength / 2 - offset) / length + 0.5) };
+}
+
+type Props = {
+  src: string;
+  visible: boolean;
+  fitSize: Size;
+  stageSize: Size;
+  zoom: ZoomController;
+  compact: boolean;
+};
+
+export function LightboxMinimap({ src, visible, fitSize, stageSize, zoom, compact }: Props) {
+  const width = compact ? 88 : 128;
+  const height = fitSize.width > 0 ? (width * fitSize.height) / fitSize.width : 0;
+  const left = useTransform(() => visibleRange(zoom.x.get(), stageSize.width, fitSize.width * zoom.scale.get()).start * width);
+  const top = useTransform(() => visibleRange(zoom.y.get(), stageSize.height, fitSize.height * zoom.scale.get()).start * height);
+  const rectWidth = useTransform(() => {
+    const range = visibleRange(zoom.x.get(), stageSize.width, fitSize.width * zoom.scale.get());
+    return (range.end - range.start) * width;
+  });
+  const rectHeight = useTransform(() => {
+    const range = visibleRange(zoom.y.get(), stageSize.height, fitSize.height * zoom.scale.get());
+    return (range.end - range.start) * height;
+  });
+
+  return (
+    <AnimatePresence>
+      {visible && height > 0 ? (
+        <motion.div
+          key="minimap"
+          aria-hidden="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="pointer-events-none absolute right-4 z-10 overflow-hidden rounded-md shadow-lg ring-1 ring-white/25 max-md:top-16 md:bottom-4"
+          style={{ width, height }}
+        >
+          <img src={src} alt="" draggable={false} className="size-full object-cover opacity-70" />
+          <motion.div
+            className="absolute rounded-[3px] border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+            style={{ left, top, width: rectWidth, height: rectHeight }}
+          />
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}

@@ -22,7 +22,8 @@ import { usePhotosGallery } from "../hooks";
 import { GallerySkeleton } from "./GallerySkeleton";
 import { PhotoTile } from "./PhotoTile";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { Lightbox } from "@/components/photos/lightbox";
+import { useLightbox } from "@/components/lightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -200,7 +201,6 @@ type PhotosGalleryAction =
   | { type: "CLEAR_FILTERS" }
   | { type: "OPEN_LIGHTBOX"; index: number }
   | { type: "CLOSE_LIGHTBOX" }
-  | { type: "STEP_LIGHTBOX"; direction: -1 | 1; photoCount: number }
   | { type: "SET_SHOW_SCROLL_TOP"; value: boolean };
 
 function createInitialGalleryState(): PhotosGalleryState {
@@ -245,11 +245,6 @@ function photosGalleryReducer(state: PhotosGalleryState, action: PhotosGalleryAc
       return { ...state, lightboxIndex: action.index };
     case "CLOSE_LIGHTBOX":
       return state.lightboxIndex === null ? state : { ...state, lightboxIndex: null };
-    case "STEP_LIGHTBOX": {
-      if (state.lightboxIndex === null || action.photoCount === 0) return state;
-
-      return { ...state, lightboxIndex: (state.lightboxIndex + action.direction + action.photoCount) % action.photoCount };
-    }
     case "SET_SHOW_SCROLL_TOP":
       return state.showScrollTop === action.value ? state : { ...state, showScrollTop: action.value };
   }
@@ -515,6 +510,22 @@ function PhotosMobileFilterRail({
   );
 }
 
+function PhotoStationInfo({ photo }: { photo: GalleryPhoto }) {
+  return (
+    <>
+      {photo.station.operator ? `${photo.station.operator.name} ` : null}
+      <Link
+        to="/stations/$id"
+        params={{ id: String(photo.station.id) }}
+        className="font-mono font-medium text-white/80 tabular-nums underline-offset-2 hover:text-white hover:underline"
+      >
+        {photo.station.station_id}
+      </Link>
+      {` · ${photo.location.label}`}
+    </>
+  );
+}
+
 export function PhotosGallery() {
   const { t, i18n } = useTranslation(["main", "common"]);
   const reduceMotion = useReducedMotion();
@@ -523,6 +534,7 @@ export function PhotosGallery() {
   const navActionTarget = useNavActionTarget();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const lightbox = useLightbox();
   const [state, dispatch] = useReducer(photosGalleryReducer, undefined, createInitialGalleryState);
   const { filters: storedFilters, lightboxIndex, showScrollTop } = state;
   const { q: search, operator, region, statuses, sortBy, order, mainOnly, recentOnly } = storedFilters;
@@ -539,6 +551,7 @@ export function PhotosGallery() {
 
   const photos = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const stationGroups = useMemo(() => groupPhotosByStation(photos), [photos]);
+  const lightboxPhotos = photos.map((photo) => ({ ...photo, extra: <PhotoStationInfo photo={photo} /> }));
   const selectedOperator = useMemo(
     () => (operator === null ? null : (operators.find((item) => item.id === operator) ?? null)),
     [operator, operators],
@@ -663,8 +676,6 @@ export function PhotosGallery() {
   const toggleRecentOnly = useCallback(() => dispatch({ type: "TOGGLE_RECENT_ONLY" }), []);
   const toggleOrder = useCallback(() => dispatch({ type: "TOGGLE_ORDER" }), []);
 
-  const prev = useCallback(() => dispatch({ type: "STEP_LIGHTBOX", direction: -1, photoCount: photos.length }), [photos.length]);
-  const next = useCallback(() => dispatch({ type: "STEP_LIGHTBOX", direction: 1, photoCount: photos.length }), [photos.length]);
   const scrollToTop = useCallback(() => scrollRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }), [reduceMotion]);
 
   const emptyTitle = activeFilters ? t("photos.filteredEmptyTitle") : t("photos.emptyTitle");
@@ -770,7 +781,16 @@ export function PhotosGallery() {
                 )}
               >
                 {group.items.map(({ photo, index }) => (
-                  <PhotoTile key={photo.id} photo={photo} index={index} locale={i18n.language} labels={labels} compact={sparse} onOpen={openPhoto} />
+                  <PhotoTile
+                    key={photo.id}
+                    ref={lightbox.triggerRef(index)}
+                    photo={photo}
+                    index={index}
+                    locale={i18n.language}
+                    labels={labels}
+                    compact={sparse}
+                    onOpen={openPhoto}
+                  />
                 ))}
               </div>
             </section>
@@ -979,7 +999,13 @@ export function PhotosGallery() {
         ) : null}
       </AnimatePresence>
 
-      <Lightbox photos={photos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
+      <PhotoLightbox
+        photos={lightboxPhotos}
+        index={lightboxIndex}
+        onIndexChange={openPhoto}
+        onClose={closeLightbox}
+        getTrigger={lightbox.getTrigger}
+      />
 
       {showFloatingMobileFilters &&
         createPortal(

@@ -1,7 +1,5 @@
 import {
   ArrowDown01Icon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
   Camera01Icon,
   Cancel01Icon,
   Image01Icon,
@@ -12,8 +10,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { type Dispatch, type ReactNode, type Ref, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -26,16 +23,9 @@ import {
   updateSubmissionPhotoTakenAt,
 } from "../api";
 import type { ProposedLocationForm, StationAction, SubmissionMode } from "../types";
-import { Lightbox } from "@/components/photos/lightbox";
-import {
-  AddPhotoTile,
-  PhotoDeleteButton,
-  PhotoEditPopover,
-  PhotoImage,
-  PhotoMeta,
-  PhotoWithFallback,
-  isRecentPhoto,
-} from "@/components/photos/photoGridPrimitives";
+import { Lightbox, LightboxDetailRow, type LightboxProps, type LightboxSlide, useLightbox } from "@/components/lightbox";
+import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, PhotoMeta, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
+import { PhotoCaption, PhotoDetails, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +40,6 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import { type LocationPhoto, fetchLocationPhotos, fetchStationPhotos } from "@/features/station-details/api";
-import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { cn } from "@/lib/utils";
 
 const MAX_FILES = 5;
@@ -79,9 +68,6 @@ type SubmissionPhotosPanelProps = {
 };
 
 type DeleteTarget = { type: "submission"; id: number } | { type: "local"; index: number };
-type UploadLightboxItem =
-  | { type: "submission"; photo: SubmissionPhoto }
-  | { type: "local"; url: string; name: string; note: string; takenAt: Date | null };
 
 export function SubmissionPhotosPanel({
   mode,
@@ -104,7 +90,7 @@ export function SubmissionPhotosPanel({
   onMainUploadPhotoIndexChange,
   editSubmissionId,
 }: SubmissionPhotosPanelProps) {
-  const { t, i18n } = useTranslation("submissions");
+  const { t } = useTranslation("submissions");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -112,8 +98,8 @@ export function SubmissionPhotosPanel({
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [localEditState, setLocalEditState] = useState<{ index: number; note: string; takenAt: Date | null } | null>(null);
   const [submissionEditState, setSubmissionEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
-  const [locationLightboxIndex, setLocationLightboxIndex] = useState<number | null>(null);
-  const [uploadLightboxIndex, setUploadLightboxIndex] = useState<number | null>(null);
+  const locationLightbox = useLightbox();
+  const uploadLightbox = useLightbox();
 
   const locationId = mode === "existing" ? selectedStation?.location?.id : undefined;
   const stationId = mode === "existing" ? selectedStation?.id : undefined;
@@ -203,40 +189,6 @@ export function SubmissionPhotosPanel({
   const isLocationLoading = locationId !== undefined && (isLoadingLocationPhotos || isLoadingStationPhotos);
   const showLocationPhotosSection = locationId !== undefined && (isLocationLoading || locationPhotos.length > 0);
   const isUploadEmpty = uploadTotalCount === 0 && !isLoadingSubmissionPhotos;
-
-  const uploadLightboxItems: UploadLightboxItem[] = [
-    ...submissionPhotos.map((photo): UploadLightboxItem => ({ type: "submission", photo })),
-    ...photos.map((file, index): UploadLightboxItem => ({
-      type: "local",
-      url: previewUrls[index] ?? "",
-      name: file.name,
-      note: notes[index] ?? "",
-      takenAt: takenAts[index] ?? null,
-    })),
-  ];
-
-  const activeUploadLightbox = uploadLightboxIndex !== null ? (uploadLightboxItems[uploadLightboxIndex] ?? null) : null;
-  const closeUploadLightbox = useCallback(() => setUploadLightboxIndex(null), []);
-  useEscapeKey(closeUploadLightbox, shouldRender && uploadLightboxIndex !== null);
-
-  const prevUploadLightbox = useCallback(
-    () => setUploadLightboxIndex((index) => (index !== null ? (index - 1 + uploadTotalCount) % uploadTotalCount : null)),
-    [uploadTotalCount],
-  );
-  const nextUploadLightbox = useCallback(
-    () => setUploadLightboxIndex((index) => (index !== null ? (index + 1) % uploadTotalCount : null)),
-    [uploadTotalCount],
-  );
-
-  const closeLocationLightbox = useCallback(() => setLocationLightboxIndex(null), []);
-  const prevLocationLightbox = useCallback(
-    () => setLocationLightboxIndex((index) => (index !== null ? (index - 1 + locationPhotos.length) % locationPhotos.length : null)),
-    [locationPhotos.length],
-  );
-  const nextLocationLightbox = useCallback(
-    () => setLocationLightboxIndex((index) => (index !== null ? (index + 1) % locationPhotos.length : null)),
-    [locationPhotos.length],
-  );
 
   const toggleRemoval = useCallback(
     (photo: LocationPhoto) => {
@@ -398,13 +350,13 @@ export function SubmissionPhotosPanel({
                     currentMainLocationPhotoId,
                     hasUploadMainProposal,
                     isLoading: isLocationLoading,
+                    locationLightbox,
                     locationPhotos,
                     mainLocationPhotoId,
                     markedForRemovalIds,
                     onSetLocationPhotoAsMain: setLocationPhotoAsMain,
                     onToggleRemoval: toggleRemoval,
                     selectedLocationPhotoIds,
-                    setLocationLightboxIndex,
                     t,
                     toggleLocationPhoto,
                   })}
@@ -426,7 +378,8 @@ export function SubmissionPhotosPanel({
                         key={`submission-${photo.id}`}
                         photo={photo}
                         isMain={photo.is_main && mainUploadPhotoIndex === null && mainLocationPhotoId === null}
-                        onOpen={() => setUploadLightboxIndex(index)}
+                        onOpen={() => uploadLightbox.open(index)}
+                        triggerRef={uploadLightbox.triggerRef(index)}
                         onEdit={() => openSubmissionPhotoEdit(photo)}
                         onDelete={() => setDeleteTarget({ type: "submission", id: photo.id })}
                         editState={submissionEditState}
@@ -443,7 +396,8 @@ export function SubmissionPhotosPanel({
                         lightboxIndex={submissionPhotos.length + index}
                         isMain={mainUploadPhotoIndex === index}
                         onSetAsMain={() => setLocalPhotoAsMain(index)}
-                        onOpen={setUploadLightboxIndex}
+                        onOpen={uploadLightbox.open}
+                        triggerRef={uploadLightbox.triggerRef(submissionPhotos.length + index)}
                         onEdit={openLocalEdit}
                         onDelete={() => setDeleteTarget({ type: "local", index })}
                         editState={localEditState}
@@ -479,27 +433,16 @@ export function SubmissionPhotosPanel({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Lightbox
-        photos={locationPhotos}
-        index={locationLightboxIndex}
-        onClose={closeLocationLightbox}
-        onPrev={prevLocationLightbox}
-        onNext={nextLocationLightbox}
-      />
+      <PhotoLightbox photos={locationPhotos} {...locationLightbox.lightboxProps} />
 
-      {uploadLightboxIndex !== null && activeUploadLightbox
-        ? createPortal(
-            <UploadLightbox
-              activeItem={activeUploadLightbox}
-              hasMultiple={uploadLightboxItems.length > 1}
-              i18nLanguage={i18n.language}
-              onClose={closeUploadLightbox}
-              onNext={nextUploadLightbox}
-              onPrev={prevUploadLightbox}
-            />,
-            document.body,
-          )
-        : null}
+      <UploadPhotosLightbox
+        files={photos}
+        notes={notes}
+        previewUrls={previewUrls}
+        submissionPhotos={submissionPhotos}
+        takenAts={takenAts}
+        {...uploadLightbox.lightboxProps}
+      />
     </>
   );
 }
@@ -529,13 +472,13 @@ function renderLocationPhotoContent({
   currentMainLocationPhotoId,
   hasUploadMainProposal,
   isLoading,
+  locationLightbox,
   locationPhotos,
   mainLocationPhotoId,
   markedForRemovalIds,
   onSetLocationPhotoAsMain,
   onToggleRemoval,
   selectedLocationPhotoIds,
-  setLocationLightboxIndex,
   t,
   toggleLocationPhoto,
 }: {
@@ -543,13 +486,13 @@ function renderLocationPhotoContent({
   currentMainLocationPhotoId: number | null;
   hasUploadMainProposal: boolean;
   isLoading: boolean;
+  locationLightbox: ReturnType<typeof useLightbox>;
   locationPhotos: LocationPhoto[];
   mainLocationPhotoId: number | null;
   markedForRemovalIds: ReadonlySet<number>;
   onSetLocationPhotoAsMain: (photo: LocationPhoto) => void;
   onToggleRemoval: (photo: LocationPhoto) => void;
   selectedLocationPhotoIds: ReadonlySet<number>;
-  setLocationLightboxIndex: (index: number) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
   toggleLocationPhoto: (photo: LocationPhoto) => void;
 }) {
@@ -575,12 +518,13 @@ function renderLocationPhotoContent({
           index={index}
           mainLocationPhotoId={mainLocationPhotoId}
           markedForRemovalIds={markedForRemovalIds}
-          onOpen={setLocationLightboxIndex}
+          onOpen={locationLightbox.open}
           onSetLocationPhotoAsMain={onSetLocationPhotoAsMain}
           onToggleRemoval={onToggleRemoval}
           photo={photo}
           selectedLocationPhotoIds={selectedLocationPhotoIds}
           toggleLocationPhoto={toggleLocationPhoto}
+          triggerRef={locationLightbox.triggerRef(index)}
         />
       ))}
     </div>
@@ -600,6 +544,7 @@ function LocationPhotoCard({
   photo,
   selectedLocationPhotoIds,
   toggleLocationPhoto,
+  triggerRef,
 }: {
   assignedLocationPhotoIds: ReadonlySet<number>;
   currentMainLocationPhotoId: number | null;
@@ -613,6 +558,7 @@ function LocationPhotoCard({
   photo: LocationPhoto;
   selectedLocationPhotoIds: ReadonlySet<number>;
   toggleLocationPhoto: (photo: LocationPhoto) => void;
+  triggerRef: Ref<HTMLDivElement>;
 }) {
   const { t, i18n } = useTranslation("submissions");
   const isSelected = selectedLocationPhotoIds.has(photo.id);
@@ -644,7 +590,8 @@ function LocationPhotoCard({
       }}
     >
       <PhotoImage
-        src={`/uploads/${photo.attachment_uuid}.webp`}
+        ref={triggerRef}
+        src={photoUrl(photo.attachment_uuid)}
         alt={photo.note ?? ""}
         frameClassName="h-36"
         imageClassName={cn("transition-opacity", selectedLocationPhotoIds.size > 0 && !isVisuallySelected && !isMarkedForRemoval && "opacity-40")}
@@ -719,6 +666,7 @@ function UploadPhotoCard({
   onOpen,
   photo,
   setEditState,
+  triggerRef,
 }: {
   editState: { id: number; note: string; takenAt: Date | null } | null;
   isMain: boolean;
@@ -730,11 +678,12 @@ function UploadPhotoCard({
   onOpen: () => void;
   photo: SubmissionPhoto;
   setEditState: (state: { id: number; note: string; takenAt: Date | null } | null) => void;
+  triggerRef: Ref<HTMLDivElement>;
 }) {
   const { t } = useTranslation("submissions");
   return (
     <div className="rounded-lg overflow-hidden border bg-muted">
-      <PhotoImage src={`/uploads/${photo.attachment_uuid}.webp`} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen}>
+      <PhotoImage ref={triggerRef} src={photoUrl(photo.attachment_uuid)} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen}>
         {isMain ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
             <HugeiconsIcon icon={StarIcon} className="size-3" />
@@ -779,6 +728,7 @@ function LocalPhotoCard({
   onSave,
   onSetAsMain,
   setEditState,
+  triggerRef,
   url,
 }: {
   editState: { index: number; note: string; takenAt: Date | null } | null;
@@ -792,12 +742,13 @@ function LocalPhotoCard({
   onSave: () => void;
   onSetAsMain: () => void;
   setEditState: (state: { index: number; note: string; takenAt: Date | null } | null) => void;
+  triggerRef: Ref<HTMLDivElement>;
   url: string;
 }) {
   const { t } = useTranslation("submissions");
   return (
     <div className="rounded-lg overflow-hidden border bg-muted">
-      <PhotoImage src={url} alt={file.name} frameClassName="aspect-square h-auto" onOpen={() => onOpen(lightboxIndex)}>
+      <PhotoImage ref={triggerRef} src={url} alt={file.name} frameClassName="aspect-square h-auto" onOpen={() => onOpen(lightboxIndex)}>
         {isMain ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
             <HugeiconsIcon icon={StarIcon} className="size-3" />
@@ -844,110 +795,89 @@ function PhotosWarning() {
   );
 }
 
-function UploadLightbox({
-  activeItem,
-  hasMultiple,
-  i18nLanguage,
-  onClose,
-  onNext,
-  onPrev,
-}: {
-  activeItem: UploadLightboxItem;
-  hasMultiple: boolean;
-  i18nLanguage: string;
-  onClose: () => void;
-  onNext: () => void;
-  onPrev: () => void;
+export function UploadPhotosLightbox({
+  files,
+  notes,
+  previewUrls,
+  submissionPhotos,
+  takenAts,
+  ...props
+}: Omit<LightboxProps, "slides"> & {
+  files: File[];
+  notes: string[];
+  previewUrls: string[];
+  submissionPhotos: SubmissionPhoto[];
+  takenAts: (Date | null)[];
 }) {
+  const { t } = useTranslation("stationDetails");
+  const slides = [
+    ...submissionPhotos.map((photo, index): LightboxSlide => {
+      const lightboxPhoto = { ...photo, is_main: false };
+      return {
+        key: photo.attachment_uuid,
+        src: photoUrl(photo.attachment_uuid),
+        alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
+        caption: <PhotoCaption photo={lightboxPhoto} />,
+        details: <PhotoDetails photo={lightboxPhoto} />,
+        downloadName: `openbts-${photo.attachment_uuid}.webp`,
+      };
+    }),
+    ...files.map((file, index): LightboxSlide => {
+      const url = previewUrls[index] ?? "";
+      const note = (notes[index] ?? "").trim();
+      const takenAt = takenAts[index] ?? null;
+      return {
+        key: url,
+        src: url,
+        alt: note || file.name,
+        caption: <LocalPhotoCaption name={file.name} note={note} takenAt={takenAt} />,
+        details: <LocalPhotoDetails name={file.name} note={note} takenAt={takenAt} />,
+        downloadName: file.name,
+      };
+    }),
+  ];
+
+  return <Lightbox slides={slides} {...props} />;
+}
+
+function LocalPhotoCaption({ name, note, takenAt }: { name: string; note: string; takenAt: Date | null }) {
+  const { t, i18n } = useTranslation("submissions");
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      tabIndex={-1}
-      className="fixed inset-0 z-60 flex items-center justify-center bg-black/90"
-      onClick={onClose}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onClose();
-      }}
-    >
-      <button type="button" className="absolute top-4 right-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors" onClick={onClose}>
-        <HugeiconsIcon icon={Cancel01Icon} className="size-6" />
-      </button>
-      {hasMultiple ? (
-        <>
-          <button
-            type="button"
-            className="absolute left-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-            onClick={(event) => {
-              event.stopPropagation();
-              onPrev();
-            }}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-6" />
-          </button>
-          <button
-            type="button"
-            className="absolute right-4 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-            onClick={(event) => {
-              event.stopPropagation();
-              onNext();
-            }}
-          >
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-6" />
-          </button>
-        </>
-      ) : null}
-      <UploadLightboxBody activeItem={activeItem} i18nLanguage={i18nLanguage} />
+    <div className="flex flex-col gap-1.5 md:items-center">
+      {note ? <p className="line-clamp-2 text-sm leading-snug text-white/90 md:text-[15px]">{note}</p> : null}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/60 md:justify-center">
+        <span className="flex min-w-0 items-center gap-1.5 font-medium text-white/80">
+          <HugeiconsIcon icon={Image01Icon} className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate">{name}</span>
+        </span>
+        {takenAt ? (
+          <>
+            <span aria-hidden="true">·</span>
+            <span className="flex items-center gap-1 tabular-nums">
+              <HugeiconsIcon icon={Camera01Icon} className="size-3.5" aria-hidden="true" />
+              <span className="sr-only">{t("photos.takenAt")}: </span>
+              <time dateTime={takenAt.toISOString()}>{takenAt.toLocaleDateString(i18n.language, { year: "numeric", month: "short" })}</time>
+            </span>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function UploadLightboxBody({ activeItem, i18nLanguage }: { activeItem: UploadLightboxItem; i18nLanguage: string }) {
-  const src = activeItem.type === "submission" ? `/uploads/${activeItem.photo.attachment_uuid}.webp` : activeItem.url;
-  const alt = activeItem.type === "submission" ? (activeItem.photo.note ?? "") : activeItem.name;
+function LocalPhotoDetails({ name, note, takenAt }: { name: string; note: string; takenAt: Date | null }) {
+  const { t, i18n } = useTranslation("submissions");
+
   return (
-    <div role="presentation" className="flex flex-col items-center gap-3 max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
-      <PhotoWithFallback
-        src={src}
-        alt={alt}
-        className="max-w-full max-h-[calc(90vh-4rem)] object-contain rounded-lg"
-        fallbackClassName="min-h-40 min-w-64 bg-white/5 px-6 text-white/70"
-      />
-      <div className="flex flex-col items-center gap-1 text-white/80 text-xs">
-        {activeItem.type === "submission" ? (
-          <>
-            <span className="font-medium">@{activeItem.photo.author?.username ?? "-"}</span>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <HugeiconsIcon icon={Upload04Icon} className="size-3 opacity-60" />
-                <span className="tabular-nums">
-                  {new Date(activeItem.photo.createdAt).toLocaleDateString(i18nLanguage, { year: "numeric", month: "short", day: "numeric" })}
-                </span>
-              </div>
-              {activeItem.photo.taken_at ? (
-                <div className="flex items-center gap-1.5">
-                  <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" />
-                  <span className="tabular-nums">
-                    {new Date(activeItem.photo.taken_at).toLocaleDateString(i18nLanguage, { year: "numeric", month: "short" })}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-            {activeItem.photo.note ? <span className="italic opacity-70">{activeItem.photo.note}</span> : null}
-          </>
-        ) : (
-          <>
-            <span className="font-medium">{activeItem.name}</span>
-            {activeItem.takenAt ? (
-              <div className="flex items-center gap-1.5">
-                <HugeiconsIcon icon={Camera01Icon} className="size-3 opacity-60" />
-                <span className="tabular-nums">{activeItem.takenAt.toLocaleDateString(i18nLanguage, { year: "numeric", month: "short" })}</span>
-              </div>
-            ) : null}
-            {activeItem.note ? <span className="italic opacity-70">{activeItem.note}</span> : null}
-          </>
-        )}
-      </div>
-    </div>
+    <>
+      {note ? <p className="text-[15px] leading-snug text-white">{note}</p> : null}
+      <p className="text-sm wrap-break-word text-white/80">{name}</p>
+      {takenAt ? (
+        <LightboxDetailRow label={t("photos.takenAt")}>
+          <time dateTime={takenAt.toISOString()}>{takenAt.toLocaleDateString(i18n.language, { year: "numeric", month: "long" })}</time>
+        </LightboxDetailRow>
+      ) : null}
+    </>
   );
 }

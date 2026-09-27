@@ -1,10 +1,11 @@
 import { Delete02Icon, Image01Icon, StarIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useState } from "react";
+import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Lightbox } from "@/components/photos/lightbox";
+import { preloadLightbox, useLightbox } from "@/components/lightbox";
 import { PhotoMeta, PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import type { SubmissionLocationPhoto } from "@/features/admin/submissions/types";
 import type { LocationPhoto } from "@/features/station-details/api";
 import { cn } from "@/lib/utils";
@@ -16,18 +17,8 @@ type Props = {
 
 export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos }: Props) {
   const { t, i18n } = useTranslation("submissions");
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [removalLightboxIndex, setRemovalLightboxIndex] = useState<number | null>(null);
-
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-  const prev = useCallback(() => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)), [photos.length]);
-  const next = useCallback(() => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null)), [photos.length]);
-  const closeRemovalLightbox = useCallback(() => setRemovalLightboxIndex(null), []);
-  const prevRemoval = useCallback(
-    () => setRemovalLightboxIndex((i) => (i !== null ? (i - 1 + removalPhotos.length) % removalPhotos.length : null)),
-    [removalPhotos.length],
-  );
-  const nextRemoval = useCallback(() => setRemovalLightboxIndex((i) => (i !== null ? (i + 1) % removalPhotos.length : null)), [removalPhotos.length]);
+  const lightbox = useLightbox();
+  const removalLightbox = useLightbox();
 
   if (photos.length === 0 && removalPhotos.length === 0) return null;
 
@@ -44,9 +35,10 @@ export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos
             {photos.map((photo, idx) => (
               <PhotoSelectionTile
                 key={photo.id}
+                ref={lightbox.triggerRef(idx)}
                 photo={photo}
                 locale={i18n.language}
-                onOpen={() => setLightboxIndex(idx)}
+                onOpen={() => lightbox.open(idx)}
                 mainTitle={t("photos.setAsMain")}
               />
             ))}
@@ -65,9 +57,10 @@ export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos
             {removalPhotos.map((photo, idx) => (
               <PhotoSelectionTile
                 key={photo.id}
+                ref={removalLightbox.triggerRef(idx)}
                 photo={photo}
                 locale={i18n.language}
-                onOpen={() => setRemovalLightboxIndex(idx)}
+                onOpen={() => removalLightbox.open(idx)}
                 className="border-red-200 dark:border-red-900/60 opacity-75"
               />
             ))}
@@ -75,8 +68,8 @@ export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos
         </div>
       ) : null}
 
-      <Lightbox photos={photos} index={lightboxIndex} onClose={closeLightbox} onPrev={prev} onNext={next} />
-      <Lightbox photos={removalPhotos} index={removalLightboxIndex} onClose={closeRemovalLightbox} onPrev={prevRemoval} onNext={nextRemoval} />
+      <PhotoLightbox photos={photos} {...lightbox.lightboxProps} />
+      <PhotoLightbox photos={removalPhotos} {...removalLightbox.lightboxProps} />
     </>
   );
 }
@@ -87,16 +80,19 @@ function PhotoSelectionTile({
   mainTitle,
   onOpen,
   photo,
+  ref,
 }: {
   className?: string;
   locale: string;
   mainTitle?: string;
   onOpen: () => void;
   photo: LocationPhoto & { is_main?: boolean };
+  ref?: Ref<HTMLDivElement>;
 }) {
   return (
     <div className={cn("rounded-lg overflow-hidden border bg-muted", className)}>
       <div
+        ref={ref}
         role="button"
         tabIndex={0}
         className="relative h-36 cursor-zoom-in"
@@ -104,13 +100,11 @@ function PhotoSelectionTile({
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") onOpen();
         }}
+        onPointerEnter={preloadLightbox}
+        onFocus={preloadLightbox}
+        aria-haspopup="dialog"
       >
-        <PhotoWithFallback
-          src={`/uploads/${photo.attachment_uuid}.webp`}
-          alt={photo.note ?? ""}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+        <PhotoWithFallback src={photoUrl(photo.attachment_uuid)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
         {photo.is_main ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5" title={mainTitle}>
             <HugeiconsIcon icon={StarIcon} className="size-3" />

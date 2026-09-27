@@ -1,9 +1,12 @@
 import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, useReducedMotion } from "motion/react";
+import type { Ref } from "react";
 
 import type { GalleryPhoto } from "../api";
+import { preloadLightbox } from "@/components/lightbox";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
+import { photoUrl } from "@/components/photos/photoLightbox";
 import { cn } from "@/lib/utils";
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
@@ -27,9 +30,10 @@ type Props = {
   labels: PhotoTileLabels;
   compact?: boolean;
   onOpen: (index: number) => void;
+  ref?: Ref<HTMLButtonElement>;
 };
 
-export function PhotoTile({ photo, index, locale, labels, compact = false, onOpen }: Props) {
+export function PhotoTile({ photo, index, locale, labels, compact = false, onOpen, ref }: Props) {
   const reduceMotion = useReducedMotion();
   const recent = isRecentPhoto(photo.createdAt);
   const author = photo.author?.username ?? labels.unknownUser;
@@ -46,13 +50,17 @@ export function PhotoTile({ photo, index, locale, labels, compact = false, onOpe
       transition={{ duration: 0.18, ease: "easeOut" }}
     >
       <button
+        ref={ref}
         type="button"
         className="relative block aspect-square w-full cursor-zoom-in overflow-hidden bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={accessibleLabel}
+        aria-haspopup="dialog"
         onClick={() => onOpen(index)}
+        onPointerEnter={preloadLightbox}
+        onFocus={preloadLightbox}
       >
         <PhotoWithFallback
-          src={`/uploads/${photo.attachment_uuid}.webp`}
+          src={photoUrl(photo.attachment_uuid)}
           alt={alt}
           loading="lazy"
           decoding="async"

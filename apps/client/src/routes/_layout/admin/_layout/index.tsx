@@ -15,8 +15,9 @@ import { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Lightbox, type LightboxPhoto } from "@/components/photos/lightbox";
+import { preloadLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { type LightboxPhoto, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
 import type { AdminComment } from "@/features/admin/comments/types";
 import { API_BASE } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -133,11 +134,12 @@ function AdminDashboardPage() {
         createdAt: lightbox.comment.createdAt,
         author: lightbox.comment.author
           ? {
-              uuid: lightbox.comment.author.id,
               username: lightbox.comment.author.username ?? lightbox.comment.author.name,
               name: lightbox.comment.author.name,
+              image: lightbox.comment.author.image,
             }
           : null,
+        extra: lightbox.comment.station ? `${t("labels.station", { ns: "common" })}: ${lightbox.comment.station.station_id}` : undefined,
       }))
     : [];
 
@@ -438,9 +440,11 @@ function AdminDashboardPage() {
                                 className="size-8 rounded overflow-hidden border bg-muted hover:opacity-80 transition-opacity shrink-0"
                                 aria-label={t("actions.openPhoto", { ns: "common" })}
                                 onClick={() => setLightbox({ comment: c, index: i })}
+                                onPointerEnter={preloadLightbox}
+                                onFocus={preloadLightbox}
                               >
                                 <PhotoWithFallback
-                                  src={`/uploads/${att.uuid}.webp`}
+                                  src={photoUrl(att.uuid)}
                                   alt=""
                                   className="size-full object-cover"
                                   fallbackClassName="[&_svg]:size-3.5"
@@ -606,12 +610,12 @@ function AdminDashboardPage() {
           ) : null}
         </div>
       </div>
-      <Lightbox
+      <PhotoLightbox
         photos={lightboxPhotos}
         index={lightbox?.index ?? null}
+        onIndexChange={(index) => setLightbox((s) => (s ? { ...s, index } : s))}
         onClose={() => setLightbox(null)}
-        onPrev={() => setLightbox((s) => (s && s.index > 0 ? { ...s, index: s.index - 1 } : s))}
-        onNext={() => setLightbox((s) => (s && s.index < lightboxPhotos.length - 1 ? { ...s, index: s.index + 1 } : s))}
+        loop={false}
       />
     </main>
   );
