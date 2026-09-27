@@ -19,7 +19,7 @@ const uplinkAppearance: Record<UplinkType, { icon: IconSvgElement; iconClassName
 export function StationUplinkItem({ uplink }: StationUplinkItemProps) {
   const { t } = useTranslation("common");
   const { icon, iconClassName } = uplinkAppearance[uplink.type];
-  const speed = uplink.speed === null ? null : formatSpeedMbps(uplink.speed);
+  const speed = typeof uplink.speed === "number" ? formatSpeedMbps(uplink.speed) : null;
   const label = uplink.model ? `${t("labels.uplink")} · ${uplink.model}` : t("labels.uplink");
 
   return (
