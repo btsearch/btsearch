@@ -14,6 +14,7 @@ export type StationUpdateImpact = {
   cellCountChanged: boolean;
   sectorsChanged: boolean;
   extraIdsChanged: boolean;
+  uplinkChanged: boolean;
 };
 
 export function createConservativeStationImpact(stationId: number): StationUpdateImpact {
@@ -28,6 +29,7 @@ export function createConservativeStationImpact(stationId: number): StationUpdat
     cellCountChanged: true,
     sectorsChanged: true,
     extraIdsChanged: true,
+    uplinkChanged: true,
   };
 }
 
@@ -78,6 +80,7 @@ export function invalidateStationUpdateQueriesBatch(
   let cellCountChanged = false;
   let sectorsChanged = false;
   let extraIdsChanged = false;
+  let uplinkChanged = false;
 
   for (const impact of impacts) {
     const impactLocationIds = uniqueLocationIds(impact);
@@ -87,8 +90,10 @@ export function invalidateStationUpdateQueriesBatch(
       impact.locationMoved ||
       impact.cellsChanged ||
       impact.sectorsChanged ||
-      impact.extraIdsChanged;
-    const stationListingChanged = impact.stationMetadataChanged || impact.locationMetadataChanged || impact.locationMoved || impact.cellsChanged;
+      impact.extraIdsChanged ||
+      impact.uplinkChanged;
+    const stationListingChanged =
+      impact.stationMetadataChanged || impact.locationMetadataChanged || impact.locationMoved || impact.cellsChanged || impact.uplinkChanged;
 
     if (stationDetailChanged) stationDetailIds.add(impact.stationId);
     if (impact.locationMetadataChanged) locationMetadataStationIds.add(impact.stationId);
@@ -102,9 +107,10 @@ export function invalidateStationUpdateQueriesBatch(
     cellCountChanged ||= impact.cellCountChanged;
     sectorsChanged ||= impact.sectorsChanged;
     extraIdsChanged ||= impact.extraIdsChanged;
+    uplinkChanged ||= impact.uplinkChanged;
   }
 
-  const stationListingChanged = stationMetadataChanged || locationMetadataChanged || locationMoved || cellsChanged;
+  const stationListingChanged = stationMetadataChanged || locationMetadataChanged || locationMoved || cellsChanged || uplinkChanged;
   const stationSearchChanged = stationListingChanged || extraIdsChanged;
   const locationChanged = locationMetadataChanged || locationMoved;
   const stationDataChanged = stationListingChanged || extraIdsChanged;
@@ -147,7 +153,7 @@ export function invalidateStationUpdateQueriesBatch(
       }),
       queryClient.invalidateQueries({
         queryKey: ["list-locations"],
-        predicate: (query) => query.queryKey[2] === "internal",
+        predicate: (query) => query.queryKey[3] === "internal",
       }),
     );
 

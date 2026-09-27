@@ -50,6 +50,7 @@ export function useDeleteStationMutation() {
           cellCountChanged: false,
           sectorsChanged: false,
           extraIdsChanged: false,
+          uplinkChanged: false,
         },
         { conservative: true },
       );
@@ -458,6 +459,7 @@ export function useSaveStationMutation() {
         cellCountChanged: newCells.length > 0 || payload.deletedServerCellIds.length > 0,
         sectorsChanged: haveSectorsChanged,
         extraIdsChanged: shouldUpdateExtraIds,
+        uplinkChanged,
       };
 
       return { mode: "update" as const, stationId: station.id, impact };
@@ -481,6 +483,7 @@ export function useSaveStationMutation() {
         cellCountChanged: true,
         sectorsChanged: payload.sectors.length > 0,
         extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+        uplinkChanged: !!payload.uplinkType,
       });
     },
     onError: (_error, payload) => {
@@ -501,6 +504,7 @@ export function useSaveStationMutation() {
             cellCountChanged: true,
             sectorsChanged: payload.sectors.length > 0,
             extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+            uplinkChanged: !!payload.uplinkType,
           },
           { conservative: true, refetchAdminDetail: true },
         );
@@ -522,6 +526,7 @@ export function useSaveStationMutation() {
           cellCountChanged: true,
           sectorsChanged: true,
           extraIdsChanged: true,
+          uplinkChanged: true,
         },
         { conservative: true, refetchAdminDetail: true },
       );

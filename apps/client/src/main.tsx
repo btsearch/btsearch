@@ -21,7 +21,7 @@ const router = createRouter({
   scrollRestoration: true,
   stringifySearch: stringifySearchWith(JSON.stringify),
   defaultPendingComponent: RoutePending,
-  defaultPendingMs: 0,
+  defaultPendingMs: 300,
   defaultPendingMinMs: 0,
 });
 
