@@ -73,27 +73,12 @@ function CellTableComponent({ rat, cells, sectorInfoById }: CellTableProps) {
                 const nrTypeLabel =
                   nrType !== null ? (
                     <Tooltip>
-                      <TooltipTrigger className="relative isolate cursor-help px-0.5 text-[10px] font-semibold leading-5 text-blue-950 dark:text-blue-100">
-                        <svg
-                          aria-hidden="true"
-                          focusable="false"
-                          viewBox="0 0 100 20"
-                          preserveAspectRatio="none"
-                          className="pointer-events-none absolute inset-x-0 top-1/2 -z-10 h-5 w-full -translate-y-1/2 scale-x-110 overflow-visible text-blue-500/25 dark:text-blue-400/20"
-                        >
-                          <path
-                            fill="currentColor"
-                            d="M1 6C12 3 23 5 35 3C49 1 62 5 75 3C86 2 94 4 99 3L97 15C83 14 73 17 60 15C46 13 33 17 20 15C11 14 5 17 2 14Z"
-                          />
-                          <path
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                            opacity="0.35"
-                            d="M5 10C24 8 39 11 55 8C72 6 84 10 95 7"
-                          />
-                        </svg>
+                      <TooltipTrigger
+                        className={cn(
+                          "cursor-help text-[10px] font-medium leading-5",
+                          nrType === "sa" ? "font-semibold text-blue-600 dark:text-blue-400" : "text-muted-foreground",
+                        )}
+                      >
                         {nrType.toUpperCase()}
                       </TooltipTrigger>
                       <TooltipContent side="top">{nrTypeTooltip}</TooltipContent>

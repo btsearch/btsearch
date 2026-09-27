@@ -28,6 +28,7 @@ import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
 import { StationInfoItem } from "./stationInfoItem";
+import { StationUplinkItem } from "./stationUplinkItem";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RAT_ORDER } from "@/features/shared/rat";
@@ -53,6 +54,8 @@ type StationDetailsBodyProps = {
   bodyContentRef?: Ref<HTMLDivElement>;
   onContentLayoutChange?: () => void;
 };
+
+const specsGroupClassName = "grid grid-cols-1 gap-4 @md:grid-cols-2 @lg:gap-x-6 @3xl:grid-cols-3";
 
 export function StationDetailsBody({
   stationId,
@@ -144,6 +147,8 @@ export function StationDetailsBody({
   };
   const showSI2PEMLink =
     !!station?.station_id && !(station.station_id.startsWith("N") && (station.operator.mnc === 26002 || station.operator.mnc === 26003));
+  const extraIds = station?.extra_identificators;
+  const hasNetworksInfo = !!(extraIds?.networks_id || extraIds?.networks_name || extraIds?.mno_name);
   const visibleTabs = useMemo(
     () =>
       source === "uke"
@@ -263,45 +268,52 @@ export function StationDetailsBody({
                 <>
                   {displayedTab === "specs" && (
                     <div className="space-y-8">
-                      <section>
-                        <div className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
-                          <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
-                            <span className="font-mono break-all">
-                              {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
-                            </span>
-                            <CopyButton text={`${station?.location.latitude}, ${station?.location.longitude}`} />
-                            {preferences.navLinksDisplay === "inline" && (
-                              <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
+                      <section className="@container">
+                        <div className="space-y-4 rounded-xl border p-3 @lg:p-4">
+                          <div className={specsGroupClassName}>
+                            <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
+                              <span className="font-mono wrap-break-word">
+                                {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
+                              </span>
+                              <CopyButton text={`${station?.location.latitude}, ${station?.location.longitude}`} />
+                              {preferences.navLinksDisplay === "inline" && (
+                                <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
+                              )}
+                            </StationInfoItem>
+                            <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
+                              <span>{station.location.region?.name || "-"}</span>
+                            </StationInfoItem>
+                            {elevation !== undefined && (
+                              <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
+                                <span>{elevation} m</span>
+                              </StationInfoItem>
                             )}
-                          </StationInfoItem>
-                          <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
-                            <span>{station.location.region?.name || "-"}</span>
-                          </StationInfoItem>
-                          <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
-                            <span className="font-mono">{station.station_id}</span>
-                            <CopyButton text={station.station_id || ""} />
-                          </StationInfoItem>
-                          {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
-                            <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
-                              <SI2PEMReportsMenu
-                                reports={pemReports}
-                                latitude={station.location.latitude}
-                                longitude={station.location.longitude}
-                                operatorName={station.operator.name}
-                                operatorMnc={station.operator.mnc}
-                              />
+                          </div>
+                          <div className={specsGroupClassName}>
+                            <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
+                              <span className="font-mono">{station.station_id}</span>
+                              <CopyButton text={station.station_id || ""} />
                             </StationInfoItem>
+                            {station.uplink ? <StationUplinkItem uplink={station.uplink} /> : null}
+                            {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
+                              <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
+                                <SI2PEMReportsMenu
+                                  reports={pemReports}
+                                  latitude={station.location.latitude}
+                                  longitude={station.location.longitude}
+                                  operatorName={station.operator.name}
+                                  operatorMnc={station.operator.mnc}
+                                />
+                              </StationInfoItem>
+                            ) : null}
+                          </div>
+                          {station.extra_identificators && hasNetworksInfo ? (
+                            <div className={specsGroupClassName}>
+                              <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
+                            </div>
                           ) : null}
-                          {station.extra_identificators && (
-                            <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
-                          )}
-                          {elevation !== undefined && (
-                            <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
-                              <span>{elevation} m</span>
-                            </StationInfoItem>
-                          )}
                           {(!isOnMap || (preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0)) && (
-                            <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3 sm:col-span-2">
+                            <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                               {!isOnMap && (
                                 <Tooltip>
                                   <TooltipTrigger

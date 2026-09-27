@@ -1,4 +1,4 @@
-import type { StationUplink, UplinkType } from "@/types/station";
+import type { UplinkType } from "@/types/station";
 
 export const UPLINK_TYPES: readonly UplinkType[] = ["fiber", "microwave"];
 
@@ -17,13 +17,4 @@ export function formatSpeedMbps(mbps: number): string {
 
 export function uplinkTypeKey(type: UplinkType): "uplinkFiber" | "uplinkMicrowave" {
   return type === "fiber" ? "uplinkFiber" : "uplinkMicrowave";
-}
-
-export function formatUplinkLabel(uplink: StationUplink, typeLabel: string): string {
-  const parts: string[] = [];
-  if (uplink.model) parts.push(uplink.model);
-  if (uplink.speed) parts.push(formatSpeedMbps(uplink.speed));
-
-  if (parts.length === 0) return typeLabel;
-  return `${typeLabel} (${parts.join(", ")})`;
 }
