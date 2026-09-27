@@ -30,7 +30,7 @@ import { CellTable } from "@/features/station-details/components/cellTable";
 import { CommentsList } from "@/features/station-details/components/commentsList";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { ExtraIdentificatorsDisplay } from "@/features/station-details/components/extraIdentificators";
+import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "@/features/station-details/components/extraIdentificators";
 import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/station-details/components/floatingDialogStackTypes";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
@@ -44,7 +44,8 @@ import {
   stationDialogInlineActionLabelClassName,
 } from "@/features/station-details/components/stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
-import { StationInfoItem } from "@/features/station-details/components/stationInfoItem";
+import { StationInfoItem, stationInfoGroupClassName } from "@/features/station-details/components/stationInfoItem";
+import { StationUplinkItem } from "@/features/station-details/components/stationUplinkItem";
 import { WatchButton } from "@/features/station-details/components/watchButton";
 import { stationQueryOptions } from "@/features/station-details/queries";
 import { groupCellsByRat } from "@/features/station-details/utils";
@@ -293,40 +294,49 @@ function StationPage() {
       <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:items-start">
         <aside className="min-w-0 space-y-5 sm:space-y-6 lg:col-start-2">
           <CollapsibleSection title={t("page.info")}>
-            <div className="space-y-4">
-              <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
-                <span className="font-mono break-all">
-                  {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
-                </span>
-                <CopyButton text={`${station.location.latitude}, ${station.location.longitude}`} />
-                {preferences.navLinksDisplay === "inline" && (
-                  <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
+            <div className="@container space-y-4">
+              <div className={stationInfoGroupClassName}>
+                <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
+                  <span className="font-mono wrap-break-word">
+                    {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
+                  </span>
+                  <CopyButton text={`${station.location.latitude}, ${station.location.longitude}`} />
+                  {preferences.navLinksDisplay === "inline" && (
+                    <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
+                  )}
+                </StationInfoItem>
+                <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
+                  <span>{station.location.region?.name || "-"}</span>
+                </StationInfoItem>
+                {elevation !== undefined && (
+                  <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
+                    <span>{elevation} m</span>
+                  </StationInfoItem>
                 )}
-              </StationInfoItem>
-              <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
-                <span>{station.location.region?.name || "-"}</span>
-              </StationInfoItem>
-              <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
-                <span className="font-mono">{station.station_id}</span>
-                <CopyButton text={station.station_id || ""} />
-              </StationInfoItem>
-              {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
-                <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
-                  <SI2PEMReportsMenu
-                    reports={pemReports}
-                    latitude={station.location.latitude}
-                    longitude={station.location.longitude}
-                    operatorName={station.operator.name}
-                    operatorMnc={station.operator.mnc}
-                  />
+              </div>
+              <div className={stationInfoGroupClassName}>
+                <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
+                  <span className="font-mono">{station.station_id}</span>
+                  <CopyButton text={station.station_id || ""} />
                 </StationInfoItem>
+                {station.uplink ? <StationUplinkItem uplink={station.uplink} /> : null}
+                {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
+                  <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
+                    <SI2PEMReportsMenu
+                      reports={pemReports}
+                      latitude={station.location.latitude}
+                      longitude={station.location.longitude}
+                      operatorName={station.operator.name}
+                      operatorMnc={station.operator.mnc}
+                    />
+                  </StationInfoItem>
+                ) : null}
+              </div>
+              {hasExtraIdentificators(station.extra_identificators) ? (
+                <div className={stationInfoGroupClassName}>
+                  <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
+                </div>
               ) : null}
-              {station.extra_identificators && <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />}
-              {elevation !== undefined && (
-                <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
-                  <span>{elevation} m</span>
-                </StationInfoItem>
-              )}
               <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                 <Link to="/" hash={mapHash} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
@@ -381,7 +391,7 @@ function StationPage() {
 
           {settings?.enableStationComments ? (
             <CollapsibleSection title={t("comments.title")}>
-              <CommentsList stationId={stationId} isAdmin={isAdmin} />
+              <CommentsList stationId={stationId} isAdmin={isAdmin} showAddForm />
             </CollapsibleSection>
           ) : null}
         </div>

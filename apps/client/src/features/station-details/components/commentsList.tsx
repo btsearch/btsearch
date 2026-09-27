@@ -6,9 +6,11 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { AddCommentForm } from "./addCommentForm";
 import { preloadLightbox } from "@/components/lightbox";
+import { photoUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { type LightboxPhoto, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,9 +42,10 @@ const photoIndex = (attachments: CommentAttachment[], attachmentIndex: number) =
 type CommentsListProps = {
   stationId: number;
   isAdmin?: boolean;
+  showAddForm?: boolean;
 };
 
-export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) {
+export function CommentsList({ stationId, isAdmin = false, showAddForm = false }: CommentsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { data: session } = authClient.useSession();
   const currentUserId = session?.user?.id;
@@ -247,6 +250,11 @@ export function CommentsList({ stationId, isAdmin = false }: CommentsListProps) 
           ))}
         </div>
       )}
+      {showAddForm && session?.user ? (
+        <div className={comments.length > 0 ? "border-t border-border/60 pt-5" : undefined}>
+          <AddCommentForm key={`${stationId}:${currentUserId}`} stationId={stationId} />
+        </div>
+      ) : null}
       <PhotoLightbox photos={lightboxPhotos} index={lightbox?.index ?? null} onIndexChange={changeLightboxIndex} onClose={closeLightbox} />
     </div>
   );
