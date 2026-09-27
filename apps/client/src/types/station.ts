@@ -83,7 +83,7 @@ export type ExtraIdentificator = {
   createdAt: string;
 };
 
-export type UplinkType = "fiber" | "microwave";
+export type UplinkType = "fiber" | "microwave" | "satellite";
 
 export type StationUplink = {
   id: number;

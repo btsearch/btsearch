@@ -37,7 +37,7 @@
       "status": "Station status (published, pending, inactive)",
       "hasPhoto": "Has a photo (true, false)",
       "hasAzimuth": "Has at least one azimuth (true, false)",
-      "uplink": "Uplink type (fiber, microwave)",
+      "uplink": "Uplink type (fiber, microwave, satellite)",
       "createdAfter": "Created after date (YYYY-MM-DD)",
       "createdBefore": "Created before date (YYYY-MM-DD)",
       "updatedAfter": "Updated after date (YYYY-MM-DD)",

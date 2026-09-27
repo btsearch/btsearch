@@ -16,6 +16,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useIsPresent } from "motion/react";
 import { Suspense, lazy, memo, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -40,6 +41,7 @@ import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
+import { isUplinkType, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
 
 type StationHistoryDialogPanelProps = FloatingDialogPanelFrameProps & StationHistoryDialogPayload;
@@ -284,6 +286,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
     if (value === null || value === "") return "-";
     if (typeof value === "boolean") return value ? t("common:labels.yes") : t("common:labels.no");
     if (field === "status" && typeof value === "string") return t(`stations:status.${value}`, { defaultValue: value });
+    if (field === "uplink_type" && isUplinkType(value)) return t(`common:labels.${uplinkTypeKey(value)}`);
     if (field === "type" && typeof value === "string") return value.toUpperCase();
     if (isPhotoField(field) && typeof value === "string" && value.startsWith("#")) return t("history.values.photoReference", { id: value.slice(1) });
     if ((field === "azimuth" || field === "azimuths") && typeof value === "number") return `${value}°`;
@@ -559,6 +562,7 @@ export function StationHistoryDialogPanel({
   const headerDragClassName = headerDragProps?.className;
   const operatorColor = getOperatorColor(operatorMnc ?? 0);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const isPresent = useIsPresent();
   const { data: session } = authClient.useSession();
   const userRole = session?.user?.role;
   const canOpenAuditLog = userRole === "admin";
@@ -593,13 +597,13 @@ export function StationHistoryDialogPanel({
   useImperativeHandle(bodyRef, () => scrollContainerRef.current!);
 
   useEffect(() => {
-    if (modal) return;
+    if (modal || !isPresent) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButtonRef.current?.focus({ preventScroll: true });
     return () => {
       if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
     };
-  }, [modal]);
+  }, [isPresent, modal]);
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

@@ -103,6 +103,7 @@
     "uplinkUnknown": "Nieznany",
     "uplinkFiber": "Światłowód",
     "uplinkMicrowave": "Radiolinia",
+    "uplinkSatellite": "Satelita",
     "mnoName": "Nazwa {{brand}}",
     "cells": "komórki",
     "newStation": "Nowa stacja",

@@ -28,7 +28,7 @@ export const StationStatus = pgEnum("station_status", ["published", "inactive", 
 export const PermitsSource = pgEnum("permits_source", ["permits", "device_registry"]);
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
-export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave"]);
+export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave", "satellite"]);
 export const UkeSchema = pgSchema("uke");
 export const StatisticsSchema = pgSchema("statistics");
 

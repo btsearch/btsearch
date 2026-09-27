@@ -6,7 +6,7 @@ export type UplinkType = typeof stationUplinks.$inferSelect.type;
 
 export const uplinkSpeedSchema = z.int().min(1).max(2147483647);
 
-const UPLINK_TYPE_VALUES = new Set<string>(["fiber", "microwave"]);
+const UPLINK_TYPE_VALUES = new Set<string>(["fiber", "microwave", "satellite"]);
 
 export function isUplinkType(value: unknown): value is UplinkType {
   return typeof value === "string" && UPLINK_TYPE_VALUES.has(value);

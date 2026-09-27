@@ -41,7 +41,7 @@ import {
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { fetchApiData, showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { Band, Cell, Sector, SectorDraft, Station } from "@/types/station";
+import type { Band, Cell, Sector, SectorDraft, Station, UplinkType } from "@/types/station";
 
 type LocalCell = CellDraftBase & {
   _serverId?: number;
@@ -292,7 +292,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   }));
 
   const [uplinkForm, setUplinkForm] = useState<{
-    uplink_type: "fiber" | "microwave" | null;
+    uplink_type: UplinkType | null;
     uplink_speed: number | null;
     uplink_model: string;
   }>(() => ({

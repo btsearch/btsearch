@@ -115,7 +115,7 @@ const schemaRoute = {
     list: z.string().optional(),
     uplink: z
       .string()
-      .regex(/^(?:fiber|microwave)(?:,(?:fiber|microwave))*$/)
+      .regex(/^(?:fiber|microwave|satellite)(?:,(?:fiber|microwave|satellite))*$/)
       .optional()
       .transform(parseUplinkTypesParam),
   }),

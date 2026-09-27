@@ -15,6 +15,7 @@ import type {
   Sector,
   Station,
   UkeLocationWithPermits,
+  UplinkType,
 } from "@/types/station";
 
 export { fetchOperators, fetchBands, fetchRegions } from "@/features/shared/api";
@@ -64,7 +65,7 @@ export type SearchStation = {
   location: (Location & { region: Region }) | null;
   operator: Operator | null;
   extra_identificators?: { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
-  uplink?: { type: "fiber" | "microwave"; speed: number | null; model: string | null } | null;
+  uplink?: { type: UplinkType; speed: number | null; model: string | null } | null;
 };
 
 export async function searchStations(query: string): Promise<SearchStation[]> {

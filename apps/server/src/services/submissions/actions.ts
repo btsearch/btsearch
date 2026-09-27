@@ -359,7 +359,7 @@ async function applyUplinkUpdate(audit: AuditRecorder, changes: ProposedStationC
   const values = {
     type: proposedType,
     speed: resolveChange(changes.uplink_speed, existing?.speed ?? null),
-    model: proposedType === "fiber" ? null : resolveChange(changes.uplink_model, existing?.model ?? null),
+    model: proposedType === "microwave" ? resolveChange(changes.uplink_model, existing?.model ?? null) : null,
   };
 
   if (await saveStationUplink(audit, stationId, values, submissionId)) await syncSiblingUplink(audit, stationId, values, submissionId);

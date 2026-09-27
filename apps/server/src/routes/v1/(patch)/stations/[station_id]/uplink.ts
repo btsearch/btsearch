@@ -14,7 +14,7 @@ import { uplinkSpeedSchema } from "../../../../../services/stations/uplink.js";
 const uplinkSelectSchema = createSelectSchema(stationUplinks);
 
 const requestSchema = z.object({
-  type: z.enum(["fiber", "microwave"]).nullable(),
+  type: z.enum(["fiber", "microwave", "satellite"]).nullable(),
   speed: uplinkSpeedSchema.nullable().optional(),
   model: z.string().max(100).nullable().optional(),
 });
@@ -66,7 +66,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const values = {
     type,
     speed: speed ?? null,
-    model: type === "fiber" ? null : (model ?? null),
+    model: type === "microwave" ? (model ?? null) : null,
   };
 
   if (existing && existing.type === values.type && existing.speed === values.speed && existing.model === values.model)

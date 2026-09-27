@@ -1,7 +1,7 @@
 import type { RAT_ORDER } from "../cells/rat";
 import type { LocationPhoto } from "@/features/station-details/api";
 import type { ProposedLocationField, ProposedStationField } from "@/features/submissions/utils/proposalChanges";
-import type { CellType } from "@/types/station";
+import type { CellType, UplinkType } from "@/types/station";
 
 export type SubmissionLocationPhoto = LocationPhoto & { is_main: boolean };
 
@@ -51,7 +51,7 @@ export type ProposedStation = {
   networks_id?: number | null;
   networks_name?: string | null;
   mno_name?: string | null;
-  uplink_type?: "fiber" | "microwave" | null;
+  uplink_type?: UplinkType | null;
   uplink_speed?: number | null;
   uplink_model?: string | null;
   changed_fields: ProposedStationField[] | null;

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
+import { UPLINK_TYPES, formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
 import type { UplinkType } from "@/types/station";
 
 const FIBER_SPEED_SUGGESTIONS = [1250, 2500, 10000];
@@ -68,8 +68,11 @@ export function UplinkFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">{t("labels.uplinkUnknown")}</SelectItem>
-              <SelectItem value="fiber">{t("labels.uplinkFiber")}</SelectItem>
-              <SelectItem value="microwave">{t("labels.uplinkMicrowave")}</SelectItem>
+              {UPLINK_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {t(`labels.${uplinkTypeKey(type)}`)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}

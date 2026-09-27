@@ -104,6 +104,7 @@
     "uplinkUnknown": "Unknown",
     "uplinkFiber": "Fiber",
     "uplinkMicrowave": "Microwave",
+    "uplinkSatellite": "Satellite",
     "mnoName": "{{brand}} name",
     "cells": "cells",
     "newStation": "New Station",

@@ -11,9 +11,9 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Photo grids and photo strips now load much faster because they use small previews
 - You can now add up to 10 photos per submission instead of 5, and each photo can be up to 20 MB instead of 10 MB
 - Photos are now uploaded one at a time, so large sets of photos upload more reliably
-- Stations can now show their uplink, which is how the station connects to the operator's network. It can be fiber or a microwave link, with an optional speed and link model, and it is shown in the Specification tab of the station dialog and on the station page
+- Stations can now show their uplink, which is how the station connects to the operator's network. It can be fiber, a microwave link or a satellite link, with an optional speed and a link model for microwave links, and it is shown in the Specification tab of the station dialog and on the station page
 - You can now add, change or remove a station's uplink in a submission, with quick speed choices of 1.25, 2.5 and 10 Gbps for fiber
-- Stations can now be filtered by uplink type with the new Uplink filter on the map or with `uplink:fiber` and `uplink:microwave` in the search
+- Stations can now be filtered by uplink type with the new Uplink filter on the map or with `uplink:fiber`, `uplink:microwave` and `uplink:satellite` in the search
 - Station change history now shows when an uplink was added, changed or removed
 - The Specification tab in the station dialog is now a compact card that groups the location, station ID, uplink, EMF reports and network IDs and adapts to the dialog width
 - 5G NR cells in the cell table now show SA in bold blue and NSA in muted text
