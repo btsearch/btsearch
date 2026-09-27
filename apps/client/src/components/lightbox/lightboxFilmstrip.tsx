@@ -60,7 +60,7 @@ export function LightboxFilmstrip({ slides, index, compact, onSelect }: Props) {
     <motion.div
       ref={setScrollElement}
       layoutScroll
-      className="overflow-x-auto overscroll-x-contain py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="overflow-x-auto overscroll-x-contain py-2 scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       <div className="relative mx-auto h-11 md:h-14" style={{ width: virtualizer.getTotalSize() }}>
         <LayoutGroup id={groupId}>

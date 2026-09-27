@@ -17,7 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { type ComponentType, type PointerEvent, type TouchEvent, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { type ComponentType, type PointerEvent, type TouchEvent, memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AuthDialog } from "@/components/auth/authDialog";
@@ -63,8 +63,11 @@ const ACTION_TARGET_ID = "floating-nav-actions";
 const HIDDEN_STORAGE_KEY = "floating-nav-hidden";
 const FLUID_TRANSITION = { type: "spring", stiffness: 520, damping: 44, mass: 0.8 } as const;
 const FLOATING_NAV_SHELL_TRANSITION = { duration: 0.12, ease: "easeOut" } as const;
+const INSTANT_TRANSITION = { duration: 0 } as const;
 const PRIMARY_SURFACE_LAYOUT_ID = "floating-nav-primary-surface";
 const SUBNAV_SURFACE_LAYOUT_ID = "floating-nav-subnav-surface";
+const RAIL_HIDDEN = { filter: "blur(2px)", opacity: 0, y: 38, scale: 0.96 } as const;
+const RAIL_VISIBLE = { filter: "blur(0px)", opacity: 1, y: 0, scale: 1, transitionEnd: { filter: "none" } } as const;
 const SUBNAV_OPEN_DELAY_MS = 120;
 const FLOATING_NAV_SWIPE_MIN_DISTANCE = 32;
 const FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT = 48;
@@ -157,7 +160,7 @@ function scrollToPageSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 }
 
-function FloatingNavLink({
+const FloatingNavLink = memo(function FloatingNavLink({
   active,
   indicatorId,
   item,
@@ -218,30 +221,30 @@ function FloatingNavLink({
       </Tooltip>
     </motion.div>
   );
-}
+});
 
 function FloatingPageSectionRail({
-  activeId,
   label,
   reduceMotion,
   sections,
   transition,
 }: {
-  activeId: string | null;
   label: string;
   reduceMotion: boolean;
   sections: PageSection[];
   transition: FloatingTransition;
 }) {
+  const activeId = usePageSectionsActiveId();
+
   return (
     <AnimatePresence mode="popLayout">
       {sections.length > 0 ? (
         <motion.div
           key="floating-page-sections"
           layout
-          initial={reduceMotion ? { opacity: 1 } : { filter: "blur(2px)", opacity: 0, y: 38, scale: 0.96 }}
-          animate={reduceMotion ? { opacity: 1 } : { filter: "blur(0px)", opacity: 1, y: 0, scale: 1 }}
-          exit={reduceMotion ? { opacity: 0 } : { filter: "blur(2px)", opacity: 0, y: 38, scale: 0.96 }}
+          initial={reduceMotion ? { opacity: 1 } : RAIL_HIDDEN}
+          animate={reduceMotion ? { opacity: 1 } : RAIL_VISIBLE}
+          exit={reduceMotion ? { opacity: 0 } : RAIL_HIDDEN}
           transition={transition}
           style={{ transformOrigin: "bottom center" }}
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
@@ -295,17 +298,32 @@ function DesktopSubnavRail({
 }) {
   const location = useLocation();
   const activeItemUrl = section ? getActiveNavItemUrl([section], location.pathname) : null;
+  const sectionKey = section && section.items.length > 0 ? section.key : null;
+  const [shownKey, setShownKey] = useState(sectionKey);
+  const [swapping, setSwapping] = useState(false);
+
+  if (sectionKey !== shownKey) {
+    setShownKey(sectionKey);
+    setSwapping(shownKey !== null && sectionKey !== null);
+  }
+
+  const variants = {
+    hidden: (isSwap: boolean) => (reduceMotion || isSwap ? { opacity: 0 } : RAIL_HIDDEN),
+    visible: reduceMotion ? { opacity: 1 } : RAIL_VISIBLE,
+  };
 
   return (
-    <AnimatePresence mode="popLayout">
-      {section && section.items.length > 0 ? (
+    <AnimatePresence mode="popLayout" custom={swapping}>
+      {section && sectionKey !== null ? (
         <motion.div
-          key={section.key}
+          key={sectionKey}
           layout
           layoutId={SUBNAV_SURFACE_LAYOUT_ID}
-          initial={reduceMotion ? { opacity: 1 } : { filter: "blur(2px)", opacity: 0, y: 38, scale: 0.96 }}
-          animate={reduceMotion ? { opacity: 1 } : { filter: "blur(0px)", opacity: 1, y: 0, scale: 1 }}
-          exit={reduceMotion ? { opacity: 0 } : { filter: "blur(2px)", opacity: 0, y: 38, scale: 0.96 }}
+          custom={swapping}
+          variants={variants}
+          initial={reduceMotion ? "visible" : "hidden"}
+          animate="visible"
+          exit="hidden"
           transition={transition}
           style={{ transformOrigin: "bottom center" }}
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
@@ -330,7 +348,8 @@ function DesktopSubnavRail({
   );
 }
 
-function MobileFloatingPageSectionRail({ activeId, sections }: { activeId: string | null; sections: PageSection[] }) {
+function MobileFloatingPageSectionRail({ sections }: { sections: PageSection[] }) {
+  const activeId = usePageSectionsActiveId();
   const activeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -408,7 +427,7 @@ function FloatingPrimarySurface({
 function FloatingActionSlot({ label, placement, transition }: { label: string; placement: "main" | "rail"; transition: FloatingTransition }) {
   const targetRef = useRef<HTMLDivElement>(null);
   const [hasVisibleActions, setHasVisibleActions] = useState(false);
-  const actionSlotTransition: FloatingTransition = hasVisibleActions ? transition : { duration: 0 };
+  const actionSlotTransition: FloatingTransition = hasVisibleActions ? transition : INSTANT_TRANSITION;
 
   useLayoutEffect(() => {
     const target = targetRef.current;
@@ -658,7 +677,7 @@ function FloatingLanguageControl() {
   );
 }
 
-function FloatingAccountCluster() {
+const FloatingAccountCluster = memo(function FloatingAccountCluster() {
   const { t } = useTranslation("nav");
   const { data: session } = authClient.useSession();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -791,7 +810,7 @@ function FloatingAccountCluster() {
       )}
     </div>
   );
-}
+});
 
 function FloatingCategoryButton({
   active,
@@ -859,11 +878,10 @@ export function FloatingNav() {
   const { t } = useTranslation("nav");
   const location = useLocation();
   const pageSections = usePageSectionsList();
-  const activePageSectionId = usePageSectionsActiveId();
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion() === true;
-  const transition = reduceMotion ? { duration: 0 } : FLUID_TRANSITION;
-  const shellTransition = reduceMotion ? { duration: 0 } : FLOATING_NAV_SHELL_TRANSITION;
+  const transition = reduceMotion ? INSTANT_TRANSITION : FLUID_TRANSITION;
+  const shellTransition = reduceMotion ? INSTANT_TRANSITION : FLOATING_NAV_SHELL_TRANSITION;
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { favoriteSet, lists: navLists } = useNavLists();
@@ -1058,9 +1076,8 @@ export function FloatingNav() {
                 style={{ paddingBottom: "var(--floating-nav-bottom-padding, 0.5rem)" }}
               >
                 {isMobile ? <FloatingActionSlot label={t("floating.actions")} placement="rail" transition={transition} /> : null}
-                <MobileFloatingPageSectionRail activeId={activePageSectionId} sections={showMobilePageSections ? pageSections : []} />
+                <MobileFloatingPageSectionRail sections={showMobilePageSections ? pageSections : []} />
                 <FloatingPageSectionRail
-                  activeId={activePageSectionId}
                   label={displayedActiveItem?.title ?? t("floating.label")}
                   reduceMotion={reduceMotion}
                   sections={showDesktopPageSections ? pageSections : []}
