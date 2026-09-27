@@ -13,7 +13,7 @@ import { ReloadPrompt } from "@/components/app/reloadPrompt";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { FloatingDialogStackProvider } from "@/features/station-details/components/floatingDialogStackProvider";
+import { FloatingDialogStackProvider } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { loadAdsenseScript } from "@/hooks/useCookieConsent";
 import {
   plPLAuthLocalization,

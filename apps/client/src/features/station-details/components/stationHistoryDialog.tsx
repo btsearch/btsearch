@@ -29,13 +29,13 @@ import type {
   StationHistorySection,
   StationHistoryValue,
 } from "../api";
-import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
 import { StationTitle } from "./stationTitle";
 import { photoThumbUrl, photoUrl } from "@/components/photos/photoFiles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";

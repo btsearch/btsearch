@@ -32,9 +32,9 @@ import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, Sele
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";

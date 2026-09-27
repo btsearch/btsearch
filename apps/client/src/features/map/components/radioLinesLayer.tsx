@@ -12,7 +12,7 @@ import { useRadioLinesLayer } from "../hooks/useRadioLinesLayer";
 import { type DuplexRadioLink, findDuplexLinkByRadioLineId, groupRadioLinesIntoLinks } from "../utils";
 import { RadioLineFooter, RadioLinePopupContent } from "./radioLinePopupContent";
 import { useMap } from "@/components/ui/map";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
 import { queryClient } from "@/lib/queryClient";
 import type { RadioLine } from "@/types/station";

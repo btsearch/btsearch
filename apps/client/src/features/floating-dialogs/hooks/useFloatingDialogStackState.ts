@@ -2,32 +2,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { assertNever } from "./floatingDialogStackTypes";
-import type {
-  FloatingDialogItem,
-  FloatingDialogOpenRequest,
-  SI2PEMReportDialogPayload,
-  StationHistoryDialogPayload,
-} from "./floatingDialogStackTypes";
-import { type StationDialogRect, areStationDialogRectsEqual, createInitialStationDialogRect } from "./stationDialogGeometry";
+import { type FloatingDialogRect, areFloatingDialogRectsEqual, createInitialFloatingDialogRect } from "../geometry";
+import { assertNever, getTopDialog } from "../types";
+import type { FloatingDialogItem, FloatingDialogOpenRequest, SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
 const MAX_DIALOGS_PER_KIND = 2;
 
-function getTopDialog(dialogs: FloatingDialogItem[]): FloatingDialogItem | undefined {
-  let topDialog: FloatingDialogItem | undefined;
-  for (const dialog of dialogs) {
-    if (topDialog === undefined || dialog.zIndex > topDialog.zIndex) topDialog = dialog;
-  }
-  return topDialog;
+function getNextZIndex(dialogs: FloatingDialogItem[]): number {
+  return (getTopDialog(dialogs)?.zIndex ?? FLOATING_DIALOG_Z_INDEX_BASE) + 1;
+}
+
+function normalizeZIndexes(dialogs: FloatingDialogItem[]): FloatingDialogItem[] {
+  const ordered = dialogs.slice().sort((a, b) => a.zIndex - b.zIndex);
+  return dialogs.map((dialog) => {
+    const zIndex = FLOATING_DIALOG_Z_INDEX_BASE + 1 + ordered.indexOf(dialog);
+    return dialog.zIndex === zIndex ? dialog : { ...dialog, zIndex };
+  });
 }
 
 type ResolvedDialogRequest = {
   key: string;
   matchesPayload: (dialog: FloatingDialogItem) => boolean;
-  create: (rect: StationDialogRect, zIndex: number) => FloatingDialogItem;
+  create: (rect: FloatingDialogRect, zIndex: number) => FloatingDialogItem;
   update: (dialog: FloatingDialogItem, zIndex: number) => FloatingDialogItem;
 };
 
@@ -117,19 +116,14 @@ export function useFloatingDialogStackState() {
   const { t } = useTranslation("common");
   const [dialogs, setDialogs] = useState<FloatingDialogItem[]>([]);
   const dialogsRef = useRef<FloatingDialogItem[]>([]);
-  const nextZIndexRef = useRef(FLOATING_DIALOG_Z_INDEX_BASE);
 
   const setDialogsSynced = useCallback((updater: (current: FloatingDialogItem[]) => FloatingDialogItem[]) => {
     const current = dialogsRef.current;
     const next = updater(current);
     if (next === current) return;
-    dialogsRef.current = next;
-    setDialogs(next);
-  }, []);
-
-  const getNextZIndex = useCallback(() => {
-    nextZIndexRef.current += 1;
-    return nextZIndexRef.current;
+    const normalized = normalizeZIndexes(next);
+    dialogsRef.current = normalized;
+    setDialogs(normalized);
   }, []);
 
   const focusDialog = useCallback(
@@ -138,11 +132,11 @@ export function useFloatingDialogStackState() {
         const dialog = current.find((item) => item.key === key);
         if (dialog === undefined || getTopDialog(current)?.key === key) return current;
 
-        const zIndex = getNextZIndex();
+        const zIndex = getNextZIndex(current);
         return current.map((item) => (item.key === key ? { ...item, zIndex } : item));
       });
     },
-    [getNextZIndex, setDialogsSynced],
+    [setDialogsSynced],
   );
 
   const openDialog = useCallback(
@@ -155,7 +149,7 @@ export function useFloatingDialogStackState() {
         const isTopDialog = getTopDialog(current)?.key === resolved.key;
         if (isTopDialog && resolved.matchesPayload(existingDialog)) return true;
 
-        const zIndex = isTopDialog ? existingDialog.zIndex : getNextZIndex();
+        const zIndex = isTopDialog ? existingDialog.zIndex : getNextZIndex(current);
         setDialogsSynced((previous) => previous.map((dialog) => (dialog.key === resolved.key ? resolved.update(dialog, zIndex) : dialog)));
         return true;
       }
@@ -168,11 +162,11 @@ export function useFloatingDialogStackState() {
 
       const initialSize =
         request.kind === "si2pem-report" ? { width: 730, height: 800 } : request.kind === "station-history" ? { width: 900, height: 680 } : undefined;
-      const dialog = resolved.create(createInitialStationDialogRect(familyCount, initialSize), getNextZIndex());
+      const dialog = resolved.create(createInitialFloatingDialogRect(familyCount, initialSize), getNextZIndex(current));
       setDialogsSynced((previous) => [...previous, dialog]);
       return true;
     },
-    [getNextZIndex, setDialogsSynced, t],
+    [setDialogsSynced, t],
   );
 
   const openStationDialog = useCallback((id: number, source: StationSource) => openDialog({ kind: "station", id, source }), [openDialog]);
@@ -196,10 +190,10 @@ export function useFloatingDialogStackState() {
   );
 
   const updateDialogRect = useCallback(
-    (key: string, rect: StationDialogRect) => {
+    (key: string, rect: FloatingDialogRect) => {
       setDialogsSynced((current) => {
         const dialog = current.find((item) => item.key === key);
-        if (dialog === undefined || areStationDialogRectsEqual(dialog.rect, rect)) return current;
+        if (dialog === undefined || areFloatingDialogRectsEqual(dialog.rect, rect)) return current;
         return current.map((item) => (item.key === key ? { ...item, rect } : item));
       });
     },

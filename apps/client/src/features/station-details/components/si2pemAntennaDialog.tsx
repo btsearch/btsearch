@@ -7,11 +7,11 @@ import { useTranslation } from "react-i18next";
 import { fetchSI2PEMAntennas } from "../api";
 import type { PemReport, SI2PEMAntenna } from "../api";
 import { DialogOperatorName } from "./dialogOperatorName";
-import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { SI2PEMLogo } from "./si2pemLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 

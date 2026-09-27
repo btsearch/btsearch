@@ -53,9 +53,9 @@ import { StationIdentityCell } from "@/features/admin/submissions/components/sta
 import { SubmissionChangesSummary } from "@/features/admin/submissions/components/submissionListParts";
 import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
 import type { MySubmissionsFilters } from "@/features/submissions/api";
 import { deleteSubmission, fetchSubmissionPhotos } from "@/features/submissions/api";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";

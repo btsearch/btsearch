@@ -23,6 +23,8 @@ import { CollapsibleSection } from "@/components/content/collapsibleSection";
 import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { RAT_ORDER } from "@/features/shared/rat";
 import { fetchElevation, fetchPemReports, fetchStationPhotos } from "@/features/station-details/api";
@@ -31,8 +33,6 @@ import { CommentsList } from "@/features/station-details/components/commentsList
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "@/features/station-details/components/extraIdentificators";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
-import { getStationHistoryTriggerId } from "@/features/station-details/components/floatingDialogStackTypes";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { PermitsList } from "@/features/station-details/components/permitsList";
 import { SectorMiniCompass } from "@/features/station-details/components/sectorMiniCompass";

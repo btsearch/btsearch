@@ -22,7 +22,6 @@ import { useTranslation } from "react-i18next";
 
 import { CopyButton } from "./copyButton";
 import { DialogOperatorName } from "./dialogOperatorName";
-import type { FloatingDialogPanelFrameProps } from "./floatingDialogStackTypes";
 import { ShareButton } from "./shareButton";
 import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
@@ -30,6 +29,7 @@ import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { DirectionalSpeedBadge } from "@/features/map/components/directionalSpeedBadge";
 import type { DuplexRadioLink } from "@/features/map/utils";

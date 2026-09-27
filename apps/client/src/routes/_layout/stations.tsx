@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { StationsListLayout } from "@/features/stations/components/stationsFilterLayout";
 import { useStationsData } from "@/features/stations/hooks/useStationsData";
 import { buildStaticPageHead } from "@/lib/seo";

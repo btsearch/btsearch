@@ -1,14 +1,14 @@
-export type StationDialogRect = {
+export type FloatingDialogRect = {
   x: number;
   y: number;
   width: number;
   height: number;
 };
 
-export type StationDialogInteractionMode = "drag" | "resize-corner" | "resize-horizontal";
+export type FloatingDialogInteractionMode = "drag" | "resize-corner" | "resize-horizontal";
 
-export const STATION_DIALOG_DESKTOP_MIN_WIDTH = 610;
-export const STATION_DIALOG_DESKTOP_MIN_HEIGHT = 540;
+export const FLOATING_DIALOG_DESKTOP_MIN_WIDTH = 610;
+export const FLOATING_DIALOG_DESKTOP_MIN_HEIGHT = 540;
 
 const DEFAULT_DIALOG_WIDTH = 920;
 const DEFAULT_DIALOG_HEIGHT = 600;
@@ -16,7 +16,7 @@ const DIALOG_OFFSET = 32;
 const DIALOG_MARGIN = 16;
 const RECT_SYNC_THRESHOLD = 1;
 
-function snapStationDialogCoordinate(value: number, min: number, max: number) {
+function snapFloatingDialogCoordinate(value: number, min: number, max: number) {
   const minPixel = Math.ceil(min);
   const maxPixel = Math.floor(max);
   return Math.min(Math.max(Math.round(value), minPixel), Math.max(minPixel, maxPixel));
@@ -29,34 +29,34 @@ function getViewportBounds() {
   };
 }
 
-export function clampStationDialogRect(rect: StationDialogRect): StationDialogRect {
+export function clampFloatingDialogRect(rect: FloatingDialogRect): FloatingDialogRect {
   const bounds = getViewportBounds();
   const maxAvailableWidth = Math.max(0, bounds.width - DIALOG_MARGIN * 2);
   const maxAvailableHeight = Math.max(0, bounds.height - DIALOG_MARGIN * 2);
-  const minWidth = Math.min(STATION_DIALOG_DESKTOP_MIN_WIDTH, maxAvailableWidth);
-  const minHeight = Math.min(STATION_DIALOG_DESKTOP_MIN_HEIGHT, maxAvailableHeight);
+  const minWidth = Math.min(FLOATING_DIALOG_DESKTOP_MIN_WIDTH, maxAvailableWidth);
+  const minHeight = Math.min(FLOATING_DIALOG_DESKTOP_MIN_HEIGHT, maxAvailableHeight);
   const width = Math.min(Math.max(rect.width, minWidth), maxAvailableWidth);
   const height = Math.min(Math.max(rect.height, minHeight), maxAvailableHeight);
   const maxX = Math.max(DIALOG_MARGIN, bounds.width - width - DIALOG_MARGIN);
   const maxY = Math.max(DIALOG_MARGIN, bounds.height - height - DIALOG_MARGIN);
-  const x = snapStationDialogCoordinate(Math.min(Math.max(rect.x, DIALOG_MARGIN), maxX), DIALOG_MARGIN, maxX);
-  const y = snapStationDialogCoordinate(Math.min(Math.max(rect.y, DIALOG_MARGIN), maxY), DIALOG_MARGIN, maxY);
+  const x = snapFloatingDialogCoordinate(Math.min(Math.max(rect.x, DIALOG_MARGIN), maxX), DIALOG_MARGIN, maxX);
+  const y = snapFloatingDialogCoordinate(Math.min(Math.max(rect.y, DIALOG_MARGIN), maxY), DIALOG_MARGIN, maxY);
 
   return { x, y, width, height };
 }
 
-export function createInitialStationDialogRect(
+export function createInitialFloatingDialogRect(
   index: number,
-  initialSize: Pick<StationDialogRect, "width" | "height"> = {
+  initialSize: Pick<FloatingDialogRect, "width" | "height"> = {
     width: DEFAULT_DIALOG_WIDTH,
     height: DEFAULT_DIALOG_HEIGHT,
   },
-): StationDialogRect {
+): FloatingDialogRect {
   const bounds = getViewportBounds();
   const width = Math.min(initialSize.width, bounds.width - DIALOG_MARGIN * 2);
   const height = Math.min(initialSize.height, bounds.height - DIALOG_MARGIN * 2);
 
-  return clampStationDialogRect({
+  return clampFloatingDialogRect({
     x: (bounds.width - width) / 2 + index * DIALOG_OFFSET,
     y: (bounds.height - height) / 2 + index * DIALOG_OFFSET,
     width,
@@ -64,7 +64,7 @@ export function createInitialStationDialogRect(
   });
 }
 
-export function applyStationDialogRect(node: HTMLDivElement | null, rect: StationDialogRect) {
+export function applyFloatingDialogRect(node: HTMLDivElement | null, rect: FloatingDialogRect) {
   if (node === null) return;
   node.style.left = `${Math.round(rect.x)}px`;
   node.style.top = `${Math.round(rect.y)}px`;
@@ -72,7 +72,7 @@ export function applyStationDialogRect(node: HTMLDivElement | null, rect: Statio
   node.style.height = `${Math.round(rect.height)}px`;
 }
 
-export function getStationDialogPosition(rect: StationDialogRect) {
+export function getFloatingDialogPosition(rect: FloatingDialogRect) {
   return {
     left: Math.round(rect.x),
     top: Math.round(rect.y),
@@ -81,24 +81,24 @@ export function getStationDialogPosition(rect: StationDialogRect) {
   };
 }
 
-export function getNaturalStationDialogHeight(content: HTMLDivElement, body: HTMLDivElement, bodyContent: HTMLDivElement) {
+export function getNaturalFloatingDialogHeight(content: HTMLDivElement, body: HTMLDivElement, bodyContent: HTMLDivElement) {
   const heightOutsideScrollableBody = content.clientHeight - body.clientHeight;
   return Math.ceil(heightOutsideScrollableBody + bodyContent.scrollHeight);
 }
 
-export function getStationDialogCursor(mode: StationDialogInteractionMode) {
+export function getFloatingDialogCursor(mode: FloatingDialogInteractionMode) {
   if (mode === "drag") return "grabbing";
   if (mode === "resize-horizontal") return "ew-resize";
   return "nwse-resize";
 }
 
-export function getStationDialogInteractionRect(mode: StationDialogInteractionMode, startRect: StationDialogRect, deltaX: number, deltaY: number) {
-  if (mode === "drag") return clampStationDialogRect({ ...startRect, x: startRect.x + deltaX, y: startRect.y + deltaY });
-  if (mode === "resize-horizontal") return clampStationDialogRect({ ...startRect, width: startRect.width + deltaX });
-  return clampStationDialogRect({ ...startRect, width: startRect.width + deltaX, height: startRect.height + deltaY });
+export function getFloatingDialogInteractionRect(mode: FloatingDialogInteractionMode, startRect: FloatingDialogRect, deltaX: number, deltaY: number) {
+  if (mode === "drag") return clampFloatingDialogRect({ ...startRect, x: startRect.x + deltaX, y: startRect.y + deltaY });
+  if (mode === "resize-horizontal") return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX });
+  return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX, height: startRect.height + deltaY });
 }
 
-export function shouldSyncStationDialogRect(current: StationDialogRect, next: StationDialogRect) {
+export function shouldSyncFloatingDialogRect(current: FloatingDialogRect, next: FloatingDialogRect) {
   return (
     current.x !== next.x ||
     current.y !== next.y ||
@@ -107,6 +107,6 @@ export function shouldSyncStationDialogRect(current: StationDialogRect, next: St
   );
 }
 
-export function areStationDialogRectsEqual(current: StationDialogRect, next: StationDialogRect) {
+export function areFloatingDialogRectsEqual(current: FloatingDialogRect, next: FloatingDialogRect) {
   return current.x === next.x && current.y === next.y && current.width === next.width && current.height === next.height;
 }

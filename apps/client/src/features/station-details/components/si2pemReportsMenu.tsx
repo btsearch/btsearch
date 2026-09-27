@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { PemReport } from "../api";
-import { useFloatingDialogStack } from "./floatingDialogStackProvider";
 import { SI2PEMLogo } from "./si2pemLogo";
 import {
   DropdownMenu,
@@ -15,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 
 type ReportItem = {
   report: PemReport;

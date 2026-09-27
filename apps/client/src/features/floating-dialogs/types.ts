@@ -1,8 +1,8 @@
 import type { CSSProperties, HTMLAttributes, Ref } from "react";
 
-import type { PemReport } from "../api";
-import type { StationDialogRect } from "./stationDialogGeometry";
+import type { FloatingDialogRect } from "./geometry";
 import type { DuplexRadioLink } from "@/features/map/utils";
+import type { PemReport } from "@/features/station-details/api";
 import type { StationSource, UkeStation } from "@/types/station";
 
 export function assertNever(value: never): never {
@@ -44,7 +44,7 @@ export type StationHistoryDialogPayload = {
 
 type FloatingDialogItemBase = {
   key: string;
-  rect: StationDialogRect;
+  rect: FloatingDialogRect;
   zIndex: number;
 };
 
@@ -81,3 +81,11 @@ export type FloatingDialogOpenRequest =
   | { kind: "radioline"; link: DuplexRadioLink }
   | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)
   | ({ kind: "station-history" } & StationHistoryDialogPayload);
+
+export function getTopDialog(dialogs: FloatingDialogItem[]): FloatingDialogItem | undefined {
+  let topDialog: FloatingDialogItem | undefined;
+  for (const dialog of dialogs) {
+    if (topDialog === undefined || dialog.zIndex > topDialog.zIndex) topDialog = dialog;
+  }
+  return topDialog;
+}

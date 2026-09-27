@@ -1,8 +1,8 @@
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
 
+import { useFloatingDialogStackState } from "../hooks/useFloatingDialogStackState";
+import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
 import { FloatingDialogStack } from "./floatingDialogStack";
-import { useFloatingDialogStackState } from "./floatingDialogStackState";
-import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import type { StationSource, UkeStation } from "@/types/station";
@@ -46,15 +46,13 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
   return (
     <FloatingDialogStackContext.Provider value={contextValue}>
       {children}
-      {stack.dialogs.length > 0 ? (
-        <FloatingDialogStack
-          dialogs={stack.dialogs}
-          onClose={stack.closeDialog}
-          onFocus={stack.focusDialog}
-          onRectChange={stack.updateDialogRect}
-          onStartTerrainProfile={terrainProfileStartHandler}
-        />
-      ) : null}
+      <FloatingDialogStack
+        dialogs={stack.dialogs}
+        onClose={stack.closeDialog}
+        onFocus={stack.focusDialog}
+        onRectChange={stack.updateDialogRect}
+        onStartTerrainProfile={terrainProfileStartHandler}
+      />
     </FloatingDialogStackContext.Provider>
   );
 }

@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFloatingDialogStack } from "@/features/station-details/components/floatingDialogStackProvider";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
