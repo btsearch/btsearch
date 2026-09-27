@@ -1,8 +1,6 @@
 import { attachments, submissionPhotos } from "@openbts/drizzle";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
@@ -11,8 +9,7 @@ import type { ReplyPayload } from "../../../../../../interfaces/fastify.interfac
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+import { deletePhotoFiles } from "../../../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   params: z.object({ id: z.string(), photo_id: z.coerce.number() }),
@@ -56,11 +53,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     });
   });
 
-  if (attachment) {
-    try {
-      await fs.unlink(path.join(UPLOAD_DIR, `${attachment.uuid}.webp`));
-    } catch {}
-  }
+  if (attachment) await deletePhotoFiles([attachment.uuid]);
 
   return res.code(204).send({});
 }

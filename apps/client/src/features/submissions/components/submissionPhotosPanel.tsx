@@ -22,10 +22,12 @@ import {
   updateSubmissionPhotoNote,
   updateSubmissionPhotoTakenAt,
 } from "../api";
+import { MAX_PHOTO_SIZE_BYTES, MAX_PHOTO_SIZE_LABEL, MAX_SUBMISSION_PHOTOS } from "../photoLimits";
 import type { ProposedLocationForm, StationAction, SubmissionMode } from "../types";
 import { Lightbox, LightboxDetailRow, type LightboxProps, type LightboxSlide, useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, PhotoMeta, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { PhotoCaption, PhotoDetails, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { PhotoCaption, PhotoDetails, PhotoLightbox, photoSlideSources } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,9 +43,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Spinner } from "@/components/ui/spinner";
 import { type LocationPhoto, fetchLocationPhotos, fetchStationPhotos } from "@/features/station-details/api";
 import { cn } from "@/lib/utils";
-
-const MAX_FILES = 5;
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 type SubmissionPhotosPanelProps = {
   mode: SubmissionMode;
@@ -185,7 +184,7 @@ export function SubmissionPhotosPanel({
   const selectedLocationPhotoIds = useMemo(() => new Set(locationPhotoIds), [locationPhotoIds]);
   const markedForRemovalIds = useMemo(() => new Set(locationPhotoIdsToRemove), [locationPhotoIdsToRemove]);
   const uploadTotalCount = submissionPhotos.length + photos.length;
-  const remainingSlots = MAX_FILES - uploadTotalCount;
+  const remainingSlots = MAX_SUBMISSION_PHOTOS - uploadTotalCount;
   const isLocationLoading = locationId !== undefined && (isLoadingLocationPhotos || isLoadingStationPhotos);
   const showLocationPhotosSection = locationId !== undefined && (isLocationLoading || locationPhotos.length > 0);
   const isUploadEmpty = uploadTotalCount === 0 && !isLoadingSubmissionPhotos;
@@ -240,7 +239,7 @@ export function SubmissionPhotosPanel({
   function processFiles(files: File[]) {
     const valid: File[] = [];
     for (const file of files) {
-      if (file.size > MAX_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: file.name, size: "10 MB" }));
+      if (file.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: file.name, size: MAX_PHOTO_SIZE_LABEL }));
       else valid.push(file);
     }
     const combined = [...photos, ...valid].slice(0, remainingSlots > 0 ? remainingSlots + photos.length : photos.length);
@@ -365,7 +364,7 @@ export function SubmissionPhotosPanel({
 
               <PhotoSubsection
                 title={mode === "existing" ? t("photos.uploadedPhotos") : t("photos.label")}
-                meta={!isLoadingSubmissionPhotos ? `${uploadTotalCount}/${MAX_FILES}` : undefined}
+                meta={!isLoadingSubmissionPhotos ? `${uploadTotalCount}/${MAX_SUBMISSION_PHOTOS}` : undefined}
               >
                 {isLoadingSubmissionPhotos ? (
                   <CenteredSpinner />
@@ -405,13 +404,15 @@ export function SubmissionPhotosPanel({
                         onSave={saveLocalEdit}
                       />
                     ))}
-                    {uploadTotalCount < MAX_FILES ? (
+                    {uploadTotalCount < MAX_SUBMISSION_PHOTOS ? (
                       <AddPhotoTile className="aspect-square h-auto" onClick={() => fileInputRef.current?.click()} />
                     ) : null}
                   </div>
                 )}
                 {uploadTotalCount > 0 ? <PhotosWarning /> : null}
-                <p className="px-3 pb-2 text-xs text-muted-foreground">{t("photos.hint", { max: MAX_FILES, size: "10 MB" })}</p>
+                <p className="px-3 pb-2 text-xs text-muted-foreground">
+                  {t("photos.hint", { max: MAX_SUBMISSION_PHOTOS, size: MAX_PHOTO_SIZE_LABEL })}
+                </p>
               </PhotoSubsection>
             </div>
           </CollapsibleContent>
@@ -591,7 +592,7 @@ function LocationPhotoCard({
     >
       <PhotoImage
         ref={triggerRef}
-        src={photoUrl(photo.attachment_uuid)}
+        src={photoThumbUrl(photo)}
         alt={photo.note ?? ""}
         frameClassName="h-36"
         imageClassName={cn("transition-opacity", selectedLocationPhotoIds.size > 0 && !isVisuallySelected && !isMarkedForRemoval && "opacity-40")}
@@ -683,7 +684,7 @@ function UploadPhotoCard({
   const { t } = useTranslation("submissions");
   return (
     <div className="rounded-lg overflow-hidden border bg-muted">
-      <PhotoImage ref={triggerRef} src={photoUrl(photo.attachment_uuid)} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen}>
+      <PhotoImage ref={triggerRef} src={photoThumbUrl(photo)} alt={photo.note ?? ""} frameClassName="aspect-square h-auto" onOpen={onOpen}>
         {isMain ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
             <HugeiconsIcon icon={StarIcon} className="size-3" />
@@ -815,11 +816,10 @@ export function UploadPhotosLightbox({
       const lightboxPhoto = { ...photo, is_main: false };
       return {
         key: photo.attachment_uuid,
-        src: photoUrl(photo.attachment_uuid),
+        ...photoSlideSources(photo),
         alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
         caption: <PhotoCaption photo={lightboxPhoto} />,
         details: <PhotoDetails photo={lightboxPhoto} />,
-        downloadName: `openbts-${photo.attachment_uuid}.webp`,
       };
     }),
     ...files.map((file, index): LightboxSlide => {

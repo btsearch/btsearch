@@ -1,8 +1,6 @@
 import { attachments, locationPhotos, stationPhotoSelections } from "@openbts/drizzle";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../../../errors.js";
@@ -14,8 +12,7 @@ import {
   logPhotoSelectionChanges,
   runAuditedOperation,
 } from "../../../../../../../services/audit/index.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+import { deletePhotoFiles } from "../../../../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   params: z.object({ location_id: z.coerce.number(), photo_id: z.coerce.number() }),
@@ -60,10 +57,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     return attachment?.uuid ?? null;
   });
 
-  if (attachmentUuid !== null)
-    try {
-      await fs.unlink(path.join(UPLOAD_DIR, `${attachmentUuid}.webp`));
-    } catch {}
+  if (attachmentUuid !== null) await deletePhotoFiles([attachmentUuid]);
 
   return res.code(204).send({});
 }

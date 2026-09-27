@@ -6,8 +6,9 @@ import { useTranslation } from "react-i18next";
 
 import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
 import { useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -125,7 +126,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
               className="block w-full cursor-zoom-in text-left"
             >
               <PhotoWithFallback
-                src={photoUrl(photo.attachment_uuid)}
+                src={photoThumbUrl(photo)}
                 alt={t("photos.photoAlt", { number: idx + 1 })}
                 loading="lazy"
                 decoding="async"

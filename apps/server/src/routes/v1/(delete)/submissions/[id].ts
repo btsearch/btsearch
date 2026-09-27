@@ -14,8 +14,6 @@ import {
 } from "@openbts/drizzle";
 import { eq, inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
@@ -25,8 +23,7 @@ import type { EmptyResponse, Route } from "../../../../interfaces/routes.interfa
 import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   params: z.object({
@@ -115,7 +112,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   }
 
-  await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
+  await deletePhotoFiles(attachmentUuids);
 
   return res.status(204).send();
 }

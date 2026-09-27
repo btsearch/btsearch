@@ -1,0 +1,3 @@
+export const MAX_SUBMISSION_PHOTOS = 10;
+export const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_PHOTO_SIZE_LABEL = `${MAX_PHOTO_SIZE_BYTES / 1024 / 1024} MB`;

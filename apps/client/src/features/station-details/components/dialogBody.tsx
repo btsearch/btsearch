@@ -21,13 +21,13 @@ import { AddCommentForm } from "./addCommentForm";
 import { CellTable } from "./cellTable";
 import { CommentsList } from "./commentsList";
 import { CopyButton } from "./copyButton";
-import { ExtraIdentificatorsDisplay } from "./extraIdentificators";
+import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
-import { StationInfoItem } from "./stationInfoItem";
+import { StationInfoItem, stationInfoGroupClassName } from "./stationInfoItem";
 import { StationUplinkItem } from "./stationUplinkItem";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -54,8 +54,6 @@ type StationDetailsBodyProps = {
   bodyContentRef?: Ref<HTMLDivElement>;
   onContentLayoutChange?: () => void;
 };
-
-const specsGroupClassName = "grid grid-cols-1 gap-4 @md:grid-cols-2 @lg:gap-x-6 @3xl:grid-cols-3";
 
 export function StationDetailsBody({
   stationId,
@@ -147,8 +145,6 @@ export function StationDetailsBody({
   };
   const showSI2PEMLink =
     !!station?.station_id && !(station.station_id.startsWith("N") && (station.operator.mnc === 26002 || station.operator.mnc === 26003));
-  const extraIds = station?.extra_identificators;
-  const hasNetworksInfo = !!(extraIds?.networks_id || extraIds?.networks_name || extraIds?.mno_name);
   const visibleTabs = useMemo(
     () =>
       source === "uke"
@@ -270,7 +266,7 @@ export function StationDetailsBody({
                     <div className="space-y-8">
                       <section className="@container">
                         <div className="space-y-4 rounded-xl border p-3 @lg:p-4">
-                          <div className={specsGroupClassName}>
+                          <div className={stationInfoGroupClassName}>
                             <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
                               <span className="font-mono wrap-break-word">
                                 {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
@@ -289,7 +285,7 @@ export function StationDetailsBody({
                               </StationInfoItem>
                             )}
                           </div>
-                          <div className={specsGroupClassName}>
+                          <div className={stationInfoGroupClassName}>
                             <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
                               <span className="font-mono">{station.station_id}</span>
                               <CopyButton text={station.station_id || ""} />
@@ -307,8 +303,8 @@ export function StationDetailsBody({
                               </StationInfoItem>
                             ) : null}
                           </div>
-                          {station.extra_identificators && hasNetworksInfo ? (
-                            <div className={specsGroupClassName}>
+                          {hasExtraIdentificators(station.extra_identificators) ? (
+                            <div className={stationInfoGroupClassName}>
                               <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
                             </div>
                           ) : null}

@@ -22,6 +22,7 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
   const { t } = useTranslation("lightbox");
   const reduceMotion = useReducedMotion();
   const transition = reduceMotion ? { duration: 0 } : PANEL_SPRING;
+  const originalSrc = slide.fullSrc ?? slide.src;
 
   const header = (
     <div className="flex h-14 shrink-0 items-center justify-between pr-2 pl-4">
@@ -43,11 +44,11 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
         </LightboxDetailRow>
       ) : null}
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button variant="outline" nativeButton={false} render={<a href={slide.src} target="_blank" rel="noopener noreferrer" />}>
+        <Button variant="outline" nativeButton={false} render={<a href={originalSrc} target="_blank" rel="noopener noreferrer" />}>
           <HugeiconsIcon icon={LinkSquare02Icon} aria-hidden="true" />
           {t("openOriginal")}
         </Button>
-        <Button variant="outline" nativeButton={false} render={<a href={slide.src} download={slide.downloadName ?? ""} />}>
+        <Button variant="outline" nativeButton={false} render={<a href={originalSrc} download={slide.downloadName ?? ""} />}>
           <HugeiconsIcon icon={Download04Icon} aria-hidden="true" />
           {t("download")}
         </Button>

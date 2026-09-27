@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
+import { photoFileColumns, photoFileFields, photoFileShape } from "../../../../utils/photoFiles.js";
 
 const authorSchema = z.object({ uuid: z.string(), username: z.string(), name: z.string(), image: z.string().nullable() }).nullable();
 const operatorSchema = z.object({ id: z.number(), name: z.string(), mnc: z.number().nullable() }).nullable();
@@ -16,6 +17,7 @@ const photoItemSchema = z.object({
   location_photo_id: z.number(),
   attachment_uuid: z.string(),
   mime_type: z.string(),
+  ...photoFileShape,
   is_main: z.boolean(),
   note: z.string().nullable(),
   taken_at: z.string().nullable(),
@@ -131,6 +133,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         location_photo_id: locationPhotos.id,
         attachment_uuid: attachments.uuid,
         mime_type: attachments.mime_type,
+        ...photoFileColumns,
         is_main: stationPhotoSelections.is_main,
         note: locationPhotos.note,
         taken_at: locationPhotos.taken_at,
@@ -171,6 +174,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     location_photo_id: row.location_photo_id,
     attachment_uuid: row.attachment_uuid,
     mime_type: row.mime_type,
+    ...photoFileFields(row),
     is_main: row.is_main,
     note: row.note,
     taken_at: row.taken_at?.toISOString() ?? null,

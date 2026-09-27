@@ -323,14 +323,14 @@ export function LightboxViewer({
             className="relative z-10 flex flex-col gap-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:bg-linear-to-t max-md:from-black/80 max-md:via-black/45 max-md:to-transparent max-md:pt-12"
           >
             <LightboxCaption slide={slide} className="px-4 md:h-16 md:px-6" />
-            {count > 1 ? <LightboxFilmstrip slides={slides} index={index} onSelect={jumpTo} /> : null}
+            {count > 1 ? <LightboxFilmstrip slides={slides} index={index} compact={compact} onSelect={jumpTo} /> : null}
           </motion.div>
         </div>
         <LightboxDetails
           open={detailsOpen}
           compact={compact}
           slide={slide}
-          naturalSize={naturalSizes[slide.src]}
+          naturalSize={slide.size ?? naturalSizes[slide.src]}
           onClose={() => setDetailsOpen(false)}
         />
       </div>

@@ -23,6 +23,10 @@ const MNO_LOGO: Partial<Record<string, typeof OrangeIcon>> = {
   Play: PlayIcon,
 };
 
+export function hasExtraIdentificators(data: ExtraIdentificator | null | undefined): data is ExtraIdentificator {
+  return !!(data?.networks_id || data?.networks_name || data?.mno_name);
+}
+
 export function ExtraIdentificatorsDisplay({ data, operatorMnc }: ExtraIdentificatorsDisplayProps) {
   const { t } = useTranslation("common");
   const brand = getMnoBrand(operatorMnc);

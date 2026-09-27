@@ -31,6 +31,7 @@ import type {
 } from "../api";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "./floatingDialogStackTypes";
 import { StationTitle } from "./stationTitle";
+import { photoThumbUrl, photoUrl } from "@/components/photos/photoFiles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -182,7 +183,7 @@ function HistoryPhotoReference({ value, isMain, photoReferences }: HistoryPhotoR
   const photo = photoReferences.get(photoId);
   if (photo === undefined) return <span title={t("history.values.photoUnavailable", { id: photoId })}>{label}</span>;
 
-  const href = `/uploads/${encodeURIComponent(photo.attachment_uuid)}.webp`;
+  const href = photoUrl(photo.attachment_uuid);
   return (
     <Tooltip>
       <TooltipTrigger
@@ -204,7 +205,7 @@ function HistoryPhotoReference({ value, isMain, photoReferences }: HistoryPhotoR
           <span className="block px-2 py-1">{t("history.values.photoPreviewFailed", { id: photoId })}</span>
         ) : (
           <img
-            src={href}
+            src={photoThumbUrl(photo)}
             alt={t("history.values.photoPreviewAlt", { id: photoId })}
             width={160}
             height={112}

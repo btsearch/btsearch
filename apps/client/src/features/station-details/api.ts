@@ -1,6 +1,7 @@
 import { StationResponseSchema } from "@openbts/proto/gen/stations_pb";
 import { PermitsResponseSchema as UKEPermitsResponseSchema } from "@openbts/proto/gen/uke_pb";
 
+import type { PhotoFileFields } from "@/components/photos/photoFiles";
 import { API_BASE, createAuditOperationHandle, fetchApiData, fetchJson } from "@/lib/api";
 import type { AuditOperationHandle } from "@/lib/api";
 import type { Station, UkePermit, UkeStation } from "@/types/station";
@@ -25,7 +26,7 @@ export type StationHistoryAuthor = {
   image: string | null;
 };
 
-export type StationHistoryPhotoReference = { id: number; attachment_uuid: string };
+export type StationHistoryPhotoReference = { id: number; attachment_uuid: string; has_thumb: boolean };
 
 export type StationHistorySection = {
   kind: "station" | "location" | "cells" | "sectors" | "network_ids" | "uplink" | "photos";
@@ -119,7 +120,7 @@ export const fetchSI2PEMAntennas = ({ stationId, latitude, longitude, reportUrl 
   return fetchApiData<SI2PEMAntenna[]>(`pem/${encodeURIComponent(stationId)}/antennas?${params.toString()}`);
 };
 
-export type StationPhoto = {
+export type StationPhoto = PhotoFileFields & {
   id: number; // locationPhotos.id
   attachment_uuid: string;
   mime_type: string;
@@ -130,7 +131,7 @@ export type StationPhoto = {
   author: { uuid: string; username: string; name: string; image?: string | null } | null;
 };
 
-export type LocationPhoto = {
+export type LocationPhoto = PhotoFileFields & {
   id: number;
   attachment_uuid: string;
   mime_type: string;
@@ -139,6 +140,8 @@ export type LocationPhoto = {
   createdAt: string;
   author: { uuid: string; username: string; name: string; image?: string | null } | null;
 };
+
+export type UploadedPhoto = PhotoFileFields & { id: number; attachment_uuid: string; mime_type: string; createdAt: string };
 
 export const fetchStationPhotos = (stationId: number) => fetchApiData<StationPhoto[]>(`stations/${stationId}/photos`);
 
@@ -158,15 +161,32 @@ export async function setStationPhotoSelection(
   });
 }
 
-export async function uploadLocationPhotos(locationId: number, files: File[], auditOperation?: AuditOperationHandle): Promise<LocationPhoto[]> {
-  const formData = new FormData();
-  for (const file of files) formData.append("files", file);
-  const res = await fetchJson<{ data: LocationPhoto[] }>(`${API_BASE}/locations/${locationId}/photos`, {
-    method: "POST",
-    body: formData,
-    auditOperation,
-  });
-  return res.data;
+export async function uploadLocationPhotos(
+  locationId: number,
+  files: File[],
+  auditOperation?: AuditOperationHandle,
+  onProgress?: (sent: number, total: number) => void,
+): Promise<UploadedPhoto[]> {
+  const uploaded: UploadedPhoto[] = [];
+  try {
+    for (const [sent, file] of files.entries()) {
+      onProgress?.(sent, files.length);
+      const formData = new FormData();
+      formData.append("files", file);
+      // oxlint-disable-next-line no-await-in-loop -- One photo per request keeps each upload under Cloudflare's body limit and the API timeout.
+      const res = await fetchJson<{ data: UploadedPhoto[] }>(`${API_BASE}/locations/${locationId}/photos`, {
+        method: "POST",
+        body: formData,
+        auditOperation,
+      });
+      uploaded.push(...res.data);
+    }
+    onProgress?.(files.length, files.length);
+  } catch (error) {
+    await Promise.allSettled(uploaded.map((photo) => deleteLocationPhoto(locationId, photo.id, auditOperation)));
+    throw error;
+  }
+  return uploaded;
 }
 
 export async function updateLocationPhotoNote(
@@ -218,6 +238,7 @@ export async function uploadAndAssignStationPhotos({
   selected,
   mainId,
   useFirstUploadedAsMain,
+  onProgress,
 }: {
   locationId: number;
   stationId: number;
@@ -225,9 +246,10 @@ export async function uploadAndAssignStationPhotos({
   selected: number[];
   mainId: number | null;
   useFirstUploadedAsMain: boolean;
-}): Promise<LocationPhoto[]> {
+  onProgress?: (sent: number, total: number) => void;
+}): Promise<UploadedPhoto[]> {
   const auditOperation = createAuditOperationHandle("station.photos");
-  const newPhotos = await uploadLocationPhotos(locationId, files, auditOperation);
+  const newPhotos = await uploadLocationPhotos(locationId, files, auditOperation, onProgress);
   const newIds = newPhotos.map((photo) => photo.id);
   const nextSelected = [...new Set([...selected, ...newIds])];
   const nextMainId = useFirstUploadedAsMain ? (newIds[0] ?? mainId) : mainId;

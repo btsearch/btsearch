@@ -4,8 +4,9 @@ import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 
 import { preloadLightbox, useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoMeta, PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import type { SubmissionLocationPhoto } from "@/features/admin/submissions/types";
 import type { LocationPhoto } from "@/features/station-details/api";
 import { cn } from "@/lib/utils";
@@ -104,7 +105,7 @@ function PhotoSelectionTile({
         onFocus={preloadLightbox}
         aria-haspopup="dialog"
       >
-        <PhotoWithFallback src={photoUrl(photo.attachment_uuid)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
+        <PhotoWithFallback src={photoThumbUrl(photo)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
         {photo.is_main ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5" title={mainTitle}>
             <HugeiconsIcon icon={StarIcon} className="size-3" />

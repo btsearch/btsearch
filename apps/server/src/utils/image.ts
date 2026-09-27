@@ -1,5 +1,6 @@
+import { fileTypeFromBuffer } from "file-type";
 import libheif from "libheif-js";
-import sharp from "sharp";
+import sharp, { type Sharp, type SharpInput, type SharpOptions } from "sharp";
 
 import { ErrorResponse } from "../errors.js";
 
@@ -9,6 +10,24 @@ const MIN_PHOTO_LONG_SIDE = 640;
 const QUALITY_CHECK_SIZE = 1024;
 const QUALITY_TILE_COUNT = 4;
 const MIN_PHOTO_SHARPNESS = 1.25;
+const FULL_MAX_SIDE = 4096;
+const FULL_MIN_SOURCE_SIDE = 2560;
+const DISPLAY_MAX_SIDE = 2048;
+const THUMB_SHORT_SIDE = 640;
+const THUMB_MAX_LONG_SIDE = 1280;
+const DISPLAY_WEBP = { quality: 85, effort: 6, smartSubsample: true };
+const THUMB_WEBP = { quality: 80, effort: 6, smartSubsample: true };
+const FULL_AVIF = { quality: 70, effort: 4, chromaSubsampling: "4:2:0" };
+
+type PhotoInput = { input: SharpInput; options?: SharpOptions };
+
+export type EncodedPhoto = {
+  display: Buffer;
+  thumb: Buffer;
+  full: Buffer | null;
+  width: number;
+  height: number;
+};
 
 export function isHeic(mimetype: string): boolean {
   return HEIC_MIMES.has(mimetype.toLowerCase());
@@ -31,6 +50,58 @@ export async function decodeHeicToRaw(buffer: Buffer): Promise<{ data: Buffer; w
   });
 
   return { data: Buffer.from(rgba.buffer), width, height };
+}
+
+export async function decodePhotoInput(buffer: Buffer): Promise<PhotoInput> {
+  const detected = await fileTypeFromBuffer(buffer);
+  if (!detected || !detected.mime.startsWith("image/")) throw new ErrorResponse("BAD_REQUEST", { message: "Only image files are allowed" });
+  if (!isHeic(detected.mime)) return { input: buffer };
+
+  const { data, width, height } = await decodeHeicToRaw(buffer);
+  return { input: data, options: { raw: { width, height, channels: 4 } } };
+}
+
+function encodeThumb(image: Sharp, width: number, height: number) {
+  const scale = Math.min(1, THUMB_SHORT_SIDE / Math.min(width, height), THUMB_MAX_LONG_SIDE / Math.max(width, height));
+  return image
+    .resize({ width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)), fit: "fill" })
+    .webp(THUMB_WEBP)
+    .toBuffer();
+}
+
+export async function encodeStationPhoto({ input, options }: PhotoInput): Promise<EncodedPhoto> {
+  // Every tier is encoded from raw pixels, which carry no EXIF/GPS/XMP, so no output can leak metadata
+  const { data, info } = await sharp(input, options)
+    .rotate()
+    .flatten({ background: "#ffffff" })
+    .resize({ width: FULL_MAX_SIDE, height: FULL_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pixels = () => sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } });
+
+  const display = await pixels()
+    .resize({ width: DISPLAY_MAX_SIDE, height: DISPLAY_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+    .webp(DISPLAY_WEBP)
+    .toBuffer({ resolveWithObject: true });
+  await assertStationPhotoQuality(display.data);
+
+  const hasFull = Math.max(info.width, info.height) > FULL_MIN_SOURCE_SIDE;
+  const [thumb, full] = await Promise.all([encodeThumb(pixels(), info.width, info.height), hasFull ? pixels().avif(FULL_AVIF).toBuffer() : null]);
+
+  return {
+    display: display.data,
+    thumb,
+    full,
+    width: hasFull ? info.width : display.info.width,
+    height: hasFull ? info.height : display.info.height,
+  };
+}
+
+export async function encodeLegacyPhotoThumb(display: Buffer) {
+  const { width, height } = await sharp(display).metadata();
+  if (!width || !height) throw new Error("Unreadable photo");
+
+  return { thumb: await encodeThumb(sharp(display), width, height), width, height };
 }
 
 export async function assertStationPhotoQuality(photo: Buffer): Promise<void> {

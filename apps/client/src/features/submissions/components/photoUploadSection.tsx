@@ -16,10 +16,11 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { type SubmissionPhoto, deleteSubmissionPhoto, fetchSubmissionPhotos, updateSubmissionPhotoNote, updateSubmissionPhotoTakenAt } from "../api";
+import { MAX_PHOTO_SIZE_BYTES, MAX_PHOTO_SIZE_LABEL, MAX_SUBMISSION_PHOTOS } from "../photoLimits";
 import { UploadPhotosLightbox } from "./submissionPhotosPanel";
 import { preloadLightbox, useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { photoUrl } from "@/components/photos/photoLightbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,9 +37,6 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-
-const MAX_FILES = 5;
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 type Props = {
   photos: File[];
@@ -115,12 +113,12 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
   }, [previewUrls]);
 
   const totalCount = existingPhotos.length + photos.length;
-  const remainingSlots = MAX_FILES - totalCount;
+  const remainingSlots = MAX_SUBMISSION_PHOTOS - totalCount;
 
   function processFiles(files: File[]) {
     const valid: File[] = [];
     for (const f of files) {
-      if (f.size > MAX_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: f.name, size: "10 MB" }));
+      if (f.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: f.name, size: MAX_PHOTO_SIZE_LABEL }));
       else valid.push(f);
     }
     const combined = [...photos, ...valid].slice(0, remainingSlots > 0 ? remainingSlots + photos.length : photos.length);
@@ -217,7 +215,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
               <span className="font-semibold text-sm">{t("photos.label")}</span>
               {!isLoadingExisting ? (
                 <span className="text-xs text-muted-foreground">
-                  ({totalCount}/{MAX_FILES})
+                  ({totalCount}/{MAX_SUBMISSION_PHOTOS})
                 </span>
               ) : null}
             </CollapsibleTrigger>
@@ -243,12 +241,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 {existingPhotos.map((photo, idx) => (
                   <div key={`existing-${photo.id}`} className="rounded-lg overflow-hidden border bg-muted">
                     <div ref={lightbox.triggerRef(idx)} className="relative aspect-square">
-                      <PhotoWithFallback
-                        src={photoUrl(photo.attachment_uuid)}
-                        alt={photo.note ?? ""}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                      <PhotoWithFallback src={photoThumbUrl(photo)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
                       <button
                         type="button"
                         className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
@@ -416,7 +409,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                   </div>
                 ))}
 
-                {totalCount < MAX_FILES && (
+                {totalCount < MAX_SUBMISSION_PHOTOS && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -437,7 +430,7 @@ export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChang
                 </div>
               </div>
             )}
-            <p className="px-3 pb-2 text-xs text-muted-foreground">{t("photos.hint", { max: MAX_FILES, size: "10 MB" })}</p>
+            <p className="px-3 pb-2 text-xs text-muted-foreground">{t("photos.hint", { max: MAX_SUBMISSION_PHOTOS, size: MAX_PHOTO_SIZE_LABEL })}</p>
           </CollapsibleContent>
         </div>
       </Collapsible>

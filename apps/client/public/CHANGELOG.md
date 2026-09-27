@@ -1,6 +1,42 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-27
+
+### 🚀 Enhancements
+
+- Photos now open in a completely redesigned viewer everywhere on the site. You can zoom up to 5x with the mouse wheel, a pinch or a double tap, swipe between photos, jump to any photo using the thumbnails, see photo details, go fullscreen, share or download photos and use keyboard shortcuts
+- The photo viewer grows out of the photo you clicked and returns to it when closed, and on desktop it can show the nearby photos at the sides
+- New photos are now saved in better quality and in three sizes: a small preview for lists and grids, a sharper main image and a full resolution version of up to 4096 pixels that loads when you zoom in, so antennas and cables stay sharp. Photos uploaded earlier keep their current quality
+- Photo grids and photo strips now load much faster because they use small previews
+- You can now add up to 10 photos per submission instead of 5, and each photo can be up to 20 MB instead of 10 MB
+- Photos are now uploaded one at a time, so large sets of photos upload more reliably
+- Stations can now show their uplink, which is how the station connects to the operator's network. It can be fiber or a microwave link, with an optional speed and link model, and it is shown in the Specification tab of the station dialog and on the station page
+- You can now add, change or remove a station's uplink in a submission, with quick speed choices of 1.25, 2.5 and 10 Gbps for fiber
+- Stations can now be filtered by uplink type with the new Uplink filter on the map or with `uplink:fiber` and `uplink:microwave` in the search
+- Station change history now shows when an uplink was added, changed or removed
+- The Specification tab in the station dialog is now a compact card that groups the location, station ID, uplink, EMF reports and network IDs and adapts to the dialog width
+- 5G NR cells in the cell table now show SA in bold blue and NSA in muted text
+- You can now paste images or drag and drop them into the station comment box
+- The station dialog can now be made shorter than before
+- Microwave link details now show the date of their technical data, or a warning when the latest UKE list has no technical data for the link
+- API: photo responses now include `width`, `height`, `has_thumb` and `has_full`
+- API: other websites using an API key or OAuth can now also send `PUT`, `PATCH` and `DELETE` requests from the browser
+- Admin: the UKE import page now shows the latest import and the runs from the last 7 days with their durations, errors and warnings, and the dashboard warns when an import needs attention
+- Admin: the station column in the comments table now shows the operator logo and name
+
+### 🩹 Fixes
+
+- Clicking a station notification while on the map now opens that station's details directly
+- Shared UKE station links and UKE notification links now open the exact station, and older links still work
+- Comment text now uses the full width of the comments area
+- Fill missing sector cells no longer copies the PCI and azimuth of the source cell into the new cells
+- Microwave link details no longer show undefined for a missing antenna gain, antenna height or noise figure, and long manufacturer names now wrap
+- Renewed microwave link permits now update the existing link instead of showing up as a deleted link and a new one
+- Microwave link imports no longer fail when UKE publishes a list without technical columns, and the technical values we already have are kept
+- A failure in one UKE import source no longer stops the other sources from importing
+- Other websites can no longer send API requests using your BTSearch login
+
 # 2026-09-22
 
 ### 🚀 Enhancements

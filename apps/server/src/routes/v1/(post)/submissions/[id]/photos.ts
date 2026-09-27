@@ -3,10 +3,6 @@ import { attachments, submissionLocationPhotoSelections, submissionPhotos } from
 import { and, eq, ne } from "drizzle-orm";
 import * as ExifReader from "exifreader";
 import type { FastifyRequest } from "fastify/types/request.js";
-import { fileTypeFromBuffer } from "file-type";
-import fs from "node:fs/promises";
-import path from "node:path";
-import sharp, { type SharpInput, type SharpOptions } from "sharp";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
@@ -15,11 +11,11 @@ import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.j
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
-import { assertStationPhotoQuality, decodeHeicToRaw, isHeic } from "../../../../../utils/image.js";
+import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
+import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
-const MAX_PHOTOS_PER_SUBMISSION = 5;
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PHOTOS_PER_SUBMISSION = 10;
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 function extractExifDate(buffer: Buffer): Date | null {
   try {
@@ -36,12 +32,6 @@ function extractExifDate(buffer: Buffer): Date | null {
   }
 }
 
-async function ensureUploadDir() {
-  try {
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  } catch {}
-}
-
 const schemaRoute = {
   params: z.object({ id: z.string() }),
   response: {
@@ -51,6 +41,7 @@ const schemaRoute = {
           id: z.number(),
           attachment_uuid: z.string(),
           mime_type: z.string(),
+          ...photoFileShape,
           createdAt: z.string(),
         }),
       ),
@@ -67,7 +58,7 @@ type PendingPhoto = {
   takenAt: Date | null;
   isMain: boolean;
 };
-type InsertedPhoto = { id: number; attachment_uuid: string; mime_type: string; createdAt: Date };
+type InsertedPhoto = PhotoFileFields & { id: number; attachment_uuid: string; mime_type: string; createdAt: Date };
 type PhotoItem = Omit<InsertedPhoto, "createdAt"> & { createdAt: string };
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
@@ -89,9 +80,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     throw new ErrorResponse("BAD_REQUEST", { message: `Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos per submission` });
   }
 
-  await ensureUploadDir();
-
-  const savedPaths: string[] = [];
+  const savedUuids: string[] = [];
   const pendingPhotos: PendingPhoto[] = [];
   let insertedRows: InsertedPhoto[];
   const notes: string[] = [];
@@ -112,38 +101,18 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       const filePart = part as MultipartFile;
       if (existingCount.length + pendingPhotos.length >= MAX_PHOTOS_PER_SUBMISSION) break;
 
-      const fileUuid = crypto.randomUUID();
-      const filename = `${fileUuid}.webp`;
-      const filePath = path.join(UPLOAD_DIR, filename);
-      savedPaths.push(filePath);
-
       const chunks: Buffer[] = [];
       for await (const chunk of filePart.file) chunks.push(chunk as Buffer);
-      if (filePart.file.truncated) throw new ErrorResponse("BAD_REQUEST", { message: "File too large (max 10 MB)" });
+      if (filePart.file.truncated) throw new ErrorResponse("BAD_REQUEST", { message: "File too large (max 20 MB)" });
       const inputBuffer = Buffer.concat(chunks);
 
-      const detected = await fileTypeFromBuffer(inputBuffer);
-      if (!detected || !detected.mime.startsWith("image/")) throw new ErrorResponse("BAD_REQUEST", { message: "Only image files are allowed" });
-
+      const photoInput = await decodePhotoInput(inputBuffer);
       const exifDate = extractExifDate(inputBuffer);
+      const photo = await encodeStationPhoto(photoInput);
 
-      let sharpInput: SharpInput;
-      let sharpOptions: SharpOptions | undefined;
-      if (isHeic(detected.mime)) {
-        const { data, width, height } = await decodeHeicToRaw(inputBuffer);
-        sharpInput = data;
-        sharpOptions = { raw: { width, height, channels: 4 } };
-      } else sharpInput = inputBuffer;
-
-      const outputBuffer = await sharp(sharpInput, sharpOptions)
-        .rotate()
-        .resize({ width: 2048, height: 2048, fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 75 })
-        .toBuffer();
-      await assertStationPhotoQuality(outputBuffer);
-      await fs.writeFile(filePath, outputBuffer);
-
-      const stats = await fs.stat(filePath);
+      const fileUuid = crypto.randomUUID();
+      savedUuids.push(fileUuid);
+      const files = await writePhotoFiles(fileUuid, photo);
 
       const fileIndex = pendingPhotos.length;
       const note = notes[fileIndex]?.trim().slice(0, 100) || null;
@@ -159,10 +128,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       pendingPhotos.push({
         attachment: {
           uuid: fileUuid,
-          name: filePart.filename ?? filename,
+          name: filePart.filename ?? `${fileUuid}.webp`,
           author_id: userId,
           mime_type: "image/webp",
-          size: stats.size,
+          ...files,
         },
         attachmentUuid: fileUuid,
         note,
@@ -229,14 +198,19 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         return pendingPhotos.map((pendingPhoto) => {
           const attachment = attachmentByUuid.get(pendingPhoto.attachmentUuid);
           const photo = attachment ? photoByAttachmentId.get(attachment.id) : undefined;
-          if (!photo) throw new ErrorResponse("FAILED_TO_CREATE");
-          return { id: photo.id, attachment_uuid: pendingPhoto.attachmentUuid, mime_type: "image/webp", createdAt: photo.createdAt };
+          if (!attachment || !photo) throw new ErrorResponse("FAILED_TO_CREATE");
+          return {
+            id: photo.id,
+            attachment_uuid: attachment.uuid,
+            mime_type: attachment.mime_type,
+            ...photoFileFields(attachment),
+            createdAt: photo.createdAt,
+          };
         });
       },
     );
   } catch (error) {
-    await Promise.all(savedPaths.map((filePath) => fs.unlink(filePath).catch(() => {})));
-    if (error instanceof ErrorResponse) throw error;
+    await deletePhotoFiles(savedUuids);
     throw error;
   }
 

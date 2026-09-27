@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+export const stationInfoGroupClassName = "grid grid-cols-1 gap-4 @md:grid-cols-2 @lg:gap-x-6 @3xl:grid-cols-3";
+
 type StationInfoItemProps = {
   icon: ReactNode;
   label: string;

@@ -16,8 +16,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { preloadLightbox } from "@/components/lightbox";
+import { photoUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { type LightboxPhoto, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 import type { AdminComment } from "@/features/admin/comments/types";
 import { API_BASE } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";

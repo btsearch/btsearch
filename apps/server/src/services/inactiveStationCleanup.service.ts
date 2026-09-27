@@ -1,16 +1,14 @@
 import { cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
 import { inArray } from "drizzle-orm";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 import db from "../database/psql.js";
 import { logger } from "../utils/logger.js";
+import { deletePhotoFiles } from "../utils/photoFiles.js";
 import { loadCellSnapshots, runAuditedOperation, systemAuditContext } from "./audit/index.js";
 import { deleteLocationWithPhotos } from "./locations/deleteWithPhotos.js";
 
 const INACTIVE_GRACE_MONTHS = 6;
 const CLEANUP_LIMIT = 100;
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 function getInactiveCutoff(date = new Date()): Date {
   const cutoff = new Date(date);
@@ -93,7 +91,7 @@ export async function cleanupExpiredInactiveStations(): Promise<void> {
     },
   );
 
-  await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
+  await deletePhotoFiles(attachmentUuids);
 
   logger.info("inactive_stations_cleanup_finished", { deleted: stationIds.length, cutoff: cutoff.toISOString() });
 }

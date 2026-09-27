@@ -6,8 +6,8 @@ import type { TFunction } from "i18next";
 
 import type { AdminComment } from "../types";
 import { preloadLightbox } from "@/components/lightbox";
+import { photoUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { photoUrl } from "@/components/photos/photoLightbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

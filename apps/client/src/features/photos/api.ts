@@ -1,7 +1,8 @@
+import type { PhotoFileFields } from "@/components/photos/photoFiles";
 import { API_BASE, fetchJson } from "@/lib/api";
 import type { StationStatus } from "@/types/station";
 
-export type GalleryPhoto = {
+export type GalleryPhoto = PhotoFileFields & {
   id: number;
   location_photo_id: number;
   attachment_uuid: string;

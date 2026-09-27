@@ -8,11 +8,13 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
+import { photoFileColumns, photoFileFields, photoFileShape } from "../../../../../utils/photoFiles.js";
 
 const photoSchema = z.object({
   id: z.number(),
   attachment_uuid: z.string(),
   mime_type: z.string(),
+  ...photoFileShape,
   note: z.string().nullable(),
   taken_at: z.string().nullable(),
   is_main: z.boolean(),
@@ -44,6 +46,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       id: submissionPhotos.id,
       attachment_uuid: attachments.uuid,
       mime_type: attachments.mime_type,
+      ...photoFileColumns,
       note: submissionPhotos.note,
       taken_at: submissionPhotos.taken_at,
       is_main: submissionPhotos.is_main,
@@ -63,6 +66,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       id: r.id,
       attachment_uuid: r.attachment_uuid,
       mime_type: r.mime_type,
+      ...photoFileFields(r),
       note: r.note,
       taken_at: r.taken_at?.toISOString() ?? null,
       is_main: r.is_main,

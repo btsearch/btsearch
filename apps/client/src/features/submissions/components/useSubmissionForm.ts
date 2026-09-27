@@ -26,6 +26,7 @@ import type {
 import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
 import { type OriginalState, hasFormChanges, isEqualLocation, isEqualStation } from "../utils/equality";
 import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
+import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { groupPermitsByStation } from "@/features/map/utils";
@@ -319,20 +320,12 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       if (photos.length > 0) {
         const submissionId = isEditMode && editSubmissionId ? editSubmissionId : data.id;
         const shouldRemoveFailedSubmission = !isEditMode && requiresUploadedPhoto(submittedPayload);
-        const uploadPromise = uploadSubmissionPhotos(
-          submissionId,
-          photos,
-          photoNotes,
-          photoTakenAts.map((d) => d?.toISOString() ?? null),
-          mainUploadPhotoIndex,
-        ).catch((error: unknown) => {
-          if (shouldRemoveFailedSubmission) void deleteSubmission(submissionId).catch(() => undefined);
-          throw error;
-        });
-        toast.promise(uploadPromise, {
-          loading: t("photos.uploading"),
+        const takenAts = photoTakenAts.map((d) => d?.toISOString() ?? null);
+        void trackPhotoUpload((onProgress) => uploadSubmissionPhotos(submissionId, photos, photoNotes, takenAts, mainUploadPhotoIndex, onProgress), {
           success: t("photos.uploaded"),
-          error: (error: unknown) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed"),
+          error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed"),
+        }).catch(() => {
+          if (shouldRemoveFailedSubmission) void deleteSubmission(submissionId).catch(() => undefined);
         });
         setPhotos([]);
         setPhotoNotes([]);

@@ -1,8 +1,6 @@
 import { attachments, submissionPhotos } from "@openbts/drizzle";
 import { inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
@@ -10,8 +8,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   response: {
@@ -71,7 +68,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
     },
   );
 
-  await Promise.all(attachmentRows.map(({ uuid }) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
+  await deletePhotoFiles(attachmentRows.map(({ uuid }) => uuid));
 
   return res.send({ data: { deleted: attachmentRows.length } });
 }

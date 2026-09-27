@@ -6,8 +6,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { LocationPhoto } from "@/features/station-details/api";
@@ -101,14 +103,19 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
 
   const uploadMutation = useMutation({
     mutationFn: (files: File[]) =>
-      uploadAndAssignStationPhotos({
-        locationId,
-        stationId,
-        files,
-        selected: Array.from(selected),
-        mainId,
-        useFirstUploadedAsMain: locationPhotos.length === 0,
-      }),
+      trackPhotoUpload(
+        (onProgress) =>
+          uploadAndAssignStationPhotos({
+            locationId,
+            stationId,
+            files,
+            selected: Array.from(selected),
+            mainId,
+            useFirstUploadedAsMain: locationPhotos.length === 0,
+            onProgress,
+          }),
+        { success: t("photos.uploaded"), error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed") },
+      ),
     onSuccess: async () => {
       setSelectedOverride(null);
       setMainIdOverride("unset");
@@ -116,14 +123,12 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
         queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }),
         queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
       ]);
-      toast.success(t("photos.uploaded"));
     },
-    onError: async (error) => {
+    onError: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }),
         queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
       ]);
-      toast.error(t(photoQualityErrorKey(error) ?? "photos.uploadFailed"));
     },
   });
 
@@ -265,7 +270,7 @@ export function StationPhotoSelector({ stationId, locationId }: Props) {
               >
                 <PhotoImage
                   ref={lightbox.triggerRef(index)}
-                  src={photoUrl(photo.attachment_uuid)}
+                  src={photoThumbUrl(photo)}
                   alt={photo.note ?? ""}
                   imageClassName={cn("transition-opacity", isSelected ? "" : "opacity-40")}
                   onOpen={() => lightbox.open(index)}

@@ -175,7 +175,7 @@ export function LightboxStage({
     if (offset !== 0 && count < 2) continue;
     if (!loop && (virtual < 0 || virtual >= count)) continue;
     const slide = slides[mod(virtual, count)];
-    items.push({ offset, virtual, slide, size: fitSize(naturalSizes[slide.src], box) });
+    items.push({ offset, virtual, slide, size: fitSize(slide.size ?? naturalSizes[slide.src], box) });
   }
 
   const currentSize = items.find((item) => item.offset === 0)?.size ?? { width: 0, height: 0 };
@@ -272,7 +272,7 @@ export function LightboxStage({
       fitHeight: currentSize.height,
       stageWidth: stageSize.width,
       stageHeight: stageSize.height,
-      naturalWidth: naturalSizes[current.src]?.width ?? currentSize.width,
+      naturalWidth: (current.size ?? naturalSizes[current.src])?.width ?? currentSize.width,
     });
     if (stageSize.width === 0 || stageSize.height === 0) return;
 
@@ -306,13 +306,14 @@ export function LightboxStage({
     const image = findTriggerImage(trigger);
     if (trigger && image && image.naturalWidth > 0 && isOnScreen(image.getBoundingClientRect())) {
       const stageRect = stage.getBoundingClientRect();
-      const natural = { width: image.naturalWidth, height: image.naturalHeight };
+      const known = current.size ?? naturalSizes[current.src];
+      const natural = known ?? { width: image.naturalWidth, height: image.naturalHeight };
       const fitted = fitSize(natural, {
         width: Math.max(0, stageRect.width - gutterX * 2),
         height: Math.max(0, stageRect.height - gutterY * 2),
       });
       if (fitted.width > 0) {
-        onNaturalSize(current.src, natural);
+        if (!known) onNaturalSize(current.src, natural);
         const from = flightFromTrigger(image, trigger, fitted, stageRect);
         applyFlight(from);
         void animateFlight(from, IDENTITY_FLIGHT).finished.then(() => flightClip.set("none"));
@@ -483,7 +484,7 @@ export function LightboxStage({
     if (nextScale < 1) nextScale = 1 - (1 - nextScale) * 0.55;
     else if (nextScale > MAX_ZOOM) nextScale = MAX_ZOOM + (nextScale - MAX_ZOOM) * 0.3;
     const ratio = nextScale / gesture.startScale;
-    gesture.lastCenter = center;
+    gestureRef.current = { ...gesture, lastCenter: center };
     zoom.setTransform(nextScale, center.x - (gesture.center.x - gesture.originX) * ratio, center.y - (gesture.center.y - gesture.originY) * ratio);
   }
 
@@ -593,13 +594,13 @@ export function LightboxStage({
     if (gesture.kind === "swipe") {
       let delta = event.clientX - gesture.startX;
       if ((delta > 0 && !canNavigate(-1)) || (delta < 0 && !canNavigate(1))) delta *= 0.35;
-      gesture.delta = delta;
+      gestureRef.current = { ...gesture, delta };
       for (const [key, base] of gesture.bases) registryRef.current.get(key)?.x.set(base + delta);
     } else if (gesture.kind === "dismiss") {
       const raw = event.clientY - gesture.startY;
       const delta = raw < 0 ? raw * 0.2 : raw;
       const progress = Math.min(1, Math.max(0, delta) / Math.max(1, stageSize.height * 0.45));
-      gesture.delta = delta;
+      gestureRef.current = { ...gesture, delta };
       dismissY.set(delta);
       backdrop.set(1 - progress * 0.85);
       chrome.set((chromeVisible ? 1 : 0) * Math.max(0, 1 - progress * 3));
@@ -685,7 +686,7 @@ export function LightboxStage({
         </AnimatePresence>
       </motion.div>
       <LightboxMinimap
-        src={current.src}
+        src={current.thumbSrc ?? current.src}
         visible={zoom.isZoomed && !closing}
         fitSize={currentSize}
         stageSize={stageSize}

@@ -155,7 +155,7 @@ export function LightboxToolbar({
       <ToolbarButton
         label={t("download")}
         icon={Download04Icon}
-        render={<a href={slide.src} download={slide.downloadName ?? ""} />}
+        render={<a href={slide.fullSrc ?? slide.src} download={slide.downloadName ?? ""} />}
         className="max-md:hidden"
       />
       {shareMode !== null && !isLocalFile ? (

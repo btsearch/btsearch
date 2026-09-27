@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchStationPhotos } from "../api";
+import { photoUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 
 type Props = { stationId: number; onOpenPhotoTab: () => void };
@@ -26,7 +27,7 @@ export function MainPhotoPanel({ stationId, onOpenPhotoTab }: Props) {
       className="flex w-80 h-full rounded-2xl overflow-hidden shadow-2xl bg-muted relative group focus:outline-none"
     >
       <PhotoWithFallback
-        src={`/uploads/${mainPhoto.attachment_uuid}.webp`}
+        src={photoUrl(mainPhoto.attachment_uuid)}
         alt=""
         className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
         fallbackClassName="group-hover:scale-100"

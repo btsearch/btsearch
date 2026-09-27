@@ -449,9 +449,9 @@ export const twoFactors = AuthSchema.table(
 );
 
 /**
- * Attachments table
+ * Attachments table. For photos, `width`/`height` describe the largest stored file (`<uuid>.full.avif` when `has_full`, otherwise `<uuid>.webp`)
  * @example
- * { id: 1, name: "myfile.jpg", uuid: "12345678901234", author_id: 1, mime_type: "image/jpeg", size: 123456, createdAt: new Date(), updatedAt: new Date() }
+ * { id: 1, name: "myfile.jpg", uuid: "12345678901234", author_id: 1, mime_type: "image/webp", size: 123456, width: 4000, height: 3000, has_thumb: true, has_full: true, createdAt: new Date(), updatedAt: new Date() }
  */
 export const attachments = pgTable(
   "attachments",
@@ -462,6 +462,10 @@ export const attachments = pgTable(
     author_id: uuid("author_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
     mime_type: varchar("mime_type", { length: 100 }).notNull(),
     size: integer("size").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    has_thumb: boolean("has_thumb").notNull().default(false),
+    has_full: boolean("has_full").notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

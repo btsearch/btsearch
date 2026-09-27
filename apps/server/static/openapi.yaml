@@ -3,8 +3,8 @@ info:
   title: BTSearch API
   description: |
     API for BTSearch Backend
-    Last updated: 2026-09-18
-  version: 1.2.0
+    Last updated: 2026-09-27
+  version: 1.4.0
 
 servers:
   - url: https://btsearch.pl/api/v1
@@ -1250,6 +1250,45 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /stations/{station_id}/uplink:
+    patch:
+      tags: [Stations]
+      summary: Set or remove station uplink
+      description: "Creates or replaces the station uplink (backhaul). Send `type: null` to remove it (204, or 404 when the station has no uplink). `model` is only stored for microwave links and is cleared for fiber. Requires `update:stations` permission"
+      security:
+        - ApiKeyAuth: []
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/StationIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationUplinkPatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/StationUplink"
+                      - type: object
+                        required: [station_id]
+                        properties:
+                          station_id: { type: integer }
+        "204": { description: Uplink removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /stations/{station_id}/history:
     get:
       tags: [Stations]
@@ -1682,6 +1721,10 @@ paths:
           in: query
           description: User list UUID. Only locations with at least one station belonging to that list are returned, and each location's `stations` array is limited to list members. Private lists require authentication and ownership (or admin `read_all:user_lists` permission). Combinable with all other filters
           schema: { type: string, format: uuid }
+        - name: uplink
+          in: query
+          description: Comma-separated uplink types. Only stations with one of these uplinks are included
+          schema: { type: string, pattern: "^(?:fiber|microwave)(?:,(?:fiber|microwave))*$" }
       responses:
         "200":
           description: OK
@@ -1752,6 +1795,10 @@ paths:
           in: query
           description: "Comma-separated station statuses to include. Defaults to `published,pending`"
           schema: { type: string, pattern: "^(?:published|pending|inactive)(?:,(?:published|pending|inactive))*$" }
+        - name: uplink
+          in: query
+          description: Comma-separated uplink types. Only stations with one of these uplinks are included
+          schema: { type: string, pattern: "^(?:fiber|microwave)(?:,(?:fiber|microwave))*$" }
       responses:
         "200":
           description: OK
@@ -1834,7 +1881,7 @@ paths:
     post:
       tags: [Locations]
       summary: Upload photos for a location (multipart/form-data)
-      description: Accepts interleaved `notes` fields and `files` fields. Each note corresponds to the file at the same index. Max 3 MB per file
+      description: Accepts interleaved `notes` fields and `files` fields. Each note corresponds to the file at the same index. Max 20 MB per file. Sending one file per request is recommended because every photo is encoded into display, thumbnail and (for large uploads) full-resolution files
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -1853,15 +1900,15 @@ paths:
                 notes: { type: string, description: "Optional note for the corresponding file (max 100 chars)" }
                 files: { type: string, format: binary }
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           content:
             application/json:
               schema:
                 type: object
                 required: [data]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/LocationPhoto" } }
+                  data: { type: array, items: { $ref: "#/components/schemas/UploadedPhoto" } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1991,12 +2038,33 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, location_photo_id, attachment_uuid, mime_type, is_main, note, taken_at, createdAt, author, station, location]
+                      required:
+                        [
+                          id,
+                          location_photo_id,
+                          attachment_uuid,
+                          mime_type,
+                          width,
+                          height,
+                          has_thumb,
+                          has_full,
+                          is_main,
+                          note,
+                          taken_at,
+                          createdAt,
+                          author,
+                          station,
+                          location,
+                        ]
                       properties:
                         id: { type: integer }
                         location_photo_id: { type: integer }
                         attachment_uuid: { type: string, format: uuid }
                         mime_type: { type: string }
+                        width: { $ref: "#/components/schemas/PhotoWidth" }
+                        height: { $ref: "#/components/schemas/PhotoHeight" }
+                        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
+                        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
                         is_main: { type: boolean }
                         note: { type: string, nullable: true }
                         taken_at: { type: string, format: date-time, nullable: true }
@@ -2391,7 +2459,7 @@ paths:
     post:
       tags: [Submissions]
       summary: Upload photos for a submission (multipart/form-data)
-      description: Accepts interleaved `notes`, `takenAts` and `isMains` fields alongside `files` fields, each corresponding to the file at the same index. Max 5 photos per submission, max 10 MB per file. Only the submission's owner can upload while status is pending
+      description: Accepts interleaved `notes`, `takenAts` and `isMains` fields alongside `files` fields, each corresponding to the file at the same index. Max 10 photos per submission, max 20 MB per file; sending one file per request is recommended. Only the submission's owner can upload while status is pending
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -2431,16 +2499,7 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      required: [id, attachment_uuid, mime_type, createdAt]
-                      properties:
-                        id: { type: integer }
-                        attachment_uuid: { type: string, format: uuid }
-                        mime_type: { type: string }
-                        createdAt: { type: string, format: date-time }
+                  data: { type: array, items: { $ref: "#/components/schemas/UploadedPhoto" } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3007,7 +3066,7 @@ paths:
       description: |
         Search by free text (station_id, numeric cell IDs, city, address or network IDs) or use filter syntax in the query string. Stations of every status (published, pending, inactive) are searched.
         Filter format: `key: value` or `key: 'value'` or `key: 123` or `key: value1, value2`. Supported filter keys:
-        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false)
+        - **stations**: bts_id, mnc (plmn), status (published, pending, inactive), has_azimuth (true, false), uplink (fiber, microwave)
         - **cells**: band, duplex (FDD, TDD, null/false), rat, is_confirmed, cell_type (macro/MACROCELL, micro/MICROCELL, pico/PICOCELL, femto/FEMTOCELL)
         - **gsmCells**: lac, cid
         - **umtsCells**: rnc, umts_cid, cid_long, umts_lac, uarfcn
@@ -4452,14 +4511,44 @@ components:
         uuid: { type: string, format: uuid }
         username: { type: string }
         name: { type: string }
+    PhotoWidth:
+      type: integer
+      nullable: true
+      description: Width in pixels of the largest stored file (`/uploads/{attachment_uuid}.full.avif` when `has_full`, otherwise `/uploads/{attachment_uuid}.webp`)
+    PhotoHeight:
+      type: integer
+      nullable: true
+      description: Height in pixels of the largest stored file
+    PhotoHasThumb:
+      type: boolean
+      description: Whether `/uploads/{attachment_uuid}.thumb.webp` (640px on the short side) exists. `/uploads/{attachment_uuid}.webp` (up to 2048px) always exists
+    PhotoHasFull:
+      type: boolean
+      description: Whether `/uploads/{attachment_uuid}.full.avif` (up to 4096 px) exists; only uploads longer than 2560 px get one
+    UploadedPhoto:
+      type: object
+      required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, createdAt]
+      properties:
+        id: { type: integer }
+        attachment_uuid: { type: string, format: uuid }
+        mime_type: { type: string }
+        width: { $ref: "#/components/schemas/PhotoWidth" }
+        height: { $ref: "#/components/schemas/PhotoHeight" }
+        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
+        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
+        createdAt: { type: string, format: date-time }
     StationPhoto:
       type: object
       description: A location photo selected for display on a station, with is_main indicating the station's primary photo
-      required: [id, attachment_uuid, mime_type, is_main, note, taken_at, createdAt, author]
+      required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, is_main, note, taken_at, createdAt, author]
       properties:
         id: { type: integer, description: "ID of the location_photo record" }
         attachment_uuid: { type: string, format: uuid }
         mime_type: { type: string }
+        width: { $ref: "#/components/schemas/PhotoWidth" }
+        height: { $ref: "#/components/schemas/PhotoHeight" }
+        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
+        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
         is_main: { type: boolean }
         note: { type: string, maxLength: 100, nullable: true }
         taken_at: { type: string, format: date-time, nullable: true, description: "Date the photo was taken" }
@@ -4468,11 +4557,15 @@ components:
     LocationPhoto:
       type: object
       description: A photo belonging to a location, shared across all stations at that location
-      required: [id, attachment_uuid, mime_type, note, taken_at, createdAt, author]
+      required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, note, taken_at, createdAt, author]
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
         mime_type: { type: string }
+        width: { $ref: "#/components/schemas/PhotoWidth" }
+        height: { $ref: "#/components/schemas/PhotoHeight" }
+        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
+        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
         note: { type: string, maxLength: 100, nullable: true }
         taken_at: { type: string, format: date-time, nullable: true, description: "Date the photo was taken" }
         createdAt: { type: string, format: date-time }
@@ -4508,11 +4601,15 @@ components:
         createdAt: { type: string, format: date-time }
     SubmissionPhoto:
       type: object
-      required: [id, attachment_uuid, mime_type, note, taken_at, is_main, createdAt, author]
+      required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, note, taken_at, is_main, createdAt, author]
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
         mime_type: { type: string }
+        width: { $ref: "#/components/schemas/PhotoWidth" }
+        height: { $ref: "#/components/schemas/PhotoHeight" }
+        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
+        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
         note: { type: string, maxLength: 100, nullable: true }
         taken_at: { type: string, format: date-time, nullable: true }
         is_main: { type: boolean, description: "Whether this photo is proposed as the station's main photo once the submission is approved" }
@@ -4751,6 +4848,10 @@ components:
               allOf:
                 - $ref: "#/components/schemas/ExtraIdentificators"
               nullable: true
+            uplink:
+              description: Included on station detail responses when the station has an uplink
+              allOf:
+                - $ref: "#/components/schemas/StationUplink"
     StationSearchResult:
       allOf:
         - $ref: "#/components/schemas/Station"
@@ -5033,6 +5134,15 @@ components:
         networks_id: { type: integer, nullable: true }
         networks_name: { type: string, nullable: true, maxLength: 150 }
         mno_name: { type: string, nullable: true, maxLength: 50 }
+        uplink_type:
+          {
+            type: string,
+            enum: [fiber, microwave],
+            nullable: true,
+            description: "For update submissions, omitting the field keeps the station's current uplink and `null` removes it",
+          }
+        uplink_speed: { type: integer, nullable: true, minimum: 1, maximum: 2147483647, description: "Uplink capacity in Mbps" }
+        uplink_model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model" }
     ProposedLocationInsert:
       type: object
       required: [region_id, longitude, latitude]
@@ -5205,6 +5315,9 @@ components:
         networks_id: { type: integer, nullable: true }
         networks_name: { type: string, nullable: true }
         mno_name: { type: string, nullable: true }
+        uplink_type: { type: string, enum: [fiber, microwave], nullable: true }
+        uplink_speed: { type: integer, nullable: true, description: "Uplink capacity in Mbps" }
+        uplink_model: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
         status: { type: string, enum: [published, inactive, pending] }
         updatedAt: { type: string, format: date-time }
@@ -5287,6 +5400,7 @@ components:
         - locations
         - station_sectors
         - extra_identificators
+        - station_uplinks
         - station_photo_selections
         - location_photos
         - station_comments
@@ -5484,10 +5598,11 @@ components:
         image: { type: string, nullable: true }
     StationHistoryPhotoReference:
       type: object
-      required: [id, attachment_uuid]
+      required: [id, attachment_uuid, has_thumb]
       properties:
         id: { type: integer }
         attachment_uuid: { type: string, format: uuid }
+        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
     StationHistoryItem:
       type: object
       required: [id, operationId, createdAt, kind, action, changes, entryIds, revertible, revertStatus, isRevert, photoReferences]
@@ -5495,7 +5610,7 @@ components:
         id: { type: integer, description: First audit entry ID represented by this change }
         operationId: { type: integer, description: Audit operation ID for the admin log and pagination }
         createdAt: { type: string, format: date-time }
-        kind: { type: string, enum: [station, location, cells, sectors, network_ids, photos] }
+        kind: { type: string, enum: [station, location, cells, sectors, network_ids, uplink, photos] }
         action: { type: string, enum: [create, update, delete] }
         changes: { type: array, items: { $ref: "#/components/schemas/StationHistoryChange" } }
         entryIds: { type: array, description: Audit entry IDs represented by this change, items: { type: integer } }
@@ -5954,6 +6069,23 @@ components:
         networks_id: { type: integer, nullable: true }
         networks_name: { type: string, nullable: true, maxLength: 150 }
         mno_name: { type: string, nullable: true, maxLength: 50 }
+
+    # Uplink schemas
+    StationUplink:
+      type: object
+      required: [id, type, speed, model]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [fiber, microwave], description: "Backhaul type: fiber or microwave radio link" }
+        speed: { type: integer, nullable: true, minimum: 1, description: "Link capacity in Mbps" }
+        model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model. Always null for fiber" }
+    StationUplinkPatch:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [fiber, microwave], nullable: true, description: "Uplink type. `null` removes the uplink" }
+        speed: { type: integer, nullable: true, minimum: 1, maximum: 2147483647, description: "Link capacity in Mbps" }
+        model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model. Cleared for fiber" }
 
     UkeImportJobStatus:
       type: object

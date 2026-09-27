@@ -1,5 +1,6 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { LightboxSlide } from "./types";
@@ -7,70 +8,97 @@ import { useHorizontalScroll } from "@/hooks/useHorizontalScroll";
 import { cn } from "@/lib/utils";
 
 const ACTIVE_SPRING = { type: "spring", stiffness: 520, damping: 42 } as const;
+const THUMB_SIZE = 56;
+const COMPACT_THUMB_SIZE = 44;
+const THUMB_GAP = 8;
+const STRIP_PADDING = 16;
 
 type Props = {
   slides: LightboxSlide[];
   index: number;
+  compact: boolean;
   onSelect: (index: number) => void;
   className?: string;
 };
 
-export function LightboxFilmstrip({ slides, index, onSelect, className }: Props) {
+export function LightboxFilmstrip({ slides, index, compact, onSelect, className }: Props) {
   const { t } = useTranslation("lightbox");
   const reduceMotion = useReducedMotion();
   const groupId = useId();
   const attachWheel = useHorizontalScroll<HTMLDivElement>();
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
+  const thumbSize = compact ? COMPACT_THUMB_SIZE : THUMB_SIZE;
+
+  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual requires the compiler's automatic bailout
+  const virtualizer = useVirtualizer({
+    horizontal: true,
+    count: slides.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => thumbSize,
+    getItemKey: (slideIndex) => slides[slideIndex].key,
+    gap: THUMB_GAP,
+    paddingStart: STRIP_PADDING,
+    paddingEnd: STRIP_PADDING,
+    overscan: 6,
+  });
+
+  const setScrollElement = useCallback(
+    (element: HTMLDivElement | null) => {
+      attachWheel(element);
+      scrollRef.current = element;
+    },
+    [attachWheel],
+  );
 
   useEffect(() => {
-    const container = containerRef.current;
-    const active = container?.querySelector<HTMLElement>('[aria-current="true"]');
-    if (!container || !active) return;
-    const left = active.offsetLeft - (container.clientWidth - active.offsetWidth) / 2;
-    container.scrollTo({ left, behavior: hasScrolledRef.current && !reduceMotion ? "smooth" : "instant" });
+    virtualizer.scrollToIndex(index, { align: "center", behavior: hasScrolledRef.current && !reduceMotion ? "smooth" : "auto" });
     hasScrolledRef.current = true;
-  }, [index, reduceMotion]);
+  }, [index, reduceMotion, thumbSize, virtualizer]);
 
   return (
     <motion.div
-      ref={(element: HTMLDivElement | null) => {
-        attachWheel(element);
-        containerRef.current = element;
-      }}
+      ref={setScrollElement}
       layoutScroll
-      className={cn(
-        "relative flex justify-center-safe gap-2 overflow-x-auto overscroll-x-contain px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        className,
-      )}
+      className={cn("overflow-x-auto overscroll-x-contain py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}
     >
-      <LayoutGroup id={groupId}>
-        {slides.map((slide, slideIndex) => {
-          const active = slideIndex === index;
-          return (
-            <button
-              key={slide.key}
-              type="button"
-              onClick={() => onSelect(slideIndex)}
-              aria-label={t("goToPhoto", { number: slideIndex + 1 })}
-              aria-current={active ? "true" : undefined}
-              className={cn(
-                "relative size-11 shrink-0 cursor-pointer overflow-hidden rounded-md bg-white/5 opacity-45 transition-opacity duration-200 outline-none hover:opacity-80 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white/70 md:size-14",
-                active && "opacity-100 hover:opacity-100",
-              )}
-            >
-              <img src={slide.src} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" />
-              {active ? (
-                <motion.span
-                  layoutId="lightbox-filmstrip-active"
-                  transition={reduceMotion ? { duration: 0 } : ACTIVE_SPRING}
-                  className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-white ring-inset"
+      <div className="relative mx-auto h-11 md:h-14" style={{ width: virtualizer.getTotalSize() }}>
+        <LayoutGroup id={groupId}>
+          {virtualizer.getVirtualItems().map((item) => {
+            const active = item.index === index;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => onSelect(item.index)}
+                aria-label={t("goToPhoto", { number: item.index + 1 })}
+                aria-current={active ? "true" : undefined}
+                style={{ transform: `translateX(${item.start}px)` }}
+                className={cn(
+                  "absolute top-0 left-0 size-11 cursor-pointer overflow-hidden rounded-md bg-white/5 opacity-45 transition-opacity duration-200 outline-none hover:opacity-80 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white/70 md:size-14",
+                  active && "opacity-100 hover:opacity-100",
+                )}
+              >
+                <img
+                  src={slides[item.index].thumbSrc ?? slides[item.index].src}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  className="size-full object-cover"
                 />
-              ) : null}
-            </button>
-          );
-        })}
-      </LayoutGroup>
+                {active ? (
+                  <motion.span
+                    layoutId="lightbox-filmstrip-active"
+                    transition={reduceMotion ? { duration: 0 } : ACTIVE_SPRING}
+                    className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-white ring-inset"
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </LayoutGroup>
+      </div>
     </motion.div>
   );
 }

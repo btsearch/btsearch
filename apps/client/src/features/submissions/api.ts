@@ -1,4 +1,5 @@
 import type { CellFormDetails, RatType, SubmissionFormData } from "./types";
+import type { PhotoFileFields } from "@/components/photos/photoFiles";
 import type { SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/rat";
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
@@ -238,7 +239,7 @@ export async function fetchSubmissionForEdit(id: string) {
   return fetchApiData<SubmissionDetail>(`submissions/${id}`);
 }
 
-export type SubmissionPhoto = {
+export type SubmissionPhoto = PhotoFileFields & {
   id: number;
   attachment_uuid: string;
   mime_type: string;
@@ -279,18 +280,32 @@ export async function uploadSubmissionPhotos(
   notes?: string[],
   takenAts?: (string | null)[],
   mainPhotoIndex?: number | null,
+  onProgress?: (sent: number, total: number) => void,
 ): Promise<void> {
-  const formData = new FormData();
-  for (let i = 0; i < files.length; i++) {
-    formData.append("notes", notes?.[i] ?? "");
-    formData.append("takenAts", takenAts?.[i] ?? "");
-    formData.append("isMains", String(i === mainPhotoIndex));
-    formData.append("files", files[i]);
+  // The main photo goes last: its upload clears is_main on other photos, which the rollback below could not restore
+  const uploadOrder = [...files.keys()].filter((index) => index !== mainPhotoIndex);
+  if (typeof mainPhotoIndex === "number" && mainPhotoIndex < files.length) uploadOrder.push(mainPhotoIndex);
+  const uploadedIds: number[] = [];
+  try {
+    for (const [sent, index] of uploadOrder.entries()) {
+      onProgress?.(sent, uploadOrder.length);
+      const formData = new FormData();
+      formData.append("notes", notes?.[index] ?? "");
+      formData.append("takenAts", takenAts?.[index] ?? "");
+      formData.append("isMains", String(index === mainPhotoIndex));
+      formData.append("files", files[index]);
+      // oxlint-disable-next-line no-await-in-loop -- One photo per request keeps each upload under Cloudflare's body limit and the API timeout.
+      const res = await fetchJson<{ data: { id: number }[] }>(`${API_BASE}/submissions/${submissionId}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+      uploadedIds.push(...res.data.map((photo) => photo.id));
+    }
+    onProgress?.(uploadOrder.length, uploadOrder.length);
+  } catch (error) {
+    await Promise.allSettled(uploadedIds.map((photoId) => deleteSubmissionPhoto(submissionId, photoId)));
+    throw error;
   }
-  await fetchJson(`${API_BASE}/submissions/${submissionId}/photos`, {
-    method: "POST",
-    body: formData,
-  });
 }
 
 export async function applyAnalyzerBatch(payload: SubmissionFormData[]): Promise<{ station_id: number; applied: number }[]> {

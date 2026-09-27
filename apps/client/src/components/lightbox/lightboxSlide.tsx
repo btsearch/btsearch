@@ -1,6 +1,6 @@
 import { ImageNotFound01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type MotionValue, motion, useMotionValue, useTransform } from "motion/react";
+import { type MotionValue, motion, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +9,18 @@ import type { LightboxSlide, Size } from "./types";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+
+const FULL_RESOLUTION_THRESHOLD = 1.1;
+
+let fullResolutionFailed = false;
+
+function hasFullResolutionFailed() {
+  return fullResolutionFailed;
+}
+
+function markFullResolutionFailed() {
+  fullResolutionFailed = true;
+}
 
 export type FlightValues = {
   x: MotionValue<number>;
@@ -61,8 +73,25 @@ export function LightboxSlideView({
   });
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [displayWidth, setDisplayWidth] = useState(0);
+  const [fullRequested, setFullRequested] = useState(false);
+  const [fullStatus, setFullStatus] = useState<"loading" | "loaded" | "error">("loading");
+
+  function needsFullResolution(zoomScale: number, naturalWidth: number) {
+    if (fullRequested || !isCurrent || slide.fullSrc === undefined || naturalWidth <= 0 || hasFullResolutionFailed()) return false;
+    return size.width * zoomScale * window.devicePixelRatio > naturalWidth * FULL_RESOLUTION_THRESHOLD;
+  }
+
+  if (needsFullResolution(1, displayWidth)) setFullRequested(true);
+
+  useMotionValueEvent(zoom.scale, "change", (zoomScale) => {
+    if (needsFullResolution(zoomScale, displayWidth)) setFullRequested(true);
+  });
 
   useLayoutEffect(() => register(registryKey, x), [register, registryKey, x]);
+
+  const clip = isCurrent ? { clipPath: flight.clipPath } : undefined;
+  const showFull = status !== "error" && fullRequested && fullStatus !== "error" && slide.fullSrc !== undefined;
 
   return (
     <motion.div
@@ -81,7 +110,16 @@ export function LightboxSlideView({
       }}
     >
       <motion.div className="size-full" style={isCurrent ? { x: flight.x, y: flight.y, scale: flight.scale } : undefined}>
-        <motion.div className="size-full" style={isCurrent ? { x: zoom.x, y: zoom.y, scale: zoom.scale } : undefined}>
+        <motion.div className="relative size-full" style={isCurrent ? { x: zoom.x, y: zoom.y, scale: zoom.scale } : undefined}>
+          {slide.thumbSrc !== undefined && status !== "error" ? (
+            <motion.img
+              src={slide.thumbSrc}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 size-full object-contain select-none"
+              style={clip}
+            />
+          ) : null}
           {status === "error" ? null : (
             <motion.img
               key={attempt}
@@ -93,16 +131,36 @@ export function LightboxSlideView({
               onLoad={(event) => {
                 const image = event.currentTarget;
                 setStatus("loaded");
+                setDisplayWidth(image.naturalWidth);
+                if (needsFullResolution(zoom.scale.get(), image.naturalWidth)) setFullRequested(true);
                 onNaturalSize(slide.src, { width: image.naturalWidth, height: image.naturalHeight });
               }}
               onError={() => setStatus("error")}
               className={cn(
-                "size-full object-contain transition-opacity duration-200 select-none",
+                "absolute inset-0 size-full object-contain transition-opacity duration-200 select-none",
                 status === "loaded" ? "opacity-100" : "opacity-0",
               )}
-              style={isCurrent ? { clipPath: flight.clipPath } : undefined}
+              style={clip}
             />
           )}
+          {showFull ? (
+            <motion.img
+              src={slide.fullSrc}
+              alt=""
+              draggable={false}
+              decoding="async"
+              onLoad={() => setFullStatus("loaded")}
+              onError={() => {
+                markFullResolutionFailed();
+                setFullStatus("error");
+              }}
+              className={cn(
+                "absolute inset-0 size-full object-contain transition-opacity duration-200 select-none",
+                fullStatus === "loaded" ? "opacity-100" : "opacity-0",
+              )}
+              style={clip}
+            />
+          ) : null}
         </motion.div>
       </motion.div>
       {status === "loading" ? (

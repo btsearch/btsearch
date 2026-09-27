@@ -2,8 +2,6 @@ import { stations } from "@openbts/drizzle";
 import { eq } from "drizzle-orm";
 import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
@@ -19,8 +17,7 @@ import {
 import { deleteLocationWithPhotos } from "../../../../services/locations/deleteWithPhotos.js";
 import { migrateStationPhotosToLocation } from "../../../../services/stations/photoMigration.js";
 import { stationStatusUpdate } from "../../../../services/stations/status.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
 const stationsUpdateSchema = createUpdateSchema(stations)
   .omit({
@@ -107,7 +104,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       return saved;
     });
 
-    await Promise.all(attachmentUuidsToDelete.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
+    await deletePhotoFiles(attachmentUuidsToDelete);
 
     return res.send({ data: updated });
   } catch (error) {

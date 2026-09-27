@@ -47,6 +47,7 @@ const historyAuthorSchema = z.object({
 const historyPhotoReferenceSchema = z.object({
   id: z.number(),
   attachment_uuid: z.string(),
+  has_thumb: z.boolean(),
 });
 const historyItemSchema = z.object({
   id: z.number(),
@@ -180,7 +181,7 @@ async function fetchPhotoReferences(sections: StationHistorySection[]): Promise<
   if (photoIds.size === 0) return new Map();
 
   const rows = await db
-    .select({ id: locationPhotos.id, attachment_uuid: attachments.uuid })
+    .select({ id: locationPhotos.id, attachment_uuid: attachments.uuid, has_thumb: attachments.has_thumb })
     .from(locationPhotos)
     .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
     .where(inArray(locationPhotos.id, [...photoIds]));

@@ -7,6 +7,7 @@ import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
+import { type PhotoFileFields, photoFileColumns, photoFileFields, photoFileShape } from "../../../../../../utils/photoFiles.js";
 
 const schemaRoute = {
   params: z.object({ station_id: z.coerce.number() }),
@@ -17,6 +18,7 @@ const schemaRoute = {
           id: z.number(),
           attachment_uuid: z.string(),
           mime_type: z.string(),
+          ...photoFileShape,
           is_main: z.boolean(),
           note: z.string().nullable(),
           taken_at: z.string().nullable(),
@@ -29,7 +31,7 @@ const schemaRoute = {
 };
 
 type ReqParams = { Params: { station_id: number } };
-type PhotoItem = {
+type PhotoItem = PhotoFileFields & {
   id: number;
   attachment_uuid: string;
   mime_type: string;
@@ -51,6 +53,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       id: locationPhotos.id,
       attachment_uuid: attachments.uuid,
       mime_type: attachments.mime_type,
+      ...photoFileColumns,
       is_main: stationPhotoSelections.is_main,
       note: locationPhotos.note,
       taken_at: locationPhotos.taken_at,
@@ -72,6 +75,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       id: r.id,
       attachment_uuid: r.attachment_uuid,
       mime_type: r.mime_type,
+      ...photoFileFields(r),
       is_main: r.is_main,
       note: r.note,
       taken_at: r.taken_at?.toISOString() ?? null,

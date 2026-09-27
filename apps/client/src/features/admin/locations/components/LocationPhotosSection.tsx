@@ -17,7 +17,7 @@ export function LocationPhotosSection({ locationId }: Props) {
       deleteFn={(id) => deleteLocationPhoto(locationId, id)}
       updateNoteFn={(id, note) => updateLocationPhotoNote(locationId, id, note)}
       updateTakenAtFn={(id, takenAt) => updateLocationPhotoTakenAt(locationId, id, takenAt)}
-      uploadFn={(files) => uploadLocationPhotos(locationId, files)}
+      uploadFn={(files, onProgress) => uploadLocationPhotos(locationId, files, undefined, onProgress)}
     />
   );
 }

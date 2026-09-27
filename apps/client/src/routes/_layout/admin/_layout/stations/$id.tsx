@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DiffBadges } from "@/features/admin/cells/cellsEditor";
@@ -508,16 +509,19 @@ function StationDetailForm({
             const resultLocationId = result.station.location?.id;
             const photoUpload =
               photos.length > 0 && resultLocationId
-                ? uploadAndAssignStationPhotos({
-                    locationId: resultLocationId,
-                    stationId: result.station.id,
-                    files: photos,
-                    selected: [],
-                    mainId: null,
-                    useFirstUploadedAsMain: true,
-                  }).catch(() => {
-                    toast.error(t("toast.photoUploadFailed"));
-                  })
+                ? trackPhotoUpload(
+                    (onProgress) =>
+                      uploadAndAssignStationPhotos({
+                        locationId: resultLocationId,
+                        stationId: result.station.id,
+                        files: photos,
+                        selected: [],
+                        mainId: null,
+                        useFirstUploadedAsMain: true,
+                        onProgress,
+                      }),
+                    { error: () => t("toast.photoUploadFailed") },
+                  ).catch(() => undefined)
                 : Promise.resolve();
             void photoUpload.then(() => {
               toast.success(t("toast.created"));

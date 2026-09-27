@@ -1,8 +1,9 @@
 import { useTranslation } from "react-i18next";
 
 import { useLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { type LightboxPhoto, PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 
 type PhotoStripPhoto = LightboxPhoto & { id: number };
 
@@ -24,7 +25,7 @@ export function PhotoStrip({ photos }: { photos: PhotoStripPhoto[] }) {
             className="group shrink-0 cursor-pointer overflow-hidden rounded-lg border"
           >
             <PhotoWithFallback
-              src={photoUrl(photo.attachment_uuid)}
+              src={photoThumbUrl(photo)}
               alt={photo.note?.trim() || t("photos.photoAlt", { number: idx + 1 })}
               loading="lazy"
               decoding="async"

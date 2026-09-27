@@ -12,7 +12,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -23,7 +23,7 @@ import { GallerySkeleton } from "./GallerySkeleton";
 import { PhotoTile } from "./PhotoTile";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { useLightbox } from "@/components/lightbox";
-import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -526,6 +526,27 @@ function PhotoStationInfo({ photo }: { photo: GalleryPhoto }) {
   );
 }
 
+function GalleryLightbox({
+  photos,
+  openedIndex,
+  onClose,
+  getTrigger,
+}: {
+  photos: LightboxPhoto[];
+  openedIndex: number | null;
+  onClose: () => void;
+  getTrigger: (index: number) => HTMLElement | null;
+}) {
+  const [index, setIndex] = useState(openedIndex);
+  const [lastOpenedIndex, setLastOpenedIndex] = useState(openedIndex);
+  if (openedIndex !== lastOpenedIndex) {
+    setLastOpenedIndex(openedIndex);
+    setIndex(openedIndex);
+  }
+
+  return <PhotoLightbox photos={photos} index={index} onIndexChange={setIndex} onClose={onClose} getTrigger={getTrigger} />;
+}
+
 export function PhotosGallery() {
   const { t, i18n } = useTranslation(["main", "common"]);
   const reduceMotion = useReducedMotion();
@@ -551,7 +572,7 @@ export function PhotosGallery() {
 
   const photos = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const stationGroups = useMemo(() => groupPhotosByStation(photos), [photos]);
-  const lightboxPhotos = photos.map((photo) => ({ ...photo, extra: <PhotoStationInfo photo={photo} /> }));
+  const lightboxPhotos = useMemo(() => photos.map((photo) => ({ ...photo, extra: <PhotoStationInfo photo={photo} /> })), [photos]);
   const selectedOperator = useMemo(
     () => (operator === null ? null : (operators.find((item) => item.id === operator) ?? null)),
     [operator, operators],
@@ -999,13 +1020,7 @@ export function PhotosGallery() {
         ) : null}
       </AnimatePresence>
 
-      <PhotoLightbox
-        photos={lightboxPhotos}
-        index={lightboxIndex}
-        onIndexChange={openPhoto}
-        onClose={closeLightbox}
-        getTrigger={lightbox.getTrigger}
-      />
+      <GalleryLightbox photos={lightboxPhotos} openedIndex={lightboxIndex} onClose={closeLightbox} getTrigger={lightbox.getTrigger} />
 
       {showFloatingMobileFilters &&
         createPortal(

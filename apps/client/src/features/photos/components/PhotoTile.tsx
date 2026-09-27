@@ -5,8 +5,8 @@ import type { Ref } from "react";
 
 import type { GalleryPhoto } from "../api";
 import { preloadLightbox } from "@/components/lightbox";
+import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { photoUrl } from "@/components/photos/photoLightbox";
 import { cn } from "@/lib/utils";
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
@@ -60,7 +60,7 @@ export function PhotoTile({ photo, index, locale, labels, compact = false, onOpe
         onFocus={preloadLightbox}
       >
         <PhotoWithFallback
-          src={photoUrl(photo.attachment_uuid)}
+          src={photoThumbUrl(photo)}
           alt={alt}
           loading="lazy"
           decoding="async"

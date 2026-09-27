@@ -25,6 +25,7 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 import { getRuntimeSettings } from "../../../../services/settings.service.js";
+import { photoFileColumns, photoFileFields, photoFileShape } from "../../../../utils/photoFiles.js";
 
 const submissionsSchema = createSelectSchema(submissions);
 const stationsSchema = createSelectSchema(stations);
@@ -41,6 +42,7 @@ const locationPhotoDetailsSchema = createSelectSchema(locationPhotos)
   .extend({
     attachment_uuid: z.string(),
     mime_type: z.string(),
+    ...photoFileShape,
     taken_at: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
     author: z.object({ uuid: z.string(), username: z.string(), name: z.string() }).nullable(),
@@ -142,6 +144,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
         id: locationPhotos.id,
         attachment_uuid: attachments.uuid,
         mime_type: attachments.mime_type,
+        ...photoFileColumns,
         note: locationPhotos.note,
         taken_at: locationPhotos.taken_at,
         createdAt: locationPhotos.createdAt,
@@ -161,6 +164,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
         id: locationPhotos.id,
         attachment_uuid: attachments.uuid,
         mime_type: attachments.mime_type,
+        ...photoFileColumns,
         note: locationPhotos.note,
         taken_at: locationPhotos.taken_at,
         createdAt: locationPhotos.createdAt,
@@ -180,6 +184,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     id: r.id,
     attachment_uuid: r.attachment_uuid,
     mime_type: r.mime_type,
+    ...photoFileFields(r),
     note: r.note,
     taken_at: r.taken_at?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
@@ -190,6 +195,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     id: r.id,
     attachment_uuid: r.attachment_uuid,
     mime_type: r.mime_type,
+    ...photoFileFields(r),
     note: r.note,
     taken_at: r.taken_at?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),

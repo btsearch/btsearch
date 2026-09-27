@@ -6,8 +6,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useLightbox } from "@/components/lightbox";
+import { type PhotoFile, photoThumbUrl } from "@/components/photos/photoFiles";
 import { AddPhotoTile, PhotoDeleteButton, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
-import { PhotoLightbox, photoUrl } from "@/components/photos/photoLightbox";
+import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { type PhotoUploadProgress, trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +26,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
-export type Photo = {
+export type Photo = PhotoFile & {
   id: number;
-  attachment_uuid: string;
   note: string | null;
   taken_at?: string | null;
   createdAt: string;
@@ -41,7 +42,7 @@ type Props = {
   updateNoteFn: (id: number, note: string) => Promise<void>;
   updateTakenAtFn?: (id: number, takenAt: string | null) => Promise<void>;
   setMainFn?: (id: number) => Promise<void>;
-  uploadFn?: (files: File[]) => Promise<unknown>;
+  uploadFn?: (files: File[], onProgress: PhotoUploadProgress) => Promise<unknown>;
   hideWhenEmpty?: boolean;
   readOnly?: boolean;
   pendingPhotos?: number;
@@ -128,13 +129,14 @@ export function PhotosSection({
   const uploadMutation = useMutation({
     mutationFn: (files: File[]) => {
       if (!uploadFn) throw new Error("uploadFn is not provided");
-      return uploadFn(files);
+      return trackPhotoUpload((onProgress) => uploadFn(files, onProgress), {
+        success: t("photos.uploaded"),
+        error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed"),
+      });
     },
     onSuccess: () => {
       void invalidate();
-      toast.success(t("photos.uploaded"));
     },
-    onError: (error) => toast.error(t(photoQualityErrorKey(error) ?? "photos.uploadFailed")),
   });
 
   function openEdit(photo: Photo) {
@@ -246,12 +248,7 @@ export function PhotosSection({
                     className="rounded-lg overflow-hidden border bg-muted animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none"
                     style={{ animationDelay: `${Math.min(idx * 40, 400)}ms`, animationFillMode: "both" }}
                   >
-                    <PhotoImage
-                      ref={lightbox.triggerRef(idx)}
-                      src={photoUrl(photo.attachment_uuid)}
-                      alt={photo.note ?? ""}
-                      onOpen={() => lightbox.open(idx)}
-                    >
+                    <PhotoImage ref={lightbox.triggerRef(idx)} src={photoThumbUrl(photo)} alt={photo.note ?? ""} onOpen={() => lightbox.open(idx)}>
                       {photo.is_main ? (
                         <span className="absolute top-1.5 left-1.5 bg-amber-500 text-white rounded-full p-0.5">
                           <HugeiconsIcon icon={StarIcon} className="size-3" />

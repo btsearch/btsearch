@@ -1,8 +1,9 @@
 import { Camera01Icon, StarIcon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { type PhotoFile, photoFullUrl, photoSize, photoThumbUrl, photoUrl } from "./photoFiles";
 import { Lightbox, LightboxDetailRow } from "@/components/lightbox";
 import type { LightboxProps, LightboxSlide } from "@/components/lightbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,8 +15,7 @@ const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "
 const MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short" };
 const LONG_MONTH_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "long" };
 
-export type LightboxPhoto = {
-  attachment_uuid: string;
+export type LightboxPhoto = PhotoFile & {
   note: string | null;
   taken_at?: string | null;
   createdAt: string;
@@ -35,8 +35,14 @@ function AuthorAvatar({ author, large = false }: { author: LightboxPhoto["author
   );
 }
 
-export function photoUrl(attachmentUuid: string) {
-  return `/uploads/${attachmentUuid}.webp`;
+export function photoSlideSources(photo: PhotoFile): Pick<LightboxSlide, "src" | "thumbSrc" | "fullSrc" | "size" | "downloadName"> {
+  return {
+    src: photoUrl(photo.attachment_uuid),
+    thumbSrc: photo.has_thumb ? photoThumbUrl(photo) : undefined,
+    fullSrc: photoFullUrl(photo),
+    size: photoSize(photo),
+    downloadName: `btsearch-${photo.attachment_uuid}.${photo.has_full ? "avif" : "webp"}`,
+  };
 }
 
 function formatDate(value: string, locale: string, options: Intl.DateTimeFormatOptions) {
@@ -47,14 +53,17 @@ type PhotoLightboxProps = Omit<LightboxProps, "slides"> & { photos: LightboxPhot
 
 export function PhotoLightbox({ photos, ...props }: PhotoLightboxProps) {
   const { t } = useTranslation("stationDetails");
-  const slides = photos.map((photo, index): LightboxSlide => ({
-    key: photo.attachment_uuid,
-    src: photoUrl(photo.attachment_uuid),
-    alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
-    caption: <PhotoCaption photo={photo} />,
-    details: <PhotoDetails photo={photo} />,
-    downloadName: `openbts-${photo.attachment_uuid}.webp`,
-  }));
+  const slides = useMemo(
+    () =>
+      photos.map((photo, index): LightboxSlide => ({
+        key: photo.attachment_uuid,
+        ...photoSlideSources(photo),
+        alt: photo.note?.trim() || t("photos.photoAlt", { number: index + 1 }),
+        caption: <PhotoCaption photo={photo} />,
+        details: <PhotoDetails photo={photo} />,
+      })),
+    [photos, t],
+  );
 
   return <Lightbox slides={slides} {...props} />;
 }

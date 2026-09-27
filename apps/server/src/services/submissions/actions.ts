@@ -15,11 +15,10 @@ import db from "@openbts/drizzle/db";
 import { logger } from "better-auth";
 import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
+import { deletePhotoFiles } from "../../utils/photoFiles.js";
 import {
   type NormalRat,
   type RATCellDetailsRow,
@@ -48,8 +47,6 @@ import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import { isUplinkType } from "../stations/uplink.js";
 import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.service.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
 type LocationChange = { op: "create"; old?: never; new: LocationRow } | { op: "update"; old: LocationRow; new: LocationRow };
@@ -1205,11 +1202,6 @@ async function applyLocationPhotoSelections(
   await forceMainSelection(tx, stationId, mainSel.location_photo_id);
 }
 
-async function deleteAttachmentFiles(attachmentUuids: string[]): Promise<void> {
-  if (attachmentUuids.length === 0) return;
-  await Promise.all(attachmentUuids.map((uuid) => fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`)).catch(() => {})));
-}
-
 async function applyLocationPhotoRemovals(
   audit: AuditRecorder,
   removalPhotoIds: number[],
@@ -1523,7 +1515,7 @@ export async function approveSubmissionAction({
   );
 
   const { submission: result, stationStringId } = transactionResult;
-  void deleteAttachmentFiles(transactionResult.attachmentUuidsToDelete).catch((e) =>
+  void deletePhotoFiles(transactionResult.attachmentUuidsToDelete).catch((e) =>
     logger.error("Failed to delete orphaned location photo files after approval", { error: e instanceof Error ? e.message : String(e) }),
   );
 
