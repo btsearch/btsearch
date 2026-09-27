@@ -318,29 +318,29 @@ function DesktopSubnavRail({
     setSwapping(shownKey !== null && sectionKey !== null);
   }
 
-  const variants = {
-    hidden: (isSwap: boolean) => (reduceMotion || isSwap ? { opacity: 0 } : RAIL_HIDDEN),
-    visible: reduceMotion ? { opacity: 1 } : RAIL_VISIBLE,
-  };
-
   return (
-    <AnimatePresence mode="popLayout" custom={swapping}>
+    <AnimatePresence mode="popLayout">
       {section && sectionKey !== null ? (
         <motion.div
-          key={sectionKey}
+          key="floating-subnav"
           layout
           layoutId={SUBNAV_SURFACE_LAYOUT_ID}
-          custom={swapping}
-          variants={variants}
-          initial={reduceMotion ? "visible" : "hidden"}
-          animate="visible"
-          exit="hidden"
+          initial={reduceMotion ? { opacity: 1 } : RAIL_HIDDEN}
+          animate={reduceMotion ? { opacity: 1 } : RAIL_VISIBLE}
+          exit={reduceMotion ? { opacity: 0 } : RAIL_HIDDEN}
           transition={transition}
           style={{ transformOrigin: "bottom center" }}
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={section.title}
         >
-          <motion.div layout transition={transition} className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden">
+          <motion.div
+            key={sectionKey}
+            layout
+            initial={swapping && !reduceMotion ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={transition}
+            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
+          >
             <LayoutGroup id={`floating-subnav-${section.key}`}>
               {section.items.map((item) => (
                 <FloatingNavLink
@@ -411,7 +411,8 @@ function FloatingSubnavAnchor({ transition }: { transition: FloatingTransition }
       aria-hidden
       layoutId={SUBNAV_SURFACE_LAYOUT_ID}
       transition={transition}
-      className="pointer-events-none absolute left-[calc(50%-1rem)] top-[calc(50%-1rem)] z-0 size-8 rounded-full border border-transparent bg-transparent opacity-0"
+      style={{ opacity: 0 }}
+      className="pointer-events-none absolute left-[calc(50%-1rem)] top-[calc(50%-1rem)] z-0 size-8 rounded-full border border-transparent bg-transparent"
     />
   );
 }
