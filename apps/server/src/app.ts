@@ -30,7 +30,7 @@ import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
 import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
 import { loadDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
-import { initRuntimeSettings } from "./services/settings.service.js";
+import { getRuntimeSettings, initRuntimeSettings } from "./services/settings.service.js";
 import { logger, serializeError } from "./utils/logger.js";
 
 function flattenZodIssues(issues: $ZodIssue[], pathPrefix: string[] = []): { field: string; validationMessage: string }[] {
@@ -43,6 +43,37 @@ function flattenZodIssues(issues: $ZodIssue[], pathPrefix: string[] = []): { fie
     }
     return [{ field: path.join("/") || "unknown", validationMessage: issue.message }];
   });
+}
+
+const CORS_OPTIONS = {
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: [
+    "content-type",
+    "x-api-key",
+    "authorization",
+    "x-idempotency-key",
+    AUDIT_OPERATION_ID_HEADER,
+    AUDIT_OPERATION_KIND_HEADER,
+    "accept",
+  ],
+  exposedHeaders: [
+    "x-response-time",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+    "x-quota-limit",
+    "x-quota-remaining",
+    "x-quota-reset",
+    "x-retry-after",
+    "content-disposition",
+  ],
+  maxAge: 86400,
+};
+
+function isFirstPartyOrigin(origin: string | undefined) {
+  if (origin === undefined || !URL.canParse(origin)) return false;
+  const { hostname } = new URL(origin);
+  return hostname === "btsearch.pl" || (process.env.NODE_ENV !== "production" && hostname === "localhost");
 }
 
 function getUnionBranchIssues(params: unknown): $ZodIssue[][] | undefined {
@@ -168,40 +199,10 @@ export default class App {
     this.dlogger("Registering middlewares");
     this.fastify
       .register(cors, {
-        origin: (origin, cb) => {
-          if (!origin) {
-            cb(null, true);
-            return;
-          }
-
-          const hostname = new URL(origin).hostname;
-          const isLocalhost = process.env.NODE_ENV !== "production" && hostname === "localhost";
-          const isOwnDomain = hostname === "btsearch.pl";
-
-          cb(null, isLocalhost || isOwnDomain ? true : origin);
+        delegator: (req, cb) => {
+          const firstParty = isFirstPartyOrigin(req.headers.origin);
+          cb(null, { ...CORS_OPTIONS, origin: firstParty ? true : "*", credentials: firstParty });
         },
-        credentials: true,
-        allowedHeaders: [
-          "content-type",
-          "x-api-key",
-          "authorization",
-          "x-idempotency-key",
-          AUDIT_OPERATION_ID_HEADER,
-          AUDIT_OPERATION_KIND_HEADER,
-          "accept",
-        ],
-        exposedHeaders: [
-          "x-response-time",
-          "x-ratelimit-limit",
-          "x-ratelimit-remaining",
-          "x-ratelimit-reset",
-          "x-quota-limit",
-          "x-quota-remaining",
-          "x-quota-reset",
-          "x-retry-after",
-          "content-disposition",
-        ],
-        maxAge: 86400,
       })
       .register(import("@fastify/multipart"));
 
@@ -226,6 +227,11 @@ export default class App {
       root: resolve(process.cwd(), "uploads"),
       prefix: "/uploads/",
       decorateReply: false,
+      maxAge: "365d",
+      immutable: true,
+      setHeaders: (reply) => {
+        if (getRuntimeSettings().enforceAuthForAllRoutes) reply.header("Cache-Control", "private, max-age=31536000, immutable");
+      },
     });
     this.fastify.get("/api/v1/openapi.yaml", (_req, res) => res.sendFile("openapi.yaml"));
     this.fastify.get("/.well-known/openid-configuration", async (_req, res) => res.send(await auth.api.getOpenIdConfig()));
