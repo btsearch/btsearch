@@ -204,7 +204,7 @@ export function FloatingDialogFrame({ rect, zIndex, fitHeightToContent = true, o
   return (
     <motion.div
       ref={panelRef}
-      className="fixed pointer-events-auto transition-[left,top,width,height] duration-100 motion-reduce:transition-none"
+      className="fixed pointer-events-auto transition-[left,top,width,height] duration-100 ease-[ease] motion-reduce:transition-none"
       style={{
         ...getFloatingDialogPosition(rect),
         minWidth: FLOATING_DIALOG_DESKTOP_MIN_WIDTH,
