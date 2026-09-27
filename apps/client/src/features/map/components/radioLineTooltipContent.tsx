@@ -1,4 +1,4 @@
-import { ArrowDown02Icon, ArrowRight02Icon, ArrowUp02Icon } from "@hugeicons/core-free-icons";
+import { ArrowDataTransferVerticalIcon, ArrowDown02Icon, ArrowRight02Icon, ArrowUp02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 
@@ -27,6 +27,8 @@ export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
   ulSpeed,
 }: RadioLineTooltipContentProps) {
   const linkTypeStyle = linkType ? getLinkTypeStyle(linkType) : null;
+  const hasDl = dlSpeed !== null && dlSpeed !== undefined;
+  const hasUl = ulSpeed !== null && ulSpeed !== undefined;
 
   return (
     <div className="min-w-40">
@@ -41,24 +43,31 @@ export const RadioLineTooltipContent = memo(function RadioLineTooltipContent({
               <span className={cn("font-bold uppercase", linkTypeStyle.text)}>{linkType}</span>
             </>
           )}
-          {((dlSpeed !== null && dlSpeed !== undefined) || (ulSpeed !== null && ulSpeed !== undefined)) && (
+          {(hasDl || hasUl) && (
             <>
               <span className="text-muted-foreground/40">/</span>
               <span className="inline-flex items-center gap-0.5 font-semibold">
-                {dlSpeed !== null && dlSpeed !== undefined && (
+                {dlSpeed === ulSpeed ? (
                   <span className="inline-flex items-center gap-0.5">
-                    <HugeiconsIcon icon={ArrowDown02Icon} className="size-2.5 text-foreground" />
+                    <HugeiconsIcon icon={ArrowDataTransferVerticalIcon} className="size-2.5 text-foreground" />
                     <span className="text-emerald-600">{dlSpeed}</span>
                   </span>
-                )}
-                {dlSpeed !== null && dlSpeed !== undefined && ulSpeed !== null && ulSpeed !== undefined && (
-                  <span className="text-muted-foreground/40 mx-0.5">/</span>
-                )}
-                {ulSpeed !== null && ulSpeed !== undefined && (
-                  <span className="inline-flex items-center gap-0.5">
-                    <HugeiconsIcon icon={ArrowUp02Icon} className="size-2.5 text-foreground" />
-                    <span className="text-emerald-600">{ulSpeed}</span>
-                  </span>
+                ) : (
+                  <>
+                    {hasDl && (
+                      <span className="inline-flex items-center gap-0.5">
+                        <HugeiconsIcon icon={ArrowDown02Icon} className="size-2.5 text-foreground" />
+                        <span className="text-emerald-600">{dlSpeed}</span>
+                      </span>
+                    )}
+                    {hasDl && hasUl && <span className="text-muted-foreground/40 mx-0.5">/</span>}
+                    {hasUl && (
+                      <span className="inline-flex items-center gap-0.5">
+                        <HugeiconsIcon icon={ArrowUp02Icon} className="size-2.5 text-foreground" />
+                        <span className="text-emerald-600">{ulSpeed}</span>
+                      </span>
+                    )}
+                  </>
                 )}
               </span>
             </>
