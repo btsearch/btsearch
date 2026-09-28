@@ -166,12 +166,16 @@ export async function uploadLocationPhotos(
   files: File[],
   auditOperation?: AuditOperationHandle,
   onProgress?: (sent: number, total: number) => void,
+  notes?: string[],
+  takenAts?: (Date | null)[],
 ): Promise<UploadedPhoto[]> {
   const uploaded: UploadedPhoto[] = [];
   try {
-    for (const [sent, file] of files.entries()) {
-      onProgress?.(sent, files.length);
+    for (const [index, file] of files.entries()) {
+      onProgress?.(index, files.length);
       const formData = new FormData();
+      formData.append("notes", notes?.[index] ?? "");
+      formData.append("takenAts", takenAts?.[index]?.toISOString() ?? "");
       formData.append("files", file);
       // oxlint-disable-next-line no-await-in-loop -- One photo per request keeps each upload under Cloudflare's body limit and the API timeout.
       const res = await fetchJson<{ data: UploadedPhoto[] }>(`${API_BASE}/locations/${locationId}/photos`, {
@@ -235,6 +239,8 @@ export async function uploadAndAssignStationPhotos({
   locationId,
   stationId,
   files,
+  notes,
+  takenAts,
   selected,
   mainId,
   useFirstUploadedAsMain,
@@ -243,13 +249,15 @@ export async function uploadAndAssignStationPhotos({
   locationId: number;
   stationId: number;
   files: File[];
+  notes?: string[];
+  takenAts?: (Date | null)[];
   selected: number[];
   mainId: number | null;
   useFirstUploadedAsMain: boolean;
   onProgress?: (sent: number, total: number) => void;
 }): Promise<UploadedPhoto[]> {
   const auditOperation = createAuditOperationHandle("station.photos");
-  const newPhotos = await uploadLocationPhotos(locationId, files, auditOperation, onProgress);
+  const newPhotos = await uploadLocationPhotos(locationId, files, auditOperation, onProgress, notes, takenAts);
   const newIds = newPhotos.map((photo) => photo.id);
   const nextSelected = [...new Set([...selected, ...newIds])];
   const nextMainId = useFirstUploadedAsMain ? (newIds[0] ?? mainId) : mainId;

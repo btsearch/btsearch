@@ -1,7 +1,6 @@
 import type { MultipartFile } from "@fastify/multipart";
 import { attachments, submissionLocationPhotoSelections, submissionPhotos } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
-import * as ExifReader from "exifreader";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -13,24 +12,10 @@ import { auditContextFromRequest, runAuditedOperation } from "../../../../../ser
 import { getRuntimeSettings } from "../../../../../services/settings.service.js";
 import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
 import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
+import { extractExifDate, parseTakenAt } from "../../../../../utils/photoTakenAt.js";
 
 const MAX_PHOTOS_PER_SUBMISSION = 10;
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
-
-function extractExifDate(buffer: Buffer): Date | null {
-  try {
-    const tags = ExifReader.load(buffer);
-    const raw = tags["DateTimeOriginal"]?.description ?? tags["DateTimeDigitized"]?.description;
-    if (!raw) return null;
-    // EXIF date format: "YYYY:MM:DD HH:MM:SS"
-    const [datePart, timePart] = raw.split(" ");
-    if (!datePart || !timePart) return null;
-    const date = new Date(`${datePart.replaceAll(":", "-")}T${timePart}`);
-    return Number.isNaN(date.getTime()) ? null : date;
-  } catch {
-    return null;
-  }
-}
 
 const schemaRoute = {
   params: z.object({ id: z.string() }),
@@ -107,7 +92,6 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       const inputBuffer = Buffer.concat(chunks);
 
       const photoInput = await decodePhotoInput(inputBuffer);
-      const exifDate = extractExifDate(inputBuffer);
       const photo = await encodeStationPhoto(photoInput);
 
       const fileUuid = crypto.randomUUID();
@@ -117,12 +101,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       const fileIndex = pendingPhotos.length;
       const note = notes[fileIndex]?.trim().slice(0, 100) || null;
       const takenAtRaw = takenAts[fileIndex];
-      let takenAt: Date | null = null;
-      if (takenAtRaw) {
-        const parsed = new Date(takenAtRaw);
-        if (Number.isNaN(parsed.getTime())) throw new ErrorResponse("BAD_REQUEST", { message: "Invalid takenAt date" });
-        takenAt = parsed;
-      } else if (exifDate) takenAt = exifDate;
+      const takenAt = takenAtRaw ? parseTakenAt(takenAtRaw) : extractExifDate(inputBuffer);
 
       const isMain = mainFileIndex === null && (isMains[fileIndex] ?? false);
       pendingPhotos.push({

@@ -1881,7 +1881,7 @@ paths:
     post:
       tags: [Locations]
       summary: Upload photos for a location (multipart/form-data)
-      description: Accepts interleaved `notes` fields and `files` fields. Each note corresponds to the file at the same index. Max 20 MB per file. Sending one file per request is recommended because every photo is encoded into display, thumbnail and (for large uploads) full-resolution files
+      description: Accepts interleaved `notes` and `takenAts` fields alongside `files` fields, each corresponding to the file at the same index. Max 20 MB per file. Sending one file per request is recommended because every photo is encoded into display, thumbnail and (for large uploads) full-resolution files
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -1898,6 +1898,13 @@ paths:
               type: object
               properties:
                 notes: { type: string, description: "Optional note for the corresponding file (max 100 chars)" }
+                takenAts:
+                  {
+                    type: string,
+                    format: date-time,
+                    nullable: true,
+                    description: "Optional ISO 8601 datetime when the corresponding photo was taken, must not be in the future. When empty, the photo's EXIF capture date is used",
+                  }
                 files: { type: string, format: binary }
       responses:
         "201":
@@ -1941,7 +1948,8 @@ paths:
               type: object
               properties:
                 note: { type: string, maxLength: 100, nullable: true }
-                taken_at: { type: string, format: date-time, nullable: true, description: "Date the photo was taken (ISO 8601)" }
+                taken_at:
+                  { type: string, format: date-time, nullable: true, description: "Date the photo was taken (ISO 8601), must not be in the future" }
       responses:
         "200":
           description: OK
@@ -2481,7 +2489,7 @@ paths:
                     type: string,
                     format: date-time,
                     nullable: true,
-                    description: "Optional ISO 8601 datetime when the corresponding photo was taken",
+                    description: "Optional ISO 8601 datetime when the corresponding photo was taken, must not be in the future. When empty, the photo's EXIF capture date is used",
                   }
                 isMains:
                   {
@@ -2532,9 +2540,11 @@ paths:
               description: At least one field (note or taken_at) must be provided
               properties:
                 note: { type: string, maxLength: 100 }
-                taken_at: { type: string, format: date-time, nullable: true }
+                taken_at:
+                  { type: string, format: date-time, nullable: true, description: "Date the photo was taken (ISO 8601), must not be in the future" }
       responses:
         "204": { description: No Content }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }

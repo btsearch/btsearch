@@ -550,6 +550,8 @@ function StationDetailForm({
                         locationId: resultLocationId,
                         stationId: result.station.id,
                         files: photos,
+                        notes: photoNotes,
+                        takenAts: photoTakenAts,
                         selected: [],
                         mainId: null,
                         useFirstUploadedAsMain: true,

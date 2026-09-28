@@ -14,7 +14,11 @@ const schemaRoute = {
   body: z
     .object({
       note: z.string().max(100).optional(),
-      taken_at: z.iso.datetime().nullable().optional(),
+      taken_at: z.iso
+        .datetime({ abort: true })
+        .refine((value) => new Date(value) <= new Date(), { message: "taken_at cannot be in the future" })
+        .nullable()
+        .optional(),
     })
     .refine((b) => b.note !== undefined || b.taken_at !== undefined, { message: "At least one field required" }),
   response: {

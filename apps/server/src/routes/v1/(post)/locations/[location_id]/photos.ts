@@ -10,6 +10,7 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
 import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
+import { extractExifDate, parseTakenAt } from "../../../../../utils/photoTakenAt.js";
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -32,7 +33,7 @@ const schemaRoute = {
 
 type ReqParams = { Params: { location_id: number } };
 type PhotoItem = PhotoFileFields & { id: number; attachment_uuid: string; mime_type: string; createdAt: string };
-type PreparedPhoto = { attachment: typeof attachments.$inferInsert; note: string | null };
+type PreparedPhoto = { attachment: typeof attachments.$inferInsert; note: string | null; takenAt: Date | null };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
   const { location_id } = req.params;
@@ -48,12 +49,14 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   const savedUuids: string[] = [];
   const preparedPhotos: PreparedPhoto[] = [];
   const notes: string[] = [];
+  const takenAts: (string | null)[] = [];
 
   try {
     for await (const part of req.parts({ limits: { fileSize: MAX_FILE_SIZE_BYTES } })) {
       const anyPart = part as unknown as { type: string; fieldname?: string; value?: string; file?: unknown };
       if (anyPart.type === "field") {
         if (anyPart.fieldname === "notes") notes.push(anyPart.value ?? "");
+        if (anyPart.fieldname === "takenAts") takenAts.push(anyPart.value || null);
         continue;
       }
       if (anyPart.type !== "file" || !anyPart.file) continue;
@@ -70,9 +73,11 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       savedUuids.push(fileUuid);
       const files = await writePhotoFiles(fileUuid, photo);
 
+      const takenAtRaw = takenAts[preparedPhotos.length];
       preparedPhotos.push({
         attachment: { uuid: fileUuid, name: filePart.filename ?? `${fileUuid}.webp`, author_id: session.user.id, mime_type: "image/webp", ...files },
         note: notes[preparedPhotos.length]?.trim().slice(0, 100) || null,
+        takenAt: takenAtRaw ? parseTakenAt(takenAtRaw) : extractExifDate(inputBuffer),
       });
     }
 
@@ -85,16 +90,20 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
         .returning();
       if (insertedAttachments.length !== preparedPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
 
-      const noteByUuid = new Map(preparedPhotos.map(({ attachment, note }) => [attachment.uuid, note]));
+      const preparedByUuid = new Map(preparedPhotos.map((prepared) => [prepared.attachment.uuid, prepared]));
       const insertedPhotos = await tx
         .insert(locationPhotos)
         .values(
-          insertedAttachments.map((attachment) => ({
-            location_id,
-            attachment_id: attachment.id,
-            uploaded_by: session.user.id,
-            note: noteByUuid.get(attachment.uuid) ?? null,
-          })),
+          insertedAttachments.map((attachment) => {
+            const prepared = preparedByUuid.get(attachment.uuid);
+            return {
+              location_id,
+              attachment_id: attachment.id,
+              uploaded_by: session.user.id,
+              note: prepared?.note ?? null,
+              taken_at: prepared?.takenAt ?? null,
+            };
+          }),
         )
         .returning();
       if (insertedPhotos.length !== preparedPhotos.length) throw new ErrorResponse("FAILED_TO_CREATE");
