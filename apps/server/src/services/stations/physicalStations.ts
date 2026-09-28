@@ -30,8 +30,9 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
 
   const physicalStations = new Map<number, PhysicalStation>();
   for (const station of rows) {
-    if (station.hasPermits) continue;
-    const physical = rows.find((candidate) => candidate.hasPermits && candidate.operator.mnc === NETWORKS_SIBLING_MNC[station.operator.mnc]);
+    if (station.hasPermits || station.operator.mnc === null) continue;
+    const siblingMnc = NETWORKS_SIBLING_MNC[station.operator.mnc];
+    const physical = rows.find((candidate) => candidate.hasPermits && candidate.operator.mnc === siblingMnc);
     if (!physical) continue;
     const { id, station_id, status, operator } = physical;
     physicalStations.set(station.id, { id, station_id, status, operator });
@@ -42,8 +43,8 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
 export async function findPhysicalStation(
   stationId: number,
   locationId: number | undefined,
-  mnc: number | undefined,
+  mnc: number | null | undefined,
 ): Promise<PhysicalStation | undefined> {
-  if (locationId === undefined || mnc === undefined || NETWORKS_SIBLING_MNC[mnc] === undefined) return undefined;
+  if (locationId === undefined || !mnc || NETWORKS_SIBLING_MNC[mnc] === undefined) return undefined;
   return (await findPhysicalStations(locationId)).get(stationId);
 }
