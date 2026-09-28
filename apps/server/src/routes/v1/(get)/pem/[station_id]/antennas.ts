@@ -68,8 +68,8 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   try {
     const requestedUrl = new URL(report_url).href;
-    const cacheKey = `pem:antennas:v1:${createHash("sha256")
-      .update(JSON.stringify([station_id, lat, lng, requestedUrl]))
+    const cacheKey = `pem:antennas:v2:${createHash("sha256")
+      .update(JSON.stringify([station_id, requestedUrl]))
       .digest("hex")}`;
     const cached = await redis.get(cacheKey);
     if (cached) return res.send(JSON.parse(cached) as { data: ResponseData });

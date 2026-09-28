@@ -145,27 +145,29 @@ function mergeAndSort(reports: PemReport[][]): PemReport[] {
   return reports.flat().sort((a, b) => b.date.localeCompare(a.date));
 }
 
+async function withCache(cacheKey: string, load: () => Promise<PemReport[]>): Promise<PemReport[]> {
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached) as PemReport[];
+
+  const reports = await load();
+  await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(reports));
+  return reports;
+}
+
 async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<PemReport[]>>) {
   const { station_id } = req.params;
   const { lat, lng, operator: mnc } = req.query;
 
   const entityName = MNC_TO_ENTITY[mnc];
-  const cacheKey = `pem:v3:${station_id}:${lat}:${lng}:${mnc}`;
-
-  const cached = await redis.get(cacheKey);
-  if (cached) return res.send(JSON.parse(cached) as { data: PemReport[] });
-
-  const reportRequests = [fetchWmsReports(station_id, lat, lng)];
-  if (entityName) reportRequests.push(fetchInstallations(station_id, entityName));
+  const reportRequests = [withCache(`pem:map:v1:${station_id}:${lat}:${lng}`, () => fetchWmsReports(station_id, lat, lng))];
+  if (entityName) reportRequests.push(withCache(`pem:search:v1:${station_id}:${mnc}`, () => fetchInstallations(station_id, entityName)));
 
   const reportResults = await Promise.allSettled(reportRequests);
   const failure = reportResults.find((result): result is PromiseRejectedResult => result.status === "rejected");
   const data = mergeAndSort(reportResults.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])));
   if (!data.length && failure) throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: failure.reason });
 
-  const response = { data };
-  await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(response));
-  return res.send(response);
+  return res.send({ data });
 }
 
 const getPemByStationId: Route<Params, PemReport[]> = {

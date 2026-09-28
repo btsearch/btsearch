@@ -166,7 +166,7 @@ export function SI2PEMAntennaDialogPanel({
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["si2pem-report-antennas", report.station_id, report.details.document_url, latitude, longitude],
+    queryKey: ["si2pem-report-antennas", report.station_id, report.details.document_url],
     queryFn: () => fetchSI2PEMAntennas({ stationId: report.station_id, latitude, longitude, reportUrl: report.details.document_url }),
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
