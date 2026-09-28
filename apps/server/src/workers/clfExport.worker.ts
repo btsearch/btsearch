@@ -1,4 +1,17 @@
-import { bands, cells, gsmCells, locations, lteCells, nrCells, operators, regions, stationSectors, stations, umtsCells } from "@openbts/drizzle";
+import {
+  bands,
+  cells,
+  gsmCells,
+  locations,
+  lteCells,
+  nrCells,
+  operators,
+  regions,
+  stationSectors,
+  stationUplinks,
+  stations,
+  umtsCells,
+} from "@openbts/drizzle";
 import type { CLFDescriptionTemplates } from "@openbts/shared/clfExportTemplates";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -58,6 +71,7 @@ workerPort.on("message", async (params: WorkerParams) => {
       station_pk: stations.id,
       station_sid: stations.station_id,
       extra_address: stations.extra_address,
+      uplink_type: stationUplinks.type,
       sector_id: cells.sector_id,
       operator_mnc: operators.mnc,
       latitude: locations.latitude,
@@ -81,6 +95,7 @@ workerPort.on("message", async (params: WorkerParams) => {
           .leftJoin(operators, eq(stations.operator_id, operators.id))
           .leftJoin(locations, eq(stations.location_id, locations.id))
           .leftJoin(regions, eq(locations.region_id, regions.id))
+          .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
           .where(and(...baseConditions))
       : null;
 
@@ -101,6 +116,7 @@ workerPort.on("message", async (params: WorkerParams) => {
           .leftJoin(operators, eq(stations.operator_id, operators.id))
           .leftJoin(locations, eq(stations.location_id, locations.id))
           .leftJoin(regions, eq(locations.region_id, regions.id))
+          .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
           .where(and(...baseConditions))
       : null;
 
@@ -122,6 +138,7 @@ workerPort.on("message", async (params: WorkerParams) => {
           .leftJoin(operators, eq(stations.operator_id, operators.id))
           .leftJoin(locations, eq(stations.location_id, locations.id))
           .leftJoin(regions, eq(locations.region_id, regions.id))
+          .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
           .where(and(...lteConditions))
       : null;
 
@@ -144,6 +161,7 @@ workerPort.on("message", async (params: WorkerParams) => {
           .leftJoin(operators, eq(stations.operator_id, operators.id))
           .leftJoin(locations, eq(stations.location_id, locations.id))
           .leftJoin(regions, eq(locations.region_id, regions.id))
+          .leftJoin(stationUplinks, eq(stationUplinks.station_id, stations.id))
           .where(and(...nrConditions))
       : null;
 
@@ -266,6 +284,7 @@ workerPort.on("message", async (params: WorkerParams) => {
         notes: string | null;
         station_sid: string;
         extra_address: string | null;
+        uplink_type: string | null;
         sector_id: number | null;
         operator_mnc: number | null;
         latitude: number | null;
@@ -289,6 +308,7 @@ workerPort.on("message", async (params: WorkerParams) => {
         latitude: row.latitude,
         longitude: row.longitude,
         cell_type: row.cell_type,
+        uplink_type: row.uplink_type,
         notes: row.notes,
         city: row.city ?? null,
         address: row.extra_address ?? row.address ?? null,
