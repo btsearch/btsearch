@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import type { GalleryPhoto, PhotosGalleryFilters, PhotosGalleryOrder, PhotosGallerySortBy } from "../api";
+import { getGroupLayout, useGalleryLayout } from "../galleryLayout";
 import { usePhotosGallery } from "../hooks";
 import { GallerySkeleton } from "./GallerySkeleton";
 import { PhotoTile } from "./PhotoTile";
@@ -534,6 +535,7 @@ export function PhotosGallery() {
   const navActionTarget = useNavActionTarget();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const { galleryRef, layout } = useGalleryLayout();
   const lightbox = useLightbox();
   const [state, dispatch] = useReducer(photosGalleryReducer, undefined, createInitialGalleryState);
   const { filters: storedFilters, lightboxIndex, showScrollTop } = state;
@@ -685,7 +687,7 @@ export function PhotosGallery() {
   else if (!hasNextPage && photos.length > 0) paginationAnnouncement = t("photos.allLoaded");
 
   const content = (() => {
-    if (isLoading) return <GallerySkeleton />;
+    if (isLoading) return <GallerySkeleton layout={layout} />;
     if (isError)
       return (
         <div className="flex min-h-[45vh] flex-col items-center justify-center text-center">
@@ -708,15 +710,15 @@ export function PhotosGallery() {
         </div>
       );
     return (
-      <div className="grid grid-cols-1 gap-y-7 lg:grid-cols-2 lg:gap-x-6">
+      <div className={cn("grid gap-y-7", layout.columns === 2 ? "grid-cols-2 gap-x-6" : "grid-cols-1")}>
         {stationGroups.map((group) => {
-          const sparse = group.items.length <= 2;
-          const singlePhoto = group.items.length === 1;
+          const compact = group.items.length <= 2;
+          const { fullRow, tracks } = getGroupLayout(group.items.length, layout);
 
           return (
             <section
               key={group.stationId}
-              className={cn("min-w-0 scroll-mt-6 [content-visibility:auto] [contain-intrinsic-size:auto_360px]", !sparse && "lg:col-span-2")}
+              className={cn("min-w-0 scroll-mt-6 [content-visibility:auto] [contain-intrinsic-size:auto_360px]", fullRow && "col-span-2")}
             >
               <div className="mb-3 flex items-start gap-3 sm:items-center">
                 <div className="min-w-0 text-left">
@@ -732,7 +734,7 @@ export function PhotosGallery() {
                           operator={group.operator ?? undefined}
                           stationIdClassName={cn(
                             "underline-offset-2 group-hover:underline group-focus-visible:underline",
-                            sparse && "max-sm:text-xs",
+                            compact && "max-sm:text-xs",
                           )}
                         />
                       </span>
@@ -757,7 +759,7 @@ export function PhotosGallery() {
                       <HugeiconsIcon icon={Location01Icon} className="size-3.5 shrink-0" />
                       <span className="truncate">{group.location.label}</span>
                     </Link>
-                    {sparse ? (
+                    {compact ? (
                       <>
                         <span className="mx-1" aria-hidden="true">
                           ·
@@ -768,18 +770,11 @@ export function PhotosGallery() {
                   </span>
                 </div>
                 <div className="mt-2 hidden h-px min-w-6 flex-1 bg-border sm:block" />
-                <span className={cn("ml-auto shrink-0 pt-0.5 text-xs text-muted-foreground sm:pt-0", sparse && "max-sm:hidden")}>
+                <span className={cn("ml-auto shrink-0 pt-0.5 text-xs text-muted-foreground sm:pt-0", compact && "max-sm:hidden")}>
                   {t("photos.stationPhotoCount", { count: group.items.length })}
                 </span>
               </div>
-              <div
-                className={cn(
-                  "grid gap-3",
-                  singlePhoto && "grid-cols-1 sm:max-w-55",
-                  sparse && !singlePhoto && "grid-cols-2 sm:max-w-116 sm:grid-cols-[repeat(2,minmax(190px,220px))]",
-                  !sparse && "grid-cols-[repeat(auto-fill,minmax(190px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]",
-                )}
-              >
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${tracks}, minmax(0, 1fr))` }}>
                 {group.items.map(({ photo, index }) => (
                   <PhotoTile
                     key={photo.id}
@@ -788,7 +783,7 @@ export function PhotosGallery() {
                     index={index}
                     locale={i18n.language}
                     labels={labels}
-                    compact={sparse}
+                    compact={compact}
                     onOpen={openPhoto}
                   />
                 ))}
@@ -809,7 +804,7 @@ export function PhotosGallery() {
           showFloatingMobileFilters && "max-md:pb-[calc(7rem+env(safe-area-inset-bottom))]",
         )}
       >
-        <div className="w-full">
+        <div ref={galleryRef} className="w-full">
           <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">{t("photos.title")}</h1>

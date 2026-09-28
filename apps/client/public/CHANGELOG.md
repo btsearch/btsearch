@@ -14,6 +14,9 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Hovering over or clicking the Virtual badge shows the physical station it runs on, which you can open from there, together with a link explaining RAN sharing
 - The UKE Permits tab of a virtual station now shows which station at the same location holds the permit, with a link that opens that station's permits
 - CLF description templates now support the `{uplink}` placeholder, which shows how the station connects to the operator's network: `fiber`, `microwave` or `satellite`
+- The uplink dropdown in the submission form and on admin station and submission pages now shows the same icons as the station dialog
+- The photo gallery page now places stations side by side whenever their photos fit in half of the page, instead of only stations with one or two photos, so wide screens show much less empty space
+- Photos on the photo gallery page are now the same size for every station
 - API: proposed sectors in submission responses now include `operation` (`add`, `update` or `delete`), update submissions only store the azimuths that change, and sectors sent without `operation` are still read as the full azimuth list
 - API: station and location responses now include `physicalStation` for virtual T-Mobile and Orange stations, which is the station at the same location whose equipment and UKE permits they use
 
@@ -24,6 +27,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Saving or approving azimuth changes that swap values between azimuths, for example after fetching azimuths from UKE or SI2PEM, no longer fails
 - Undoing all cell changes while editing a pending submission now removes them from the submission
 - Adding azimuths while editing a submission that already adds new azimuths no longer mixes them up or fails to save
+- Stations with two photos on the photo gallery page no longer overflow their column on small laptop screens when the sidebar is open
 - Admin: creating a station no longer adds the cells of radio technologies that were turned off
 
 # 2026-09-27

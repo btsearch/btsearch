@@ -1,3 +1,4 @@
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -5,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { UPLINK_TYPES, formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
+import { UPLINK_APPEARANCE, UPLINK_TYPES, formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
+import { cn } from "@/lib/utils";
 import type { UplinkType } from "@/types/station";
 
 const FIBER_SPEED_SUGGESTIONS = [1250, 2500, 10000];
@@ -23,6 +25,11 @@ type UplinkFieldsProps = {
   speedMeta?: ReactNode;
   modelMeta?: ReactNode;
 };
+
+function UplinkTypeIcon({ type }: { type: UplinkType }) {
+  const { icon, iconClassName } = UPLINK_APPEARANCE[type];
+  return <HugeiconsIcon icon={icon} className={cn("size-3.5 shrink-0", iconClassName)} aria-hidden="true" />;
+}
 
 export function UplinkFields({
   uplinkType,
@@ -52,7 +59,10 @@ export function UplinkFields({
       <div className="flex items-center gap-2">
         <Label className={`shrink-0 ${labelClass}`}>{t("labels.uplink")}</Label>
         {readOnly ? (
-          <span className="text-sm font-medium">{typeLabel}</span>
+          <span className="flex items-center gap-2 text-sm font-medium">
+            {uplinkType ? <UplinkTypeIcon type={uplinkType} /> : null}
+            {typeLabel}
+          </span>
         ) : (
           <Select
             value={uplinkType ?? "none"}
@@ -64,13 +74,24 @@ export function UplinkFields({
             }}
           >
             <SelectTrigger className={triggerClass}>
-              <span className="truncate">{typeLabel}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                {uplinkType ? <UplinkTypeIcon type={uplinkType} /> : null}
+                <span className="truncate">{typeLabel}</span>
+              </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">{t("labels.uplinkUnknown")}</SelectItem>
+              <SelectItem value="none">
+                <span className="flex items-center gap-2">
+                  <span className="size-3.5 shrink-0" />
+                  <span>{t("labels.uplinkUnknown")}</span>
+                </span>
+              </SelectItem>
               {UPLINK_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {t(`labels.${uplinkTypeKey(type)}`)}
+                  <span className="flex items-center gap-2">
+                    <UplinkTypeIcon type={type} />
+                    <span>{t(`labels.${uplinkTypeKey(type)}`)}</span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
