@@ -1,12 +1,4 @@
-import {
-  AirportTowerIcon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  Cancel01Icon,
-  Delete02Icon,
-  Location01Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, ArrowLeft01Icon, Cancel01Icon, Delete02Icon, Location01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { useQuery } from "@tanstack/react-query";
@@ -37,6 +29,7 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { fetchLocationDetail } from "@/features/admin/locations/api";
 import { LocationPhotosSection } from "@/features/admin/locations/components/LocationPhotosSection";
 import { useDeleteLocationMutation, usePatchLocationMutation } from "@/features/admin/locations/mutations";
+import { LocationStationList } from "@/features/stations/components/LocationStationList";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -321,43 +314,12 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
                 </Badge>
               </div>
 
-              {stations.length === 0 ? (
-                <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t("main:popup.noStations")}</div>
-              ) : (
-                <div className="divide-y">
-                  {stations.map((station) => (
-                    <Link
-                      key={station.id}
-                      to={"/admin/stations/$id"}
-                      params={{ id: String(station.id) }}
-                      search={{ uke: undefined }}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors group"
-                    >
-                      {station.operator && (
-                        <div className="size-3 rounded-[2px] shrink-0" style={{ backgroundColor: getOperatorColor(station.operator.mnc) }} />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{station.operator?.name ?? "-"}</span>
-                          <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{station.station_id}</span>
-                        </div>
-                        {station.notes && <p className="text-xs text-muted-foreground truncate mt-0.5">{station.notes}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {station.is_confirmed && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            ✓
-                          </Badge>
-                        )}
-                        <HugeiconsIcon
-                          icon={ArrowRight01Icon}
-                          className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                        />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+              <LocationStationList
+                stations={stations}
+                renderLink={(station, linkProps) => (
+                  <Link to="/admin/stations/$id" params={{ id: String(station.id) }} search={{ uke: undefined }} {...linkProps} />
+                )}
+              />
             </div>
           </div>
         </div>

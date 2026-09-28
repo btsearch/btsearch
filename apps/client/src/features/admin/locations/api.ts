@@ -1,3 +1,4 @@
+import { STATION_STATUS_VALUES } from "@/features/stations/stationStatus";
 import { API_BASE, fetchJson } from "@/lib/api";
 import type { AuditOperationHandle } from "@/lib/api";
 import type { LocationWithStations } from "@/types/station";
@@ -27,7 +28,8 @@ export async function fetchLocationsList(params: {
 }
 
 export async function fetchLocationDetail(id: number): Promise<LocationWithStations> {
-  const res = await fetchJson<{ data: LocationWithStations }>(`${API_BASE}/locations/${id}`);
+  const searchParams = new URLSearchParams({ status: STATION_STATUS_VALUES.join(",") });
+  const res = await fetchJson<{ data: LocationWithStations }>(`${API_BASE}/locations/${id}?${searchParams.toString()}`);
   return res.data;
 }
 

@@ -9,18 +9,15 @@ import { CollapsibleSection } from "@/components/content/collapsibleSection";
 import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
 import { fetchLocationWithStations, locationQueryKey } from "@/features/map/api";
-import { TechnologySummary } from "@/features/map/components/technologySummary";
-import { getStationBands } from "@/features/map/utils";
 import { fetchLocationPhotos } from "@/features/station-details/api";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { ShareButton } from "@/features/station-details/components/shareButton";
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
 import { StationInfoItem } from "@/features/station-details/components/stationInfoItem";
-import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
+import { LocationStationList } from "@/features/stations/components/LocationStationList";
 import { usePreferences } from "@/hooks/usePreferences";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
@@ -147,40 +144,11 @@ function LocationPage() {
 
         <div className="min-w-0 space-y-5 sm:space-y-6 lg:col-start-1 lg:row-start-1">
           <CollapsibleSection title={t("page.stationsAtLocation")}>
-            {location.stations.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">{t("main:popup.noStations")}</div>
-            ) : (
-              <ul className="overflow-hidden rounded-xl border">
-                {location.stations.map((station) => {
-                  const mnc = station.operator?.mnc;
-                  const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
-                  const bands = station.cells?.length ? getStationBands(station.cells) : [];
-                  return (
-                    <li key={station.id} className="border-b border-border/30 last:border-0">
-                      <Link
-                        to="/stations/$id"
-                        params={{ id: String(station.id) }}
-                        className="block px-3 py-2.5 transition-colors hover:bg-muted/50 sm:px-4 sm:py-3"
-                        style={{ backgroundImage: `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)` }}
-                      >
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                          <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
-                          <span className="text-sm font-medium">{station.operator?.name ?? t("main:unknownOperator")}</span>
-                          <span className="font-mono text-xs text-foreground/70">{station.station_id}</span>
-                          {station.extra_identificators?.networks_id ? (
-                            <span className="font-mono text-xs text-foreground/70">N!{station.extra_identificators.networks_id}</span>
-                          ) : null}
-                          {station.status ? (
-                            <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} className="ml-auto" />
-                          ) : null}
-                        </div>
-                        {station.status !== "pending" && bands.length > 0 ? <TechnologySummary bands={bands} /> : null}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <LocationStationList
+              stations={location.stations}
+              className="overflow-hidden rounded-xl border"
+              renderLink={(station, linkProps) => <Link to="/stations/$id" params={{ id: String(station.id) }} {...linkProps} />}
+            />
           </CollapsibleSection>
         </div>
       </div>
