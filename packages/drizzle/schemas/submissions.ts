@@ -21,6 +21,7 @@ import { CellType, NRType, UplinkType, bands, cells, operators, ratEnum, regions
 export const SubmissionStatus = pgEnum("submission_status", ["pending", "approved", "rejected"]);
 export const SubmissionTypeEnum = pgEnum("submission_type", ["new", "update", "delete"]);
 export const CellOperationEnum = pgEnum("cell_operation", ["add", "update", "delete"]);
+export const SectorOperationEnum = pgEnum("sector_operation", ["add", "update", "delete"]);
 export const StationOperationEnum = pgEnum("station_operation", ["add", "update", "delete"]);
 export const ProposedStationFieldEnum = pgEnum("proposed_station_field", [
   "station_id",
@@ -94,6 +95,7 @@ export const proposedSectors = SubmissionsSchema.table(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     submission_id: uuid("submission_id").references(() => submissions.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    operation: SectorOperationEnum("operation"),
     target_sector_id: integer("target_sector_id").references(() => stationSectors.id, { onDelete: "set null", onUpdate: "cascade" }),
     local_id: text("local_id").notNull(),
     azimuth: integer("azimuth").notNull(),

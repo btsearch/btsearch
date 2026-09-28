@@ -142,6 +142,7 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
     });
 
   if (stationFields.length === 0 && locationFields.length === 0 && submission.sectors.length === 0) return null;
+  const isLegacySectorList = submission.sectors.some((sector) => sector.operation === null);
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
@@ -176,13 +177,28 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
         {submission.sectors.length > 0 ? (
           <div className="px-3 py-3">
             <h4 className="text-sm font-medium">{t("changesSheet.sectors")}</h4>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {submission.sectors.map((sector, index) => (
-                <span key={sector.id} className="rounded-md bg-muted px-2 py-1 font-mono text-xs tabular-nums">
-                  A{index + 1} · {sector.azimuth}°
-                </span>
-              ))}
-            </div>
+            {isLegacySectorList ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {submission.sectors.map((sector, index) => (
+                  <span key={sector.id} className="rounded-md bg-muted px-2 py-1 font-mono text-xs tabular-nums">
+                    A{index + 1} · {sector.azimuth}°
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+                {OPERATION_ORDER.flatMap((operation) =>
+                  submission.sectors
+                    .filter((sector) => sector.operation === operation)
+                    .map((sector) => (
+                      <span key={sector.id} className="inline-flex items-center gap-1.5">
+                        <SubmissionCellOperationBadge operation={operation} />
+                        <span className="font-mono text-xs tabular-nums">{sector.azimuth}°</span>
+                      </span>
+                    )),
+                )}
+              </div>
+            )}
           </div>
         ) : null}
       </div>
@@ -247,7 +263,21 @@ function CellChanges({ submission }: { submission: SubmissionDetail }) {
   const { data: bands = [] } = useQuery({ ...bandsQueryOptions(), enabled: submission.cells.length > 0 });
   const bandById = useMemo(() => new Map(bands.map((band) => [band.id, band])), [bands]);
   const sectorLabelByLocalId = useMemo(
-    () => new Map(submission.sectors.map((sector, index) => [sector.local_id, `A${index + 1} · ${sector.azimuth}°`] as const)),
+    () =>
+      new Map(
+        submission.sectors.map(
+          (sector, index) => [sector.local_id, sector.operation === null ? `A${index + 1} · ${sector.azimuth}°` : `${sector.azimuth}°`] as const,
+        ),
+      ),
+    [submission.sectors],
+  );
+  const sectorLabelByTargetId = useMemo(
+    () =>
+      new Map(
+        submission.sectors.flatMap((sector) =>
+          sector.operation === "update" && sector.target_sector_id !== null ? [[sector.target_sector_id, `${sector.azimuth}°`] as const] : [],
+        ),
+      ),
     [submission.sectors],
   );
 
@@ -269,7 +299,9 @@ function CellChanges({ submission }: { submission: SubmissionDetail }) {
             .map((cell) => {
               const sectorLabel =
                 (cell.sector_local_id ? sectorLabelByLocalId.get(cell.sector_local_id) : undefined) ??
-                (cell.target_sector_id !== null ? t("changesSheet.sectorId", { id: cell.target_sector_id }) : null);
+                (cell.target_sector_id !== null
+                  ? (sectorLabelByTargetId.get(cell.target_sector_id) ?? t("changesSheet.sectorId", { id: cell.target_sector_id }))
+                  : null);
               return (
                 <CellChangeItem
                   key={cell.id}

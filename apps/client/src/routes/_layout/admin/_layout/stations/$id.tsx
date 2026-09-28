@@ -31,6 +31,7 @@ import { PhotoUploadSection } from "@/features/submissions/components/photoUploa
 import type { ProposedLocationForm } from "@/features/submissions/types";
 import { findDuplicateCids, findDuplicateEnbidClids } from "@/features/submissions/utils/cellDuplicates";
 import { ukePermitsToCells } from "@/features/submissions/utils/cells";
+import { toSectorDrafts } from "@/features/submissions/utils/proposalChanges";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useSettings } from "@/hooks/useSettings";
 import { showApiError } from "@/lib/api";
@@ -307,9 +308,7 @@ function StationDetailForm({
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoNotes, setPhotoNotes] = useState<string[]>([]);
   const [photoTakenAts, setPhotoTakenAts] = useState<(Date | null)[]>([]);
-  const [sectors, setSectors] = useState<SectorDraft[]>(() =>
-    (station?.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })),
-  );
+  const [sectors, setSectors] = useState<SectorDraft[]>(() => toSectorDrafts(station?.sectors));
 
   const saveMutation = useSaveStationMutation();
   const handleServerCellDelete = useCallback((cell: LocalCell) => {
@@ -337,7 +336,7 @@ function StationDetailForm({
     enabledRats,
     setEnabledRats,
     visibleRats,
-    toggleRat: handleToggleRat,
+    toggleRat,
     changeCell: handleCellChange,
     syncMissingSectorsByPCIInRat: handleSyncMissingSectorsByPCIInRat,
     addCell: handleAddCell,
@@ -364,6 +363,14 @@ function StationDetailForm({
       );
     },
     [setLocalCells],
+  );
+
+  const handleToggleRat = useCallback(
+    (rat: string) => {
+      if (isCreateMode && enabledRats.includes(rat)) setLocalCells((prev) => prev.filter((cell) => cell.rat !== rat));
+      toggleRat(rat);
+    },
+    [enabledRats, isCreateMode, setLocalCells, toggleRat],
   );
 
   const handleLocationChange = useCallback((patch: Partial<ProposedLocationForm>) => {
@@ -559,7 +566,7 @@ function StationDetailForm({
               setLocalCells(sortAndMapCells(fresh.cells));
               const freshRats = new Set(fresh.cells.map((c) => c.rat));
               setEnabledRats(RAT_ORDER.filter((r) => freshRats.has(r)));
-              setSectors((fresh.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })));
+              setSectors(toSectorDrafts(fresh.sectors));
             })
             .catch(() => toast.error(t("toast.refreshFailed")));
         },
@@ -583,7 +590,7 @@ function StationDetailForm({
     const existingRats = new Set(station.cells.map((c) => c.rat));
     setEnabledRats(RAT_ORDER.filter((r) => existingRats.has(r)));
     setLocalCells(sortAndMapCells(station.cells));
-    setSectors((station.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })));
+    setSectors(toSectorDrafts(station.sectors));
   };
 
   const originalCells = useMemo(() => station?.cells ?? [], [station]);

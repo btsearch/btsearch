@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file common.proto.
  */
 export const file_common: GenFile = /*@__PURE__*/
-  fileDesc("Cgxjb21tb24ucHJvdG8SB29wZW5idHMiVwoIT3BlcmF0b3ISCgoCaWQYASABKAUSDAoEbmFtZRgCIAEoCRIRCglmdWxsX25hbWUYAyABKAkSEQoJcGFyZW50X2lkGAQgASgFEgsKA21uYxgFIAEoBSIwCgZSZWdpb24SCgoCaWQYASABKAUSDAoEbmFtZRgCIAEoCRIMCgRjb2RlGAMgASgJIpIBCgRCYW5kEgoKAmlkGAEgASgFEg0KBXZhbHVlGAIgASgFEhkKA3JhdBgDIAEoDjIMLm9wZW5idHMuUmF0EgwKBG5hbWUYBCABKAkSHwoGZHVwbGV4GAUgASgOMg8ub3BlbmJ0cy5EdXBsZXgSJQoHdmFyaWFudBgGIAEoDjIULm9wZW5idHMuQmFuZFZhcmlhbnQqVQoNU3RhdGlvblN0YXR1cxIaChZTVEFUSU9OX1NUQVRVU19VTktOT1dOEAASDQoJcHVibGlzaGVkEAESDAoIaW5hY3RpdmUQAhILCgdwZW5kaW5nEAMqTQoDUmF0Eg8KC1JBVF9VTktOT1dOEAASBwoDR1NNEAESCAoEQ0RNQRACEggKBFVNVFMQAxIHCgNMVEUQBBIGCgJOUhAFEgcKA0lPVBAGKi4KBkR1cGxleBISCg5EVVBMRVhfVU5LTk9XThAAEgcKA0ZERBABEgcKA1RERBACKkQKC0JhbmRWYXJpYW50EhgKFEJBTkRfVkFSSUFOVF9VTktOT1dOEAASDgoKY29tbWVyY2lhbBABEgsKB3JhaWx3YXkQAipcCghDZWxsVHlwZRIVChFDRUxMX1RZUEVfVU5LTk9XThAAEg0KCU1BQ1JPQ0VMTBABEg0KCU1JQ1JPQ0VMTBACEgwKCFBJQ09DRUxMEAMSDQoJRkVNVE9DRUxMEARiBnByb3RvMw");
+  fileDesc("Cgxjb21tb24ucHJvdG8SB29wZW5idHMiVwoIT3BlcmF0b3ISCgoCaWQYASABKAUSDAoEbmFtZRgCIAEoCRIRCglmdWxsX25hbWUYAyABKAkSEQoJcGFyZW50X2lkGAQgASgFEgsKA21uYxgFIAEoBSJ+Cg9QaHlzaWNhbFN0YXRpb24SCgoCaWQYASABKAUSEgoKc3RhdGlvbl9pZBgCIAEoCRImCgZzdGF0dXMYAyABKA4yFi5vcGVuYnRzLlN0YXRpb25TdGF0dXMSIwoIb3BlcmF0b3IYBCABKAsyES5vcGVuYnRzLk9wZXJhdG9yIjAKBlJlZ2lvbhIKCgJpZBgBIAEoBRIMCgRuYW1lGAIgASgJEgwKBGNvZGUYAyABKAkikgEKBEJhbmQSCgoCaWQYASABKAUSDQoFdmFsdWUYAiABKAUSGQoDcmF0GAMgASgOMgwub3BlbmJ0cy5SYXQSDAoEbmFtZRgEIAEoCRIfCgZkdXBsZXgYBSABKA4yDy5vcGVuYnRzLkR1cGxleBIlCgd2YXJpYW50GAYgASgOMhQub3BlbmJ0cy5CYW5kVmFyaWFudCpVCg1TdGF0aW9uU3RhdHVzEhoKFlNUQVRJT05fU1RBVFVTX1VOS05PV04QABINCglwdWJsaXNoZWQQARIMCghpbmFjdGl2ZRACEgsKB3BlbmRpbmcQAypNCgNSYXQSDwoLUkFUX1VOS05PV04QABIHCgNHU00QARIICgRDRE1BEAISCAoEVU1UUxADEgcKA0xURRAEEgYKAk5SEAUSBwoDSU9UEAYqLgoGRHVwbGV4EhIKDkRVUExFWF9VTktOT1dOEAASBwoDRkREEAESBwoDVEREEAIqRAoLQmFuZFZhcmlhbnQSGAoUQkFORF9WQVJJQU5UX1VOS05PV04QABIOCgpjb21tZXJjaWFsEAESCwoHcmFpbHdheRACKlwKCENlbGxUeXBlEhUKEUNFTExfVFlQRV9VTktOT1dOEAASDQoJTUFDUk9DRUxMEAESDQoJTUlDUk9DRUxMEAISDAoIUElDT0NFTEwQAxINCglGRU1UT0NFTEwQBGIGcHJvdG8z");
 
 /**
  * @generated from message openbts.Operator
@@ -50,6 +50,38 @@ export const OperatorSchema: GenMessage<Operator> = /*@__PURE__*/
   messageDesc(file_common, 0);
 
 /**
+ * @generated from message openbts.PhysicalStation
+ */
+export type PhysicalStation = Message<"openbts.PhysicalStation"> & {
+  /**
+   * @generated from field: int32 id = 1;
+   */
+  id: number;
+
+  /**
+   * @generated from field: string station_id = 2;
+   */
+  stationId: string;
+
+  /**
+   * @generated from field: openbts.StationStatus status = 3;
+   */
+  status: StationStatus;
+
+  /**
+   * @generated from field: openbts.Operator operator = 4;
+   */
+  operator?: Operator | undefined;
+};
+
+/**
+ * Describes the message openbts.PhysicalStation.
+ * Use `create(PhysicalStationSchema)` to create a new message.
+ */
+export const PhysicalStationSchema: GenMessage<PhysicalStation> = /*@__PURE__*/
+  messageDesc(file_common, 1);
+
+/**
  * @generated from message openbts.Region
  */
 export type Region = Message<"openbts.Region"> & {
@@ -74,7 +106,7 @@ export type Region = Message<"openbts.Region"> & {
  * Use `create(RegionSchema)` to create a new message.
  */
 export const RegionSchema: GenMessage<Region> = /*@__PURE__*/
-  messageDesc(file_common, 1);
+  messageDesc(file_common, 2);
 
 /**
  * @generated from message openbts.Band
@@ -116,7 +148,7 @@ export type Band = Message<"openbts.Band"> & {
  * Use `create(BandSchema)` to create a new message.
  */
 export const BandSchema: GenMessage<Band> = /*@__PURE__*/
-  messageDesc(file_common, 2);
+  messageDesc(file_common, 3);
 
 /**
  * @generated from enum openbts.StationStatus

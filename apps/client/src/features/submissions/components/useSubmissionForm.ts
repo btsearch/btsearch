@@ -23,16 +23,26 @@ import type {
   SubmissionFormData,
   SubmissionMode,
 } from "../types";
-import { cellsToPayloads, computeCellPayloads, generateCellId, sectorsToPayloads, ukePermitsToCells } from "../utils/cells";
+import {
+  cellsToPayloads,
+  computeCellPayloads,
+  computeSectorPayloads,
+  generateCellId,
+  orderSectorsById,
+  remapSectorAssignment,
+  ukePermitsToCells,
+} from "../utils/cells";
 import { type OriginalState, hasFormChanges, isEqualStation } from "../utils/equality";
 import {
   type StationValues,
   applyProposedLocation,
+  applyProposedSectors,
   applyProposedStation,
   diffLocationValues,
   diffStationValues,
   hasPayloadChanges,
   toLocationValues,
+  toSectorDrafts,
   toStationValues,
 } from "../utils/proposalChanges";
 import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
@@ -190,10 +200,6 @@ function stationCellsToForm(station: SearchStation): ProposedCellForm[] {
   }));
 }
 
-function stationSectorsToDrafts(station: SearchStation): SectorDraft[] {
-  return (station.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` }));
-}
-
 function proposedCellSectorLocalId(cell: SubmissionDetail["cells"][number]): string | null | undefined {
   if (cell.sector_local_id) return cell.sector_local_id;
   if (cell.target_sector_id) return `sector-${cell.target_sector_id}`;
@@ -215,13 +221,9 @@ function proposedCellsToForm(submission: SubmissionDetail): ProposedCellForm[] {
   }));
 }
 
-function proposedSectorsToDrafts(submission: SubmissionDetail): SectorDraft[] {
-  return submission.sectors.map((sector) => ({ _localId: sector.local_id, id: sector.target_sector_id ?? undefined, azimuth: sector.azimuth }));
-}
-
 function existingStationValues(station: SearchStation): Omit<FormValues, "mode" | "submitterNote"> {
   const cells = stationCellsToForm(station);
-  const sectors = stationSectorsToDrafts(station);
+  const sectors = toSectorDrafts(station.sectors);
   return {
     action: "update",
     selectedStation: station,
@@ -237,8 +239,7 @@ function existingStationValues(station: SearchStation): Omit<FormValues, "mode" 
 
 function editValuesForStation(submission: SubmissionDetail, station: SearchStation): FormValues {
   const originalCells = stationCellsToForm(station);
-  const originalSectors = stationSectorsToDrafts(station);
-  const proposedSectors = proposedSectorsToDrafts(submission);
+  const originalSectors = toSectorDrafts(station.sectors);
   const updatedIds = new Set<number>();
   const deletedIds = new Set<number>();
   for (const cell of submission.cells) {
@@ -261,7 +262,7 @@ function editValuesForStation(submission: SubmissionDetail, station: SearchStati
     selectedRats: selectedRatsOf(cells),
     cells,
     originalCells,
-    sectors: proposedSectors.length > 0 ? proposedSectors : originalSectors,
+    sectors: applyProposedSectors(originalSectors, submission.sectors),
     originalSectors,
     submitterNote: submission.submitter_note ?? "",
     ...stationFields(applyProposedStation(toStationValues(station), submission.proposedStation)),
@@ -271,7 +272,6 @@ function editValuesForStation(submission: SubmissionDetail, station: SearchStati
 function editValuesForNewStation(submission: SubmissionDetail): FormValues {
   const proposed = submission.proposedStation;
   const cells = proposedCellsToForm(submission);
-  const sectors = proposedSectorsToDrafts(submission);
 
   return {
     ...INITIAL_VALUES,
@@ -293,8 +293,8 @@ function editValuesForNewStation(submission: SubmissionDetail): FormValues {
     location: applyProposedLocation(toLocationValues(null), submission.proposedLocation),
     selectedRats: selectedRatsOf(cells),
     cells,
-    sectors,
-    originalSectors: structuredClone(sectors),
+    sectors: applyProposedSectors([], submission.sectors),
+    originalSectors: [],
     submitterNote: submission.submitter_note ?? "",
   };
 }
@@ -318,6 +318,8 @@ function buildSubmissionData(value: FormValues, activeCells: ProposedCellForm[],
         : undefined;
   const selectsLocationPhotos = !isNewStation && !isDeleteMode;
   const { photos, locationPhotoIds, locationPhotoIdsToRemove, mainLocationPhotoId } = photoDraft;
+  const { sectors, localIdMap } = orderSectorsById(value.sectors);
+  const cells = activeCells.map((cell) => ({ ...cell, _sectorLocalId: remapSectorAssignment(cell._sectorLocalId, localIdMap) }));
 
   return {
     station_id: isNewStation ? null : (value.selectedStation?.id ?? null),
@@ -325,8 +327,8 @@ function buildSubmissionData(value: FormValues, activeCells: ProposedCellForm[],
     submitter_note: value.submitterNote || undefined,
     station: station && (isEditMode || hasPayloadChanges(station)) ? station : undefined,
     location: location && (isEditMode || hasPayloadChanges(location)) ? location : undefined,
-    sectors: isDeleteMode ? undefined : sectorsToPayloads(value.sectors),
-    cells: isDeleteMode ? [] : isNewStation ? cellsToPayloads(activeCells) : computeCellPayloads(value.originalCells, activeCells),
+    sectors: isDeleteMode ? undefined : computeSectorPayloads(value.originalSectors, sectors),
+    cells: isDeleteMode ? [] : isNewStation ? cellsToPayloads(cells) : computeCellPayloads(value.originalCells, cells),
     pending_photos: photos.length > 0 ? photos.length : undefined,
     location_photo_ids: selectsLocationPhotos && locationPhotoIds.length > 0 ? locationPhotoIds : undefined,
     location_photo_ids_to_remove: selectsLocationPhotos && locationPhotoIdsToRemove.length > 0 ? locationPhotoIdsToRemove : undefined,
@@ -527,6 +529,14 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
     [form],
   );
 
+  const handleRatsChange = useCallback(
+    (rats: RatType[]) => {
+      form.setFieldValue("selectedRats", rats);
+      if (form.state.values.mode === "new") form.setFieldValue("cells", (cells) => cells.filter((cell) => rats.includes(cell.rat)));
+    },
+    [form],
+  );
+
   const handleLocationChange = useCallback(
     (patch: Partial<ProposedLocationForm>) => {
       form.setFieldValue("location", (location) => ({ ...location, ...patch }));
@@ -657,6 +667,7 @@ export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadU
       loadStation,
       handleUkeStationSelect,
       handleCellsChange,
+      handleRatsChange,
       handleLocationChange,
       handleUplinkTypeChange,
     },

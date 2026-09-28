@@ -109,9 +109,12 @@ export type CellPayload = {
   details?: Partial<CellFormDetails>;
 };
 
+export type SectorOperation = "add" | "update" | "delete";
+
 export type SectorPayload = {
+  operation: SectorOperation;
   local_id: string;
-  target_sector_id?: number | null;
+  target_sector_id: number | null;
   azimuth: number;
 };
 

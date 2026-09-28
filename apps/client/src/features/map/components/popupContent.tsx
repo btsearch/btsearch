@@ -12,8 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
+import { VirtualStationBadge } from "@/features/station-details/components/virtualStationBadge";
 import { usePreferences } from "@/hooks/usePreferences";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
@@ -29,10 +30,6 @@ type PopupStationListProps = {
   onOpenStationDetails: (id: number) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
 };
-
-function getPopupOperatorGradient(color: string): string {
-  return `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)`;
-}
 
 function PopupStationList({
   isLoading,
@@ -71,7 +68,7 @@ function PopupStationList({
             type="button"
             className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
             onClick={() => onOpenUkeStationDetails(station)}
-            style={{ backgroundImage: getPopupOperatorGradient(color) }}
+            style={{ backgroundImage: getOperatorTintGradient(color) }}
           >
             <div className="flex min-w-0 items-center gap-1.5">
               <StationTitle stationId={station.station_id} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
@@ -107,13 +104,14 @@ function PopupStationList({
             type="button"
             className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
             onClick={() => onOpenStationDetails(station.id)}
-            style={{ backgroundImage: getPopupOperatorGradient(color) }}
+            style={{ backgroundImage: getOperatorTintGradient(color) }}
           >
             <div className="flex min-w-0 items-center gap-1.5">
               <StationTitle stationId={stationId} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
               {station.extra_identificators?.networks_id && (
                 <span className="text-[11px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
               )}
+              <VirtualStationBadge station={station} onOpenStation={onOpenStationDetails} compact />
             </div>
             {technologySummary}
           </button>

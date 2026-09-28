@@ -208,10 +208,11 @@ export async function createAnalyzerBatch(payloads: SubmissionFormData[], submit
 }
 
 export async function updateSubmission(id: string, data: SubmissionFormData): Promise<SubmissionResponse> {
+  const payload = buildSubmissionPayload(data);
   return fetchApiData<SubmissionResponse>(`submissions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildSubmissionPayload(data)),
+    body: JSON.stringify({ ...payload, cells: payload.cells ?? [], sectors: data.sectors }),
   });
 }
 

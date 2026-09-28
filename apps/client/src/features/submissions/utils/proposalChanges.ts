@@ -1,6 +1,6 @@
 import type { LocationPayload, ProposedLocationForm, StationPayload } from "../types";
-import type { ProposedLocation, ProposedStation } from "@/features/admin/submissions/types";
-import type { UplinkType } from "@/types/station";
+import type { ProposedLocation, ProposedSector, ProposedStation } from "@/features/admin/submissions/types";
+import type { Sector, SectorDraft, UplinkType } from "@/types/station";
 
 export const PROPOSED_STATION_FIELDS = [
   "station_id",
@@ -127,6 +127,36 @@ export function applyProposedLocation(current: ProposedLocationForm, proposal: P
     longitude: changes.longitude ?? current.longitude,
     latitude: changes.latitude ?? current.latitude,
   };
+}
+
+export function toSectorDrafts(sectors: Sector[] | undefined): SectorDraft[] {
+  return (sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` }));
+}
+
+function proposedSectorToDraft(sector: ProposedSector): SectorDraft {
+  return { _localId: sector.local_id, id: sector.target_sector_id ?? undefined, azimuth: sector.azimuth };
+}
+
+export function proposedSectorDrafts(proposedSectors: ProposedSector[]): SectorDraft[] {
+  return proposedSectors.filter((sector) => sector.operation !== "delete").map(proposedSectorToDraft);
+}
+
+export function applyProposedSectors(sectors: SectorDraft[], proposedSectors: ProposedSector[]): SectorDraft[] {
+  if (proposedSectors.some((sector) => sector.operation === null)) return proposedSectors.map(proposedSectorToDraft);
+
+  const changeById = new Map(
+    proposedSectors.flatMap((sector) =>
+      sector.operation !== "add" && sector.target_sector_id !== null ? [[sector.target_sector_id, sector] as const] : [],
+    ),
+  );
+  return [
+    ...sectors.flatMap((sector) => {
+      const change = sector.id === undefined ? undefined : changeById.get(sector.id);
+      if (change === undefined) return [sector];
+      return change.operation === "delete" ? [] : [{ ...sector, azimuth: change.azimuth }];
+    }),
+    ...proposedSectors.filter((sector) => sector.operation === "add").map(proposedSectorToDraft),
+  ];
 }
 
 export function diffStationValues(next: StationValues, current: StationValues): StationPayload {

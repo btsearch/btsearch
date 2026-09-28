@@ -168,6 +168,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
       loadStation,
       handleUkeStationSelect,
       handleCellsChange,
+      handleRatsChange,
       handleLocationChange,
       handleUplinkTypeChange,
     },
@@ -386,7 +387,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
               return null;
             }
 
-            return <RatSelector selectedRats={selectedRats} onRatsChange={(rats) => form.setFieldValue("selectedRats", rats)} />;
+            return <RatSelector selectedRats={selectedRats} onRatsChange={handleRatsChange} />;
           }}
         </FormSlice>
 

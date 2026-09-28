@@ -1,6 +1,7 @@
 import {
   ProposedLocationFieldEnum,
   ProposedStationFieldEnum,
+  SectorOperationEnum,
   proposedCells,
   proposedGSMCells,
   proposedLTECells,
@@ -203,6 +204,110 @@ export async function stripUnchangedProposalData(
     stationData: stationChanges && changedStationFields(stationChanges).length > 0 ? stationChanges : undefined,
     locationData: locationChanges && changedLocationFields(locationChanges).length > 0 ? locationChanges : undefined,
   };
+}
+
+const MAX_SECTORS = 15;
+
+export type SectorOperation = (typeof SectorOperationEnum.enumValues)[number];
+export type CurrentSector = { id: number; azimuth: number };
+export type ProposedSectorChange = { operation: SectorOperation; target_sector_id: number | null; local_id: string; azimuth: number };
+type ProposedSectorInput = { operation?: SectorOperation | null; target_sector_id?: number | null; local_id: string; azimuth: number };
+type ProposedCellSectorInput = { target_sector_id?: number | null; sector_local_id?: string | null };
+type ResolvedSectorChanges = { changes: ProposedSectorChange[]; unchangedSectorIdByLocalId: Map<string, number> };
+
+function isLegacySectorList(sectors: readonly ProposedSectorInput[]): boolean {
+  return sectors.some((sector) => !sector.operation);
+}
+
+function legacySectorListToChanges(sectors: readonly ProposedSectorInput[], currentSectors: readonly CurrentSector[]): ResolvedSectorChanges {
+  const currentById = new Map(currentSectors.map((sector) => [sector.id, sector]));
+  const retainedIds = new Set<number>();
+  const changes: ProposedSectorChange[] = [];
+  const unchangedSectorIdByLocalId = new Map<string, number>();
+
+  for (const sector of sectors) {
+    const targetId = sector.target_sector_id ?? null;
+    const match =
+      targetId !== null
+        ? currentById.get(targetId)
+        : currentSectors.find((current) => current.azimuth === sector.azimuth && !retainedIds.has(current.id));
+    if (match === undefined) {
+      changes.push({ operation: "add", target_sector_id: null, local_id: sector.local_id, azimuth: sector.azimuth });
+      continue;
+    }
+    retainedIds.add(match.id);
+    if (match.azimuth === sector.azimuth) unchangedSectorIdByLocalId.set(sector.local_id, match.id);
+    else changes.push({ operation: "update", target_sector_id: match.id, local_id: sector.local_id, azimuth: sector.azimuth });
+  }
+
+  const localIds = new Set(sectors.map((sector) => sector.local_id));
+  for (const current of currentSectors) {
+    if (retainedIds.has(current.id)) continue;
+    const localId = localIds.has(`sector-${current.id}`) ? `sector-${current.id}-removed` : `sector-${current.id}`;
+    changes.push({ operation: "delete", target_sector_id: current.id, local_id: localId, azimuth: current.azimuth });
+  }
+
+  return { changes, unchangedSectorIdByLocalId };
+}
+
+export function resolveSectorChanges(sectors: readonly ProposedSectorInput[], currentSectors: readonly CurrentSector[]): ResolvedSectorChanges {
+  if (isLegacySectorList(sectors)) return legacySectorListToChanges(sectors, currentSectors);
+  return {
+    changes: sectors.flatMap(({ operation, target_sector_id, local_id, azimuth }) =>
+      operation ? [{ operation, target_sector_id: target_sector_id ?? null, local_id, azimuth }] : [],
+    ),
+    unchangedSectorIdByLocalId: new Map(),
+  };
+}
+
+export function validateSectorChanges(
+  sectors: readonly ProposedSectorInput[] | undefined,
+  currentSectors: readonly CurrentSector[],
+  cells: readonly ProposedCellSectorInput[] = [],
+): ProposedSectorChange[] {
+  const input = sectors ?? [];
+  const currentIds = new Set(currentSectors.map((sector) => sector.id));
+  const localIds = new Set<string>();
+  for (const sector of input) {
+    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
+    localIds.add(sector.local_id);
+    if (typeof sector.target_sector_id === "number" && !currentIds.has(sector.target_sector_id))
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more target azimuths do not belong to the target station" });
+  }
+  if (isLegacySectorList(input) && input.some((sector) => sector.operation))
+    throw new ErrorResponse("BAD_REQUEST", { message: "Every azimuth change must have an operation" });
+
+  const { changes } = resolveSectorChanges(input, currentSectors);
+  const azimuthById = new Map(currentSectors.map((sector) => [sector.id, sector.azimuth]));
+  const addedAzimuths: number[] = [];
+  const changedIds = new Set<number>();
+  for (const change of changes) {
+    if (change.operation === "add") {
+      if (change.target_sector_id !== null) throw new ErrorResponse("BAD_REQUEST", { message: "Added azimuths must not target an existing azimuth" });
+      addedAzimuths.push(change.azimuth);
+      continue;
+    }
+    if (change.target_sector_id === null)
+      throw new ErrorResponse("BAD_REQUEST", { message: "Updated and deleted azimuths must target an existing azimuth" });
+    if (changedIds.has(change.target_sector_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Each azimuth can only be changed once" });
+    changedIds.add(change.target_sector_id);
+    if (change.operation === "delete") azimuthById.delete(change.target_sector_id);
+    else azimuthById.set(change.target_sector_id, change.azimuth);
+  }
+
+  const finalAzimuths = [...azimuthById.values(), ...addedAzimuths];
+  if (new Set(finalAzimuths).size !== finalAzimuths.length) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
+  if (finalAzimuths.length > MAX_SECTORS)
+    throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the submission. Maximum allowed is ${MAX_SECTORS}` });
+
+  for (const cell of cells) {
+    if (typeof cell.target_sector_id === "number" && !currentIds.has(cell.target_sector_id))
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments do not belong to the target station" });
+    if (cell.sector_local_id && !localIds.has(cell.sector_local_id))
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments reference a missing proposed azimuth" });
+  }
+
+  return changes;
 }
 
 export function isNonEmpty(value: unknown): boolean {

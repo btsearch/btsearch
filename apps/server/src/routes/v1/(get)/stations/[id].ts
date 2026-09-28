@@ -22,6 +22,7 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
+import { findPhysicalStation, physicalStationSchema } from "../../../../services/stations/physicalStations.js";
 
 const stationSchema = createSelectSchema(stations)
   .omit({ status: true, operator_id: true, location_id: true })
@@ -54,6 +55,7 @@ type StationResponse = StationBase & {
   location: z.infer<typeof locationSchema>;
   operator: z.infer<typeof operatorSchema>;
   extra_identificators?: z.infer<typeof extraIdentificatorsSchema>;
+  physicalStation?: z.infer<typeof physicalStationSchema>;
 };
 const schemaRoute = {
   params: z.object({
@@ -68,6 +70,7 @@ const schemaRoute = {
         extra_identificators: extraIdentificatorsSchema.optional(),
         sectors: z.array(sectorsSchema).optional(),
         uplink: uplinkSchema.optional(),
+        physicalStation: physicalStationSchema.optional(),
       }),
     }),
   },
@@ -94,6 +97,8 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
+  const physicalStation = await findPhysicalStation(station.id, station.location?.id, station.operator?.mnc);
+
   const cells: CellResponse[] = (station.cells as CellWithRats[]).map((cell) => {
     const { gsm, umts, lte, nr, band, ...rest } = cell;
     const details: CellDetails = gsm ?? umts ?? lte ?? nr ?? null;
@@ -103,6 +108,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
   const data = { ...station, cells } as StationResponse & { extra_identificators?: z.infer<typeof extraIdentificatorsSchema> | null };
   if (!data.extra_identificators) delete (data as { extra_identificators?: unknown }).extra_identificators;
   if (!(data as { uplink?: unknown }).uplink) delete (data as { uplink?: unknown }).uplink;
+  if (physicalStation) data.physicalStation = physicalStation;
 
   return res.send({ data });
 }

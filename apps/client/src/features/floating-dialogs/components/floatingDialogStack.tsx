@@ -49,6 +49,7 @@ function renderMobileDialog(
         <StationDetailsDialogPanel
           stationId={dialog.id}
           source={dialog.source}
+          initialTab={dialog.initialTab}
           onClose={onClose}
           onStartTerrainProfile={onStartTerrainProfile ?? undefined}
           showPhotoPanel={false}
@@ -117,6 +118,7 @@ function renderDesktopDialog(
         <StationDetailsDialogPanel
           stationId={dialog.id}
           source={dialog.source}
+          initialTab={dialog.initialTab}
           onClose={onClose}
           onStartTerrainProfile={onStartTerrainProfile ?? undefined}
           contentRef={frame.contentRef}

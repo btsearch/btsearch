@@ -46,6 +46,7 @@ import {
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
 import { StationInfoItem, stationInfoGroupClassName } from "@/features/station-details/components/stationInfoItem";
 import { StationUplinkItem } from "@/features/station-details/components/stationUplinkItem";
+import { VirtualStationBadge } from "@/features/station-details/components/virtualStationBadge";
 import { WatchButton } from "@/features/station-details/components/watchButton";
 import { stationQueryOptions } from "@/features/station-details/queries";
 import { groupCellsByRat } from "@/features/station-details/utils";
@@ -55,7 +56,6 @@ import { useSettings } from "@/hooks/useSettings";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
-import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
@@ -92,7 +92,7 @@ function StationPage() {
   const { data: settings } = useSettings();
   const { data: session } = authClient.useSession();
   const { preferences } = usePreferences();
-  const { openStationHistoryDialog } = useFloatingDialogStack();
+  const { openStationDialog, openStationHistoryDialog } = useFloatingDialogStack();
 
   const { data: station } = useQuery(stationQueryOptions(stationId));
 
@@ -131,7 +131,6 @@ function StationPage() {
   if (!station) return <EntityPageMessage titleKey="page.stationUnavailableTitle" descriptionKey="page.stationUnavailableDescription" />;
 
   const operatorColor = getOperatorColor(station.operator.mnc);
-  const leaseOperator = getHardwareLeaseOperator(station.station_id, station.operator.mnc);
   const stationNotes = station.notes?.trim();
   const showSI2PEMLink = !(station.station_id.startsWith("N") && (station.operator.mnc === 26002 || station.operator.mnc === 26003));
   const pageTitle = `${station.operator.name} ${station.station_id}`;
@@ -151,16 +150,8 @@ function StationPage() {
             <div className="min-w-0 space-y-1.5">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 pr-28 sm:pr-0">
                 <DialogOperatorName name={station.operator.name} mnc={station.operator.mnc} labelClassName="text-lg leading-6 sm:text-xl" />
-                {leaseOperator ? (
-                  <Tooltip>
-                    <TooltipTrigger className="shrink-0 cursor-help font-mono text-sm font-medium text-muted-foreground underline decoration-amber-500/50 decoration-dashed underline-offset-2">
-                      {station.station_id}
-                    </TooltipTrigger>
-                    <TooltipContent>{t("dialog.hardwareLease", { operator: leaseOperator })}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <span className="shrink-0 font-mono text-sm font-medium text-muted-foreground">{station.station_id}</span>
-                )}
+                <span className="shrink-0 font-mono text-sm font-medium text-muted-foreground">{station.station_id}</span>
+                <VirtualStationBadge station={station} onOpenStation={(id) => openStationDialog(id, "internal")} />
                 {station.is_confirmed ? (
                   <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     <HugeiconsIcon icon={Tick02Icon} className="size-3.5" aria-hidden="true" />
@@ -386,7 +377,7 @@ function StationPage() {
           </CollapsibleSection>
 
           <CollapsibleSection title={t("tabs.permits")}>
-            <PermitsList stationId={stationId} />
+            <PermitsList stationId={stationId} physicalStation={station.physicalStation} />
           </CollapsibleSection>
 
           {settings?.enableStationComments ? (

@@ -17,6 +17,7 @@ import {
 import { type StationUpdateImpact, invalidateStationUpdateQueries } from "./queries";
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { pickCellDetails } from "@/features/submissions/api";
+import { orderSectorsById, remapSectorAssignment } from "@/features/submissions/utils/cells";
 import { createAuditOperationHandle } from "@/lib/api";
 import { shallowEqual } from "@/lib/shallowEqual";
 import type { Cell, Sector, SectorDraft, Station, StationStatus, UplinkType } from "@/types/station";
@@ -160,6 +161,11 @@ export function useSaveStationMutation() {
   return useMutation({
     mutationFn: async (payload: SaveStationPayload) => {
       const auditOperation = createAuditOperationHandle(payload.isCreateMode ? "station.create" : "station.edit");
+      const { sectors, localIdMap } = orderSectorsById(payload.sectors);
+      const localCells: LocalCell[] = payload.localCells.map((cell) => ({
+        ...cell,
+        _sectorLocalId: remapSectorAssignment(cell._sectorLocalId, localIdMap),
+      }));
 
       if (payload.isCreateMode) {
         if (payload.location.region_id === null || payload.location.longitude === null || payload.location.latitude === null) {
@@ -183,7 +189,7 @@ export function useSaveStationMutation() {
           locationId = locationRes.data.id;
         }
 
-        const cellsPayload = payload.localCells.map((lc) => ({
+        const cellsPayload = localCells.map((lc) => ({
           station_id: 0,
           band_id: lc.band_id,
           rat: lc.rat,
@@ -208,12 +214,12 @@ export function useSaveStationMutation() {
         partiallyCreatedStationIds.set(payload, res.data.id);
 
         let sectorIdByLocalId = new Map<string, number>();
-        if (payload.sectors.length > 0) {
-          const savedSectors = await putStationSectors(res.data.id, toSectorPayload(payload.sectors), auditOperation);
-          sectorIdByLocalId = makeSectorIdMap(payload.sectors, savedSectors.data);
+        if (sectors.length > 0) {
+          const savedSectors = await putStationSectors(res.data.id, toSectorPayload(sectors), auditOperation);
+          sectorIdByLocalId = makeSectorIdMap(sectors, savedSectors.data);
         }
 
-        const assignedCreatedCells = payload.localCells.flatMap((lc, index) => {
+        const assignedCreatedCells = localCells.flatMap((lc, index) => {
           const created = res.data.cells[index];
           const sectorId = resolveSectorId(lc._sectorLocalId, sectorIdByLocalId);
           if (!created || sectorId === null) return [];
@@ -265,9 +271,9 @@ export function useSaveStationMutation() {
       const originalCells = station.cells;
       const oldLocationId = station.location?.id ?? null;
       let locationMetadataChanged = false;
-      let sectorIdByLocalId = makeSectorIdMap(payload.sectors);
-      const sectorPayload = toSectorPayload(payload.sectors);
-      const haveSectorsChanged = sectorsChanged(payload.sectors, station.sectors);
+      let sectorIdByLocalId = makeSectorIdMap(sectors);
+      const sectorPayload = toSectorPayload(sectors);
+      const haveSectorsChanged = sectorsChanged(sectors, station.sectors);
       const retainedSectorIds = new Set(sectorPayload.flatMap((sector) => (sector.id !== undefined ? [sector.id] : [])));
       const removedSectorIds = new Set((station.sectors ?? []).flatMap((sector) => (retainedSectorIds.has(sector.id) ? [] : [sector.id])));
       const deletedServerCellIdSet = new Set(payload.deletedServerCellIds);
@@ -322,7 +328,7 @@ export function useSaveStationMutation() {
         stationPatch.location_id = locationRes.data.id;
       }
 
-      const newCells = payload.localCells.filter((lc) => !lc._serverId);
+      const newCells = localCells.filter((lc) => !lc._serverId);
       const createdNewCellsByLocalId = new Map<string, Cell>();
       const initialNewCellSectorIds = new Map<string, number | null>();
       if (newCells.length > 0) {
@@ -351,7 +357,7 @@ export function useSaveStationMutation() {
         await Promise.all(payload.deletedServerCellIds.map((cellId) => deleteCell(station.id, cellId, auditOperation)));
       }
 
-      const cellsToPreclearSector = payload.localCells.filter(hasServerId).filter((lc) => {
+      const cellsToPreclearSector = localCells.filter(hasServerId).filter((lc) => {
         if (deletedServerCellIdSet.has(lc._serverId)) return false;
         const original = originalCells.find((cell) => cell.id === lc._serverId);
         return original?.sector_id !== null && original?.sector_id !== undefined && removedSectorIds.has(original.sector_id);
@@ -369,10 +375,10 @@ export function useSaveStationMutation() {
 
       if (haveSectorsChanged) {
         const savedSectors = await putStationSectors(station.id, sectorPayload, auditOperation);
-        sectorIdByLocalId = makeSectorIdMap(payload.sectors, savedSectors.data);
+        sectorIdByLocalId = makeSectorIdMap(sectors, savedSectors.data);
       }
 
-      const modifiedCells = payload.localCells.filter(hasServerId).filter((lc) => isCellModified(lc, originalCells, sectorIdByLocalId));
+      const modifiedCells = localCells.filter(hasServerId).filter((lc) => isCellModified(lc, originalCells, sectorIdByLocalId));
       const createdCellSectorPatches = newCells.flatMap((lc) => {
         const createdCell = createdNewCellsByLocalId.get(lc._localId);
         const sectorId = resolveSectorId(lc._sectorLocalId, sectorIdByLocalId);

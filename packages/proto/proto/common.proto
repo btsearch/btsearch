@@ -17,6 +17,13 @@ message Operator {
   int32 mnc = 5;
 }
 
+message PhysicalStation {
+  int32 id = 1;
+  string station_id = 2;
+  StationStatus status = 3;
+  Operator operator = 4;
+}
+
 message Region {
   int32 id = 1;
   string name = 2;

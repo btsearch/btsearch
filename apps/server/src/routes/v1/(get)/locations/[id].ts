@@ -10,6 +10,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { buildStationFilterConditions, resolveStationFilter } from "../../../../services/stations/filter.js";
+import { findPhysicalStations, physicalStationSchema } from "../../../../services/stations/physicalStations.js";
 import { parseStationStatusParam } from "../../../../services/stations/status.js";
 import { parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
@@ -25,6 +26,7 @@ const stationResponseSchema = stationsSchema.extend({
   cells: z.array(cellResponseSchema),
   operator: operatorSchema,
   extra_identificators: extraIdentificatorsSchema.optional(),
+  physicalStation: physicalStationSchema.optional(),
 });
 
 const schemaRoute = {
@@ -132,9 +134,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   if (!location) throw new ErrorResponse("NOT_FOUND");
 
+  const physicalStations = await findPhysicalStations(location.id);
+
   const cleanedStations = location.stations.map((station) => {
     const stationData = { ...station } as StationData & { extra_identificators?: unknown };
     if (!stationData.extra_identificators) delete stationData.extra_identificators;
+    const physicalStation = physicalStations.get(station.id);
+    if (physicalStation) stationData.physicalStation = physicalStation;
     return stationData as StationData;
   });
 

@@ -16,6 +16,10 @@ export {
   MNO_BRAND,
 } from "@openbts/shared/operatorUtils";
 
+export function getOperatorTintGradient(color: string): string {
+  return `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)`;
+}
+
 export function partitionOperators(operators: Operator[]): { top: Operator[]; other: Operator[] } {
   const top: Operator[] = [];
   const other: Operator[] = [];

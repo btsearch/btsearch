@@ -23,7 +23,8 @@
     "suggestedCount": "Sugerowana liczba azymutów:",
     "azimuth": "Azymut",
     "empty": "Brak azymutów",
-    "add": "Dodaj azymut"
+    "add": "Dodaj azymut",
+    "reorder": "Zmień kolejność {{label}}"
   },
   "si2pemAntennaData": {
     "action": "Anteny",
@@ -62,6 +63,7 @@
     "sourceDeviceRegistry": "Rejestr urządzeń",
     "sourceRadiolines": "Radiolinie",
     "noPermits": "Brak pozwoleń UKE dla tej stacji",
+    "permitHolder": "W tej lokalizacji pozwolenie ma stacja",
     "decisionTypeP": "Pozwolenie",
     "decisionTypeZmP": "Zmiana Pozwolenia",
     "newPermitTooltip": "To pozwolenie zostało dodane w ciągu ostatnich 30 dni",
@@ -91,7 +93,10 @@
     "locationShareText": "{{location}} ‐ stacje bazowe"
   },
   "dialog": {
-    "hardwareLease": "Dzierżawa sprzętu od {{operator}} (RAN sharing)",
+    "virtualStation": "Wirtualna",
+    "virtualStationTitle": "Stacja wirtualna",
+    "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu UKE tej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
+    "virtualStationLessor": "Działa na sprzęcie drugiego operatora w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
     "btsStation": "Stacja bazowa",
     "showOnMap": "Pokaż na mapie",
     "createStation": "Utwórz stację",

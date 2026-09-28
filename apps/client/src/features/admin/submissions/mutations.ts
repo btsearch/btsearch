@@ -2,10 +2,9 @@ import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-q
 
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
-import type { LocationPayload, StationPayload } from "@/features/submissions/types";
-import { sectorAssignmentPayload, sectorsToPayloads } from "@/features/submissions/utils/cells";
+import type { LocationPayload, SectorPayload, StationPayload } from "@/features/submissions/types";
+import { sectorAssignmentPayload } from "@/features/submissions/utils/cells";
 import { API_BASE, fetchJson } from "@/lib/api";
-import type { SectorDraft } from "@/types/station";
 
 type LocalCell = CellDraftBase & {
   _serverId?: number;
@@ -18,7 +17,7 @@ export interface SaveSubmissionPayload {
   reviewNotes: string;
   station: StationPayload;
   location: LocationPayload;
-  sectors: SectorDraft[];
+  sectors: SectorPayload[];
   localCells: LocalCell[];
 }
 
@@ -41,7 +40,7 @@ export function useSaveSubmissionMutation() {
           review_notes: payload.reviewNotes || null,
           station: payload.station,
           location: payload.location,
-          sectors: sectorsToPayloads(payload.sectors),
+          sectors: payload.sectors,
           cells: payload.localCells
             .filter((lc) => lc.operation !== "unchanged")
             .map((lc) => ({

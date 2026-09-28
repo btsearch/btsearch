@@ -3,6 +3,7 @@ import type { CSSProperties, HTMLAttributes, Ref } from "react";
 import type { FloatingDialogRect } from "./geometry";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { PemReport } from "@/features/station-details/api";
+import type { TabId } from "@/features/station-details/tabs";
 import type { StationSource, UkeStation } from "@/types/station";
 
 export function assertNever(value: never): never {
@@ -52,6 +53,7 @@ export type StationFloatingDialogItem = FloatingDialogItemBase & {
   kind: "station";
   id: number;
   source: StationSource;
+  initialTab?: TabId;
 };
 
 export type UkePermitFloatingDialogItem = FloatingDialogItemBase & {
@@ -76,7 +78,7 @@ export type FloatingDialogItem =
   | StationHistoryFloatingDialogItem;
 
 export type FloatingDialogOpenRequest =
-  | { kind: "station"; id: number; source: StationSource }
+  | { kind: "station"; id: number; source: StationSource; initialTab?: TabId }
   | { kind: "uke-permit"; station: UkeStation }
   | { kind: "radioline"; link: DuplexRadioLink }
   | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)

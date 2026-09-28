@@ -1,6 +1,29 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-28
+
+### 🚀 Enhancements
+
+- Azimuths can now be reordered by dragging them or with the arrow keys on the drag handle, and cells stay assigned to the same azimuth
+- Submissions now only save the azimuths you added, changed or removed, and reviewers see the station's current azimuths for everything else
+- The changes view of your submissions now shows each azimuth as added, changed or removed
+- When you create a new station, including one started from a UKE station, turning off a RAT now removes its cells instead of hiding them
+- T-Mobile and Orange stations that run on their RAN sharing partner's equipment are now marked with a Virtual badge in the station dialog, on the station page and in the map popup, instead of a tooltip on the station ID that only appeared for Orange stations whose ID starts with N
+- Hovering over or clicking the Virtual badge shows the physical station it runs on, which you can open from there, together with a link explaining RAN sharing
+- The UKE Permits tab of a virtual station now shows which station at the same location holds the permit, with a link that opens that station's permits
+- API: proposed sectors in submission responses now include `operation` (`add`, `update` or `delete`), update submissions only store the azimuths that change, and sectors sent without `operation` are still read as the full azimuth list
+- API: station and location responses now include `physicalStation` for virtual T-Mobile and Orange stations, which is the station at the same location whose equipment and UKE permits they use
+
+### 🩹 Fixes
+
+- Approving a submission no longer reverts, re-adds or removes azimuths that were changed after the submission was sent
+- You can now remove all azimuths of a station in a submission
+- Saving or approving azimuth changes that swap values between azimuths, for example after fetching azimuths from UKE or SI2PEM, no longer fails
+- Undoing all cell changes while editing a pending submission now removes them from the submission
+- Adding azimuths while editing a submission that already adds new azimuths no longer mixes them up or fails to save
+- Admin: creating a station no longer adds the cells of radio technologies that were turned off
+
 # 2026-09-27
 
 ### 🚀 Enhancements

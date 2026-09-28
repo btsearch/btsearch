@@ -34,15 +34,18 @@ import {
   getProposedLocationChanges,
   getProposedStationChanges,
   normalizeText,
+  resolveSectorChanges,
 } from "../../utils/submission.helpers.js";
 import {
   type AuditRecorder,
   type CellSnapshot,
   type PhotoSelectionSnapshots,
+  type SectorSnapshot,
   auditContextFromRequest,
   flattenCellRow,
   loadCellSnapshots,
   loadPhotoSelectionSnapshots,
+  loadSectorSnapshot,
   logPhotoSelectionChanges,
   runAuditedOperation,
 } from "../audit/index.js";
@@ -50,6 +53,7 @@ import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cellDuplicateCh
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
+import { moveSectorsOutOfTheWay } from "../stations/sectorAzimuths.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import { isUplinkType } from "../stations/uplink.js";
 import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.service.js";
@@ -133,12 +137,6 @@ async function logLocationChange(audit: AuditRecorder, result: UpsertLocationRes
     metadata: { submission_id: submissionId },
   });
 }
-
-type ProposedSectorRow = {
-  target_sector_id: number | null;
-  local_id: string;
-  azimuth: number;
-};
 
 type ProposedCellSectorRef = {
   target_sector_id: number | null;
@@ -708,62 +706,59 @@ async function applyProposedSectors(
 ): Promise<{
   sectorIdByLocalId: Map<string, number>;
   sectorIdsToDeleteAfterCells: number[];
-  previousSectors: Array<{ id: number; azimuth: number }>;
-  nextSectors: Array<{ id: number; azimuth: number }>;
+  previousSectors: SectorSnapshot[] | null;
 }> {
   const sectorIdByLocalId = new Map<string, number>();
-  if (!stationId || proposedSectorRows.length === 0)
-    return { sectorIdByLocalId, sectorIdsToDeleteAfterCells: [], previousSectors: [], nextSectors: [] };
+  if (!stationId || proposedSectorRows.length === 0) return { sectorIdByLocalId, sectorIdsToDeleteAfterCells: [], previousSectors: null };
 
-  const previousSectors = await tx.query.stationSectors.findMany({
-    where: { station_id: stationId },
-    columns: { id: true, azimuth: true },
-    orderBy: { id: "asc" },
-  });
-  const previousById = new Map(previousSectors.map((sector) => [sector.id, sector]));
-  const retainedSectorIds = new Set<number>();
-  const nextSectors: Array<{ id: number; azimuth: number }> = [];
-  const proposedAzimuths = new Set<number>();
-  const writeTasks: Array<() => Promise<void>> = [];
+  const previousSectors = await loadSectorSnapshot(tx, stationId);
+  const { changes, unchangedSectorIdByLocalId } = resolveSectorChanges(proposedSectorRows, previousSectors);
+  for (const [localId, sectorId] of unchangedSectorIdByLocalId) sectorIdByLocalId.set(localId, sectorId);
 
-  for (const proposed of proposedSectorRows as ProposedSectorRow[]) {
-    if (proposedAzimuths.has(proposed.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
-    proposedAzimuths.add(proposed.azimuth);
-
-    const matchingPrevious =
-      proposed.target_sector_id !== null
-        ? previousById.get(proposed.target_sector_id)
-        : previousSectors.find((sector) => sector.azimuth === proposed.azimuth && !retainedSectorIds.has(sector.id));
-
-    if (matchingPrevious) {
-      retainedSectorIds.add(matchingPrevious.id);
-      sectorIdByLocalId.set(proposed.local_id, matchingPrevious.id);
-      nextSectors.push({ id: matchingPrevious.id, azimuth: proposed.azimuth });
-      if (matchingPrevious.azimuth !== proposed.azimuth)
-        writeTasks.push(async () => {
-          await tx
-            .update(stationSectors)
-            .set({ azimuth: proposed.azimuth })
-            .where(and(eq(stationSectors.id, matchingPrevious.id), eq(stationSectors.station_id, stationId)));
-        });
-      continue;
-    }
-
-    writeTasks.push(async () => {
-      const [insertedSector] = await tx
-        .insert(stationSectors)
-        .values({ station_id: stationId, azimuth: proposed.azimuth })
-        .returning({ id: stationSectors.id });
-      if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station azimuth" });
-      sectorIdByLocalId.set(proposed.local_id, insertedSector.id);
-      nextSectors.push({ id: insertedSector.id, azimuth: proposed.azimuth });
-    });
+  const finalAzimuthById = new Map(previousSectors.map((sector) => [sector.id, sector.azimuth]));
+  const sectorIdsToDeleteAfterCells: number[] = [];
+  for (const change of changes) {
+    const targetId = change.target_sector_id;
+    if (change.operation === "add" || targetId === null || !finalAzimuthById.has(targetId)) continue;
+    sectorIdByLocalId.set(change.local_id, targetId);
+    if (change.operation === "delete") {
+      finalAzimuthById.delete(targetId);
+      sectorIdsToDeleteAfterCells.push(targetId);
+    } else finalAzimuthById.set(targetId, change.azimuth);
   }
 
-  await writeTasks.reduce((previous, writeTask) => previous.then(writeTask), Promise.resolve());
+  const sectorIdByAzimuth = new Map<number, number>();
+  for (const [sectorId, azimuth] of finalAzimuthById) {
+    if (sectorIdByAzimuth.has(azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
+    sectorIdByAzimuth.set(azimuth, sectorId);
+  }
+  const additions = changes.filter((change) => change.operation === "add");
+  const insertedAzimuths = [...new Set(additions.map((change) => change.azimuth))].filter((azimuth) => !sectorIdByAzimuth.has(azimuth));
 
-  const sectorIdsToDeleteAfterCells = previousSectors.filter((sector) => !retainedSectorIds.has(sector.id)).map((sector) => sector.id);
-  return { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors, nextSectors: nextSectors.sort((a, b) => a.id - b.id) };
+  await moveSectorsOutOfTheWay(tx, previousSectors, finalAzimuthById, insertedAzimuths);
+
+  /* eslint-disable no-await-in-loop */
+  for (const sector of previousSectors) {
+    const azimuth = finalAzimuthById.get(sector.id);
+    if (azimuth !== undefined && azimuth !== sector.azimuth)
+      await tx
+        .update(stationSectors)
+        .set({ azimuth })
+        .where(and(eq(stationSectors.id, sector.id), eq(stationSectors.station_id, stationId)));
+  }
+  for (const azimuth of insertedAzimuths) {
+    const [insertedSector] = await tx.insert(stationSectors).values({ station_id: stationId, azimuth }).returning({ id: stationSectors.id });
+    if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station azimuth" });
+    sectorIdByAzimuth.set(azimuth, insertedSector.id);
+  }
+  /* eslint-enable no-await-in-loop */
+
+  for (const change of additions) {
+    const sectorId = sectorIdByAzimuth.get(change.azimuth);
+    if (sectorId !== undefined) sectorIdByLocalId.set(change.local_id, sectorId);
+  }
+
+  return { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors };
 }
 
 async function checkProposedPciDuplicates(stationId: number | null, proposedCellRows: ProposedCellRow[]): Promise<void> {
@@ -936,12 +931,16 @@ async function deleteUnretainedSectors(tx: DbTx, stationId: number | null, secto
 async function logSectorChange(
   audit: AuditRecorder,
   stationId: number | null,
-  proposedSectorRows: ApprovalDraft["proposedSectorRows"],
-  previousSectors: Array<{ id: number; azimuth: number }>,
-  nextSectors: Array<{ id: number; azimuth: number }>,
+  previousSectors: SectorSnapshot[] | null,
   submissionId: string,
 ): Promise<void> {
-  if (!stationId || proposedSectorRows.length === 0) return;
+  if (!stationId || previousSectors === null) return;
+
+  const nextSectors = await loadSectorSnapshot(audit.tx, stationId);
+  const unchanged =
+    nextSectors.length === previousSectors.length &&
+    nextSectors.every((sector, index) => sector.id === previousSectors[index]?.id && sector.azimuth === previousSectors[index]?.azimuth);
+  if (unchanged) return;
 
   await audit.log({
     entity: "station_sectors",
@@ -1434,11 +1433,7 @@ async function runApprovalTransaction({
 
   if (submission.type === "delete") await applyDeletedSubmission(audit, stationId, submissionId);
 
-  const { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors, nextSectors } = await applyProposedSectors(
-    tx,
-    stationId,
-    draft.proposedSectorRows,
-  );
+  const { sectorIdByLocalId, sectorIdsToDeleteAfterCells, previousSectors } = await applyProposedSectors(tx, stationId, draft.proposedSectorRows);
 
   await checkProposedPciDuplicates(stationId, draft.proposedCellRows);
   const targetCellsArr = await targetCellsPromise;
@@ -1470,7 +1465,7 @@ async function runApprovalTransaction({
   }
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
-  await logSectorChange(audit, stationId, draft.proposedSectorRows, previousSectors, nextSectors, submissionId);
+  await logSectorChange(audit, stationId, previousSectors, submissionId);
   await logCellChanges(audit, cellChanges, submissionId);
 
   if (submission.type === "update" && stationId && !publishedPendingStation)

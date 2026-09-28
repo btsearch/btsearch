@@ -36,13 +36,13 @@ import {
   stripUnchangedProposalData,
   umtsInsertSchema,
   validateCellDuplicates,
+  validateSectorChanges,
 } from "../../utils/submission.helpers.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../cellDuplicateCheck.service.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
 
 export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
-const MAX_SECTORS = 15;
 export const proposedStationInsert = createInsertSchema(proposedStations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
@@ -117,34 +117,6 @@ export function hasMeaningfulChanges(input: SingleSubmission): boolean {
   return isNonEmpty(payload);
 }
 
-function validateSectorRefs(input: SingleSubmission, targetStation?: { sectors: Array<{ id: number }> } | null) {
-  const sectorsInput = input.sectors ?? [];
-  const sectorLocalIds = new Set<string>();
-  const sectorAzimuths = new Set<number>();
-  for (const sector of sectorsInput) {
-    if (sectorLocalIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
-    sectorLocalIds.add(sector.local_id);
-    if (sectorAzimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
-    sectorAzimuths.add(sector.azimuth);
-  }
-
-  const targetSectorIds = new Set(targetStation?.sectors.map((sector) => sector.id) ?? []);
-  for (const sector of sectorsInput) {
-    if (sector.target_sector_id !== null && sector.target_sector_id !== undefined && !targetSectorIds.has(sector.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more target azimuths do not belong to the target station" });
-  }
-
-  if (sectorsInput.length > MAX_SECTORS)
-    throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the submission. Maximum allowed is ${MAX_SECTORS}` });
-
-  for (const cell of input.cells ?? []) {
-    if (cell.target_sector_id !== null && cell.target_sector_id !== undefined && !targetSectorIds.has(cell.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments do not belong to the target station" });
-    if (cell.sector_local_id && !sectorLocalIds.has(cell.sector_local_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments reference a missing proposed azimuth" });
-  }
-}
-
 export async function validateSubmission(input: SingleSubmission): Promise<void> {
   const { station_id, type, station: stationData, location: locationData } = input;
 
@@ -170,7 +142,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
           where: { id: stationId },
           with: {
             location: true,
-            sectors: { columns: { id: true } },
+            sectors: { columns: { id: true, azimuth: true } },
           },
         })
       : null,
@@ -209,7 +181,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
     throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
   if (type === "update" && locationData && !targetStation?.location && !isCompleteLocation(locationData))
     throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required when the station has no location" });
-  validateSectorRefs(input, targetStation);
+  const sectorChanges = validateSectorChanges(input.sectors, targetStation?.sectors ?? [], input.cells);
 
   if (duplicateStation) {
     throw new ErrorResponse("BAD_REQUEST", {
@@ -307,7 +279,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
     const hasLocationChanges = !!locationData && (!currentLocation || locationUpdateDiffers(locationData, currentLocation));
 
     const hasCellChanges = input.cells && input.cells.length > 0;
-    const hasSectorChanges = input.sectors && input.sectors.length > 0;
+    const hasSectorChanges = sectorChanges.length > 0;
 
     const hasPendingPhotos = !!input.pending_photos;
     const hasLocationPhotoSelections = (input.location_photo_ids?.length ?? 0) > 0;

@@ -4744,6 +4744,19 @@ components:
               allOf:
                 - $ref: "#/components/schemas/ExtraIdentificators"
               nullable: true
+            physicalStation:
+              description: Included when this OPL/TMPL station is virtual, i.e. it has no UKE permits of its own and runs on its RAN-sharing sibling at the same location
+              allOf:
+                - $ref: "#/components/schemas/PhysicalStation"
+
+    PhysicalStation:
+      type: object
+      required: [id, station_id, status, operator]
+      properties:
+        id: { type: integer }
+        station_id: { type: string }
+        status: { type: string, enum: [published, inactive, pending] }
+        operator: { $ref: "#/components/schemas/Operator" }
 
     AnalyzerStation:
       type: object
@@ -4852,6 +4865,10 @@ components:
               description: Included on station detail responses when the station has an uplink
               allOf:
                 - $ref: "#/components/schemas/StationUplink"
+            physicalStation:
+              description: Included when this OPL/TMPL station is virtual, i.e. it has no UKE permits of its own and runs on its RAN-sharing sibling at the same location
+              allOf:
+                - $ref: "#/components/schemas/PhysicalStation"
     StationSearchResult:
       allOf:
         - $ref: "#/components/schemas/Station"
@@ -5102,7 +5119,11 @@ components:
           allOf:
             - $ref: "#/components/schemas/ProposedLocationInsert"
           nullable: true
-        sectors: { type: array, items: { $ref: "#/components/schemas/ProposedSectorInsert" }, nullable: true }
+        sectors:
+          type: array
+          nullable: true
+          description: One entry per added, edited or removed azimuth; untouched azimuths are left out. Entries without `operation` are read as the complete azimuth list
+          items: { $ref: "#/components/schemas/ProposedSectorInsert" }
         cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellInsert" }, nullable: true }
         pending_photos: { type: integer, nullable: true, description: "Number of photos expected to be uploaded after submission creation" }
         location_photo_ids:
@@ -5157,11 +5178,16 @@ components:
       type: object
       required: [local_id, azimuth]
       properties:
+        operation:
+          type: string
+          enum: [add, update, delete]
+          nullable: true
+          description: Omit on every entry to send the complete azimuth list instead of changes
         target_sector_id:
-          { type: integer, nullable: true, description: "Existing station sector ID being retained or edited. Omit/null for a newly proposed sector" }
+          { type: integer, nullable: true, description: "Existing station sector ID being edited or removed. Omit/null for a newly proposed sector" }
         local_id:
           { type: string, description: "Client-generated identifier used by proposed cells to reference this proposed sector before approval" }
-        azimuth: { type: integer, minimum: 0, maximum: 360 }
+        azimuth: { type: integer, minimum: 0, maximum: 360, description: "New azimuth. For `delete` the azimuth being removed" }
     ProposedCellInsert:
       type: object
       properties:
@@ -5268,13 +5294,22 @@ components:
           allOf:
             - $ref: "#/components/schemas/ProposedLocationInsert"
           nullable: true
-        sectors: { type: array, items: { $ref: "#/components/schemas/ProposedSectorInsert" }, nullable: true }
+        sectors:
+          type: array
+          nullable: true
+          description: Replaces the stored azimuth changes. An empty array drops them
+          items: { $ref: "#/components/schemas/ProposedSectorInsert" }
         cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellUpdate" }, nullable: true }
     ProposedSector:
       type: object
       properties:
         id: { type: integer }
         submission_id: { type: string, format: uuid, nullable: true }
+        operation:
+          type: string
+          enum: [add, update, delete]
+          nullable: true
+          description: "`null` for older submissions, whose rows are the complete azimuth list"
         target_sector_id: { type: integer, nullable: true }
         local_id: { type: string }
         azimuth: { type: integer, minimum: 0, maximum: 360 }

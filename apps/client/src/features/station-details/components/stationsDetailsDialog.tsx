@@ -13,6 +13,7 @@ import { MainPhotoPanel } from "./mainPhotoPanel";
 import { ShareButton } from "./shareButton";
 import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
+import { VirtualStationBadge } from "./virtualStationBadge";
 import { WatchButton } from "./watchButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
@@ -26,13 +27,13 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
-import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
   source: "internal" | "uke";
+  initialTab?: TabId;
   onContentLayoutChange?: () => void;
   showPhotoPanel?: boolean;
   onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
@@ -41,6 +42,7 @@ type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
 export function StationDetailsDialogPanel({
   stationId,
   source,
+  initialTab,
   onClose,
   className,
   contentClassName,
@@ -55,8 +57,8 @@ export function StationDetailsDialogPanel({
 }: StationDetailsDialogPanelProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { t: tCommon } = useTranslation("common");
-  const [activeTab, setActiveTab] = useState<TabId>(source === "uke" ? "permits" : "specs");
-  const { openStationHistoryDialog } = useFloatingDialogStack();
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? (source === "uke" ? "permits" : "specs"));
+  const { openStationDialog, openStationHistoryDialog } = useFloatingDialogStack();
   const { data: settings } = useSettings();
   const { data: session } = authClient.useSession();
   const userRole = session?.user?.role as string | undefined;
@@ -66,7 +68,6 @@ export function StationDetailsDialogPanel({
   const { data: station, isLoading, error } = useQuery(stationQueryOptions(stationId, source));
 
   const operatorColor = station ? getOperatorColor(station.operator.mnc) : "#3b82f6";
-  const leaseOperator = station ? getHardwareLeaseOperator(station.station_id, station.operator.mnc) : null;
   const stationNotes = station?.notes?.trim();
   const headerDragClassName = headerDragProps?.className;
   const hasStationActions = !!session?.user || !!onStartTerrainProfile;
@@ -97,16 +98,8 @@ export function StationDetailsDialogPanel({
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
                     <DialogOperatorName name={station.operator.name} mnc={station.operator.mnc} />
-                    {leaseOperator ? (
-                      <Tooltip>
-                        <TooltipTrigger className="shrink-0 cursor-help font-mono text-xs font-medium text-muted-foreground underline decoration-amber-500/50 decoration-dashed underline-offset-2">
-                          {station.station_id}
-                        </TooltipTrigger>
-                        <TooltipContent>{t("dialog.hardwareLease", { operator: leaseOperator })}</TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station.station_id}</span>
-                    )}
+                    <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station.station_id}</span>
+                    <VirtualStationBadge station={station} onOpenStation={(id) => openStationDialog(id, "internal")} />
                     {station.is_confirmed ? (
                       <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                         <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />

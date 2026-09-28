@@ -31,6 +31,7 @@ import {
   stripUnchangedProposalData,
   umtsInsertSchema,
   validateCellDuplicates,
+  validateSectorChanges,
 } from "../../../../../utils/submission.helpers.js";
 
 const submissionsSelectSchema = createSelectSchema(submissions);
@@ -98,16 +99,24 @@ type ProposedCellWithRelations = typeof proposedCells.$inferSelect & {
   nr: ProposedCellDetails;
 };
 
-function hasActualChanges(body: RequestBody, existing: ExistingSubmission): boolean {
+async function clearsStoredRows(submissionId: string, body: RequestBody): Promise<boolean> {
+  const [storedSector, storedCell] = await Promise.all([
+    body.sectors?.length === 0 ? db.query.proposedSectors.findFirst({ where: { submission_id: submissionId }, columns: { id: true } }) : null,
+    body.cells?.length === 0 ? db.query.proposedCells.findFirst({ where: { submission_id: submissionId }, columns: { id: true } }) : null,
+  ]);
+  return Boolean(storedSector ?? storedCell);
+}
+
+async function hasActualChanges(body: RequestBody, existing: ExistingSubmission): Promise<boolean> {
   if (body.review_notes !== undefined && body.review_notes !== existing.review_notes) return true;
   if (body.submitter_note !== undefined && body.submitter_note !== existing.submitter_note) return true;
 
   if (body.station !== undefined) return true;
   if (body.location !== undefined) return true;
   if (body.sectors?.length) return true;
-  if (body.cells?.length && body.cells.some(isNonEmpty)) return true;
+  if (body.cells?.some(isNonEmpty)) return true;
 
-  return false;
+  return clearsStoredRows(existing.id, body);
 }
 
 function buildSubmissionUpdate(body: RequestBody): Partial<typeof submissions.$inferInsert> {
@@ -158,19 +167,6 @@ async function validateCellConflicts(cells: ProposedCellInput[] | undefined, sta
   if (operatorId !== null) {
     const entries = getCellDuplicateEntries(cells);
     if (entries.length > 0) await checkCellDuplicatesBatch(entries, operatorId);
-  }
-}
-
-function validateSectorInputs(sectors: RequestBody["sectors"]): void {
-  if (!sectors) return;
-
-  const localIds = new Set<string>();
-  const azimuths = new Set<number>();
-  for (const sector of sectors) {
-    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
-    localIds.add(sector.local_id);
-    if (azimuths.has(sector.azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
-    azimuths.add(sector.azimuth);
   }
 }
 
@@ -296,7 +292,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   if (!hasAdminPermission && req.body.review_notes !== undefined) throw new ErrorResponse("FORBIDDEN", { message: "Cannot modify review notes" });
 
-  if (!hasActualChanges(req.body, submission))
+  if (!(await hasActualChanges(req.body, submission)))
     throw new ErrorResponse("BAD_REQUEST", { message: "No changes detected. Please modify the data before updating." });
 
   if (submission.type === "new" && req.body.station && typeof req.body.station.operator_id !== "number")
@@ -304,7 +300,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   if (submission.type === "new" && req.body.location && !isCompleteLocation(req.body.location))
     throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required for new station locations" });
 
-  validateSectorInputs(req.body.sectors);
+  if (req.body.sectors) {
+    const currentSectors =
+      submission.station_id !== null
+        ? await db.query.stationSectors.findMany({ where: { station_id: submission.station_id }, columns: { id: true, azimuth: true } })
+        : [];
+    validateSectorChanges(req.body.sectors, currentSectors, req.body.cells);
+  }
   await validateCellConflicts(req.body.cells, submission.station_id);
 
   try {

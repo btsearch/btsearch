@@ -372,7 +372,7 @@ export function StationDetailsBody({
                   {displayedTab === "permits" && (
                     <div>
                       <section>
-                        <PermitsList stationId={stationId} />
+                        <PermitsList stationId={stationId} physicalStation={station.physicalStation} />
                       </section>
                     </div>
                   )}

@@ -4,16 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { StationLink } from "./stationLink";
 import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { fetchApiData } from "@/lib/api";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-import type { UkePermit, UkeStationPermit } from "@/types/station";
+import type { PhysicalStation, UkePermit, UkeStationPermit } from "@/types/station";
 
 async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<UkeStationPermit[]> {
   if (isUkeSource) {
@@ -62,9 +64,10 @@ type PermitsListProps = {
   isUkeSource?: boolean;
   permits?: UkeStationPermit[];
   isExternalLoading?: boolean;
+  physicalStation?: PhysicalStation;
 };
 
-export function PermitsList({ stationId, isUkeSource = false, permits: externalPermits, isExternalLoading }: PermitsListProps) {
+export function PermitsList({ stationId, isUkeSource = false, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const {
     data: fetchedPermits = [],
@@ -132,6 +135,7 @@ export function PermitsList({ stationId, isUkeSource = false, permits: externalP
       <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
         <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
         <p className="text-sm">{t("permits.noPermits")}</p>
+        {physicalStation ? <PermitHolderNote station={physicalStation} /> : null}
       </div>
     );
   }
@@ -141,6 +145,23 @@ export function PermitsList({ stationId, isUkeSource = false, permits: externalP
       {Array.from(permitsByRat.entries()).map(([rat, ratPermits]) => (
         <CollapsiblePermitGroup key={rat} rat={rat} ratPermits={ratPermits} t={t} i18n={i18n} showAntennaData={hasDeviceRegistryData} />
       ))}
+    </div>
+  );
+}
+
+function PermitHolderNote({ station }: { station: PhysicalStation }) {
+  const { t } = useTranslation("stationDetails");
+  const { openStationDialog } = useFloatingDialogStack();
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-sm">
+      <span>{t("permits.permitHolder")}</span>
+      <StationLink
+        station={station}
+        onOpen={(id) => openStationDialog(id, "internal", "permits")}
+        className="inline-flex"
+        stationIdClassName="underline-offset-2 group-hover:underline group-focus-visible:underline"
+      />
     </div>
   );
 }

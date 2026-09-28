@@ -6,6 +6,7 @@ import { type FloatingDialogRect, areFloatingDialogRectsEqual, createInitialFloa
 import { assertNever, getTopDialog } from "../types";
 import type { FloatingDialogItem, FloatingDialogOpenRequest, SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
 import type { DuplexRadioLink } from "@/features/map/utils";
+import type { TabId } from "@/features/station-details/tabs";
 import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
@@ -37,7 +38,7 @@ function resolveDialogRequest(request: FloatingDialogOpenRequest): ResolvedDialo
       return {
         key,
         matchesPayload: (dialog) => dialog.kind === "station",
-        create: (rect, zIndex) => ({ kind: "station", key, id: request.id, source: request.source, rect, zIndex }),
+        create: (rect, zIndex) => ({ ...request, key, rect, zIndex }),
         update: (dialog, zIndex) => (dialog.kind === "station" ? { ...dialog, zIndex } : dialog),
       };
     }
@@ -169,7 +170,10 @@ export function useFloatingDialogStackState() {
     [setDialogsSynced, t],
   );
 
-  const openStationDialog = useCallback((id: number, source: StationSource) => openDialog({ kind: "station", id, source }), [openDialog]);
+  const openStationDialog = useCallback(
+    (id: number, source: StationSource, initialTab?: TabId) => openDialog({ kind: "station", id, source, initialTab }),
+    [openDialog],
+  );
 
   const openUkePermitDialog = useCallback((station: UkeStation) => openDialog({ kind: "uke-permit", station }), [openDialog]);
 

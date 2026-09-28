@@ -9,6 +9,7 @@ import { ErrorResponse } from "../../../../../../errors.ts";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.ts";
 import { auditContextFromRequest, loadSectorSnapshot, runAuditedOperation } from "../../../../../../services/audit/index.ts";
+import { moveSectorsOutOfTheWay } from "../../../../../../services/stations/sectorAzimuths.ts";
 import type { DbTx } from "../../../../../../types/global.ts";
 
 const sectorInputSchema = z.object({
@@ -75,6 +76,8 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
 
   if (sectors.length > MAX_SECTORS)
     throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the station. Maximum allowed is ${MAX_SECTORS}` });
+  if (new Set(sectors.map((sector) => sector.azimuth)).size !== sectors.length)
+    throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
 
   const result = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.edit" }, async (tx, audit) => {
     const previousSectors = await loadSectorSnapshot(tx, station_id);
@@ -85,6 +88,11 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
       if (matchingPrevious) retainedSectorIds.add(matchingPrevious.id);
       return { sector, matchingPrevious };
     });
+    const finalAzimuthById = new Map(
+      sectorPlan.flatMap(({ sector, matchingPrevious }) => (matchingPrevious ? [[matchingPrevious.id, sector.azimuth] as const] : [])),
+    );
+    const insertedAzimuths = sectorPlan.flatMap(({ sector, matchingPrevious }) => (matchingPrevious ? [] : [sector.azimuth]));
+    await moveSectorsOutOfTheWay(tx, previousSectors, finalAzimuthById, insertedAzimuths);
 
     const savedSectors = await Promise.all(sectorPlan.map(({ sector, matchingPrevious }) => saveSector(tx, station_id, sector, matchingPrevious)));
     const nextSectors = savedSectors.filter((sector): sector is SectorRow => sector !== null);

@@ -44,18 +44,49 @@ export function sectorAssignmentPayload(
   return { target_sector_id: null, sector_local_id: localId, sector_unassigned: false };
 }
 
-export function sectorsToPayloads(sectors: SectorDraft[]): SectorPayload[] {
-  return sectors.flatMap((sector) => {
-    if (typeof sector.azimuth !== "number") return [];
-
-    return [
-      {
-        local_id: sector._localId,
-        target_sector_id: sector.id ?? sectorLocalIdToTargetId(sector._localId),
-        azimuth: sector.azimuth,
-      },
-    ];
+export function orderSectorsById(sectors: SectorDraft[]): { sectors: SectorDraft[]; localIdMap: Map<string, string> } {
+  const kept = sectors.filter((sector) => sector.id !== undefined || typeof sector.azimuth === "number");
+  const slots = [
+    ...kept.flatMap((sector) => (sector.id === undefined ? [] : [{ ...sector, id: sector.id }])).sort((a, b) => a.id - b.id),
+    ...kept.filter((sector) => sector.id === undefined),
+  ];
+  const localIdMap = new Map<string, string>();
+  const ordered = slots.map((slot, index) => {
+    const source = kept[index];
+    localIdMap.set(source._localId, slot._localId);
+    return { ...slot, azimuth: source.azimuth };
   });
+  return { sectors: ordered, localIdMap };
+}
+
+export function remapSectorAssignment(localId: string | null | undefined, localIdMap: ReadonlyMap<string, string>): string | null | undefined {
+  return localId ? (localIdMap.get(localId) ?? localId) : localId;
+}
+
+export function computeSectorPayloads(originalSectors: SectorDraft[], currentSectors: SectorDraft[]): SectorPayload[] {
+  const originalAzimuthById = new Map(
+    originalSectors.flatMap((sector) =>
+      sector.id === undefined || typeof sector.azimuth !== "number" ? [] : [[sector.id, sector.azimuth] as const],
+    ),
+  );
+  const payloads: SectorPayload[] = [];
+
+  for (const sector of currentSectors) {
+    if (typeof sector.azimuth !== "number") continue;
+    const originalAzimuth = sector.id === undefined ? undefined : originalAzimuthById.get(sector.id);
+    if (sector.id === undefined || originalAzimuth === undefined)
+      payloads.push({ operation: "add", local_id: sector._localId, target_sector_id: null, azimuth: sector.azimuth });
+    else if (originalAzimuth !== sector.azimuth)
+      payloads.push({ operation: "update", local_id: sector._localId, target_sector_id: sector.id, azimuth: sector.azimuth });
+  }
+
+  const currentIds = new Set(currentSectors.flatMap((sector) => (sector.id === undefined ? [] : [sector.id])));
+  for (const original of originalSectors) {
+    if (original.id === undefined || typeof original.azimuth !== "number" || currentIds.has(original.id)) continue;
+    payloads.push({ operation: "delete", local_id: original._localId, target_sector_id: original.id, azimuth: original.azimuth });
+  }
+
+  return payloads;
 }
 
 function isCellModified(current: ProposedCellForm, original: ProposedCellForm): boolean {

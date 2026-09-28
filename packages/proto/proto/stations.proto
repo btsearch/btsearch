@@ -57,6 +57,7 @@ message Station {
   optional string status = 13;
   string statusChangedAt = 14;
   optional StationUplink uplink = 15;
+  optional PhysicalStation physicalStation = 16;
 }
 
 message StationUplink {

@@ -34,6 +34,7 @@ export type ProposedCell = {
 export type ProposedSector = {
   id: number;
   submission_id: string;
+  operation: "add" | "update" | "delete" | null;
   target_sector_id: number | null;
   local_id: string;
   azimuth: number;

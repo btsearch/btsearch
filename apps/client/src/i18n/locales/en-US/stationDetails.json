@@ -23,7 +23,8 @@
     "suggestedCount": "Suggested azimuth count:",
     "azimuth": "Azimuth",
     "empty": "No azimuths",
-    "add": "Add azimuth"
+    "add": "Add azimuth",
+    "reorder": "Reorder {{label}}"
   },
   "si2pemAntennaData": {
     "action": "Antennas",
@@ -62,6 +63,7 @@
     "sourceDeviceRegistry": "Device Registry",
     "sourceRadiolines": "Microwave links",
     "noPermits": "No UKE permits for this station",
+    "permitHolder": "At this location, the permit is held by station",
     "decisionTypeP": "Permit",
     "decisionTypeZmP": "Permit Change",
     "newPermitTooltip": "This permit was added in the last 30 days",
@@ -91,7 +93,10 @@
     "locationShareText": "{{location}} ‐ base stations"
   },
   "dialog": {
-    "hardwareLease": "Hardware lease from {{operator}} (RAN sharing)",
+    "virtualStation": "Virtual",
+    "virtualStationTitle": "Virtual station",
+    "virtualStationPhysical": "Runs on this physical station's hardware and UKE permit via <ranSharingLink>RAN sharing</ranSharingLink>",
+    "virtualStationLessor": "Runs on the partner operator's hardware via <ranSharingLink>RAN sharing</ranSharingLink>",
     "btsStation": "Base station",
     "showOnMap": "Show on map",
     "createStation": "Create station",

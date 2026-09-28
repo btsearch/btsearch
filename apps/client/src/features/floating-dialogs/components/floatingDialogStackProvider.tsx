@@ -4,11 +4,12 @@ import { useFloatingDialogStackState } from "../hooks/useFloatingDialogStackStat
 import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
 import { FloatingDialogStack } from "./floatingDialogStack";
 import type { DuplexRadioLink } from "@/features/map/utils";
+import type { TabId } from "@/features/station-details/tabs";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import type { StationSource, UkeStation } from "@/types/station";
 
 type FloatingDialogStackContextValue = {
-  openStationDialog: (id: number, source: StationSource) => boolean;
+  openStationDialog: (id: number, source: StationSource, initialTab?: TabId) => boolean;
   openUkePermitDialog: (station: UkeStation) => boolean;
   openRadioLineDialog: (link: DuplexRadioLink) => boolean;
   openSI2PEMReportDialog: (payload: SI2PEMReportDialogPayload) => boolean;

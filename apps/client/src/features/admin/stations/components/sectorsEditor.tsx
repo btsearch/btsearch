@@ -1,6 +1,8 @@
 import { Add01Icon, ArrowDown01Icon, Cancel01Icon, DragDropVerticalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ChangeEvent, type ReactNode, memo, useCallback, useRef, useState } from "react";
+import { Reorder, useDragControls } from "motion/react";
+import { nanoid } from "nanoid";
+import { type ChangeEvent, type KeyboardEvent, type PointerEvent, type ReactNode, memo, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -22,22 +24,35 @@ type SectorRowProps = {
   index: number;
   onAzimuthChange: (localId: string, value: number | "") => void;
   onDelete: (localId: string) => void;
+  onMove: (localId: string, offset: number) => void;
   readOnly?: boolean;
   deleteDisabled?: boolean;
   previousAzimuth?: number;
   renderPreviousAzimuth?: (azimuth: number) => ReactNode;
 };
 
+function reorderOffset(key: string): number {
+  if (key === "ArrowUp" || key === "ArrowLeft") return -1;
+  if (key === "ArrowDown" || key === "ArrowRight") return 1;
+  return 0;
+}
+
 const SectorRow = memo(function SectorRow({
   sector,
   index,
   onAzimuthChange,
   onDelete,
+  onMove,
   readOnly,
   deleteDisabled,
   previousAzimuth,
   renderPreviousAzimuth,
 }: SectorRowProps) {
+  const { t } = useTranslation("stationDetails");
+  const dragControls = useDragControls();
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleAzimuthChange = useCallback(
     (el: ChangeEvent<HTMLInputElement>) => {
       const raw = el.target.value;
@@ -53,9 +68,41 @@ const SectorRow = memo(function SectorRow({
 
   const handleDelete = useCallback(() => onDelete(sector._localId), [sector._localId, onDelete]);
 
+  const handleDragHandlePointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => dragControls.start(event), [dragControls]);
+
+  const handleDragHandleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>) => {
+      const offset = reorderOffset(event.key);
+      if (offset === 0) return;
+      event.preventDefault();
+      onMove(sector._localId, offset);
+      requestAnimationFrame(() => dragHandleRef.current?.focus());
+    },
+    [sector._localId, onMove],
+  );
+
   return (
-    <div className="flex items-center gap-2 py-1.5">
-      {!readOnly ? <HugeiconsIcon icon={DragDropVerticalIcon} className="size-4 text-muted-foreground/50 cursor-grab shrink-0" /> : null}
+    <Reorder.Item
+      as="div"
+      value={sector}
+      dragListener={false}
+      dragControls={dragControls}
+      onDragStart={() => setIsDragging(true)}
+      onDragEnd={() => setIsDragging(false)}
+      className={cn("relative flex items-center gap-2 rounded-md py-1.5", isDragging && "z-10 bg-muted shadow-sm")}
+    >
+      {!readOnly ? (
+        <button
+          ref={dragHandleRef}
+          type="button"
+          aria-label={t("sectors.reorder", { label: `A${index + 1}` })}
+          onPointerDown={handleDragHandlePointerDown}
+          onKeyDown={handleDragHandleKeyDown}
+          className="flex h-7 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/50 outline-none hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 active:cursor-grabbing"
+        >
+          <HugeiconsIcon icon={DragDropVerticalIcon} className="size-4" />
+        </button>
+      ) : null}
       <span className="w-7 text-sm font-medium tabular-nums">A{index + 1}</span>
       <div className="space-y-1">
         <Input
@@ -83,7 +130,7 @@ const SectorRow = memo(function SectorRow({
           <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
         </Button>
       ) : null}
-    </div>
+    </Reorder.Item>
   );
 });
 
@@ -103,9 +150,8 @@ type SectorsEditorProps = {
   renderPreviousAzimuth?: (azimuth: number) => ReactNode;
 };
 
-let _sectorIdCounter = 0;
 function newSectorLocalId() {
-  return `sector-draft-${++_sectorIdCounter}`;
+  return `sector-draft-${nanoid()}`;
 }
 
 export function SectorsEditor({
@@ -134,6 +180,19 @@ export function SectorsEditor({
     [assignedSectorLocalIds, sectors, onChange],
   );
 
+  const handleMove = useCallback(
+    (localId: string, offset: number) => {
+      const from = sectors.findIndex((sector) => sector._localId === localId);
+      const to = from + offset;
+      if (from === -1 || to < 0 || to >= sectors.length) return;
+      const next = [...sectors];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      onChange(next);
+    },
+    [sectors, onChange],
+  );
+
   const handleAdd = useCallback(() => {
     if (sectors.length >= MAX_SECTORS) return;
     onChange([...sectors, { _localId: newSectorLocalId(), azimuth: "" }]);
@@ -153,7 +212,13 @@ export function SectorsEditor({
           {sectors.length > 0 ? (
             <>
               <div className="px-1 pb-1 text-xs text-muted-foreground">{t("sectors.azimuth")}</div>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-x-4 gap-y-0.5">
+              <Reorder.Group
+                as="div"
+                axis="xy"
+                values={sectors}
+                onReorder={onChange}
+                className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-x-4 gap-y-0.5"
+              >
                 {sectors.map((sector, i) => (
                   <SectorRow
                     key={sector._localId}
@@ -161,13 +226,14 @@ export function SectorsEditor({
                     index={i}
                     onAzimuthChange={handleAzimuthChange}
                     onDelete={handleDelete}
+                    onMove={handleMove}
                     readOnly={readOnly}
                     deleteDisabled={assignedSectorLocalIds?.has(sector._localId)}
                     previousAzimuth={previousAzimuthByLocalId?.get(sector._localId)}
                     renderPreviousAzimuth={renderPreviousAzimuth}
                   />
                 ))}
-              </div>
+              </Reorder.Group>
             </>
           ) : (
             <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">

@@ -95,6 +95,13 @@ export type StationUplink = {
 
 export type StationStatus = "published" | "inactive" | "pending";
 
+export type PhysicalStation = {
+  id: number;
+  station_id: string;
+  status: StationStatus;
+  operator: Operator;
+};
+
 export type Station = {
   id: number;
   station_id: string;
@@ -112,6 +119,7 @@ export type Station = {
   extra_identificators?: ExtraIdentificator;
   sectors?: Sector[];
   uplink?: StationUplink;
+  physicalStation?: PhysicalStation;
 };
 
 export type RadioLineEquipmentType = {

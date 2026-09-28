@@ -27,14 +27,18 @@ import { countCellOperations } from "@/features/admin/submissions/utils";
 import { CELL_TYPE_LABELS, DEFAULT_CELL_TYPE } from "@/features/shared/cellTypes";
 import { getRatShowsBandDuplex } from "@/features/shared/rat";
 import type { ProposedLocationForm } from "@/features/submissions/types";
+import { computeSectorPayloads, orderSectorsById, remapSectorAssignment } from "@/features/submissions/utils/cells";
 import {
   EMPTY_STATION_VALUES,
   applyProposedLocation,
+  applyProposedSectors,
   applyProposedStation,
   diffLocationValues,
   diffStationValues,
+  proposedSectorDrafts,
   toLocationPayload,
   toLocationValues,
+  toSectorDrafts,
   toStationPayload,
   toStationValues,
 } from "@/features/submissions/utils/proposalChanges";
@@ -313,10 +317,9 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
   const { data: allBands = [] } = useQuery(bandsQueryOptions());
   const selectedOperator = useMemo(() => operators.find((operator) => operator.id === stationForm.operator_id), [operators, stationForm.operator_id]);
+  const originalSectors = useMemo(() => toSectorDrafts(currentStation?.sectors), [currentStation]);
   const [sectors, setSectors] = useState<SectorDraft[]>(() =>
-    submission.sectors.length > 0
-      ? submission.sectors.map((sector) => ({ _localId: sector.local_id, id: sector.target_sector_id ?? undefined, azimuth: sector.azimuth }))
-      : (currentStation?.sectors ?? []).map((sector) => ({ ...sector, _localId: `sector-${sector.id}` })),
+    isReadOnly ? proposedSectorDrafts(submission.sectors) : applyProposedSectors(originalSectors, submission.sectors),
   );
 
   const initialCells = useMemo(() => computeInitialCells(submission, currentStation), [submission, currentStation]);
@@ -375,6 +378,12 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
 
   const handleSave = useCallback(() => {
     const stationValues = { ...stationForm, ...extraForm, ...uplinkForm };
+    const { sectors: orderedSectors, localIdMap } = orderSectorsById(sectors);
+    const cells = localCells.map((cell): LocalCell => {
+      const sectorLocalId = remapSectorAssignment(cell._sectorLocalId, localIdMap);
+      if (sectorLocalId === cell._sectorLocalId) return cell;
+      return { ...cell, _sectorLocalId: sectorLocalId, operation: cell.operation === "unchanged" ? "update" : cell.operation };
+    });
     saveSubmission(
       {
         submissionId: submission.id,
@@ -387,8 +396,8 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
           submission.type === "update" && currentStation
             ? diffLocationValues(locationForm, toLocationValues(currentStation.location))
             : toLocationPayload(locationForm),
-        sectors,
-        localCells,
+        sectors: computeSectorPayloads(originalSectors, orderedSectors),
+        localCells: cells,
       },
       {
         onSuccess: (response) => {
@@ -404,6 +413,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     extraForm,
     localCells,
     locationForm,
+    originalSectors,
     reviewNotes,
     saveSubmission,
     sectors,
