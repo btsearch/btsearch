@@ -43,6 +43,7 @@ export interface CellExportData {
   latitude?: number | null;
   longitude?: number | null;
   cell_type?: string | null;
+  uplink_type?: string | null;
   notes?: string | null;
   city?: string | null;
   address?: string | null;
@@ -418,6 +419,7 @@ function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
     city: cell.city,
     address: cell.address,
     cell_type: getCellTypeLabel(cell),
+    uplink: cell.uplink_type,
     notes: cell.notes,
     sector_prefix: getSectorPrefix(cell),
     sector_tag: getSectorTag(cell),

@@ -1,5 +1,5 @@
 import { stationSectors } from "@openbts/drizzle";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
@@ -33,4 +33,33 @@ export async function moveSectorsOutOfTheWay(
     await tx.update(stationSectors).set({ azimuth: parkedAzimuth }).where(eq(stationSectors.id, blocker.id));
   }
   /* eslint-enable no-await-in-loop */
+}
+
+export async function writeSectorAzimuths(
+  tx: DbTx,
+  stationId: number,
+  currentSectors: readonly SectorAzimuth[],
+  finalAzimuthById: ReadonlyMap<number, number>,
+  insertedAzimuths: readonly number[],
+): Promise<Map<number, number>> {
+  await moveSectorsOutOfTheWay(tx, currentSectors, finalAzimuthById, insertedAzimuths);
+  const sectorIdByAzimuth = new Map<number, number>([...finalAzimuthById].map(([sectorId, azimuth]) => [azimuth, sectorId]));
+
+  /* eslint-disable no-await-in-loop */
+  for (const sector of currentSectors) {
+    const azimuth = finalAzimuthById.get(sector.id);
+    if (azimuth !== undefined && azimuth !== sector.azimuth)
+      await tx
+        .update(stationSectors)
+        .set({ azimuth })
+        .where(and(eq(stationSectors.id, sector.id), eq(stationSectors.station_id, stationId)));
+  }
+  for (const azimuth of insertedAzimuths) {
+    const [insertedSector] = await tx.insert(stationSectors).values({ station_id: stationId, azimuth }).returning({ id: stationSectors.id });
+    if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station azimuth" });
+    sectorIdByAzimuth.set(azimuth, insertedSector.id);
+  }
+  /* eslint-enable no-await-in-loop */
+
+  return sectorIdByAzimuth;
 }

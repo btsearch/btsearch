@@ -53,7 +53,7 @@ import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cellDuplicateCh
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
-import { moveSectorsOutOfTheWay } from "../stations/sectorAzimuths.js";
+import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
 import { stationStatusForCellCount, stationStatusUpdate } from "../stations/status.js";
 import { isUplinkType } from "../stations/uplink.js";
 import { syncStationsPermitsAssociations } from "../stationsPermitsAssociation.service.js";
@@ -727,31 +727,11 @@ async function applyProposedSectors(
     } else finalAzimuthById.set(targetId, change.azimuth);
   }
 
-  const sectorIdByAzimuth = new Map<number, number>();
-  for (const [sectorId, azimuth] of finalAzimuthById) {
-    if (sectorIdByAzimuth.has(azimuth)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
-    sectorIdByAzimuth.set(azimuth, sectorId);
-  }
+  const keptAzimuths = new Set(finalAzimuthById.values());
+  if (keptAzimuths.size !== finalAzimuthById.size) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
   const additions = changes.filter((change) => change.operation === "add");
-  const insertedAzimuths = [...new Set(additions.map((change) => change.azimuth))].filter((azimuth) => !sectorIdByAzimuth.has(azimuth));
-
-  await moveSectorsOutOfTheWay(tx, previousSectors, finalAzimuthById, insertedAzimuths);
-
-  /* eslint-disable no-await-in-loop */
-  for (const sector of previousSectors) {
-    const azimuth = finalAzimuthById.get(sector.id);
-    if (azimuth !== undefined && azimuth !== sector.azimuth)
-      await tx
-        .update(stationSectors)
-        .set({ azimuth })
-        .where(and(eq(stationSectors.id, sector.id), eq(stationSectors.station_id, stationId)));
-  }
-  for (const azimuth of insertedAzimuths) {
-    const [insertedSector] = await tx.insert(stationSectors).values({ station_id: stationId, azimuth }).returning({ id: stationSectors.id });
-    if (!insertedSector) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create station azimuth" });
-    sectorIdByAzimuth.set(azimuth, insertedSector.id);
-  }
-  /* eslint-enable no-await-in-loop */
+  const insertedAzimuths = [...new Set(additions.map((change) => change.azimuth))].filter((azimuth) => !keptAzimuths.has(azimuth));
+  const sectorIdByAzimuth = await writeSectorAzimuths(tx, stationId, previousSectors, finalAzimuthById, insertedAzimuths);
 
   for (const change of additions) {
     const sectorId = sectorIdByAzimuth.get(change.azimuth);
@@ -928,7 +908,7 @@ async function deleteUnretainedSectors(tx: DbTx, stationId: number | null, secto
   await tx.delete(stationSectors).where(inArray(stationSectors.id, sectorIdsToDelete));
 }
 
-async function logSectorChange(
+async function finishSectorChange(
   audit: AuditRecorder,
   stationId: number | null,
   previousSectors: SectorSnapshot[] | null,
@@ -951,6 +931,115 @@ async function logSectorChange(
     new: nextSectors,
     metadata: { submission_id: submissionId },
   });
+  await syncSiblingSectors(audit, stationId, previousSectors, nextSectors, submissionId);
+}
+
+function renamedAzimuths(previousSectors: readonly SectorSnapshot[], nextSectors: readonly SectorSnapshot[]): Map<number, number> {
+  const nextAzimuthById = new Map(nextSectors.map((sector) => [sector.id, sector.azimuth]));
+  return new Map(
+    previousSectors.flatMap((sector) => {
+      const azimuth = nextAzimuthById.get(sector.id);
+      return azimuth !== undefined && azimuth !== sector.azimuth ? [[sector.azimuth, azimuth] as const] : [];
+    }),
+  );
+}
+
+async function repointSiblingCells(
+  audit: AuditRecorder,
+  siblingSectors: readonly SectorSnapshot[],
+  sectorIdByAzimuth: ReadonlyMap<number, number>,
+  renamed: ReadonlyMap<number, number>,
+  submissionId: string,
+): Promise<void> {
+  const { tx } = audit;
+  const azimuthBySectorId = new Map(siblingSectors.map((sector) => [sector.id, sector.azimuth]));
+  if (azimuthBySectorId.size === 0) return;
+
+  const assignedCells = await tx
+    .select({ id: cells.id, sectorId: cells.sector_id })
+    .from(cells)
+    .where(inArray(cells.sector_id, [...azimuthBySectorId.keys()]));
+  const cellIdsBySectorId = new Map<number | null, number[]>();
+  for (const cell of assignedCells) {
+    const azimuth = cell.sectorId === null ? undefined : azimuthBySectorId.get(cell.sectorId);
+    if (azimuth === undefined) continue;
+    const followedAzimuth = sectorIdByAzimuth.has(azimuth) ? azimuth : renamed.get(azimuth);
+    const sectorId = followedAzimuth === undefined ? null : (sectorIdByAzimuth.get(followedAzimuth) ?? null);
+    if (sectorId !== cell.sectorId) cellIdsBySectorId.set(sectorId, [...(cellIdsBySectorId.get(sectorId) ?? []), cell.id]);
+  }
+
+  const movedCellIds = [...cellIdsBySectorId.values()].flat();
+  if (movedCellIds.length === 0) return;
+
+  const previousSnapshots = await loadCellSnapshots(tx, movedCellIds);
+  await Promise.all(
+    [...cellIdsBySectorId].map(([sectorId, cellIds]) =>
+      tx.update(cells).set({ sector_id: sectorId, updatedAt: new Date() }).where(inArray(cells.id, cellIds)),
+    ),
+  );
+  const nextSnapshots = await loadCellSnapshots(tx, movedCellIds);
+  await audit.logMany(
+    movedCellIds.flatMap((cellId) => {
+      const old = previousSnapshots.get(cellId);
+      const snapshot = nextSnapshots.get(cellId);
+      if (!old || !snapshot) return [];
+      return [
+        {
+          entity: "cells" as const,
+          op: "update" as const,
+          recordId: cellId,
+          stationId: snapshot.station_id,
+          old,
+          new: snapshot,
+          metadata: { submission_id: submissionId },
+        },
+      ];
+    }),
+  );
+}
+
+async function syncSiblingSectors(
+  audit: AuditRecorder,
+  stationId: number,
+  previousSectors: readonly SectorSnapshot[],
+  nextSectors: readonly SectorSnapshot[],
+  submissionId: string,
+): Promise<void> {
+  const { tx } = audit;
+  const site = await loadStationSiteContext(tx, stationId);
+  if (!site?.locationId) return;
+  const siblingStationId = await findSiblingStationId(tx, site.locationId, site.mnc);
+  if (siblingStationId === null) return;
+
+  const siblingSectors = await loadSectorSnapshot(tx, siblingStationId);
+  const inSync =
+    siblingSectors.length === nextSectors.length && siblingSectors.every((sector, index) => sector.azimuth === nextSectors[index]?.azimuth);
+  if (inSync) return;
+
+  const finalAzimuthById = new Map<number, number>();
+  const insertedAzimuths: number[] = [];
+  for (const [index, sector] of nextSectors.entries()) {
+    const slot = siblingSectors[index];
+    if (slot) finalAzimuthById.set(slot.id, sector.azimuth);
+    else insertedAzimuths.push(sector.azimuth);
+  }
+  const sectorIdByAzimuth = await writeSectorAzimuths(tx, siblingStationId, siblingSectors, finalAzimuthById, insertedAzimuths);
+  await repointSiblingCells(audit, siblingSectors, sectorIdByAzimuth, renamedAzimuths(previousSectors, nextSectors), submissionId);
+
+  const removedSectorIds = siblingSectors.slice(nextSectors.length).map((sector) => sector.id);
+  if (removedSectorIds.length > 0) await tx.delete(stationSectors).where(inArray(stationSectors.id, removedSectorIds));
+
+  const syncedSectors = await loadSectorSnapshot(tx, siblingStationId);
+  await audit.log({
+    entity: "station_sectors",
+    op: "update",
+    recordId: null,
+    stationId: siblingStationId,
+    old: siblingSectors,
+    new: syncedSectors,
+    metadata: { submission_id: submissionId },
+  });
+  await tx.update(stations).set({ updatedAt: new Date() }).where(eq(stations.id, siblingStationId));
 }
 
 async function logCellChanges(audit: AuditRecorder, changes: CellAuditChanges, submissionId: string): Promise<void> {
@@ -1465,7 +1554,7 @@ async function runApprovalTransaction({
   }
 
   await deleteUnretainedSectors(tx, stationId, sectorIdsToDeleteAfterCells);
-  await logSectorChange(audit, stationId, previousSectors, submissionId);
+  await finishSectorChange(audit, stationId, previousSectors, submissionId);
   await logCellChanges(audit, cellChanges, submissionId);
 
   if (submission.type === "update" && stationId && !publishedPendingStation)
