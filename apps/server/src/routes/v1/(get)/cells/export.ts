@@ -8,6 +8,7 @@ import {
   CLF_EXPORT_FORMATS,
   DISPLAY_NR_SEPARATELY_PARAM,
 } from "@openbts/shared/clfExportTemplates";
+import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { and, eq, gte, inArray, max } from "drizzle-orm";
 import type { FastifyReply } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -23,15 +24,13 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
 import type { Route } from "../../../../interfaces/routes.interface.js";
-import { type SerializedWorkerError, deserializeWorkerError } from "../../../../services/clfExport/protocol.js";
+import { type SerializedWorkerError, deserializeWorkerError } from "../../../../workers/clfExportProtocol.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, "../../../../workers/clfExport.worker.js");
 
 const CACHE_TTL = 3600; // 1h
 const CLF_TMP_DIR = join(tmpdir(), "clf-exports");
-const NETWORKS_MNC = 26034;
-const NETWORKS_CHILD_MNCS = [26002, 26003];
 const templateParamSchema = z
   .string()
   .trim()
@@ -129,10 +128,9 @@ const schemaRoute = {
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 
 async function resolveOperatorIds(operatorMncs?: number[]): Promise<number[] | undefined> {
-  if (!operatorMncs || operatorMncs.length === 0) return undefined;
-  const mncs = new Set(operatorMncs);
-  if (mncs.has(NETWORKS_MNC)) for (const child of NETWORKS_CHILD_MNCS) mncs.add(child);
-  const matched = await db.query.operators.findMany({ where: { mnc: { in: [...mncs] } }, columns: { id: true } });
+  const mncs = expandNetworksMncs(operatorMncs);
+  if (!mncs?.length) return undefined;
+  const matched = await db.query.operators.findMany({ where: { mnc: { in: mncs } }, columns: { id: true } });
   return matched.map((o) => o.id);
 }
 

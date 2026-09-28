@@ -5,11 +5,11 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
+import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { assertCanDeleteCells } from "../../../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../services/audit/index.js";
-import { queueStationCellsChangedNotification } from "../../../../../../services/notifications/stationCellChanges.js";
-import { assertCanDeleteCells } from "../../../../../../services/stations/status.js";
 
 const schemaRoute = {
   params: z.object({

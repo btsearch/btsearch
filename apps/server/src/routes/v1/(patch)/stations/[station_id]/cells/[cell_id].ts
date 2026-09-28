@@ -6,15 +6,15 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
+import { validateCellARFCNsForBands } from "../../../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
+import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../features/cells/ratCellPersistence.js";
+import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
+import { makeDetailsRatRefine } from "../../../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../services/audit/index.js";
-import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../services/cellDuplicateCheck.service.js";
-import { queueStationCellsChangedNotification } from "../../../../../../services/notifications/stationCellChanges.js";
-import { assertCanMutateStationCells } from "../../../../../../services/stations/status.js";
-import { validateCellARFCNsForBands } from "../../../../../../utils/cellARFCNValidation.js";
-import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../utils/ratCellPersistence.js";
-import { makeDetailsRatRefine } from "../../../../../../utils/submission.helpers.js";
 
 const cellsUpdateSchema = createUpdateSchema(cells)
   .omit({

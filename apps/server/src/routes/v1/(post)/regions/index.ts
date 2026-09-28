@@ -4,9 +4,9 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
 
 const regionsSelectSchema = createSelectSchema(regions);
 const regionsInsertSchema = createInsertSchema(regions).strict();

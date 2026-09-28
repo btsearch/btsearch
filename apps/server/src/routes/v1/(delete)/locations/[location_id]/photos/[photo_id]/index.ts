@@ -4,14 +4,14 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../../../errors.js";
-import type { ReplyPayload } from "../../../../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
 import {
   auditContextFromRequest,
   loadPhotoSelectionSnapshots,
   logPhotoSelectionChanges,
   runAuditedOperation,
-} from "../../../../../../../services/audit/index.js";
+} from "../../../../../../../features/audit/index.js";
+import type { ReplyPayload } from "../../../../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
 import { deletePhotoFiles } from "../../../../../../../utils/photoFiles.js";
 
 const schemaRoute = {

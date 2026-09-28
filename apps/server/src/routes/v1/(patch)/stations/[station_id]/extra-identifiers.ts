@@ -1,4 +1,5 @@
 import { extraIdentificators, stations } from "@openbts/drizzle";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS } from "@openbts/shared/operatorUtils";
 import { eq } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -6,13 +7,11 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 
 const extraIdentificatorsSelectSchema = createSelectSchema(extraIdentificators);
-const EXTRA_IDENTIFICATORS_MNCS = new Set([26002, 26003]);
-const MNO_NAME_ONLY_MNCS = new Set([26001, 26006]);
 
 const requestSchema = z.object({
   networks_id: z.int().nullable().optional(),
@@ -56,9 +55,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const operator = await db.query.operators.findFirst({ where: { id: station.operator_id } });
     const mnc = operator?.mnc ?? null;
 
-    if (mnc !== null && MNO_NAME_ONLY_MNCS.has(mnc) && (networks_id || networks_name))
+    if (mnc !== null && MNO_NAME_ONLY_MNCS.includes(mnc) && (networks_id || networks_name))
       throw new ErrorResponse("BAD_REQUEST", { message: "This operator only supports mno_name" });
-    if (mnc !== null && !EXTRA_IDENTIFICATORS_MNCS.has(mnc) && !MNO_NAME_ONLY_MNCS.has(mnc))
+    if (mnc !== null && !EXTRA_IDENTIFICATORS_MNCS.includes(mnc) && !MNO_NAME_ONLY_MNCS.includes(mnc))
       throw new ErrorResponse("BAD_REQUEST", { message: "This operator does not support extra identifiers" });
   }
 

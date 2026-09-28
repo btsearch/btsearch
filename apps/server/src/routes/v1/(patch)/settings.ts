@@ -2,10 +2,10 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { settingsDataSchema } from "../(get)/settings.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../services/audit/index.js";
-import { type RuntimeSettings, getRuntimeSettings, updateRuntimeSettings } from "../../../services/settings.service.js";
+import { type RuntimeSettings, getRuntimeSettings, updateRuntimeSettings } from "../../../lib/runtimeSettings.js";
 
 type ReqBody = { Body: Partial<RuntimeSettings> };
 type Response = RuntimeSettings;

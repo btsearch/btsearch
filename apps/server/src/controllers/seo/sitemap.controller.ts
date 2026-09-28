@@ -6,9 +6,9 @@ import { baseUrl } from "../../config.js";
 import db from "../../database/psql.js";
 import redis from "../../database/redis.js";
 import { ErrorResponse } from "../../errors.js";
+import { MAX_SITEMAP_CHUNK_PAGE, parseSitemapChunkFile } from "../../features/seo/routes.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
-import { MAX_SITEMAP_CHUNK_PAGE, parseSitemapChunkFile } from "../../services/seo/routes.js";
 
 const SITEMAP_CHUNK_SIZE = 20_000;
 const CACHE_TTL_SECONDS = 6 * 60 * 60;

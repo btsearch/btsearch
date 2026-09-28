@@ -1,9 +1,9 @@
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { cancelTerrainProfileAnalysis } from "../../../../../features/terrainProfile/service.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../../interfaces/routes.interface.js";
-import { cancelTerrainProfileAnalysis } from "../../../../../services/terrainProfile/terrainProfile.service.js";
 
 const schemaRoute = {
   params: z.object({ analysis_id: z.uuid() }),

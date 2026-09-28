@@ -7,12 +7,12 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { buildStationFilterConditions, resolveStationFilter } from "../../../../features/stations/filter.js";
+import { findPhysicalStations, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
+import { parseStationStatusParam } from "../../../../features/stations/status.js";
+import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { buildStationFilterConditions, resolveStationFilter } from "../../../../services/stations/filter.js";
-import { findPhysicalStations, physicalStationSchema } from "../../../../services/stations/physicalStations.js";
-import { parseStationStatusParam } from "../../../../services/stations/status.js";
-import { parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);

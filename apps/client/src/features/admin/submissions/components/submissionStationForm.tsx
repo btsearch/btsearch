@@ -20,7 +20,8 @@ import OrangeIcon from "@/features/station-details/components/logos/orange.svg?r
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { LocationPicker } from "@/features/submissions/components/locationPicker";
 import type { ProposedLocationForm } from "@/features/submissions/types";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, ORANGE_MNC, TMOBILE_MNC, getMnoBrand, getNetworksSiblingMnc } from "@/lib/cellular/operators";
+import { resolveSiblingMnoName } from "@/lib/cellular/stations";
 import { formatSpeedMbps, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
 import type { Operator, SectorDraft, Station, UplinkType } from "@/types/station";
@@ -99,8 +100,9 @@ export function SubmissionStationForm({
   }, [currentStation?.sectors, sectors]);
   const hasNewSectors = useMemo(() => sectors.some((sector) => sector.id === undefined), [sectors]);
 
-  const siblingBrand = selectedOperatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
-  const SiblingLogo = selectedOperatorMnc === 26002 ? OrangeIcon : TMobileIcon;
+  const siblingMnc = getNetworksSiblingMnc(selectedOperatorMnc) ?? TMOBILE_MNC;
+  const siblingBrand = getMnoBrand(siblingMnc);
+  const SiblingLogo = siblingMnc === ORANGE_MNC ? OrangeIcon : TMobileIcon;
   const currentStationId = currentStation?.id;
   const currentUplink = currentStation?.uplink;
 
@@ -159,13 +161,8 @@ export function SubmissionStationForm({
       }
       if (data.networks_id !== null) onExtraIdsChange({ networks_id: data.networks_id });
       if (data.networks_name) onExtraIdsChange({ networks_name: data.networks_name });
-      const isCurrentTMPL = selectedOperatorMnc === 26002;
-      if (isCurrentTMPL) {
-        if (!stationForm.station_id.startsWith("N") && locationForm.city)
-          onExtraIdsChange({ mno_name: `${normalizeCityForMNOName(locationForm.city)}_${stationForm.station_id}` });
-      } else {
-        if (data.mno_name) onExtraIdsChange({ mno_name: data.mno_name });
-      }
+      const nextMnoName = resolveSiblingMnoName(selectedOperatorMnc, stationForm.station_id, locationForm.city, data.mno_name);
+      if (nextMnoName) onExtraIdsChange({ mno_name: nextMnoName });
       toast.success(t("sibling.fetched"));
     } catch {
       toast.error(t("sibling.fetchFailed"));

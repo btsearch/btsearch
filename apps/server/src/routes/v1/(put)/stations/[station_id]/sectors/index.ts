@@ -6,10 +6,10 @@ import type { FastifyRequest } from "fastify";
 import z from "zod";
 
 import { ErrorResponse } from "../../../../../../errors.ts";
+import { auditContextFromRequest, loadSectorSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.ts";
+import { moveSectorsOutOfTheWay } from "../../../../../../features/stations/sectorAzimuths.ts";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.ts";
-import { auditContextFromRequest, loadSectorSnapshot, runAuditedOperation } from "../../../../../../services/audit/index.ts";
-import { moveSectorsOutOfTheWay } from "../../../../../../services/stations/sectorAzimuths.ts";
 import type { DbTx } from "../../../../../../types/global.ts";
 
 const sectorInputSchema = z.object({

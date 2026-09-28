@@ -4,11 +4,11 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
+import { fetchAuditOperations } from "../../../../features/audit/read.js";
+import { auditOperationSummarySchema } from "../../../../features/audit/schemas.js";
+import type { AuditOperationSummary } from "../../../../features/audit/types.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { fetchAuditOperations } from "../../../../services/audit/read.js";
-import { auditOperationSummarySchema } from "../../../../services/audit/schemas.js";
-import type { AuditOperationSummary } from "../../../../services/audit/types.js";
 
 const schemaRoute = {
   querystring: z.object({

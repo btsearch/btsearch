@@ -6,17 +6,17 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
-import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import {
   auditContextFromRequest,
   loadPhotoSelectionSnapshots,
   logPhotoSelectionChanges,
   runAuditedOperation,
-} from "../../../../services/audit/index.js";
-import { deleteLocationWithPhotos } from "../../../../services/locations/deleteWithPhotos.js";
-import { migrateStationPhotosToLocation } from "../../../../services/stations/photoMigration.js";
-import { stationStatusUpdate } from "../../../../services/stations/status.js";
+} from "../../../../features/audit/index.js";
+import { deleteLocationWithPhotos } from "../../../../features/locations/deleteWithPhotos.js";
+import { migrateStationPhotosToLocation } from "../../../../features/stations/photoMigration.js";
+import { stationStatusUpdate } from "../../../../features/stations/status.js";
+import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { deletePhotoFiles } from "../../../../utils/photoFiles.js";
 
 const stationsUpdateSchema = createUpdateSchema(stations)

@@ -1,10 +1,10 @@
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { getTerrainProfileAnalysis } from "../../../../../features/terrainProfile/service.js";
+import { TerrainProfileAnalysisSchema } from "../../../../../features/terrainProfile/types.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getTerrainProfileAnalysis } from "../../../../../services/terrainProfile/terrainProfile.service.js";
-import { TerrainProfileAnalysisSchema } from "../../../../../services/terrainProfile/types.js";
 
 const paramsSchema = z.object({ analysis_id: z.uuid() });
 const responseSchema = z.object({ data: TerrainProfileAnalysisSchema });

@@ -5,12 +5,12 @@ import { availableParallelism } from "node:os";
 import App from "./app.js";
 import { port, ukeAutoImportEnabled } from "./config.js";
 import redis from "./database/redis.js";
-import { takeContributionSnapshot } from "./services/contributionSnapshot.service.ts";
-import { refreshDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
-import { cleanupExpiredInactiveStations } from "./services/inactiveStationCleanup.service.js";
-import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./services/notifications/service.js";
-import { cleanupOrphanedSubmissions } from "./services/submissions/cleanup.js";
-import { startImportJob } from "./services/ukeImportJob.service.js";
+import { deliverQueuedStationWatchNotifications, deliverQueuedSubmissionApprovalNotifications } from "./features/notifications/service.js";
+import { cleanupExpiredInactiveStations } from "./features/stations/inactiveCleanup.js";
+import { takeContributionSnapshot } from "./features/stats/contributionSnapshot.ts";
+import { cleanupOrphanedSubmissions } from "./features/submissions/cleanup.js";
+import { startImportJob } from "./features/ukeImport/job.js";
+import { refreshDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { installProcessErrorHandlers, logger } from "./utils/logger.js";
 
 const workerCount = Number(process.env.WORKERS) || availableParallelism();

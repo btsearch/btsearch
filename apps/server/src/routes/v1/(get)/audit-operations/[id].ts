@@ -2,11 +2,11 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
+import { fetchAuditOperation } from "../../../../features/audit/read.js";
+import { auditOperationDetailSchema } from "../../../../features/audit/schemas.js";
+import type { AuditOperationWithEntries } from "../../../../features/audit/types.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { fetchAuditOperation } from "../../../../services/audit/read.js";
-import { auditOperationDetailSchema } from "../../../../services/audit/schemas.js";
-import type { AuditOperationWithEntries } from "../../../../services/audit/types.js";
 
 const schemaRoute = {
   params: z.object({ id: z.coerce.number().int().positive() }),

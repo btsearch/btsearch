@@ -4,10 +4,10 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../errors.js";
+import { approveSubmissionAction } from "../../../../../features/submissions/actions.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getRuntimeSettings } from "../../../../../services/settings.service.js";
-import { approveSubmissionAction } from "../../../../../services/submissions/actions.js";
+import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 
 const submissionsSelectSchema = createSelectSchema(submissions);
 const requestSchema = z

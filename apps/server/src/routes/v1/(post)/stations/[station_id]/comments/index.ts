@@ -9,10 +9,10 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
-import { getRuntimeSettings } from "../../../../../../services/settings.service.js";
+import { getRuntimeSettings } from "../../../../../../lib/runtimeSettings.js";
 import { assertStationPhotoQuality, decodeHeicToRaw, isHeic } from "../../../../../../utils/image.js";
 
 const stationCommentSelectSchema = createSelectSchema(stationComments);

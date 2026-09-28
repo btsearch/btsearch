@@ -1,5 +1,6 @@
 import { bands, locations, operators, regions, stations, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
 import { CELL_TYPES } from "@openbts/shared/cellTypes";
+import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -8,14 +9,11 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
-import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import {
   type AnalyzerResult,
   type CellGroups,
   type CellInput,
   type LookupMaps,
-  NETWORKS_SIBLING_MNC,
   type PairMap,
   addPair,
   candidateLTEEnbids,
@@ -23,9 +21,11 @@ import {
   lteEnbidKey,
   pairKey,
   stripFirstDigit,
-} from "../../../../services/analyzer/logic.js";
-import { analyzerPool } from "../../../../services/analyzer/pool.js";
-import { recordAnalyzerUsage } from "../../../../services/analyzerUsage.service.ts";
+} from "../../../../features/analyzer/logic.js";
+import { recordAnalyzerUsage } from "../../../../features/analyzer/usage.ts";
+import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
+import { analyzerPool } from "../../../../workers/analyzerPool.js";
 
 const MAX_CELLS = 20_000;
 const BATCH_SIZE = 200;
@@ -160,8 +160,8 @@ const CELL_COLS = { station_id: false } as const;
 type LookupTask = () => Promise<void>;
 
 function lteLookupMncs(mnc: number): number[] {
-  const sibling = NETWORKS_SIBLING_MNC.get(mnc);
-  return sibling === undefined ? [mnc] : [mnc, sibling];
+  const sibling = getNetworksSiblingMnc(mnc);
+  return sibling === null ? [mnc] : [mnc, sibling];
 }
 
 function* chunks<T>(items: Iterable<T>): Generator<T[]> {

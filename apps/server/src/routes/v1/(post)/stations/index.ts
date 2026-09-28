@@ -6,17 +6,17 @@ import postgres from "postgres";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
+import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.js";
+import { validateCellARFCNsForBands } from "../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../features/cells/duplicateCheck.js";
+import { type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
+import { INSERT_OMIT, lteNullableFields, nrExtendFields, umtsNullableFields } from "../../../../features/cells/ratCellSchemas.js";
+import { syncStationsPermitsAssociations } from "../../../../features/stations/permitsAssociation.js";
+import { stationStatusForCellCount } from "../../../../features/stations/status.js";
+import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../services/audit/index.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../services/cellDuplicateCheck.service.js";
-import { stationStatusForCellCount } from "../../../../services/stations/status.js";
-import { syncStationsPermitsAssociations } from "../../../../services/stationsPermitsAssociation.service.js";
-import { validateCellARFCNsForBands } from "../../../../utils/cellARFCNValidation.js";
 import { logger } from "../../../../utils/logger.js";
-import { type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../utils/ratCellPersistence.js";
-import { INSERT_OMIT, lteNullableFields, nrExtendFields, umtsNullableFields } from "../../../../utils/ratCellSchemas.js";
-import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../utils/submission.helpers.js";
 
 const stationsInsertSchema = createInsertSchema(stations).omit({ extra_address: true, status: true, statusChangedAt: true });
 const stationSchema = createSelectSchema(stations);

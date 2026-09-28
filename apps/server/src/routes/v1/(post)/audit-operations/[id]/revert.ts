@@ -2,11 +2,11 @@ import { AUDIT_ENTITIES, AUDIT_OPS } from "@openbts/shared/audit";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod/v4";
 
+import { auditContextFromRequest } from "../../../../../features/audit/context.js";
+import { type RevertOperationResult, revertOperation } from "../../../../../features/audit/revert/index.js";
+import { auditOperationSummarySchema } from "../../../../../features/audit/schemas.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest } from "../../../../../services/audit/context.js";
-import { type RevertOperationResult, revertOperation } from "../../../../../services/audit/revert/index.js";
-import { auditOperationSummarySchema } from "../../../../../services/audit/schemas.js";
 
 const paramsSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
 const bodySchema = z

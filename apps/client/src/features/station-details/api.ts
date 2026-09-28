@@ -19,7 +19,7 @@ export type StationHistoryChange = {
   to: StationHistoryChangeValue;
 };
 
-export type StationHistoryAuthor = {
+type StationHistoryAuthor = {
   id: string;
   name: string | null;
   username: string | null;
@@ -46,12 +46,12 @@ export type StationHistoryItem = StationHistorySection & {
   photoReferences: StationHistoryPhotoReference[];
 };
 
-export type StationHistoryPage = {
+type StationHistoryPage = {
   data: StationHistoryItem[];
   nextCursor: number | null;
 };
 
-export const STATION_HISTORY_PAGE_SIZE = 25;
+const STATION_HISTORY_PAGE_SIZE = 25;
 
 export const fetchStationHistory = (stationId: number, cursor: number | null, signal?: AbortSignal) =>
   fetchJson<StationHistoryPage>(

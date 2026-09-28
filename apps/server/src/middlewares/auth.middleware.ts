@@ -2,14 +2,14 @@ import type { FastifyRequest } from "fastify";
 
 import { PUBLIC_ROUTES } from "../constants.js";
 import { ErrorResponse } from "../errors.js";
+import { getRequestPathname, isSEOPublicPath } from "../features/seo/routes.js";
 import type { TokenTier } from "../interfaces/auth.interface.ts";
 import type { ApiToken } from "../interfaces/fastify.interface.js";
 import type { Route } from "../interfaces/routes.interface.js";
+import { getRuntimeSettings } from "../lib/runtimeSettings.js";
+import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../plugins/auth/oauthToken.js";
 import { convertToPermissionObject, verifyPermissions } from "../plugins/auth/utils.js";
 import { getCurrentUser, verifyApiKey } from "../plugins/betterauth.plugin.js";
-import { hasRequiredScopes, isOAuthBearerToken, verifyOAuthAccessToken } from "../services/oauthToken.service.js";
-import { getRequestPathname, isSEOPublicPath } from "../services/seo/routes.js";
-import { getRuntimeSettings } from "../services/settings.service.js";
 
 const TWO_FACTOR_ALLOWED = [
   "/api/v1/auth/get-session",

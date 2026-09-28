@@ -36,6 +36,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
+import { isNetworksVirtualStation } from "@/lib/cellular/stations";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 import type { Station, StationComment } from "@/types/station";
@@ -143,8 +144,7 @@ export function StationDetailsBody({
     ...(photos !== undefined ? { photos: photos.length } : {}),
     ...(comments !== undefined ? { comments: comments.length } : {}),
   };
-  const showSI2PEMLink =
-    !!station?.station_id && !(station.station_id.startsWith("N") && (station.operator.mnc === 26002 || station.operator.mnc === 26003));
+  const showSI2PEMLink = !!station?.station_id && !isNetworksVirtualStation(station.station_id, station.operator.mnc);
   const visibleTabs = useMemo(
     () =>
       source === "uke"

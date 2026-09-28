@@ -28,6 +28,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Undoing all cell changes while editing a pending submission now removes them from the submission
 - Adding azimuths while editing a submission that already adds new azimuths no longer mixes them up or fails to save
 - Stations with two photos on the photo gallery page no longer overflow their column on small laptop screens when the sidebar is open
+- Station history now shows each cell's azimuth as it was at the time of the change, so reordering azimuths no longer makes every cell look like it moved to the next azimuth, and the new azimuth order is shown as a single change
 - Admin: creating a station no longer adds the cells of radio technologies that were turned off
 
 # 2026-09-27

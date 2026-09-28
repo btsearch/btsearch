@@ -5,9 +5,9 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../services/audit/index.js";
 import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
 import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
 import { extractExifDate, parseTakenAt } from "../../../../../utils/photoTakenAt.js";

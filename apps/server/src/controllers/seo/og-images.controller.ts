@@ -6,9 +6,9 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
+import { requestOGImage } from "../../features/ogImages/client.js";
+import type { OGRenderRequest, OGRenderResult } from "../../features/ogImages/contract.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
-import { requestOGImage } from "../../services/ogImages/client.js";
-import type { OGRenderRequest, OGRenderResult } from "../../services/ogImages/contract.js";
 
 const IMAGE_FILE_PATTERN = /^([1-9]\d*)\.png$/;
 const MAX_LOCATION_COLORS = 32;

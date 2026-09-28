@@ -5,14 +5,14 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
-import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import {
   auditContextFromRequest,
   loadPhotoSelectionSnapshots,
   logPhotoSelectionChanges,
   runAuditedOperation,
-} from "../../../../../services/audit/index.js";
+} from "../../../../../features/audit/index.js";
+import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
 const schemaRoute = {
   params: z.object({ station_id: z.coerce.number() }),

@@ -1,5 +1,6 @@
 import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { ukeLocationsResponseType } from "@openbts/proto/server";
+import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -8,9 +9,9 @@ import { z } from "zod/v4";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../features/lists/visibility.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../../services/lists/visibility.js";
 
 const ukeLocationsSchema = createSelectSchema(ukeLocations)
   .omit({ point: true, region_id: true })
@@ -149,7 +150,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   if (cached) return res.send(JSON.parse(cached));
 
   const offset = (page - 1) * limit;
-  const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
+  const expandedOperatorMncs = expandNetworksMncs(operatorMncs);
 
   let envelope: ReturnType<typeof sql> | undefined;
   if (bounds) {

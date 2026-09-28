@@ -14,6 +14,10 @@ export {
   EXTRA_IDENTIFICATORS_MNCS,
   MNO_NAME_ONLY_MNCS,
   MNO_BRAND,
+  TMOBILE_MNC,
+  ORANGE_MNC,
+  isNetworksPartnerMnc,
+  getNetworksSiblingMnc,
 } from "@openbts/shared/operatorUtils";
 
 export function getOperatorTintGradient(color: string): string {

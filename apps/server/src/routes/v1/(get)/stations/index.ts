@@ -1,5 +1,6 @@
 import { bands, cells, extraIdentificators, locations, lteCells, nrCells, operators, regions, stations } from "@openbts/drizzle";
 import { StationsResponseType } from "@openbts/proto/server";
+import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { and, count, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -7,10 +8,10 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../features/lists/visibility.js";
+import { buildStatusCondition, parseStationStatusParam } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../services/lists/visibility.js";
-import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
 
 const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
@@ -121,7 +122,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       )}]::int4[]`
     : undefined;
 
-  const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
+  const expandedOperatorMncs = expandNetworksMncs(operatorMncs);
 
   let envelope: ReturnType<typeof sql> | undefined;
   if (bounds) {

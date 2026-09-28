@@ -1,3 +1,5 @@
+import { isNetworksPartnerMnc } from "./operatorUtils.ts";
+
 const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
 const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
@@ -136,8 +138,7 @@ export function createStationSEOMetadata(site: SEOSite, station: StationSEOData)
   const path = `/stations/${station.id}`;
   const canonicalUrl = absoluteSiteUrl(site.url, path);
   const bandsSummary = summarizeBands(station.bands);
-  const isNetworks = station.operatorMnc === 26002 || station.operatorMnc === 26003;
-  const networksSuffix = isNetworks && station.networksId ? ` (N!${station.networksId})` : "";
+  const networksSuffix = isNetworksPartnerMnc(station.operatorMnc) && station.networksId ? ` (N!${station.networksId})` : "";
   const name = `Stacja bazowa ${station.operatorName} ${station.stationCode}${networksSuffix}`;
 
   return {

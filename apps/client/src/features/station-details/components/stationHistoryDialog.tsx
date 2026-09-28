@@ -17,7 +17,7 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useIsPresent } from "motion/react";
-import { Suspense, lazy, memo, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, memo, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -60,11 +60,14 @@ const KIND_ICONS: Record<StationHistorySection["kind"], IconSvgElement> = {
   photos: Image01Icon,
 };
 
-const ACTION_CHIP_CLASSES: Record<StationHistorySection["action"], string> = {
+const ACTION_TEXT_CLASSES: Record<StationHistorySection["action"], string> = {
   create: "text-emerald-700 dark:text-emerald-300",
   update: "text-blue-700 dark:text-blue-300",
   delete: "text-rose-700 dark:text-rose-300",
 };
+
+const ACTION_BUTTON_CLASS_NAME =
+  "inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const CELL_DETAIL_FIELD_KEYS = new Set([
   "lac",
@@ -108,18 +111,17 @@ const COMMON_LABEL_KEYS: Record<string, string> = {
   cell_type: "cellType",
 };
 
-type HistoryDisplayEntry = { type: "change" | "revert"; items: [StationHistoryItem, ...StationHistoryItem[]] };
+type HistoryDisplayEntry = { item: StationHistoryItem; revertItems?: StationHistoryItem[] };
 type HistoryDayGroup = { key: string; label: string; entries: HistoryDisplayEntry[] };
 type CellChangeGroup = { label: string; rat: string; changes: StationHistoryChange[] };
 type RatCellChangeGroup = { rat: string; cells: CellChangeGroup[] };
 type HistoryPhotoReferenceProps = {
-  value: StationHistoryChangeValue;
+  photoId: number;
   isMain: boolean;
-  photoReferences: ReadonlyMap<number, StationHistoryPhotoReference>;
+  photoReferences: StationHistoryPhotoReference[];
 };
 type HistorySectionChangesProps = {
   section: StationHistorySection;
-  operationId: number;
   photoReferences: StationHistoryPhotoReference[];
   topLevel?: boolean;
 };
@@ -149,40 +151,23 @@ function preparePhotoChanges(changes: StationHistoryChange[]): PhotoChangePresen
 
   const mainFromId = parsePhotoReferenceId(mainPhotoChange.from);
   const mainToId = parsePhotoReferenceId(mainPhotoChange.to);
-  let fromCovered = mainFromId === null;
-  let toCovered = mainToId === null;
-  for (const change of changes) {
-    if (change.field !== "photo") continue;
-    if (!fromCovered && parsePhotoReferenceId(change.from) === mainFromId) fromCovered = true;
-    if (!toCovered && parsePhotoReferenceId(change.to) === mainToId) toCovered = true;
-    if (fromCovered && toCovered) break;
-  }
+  const photoChanges = changes.filter((change) => change.field === "photo");
+  const fromCovered = mainFromId === null || photoChanges.some((change) => parsePhotoReferenceId(change.from) === mainFromId);
+  const toCovered = mainToId === null || photoChanges.some((change) => parsePhotoReferenceId(change.to) === mainToId);
+  const presentedChanges = changes.flatMap((change) => {
+    if (change !== mainPhotoChange) return [change];
+    if (fromCovered && toCovered) return [];
+    return [{ ...change, from: fromCovered ? null : change.from, to: toCovered ? null : change.to }];
+  });
 
-  const presentedChanges: StationHistoryChange[] = [];
-  for (const change of changes) {
-    if (change !== mainPhotoChange) {
-      presentedChanges.push(change);
-      continue;
-    }
-    if (fromCovered && toCovered) continue;
-    presentedChanges.push({ ...change, from: fromCovered ? null : change.from, to: toCovered ? null : change.to });
-  }
-
-  return {
-    changes: presentedChanges,
-    mainFromId,
-    mainToId,
-  };
+  return { changes: presentedChanges, mainFromId, mainToId };
 }
 
-function HistoryPhotoReference({ value, isMain, photoReferences }: HistoryPhotoReferenceProps) {
+function HistoryPhotoReference({ photoId, isMain, photoReferences }: HistoryPhotoReferenceProps) {
   const { t } = useTranslation("stationDetails");
   const [previewFailed, setPreviewFailed] = useState(false);
-  const photoId = parsePhotoReferenceId(value);
-  if (photoId === null) return null;
-
   const label = t(isMain ? "history.values.mainPhotoReference" : "history.values.photoReference", { id: photoId });
-  const photo = photoReferences.get(photoId);
+  const photo = photoReferences.find((reference) => reference.id === photoId);
   if (photo === undefined) return <span title={t("history.values.photoUnavailable", { id: photoId })}>{label}</span>;
 
   const href = photoUrl(photo.attachment_uuid);
@@ -248,22 +233,31 @@ function groupCellChanges(action: StationHistorySection["action"], changes: Stat
   return [...groups].map(([rat, groupedCells]) => ({ rat, cells: groupedCells }));
 }
 
-const HistorySectionChanges = memo(function HistorySectionChanges({
-  section,
-  operationId,
-  photoReferences: photoReferenceList,
-  topLevel = false,
-}: HistorySectionChangesProps) {
+function groupHistoryByDay(items: StationHistoryItem[], locale: string): HistoryDayGroup[] {
+  const groups: HistoryDayGroup[] = [];
+  for (const item of items) {
+    const date = new Date(item.createdAt);
+    const key = date.toDateString();
+    let group = groups.at(-1);
+    if (group?.key !== key) {
+      group = { key, label: date.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }), entries: [] };
+      groups.push(group);
+    }
+    const lastEntry = group.entries.at(-1);
+    if (item.isRevert && lastEntry?.revertItems && lastEntry.item.operationId === item.operationId) lastEntry.revertItems.push(item);
+    else group.entries.push(item.isRevert ? { item, revertItems: [item] } : { item });
+  }
+  return groups;
+}
+
+const HistorySectionChanges = memo(function HistorySectionChanges({ section, photoReferences, topLevel = false }: HistorySectionChangesProps) {
   const { t } = useTranslation(["stationDetails", "stations", "common"]);
-  const photoReferences = useMemo(() => new Map(photoReferenceList.map((photo) => [photo.id, photo])), [photoReferenceList]);
   const cellChangeGroups = useMemo(
     () => (section.kind === "cells" ? groupCellChanges(section.action, section.changes) : []),
     [section.action, section.changes, section.kind],
   );
-  const [cellsExpanded, setCellsExpanded] = useState(() => {
-    if (section.kind !== "cells") return true;
-    return cellChangeGroups.reduce((total, group) => total + group.cells.length, 0) <= 4;
-  });
+  const cellCount = cellChangeGroups.reduce((total, group) => total + group.cells.length, 0);
+  const [cellsExpanded, setCellsExpanded] = useState(cellCount <= 4);
 
   const fieldLabel = (field: string, rat?: string): string => {
     if (CELL_DETAIL_FIELD_KEYS.has(field)) return CELL_DETAIL_LABEL_OVERRIDES[field] ?? getRatDetailFieldLabel(rat ?? "", field);
@@ -292,7 +286,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
     if ((field === "azimuth" || field === "azimuths") && typeof value === "number") return `${value}°`;
     if (Array.isArray(value)) {
       if (value.length === 0) return "-";
-      return value.map((item) => formatValue(field === "azimuths" ? "azimuth" : field, item, rat)).join(", ");
+      return value.map((item) => formatValue(field, item, rat)).join(", ");
     }
     if (isValueRecord(value))
       return Object.entries(value)
@@ -301,62 +295,61 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
     return String(value);
   };
 
-  const renderValue = (change: StationHistoryChange, value: StationHistoryChangeValue, isMain: boolean) => {
-    if (isPhotoField(change.field) && parsePhotoReferenceId(value) !== null)
-      return <HistoryPhotoReference value={value} isMain={isMain} photoReferences={photoReferences} />;
-    return formatValue(change.field, value, change.rat);
+  const ratLabel = (rat: string) => rat || t("history.otherCells");
+
+  const renderValue = (change: StationHistoryChange, value: StationHistoryChangeValue, mainPhotoId: number | null) => {
+    const photoId = isPhotoField(change.field) ? parsePhotoReferenceId(value) : null;
+    if (photoId === null) return formatValue(change.field, value, change.rat);
+    return (
+      <HistoryPhotoReference photoId={photoId} isMain={change.field === "main_photo" || photoId === mainPhotoId} photoReferences={photoReferences} />
+    );
   };
 
-  const renderChangeValue = (change: StationHistoryChange, fromIsMain = false, toIsMain = false) => {
+  const renderChangeValue = (change: StationHistoryChange, mainFromId: number | null, mainToId: number | null) => {
     if (change.from === null)
       return (
         <span className="font-medium text-emerald-700 dark:text-emerald-300">
           <span className="sr-only">{t("history.values.current")}: </span>
-          {renderValue(change, change.to, toIsMain)}
+          {renderValue(change, change.to, mainToId)}
         </span>
       );
     if (change.to === null)
       return (
         <span className="font-medium text-rose-700 dark:text-rose-300">
           <span className="sr-only">{t("history.values.previous")}: </span>
-          {renderValue(change, change.from, fromIsMain)}
+          {renderValue(change, change.from, mainFromId)}
         </span>
       );
     return (
       <>
         <span className="rounded-sm bg-red-500/10 px-1 py-px text-red-700 dark:text-red-300">
           <span className="sr-only">{t("history.values.previous")}: </span>
-          {renderValue(change, change.from, fromIsMain)}
+          {renderValue(change, change.from, mainFromId)}
         </span>
         <span aria-hidden className="mx-1 text-muted-foreground/50">
           <HugeiconsIcon icon={ArrowRight01Icon} className="inline size-3 align-[-2px]" />
         </span>
         <span className="rounded-sm bg-emerald-500/10 px-1 py-px font-medium text-emerald-700 dark:text-emerald-300">
           <span className="sr-only">{t("history.values.current")}: </span>
-          {renderValue(change, change.to, toIsMain)}
+          {renderValue(change, change.to, mainToId)}
         </span>
       </>
     );
   };
 
-  const renderChangeTokens = (changes: StationHistoryChange[], includeCellLabel = false) => {
+  const renderChangeTokens = (changes: StationHistoryChange[]) => {
     const presentation = preparePhotoChanges(changes);
 
     return (
       <div className="text-xs leading-6 text-muted-foreground wrap-break-word">
         {presentation.changes.map((change, index) => {
           const isPhotoChange = isPhotoField(change.field);
-          const fromPhotoId = parsePhotoReferenceId(change.from);
-          const toPhotoId = parsePhotoReferenceId(change.to);
-          const fromIsMain = fromPhotoId !== null && (change.field === "main_photo" || fromPhotoId === presentation.mainFromId);
-          const toIsMain = toPhotoId !== null && (change.field === "main_photo" || toPhotoId === presentation.mainToId);
           const fieldSeparator = change.from !== null && change.to !== null ? " " : ": ";
           return (
-            <p key={`${operationId}-${index}`}>
-              {includeCellLabel && change.label ? `${change.label} ` : ""}
+            <p key={`${change.field}-${index}`}>
               {isPhotoChange ? null : fieldLabel(change.field, change.rat)}
               {isPhotoChange ? null : fieldSeparator}
-              {renderChangeValue(change, fromIsMain, toIsMain)}
+              {renderChangeValue(change, presentation.mainFromId, presentation.mainToId)}
             </p>
           );
         })}
@@ -385,7 +378,6 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
 
   if (section.kind !== "cells") return <div className={topLevel ? "mt-0" : "mt-0.5"}>{renderChangeTokens(section.changes)}</div>;
 
-  const cellCount = cellChangeGroups.reduce((total, group) => total + group.cells.length, 0);
   return (
     <details
       className={cn("group", topLevel ? "mt-0" : "mt-1.5")}
@@ -397,7 +389,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
         <span className="flex min-w-0 flex-1 flex-wrap gap-1">
           {cellChangeGroups.map((group) => (
             <span key={group.rat} className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
-              {group.rat || t("history.otherCells")} {group.cells.length}
+              {ratLabel(group.rat)} {group.cells.length}
             </span>
           ))}
         </span>
@@ -406,24 +398,18 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
       {cellsExpanded ? (
         <div className="mt-1.5 overflow-hidden rounded-lg border border-border/70">
           {cellChangeGroups.map((ratGroup) => (
-            <section key={ratGroup.rat} aria-label={ratGroup.rat || t("history.otherCells")}>
+            <section key={ratGroup.rat} aria-label={ratLabel(ratGroup.rat)}>
               <div className="flex items-center justify-between bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                <span>{ratGroup.rat || t("history.otherCells")}</span>
+                <span>{ratLabel(ratGroup.rat)}</span>
                 <span className="tabular-nums">{t("history.cellCount", { count: ratGroup.cells.length })}</span>
               </div>
               <div className="divide-y divide-border/60">
-                {ratGroup.cells.map((cell, cellIndex) => {
-                  const snapshot = section.action === "update" ? null : cell.changes[0];
-                  return (
-                    <div
-                      key={`${operationId}-${ratGroup.rat}-${cell.label}-${cellIndex}`}
-                      className="grid gap-0.5 px-2.5 py-1.5 sm:grid-cols-[minmax(11rem,14rem)_1fr] sm:gap-3"
-                    >
-                      <p className="text-xs font-semibold leading-5 text-foreground">{cell.label || fieldLabel("cell")}</p>
-                      {snapshot ? renderCellSnapshot(snapshot) : renderChangeTokens(cell.changes, cell.label === "")}
-                    </div>
-                  );
-                })}
+                {ratGroup.cells.map((cell, cellIndex) => (
+                  <div key={`${cell.label}-${cellIndex}`} className="grid gap-0.5 px-2.5 py-1.5 sm:grid-cols-[minmax(11rem,14rem)_1fr] sm:gap-3">
+                    <p className="text-xs font-semibold leading-5 text-foreground">{cell.label || fieldLabel("cell")}</p>
+                    {section.action === "update" ? renderChangeTokens(cell.changes) : renderCellSnapshot(cell.changes[0])}
+                  </div>
+                ))}
               </div>
             </section>
           ))}
@@ -435,24 +421,25 @@ const HistorySectionChanges = memo(function HistorySectionChanges({
 
 type HistoryItemProps = {
   item: StationHistoryItem;
-  revertItems?: HistoryDisplayEntry["items"];
+  revertItems?: StationHistoryItem[];
   canManageOperation: boolean;
   onRevert: (item: StationHistoryItem) => void;
 };
 
 function sameHistoryItemProps(previous: HistoryItemProps, next: HistoryItemProps): boolean {
   if (previous.item !== next.item || previous.canManageOperation !== next.canManageOperation || previous.onRevert !== next.onRevert) return false;
-  if (previous.revertItems === next.revertItems) return true;
-  if (previous.revertItems === undefined || next.revertItems === undefined) return false;
-  return previous.revertItems.length === next.revertItems.length && previous.revertItems.every((item, index) => item === next.revertItems?.[index]);
+  const previousRevertItems = previous.revertItems;
+  const nextRevertItems = next.revertItems;
+  if (previousRevertItems === nextRevertItems) return true;
+  if (previousRevertItems === undefined || nextRevertItems === undefined) return false;
+  return previousRevertItems.length === nextRevertItems.length && previousRevertItems.every((item, index) => item === nextRevertItems[index]);
 }
 
 const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOperation, onRevert }: HistoryItemProps) {
   const { t, i18n } = useTranslation("stationDetails");
   const isRevert = revertItems !== undefined;
-  const isTopLevel = !isRevert;
   const icon = isRevert ? Undo02Icon : KIND_ICONS[item.kind];
-  const iconClass = isRevert ? ACTION_CHIP_CLASSES.update : ACTION_CHIP_CLASSES[item.action];
+  const iconClass = isRevert ? ACTION_TEXT_CLASSES.update : ACTION_TEXT_CLASSES[item.action];
   const title = isRevert ? t("history.operations.revert") : t(`history.titles.${item.kind}_${item.action}`);
 
   return (
@@ -461,7 +448,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
         <HugeiconsIcon icon={icon} className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className={cn("flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-2", isTopLevel ? "sm:items-end" : "sm:items-start")}>
+        <div className={cn("flex min-w-0 flex-col gap-1 sm:flex-row sm:justify-between sm:gap-2", isRevert ? "sm:items-start" : "sm:items-end")}>
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h4 className="min-w-0 text-sm font-medium leading-5 text-foreground">{title}</h4>
             {item.revertStatus !== "none" ? (
@@ -496,12 +483,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
               {new Date(item.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
             </time>
             {canManageOperation && item.revertible ? (
-              <button
-                type="button"
-                onClick={() => onRevert(item)}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={t("history.revert.action")}
-              >
+              <button type="button" onClick={() => onRevert(item)} className={ACTION_BUTTON_CLASS_NAME} aria-label={t("history.revert.action")}>
                 <HugeiconsIcon icon={Undo02Icon} className="size-3.5" aria-hidden="true" />
               </button>
             ) : null}
@@ -511,7 +493,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
                 search={{ operation: item.operationId }}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className={ACTION_BUTTON_CLASS_NAME}
                 aria-label={t("history.openOperation")}
               >
                 <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" aria-hidden="true" />
@@ -522,20 +504,24 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
 
         {isRevert ? (
           <div className="mt-1.5 space-y-2">
-            {revertItems.map((change) => (
-              <section key={change.id}>
+            {revertItems.map((revertItem) => (
+              <section key={revertItem.id}>
                 <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <HugeiconsIcon icon={KIND_ICONS[change.kind]} className={cn("size-3.5", ACTION_CHIP_CLASSES[change.action])} aria-hidden="true" />
-                  <h5>{t(`history.titles.${change.kind}_${change.action}`)}</h5>
+                  <HugeiconsIcon
+                    icon={KIND_ICONS[revertItem.kind]}
+                    className={cn("size-3.5", ACTION_TEXT_CLASSES[revertItem.action])}
+                    aria-hidden="true"
+                  />
+                  <h5>{t(`history.titles.${revertItem.kind}_${revertItem.action}`)}</h5>
                 </div>
                 <div className="pl-5">
-                  <HistorySectionChanges section={change} operationId={change.operationId} photoReferences={change.photoReferences} />
+                  <HistorySectionChanges section={revertItem} photoReferences={revertItem.photoReferences} />
                 </div>
               </section>
             ))}
           </div>
         ) : (
-          <HistorySectionChanges section={item} operationId={item.operationId} photoReferences={item.photoReferences} topLevel={isTopLevel} />
+          <HistorySectionChanges section={item} photoReferences={item.photoReferences} topLevel />
         )}
       </div>
     </article>
@@ -566,8 +552,7 @@ export function StationHistoryDialogPanel({
   const userRole = session?.user?.role;
   const canOpenAuditLog = userRole === "admin";
   const canOpenAdminHistory = canOpenAuditLog || userRole === "editor";
-  const [revertTarget, setRevertTarget] = useState<{ operationId: number; entryIds: number[] } | null>(null);
-  const handleRevert = useCallback((item: StationHistoryItem) => setRevertTarget({ operationId: item.operationId, entryIds: item.entryIds }), []);
+  const [revertTarget, setRevertTarget] = useState<StationHistoryItem | null>(null);
 
   const {
     data,
@@ -618,27 +603,8 @@ export function StationHistoryDialogPanel({
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
-  const groups = useMemo<HistoryDayGroup[]>(() => {
-    const result: HistoryDayGroup[] = [];
-    for (const item of items) {
-      const date = new Date(item.createdAt);
-      const key = date.toDateString();
-      const previous = result[result.length - 1];
-      const group: HistoryDayGroup =
-        previous && previous.key === key
-          ? previous
-          : {
-              key,
-              label: date.toLocaleDateString(i18n.language, { day: "numeric", month: "long", year: "numeric" }),
-              entries: [],
-            };
-      if (group !== previous) result.push(group);
-      const lastEntry = group.entries[group.entries.length - 1];
-      if (item.isRevert && lastEntry?.type === "revert" && lastEntry.items[0].operationId === item.operationId) lastEntry.items.push(item);
-      else group.entries.push({ type: item.isRevert ? "revert" : "change", items: [item] });
-    }
-    return result;
-  }, [items, i18n.language]);
+  const groups = useMemo(() => groupHistoryByDay(items, i18n.language), [items, i18n.language]);
+  const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions");
 
   let loadMoreLabel = t("history.loadMore");
   if (isFetchingNextPage) loadMoreLabel = t("common:actions.loading");
@@ -693,11 +659,11 @@ export function StationHistoryDialogPanel({
             <div className="divide-y divide-border/60">
               {group.entries.map((entry) => (
                 <HistoryItem
-                  key={entry.items[0].id}
-                  item={entry.items[0]}
-                  revertItems={entry.type === "revert" ? entry.items : undefined}
+                  key={entry.item.id}
+                  item={entry.item}
+                  revertItems={entry.revertItems}
                   canManageOperation={canOpenAuditLog}
-                  onRevert={handleRevert}
+                  onRevert={setRevertTarget}
                 />
               ))}
             </div>
@@ -770,10 +736,10 @@ export function StationHistoryDialogPanel({
                     target="_blank"
                     rel="noopener noreferrer"
                     onPointerDown={(event) => event.stopPropagation()}
-                    aria-label={canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions")}
+                    aria-label={adminHistoryLabel}
                     className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
-                    <span className="sr-only sm:not-sr-only">{canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions")}</span>
+                    <span className="sr-only sm:not-sr-only">{adminHistoryLabel}</span>
                     <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
                   </Link>
                 )}

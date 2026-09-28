@@ -7,9 +7,9 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../../features/lists/visibility.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../../services/lists/visibility.js";
 
 const manufacturerSchema = z.object({ id: z.number(), name: z.string() });
 const equipmentTypeSchema = z.object({ id: z.number(), name: z.string(), manufacturer: manufacturerSchema.optional() });

@@ -5,10 +5,10 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { stationStatusUpdate } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../services/audit/index.js";
-import { stationStatusUpdate } from "../../../../services/stations/status.js";
 
 const schemaRoute = {
   params: z.object({

@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
-import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, getMnoBrand, normalizeCityForMNOName } from "@/lib/cellular/operators";
+import { EXTRA_IDENTIFICATORS_MNCS, MNO_NAME_ONLY_MNCS, ORANGE_MNC, TMOBILE_MNC, getMnoBrand, getNetworksSiblingMnc } from "@/lib/cellular/operators";
+import { resolveSiblingMnoName } from "@/lib/cellular/stations";
 
 export interface ExtraIdentificatorsSectionProps {
   selectedStation: SearchStation | null;
@@ -43,8 +44,9 @@ export function ExtraIdentificatorsSection({
 
   if (!showExtraIdFields && !showMnoNameOnly) return null;
 
-  const siblingBrand = operatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
-  const SiblingLogo = operatorMnc === 26002 ? OrangeIcon : TMobileIcon;
+  const siblingMnc = getNetworksSiblingMnc(operatorMnc) ?? TMOBILE_MNC;
+  const siblingBrand = getMnoBrand(siblingMnc);
+  const SiblingLogo = siblingMnc === ORANGE_MNC ? OrangeIcon : TMobileIcon;
 
   const handleFetchSibling = async () => {
     setIsFetchingSibling(true);
@@ -56,13 +58,8 @@ export function ExtraIdentificatorsSection({
       }
       if (data.networks_id !== null) onNetworksIdChange(data.networks_id);
       if (data.networks_name) onNetworksNameChange(data.networks_name);
-      const isCurrentTMPL = operatorMnc === 26002;
-      if (isCurrentTMPL) {
-        if (!selectedStation.station_id.startsWith("N") && selectedStation.location?.city)
-          onMnoNameChange(`${normalizeCityForMNOName(selectedStation.location.city)}_${selectedStation.station_id}`);
-      } else {
-        if (data.mno_name) onMnoNameChange(data.mno_name);
-      }
+      const nextMnoName = resolveSiblingMnoName(operatorMnc, selectedStation.station_id, selectedStation.location?.city, data.mno_name);
+      if (nextMnoName) onMnoNameChange(nextMnoName);
       toast.success(t("sibling.fetched"));
     } catch {
       toast.error(t("sibling.fetchFailed"));

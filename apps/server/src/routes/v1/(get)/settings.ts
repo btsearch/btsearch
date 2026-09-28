@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
-import { type RuntimeSettings, getRuntimeSettings } from "../../../services/settings.service.js";
+import { type RuntimeSettings, getRuntimeSettings } from "../../../lib/runtimeSettings.js";
 
 type Response = RuntimeSettings;
 

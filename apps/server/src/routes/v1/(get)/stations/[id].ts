@@ -20,9 +20,9 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { findPhysicalStation, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { findPhysicalStation, physicalStationSchema } from "../../../../services/stations/physicalStations.js";
 
 const stationSchema = createSelectSchema(stations)
   .omit({ status: true, operator_id: true, location_id: true })

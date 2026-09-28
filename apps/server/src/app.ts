@@ -27,10 +27,10 @@ import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
 import { PreSerializationHook } from "./hooks/preSerialization.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
+import { getRuntimeSettings, initRuntimeSettings } from "./lib/runtimeSettings.js";
+import { loadDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
-import { loadDisposableEmailBlocklist } from "./services/disposableEmailBlocklist.service.js";
-import { getRuntimeSettings, initRuntimeSettings } from "./services/settings.service.js";
 import { logger, serializeError } from "./utils/logger.js";
 
 function flattenZodIssues(issues: $ZodIssue[], pathPrefix: string[] = []): { field: string; validationMessage: string }[] {

@@ -26,7 +26,7 @@ import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
 import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
 import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
 import { useSettings } from "@/hooks/useSettings";
-import { EXTRA_IDENTIFICATORS_MNCS, getMnoBrand } from "@/lib/cellular/operators";
+import { ORANGE_MNC, TMOBILE_MNC, getMnoBrand, getNetworksSiblingMnc, isNetworksPartnerMnc } from "@/lib/cellular/operators";
 import { shallowEqual } from "@/lib/shallowEqual";
 import type { SectorDraft } from "@/types/station";
 
@@ -69,9 +69,10 @@ function SubmissionSectorsPanelFields({
   const { derivedSectorCount, assignedSectorLocalIds } = useMemo(() => deriveSectorPanelState(sectorCells), [sectorCells]);
   const selectedStationId = selectedStation?.id;
   const operatorMnc = selectedStation?.operator?.mnc;
-  const siblingBrand = operatorMnc === 26002 ? getMnoBrand(26003) : getMnoBrand(26002);
-  const SiblingLogo = operatorMnc === 26002 ? OrangeIcon : TMobileIcon;
-  const canFetchSiblingSectors = mode === "existing" && operatorMnc !== undefined && EXTRA_IDENTIFICATORS_MNCS.includes(operatorMnc);
+  const siblingMnc = getNetworksSiblingMnc(operatorMnc) ?? TMOBILE_MNC;
+  const siblingBrand = getMnoBrand(siblingMnc);
+  const SiblingLogo = siblingMnc === ORANGE_MNC ? OrangeIcon : TMobileIcon;
+  const canFetchSiblingSectors = mode === "existing" && isNetworksPartnerMnc(operatorMnc);
   const stationId = mode === "existing" ? selectedStation?.station_id : newStation.station_id;
   const ukeOperatorMnc = mode === "existing" ? operatorMnc : (mncById.get(newStation.operator_id ?? -1) ?? null);
   const trimmedStationId = stationId?.trim() ?? "";

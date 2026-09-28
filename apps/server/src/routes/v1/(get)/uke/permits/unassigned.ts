@@ -1,4 +1,5 @@
 import { bands, operators, regions, stationsPermits, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
+import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, countDistinct, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -83,7 +84,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const { limit, page, operators: operatorMncs, regions: regionNames } = req.query;
   const offset = (page - 1) * limit;
-  const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
+  const expandedOperatorMncs = expandNetworksMncs(operatorMncs);
 
   const [operatorRows, regionsRows] = await Promise.all([
     expandedOperatorMncs?.length

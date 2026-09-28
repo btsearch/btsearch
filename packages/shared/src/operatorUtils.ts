@@ -1,4 +1,21 @@
-export const NETWORKS_SIBLING_MNC: Record<number, number> = { 26002: 26003, 26003: 26002 };
+export const TMOBILE_MNC = 26002;
+export const ORANGE_MNC = 26003;
+const NETWORKS_MNC = 26034;
+export const NETWORKS_PARTNER_MNCS = [TMOBILE_MNC, ORANGE_MNC];
+
+export function isNetworksPartnerMnc(mnc: number | null | undefined): boolean {
+  return mnc === TMOBILE_MNC || mnc === ORANGE_MNC;
+}
+
+export function getNetworksSiblingMnc(mnc: number | null | undefined): number | null {
+  if (mnc === TMOBILE_MNC) return ORANGE_MNC;
+  if (mnc === ORANGE_MNC) return TMOBILE_MNC;
+  return null;
+}
+
+export function expandNetworksMncs(mncs: number[] | undefined): number[] | undefined {
+  return mncs?.includes(NETWORKS_MNC) ? [...new Set([...mncs, ...NETWORKS_PARTNER_MNCS])] : mncs;
+}
 
 export const getOperatorColor = (mnc: number): string => {
   switch (mnc) {
@@ -69,7 +86,7 @@ export function normalizeOperatorName(name: string): string {
 }
 
 export const TOP4_MNCS = [26001, 26002, 26003, 26006]; // Plus, T-Mobile, Orange, Play
-export const EXTRA_IDENTIFICATORS_MNCS = [26002, 26003]; // T-Mobile, Orange
+export const EXTRA_IDENTIFICATORS_MNCS = NETWORKS_PARTNER_MNCS;
 export const MNO_NAME_ONLY_MNCS = [26001, 26006]; // Plus, Play
 
 export const MNO_BRAND: Record<number, string> = {

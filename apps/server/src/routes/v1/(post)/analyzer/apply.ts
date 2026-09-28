@@ -6,22 +6,22 @@ import type { FastifyRequest } from "fastify";
 import z from "zod";
 
 import { ErrorResponse } from "../../../../errors.ts";
-import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
-import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
-import { type AuditRecorder, auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../services/audit/index.ts";
-import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../services/cellDuplicateCheck.service.ts";
-import { queueStationCellsChangedNotification } from "../../../../services/notifications/stationCellChanges.js";
-import type { DbTx } from "../../../../types/global.ts";
-import { validateCellARFCNsAgainstBands } from "../../../../utils/cellARFCNValidation.ts";
+import { type AuditRecorder, auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.ts";
+import { validateCellARFCNsAgainstBands } from "../../../../features/cells/arfcnValidation.ts";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../features/cells/duplicateCheck.ts";
 import {
   type LTEInsertDetails,
   type RATInsertDetails,
   type RATUpdateDetails,
   insertRATCellDetails,
   updateRATCellDetails,
-} from "../../../../utils/ratCellPersistence.ts";
-import { normalRatInsertSchemaMap, normalRatUpdateSchemaMap } from "../../../../utils/ratCellSchemas.ts";
-import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../utils/submission.helpers.ts";
+} from "../../../../features/cells/ratCellPersistence.ts";
+import { normalRatInsertSchemaMap, normalRatUpdateSchemaMap } from "../../../../features/cells/ratCellSchemas.ts";
+import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
+import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.ts";
+import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
+import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
+import type { DbTx } from "../../../../types/global.ts";
 
 const ITEMS_CAP = 50;
 const cellSchema = z.discriminatedUnion("operation", [

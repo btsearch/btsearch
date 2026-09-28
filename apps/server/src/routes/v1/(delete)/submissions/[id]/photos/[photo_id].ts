@@ -5,10 +5,10 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../../services/audit/index.js";
 import { deletePhotoFiles } from "../../../../../../utils/photoFiles.js";
 
 const schemaRoute = {

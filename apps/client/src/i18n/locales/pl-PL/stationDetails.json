@@ -144,7 +144,6 @@
   "history": {
     "title": "Historia zmian stacji",
     "action": "Historia zmian",
-    "tooltip": "Kliknij, aby zobaczyć historię zmian",
     "empty": "Brak zarejestrowanych zmian",
     "emptyHint": "Zmiany sprzed wprowadzenia rejestru zmian mogą nie być tutaj widoczne",
     "error": "Nie udało się wczytać historii zmian",
@@ -162,31 +161,7 @@
     "openSubmissions": "Zgłoszenia",
     "openOperation": "Otwórz w dzienniku",
     "operations": {
-      "station": {
-        "create": "Utworzono stację",
-        "edit": "Zaktualizowano stację",
-        "photos": "Zaktualizowano zdjęcia",
-        "delete": "Dezaktywowano stację"
-      },
-      "cells": {
-        "create": "Dodano komórki",
-        "update": "Zaktualizowano komórki",
-        "delete": "Usunięto komórki"
-      },
-      "location": {
-        "create": "Dodano lokalizację",
-        "edit": "Zaktualizowano lokalizację",
-        "delete": "Usunięto lokalizację",
-        "photos": "Zaktualizowano zdjęcia"
-      },
-      "submission": {
-        "approve": "Zatwierdzono zgłoszenie"
-      },
-      "analyzer": {
-        "apply": "Zastosowano analizator"
-      },
-      "revert": "Cofnięto zmiany",
-      "fallback": "Zmiany stacji"
+      "revert": "Cofnięto zmiany"
     },
     "revert": {
       "action": "Cofnij tę zmianę",

@@ -1,11 +1,11 @@
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { auditContextFromRequest, recordAuditOperation } from "../../../../features/audit/index.js";
+import { startImportJob } from "../../../../features/ukeImport/job.js";
+import { importJobStatusSchema } from "../../../../features/ukeImport/schemas.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { auditContextFromRequest, recordAuditOperation } from "../../../../services/audit/index.js";
-import { importJobStatusSchema } from "../../../../services/ukeImport/schemas.js";
-import { startImportJob } from "../../../../services/ukeImportJob.service.js";
 
 const schemaRoute = {
   body: z.object({

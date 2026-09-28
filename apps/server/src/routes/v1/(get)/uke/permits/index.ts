@@ -1,5 +1,6 @@
 import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { ukePermitsResponseType } from "@openbts/proto/server";
+import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -113,7 +114,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       envelope = sql`ST_MakeEnvelope(${west}, ${south}, ${east}, ${north}, 4326)`;
     }
 
-    const expandedOperatorMncs = operatorMncs?.includes(26034) ? [...new Set([...operatorMncs, 26002, 26003])] : operatorMncs;
+    const expandedOperatorMncs = expandNetworksMncs(operatorMncs);
 
     const [bandRows, boundaryLocations, operatorRow, operatorRows] = await Promise.all([
       bandValues

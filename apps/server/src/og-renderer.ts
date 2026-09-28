@@ -1,6 +1,6 @@
 import debug from "debug";
 
-import { createOGImageRenderer, createOGRendererApp } from "./services/ogImages/index.js";
+import { createOGImageRenderer, createOGRendererApp } from "./features/ogImages/index.js";
 
 const DEFAULT_PORT = 3040;
 const DEFAULT_HOST = "127.0.0.1";

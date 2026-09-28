@@ -1,8 +1,9 @@
+import { isNetworksPartnerMnc } from "@/lib/cellular/operators";
+
 const LTE_MAX_CLID = 255;
 const DEFAULT_LTE_SECTOR_COUNT = 3;
 const PLUS_MNC = 26001;
 const PLAY_MNC = 26006;
-const NETWORKS_MNCS = new Set([26002, 26003]);
 
 type LTECellIdentity = {
   clid: number;
@@ -84,7 +85,7 @@ const NETWORKS_SECTOR_RULE: LTESectorRule = {
 function getSectorRule(operatorMnc?: number | null): LTESectorRule | null {
   if (operatorMnc === PLAY_MNC) return PLAY_SECTOR_RULE;
   if (operatorMnc === PLUS_MNC) return PLUS_SECTOR_RULE;
-  if (operatorMnc !== null && operatorMnc !== undefined && NETWORKS_MNCS.has(operatorMnc)) return NETWORKS_SECTOR_RULE;
+  if (isNetworksPartnerMnc(operatorMnc)) return NETWORKS_SECTOR_RULE;
   return null;
 }
 

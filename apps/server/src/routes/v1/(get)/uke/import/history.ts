@@ -1,10 +1,10 @@
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { getImportJobHistory } from "../../../../../features/ukeImport/job.js";
+import { importJobStatusSchema } from "../../../../../features/ukeImport/schemas.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { importJobStatusSchema } from "../../../../../services/ukeImport/schemas.js";
-import { getImportJobHistory } from "../../../../../services/ukeImportJob.service.js";
 
 const schemaRoute = {
   response: {

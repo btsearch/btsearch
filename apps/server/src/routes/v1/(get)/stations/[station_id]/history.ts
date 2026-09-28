@@ -6,18 +6,21 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
-import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-import { getEntryRevertibility, loadActiveRevertCoverageByOperation } from "../../../../../services/audit/revert/revertibility.js";
-import type { AuditOperationRow } from "../../../../../services/audit/types.js";
+import { getEntryRevertibility, loadActiveRevertCoverageByOperation } from "../../../../../features/audit/revert/revertibility.js";
+import type { AuditOperationRow } from "../../../../../features/audit/types.js";
 import {
   type StationHistoryAuthor,
+  type StationHistoryChange,
   type StationHistoryLookups,
   type StationHistorySection,
   collectLocationSnapshotNames,
-  enrichSectorAzimuths,
+  groupRowsByOperation,
+  movesCellSector,
+  sectorAzimuthsByOperation,
   transformEntry,
-} from "../../../../../services/stations/history.js";
+} from "../../../../../features/stations/history.js";
+import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
 const HISTORY_ENTITIES: readonly AuditEntity[] = [
   "stations",
@@ -120,29 +123,32 @@ function collectLocationIds(rows: AuditRow[], currentLocationId: number | null):
   return ids;
 }
 
-async function loadStaticLookups(stationId: number): Promise<Omit<StationHistoryLookups, "locations">> {
-  const [bandRows, operatorRows, regionRows, sectorRows] = await Promise.all([
+async function loadStaticLookups(): Promise<Pick<StationHistoryLookups, "bands" | "operators" | "regions">> {
+  const [bandRows, operatorRows, regionRows] = await Promise.all([
     db.query.bands.findMany({ columns: { id: true, name: true } }),
     db.query.operators.findMany({ columns: { id: true, name: true } }),
     db.query.regions.findMany({ columns: { id: true, name: true } }),
-    db.query.stationSectors.findMany({ where: { station_id: stationId }, columns: { id: true, azimuth: true } }),
   ]);
 
   return {
     bands: new Map(bandRows.map((band) => [band.id, band.name])),
     operators: new Map(operatorRows.map((operator) => [operator.id, operator.name])),
     regions: new Map(regionRows.map((region) => [region.id, region.name])),
-    sectorAzimuths: new Map(sectorRows.map((sector) => [sector.id, sector.azimuth])),
   };
 }
 
-async function resolveLocationNames(cache: Map<number, string>, ids: ReadonlySet<number>, rows: AuditRow[]): Promise<void> {
-  const missing = [...ids].filter((id) => !cache.has(id));
-  if (missing.length > 0) {
-    const locationRows = await db.query.locations.findMany({ where: { id: { in: missing } }, columns: { id: true, city: true, address: true } });
-    for (const location of locationRows) cache.set(location.id, [location.city, location.address].filter(Boolean).join(", ") || `#${location.id}`);
+async function loadLocationNames(rows: AuditRow[], currentLocationId: number | null): Promise<Map<number, string>> {
+  const locationIds = collectLocationIds(rows, currentLocationId);
+  const names = new Map<number, string>();
+  if (locationIds.size > 0) {
+    const locationRows = await db.query.locations.findMany({
+      where: { id: { in: [...locationIds] } },
+      columns: { id: true, city: true, address: true },
+    });
+    for (const location of locationRows) names.set(location.id, [location.city, location.address].filter(Boolean).join(", ") || `#${location.id}`);
   }
-  collectLocationSnapshotNames(cache, rows);
+  collectLocationSnapshotNames(names, rows);
+  return names;
 }
 
 async function fetchAuthors(rows: Array<typeof auditOperations.$inferSelect>): Promise<Map<string, StationHistoryAuthor>> {
@@ -162,22 +168,19 @@ function parsePhotoId(value: unknown): number | null {
   return Number.isInteger(photoId) && photoId > 0 ? photoId : null;
 }
 
-function collectPhotoIds(sections: StationHistorySection[]): Set<number> {
+function collectPhotoIds(changes: StationHistoryChange[]): number[] {
   const photoIds = new Set<number>();
-  for (const section of sections) {
-    for (const change of section.changes) {
-      if (change.field !== "photo" && change.field !== "main_photo") continue;
-      const fromId = parsePhotoId(change.from);
-      const toId = parsePhotoId(change.to);
-      if (fromId !== null) photoIds.add(fromId);
-      if (toId !== null) photoIds.add(toId);
+  for (const change of changes) {
+    if (change.field !== "photo" && change.field !== "main_photo") continue;
+    for (const value of [change.from, change.to]) {
+      const photoId = parsePhotoId(value);
+      if (photoId !== null) photoIds.add(photoId);
     }
   }
-  return photoIds;
+  return [...photoIds];
 }
 
-async function fetchPhotoReferences(sections: StationHistorySection[]): Promise<Map<number, StationHistoryPhotoReference>> {
-  const photoIds = collectPhotoIds(sections);
+async function fetchPhotoReferences(photoIds: ReadonlySet<number>): Promise<Map<number, StationHistoryPhotoReference>> {
   if (photoIds.size === 0) return new Map();
 
   const rows = await db
@@ -186,18 +189,6 @@ async function fetchPhotoReferences(sections: StationHistorySection[]): Promise<
     .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
     .where(inArray(locationPhotos.id, [...photoIds]));
   return new Map(rows.map((photo) => [photo.id, photo]));
-}
-
-function resolvePhotoReferences(
-  sections: StationHistorySection[],
-  references: ReadonlyMap<number, StationHistoryPhotoReference>,
-): StationHistoryPhotoReference[] {
-  const result: StationHistoryPhotoReference[] = [];
-  for (const photoId of collectPhotoIds(sections)) {
-    const reference = references.get(photoId);
-    if (reference !== undefined) result.push(reference);
-  }
-  return result;
 }
 
 function toOperationRow(row: typeof auditOperations.$inferSelect): AuditOperationRow {
@@ -233,6 +224,42 @@ function mergeCellSections(sections: HistorySectionWithEntries[]): HistorySectio
   return result;
 }
 
+function historySections(
+  entries: AuditRow[],
+  operation: AuditOperationRow,
+  lookups: StationHistoryLookups,
+  revertedEntryIds: ReadonlySet<number>,
+): HistorySectionWithEntries[] {
+  const hiddenSectorMoveIds: number[] = [];
+  const sections = mergeCellSections(
+    entries.flatMap((entry) => {
+      const section = transformEntry(entry, operation.kind, lookups);
+      if (section === null) {
+        if (movesCellSector(entry)) hiddenSectorMoveIds.push(entry.id);
+        return [];
+      }
+      const revertible = getEntryRevertibility(
+        { ...entry, metadata: isRecord(entry.metadata) ? entry.metadata : null },
+        { operation, revertedEntryIds },
+      ).revertible;
+      return [{ ...section, id: entry.id, entryIds: [entry.id], revertible }];
+    }),
+  );
+  sections.find((section) => section.kind === "sectors")?.entryIds.push(...hiddenSectorMoveIds);
+  return sections;
+}
+
+function revertStatusOf(
+  entryIds: readonly number[],
+  operation: AuditOperationRow,
+  coverage: { revertedEntryIds: ReadonlySet<number>; incompleteEntryIds: ReadonlySet<number> } | undefined,
+): StationHistoryItem["revertStatus"] {
+  if (operation.reverted_by_operation_id !== null) return "complete";
+  if (entryIds.every((id) => coverage?.revertedEntryIds.has(id) && !coverage.incompleteEntryIds.has(id))) return "complete";
+  if (entryIds.some((id) => coverage?.revertedEntryIds.has(id))) return "partial";
+  return "none";
+}
+
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseBody>>) {
   const { station_id } = req.params;
   const { limit, cursor } = req.query;
@@ -256,24 +283,22 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const hasMore = operationIdRows.length > limit;
   const operationIds = operationIdRows.slice(0, limit).map(({ id }) => id);
   if (operationIds.length === 0) return res.send({ data: [], nextCursor: null });
+  const oldestOperationId = Math.min(...operationIds);
 
-  const [operationRows, auditRows, staticLookups] = await Promise.all([
+  const [operationRows, auditRows, liveSectors, sectorRows, staticLookups] = await Promise.all([
     db.select().from(auditOperations).where(inArray(auditOperations.id, operationIds)).orderBy(desc(auditOperations.id)),
     db.select().from(auditLogs).where(inArray(auditLogs.operation_id, operationIds)).orderBy(asc(auditLogs.id)),
-    loadStaticLookups(station_id),
+    db.query.stationSectors.findMany({ where: { station_id }, columns: { id: true, azimuth: true } }),
+    db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.entity, "station_sectors"), eq(auditLogs.station_id, station_id), gte(auditLogs.operation_id, oldestOperationId))),
+    loadStaticLookups(),
   ]);
-  const sectorAzimuths = new Map(staticLookups.sectorAzimuths);
-  const locationNames = new Map<number, string>();
-  enrichSectorAzimuths(sectorAzimuths, auditRows);
-  await resolveLocationNames(locationNames, collectLocationIds(auditRows, station.location_id), auditRows);
-  const lookups: StationHistoryLookups = { ...staticLookups, sectorAzimuths, locations: locationNames };
-
-  const auditRowsByOperation = new Map<number, AuditRow[]>();
-  for (const row of auditRows) {
-    const rows = auditRowsByOperation.get(row.operation_id) ?? [];
-    rows.push(row);
-    auditRowsByOperation.set(row.operation_id, rows);
-  }
+  const lookups: StationHistoryLookups = { ...staticLookups, locations: await loadLocationNames(auditRows, station.location_id) };
+  const liveSectorAzimuths = new Map(liveSectors.map((sector) => [sector.id, sector.azimuth]));
+  const sectorAzimuthsAsOf = sectorAzimuthsByOperation(liveSectorAzimuths, sectorRows, operationIds);
+  const auditRowsByOperation = groupRowsByOperation(auditRows);
 
   const canSeeAuthor = ["admin", "editor"].includes(req.userSession?.user?.role ?? "");
   const [authors, revertCoverageByOperation] = await Promise.all([
@@ -281,54 +306,32 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     loadActiveRevertCoverageByOperation(db, operationIds),
   ]);
 
-  const items: StationHistoryItem[] = [];
-  for (const row of operationRows) {
+  const items = operationRows.flatMap((row) => {
     const operation = toOperationRow(row);
-    const operationEntries = auditRowsByOperation.get(row.id) ?? [];
-    const relevantEntries = operationEntries.filter((entry) => entryBelongsToStation(entry, station_id, station.location_id, station.createdAt));
-    const revertCoverage = revertCoverageByOperation.get(row.id);
-    const revertedEntryIds = revertCoverage?.revertedEntryIds ?? new Set<number>();
-    const sections = mergeCellSections(
-      relevantEntries.flatMap((entry) => {
-        const section = transformEntry(entry, operation.kind, lookups);
-        if (section === null) return [];
-        const revertible = getEntryRevertibility(
-          { ...entry, metadata: isRecord(entry.metadata) ? entry.metadata : null },
-          { operation, revertedEntryIds },
-        ).revertible;
-        return [{ ...section, id: entry.id, entryIds: [entry.id], revertible }];
-      }),
+    const entries = (auditRowsByOperation.get(row.id) ?? []).filter((entry) =>
+      entryBelongsToStation(entry, station_id, station.location_id, station.createdAt),
     );
+    const revertCoverage = revertCoverageByOperation.get(row.id);
+    const operationLookups: StationHistoryLookups = { ...lookups, sectorAzimuths: sectorAzimuthsAsOf.get(row.id) };
+    const sections = historySections(entries, operation, operationLookups, revertCoverage?.revertedEntryIds ?? new Set<number>());
     const author = row.actor_id === null ? null : (authors.get(row.actor_id) ?? null);
-    for (const section of sections) {
-      const fullyRevertedCount = section.entryIds.filter((id) => revertedEntryIds.has(id) && !revertCoverage?.incompleteEntryIds.has(id)).length;
-      const hasRevertedEntry = section.entryIds.some((id) => revertedEntryIds.has(id));
-      const revertStatus =
-        operation.reverted_by_operation_id !== null || fullyRevertedCount === section.entryIds.length
-          ? "complete"
-          : hasRevertedEntry
-            ? "partial"
-            : "none";
-      items.push({
-        ...section,
-        operationId: row.id,
-        createdAt: row.createdAt,
-        revertStatus,
-        isRevert: row.kind === "revert",
-        ...(canSeeAuthor ? { author } : {}),
-        photoReferences: [],
-      });
-    }
-  }
+    return sections.map((section) => ({
+      ...section,
+      operationId: row.id,
+      createdAt: row.createdAt,
+      revertStatus: revertStatusOf(section.entryIds, operation, revertCoverage),
+      isRevert: row.kind === "revert",
+      ...(canSeeAuthor ? { author } : {}),
+    }));
+  });
 
-  const photoReferences = await fetchPhotoReferences(items);
-  const responseItems = items.map((item) => ({
-    ...item,
-    photoReferences: resolvePhotoReferences([item], photoReferences),
-  }));
+  const photoReferences = await fetchPhotoReferences(new Set(items.flatMap((item) => collectPhotoIds(item.changes))));
   return res.send({
-    data: responseItems,
-    nextCursor: hasMore ? (operationIds[operationIds.length - 1] ?? null) : null,
+    data: items.map((item) => ({
+      ...item,
+      photoReferences: collectPhotoIds(item.changes).flatMap((photoId) => photoReferences.get(photoId) ?? []),
+    })),
+    nextCursor: hasMore ? oldestOperationId : null,
   });
 }
 

@@ -3,8 +3,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { redis } from "../database/redis.js";
 import { ErrorResponse } from "../errors.js";
 import type { FastifyZodInstance } from "../interfaces/fastify.interface.js";
-import { QuotaService } from "../services/quota.service.js";
-import { type RateLimitReservation, RateLimitService } from "../services/ratelimit.service.js";
+import { QuotaService } from "./ratelimit/quota.js";
+import { type RateLimitReservation, RateLimitService } from "./ratelimit/rateLimiter.js";
 
 declare module "fastify" {
   interface FastifyInstance {

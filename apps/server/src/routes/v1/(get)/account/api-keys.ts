@@ -9,8 +9,8 @@ import { ErrorResponse } from "../../../../errors.js";
 import type { TokenTier } from "../../../../interfaces/auth.interface.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { DEFAULT_QUOTA_LIMITS } from "../../../../services/quota.service.js";
-import { DEFAULT_PK_TIER_LIMITS, DEFAULT_TIER_LIMITS } from "../../../../services/ratelimit.service.js";
+import { DEFAULT_QUOTA_LIMITS } from "../../../../plugins/ratelimit/quota.js";
+import { DEFAULT_PK_TIER_LIMITS, DEFAULT_TIER_LIMITS } from "../../../../plugins/ratelimit/rateLimiter.js";
 
 const apiKeySchema = createSelectSchema(apikeys)
   .pick({ id: true, name: true, start: true, expiresAt: true, createdAt: true, enabled: true })

@@ -19,19 +19,19 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
-import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
-import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { getUserListMembership, getVisibleUserList } from "../../../../services/lists/visibility.js";
+import { getUserListMembership, getVisibleUserList } from "../../../../features/lists/visibility.js";
 import {
   FILTER_DEFINITIONS,
   type GroupedFilters,
   defaultFilterRefs,
   groupFiltersByTable,
   parseFilterQuery,
-} from "../../../../services/search/filters.js";
-import { buildStationFilterConditions, hasStationFilterCriteria, resolveStationFilter } from "../../../../services/stations/filter.js";
-import { buildStatusCondition, parseStationStatusParam } from "../../../../services/stations/status.js";
-import { parseUplinkTypesParam } from "../../../../services/stations/uplink.js";
+} from "../../../../features/search/filters.js";
+import { buildStationFilterConditions, hasStationFilterCriteria, resolveStationFilter } from "../../../../features/stations/filter.js";
+import { buildStatusCondition, parseStationStatusParam } from "../../../../features/stations/status.js";
+import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
+import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
+import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
 const regionsSchema = createSelectSchema(regions);

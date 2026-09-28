@@ -1,6 +1,6 @@
 import { parentPort } from "node:worker_threads";
 
-import { type CellInput, type LookupMaps, resolveAllCells } from "../services/analyzer/logic.js";
+import { type CellInput, type LookupMaps, resolveAllCells } from "../features/analyzer/logic.js";
 
 if (!parentPort) throw new Error("This file must be run as a worker thread");
 

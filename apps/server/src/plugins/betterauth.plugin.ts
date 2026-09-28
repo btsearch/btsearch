@@ -16,7 +16,7 @@ import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
-import { isDisposableEmail, isDisposableEmailBlocklistReady } from "../services/disposableEmailBlocklist.service.js";
+import { isDisposableEmail, isDisposableEmailBlocklistReady } from "./auth/disposableEmailBlocklist.js";
 import { afterAuthHook, beforeAuthHook, releaseVerificationResendCooldown } from "./auth/hooks.js";
 import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
 import type { PermissionObject } from "./auth/permissions.js";
