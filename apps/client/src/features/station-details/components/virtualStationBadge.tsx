@@ -3,11 +3,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { type ReactNode, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { DialogOperatorName } from "./dialogOperatorName";
 import { StationLink } from "./stationLink";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
-import { getHardwareLeaseOperator } from "@/lib/cellular/stations";
 import { cn } from "@/lib/utils";
 import type { Station } from "@/types/station";
 
@@ -32,7 +30,7 @@ function RanSharingLink({ children }: { children?: ReactNode }) {
 }
 
 type VirtualStationBadgeProps = {
-  station: Pick<Station, "station_id" | "operator" | "physicalStation">;
+  station: Pick<Station, "physicalStation">;
   onOpenStation: (id: number) => void;
   compact?: boolean;
 };
@@ -40,11 +38,10 @@ type VirtualStationBadgeProps = {
 export function VirtualStationBadge({ station, onOpenStation, compact = false }: VirtualStationBadgeProps) {
   const { t } = useTranslation("stationDetails");
   const [open, setOpen] = useState(false);
-  const leaseOperator = getHardwareLeaseOperator(station);
-  if (!leaseOperator) return null;
-
   const physicalStation = station.physicalStation;
-  const operatorTint = getOperatorTintGradient(getOperatorColor(leaseOperator.mnc));
+  if (!physicalStation) return null;
+
+  const operatorTint = getOperatorTintGradient(getOperatorColor(physicalStation.operator.mnc));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -71,28 +68,18 @@ export function VirtualStationBadge({ station, onOpenStation, compact = false }:
           <PopoverTitle className="text-xs font-semibold">{t("dialog.virtualStationTitle")}</PopoverTitle>
         </div>
         <PopoverDescription className="text-[11px] leading-snug">
-          <Trans
-            t={t}
-            i18nKey={physicalStation ? "dialog.virtualStationPhysical" : "dialog.virtualStationLessor"}
-            components={{ ranSharingLink: <RanSharingLink /> }}
-          />
+          <Trans t={t} i18nKey="dialog.virtualStationPhysical" components={{ ranSharingLink: <RanSharingLink /> }} />
         </PopoverDescription>
-        {physicalStation ? (
-          <StationLink
-            station={physicalStation}
-            onOpen={(id) => {
-              setOpen(false);
-              onOpenStation(id);
-            }}
-            className="flex rounded-md border border-border/60 px-2 py-1.5 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-            stationIdClassName="text-xs"
-            style={{ backgroundImage: operatorTint }}
-          />
-        ) : (
-          <div className="flex items-center rounded-md border border-border/60 px-2 py-1.5" style={{ backgroundImage: operatorTint }}>
-            <DialogOperatorName name={leaseOperator.name} mnc={leaseOperator.mnc} compact />
-          </div>
-        )}
+        <StationLink
+          station={physicalStation}
+          onOpen={(id) => {
+            setOpen(false);
+            onOpenStation(id);
+          }}
+          className="flex rounded-md border border-border/60 px-2 py-1.5 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+          stationIdClassName="text-xs"
+          style={{ backgroundImage: operatorTint }}
+        />
       </PopoverContent>
     </Popover>
   );

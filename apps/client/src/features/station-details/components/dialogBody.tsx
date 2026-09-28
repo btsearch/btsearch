@@ -36,7 +36,6 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { isNetworksVirtualStation } from "@/lib/cellular/stations";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 import type { Station, StationComment } from "@/types/station";
@@ -123,7 +122,7 @@ export function StationDetailsBody({
     queryKey: ["station-pem", station?.station_id, station?.location.latitude, station?.location.longitude, station?.operator?.mnc],
     queryFn: () => fetchPemReports(station!.station_id, station!.location.latitude, station!.location.longitude, station!.operator.mnc),
     staleTime: 1000 * 60 * 60,
-    enabled: source === "internal" && !!station?.station_id,
+    enabled: source === "internal" && !!station?.station_id && !station.physicalStation,
     retry: false,
   });
 
@@ -144,7 +143,6 @@ export function StationDetailsBody({
     ...(photos !== undefined ? { photos: photos.length } : {}),
     ...(comments !== undefined ? { comments: comments.length } : {}),
   };
-  const showSI2PEMLink = !!station?.station_id && !isNetworksVirtualStation(station.station_id, station.operator.mnc);
   const visibleTabs = useMemo(
     () =>
       source === "uke"
@@ -291,7 +289,7 @@ export function StationDetailsBody({
                               <CopyButton text={station.station_id || ""} />
                             </StationInfoItem>
                             {station.uplink ? <StationUplinkItem uplink={station.uplink} /> : null}
-                            {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
+                            {pemReports && pemReports.length > 0 ? (
                               <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
                                 <SI2PEMReportsMenu
                                   reports={pemReports}

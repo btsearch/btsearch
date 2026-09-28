@@ -96,7 +96,6 @@
     "virtualStation": "Wirtualna",
     "virtualStationTitle": "Stacja wirtualna",
     "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu UKE tej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
-    "virtualStationLessor": "Działa na sprzęcie drugiego operatora w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
     "btsStation": "Stacja bazowa",
     "showOnMap": "Pokaż na mapie",
     "createStation": "Utwórz stację",

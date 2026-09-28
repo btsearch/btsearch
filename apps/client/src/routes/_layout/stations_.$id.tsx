@@ -56,7 +56,6 @@ import { useSettings } from "@/hooks/useSettings";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
-import { isNetworksVirtualStation } from "@/lib/cellular/stations";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
@@ -104,7 +103,7 @@ function StationPage() {
     queryKey: ["station-pem", station?.station_id, station?.location.latitude, station?.location.longitude, station?.operator?.mnc],
     queryFn: () => fetchPemReports(station!.station_id, station!.location.latitude, station!.location.longitude, station!.operator.mnc),
     staleTime: 1000 * 60 * 60,
-    enabled: !!station?.station_id,
+    enabled: !!station?.station_id && !station.physicalStation,
     retry: false,
   });
 
@@ -133,7 +132,6 @@ function StationPage() {
 
   const operatorColor = getOperatorColor(station.operator.mnc);
   const stationNotes = station.notes?.trim();
-  const showSI2PEMLink = !isNetworksVirtualStation(station.station_id, station.operator.mnc);
   const pageTitle = `${station.operator.name} ${station.station_id}`;
   const city = station.location.city || t("page.unknownLocation");
   const mapHash = `map=16/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`;
@@ -312,7 +310,7 @@ function StationPage() {
                   <CopyButton text={station.station_id || ""} />
                 </StationInfoItem>
                 {station.uplink ? <StationUplinkItem uplink={station.uplink} /> : null}
-                {showSI2PEMLink && pemReports && pemReports.length > 0 ? (
+                {pemReports && pemReports.length > 0 ? (
                   <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
                     <SI2PEMReportsMenu
                       reports={pemReports}

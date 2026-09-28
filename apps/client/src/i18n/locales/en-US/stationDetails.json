@@ -96,7 +96,6 @@
     "virtualStation": "Virtual",
     "virtualStationTitle": "Virtual station",
     "virtualStationPhysical": "Runs on this physical station's hardware and UKE permit via <ranSharingLink>RAN sharing</ranSharingLink>",
-    "virtualStationLessor": "Runs on the partner operator's hardware via <ranSharingLink>RAN sharing</ranSharingLink>",
     "btsStation": "Base station",
     "showOnMap": "Show on map",
     "createStation": "Create station",
