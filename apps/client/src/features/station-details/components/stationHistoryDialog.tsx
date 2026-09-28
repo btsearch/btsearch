@@ -560,7 +560,6 @@ export function StationHistoryDialogPanel({
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const titleId = useId();
   const headerDragClassName = headerDragProps?.className;
-  const operatorColor = getOperatorColor(operatorMnc ?? 0);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isPresent = useIsPresent();
   const { data: session } = authClient.useSession();
@@ -745,7 +744,7 @@ export function StationHistoryDialogPanel({
           <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
             <div
               className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-              style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
+              style={{ backgroundImage: getOperatorHeaderTintGradient(getOperatorColor(operatorMnc ?? 0)) }}
             >
               <div id={titleId} className="min-w-0 flex-1">
                 <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("history.title")}</h2>
