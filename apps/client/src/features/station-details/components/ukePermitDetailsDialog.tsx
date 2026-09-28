@@ -31,7 +31,7 @@ import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,7 @@ export function UkePermitDetailsDialogPanel({
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
           <div
             className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
           >
             <div className="flex-1 min-w-0">
               <div className="min-w-0 space-y-1.5">
@@ -215,10 +215,10 @@ export function UkePermitDetailsDialogPanel({
                     <span className="font-mono break-all">
                       {formatCoordinates(stationLocation.latitude, stationLocation.longitude, preferences.gpsFormat)}
                     </span>
-                    <CopyButton text={`${stationLocation.latitude}, ${stationLocation.longitude}`} />
                     {preferences.navLinksDisplay === "inline" && (
                       <NavigationLinks latitude={stationLocation.latitude} longitude={stationLocation.longitude} displayMode="inline" />
                     )}
+                    <CopyButton text={`${stationLocation.latitude}, ${stationLocation.longitude}`} />
                   </StationInfoItem>
                 )}
 

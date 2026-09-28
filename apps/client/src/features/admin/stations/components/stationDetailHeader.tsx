@@ -1,7 +1,6 @@
-import { Add01Icon, ArrowLeft01Icon, Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Cancel01Icon, Delete02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -21,13 +20,19 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { DetailHeaderMetaItem, DetailHeaderTimestamp } from "@/features/admin/components/detailHeaderMeta";
+import {
+  DetailHeader,
+  DetailHeaderId,
+  DetailHeaderLocation,
+  DetailHeaderSeparator,
+  DetailHeaderStationActions,
+  DetailHeaderTimestamp,
+} from "@/features/admin/components/detailHeader";
 import { useDeleteStationMutation } from "@/features/admin/stations/mutations";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { VirtualStationBadge } from "@/features/station-details/components/virtualStationBadge";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
-import { useScrolled } from "@/hooks/useScrolled";
 import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { Operator, Station } from "@/types/station";
 
@@ -52,16 +57,16 @@ export function StationDetailHeader({
   onSave,
   onRevert,
 }: StationDetailHeaderProps) {
-  const { t, i18n } = useTranslation(["stations", "common"]);
+  const { t } = useTranslation(["stations", "common"]);
   const navigate = useNavigate();
   const deleteMutation = useDeleteStationMutation();
   const navActionTarget = useNavActionTarget();
+  const { openStationDialog } = useFloatingDialogStack();
 
-  const { ref: headerRef, scrolled } = useScrolled();
-  const stationLabel = isCreateMode ? t("common:labels.newStation") : (station?.station_id ?? stationId);
-  const summaryOperator = selectedOperator ?? station?.operator;
-  const locationLabel = station?.location ? [station.location.city, station.location.address].filter(Boolean).join(", ") : "-";
-  const operatorAccentColor = summaryOperator ? getOperatorColor(summaryOperator.mnc ?? 0) : "transparent";
+  const savedStation = isCreateMode ? undefined : station;
+  const statusBadge = savedStation?.status ? (
+    <StationStatusBadge status={savedStation.status} statusChangedAt={savedStation.statusChangedAt} />
+  ) : null;
   const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
   const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
 
@@ -156,64 +161,46 @@ export function StationDetailHeader({
   );
 
   return (
-    <>
-      <div
-        ref={headerRef}
-        className={cn(
-          "contents md:block md:shrink-0 md:border-b md:border-border md:px-4 md:py-2 md:sticky md:top-0 md:z-20 md:transition-[background-color,border-color,box-shadow] md:duration-150",
-          scrolled ? "md:bg-background md:shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "md:bg-background md:border-transparent md:shadow-none",
-        )}
-        style={{
-          borderTopWidth: "3px",
-          borderTopColor: operatorAccentColor,
-        }}
-      >
-        <div
-          className={cn(
-            "flex items-center justify-between gap-3 max-md:sticky max-md:top-0 max-md:z-30 max-md:border-b max-md:border-border max-md:border-t-[3px] max-md:bg-background max-md:px-4 max-md:py-2 max-md:transition-[background-color,border-color,box-shadow] max-md:duration-150",
-            scrolled ? "max-md:shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : "max-md:border-b-transparent max-md:shadow-none",
-          )}
-          style={{ borderTopColor: operatorAccentColor }}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="text-muted-foreground hover:text-foreground gap-2 pl-1 pr-3 -ml-2 hover:bg-muted/50 transition-colors"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            <span className="font-medium">{t("common:actions.back")}</span>
-          </Button>
-          {!navActionTarget && actionBar}
-        </div>
-
-        <div className="border-border/50 bg-background max-md:border-b max-md:px-4 max-md:py-2 md:mt-2 md:border-t md:pt-2">
-          <div className="overflow-hidden">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                {summaryOperator ? (
-                  <DialogOperatorName
-                    name={summaryOperator.name}
-                    mnc={summaryOperator.mnc ?? 0}
-                    compact
-                    labelClassName="text-sm leading-5 font-semibold"
-                  />
-                ) : null}
-                <h1 className="text-sm font-semibold text-foreground truncate">{stationLabel}</h1>
-                {!isCreateMode && station?.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
-              </div>
-              <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 sm:flex sm:items-center sm:gap-4 overflow-hidden">
-                <DetailHeaderMetaItem label={t("common:labels.id")} value={station?.id ?? "-"} />
-                <DetailHeaderTimestamp label={t("common:labels.created")} value={station?.createdAt} locale={i18n.language} />
-                <DetailHeaderTimestamp label={t("common:labels.updated")} value={station?.updatedAt} locale={i18n.language} />
-                <DetailHeaderMetaItem label={t("common:labels.location")} value={locationLabel} className="min-w-0 sm:max-w-96 col-span-2" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {navActionTarget ? createPortal(actionBar, navActionTarget) : null}
-    </>
+    <DetailHeader
+      actionBar={actionBar}
+      operator={selectedOperator ?? station?.operator}
+      stationCode={isCreateMode ? undefined : (station?.station_id ?? stationId)}
+      badges={
+        savedStation ? (
+          <>
+            <VirtualStationBadge station={savedStation} onOpenStation={(id) => openStationDialog(id, "internal")} />
+            {savedStation.is_confirmed ? (
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <HugeiconsIcon icon={Tick02Icon} className="size-3.5" aria-hidden="true" />
+                <span className="sr-only sm:not-sr-only">{t("common:labels.confirmed")}</span>
+              </span>
+            ) : null}
+            {statusBadge}
+          </>
+        ) : null
+      }
+      compactBadges={statusBadge}
+      subtitle={
+        savedStation?.location ? (
+          <DetailHeaderLocation
+            locationId={savedStation.location.id}
+            city={savedStation.location.city || `#${savedStation.location.id}`}
+            address={savedStation.extra_address || savedStation.location.address}
+          />
+        ) : null
+      }
+      meta={
+        savedStation ? (
+          <>
+            <DetailHeaderTimestamp label={t("common:labels.created")} value={savedStation.createdAt} />
+            <DetailHeaderSeparator />
+            <DetailHeaderTimestamp label={t("common:labels.updated")} value={savedStation.updatedAt} />
+            <DetailHeaderSeparator />
+            <DetailHeaderId value={String(savedStation.id)} />
+          </>
+        ) : null
+      }
+      actions={savedStation ? <DetailHeaderStationActions station={savedStation} /> : null}
+    />
   );
 }

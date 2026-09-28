@@ -209,17 +209,13 @@ function SubmissionDetailPage() {
   if (isLoading || (submission && !isReady)) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 border-b px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
-          <Skeleton className="h-8 w-16 rounded-md" />
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-5 w-12 rounded-sm" />
-            <Skeleton className="h-6 w-20 rounded-md" />
-            <Skeleton className="h-5 w-36 rounded-md" />
+        <div className="shrink-0 border-b bg-background">
+          <div className="px-4 py-2">
+            <Skeleton className="h-7 w-24 rounded-md" />
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Skeleton className="h-8 flex-1 sm:flex-none sm:w-28 rounded-md" />
-            <Skeleton className="h-8 flex-1 sm:flex-none sm:w-28 rounded-md" />
-            <Skeleton className="h-8 flex-1 sm:flex-none sm:w-20 rounded-md" />
+          <div className="space-y-1.5 border-t border-border/50 px-4 py-2.5">
+            <Skeleton className="h-6 w-72 max-w-full rounded-md" />
+            <Skeleton className="h-4 w-96 max-w-full rounded-md" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
@@ -592,9 +588,11 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col max-md:overflow-y-auto max-md:pb-10 md:overflow-hidden">
       <SubmissionDetailHeader
         submission={submission}
+        currentStation={currentStation}
+        operator={selectedOperator ?? currentOperator}
         isReadOnly={isReadOnly}
         isProcessing={isProcessing}
         onApprove={handleApprove}
@@ -602,7 +600,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onSave={handleSave}
       />
 
-      <div className="flex-1 overflow-y-auto max-md:pb-10 md:pb-16">
+      <div className="max-md:shrink-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:pb-16">
         {isDeleteSubmission && (
           <div className="mx-3 mt-3 rounded-xl border-2 border-red-500/30 bg-red-50 dark:bg-red-950/30 px-4 py-3 flex items-start gap-3">
             <div className="shrink-0 size-10 rounded-full bg-red-500/15 flex items-center justify-center">

@@ -55,7 +55,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
@@ -144,7 +144,7 @@ function StationPage() {
       <header className="overflow-hidden rounded-2xl border border-border/70 bg-background">
         <div
           className="relative flex items-start gap-3 px-4 py-4 sm:px-6 sm:py-5"
-          style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+          style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
         >
           <div className="flex-1 min-w-0">
             <div className="min-w-0 space-y-1.5">
@@ -291,10 +291,10 @@ function StationPage() {
                   <span className="font-mono wrap-break-word">
                     {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
                   </span>
-                  <CopyButton text={`${station.location.latitude}, ${station.location.longitude}`} />
                   {preferences.navLinksDisplay === "inline" && (
                     <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
                   )}
+                  <CopyButton text={`${station.location.latitude}, ${station.location.longitude}`} />
                 </StationInfoItem>
                 <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
                   <span>{station.location.region?.name || "-"}</span>

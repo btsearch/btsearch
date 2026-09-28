@@ -91,11 +91,11 @@ function LocationPage() {
               {location.region ? <span className="ml-2 text-sm font-normal text-muted-foreground">· {location.region.name}</span> : null}
             </h1>
             {location.address ? <p className="text-sm leading-5 text-muted-foreground">{location.address}</p> : null}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <div className="group/copy flex flex-wrap items-center gap-1.5 pt-0.5">
               <span className="font-mono text-[11px] text-muted-foreground/80">
                 GPS: {formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}
               </span>
-              <CopyButton text={`${location.latitude}, ${location.longitude}`} />
+              <CopyButton text={`${location.latitude}, ${location.longitude}`} compact />
             </div>
           </div>
           <div className="absolute top-3 right-3 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
@@ -121,10 +121,10 @@ function LocationPage() {
             <div className="space-y-4">
               <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
                 <span className="font-mono break-all">{formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}</span>
-                <CopyButton text={`${location.latitude}, ${location.longitude}`} />
                 {preferences.navLinksDisplay === "inline" && (
                   <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" />
                 )}
+                <CopyButton text={`${location.latitude}, ${location.longitude}`} />
               </StationInfoItem>
               <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
                 <span>{location.region?.name || "-"}</span>

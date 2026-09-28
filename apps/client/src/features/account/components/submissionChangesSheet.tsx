@@ -11,13 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SubmissionCellCounts } from "@/features/admin/submissions/components/submissionListParts";
 import { SubmissionLocationPhotoSelectionsSection } from "@/features/admin/submissions/components/submissionLocationPhotoSelectionsSection";
 import { SubmissionPhotosSection } from "@/features/admin/submissions/components/submissionPhotosSection";
-import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { ProposedCell, SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
 import { bandsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { getRatDetailFieldLabel, getRatDetailFields } from "@/features/shared/ratCellFields";
 import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
+import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import { getProposedLocationChanges, getProposedStationChanges } from "@/features/submissions/utils/proposalChanges";
@@ -366,7 +366,6 @@ export function SubmissionChangesSheet({ submission, operators, open, onOpenChan
 
   const displayedSubmission = detailQuery.data ?? submission;
   const stationId = displayedSubmission?.station?.station_id ?? displayedSubmission?.proposedStation?.station_id ?? t("common:labels.newStation");
-  const status = displayedSubmission ? SUBMISSION_STATUS[displayedSubmission.status] : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -377,13 +376,10 @@ export function SubmissionChangesSheet({ submission, operators, open, onOpenChan
             {stationId}
             {displayedSubmission ? ` · ${formatFullDate(displayedSubmission.createdAt, i18n.language)}` : ""}
           </SheetDescription>
-          {displayedSubmission && status ? (
+          {displayedSubmission ? (
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <SubmissionTypeBadge type={displayedSubmission.type} />
-              <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium", status.bgClass)}>
-                <HugeiconsIcon icon={status.icon} className={cn("size-3.5", status.iconClass)} aria-hidden="true" />
-                {t(`common:status.${displayedSubmission.status}`)}
-              </span>
+              <SubmissionStatusBadge status={displayedSubmission.status} />
             </div>
           ) : null}
         </SheetHeader>

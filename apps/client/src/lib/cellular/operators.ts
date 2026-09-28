@@ -20,6 +20,10 @@ export function getOperatorTintGradient(color: string): string {
   return `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)`;
 }
 
+export function getOperatorHeaderTintGradient(color: string): string {
+  return `linear-gradient(115deg, ${color}24 0%, ${color}0f 34%, transparent 70%)`;
+}
+
 export function partitionOperators(operators: Operator[]): { top: Operator[]; other: Operator[] } {
   const top: Operator[] = [];
   const other: Operator[] = [];

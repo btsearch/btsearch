@@ -271,10 +271,10 @@ export function StationDetailsBody({
                               <span className="font-mono wrap-break-word">
                                 {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
                               </span>
-                              <CopyButton text={`${station?.location.latitude}, ${station?.location.longitude}`} />
                               {preferences.navLinksDisplay === "inline" && (
                                 <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
                               )}
+                              <CopyButton text={`${station?.location.latitude}, ${station?.location.longitude}`} />
                             </StationInfoItem>
                             <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
                               <span>{station.location.region?.name || "-"}</span>

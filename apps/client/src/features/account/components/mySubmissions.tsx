@@ -51,13 +51,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useNavActionTarget } from "@/contexts/navActions";
 import { StationIdentityCell } from "@/features/admin/submissions/components/stationIdentityCell";
 import { SubmissionChangesSummary } from "@/features/admin/submissions/components/submissionListParts";
-import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionRow } from "@/features/admin/submissions/types";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import type { MySubmissionsFilters } from "@/features/submissions/api";
 import { deleteSubmission, fetchSubmissionPhotos } from "@/features/submissions/api";
+import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -519,7 +519,6 @@ export function MySubmissions() {
       >
         {items.map((virtualItem) => {
           const submission = submissions[virtualItem.index];
-          const statusCfg = SUBMISSION_STATUS[submission.status];
           const hasNotes = !!submission.review_notes;
           const hasReview = hasNotes || !!submission.reviewer;
           const stationId = submission.station_id;
@@ -572,15 +571,7 @@ export function MySubmissions() {
                     )}
                   </div>
 
-                  <div
-                    className={cn(
-                      "col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end rounded-md px-2 py-1 md:order-4",
-                      statusCfg.bgClass,
-                    )}
-                  >
-                    <HugeiconsIcon icon={statusCfg.icon} className={cn("size-3.5", statusCfg.iconClass)} />
-                    <span className="whitespace-nowrap text-xs font-medium capitalize">{t(`common:status.${submission.status}`)}</span>
-                  </div>
+                  <SubmissionStatusBadge status={submission.status} className="col-start-3 row-start-1 justify-self-end md:order-4" />
 
                   <div className="col-start-1 row-start-2 justify-self-start md:order-1">
                     <SubmissionChangesSummary submission={submission} />

@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { getOperatorColor, getOperatorColorByName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorColorByName, getOperatorHeaderTintGradient, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 const TerrainProfileChart = lazy(() => import("./terrainProfileChart"));
@@ -234,11 +234,7 @@ export default function TerrainProfilePanel({
       >
         <div
           className="relative flex flex-col gap-2 px-3 py-2.5 md:flex-row md:items-start md:gap-3 md:px-4 md:py-3"
-          style={
-            operatorSwatchColor
-              ? { backgroundImage: `linear-gradient(115deg, ${operatorSwatchColor}24 0%, ${operatorSwatchColor}0f 34%, transparent 70%)` }
-              : undefined
-          }
+          style={operatorSwatchColor ? { backgroundImage: getOperatorHeaderTintGradient(operatorSwatchColor) } : undefined}
         >
           <div className="flex-1 min-w-0 pr-8 md:pr-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

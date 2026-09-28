@@ -101,10 +101,17 @@ function AdminStationDetailPage() {
   if (!isCreateMode && isLoading) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 border-b bg-background px-4 py-2.5 flex items-center justify-between gap-4">
-          <Skeleton className="h-7 w-24 rounded-md" />
-          <Skeleton className="h-5 w-48 rounded-md" />
-          <Skeleton className="h-7 w-40 rounded-md" />
+        <div className="shrink-0 border-b bg-background">
+          <div className="px-4 py-2">
+            <Skeleton className="h-7 w-24 rounded-md" />
+          </div>
+          <div className="flex items-center gap-3 border-t border-border/50 px-4 py-2.5">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-5 w-56 max-w-full rounded-md" />
+              <Skeleton className="h-4 w-96 max-w-full rounded-md" />
+            </div>
+            <Skeleton className="h-6 w-40 rounded-md max-md:w-14" />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col lg:flex-row gap-4">

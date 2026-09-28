@@ -1,14 +1,5 @@
-import {
-  AirportTowerIcon,
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Clock01Icon,
-  Globe02Icon,
-  MapsLocation01Icon,
-  SquareArrowExpand01Icon,
-} from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, Cancel01Icon, CheckmarkCircle02Icon, Clock01Icon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
 import { memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -20,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stations/api";
-import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { DuplicateStationNotice } from "@/features/shared/DuplicateStationNotice";
@@ -127,8 +117,7 @@ export const StationInfoForm = memo(function StationInfoForm({
   uplinkModel,
   onUplinkModelChange,
 }: StationInfoFormProps) {
-  const { t } = useTranslation(["submissions", "common", "stationDetails", "stations"]);
-  const { openStationDialog } = useFloatingDialogStack();
+  const { t } = useTranslation(["submissions", "common", "stations"]);
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
   const selectedOperatorMnc = selectedOperator?.mnc;
   const [stationIdFocused, setStationIdFocused] = useState(false);
@@ -228,28 +217,6 @@ export const StationInfoForm = memo(function StationInfoForm({
         <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
           <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{t("stationInfo.title")}</span>
-          {stationDbId !== undefined ? (
-            <Link
-              to="/"
-              hash={`map=16/${location.latitude}/${location.longitude}~f~S${stationDbId}`}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <HugeiconsIcon icon={MapsLocation01Icon} className="size-3" />
-              {t("dialog.showOnMap", { ns: "stationDetails" })}
-            </Link>
-          ) : null}
-          {stationDbId !== undefined ? (
-            <button
-              type="button"
-              onClick={() => openStationDialog(stationDbId, "internal")}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
-            >
-              <HugeiconsIcon icon={SquareArrowExpand01Icon} className="size-3.5" />
-              {t("common:actions.view")}
-            </button>
-          ) : null}
         </div>
         <div className="px-4 py-3 space-y-4">
           <StationBasicsFields

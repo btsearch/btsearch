@@ -1,12 +1,11 @@
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import { StationIdentityCell } from "./stationIdentityCell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
 import type { SubmissionListItem } from "@/features/admin/submissions/types";
 import { countCellOperations } from "@/features/admin/submissions/utils";
+import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import type { CellOperation } from "@/features/submissions/types";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
@@ -115,15 +114,11 @@ export function SubmissionTimestamp({ value, showLabel = false }: { value: strin
 
 export function SubmissionStatusSummary({ submission, inline = false }: { submission: SubmissionListItem; inline?: boolean }) {
   const { t: tCommon, i18n } = useTranslation("common");
-  const status = SUBMISSION_STATUS[submission.status];
   const reviewedAt = submission.reviewed_at;
 
   return (
     <div className={cn("min-w-0", inline ? "flex items-center gap-2" : "space-y-1.5")}>
-      <div className={cn("flex w-fit items-center gap-1.5 rounded-md px-2 py-1", status.bgClass)}>
-        <HugeiconsIcon icon={status.icon} className={cn("size-3.5", status.iconClass)} />
-        <span className="text-xs font-medium">{tCommon(`status.${submission.status}`)}</span>
-      </div>
+      <SubmissionStatusBadge status={submission.status} />
       {reviewedAt ? (
         <Tooltip>
           <TooltipTrigger

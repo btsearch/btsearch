@@ -1,6 +1,5 @@
-import { ArrowLeft01Icon, Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
@@ -18,14 +17,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { SUBMISSION_STATUS } from "@/features/admin/submissions/submissionUI";
+import {
+  DetailHeader,
+  DetailHeaderId,
+  DetailHeaderLocation,
+  DetailHeaderSeparator,
+  DetailHeaderStationActions,
+  DetailHeaderTimestamp,
+} from "@/features/admin/components/detailHeader";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
-import { useScrolled } from "@/hooks/useScrolled";
 import { cn } from "@/lib/utils";
+import type { Operator, Station } from "@/types/station";
 
 type SubmissionDetailHeaderProps = {
   submission: SubmissionDetail;
+  currentStation: Station | null;
+  operator: Operator | null;
   isReadOnly: boolean;
   isProcessing: boolean;
   onApprove: () => void;
@@ -33,12 +42,23 @@ type SubmissionDetailHeaderProps = {
   onSave: () => void;
 };
 
-export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, onApprove, onReject, onSave }: SubmissionDetailHeaderProps) {
+export function SubmissionDetailHeader({
+  submission,
+  currentStation,
+  operator,
+  isReadOnly,
+  isProcessing,
+  onApprove,
+  onReject,
+  onSave,
+}: SubmissionDetailHeaderProps) {
   const { t } = useTranslation(["submissions", "common"]);
-  const { ref: headerRef, scrolled } = useScrolled();
   const navActionTarget = useNavActionTarget();
   const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
   const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
+
+  const city = currentStation ? currentStation.location.city : submission.proposedLocation?.city;
+  const address = currentStation ? currentStation.extra_address || currentStation.location.address : submission.proposedLocation?.address;
 
   const actionBar = (
     <div className="flex items-center gap-1">
@@ -114,43 +134,32 @@ export function SubmissionDetailHeader({ submission, isReadOnly, isProcessing, o
   );
 
   return (
-    <>
-      <div
-        ref={headerRef}
-        className={cn(
-          "shrink-0 border-b px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 sm:gap-4 sticky top-0 z-20 transition-[background-color,border-color,box-shadow] duration-150",
-          scrolled ? "bg-background shadow-sm" : "bg-transparent border-transparent shadow-none",
-        )}
-      >
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="text-muted-foreground hover:text-foreground gap-2 pl-1 pr-3 -ml-2 hover:bg-muted/50 transition-colors"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            <span className="font-medium">{t("common:actions.back")}</span>
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+    <DetailHeader
+      actionBar={actionBar}
+      operator={operator}
+      stationCode={submission.station?.station_id || submission.proposedStation?.station_id}
+      badges={
+        <>
           <SubmissionTypeBadge type={submission.type} />
-          <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md shrink-0", SUBMISSION_STATUS[submission.status].bgClass)}>
-            <HugeiconsIcon
-              icon={SUBMISSION_STATUS[submission.status].icon}
-              className={cn("size-3.5", SUBMISSION_STATUS[submission.status].iconClass)}
-            />
-            <span className="text-xs font-medium capitalize">{t(`common:status.${submission.status}`)}</span>
-          </div>
-          <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/40 truncate min-w-0">
-            {submission.id}
-          </span>
-        </div>
-        {!navActionTarget && <div className="flex flex-wrap items-center gap-2 sm:w-auto">{actionBar}</div>}
-      </div>
-
-      {navActionTarget ? createPortal(actionBar, navActionTarget) : null}
-    </>
+          <SubmissionStatusBadge status={submission.status} />
+        </>
+      }
+      compactBadges={<SubmissionStatusBadge status={submission.status} compact />}
+      subtitle={city || address ? <DetailHeaderLocation locationId={currentStation?.location.id} city={city} address={address} /> : null}
+      meta={
+        <>
+          <DetailHeaderTimestamp label={t("common:labels.submitted")} value={submission.createdAt} />
+          {submission.reviewed_at ? (
+            <>
+              <DetailHeaderSeparator />
+              <DetailHeaderTimestamp label={t("common:labels.reviewed")} value={submission.reviewed_at} />
+            </>
+          ) : null}
+          <DetailHeaderSeparator />
+          <DetailHeaderId value={submission.id} displayValue={submission.id.slice(0, 8)} />
+        </>
+      }
+      actions={currentStation ? <DetailHeaderStationActions station={currentStation} /> : null}
+    />
   );
 }

@@ -19,7 +19,7 @@ import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { usePreferences } from "@/hooks/usePreferences";
-import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorTintGradient, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +116,7 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({
         type="button"
         className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
         onClick={() => onOpenDetails(link)}
-        style={{ backgroundImage: `linear-gradient(115deg, ${color}18 0%, ${color}08 38%, transparent 72%)` }}
+        style={{ backgroundImage: getOperatorTintGradient(color) }}
       >
         <div className={cn("flex min-w-0 items-center gap-1.5", headerPadding)}>
           {!hasMnc ? <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} aria-hidden /> : null}

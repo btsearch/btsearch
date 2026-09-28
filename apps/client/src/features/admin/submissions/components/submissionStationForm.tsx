@@ -1,4 +1,4 @@
-import { AirportTowerIcon, Globe02Icon, SquareArrowExpand01Icon } from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, Globe02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { fetchSiblingExtraIds, fetchSiblingSectors } from "@/features/admin/stations/api";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
-import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { fetchSI2PEMAzimuths } from "@/features/shared/api";
 import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
@@ -81,8 +80,7 @@ export function SubmissionStationForm({
   isFormDisabled,
   isDeleteSubmission,
 }: SubmissionStationFormProps) {
-  const { t } = useTranslation(["submissions", "common", "stationDetails"]);
-  const { openStationDialog } = useFloatingDialogStack();
+  const { t } = useTranslation(["submissions", "common"]);
   const [isFetchingSibling, setIsFetchingSibling] = useState(false);
   const selectedOperatorMnc = selectedOperator?.mnc;
   const showExtraIdsFields = selectedOperator ? EXTRA_IDENTIFICATORS_MNCS.includes(selectedOperator.mnc) : !!extraIdsForm.networks_id;
@@ -188,21 +186,9 @@ export function SubmissionStationForm({
   return (
     <>
       <div className="border rounded-xl overflow-hidden bg-card">
-        <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" />
-            <span className="font-semibold text-sm">{t("stationInfo.title")}</span>
-          </div>
-          {currentStation && (
-            <button
-              type="button"
-              onClick={() => openStationDialog(currentStation.id, "internal")}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer"
-            >
-              <HugeiconsIcon icon={SquareArrowExpand01Icon} className="size-3.5" />
-              {t("common:actions.view")}
-            </button>
-          )}
+        <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
+          <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" />
+          <span className="font-semibold text-sm">{t("stationInfo.title")}</span>
         </div>
         <div className="px-4 py-3 space-y-4">
           <StationBasicsFields

@@ -47,7 +47,7 @@ import {
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorHeaderTintGradient, normalizeOperatorName, resolveOperatorMnc } from "@/lib/cellular/operators";
 import { isPermitExpired } from "@/lib/dateUtils";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
@@ -184,7 +184,7 @@ export function RadioLineDetailsDialogPanel({
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
           <div
             className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
           >
             <div className="min-w-0 flex-1">
               <div className="min-w-0 space-y-1.5">

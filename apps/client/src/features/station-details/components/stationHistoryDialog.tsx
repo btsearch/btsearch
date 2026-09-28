@@ -39,7 +39,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 import { isUplinkType, uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
@@ -745,7 +745,7 @@ export function StationHistoryDialogPanel({
           <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
             <div
               className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-              style={{ backgroundImage: `linear-gradient(115deg, ${operatorColor}24 0%, ${operatorColor}0f 34%, transparent 70%)` }}
+              style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
             >
               <div id={titleId} className="min-w-0 flex-1">
                 <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("history.title")}</h2>
