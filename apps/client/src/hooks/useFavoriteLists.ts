@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 import { type CloudPreferences, getCloudPreferencesQueryKey, patchCloudPreferences } from "./usePreferences";
-import { fetchApiData } from "@/lib/api";
+import { fetchApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
 type FavoriteListsMutationContext = {
@@ -47,9 +47,11 @@ export function useFavoriteLists() {
       queryClient.setQueryData<CloudPreferences>(queryKey, (current) => withFavoriteLists(current, nextFavoriteUuids));
       return { previous };
     },
-    onError: (_error, _nextFavoriteUuids, context) => {
-      if (queryKey === null || context?.previous === undefined) return;
-      queryClient.setQueryData(queryKey, context.previous);
+    onError: (error, _nextFavoriteUuids, context) => {
+      showApiError(error);
+      if (queryKey === null) return;
+      if (context?.previous === undefined) void queryClient.resetQueries({ queryKey, exact: true });
+      else queryClient.setQueryData(queryKey, context.previous);
     },
     onSettled: () => {
       if (queryKey === null) return;

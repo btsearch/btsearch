@@ -7,9 +7,10 @@ import { toast } from "sonner";
 
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { API_BASE, ApiResponseError, fetchJson } from "@/lib/api";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ async function postComment(stationId: number, content: string, files: File[]) {
 }
 
 const MAX_PHOTOS = 5;
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_PHOTO_SIZE_LABEL = `${MAX_PHOTO_SIZE_BYTES / 1024 / 1024} MB`;
 
 function revokePreviewUrls(images: ImagePreview[]) {
   for (const image of images) URL.revokeObjectURL(image.previewUrl);
@@ -72,19 +75,25 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
     },
   });
 
-  const addImages = useCallback((files: File[]) => {
-    const filesToAdd = files.filter((file) => file.type.startsWith("image/")).slice(0, MAX_PHOTOS - imagesRef.current.length);
-    if (filesToAdd.length === 0) return;
+  const addImages = useCallback(
+    (files: File[]) => {
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      for (const file of imageFiles)
+        if (file.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("submissions:photos.fileTooLarge", { name: file.name, size: MAX_PHOTO_SIZE_LABEL }));
+      const filesToAdd = imageFiles.filter((file) => file.size <= MAX_PHOTO_SIZE_BYTES).slice(0, MAX_PHOTOS - imagesRef.current.length);
+      if (filesToAdd.length === 0) return;
 
-    const newImages: ImagePreview[] = filesToAdd.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-    const nextImages = [...imagesRef.current, ...newImages];
-    imagesRef.current = nextImages;
-    setImages(nextImages);
-  }, []);
+      const newImages: ImagePreview[] = filesToAdd.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      const nextImages = [...imagesRef.current, ...newImages];
+      imagesRef.current = nextImages;
+      setImages(nextImages);
+    },
+    [t],
+  );
 
   const handleAddImages = (e: ChangeEvent<HTMLInputElement>) => {
     addImages(Array.from(e.target.files ?? []));
@@ -145,6 +154,9 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
 
   const isDisabled = mutation.isPending || (!content.trim() && images.length === 0);
   const qualityErrorKey = photoQualityErrorKey(mutation.error);
+  let postErrorDescription: string | null = null;
+  if (qualityErrorKey) postErrorDescription = t(`submissions:${qualityErrorKey}`);
+  else if (mutation.error instanceof ApiResponseError) postErrorDescription = mutation.error.message;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
@@ -221,15 +233,7 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
         </div>
       </div>
 
-      {mutation.isError && (
-        <p className="text-sm text-destructive">
-          {qualityErrorKey
-            ? t(`submissions:${qualityErrorKey}`)
-            : mutation.error instanceof Error
-              ? mutation.error.message
-              : t("common:actions.error")}
-        </p>
-      )}
+      {mutation.isError ? <InlineError title={t("comments.postFailed")} description={postErrorDescription} /> : null}
     </form>
   );
 }

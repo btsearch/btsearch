@@ -15,14 +15,13 @@ import { useMapLayer } from "../hooks/useMapLayer";
 import type { MapPopupLocation } from "../hooks/useMapPopup";
 import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useUrlSync } from "../hooks/useURLSync";
-import { attachUkeLocationToStations, groupPermitsByStation, toLocationInfo } from "../utils";
+import { attachUkeLocationToStations, groupPermitsByStation, isUkeStationExpired, toLocationInfo } from "../utils";
 import type { StationHoverEntry } from "./stationHoverTooltipContent";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 import { useMap } from "@/components/ui/map";
 import { fetchStation, fetchUkePermit, fetchUkeStation } from "@/features/station-details/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
 import type {
   LocationInfo,
   LocationWithStations,
@@ -427,34 +426,29 @@ export function StationsLayer({
     (data: { locationId: number; city?: string; address?: string; source: string }) => {
       if (activePopupLocations?.some((location) => location.locationId === data.locationId && location.source === data.source)) return null;
 
-      const isUke = data.source === "uke";
+      const locationData = locationById.get(data.locationId);
+      if (!locationData?.stations?.length) return null;
 
       let entries: StationHoverEntry[];
-      if (isUke) {
-        const ukeLocation = locationById.get(data.locationId) as UkeLocationWithPermits | undefined;
-        if (!ukeLocation?.stations?.length) return null;
-        entries = ukeLocation.stations.map((s) => ({
-          name: s.operator?.name || "Unknown",
-          color: s.operator?.mnc ? getOperatorColor(s.operator.mnc) : "#3b82f6",
-          stationId: s.station_id,
+      if (data.source === "uke") {
+        entries = (locationData as UkeLocationWithPermits).stations.map((station) => ({
+          key: station.id,
+          stationId: station.station_id,
+          operatorName: station.operator?.name,
+          mnc: station.operator?.mnc,
+          isExpired: isUkeStationExpired(station),
         }));
       } else {
-        const locationData = locationById.get(data.locationId) as LocationWithStations | undefined;
-        if (!locationData?.stations?.length) return null;
-        entries = locationData.stations.map((s) => ({
-          name: s.operator?.name || "Unknown",
-          color: s.operator?.mnc ? getOperatorColor(s.operator.mnc) : "#3b82f6",
-          stationId: s.station_id,
+        entries = (locationData as LocationWithStations).stations.map((station) => ({
+          key: station.id,
+          stationId: station.station_id,
+          operatorName: station.operator?.name,
+          mnc: station.operator?.mnc,
+          status: station.status,
         }));
       }
 
-      if (entries.length === 0) return null;
-
-      const region = isUke
-        ? (locationById.get(data.locationId) as UkeLocationWithPermits | undefined)?.region?.name
-        : (locationById.get(data.locationId) as LocationWithStations | undefined)?.region?.name;
-
-      return <StationHoverTooltipContent city={data.city} address={data.address} region={region} stations={entries} />;
+      return <StationHoverTooltipContent city={data.city} address={data.address} region={locationData.region?.name} stations={entries} />;
     },
     [locationById, activePopupLocations],
   );
@@ -472,7 +466,13 @@ export function StationsLayer({
   });
 
   useHeatmapLayer({ map, isLoaded, enabled: filters.showHeatmap, showStations: filters.showStations });
-  usePlannedMeasurementsLayer({ map, isLoaded, enabled: filters.showPlannedMeasurements, operators: filters.operators });
+  usePlannedMeasurementsLayer({
+    map,
+    isLoaded,
+    enabled: filters.showPlannedMeasurements,
+    operators: filters.operators,
+    onOpenStation: (stationId) => onOpenStationDetails(stationId, "internal"),
+  });
 
   const azimuthEnabled = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   useAzimuthLayer({

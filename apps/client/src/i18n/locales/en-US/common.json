@@ -37,6 +37,7 @@
     "saving": "Saving...",
     "saved": "Saved",
     "confirm": "Confirm",
+    "approve": "Approve",
     "revert": "Revert Changes",
     "share": "Share",
     "view": "View",
@@ -209,12 +210,40 @@
     "edit": "Edit the existing station"
   },
   "error": {
-    "title": "Something went wrong",
-    "description": "An unexpected error occurred. Please try again or refresh the page",
-    "staleData": "Couldn't refresh the list. Showing previously loaded data",
-    "tryAgain": "Try again",
+    "loadTitle": "Couldn't load data",
+    "loadDescription": "Check your connection and try again",
+    "refreshFailed": "Couldn't refresh the data",
+    "actionFailed": "The action couldn't be completed",
+    "serverUnreachable": "Couldn't reach the server",
+    "tryLater": "Try again in a moment",
+    "rateLimited": "Too many requests",
+    "quotaExceeded": "You've used up this week's request quota",
+    "details": "Technical details",
+    "notFoundTitle": "Page not found",
+    "goHome": "Go to the map",
     "reload": "Reload page",
     "toast": "Something went wrong. Please try again"
+  },
+  "errorPage": {
+    "browseStations": "Browse stations",
+    "notFound": {
+      "title": "No signal",
+      "description": "There's no page at this address. It may have moved, or the link has a typo"
+    },
+    "crash": {
+      "title": "Connection dropped",
+      "description": "This page ran into an unexpected error. Reconnect, and if it happens again, reload the page",
+      "retry": "Reconnect"
+    },
+    "forbidden": {
+      "title": "Cell barred",
+      "description": "This part of the site is limited to authorized accounts. If that's a mistake, check that you're using the right account"
+    },
+    "signInRequired": {
+      "title": "Sign in to continue",
+      "description": "This part of the site is only available to signed-in users",
+      "signIn": "Sign in"
+    }
   },
   "toast": {
     "closeStationDialogFirst": "Close one first to open another"
@@ -238,9 +267,5 @@
     "learnMore": "Learn more",
     "accept": "Accept",
     "decline": "Decline"
-  },
-  "forbidden": {
-    "title": "Access denied",
-    "description": "You don't have permission to view this page"
   }
 }

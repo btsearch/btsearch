@@ -7,7 +7,7 @@ import { StatChartCard } from "./statChartCard";
 
 export function CompletenessCharts() {
   const { t } = useTranslation("statistics");
-  const { data, isLoading } = useQuery(statsCompletenessQueryOptions());
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(statsCompletenessQueryOptions());
 
   const stationData = useMemo(
     () => [
@@ -68,6 +68,9 @@ export function CompletenessCharts() {
           stacked
           isLoading={isLoading}
           standalone={false}
+          isError={isLoadingError}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
         />
         <StatChartCard
           title={t("completeness.pciTitle")}
@@ -78,6 +81,9 @@ export function CompletenessCharts() {
           stacked
           isLoading={isLoading}
           standalone={false}
+          isError={isLoadingError}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
         />
       </div>
     </div>

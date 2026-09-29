@@ -67,7 +67,8 @@ export function useTablePagination(options: UseTablePageSizeOptions = {}) {
         setState((prev) => {
           const newPageSize = isManualRef.current ? prev.pageSize : clampedRows;
           if (prev.isPageSizeMeasured && prev.autoPageSize === clampedRows && prev.pageSize === newPageSize) return prev;
-          return { ...prev, autoPageSize: clampedRows, pageSize: newPageSize, isPageSizeMeasured: true };
+          const pageIndex = prev.isPageSizeMeasured ? Math.floor((prev.pageIndex * prev.pageSize) / newPageSize) : prev.pageIndex;
+          return { ...prev, pageIndex, autoPageSize: clampedRows, pageSize: newPageSize, isPageSizeMeasured: true };
         });
       };
 

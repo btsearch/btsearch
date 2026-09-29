@@ -1,6 +1,5 @@
 import {
   Alert02Icon,
-  AlertCircleIcon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
   DatabaseIcon,
@@ -18,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -28,6 +28,8 @@ import {
   fetchSettings,
   patchSettings,
 } from "@/features/admin/settings/api";
+import { settingsQueryOptions } from "@/hooks/useSettings";
+import { showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
@@ -146,7 +148,9 @@ function AdminSettingsPage() {
   const {
     data: settings,
     isLoading,
-    error,
+    isFetching,
+    isRefetchError,
+    refetch,
   } = useQuery({
     queryKey: ["admin-settings"],
     queryFn: fetchSettings,
@@ -198,9 +202,11 @@ function AdminSettingsPage() {
     mutationFn: patchSettings,
     onSuccess: (newSettings) => {
       queryClient.setQueryData(["admin-settings"], newSettings);
+      void queryClient.invalidateQueries({ queryKey: settingsQueryOptions().queryKey });
       setPatch({});
       setShowSaveSuccess(true);
     },
+    onError: showApiError,
   });
 
   const cleanupMutation = useMutation({
@@ -270,20 +276,14 @@ function AdminSettingsPage() {
     );
   }
 
-  if (error) {
+  if (!settings) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center max-w-md px-6">
-          <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-            <HugeiconsIcon icon={AlertCircleIcon} className="size-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">{t("common:error.title")}</h3>
-          <p className="text-muted-foreground text-sm mb-4">{t("common:error.description")}</p>
-          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-settings"] })} variant="outline">
-            {t("common:error.tryAgain")}
-          </Button>
-        </div>
-      </div>
+      <PageErrorState
+        title={t("settings.errorTitle")}
+        description={t("settings.errorDescription")}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
     );
   }
 
@@ -322,6 +322,7 @@ function AdminSettingsPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-4 pb-8 max-w-4xl">
+          {isRefetchError ? <StaleDataNotice className="justify-self-start" onRetry={() => refetch()} isRetrying={isFetching} /> : null}
           <SettingsCard
             icon={<HugeiconsIcon icon={ShieldUserIcon} className="size-4" />}
             title={t("settings.authentication")}

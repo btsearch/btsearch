@@ -1,11 +1,13 @@
-import { SecurityLockIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, SecurityLockIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRouter } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { RequireAuth } from "./requireAuth";
+import { MapLinkButton } from "@/components/app/errorScreens";
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { authClient } from "@/lib/auth/client";
 
 interface RequireRoleProps {
@@ -24,22 +26,25 @@ export function RequireRole({ children, allowedRoles = ["admin"] }: RequireRoleP
 
   const userRole = session.user.role || "user";
 
-  if (!allowedRoles.includes(userRole)) {
+  if (!allowedRoles.includes(userRole))
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-center p-8">
-        <div className="flex size-16 items-center justify-center rounded-full bg-muted">
-          <HugeiconsIcon icon={SecurityLockIcon} className="size-8 text-muted-foreground" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-lg font-semibold">{t("forbidden.title")}</p>
-          <p className="text-sm text-muted-foreground">{t("forbidden.description")}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => router.history.back()}>
-          {t("actions.back")}
-        </Button>
-      </div>
+      <PageErrorState
+        tone="neutral"
+        icon={SecurityLockIcon}
+        title={t("errorPage.forbidden.title")}
+        description={t("errorPage.forbidden.description")}
+        signal="barred"
+        action={
+          <>
+            <MapLinkButton />
+            <Button variant="outline" onClick={() => router.history.back()}>
+              <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+              {t("actions.back")}
+            </Button>
+          </>
+        }
+      />
     );
-  }
 
   return <>{children}</>;
 }

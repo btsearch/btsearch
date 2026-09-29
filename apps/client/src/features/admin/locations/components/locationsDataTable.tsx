@@ -1,11 +1,10 @@
-import { AirportTowerIcon, AlertCircleIcon, MapPinIcon, Sorting05Icon } from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, MapPinIcon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTable } from "@tanstack/react-table";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { createLocationsColumns, getLocationOperators } from "./locationsColumns";
-import { Button } from "@/components/ui/button";
 import {
   DATA_TABLE_HEADER_HEIGHT,
   DATA_TABLE_PAGINATION_HEIGHT,
@@ -14,6 +13,7 @@ import {
   getDataTableViewState,
 } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
@@ -39,7 +39,12 @@ interface LocationsDataTableProps {
   isLoading?: boolean;
   isFetchingMore?: boolean;
   isError?: boolean;
+  isRefetchError?: boolean;
+  isLoadMoreError?: boolean;
   onRetry?: () => unknown;
+  onRetryLoadMore?: () => unknown;
+  isRetrying?: boolean;
+  isRefetching?: boolean;
   onRowClick?: (location: LocationWithStations) => void;
   getRowHref?: (location: LocationWithStations) => string;
   onLoadMore?: () => void;
@@ -164,29 +169,17 @@ function LocationMobileRow({
   return <div className={className}>{content}</div>;
 }
 
-function LoadError({ onRetry }: { onRetry?: () => unknown }) {
-  const { t } = useTranslation("common");
-
-  return (
-    <div className="flex min-h-64 flex-col items-center justify-center rounded-lg border bg-card px-4 text-center text-muted-foreground" role="alert">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-destructive/5 text-destructive/70">
-        <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-      </div>
-      <p className="font-medium text-foreground">{t("error.title")}</p>
-      <p className="mt-1 max-w-md text-sm">{t("error.description")}</p>
-      <Button type="button" variant="outline" className="mt-4" onClick={() => void onRetry?.()}>
-        {t("actions.retry")}
-      </Button>
-    </div>
-  );
-}
-
 export function LocationsDataTable({
   data,
   isLoading,
   isFetchingMore,
   isError,
+  isRefetchError,
+  isLoadMoreError,
   onRetry,
+  onRetryLoadMore,
+  isRetrying,
+  isRefetching,
   onRowClick,
   getRowHref,
   onLoadMore,
@@ -203,7 +196,7 @@ export function LocationsDataTable({
   const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK);
   const desktopPagination = useTablePagination(DESKTOP_PAGINATION_CONFIG);
   const mobilePagination = useTablePagination({ ...MOBILE_PAGINATION_CONFIG, rowHeight: mobileRowHeight });
-  const { containerRef, pagination, setPagination, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
 
   const columns = useMemo(
     () => createLocationsColumns({ t, tCommon, locale: i18n.language, sort, sortBy, onSort }),
@@ -225,8 +218,8 @@ export function LocationsDataTable({
   const columnCount = columns.length;
 
   useEffect(() => {
-    if (hasMore && onLoadMore && pagination.pageIndex + 1 >= pageCount - 2) onLoadMore();
-  }, [pagination.pageIndex, pageCount, hasMore, onLoadMore]);
+    if (hasMore && onLoadMore && !isLoadMoreError && pagination.pageIndex + 1 >= pageCount - 2) onLoadMore();
+  }, [pagination.pageIndex, pageCount, hasMore, onLoadMore, isLoadMoreError]);
 
   useEffect(() => {
     const lastPageIndex = Math.max(0, pageCount - 1);
@@ -235,137 +228,127 @@ export function LocationsDataTable({
 
   const hasRows = data.length > 0;
   const viewState = getDataTableViewState(Boolean(isLoading) && !isError && !hasRows, Boolean(isError) && !hasRows, hasRows);
-  const showPaginationFooter = viewState !== "error";
   const currentPageRows = table.getRowModel().rows.length;
   const isOnLastLoadedPage = pagination.pageIndex === pageCount - 1;
   const skeletonRowsToShow =
     isFetchingMore && hasMore && isOnLastLoadedPage && currentPageRows < pagination.pageSize ? pagination.pageSize - currentPageRows : 0;
   const activeSortDirectionLabel = sort === "asc" ? tCommon("sorting.ascending") : tCommon("sorting.descending");
+  const loadMoreError = isLoadMoreError ? (
+    <div className="absolute right-2 bottom-full z-20 mb-2 rounded-md bg-background shadow-sm">
+      <InlineError size="sm" onRetry={onRetryLoadMore} isRetrying={isFetchingMore} />
+    </div>
+  ) : null;
 
   return (
     <div ref={containerRef} className="relative min-h-0 flex-1 max-md:mb-10">
-      {isError && hasRows ? (
-        <div
-          className="absolute left-1/2 top-12 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-amber-500/30 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 shadow-sm dark:bg-amber-950 dark:text-amber-200"
-          role="status"
-        >
-          <span className="truncate">{tCommon("error.staleData")}</span>
-          <button type="button" className="shrink-0 underline underline-offset-2 hover:no-underline" onClick={() => void onRetry?.()}>
-            {tCommon("actions.retry")}
-          </button>
-        </div>
-      ) : null}
+      {isRefetchError && hasRows ? <StaleDataNotice onRetry={onRetry} isRetrying={isRefetching} className="absolute right-2 top-12 z-20" /> : null}
 
       {isMobile ? (
         <div className="max-h-full overflow-y-auto">
-          {viewState === "error" ? (
-            <LoadError onRetry={onRetry} />
-          ) : (
-            <div className={cn("overflow-hidden rounded-lg border bg-card", showPaginationFooter && "rounded-b-none border-b-0")}>
-              <div className="flex h-10 items-center gap-1 border-b bg-muted/20 px-2">
-                <MobileSortButton
-                  label={tCommon("labels.id")}
-                  directionLabel={sortBy === "id" ? activeSortDirectionLabel : tCommon("sorting.none")}
-                  column="id"
-                  sort={sort}
-                  sortBy={sortBy}
-                  onSort={onSort}
-                />
-                <MobileSortButton
-                  label={tCommon("labels.updated")}
-                  directionLabel={sortBy === "updatedAt" ? activeSortDirectionLabel : tCommon("sorting.none")}
-                  column="updatedAt"
-                  sort={sort}
-                  sortBy={sortBy}
-                  onSort={onSort}
-                />
-              </div>
-              {viewState === "loading" ? (
-                <div className="divide-y" aria-hidden="true">
-                  {Array.from({ length: Math.min(pagination.pageSize, 6) }, (_, index) => (
-                    <div key={index} className="space-y-3 p-3">
-                      <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                      <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
-                      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {viewState === "empty" ? (
-                <div className="flex min-h-40 flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground" role="status">
-                  <span>{t("main:search.noResults")}</span>
-                  <span className="text-sm">{t("main:search.noResultsHint")}</span>
-                </div>
-              ) : null}
-              {viewState === "ready" ? (
-                <ul ref={listRef} className="divide-y">
-                  {table.getRowModel().rows.map((row) => (
-                    <li key={row.id}>
-                      <LocationMobileRow location={row.original} locale={i18n.language} onRowClick={onRowClick} getRowHref={getRowHref} />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+          <div className="overflow-hidden rounded-t-lg border border-b-0 bg-card">
+            <div className="flex h-10 items-center gap-1 border-b bg-muted/20 px-2">
+              <MobileSortButton
+                label={tCommon("labels.id")}
+                directionLabel={sortBy === "id" ? activeSortDirectionLabel : tCommon("sorting.none")}
+                column="id"
+                sort={sort}
+                sortBy={sortBy}
+                onSort={onSort}
+              />
+              <MobileSortButton
+                label={tCommon("labels.updated")}
+                directionLabel={sortBy === "updatedAt" ? activeSortDirectionLabel : tCommon("sorting.none")}
+                column="updatedAt"
+                sort={sort}
+                sortBy={sortBy}
+                onSort={onSort}
+              />
             </div>
-          )}
-          {showPaginationFooter ? (
-            <DataTable.PaginationFooter>
-              <DataTablePagination table={table} totalItems={totalItems ?? data.length} pageSizeOptions={pageSizeOptions} showRowsPerPage={false} />
-            </DataTable.PaginationFooter>
-          ) : null}
+            {viewState === "loading" ? (
+              <div className="divide-y" aria-hidden="true">
+                {Array.from({ length: Math.min(pagination.pageSize, 6) }, (_, index) => (
+                  <div key={index} className="space-y-3 p-3">
+                    <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+                    <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+                    <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {viewState === "error" ? (
+              <div className="flex flex-col p-3" style={{ minHeight: autoPageSize * mobileRowHeight }}>
+                <ErrorState className="flex-1" onRetry={onRetry} isRetrying={isRetrying} />
+              </div>
+            ) : null}
+            {viewState === "empty" ? (
+              <div className="flex min-h-40 flex-col items-center justify-center gap-2 px-4 text-center text-muted-foreground" role="status">
+                <span>{t("main:search.noResults")}</span>
+                <span className="text-sm">{t("main:search.noResultsHint")}</span>
+              </div>
+            ) : null}
+            {viewState === "ready" ? (
+              <ul ref={listRef} className="divide-y">
+                {table.getRowModel().rows.map((row) => (
+                  <li key={row.id}>
+                    <LocationMobileRow location={row.original} locale={i18n.language} onRowClick={onRowClick} getRowHref={getRowHref} />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <DataTable.PaginationFooter className="relative">
+            {loadMoreError}
+            <DataTablePagination table={table} totalItems={totalItems ?? data.length} pageSizeOptions={pageSizeOptions} showRowsPerPage={false} />
+          </DataTable.PaginationFooter>
         </div>
       ) : (
         <div className="h-full">
-          {viewState === "error" ? (
-            <LoadError onRetry={onRetry} />
-          ) : (
-            <>
-              <div className={cn("overflow-auto", showPaginationFooter ? "max-h-[calc(100%-49px)]" : "max-h-full")}>
-                <div className="min-w-275">
-                  <DataTable.Root table={table} className={cn("block", showPaginationFooter && "rounded-b-none border-b-0")}>
-                    <DataTable.Table>
-                      <DataTable.Header />
-                      {viewState === "loading" ? <DataTable.Skeleton rows={pagination.pageSize} columns={columnCount} /> : null}
-                      {viewState === "empty" ? (
-                        <tbody>
-                          <DataTable.Empty columns={columnCount}>
-                            <div className="flex flex-col items-center gap-2 text-muted-foreground" role="status">
-                              <span>{t("main:search.noResults")}</span>
-                              <span className="text-sm">{t("main:search.noResultsHint")}</span>
-                            </div>
-                          </DataTable.Empty>
-                        </tbody>
-                      ) : null}
-                      {viewState === "ready" ? (
-                        <DataTable.Body
-                          onRowClick={onRowClick}
-                          getRowHref={getRowHref}
-                          getRowAriaLabel={(location) =>
-                            [
-                              `#${location.id}`,
-                              location.city,
-                              location.address,
-                              location.region?.name,
-                              ...getLocationOperators(location).map((operator) => operator.name),
-                            ]
-                              .filter(Boolean)
-                              .join(" ")
-                          }
-                          skeletonRows={skeletonRowsToShow}
-                          skeletonColumns={columnCount}
-                        />
-                      ) : null}
-                    </DataTable.Table>
-                  </DataTable.Root>
-                </div>
-              </div>
-              {showPaginationFooter ? (
-                <DataTable.PaginationFooter>
-                  <DataTablePagination table={table} totalItems={totalItems ?? data.length} pageSizeOptions={pageSizeOptions} />
-                </DataTable.PaginationFooter>
-              ) : null}
-            </>
-          )}
+          <div className="max-h-[calc(100%-49px)] overflow-auto">
+            <div className="min-w-275">
+              <DataTable.Root table={table} className="block rounded-b-none border-b-0">
+                <DataTable.Table>
+                  <DataTable.Header />
+                  {viewState === "loading" ? <DataTable.Skeleton rows={pagination.pageSize} columns={columnCount} /> : null}
+                  {viewState === "error" ? (
+                    <DataTable.Error columns={columnCount} rows={autoPageSize} onRetry={onRetry} isRetrying={isRetrying} />
+                  ) : null}
+                  {viewState === "empty" ? (
+                    <tbody>
+                      <DataTable.Empty columns={columnCount}>
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground" role="status">
+                          <span>{t("main:search.noResults")}</span>
+                          <span className="text-sm">{t("main:search.noResultsHint")}</span>
+                        </div>
+                      </DataTable.Empty>
+                    </tbody>
+                  ) : null}
+                  {viewState === "ready" ? (
+                    <DataTable.Body
+                      onRowClick={onRowClick}
+                      getRowHref={getRowHref}
+                      getRowAriaLabel={(location) =>
+                        [
+                          `#${location.id}`,
+                          location.city,
+                          location.address,
+                          location.region?.name,
+                          ...getLocationOperators(location).map((operator) => operator.name),
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                      }
+                      skeletonRows={skeletonRowsToShow}
+                      skeletonColumns={columnCount}
+                    />
+                  ) : null}
+                </DataTable.Table>
+              </DataTable.Root>
+            </div>
+          </div>
+          <DataTable.PaginationFooter className="relative">
+            {loadMoreError}
+            <DataTablePagination table={table} totalItems={totalItems ?? data.length} pageSizeOptions={pageSizeOptions} />
+          </DataTable.PaginationFooter>
         </div>
       )}
     </div>

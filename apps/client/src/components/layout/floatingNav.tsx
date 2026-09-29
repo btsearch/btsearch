@@ -261,7 +261,11 @@ function FloatingPageSectionRail({
           className="pointer-events-auto hidden max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-full border bg-background p-0.5 shadow-sm md:flex"
           aria-label={label}
         >
-          <motion.div layout transition={transition} className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden">
+          <motion.div
+            layout
+            transition={transition}
+            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-full"
+          >
             <LayoutGroup id="floating-page-sections">
               {sections.map((section) => {
                 const active = section.id === activeId;
@@ -339,7 +343,7 @@ function DesktopSubnavRail({
             initial={swapping && !reduceMotion ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
             transition={transition}
-            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
+            className="scrollbar-hide flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-full"
           >
             <LayoutGroup id={`floating-subnav-${section.key}`}>
               {section.items.map((item) => (
@@ -377,7 +381,7 @@ function MobileFloatingPageSectionRail({ sections }: { sections: PageSection[] }
 
   return (
     <div className="pointer-events-auto relative isolate z-20 mb-1 flex max-w-[calc(100vw-1rem)] self-center overflow-hidden rounded-full border bg-background p-1 shadow-sm md:hidden">
-      <div className="scrollbar-hide min-w-0 overflow-x-auto overflow-y-hidden">
+      <div className="scrollbar-hide min-w-0 overflow-x-auto overflow-y-hidden rounded-full">
         <div className="flex w-max max-w-[calc(100vw-1.5rem)] items-center gap-1">
           {sections.map((section) => {
             const active = section.id === activeId;
@@ -510,7 +514,7 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
           ref={targetRef}
           layout
           transition={actionSlotTransition}
-          className="scrollbar-hide relative z-10 flex max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden [&_button]:h-8! [&_button]:min-h-8! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
+          className="scrollbar-hide relative z-10 flex max-w-[calc(100vw-1.5rem)] shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden md:rounded-full [&_button]:h-8! [&_button]:min-h-8! [&_button]:min-w-0! [&_button]:rounded-full! [&_button]:px-2! [&_button]:text-xs! [&_button]:shadow-none!"
         />
       </motion.div>
     );
@@ -1114,7 +1118,7 @@ export function FloatingNav() {
                     <motion.div
                       layout
                       transition={transition}
-                      className="scrollbar-hide relative z-10 isolate flex w-max min-w-0 max-w-full items-center gap-0.5 overflow-x-auto overflow-y-hidden md:flex-1"
+                      className="scrollbar-hide relative z-10 isolate flex w-max min-w-0 max-w-full items-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-full md:flex-1"
                     >
                       {sections.map((section) => {
                         const active = activeSection?.key === section.key;

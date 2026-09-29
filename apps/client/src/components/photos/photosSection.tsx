@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
@@ -70,7 +71,13 @@ export function PhotosSection({
   const [editState, setEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
   const lightbox = useLightbox();
 
-  const { data: photos = [], isLoading } = useQuery({
+  const {
+    data: photos = [],
+    isLoading,
+    isLoadingError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: queryKey as unknown[],
     queryFn: fetchFn,
     staleTime: 1000 * 60 * 2,
@@ -182,7 +189,7 @@ export function PhotosSection({
     if (files.length > 0) uploadMutation.mutate(files);
   }
 
-  if (!isLoading && photos.length === 0 && hideWhenEmpty && !pendingPhotos) return null;
+  if (!isLoading && !isLoadingError && photos.length === 0 && hideWhenEmpty && !pendingPhotos) return null;
 
   return (
     <>
@@ -202,8 +209,10 @@ export function PhotosSection({
               />
               <HugeiconsIcon icon={Image01Icon} className="size-4 text-muted-foreground" />
               <span className="font-semibold text-sm">{t("photos.label")}</span>
-              {!isLoading ? <span className="text-xs text-muted-foreground">({photos.length})</span> : null}
-              {!isLoading && !!pendingPhotos && photos.length === 0 ? <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" /> : null}
+              {!isLoading && !isLoadingError ? <span className="text-xs text-muted-foreground">({photos.length})</span> : null}
+              {!isLoading && !isLoadingError && !!pendingPhotos && photos.length === 0 ? (
+                <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+              ) : null}
             </CollapsibleTrigger>
           </div>
 
@@ -213,6 +222,8 @@ export function PhotosSection({
               <div className="flex items-center justify-center py-8">
                 <Spinner />
               </div>
+            ) : isLoadingError ? (
+              <InlineError className="m-3" onRetry={() => refetch()} isRetrying={isFetching} />
             ) : photos.length === 0 && pendingPhotos ? (
               <div className="p-3 space-y-2">
                 <div className="flex items-start gap-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/30 px-3 py-2.5">

@@ -9,7 +9,7 @@ import { StatChartCard } from "./statChartCard";
 export function AnalyzerUsageChart() {
   const { t } = useTranslation("statistics");
   const [granularity, setGranularity] = useState<"daily" | "monthly">("daily");
-  const { data, isLoading } = useQuery(analyzerUsageQueryOptions({ granularity }));
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(analyzerUsageQueryOptions({ granularity }));
   const series = useMemo(() => [{ key: "count", label: t("completeness.analyzerUsage"), color: "var(--chart-4)" }], [t]);
   const chartData = useMemo(() => data?.map((row) => ({ date: row.date, count: row.count })) ?? [], [data]);
   return (
@@ -22,6 +22,9 @@ export function AnalyzerUsageChart() {
       height="h-72"
       showBrush
       isLoading={isLoading}
+      isError={isLoadingError}
+      onRetry={() => refetch()}
+      isRetrying={isFetching}
     />
   );
 }

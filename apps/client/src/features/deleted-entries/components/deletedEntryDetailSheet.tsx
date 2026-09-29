@@ -1,14 +1,10 @@
 import { useTranslation } from "react-i18next";
 
 import type { DeletedEntry } from "../types";
+import { DeletedEntryIdentifier } from "./deletedEntryIdentifier";
 import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatFullDate } from "@/lib/format";
-
-const SOURCE_TABLE_LABELS: Record<string, string> = {
-  uke_permits: "UKE Permits",
-  uke_radiolines: "UKE Microwave links",
-};
 
 function Value({ value }: { value: unknown }): React.ReactNode {
   if (value === null || value === undefined) return <span className="text-muted-foreground">-</span>;
@@ -62,7 +58,7 @@ export function DeletedEntryDetailSheet({ entry, open, onOpenChange }: DeletedEn
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="max-w-xl! sm:max-w-5xl! overflow-y-auto custom-scrollbar">
+      <SheetContent side="right" className="w-full! max-w-xl! sm:max-w-5xl! overflow-y-auto custom-scrollbar">
         <SheetHeader>
           <SheetTitle>{t("deletedEntries.detail.title")}</SheetTitle>
           <SheetDescription>
@@ -75,14 +71,14 @@ export function DeletedEntryDetailSheet({ entry, open, onOpenChange }: DeletedEn
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("deletedEntries.detail.overview")}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("deletedEntries.columns.sourceTable")}</span>
-                <span className="text-sm font-medium">{SOURCE_TABLE_LABELS[entry.source_table] ?? entry.source_table}</span>
-              </div>
-              <div className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("deletedEntries.columns.sourceType")}</span>
                 <span className="text-sm font-medium">
                   <UKESourceBadge source={entry.source_type} />
                 </span>
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("deletedEntries.columns.identifier")}</span>
+                <DeletedEntryIdentifier entry={entry} inline />
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("deletedEntries.columns.sourceId")}</span>

@@ -1,6 +1,5 @@
 import {
   Add01Icon,
-  AlertCircleIcon,
   ArrowRight01Icon,
   Cancel01Icon,
   Delete02Icon,
@@ -43,6 +42,7 @@ import {
   ComboboxList,
   ComboboxSeparator,
 } from "@/components/ui/combobox";
+import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -398,7 +398,8 @@ export function MySubmissions() {
 
   const hasActiveFilters = statusFilter !== "all" || selectedOperatorMncs.length > 0 || activeSearch.trim().length > 0;
 
-  const { data, isLoading, error, isRefetching, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } = useMySubmissions(userId, filters);
+  const { data, isLoading, error, isRefetching, isRefetchError, isFetchingNextPage, isFetchNextPageError, hasNextPage, fetchNextPage, refetch } =
+    useMySubmissions(userId, filters);
 
   const deleteMutation = useMutation({
     mutationFn: deleteSubmission,
@@ -412,7 +413,7 @@ export function MySubmissions() {
   const submissions = useMemo<SubmissionRow[]>(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
   const totalSubmissionCount = data?.pages[0]?.totalCount ?? submissions.length;
   const hasLoadedSubmissions = submissions.length > 0;
-  const showStaleDataWarning = error !== null && hasLoadedSubmissions;
+  const showStaleDataWarning = isRefetchError && hasLoadedSubmissions;
 
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const { openStationDialog } = useFloatingDialogStack();
@@ -447,7 +448,7 @@ export function MySubmissions() {
 
   const handleScrollRef = useRef<() => void>(null!);
   handleScrollRef.current = () => {
-    if (!hasNextPage || isFetchingNextPage) return;
+    if (!hasNextPage || isFetchingNextPage || isFetchNextPageError) return;
     const lastItem = items[items.length - 1];
     if (!lastItem) return;
     if (lastItem.index >= submissions.length - 1) {
@@ -479,16 +480,7 @@ export function MySubmissions() {
       ))}
     </div>
   ) : error !== null && !hasLoadedSubmissions ? (
-    <div role="alert" className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
-      <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-        <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-      </div>
-      <p className="text-sm">{t("common:placeholder.errorFetching")}</p>
-      <Button size="sm" variant="outline" className="mt-4" onClick={() => void refetch()} disabled={isRefetching}>
-        {isRefetching ? <Spinner className="size-3.5" /> : null}
-        {t("common:actions.retry")}
-      </Button>
-    </div>
+    <ErrorState className="h-full" onRetry={() => refetch()} isRetrying={isRefetching} />
   ) : !hasLoadedSubmissions ? (
     <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
       <HugeiconsIcon icon={hasActiveFilters ? Search01Icon : SentIcon} className="size-8 mb-2 opacity-30" />
@@ -673,7 +665,15 @@ export function MySubmissions() {
         })}
       </div>
 
-      {isFetchingNextPage ? (
+      {isFetchNextPageError ? (
+        <InlineError
+          size="sm"
+          title={t("mySubmissions.loadMoreError")}
+          onRetry={() => fetchNextPage()}
+          isRetrying={isFetchingNextPage}
+          className="mx-1 my-2"
+        />
+      ) : isFetchingNextPage ? (
         <div className="flex justify-center py-4">
           <Spinner className="size-4" />
         </div>
@@ -698,19 +698,7 @@ export function MySubmissions() {
           />
         </div>
 
-        {showStaleDataWarning ? (
-          <div
-            role="status"
-            className="flex min-w-0 items-center gap-2 rounded-md border border-amber-600/30 bg-amber-500/10 px-2.5 py-1.5 text-foreground"
-          >
-            <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
-            <p className="min-w-0 flex-1 text-xs">{t("mySubmissions.staleDataWarning")}</p>
-            <Button size="xs" variant="ghost" onClick={() => void refetch()} disabled={isRefetching}>
-              {isRefetching ? <Spinner className="size-3" /> : null}
-              {t("common:actions.retry")}
-            </Button>
-          </div>
-        ) : null}
+        {showStaleDataWarning ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isRefetching} className="flex w-fit" /> : null}
       </div>
 
       <div ref={setScrollEl} className={cn("flex-1 min-h-0 overflow-y-auto", showFloatingMobileFilters && "max-md:mb-10")}>

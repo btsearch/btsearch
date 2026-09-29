@@ -1,17 +1,19 @@
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
+import { PageErrorState } from "@/components/ui/error-state";
 import { ListsPageContent } from "@/features/lists/components/listsPage";
-import { useSettings } from "@/hooks/useSettings";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function ListsPage() {
-  const { data: settings, isLoading } = useSettings();
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("enableUserLists");
 
-  if (!isLoading && !settings?.enableUserLists) return <Navigate to="/" replace />;
+  if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
+  if (isDisabled) return <Navigate to="/" replace />;
 
   return (
     <RequireAuth>
-      <main className="flex-1 flex flex-col min-h-0 p-4">
+      <main className="flex-1 overflow-y-auto custom-scrollbar">
         <ListsPageContent />
       </main>
     </RequireAuth>

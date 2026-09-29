@@ -10,8 +10,12 @@ type PhotoUploadMessages = {
 
 let uploadCount = 0;
 
+const PHOTO_PROGRESS_CREEP = 0.9;
+
 function PhotoUploadStatus({ sent, total }: { sent: number; total: number }) {
   const { t } = useTranslation("submissions");
+  const isComplete = sent >= total;
+  const progress = isComplete ? 1 : (sent + PHOTO_PROGRESS_CREEP) / total;
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -23,7 +27,11 @@ function PhotoUploadStatus({ sent, total }: { sent: number; total: number }) {
         aria-valuenow={sent}
         className="h-1 w-full overflow-hidden rounded-full bg-muted"
       >
-        <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${(sent / total) * 100}%` }} />
+        <div
+          data-complete={isComplete}
+          className="h-full origin-left scale-x-(--progress) bg-primary transition-[scale] duration-[7s] ease-[cubic-bezier(0.1,0.7,0.2,1)] starting:scale-x-0 data-[complete=true]:duration-300 motion-reduce:transition-none"
+          style={{ "--progress": progress } as React.CSSProperties}
+        />
       </div>
     </div>
   );

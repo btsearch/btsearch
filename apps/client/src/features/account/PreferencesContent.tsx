@@ -3,8 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { JSX } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { InlineError } from "@/components/ui/error-state";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -15,6 +17,7 @@ import { usePushSubscription } from "@/features/notifications/usePushSubscriptio
 import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { type PreferenceProfile, type UserPreferences, usePreferences } from "@/hooks/usePreferences";
+import { isGloballyHandledError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn, toggleValue } from "@/lib/utils";
 
@@ -502,7 +505,12 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
   const role = session?.user?.role ?? "user";
   const isStaff = role === "admin" || role === "editor";
 
-  const { data: pushPrefs } = useQuery({
+  const {
+    data: pushPrefs,
+    isLoadingError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["push-preferences", subscriptionId],
     queryFn: () => fetchPushPreferences(subscriptionId!),
     enabled: !!session?.user && !!subscriptionId,
@@ -512,15 +520,19 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
     mutationFn: (prefs: Partial<PushPreferences>) => updatePushPreferences(prefs, subscriptionId!),
     onMutate: async (vars) => {
       await queryClient.cancelQueries({ queryKey: ["push-preferences", subscriptionId] });
-      const prev = queryClient.getQueryData(["push-preferences", subscriptionId]);
-      queryClient.setQueryData(["push-preferences", subscriptionId], (old: typeof pushPrefs) => ({ ...old, ...vars }));
+      const prev = queryClient.getQueryData<PushPreferences>(["push-preferences", subscriptionId]);
+      if (prev !== undefined) queryClient.setQueryData<PushPreferences>(["push-preferences", subscriptionId], { ...prev, ...vars });
       return { prev };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (error, _vars, ctx) => {
       queryClient.setQueryData(["push-preferences", subscriptionId], ctx?.prev);
+      if (isGloballyHandledError(error)) return;
+      toast.error(t("preferences.notificationPrefsError"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["push-preferences", subscriptionId] }),
   });
+
+  const isPrefsBusy = isUpdatingPrefs || pushPrefs === undefined;
 
   if (!isSupported || !session?.user) return null;
 
@@ -534,7 +546,7 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
             <p className="text-sm text-muted-foreground">{t("preferences.notificationsHint")}</p>
           </div>
           {permission === "denied" ? (
-            <p className="text-sm text-destructive px-3">{t("preferences.notificationsBlocked")}</p>
+            <InlineError title={t("preferences.notificationsBlocked")} description={t("preferences.notificationsBlockedHint")} />
           ) : (
             <PrefToggle
               checked={isSubscribed}
@@ -545,7 +557,9 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
           )}
         </div>
 
-        {isSubscribed && subscriptionId && (
+        {!isSubscribed || !subscriptionId ? null : isLoadingError ? (
+          <InlineError className="self-start" onRetry={() => refetch()} isRetrying={isFetching} />
+        ) : (
           <>
             <div className="rounded-xl border bg-card p-4 space-y-3">
               <div className="space-y-1">
@@ -554,7 +568,7 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
               </div>
               <PrefToggle
                 checked={pushPrefs?.ukeUpdates ?? false}
-                disabled={isUpdatingPrefs}
+                disabled={isPrefsBusy}
                 onChange={(v) => updatePrefs({ ukeUpdates: v })}
                 label={t("preferences.ukeUpdatesLabel")}
               />
@@ -567,7 +581,7 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
               </div>
               <PrefToggle
                 checked={pushPrefs?.stationWatches ?? true}
-                disabled={isUpdatingPrefs}
+                disabled={isPrefsBusy}
                 onChange={(v) => updatePrefs({ stationWatches: v })}
                 label={t("preferences.stationWatchesLabel")}
               />
@@ -581,7 +595,7 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
                 </div>
                 <PrefToggle
                   checked={pushPrefs?.submissionUpdates ?? true}
-                  disabled={isUpdatingPrefs}
+                  disabled={isPrefsBusy}
                   onChange={(v) => updatePrefs({ submissionUpdates: v })}
                   label={t("preferences.submissionUpdatesLabel")}
                 />
@@ -596,7 +610,7 @@ function NotificationsSection({ t }: { t: (key: string) => string }) {
                 </div>
                 <PrefToggle
                   checked={pushPrefs?.newSubmission ?? true}
-                  disabled={isUpdatingPrefs}
+                  disabled={isPrefsBusy}
                   onChange={(v) => updatePrefs({ newSubmission: v })}
                   label={t("preferences.newSubmissionsLabel")}
                 />

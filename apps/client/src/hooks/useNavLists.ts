@@ -1,26 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useFavoriteLists } from "./useFavoriteLists";
-import { type UserListSummary, fetchUserLists } from "@/features/lists/api";
+import { useSettings } from "./useSettings";
+import type { UserListSummary } from "@/features/lists/api";
+import { useUserLists } from "@/features/lists/hooks/useUserLists";
 import { authClient } from "@/lib/auth/client";
 
-export const NAV_LIST_FETCH_LIMIT = 10;
 export const NAV_RECENT_LIST_LIMIT = 5;
 
 export function useNavLists() {
   const { data: session } = authClient.useSession();
+  const { data: settings } = useSettings();
   const userId = session?.user?.id;
   const favoriteLists = useFavoriteLists();
-
-  const query = useQuery({
-    queryKey: ["user-lists", { limit: NAV_LIST_FETCH_LIMIT }],
-    queryFn: () => fetchUserLists(NAV_LIST_FETCH_LIMIT, 1),
-    enabled: userId !== undefined,
-  });
+  const { data } = useUserLists({ enabled: userId !== undefined && settings?.enableUserLists === true });
 
   const lists = useMemo<UserListSummary[]>(() => {
-    const ownedLists = query.data?.data.filter((list) => list.createdBy.uuid === userId) ?? [];
+    const ownedLists = data?.data.filter((list) => list.createdBy.uuid === userId) ?? [];
     if (ownedLists.length === 0) return [];
 
     const listByUuid = new Map(ownedLists.map((list) => [list.uuid, list]));
@@ -34,7 +30,7 @@ export function useNavLists() {
       .slice(0, Math.max(0, NAV_RECENT_LIST_LIMIT - orderedFavoriteLists.length));
 
     return [...orderedFavoriteLists, ...recentLists];
-  }, [favoriteLists.favoriteSet, favoriteLists.favoriteUuids, query.data?.data, userId]);
+  }, [favoriteLists.favoriteSet, favoriteLists.favoriteUuids, data, userId]);
 
   return {
     ...favoriteLists,

@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { routeTree } from "./routeTree.gen";
+import { RouteError, RouteNotFound } from "@/components/app/errorScreens";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 import { i18nReady } from "@/i18n/config";
 
@@ -23,6 +24,8 @@ const router = createRouter({
   defaultPendingComponent: RoutePending,
   defaultPendingMs: 300,
   defaultPendingMinMs: 0,
+  defaultErrorComponent: RouteError,
+  defaultNotFoundComponent: RouteNotFound,
 });
 
 declare module "@tanstack/react-router" {

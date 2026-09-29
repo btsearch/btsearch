@@ -1,11 +1,11 @@
-import { Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Search01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
+import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { API_BASE, fetchJson } from "@/lib/api";
@@ -21,6 +21,20 @@ interface PickerUser {
 
 const EMPTY_USERS: PickerUser[] = [];
 
+function CheckMark({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+        checked ? "border-primary bg-primary text-primary-foreground" : "border-input dark:bg-input/30",
+      )}
+    >
+      {checked ? <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="size-3.5" /> : null}
+    </span>
+  );
+}
+
 interface UserPickerProps {
   selectedUserIds: string[];
   onSelectionChange: (ids: string[]) => void;
@@ -32,7 +46,7 @@ export function UserPicker({ selectedUserIds, onSelectionChange, className }: Us
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "users", "picker", debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: "50" });
@@ -79,7 +93,7 @@ export function UserPicker({ selectedUserIds, onSelectionChange, className }: Us
 
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {!isLoading &&
-          !isError &&
+          !isLoadingError &&
           (users.length === 0
             ? debouncedSearch
               ? t("users.picker.noMatch", { search: debouncedSearch })
@@ -87,12 +101,7 @@ export function UserPicker({ selectedUserIds, onSelectionChange, className }: Us
             : t("users.picker.selected", { count: users.length }))}
       </div>
 
-      <div
-        role="listbox"
-        aria-multiselectable="true"
-        aria-label={t("users.picker.searchPlaceholder")}
-        className="overflow-y-auto max-h-64 rounded-md border bg-background divide-y divide-border"
-      >
+      <div className="overflow-y-auto max-h-64 rounded-md border bg-background divide-y divide-border">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5">
@@ -104,47 +113,44 @@ export function UserPicker({ selectedUserIds, onSelectionChange, className }: Us
               </div>
             </div>
           ))
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center gap-2 h-20">
-            <p className="text-sm text-muted-foreground">{t("users.picker.error")}</p>
-            <button type="button" onClick={() => refetch()} className="text-xs text-primary hover:underline transition-colors">
-              {t("common:actions.retry")}
-            </button>
-          </div>
+        ) : isLoadingError ? (
+          <InlineError size="sm" title={t("users.picker.error")} onRetry={() => refetch()} isRetrying={isFetching} className="m-1" />
         ) : users.length === 0 ? (
           <div className="flex items-center justify-center h-20 text-sm text-muted-foreground">
             {debouncedSearch ? t("users.picker.noMatch", { search: debouncedSearch }) : t("users.picker.noUsers")}
           </div>
         ) : (
           <>
-            {users.map((user) => {
-              const checked = selectedSet.has(user.id);
-              return (
-                <button
-                  key={user.id}
-                  type="button"
-                  role="option"
-                  aria-selected={checked}
-                  onClick={() => toggle(user.id)}
-                  className={cn(
-                    "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-muted/50",
-                    checked && "bg-primary/10 hover:bg-primary/15",
-                  )}
-                >
-                  <Checkbox checked={checked} className="pointer-events-none shrink-0" />
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Avatar size="sm" className="shrink-0">
-                      {user.image && <AvatarImage src={resolveAvatarUrl(user.image)} />}
-                      <AvatarFallback>{user.name?.charAt(0)?.toUpperCase() ?? "?"}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium leading-tight">{user.name}</div>
-                      {user.username && <div className="truncate text-xs text-muted-foreground leading-tight">@{user.username}</div>}
+            <div role="listbox" aria-multiselectable="true" aria-label={t("users.picker.searchPlaceholder")} className="divide-y divide-border">
+              {users.map((user) => {
+                const checked = selectedSet.has(user.id);
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    role="option"
+                    aria-selected={checked}
+                    onClick={() => toggle(user.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-muted/50",
+                      checked && "bg-primary/10 hover:bg-primary/15",
+                    )}
+                  >
+                    <CheckMark checked={checked} />
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Avatar size="sm" className="shrink-0">
+                        {user.image && <AvatarImage src={resolveAvatarUrl(user.image)} />}
+                        <AvatarFallback>{user.name?.charAt(0)?.toUpperCase() ?? "?"}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium leading-tight">{user.name}</div>
+                        {user.username && <div className="truncate text-xs text-muted-foreground leading-tight">@{user.username}</div>}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
             {data && data.total > users.length && (
               <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t bg-muted/20">
                 {t("users.picker.showing", { shown: users.length, total: data.total })}

@@ -99,10 +99,17 @@
   },
   "popup": {
     "loading": "Ładowanie stacji...",
+    "loadError": "Nie udało się wczytać stacji",
     "noStations": "Brak stacji",
     "noPermits": "Brak pozwoleń",
     "yourLocation": "Twoja lokalizacja",
-    "accuracy": "Dokładność"
+    "accuracy": "Dokładność",
+    "shareLocation": "Udostępnij lokalizację",
+    "shareRadioline": "Udostępnij radiolinię",
+    "linkCopied": "Skopiowano link",
+    "copyCoordinates": "Kopiuj współrzędne",
+    "unknownLocation": "Nieznana lokalizacja",
+    "moreStations": "+{{count}} więcej"
   },
   "overlay": {
     "locations_one": "lokalizacja",
@@ -184,7 +191,7 @@
     "filteredEmptySubtitle": "Wyczyść filtry albo rozszerz wyszukiwanie, aby zobaczyć więcej zdjęć stacji",
     "errorTitle": "Nie udało się wczytać zdjęć",
     "errorSubtitle": "Odśwież galerię albo spróbuj ponownie za chwilę",
-    "retry": "Spróbuj ponownie",
+    "loadMoreError": "Nie udało się wczytać kolejnych zdjęć",
     "searchPlaceholder": "Szukaj stacji, miasta, adresu, województwa, notatki...",
     "allRegions": "Wszystkie województwa",
     "allStatuses": "Wszystkie statusy",
@@ -251,6 +258,7 @@
     "privateSubtitle": "Tylko użytkownik może zobaczyć swój pełny profil",
     "notFoundTitle": "Nie znaleziono użytkownika",
     "notFoundSubtitle": "Profil @{{username}} nie istnieje",
+    "stationFallback": "Stacja #{{id}}",
     "comments": "Komentarze",
     "noComments": "Brak komentarzy",
     "photos": "Zdjęcia",
@@ -276,28 +284,5 @@
   "webgl": {
     "title": "Mapa niedostępna",
     "description": "Twoje urządzenie nie obsługuje WebGL2 lub ma go wyłączonego. Włącz go w ustawieniach przeglądarki, aby korzystać z mapy"
-  },
-  "deletedEntries": {
-    "title": "Usunięte wpisy",
-    "subtitle": "Przeglądaj wpisy usunięte podczas importów UKE",
-    "columns": {
-      "deletedAt": "Data usunięcia",
-      "sourceTable": "Tabela",
-      "sourceType": "Źródło",
-      "sourceId": "Oryginalne ID",
-      "identifier": "Identyfikator",
-      "importId": "Import"
-    },
-    "filters": {
-      "allTables": "Wszystkie tabele",
-      "allSources": "Wszystkie źródła",
-      "dateFrom": "Od",
-      "dateTo": "Do",
-      "searchPlaceholder": "Szukaj po ID lub pozwoleniu..."
-    },
-    "empty": {
-      "title": "Brak usuniętych wpisów",
-      "subtitle": "Spróbuj zmienić filtry"
-    }
   }
 }

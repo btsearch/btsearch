@@ -1,4 +1,4 @@
-import { AirportTowerIcon, Alert02Icon, Location04Icon, MapsIcon, RefreshIcon, Route02Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, Location04Icon, MapsIcon, Route02Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { SearchStation, UkeSearchPermitStation } from "../../searchApi";
 import { getStationBands } from "../../utils";
 import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
-import { Button } from "@/components/ui/button";
+import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
@@ -166,43 +166,26 @@ export function SearchResults({
       ) : null}
 
       {state.kind === "error" ? (
-        <div className="flex flex-col items-center justify-center gap-3 p-7 text-center" role="alert">
-          <HugeiconsIcon icon={Alert02Icon} className="size-6 text-destructive" aria-hidden="true" />
-          <div className="space-y-1">
-            <p className="text-sm font-semibold">{t("search.errorTitle")}</p>
-            <p className="text-xs text-muted-foreground">{t("search.errorHint")}</p>
-          </div>
-          <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
-            <HugeiconsIcon icon={RefreshIcon} className="size-4" aria-hidden="true" />
-            {t("common:actions.retry")}
-          </Button>
-        </div>
+        <ErrorState
+          title={t("search.errorTitle")}
+          description={t("search.errorHint")}
+          onRetry={onRetry}
+          className="min-h-0 rounded-none border-0 py-7"
+        />
       ) : null}
 
-      {state.kind === "ready" && (state.updating || state.failedSources.length > 0) ? (
+      {state.kind === "ready" && state.failedSources.length > 0 ? (
+        <InlineError size="sm" title={t("search.partialError")} onRetry={onRetry} isRetrying={state.updating} className="m-1" />
+      ) : null}
+
+      {state.kind === "ready" && state.updating && state.failedSources.length === 0 ? (
         <div
-          className={cn(
-            "flex min-h-9 items-center gap-2 border-b px-3 py-1.5 text-xs",
-            state.failedSources.length > 0 ? "bg-destructive/10 text-destructive" : "bg-muted/35 text-muted-foreground",
-          )}
+          className="flex min-h-9 items-center gap-2 border-b bg-muted/35 px-3 py-1.5 text-xs text-muted-foreground"
           role="status"
           aria-live="polite"
         >
-          {state.failedSources.length > 0 ? (
-            <>
-              <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{t("search.partialError")}</span>
-              <Button type="button" variant="ghost" size="sm" className="min-h-9 text-current max-md:min-h-11" onClick={onRetry}>
-                <HugeiconsIcon icon={RefreshIcon} className="size-3.5" aria-hidden="true" />
-                {t("common:actions.retry")}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Spinner className="size-3.5 shrink-0" aria-hidden="true" />
-              <span>{t("common:actions.updating")}</span>
-            </>
-          )}
+          <Spinner className="size-3.5 shrink-0" aria-hidden="true" />
+          <span>{t("common:actions.updating")}</span>
         </div>
       ) : null}
 

@@ -1,21 +1,33 @@
 {
   "page": {
     "title": "Pomiary SI2PEM",
-    "description": "Planowane, zakończone i odwołane pomiary pól elektromagnetycznych oraz nieaktywne stacje z systemu SI2PEM"
+    "description": "Planowane, zakończone i odwołane pomiary pól elektromagnetycznych, nieaktywne stacje oraz zgłoszenia instalacji z systemu SI2PEM"
   },
   "tabs": {
     "planned": "Planowane",
     "completed": "Zakończone",
     "canceled": "Odwołane",
     "inactive": "Nieaktywne stacje",
-    "inactiveMobile": "Nieaktywne"
+    "inactiveMobile": "Nieaktywne",
+    "installations": "Zgłoszenia"
   },
   "table": {
     "caption": "Lista danych SI2PEM",
     "measurementDate": "Termin pomiaru",
     "disabledDate": "Data wyłączenia",
     "lab": "Laboratorium",
-    "unknownCity": "Nieznana miejscowość"
+    "unknownCity": "Nieznana miejscowość",
+    "station": "Stacja",
+    "openStation": "Otwórz tę stację w bazie",
+    "installationForm": "Formularz zgłoszenia (PDF)",
+    "measurementReport": "Sprawozdanie z pomiarów (PDF)",
+    "links": "Linki"
+  },
+  "installations": {
+    "caption": "Zgłoszenia instalacji w SI2PEM",
+    "publishedAt": "Data publikacji",
+    "registeredOn": "Rejestracja: {{date}}",
+    "referenceNo": "Znak sprawy"
   },
   "filters": {
     "controls": "Filtry pomiarów SI2PEM",
@@ -25,7 +37,6 @@
   "states": {
     "loading": "Wczytywanie danych SI2PEM...",
     "errorTitle": "Nie udało się wczytać danych",
-    "errorDescription": "Spróbuj ponownie",
     "emptyTitle": "Brak danych do wyświetlenia",
     "emptyFiltered": "Brak danych pasujących do wybranych filtrów"
   }

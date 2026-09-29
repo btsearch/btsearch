@@ -1,28 +1,36 @@
-import { Image01Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Image01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, lazy, memo, useCallback, useState } from "react";
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getPermitBands, getStationBands } from "../utils";
+import { getPermitBands, getStationBands, isUkeStationExpired } from "../utils";
+import {
+  PopupAddToListButton,
+  PopupCoordinatesFooter,
+  PopupExpiredLabel,
+  PopupIconButton,
+  PopupLocationHeader,
+  PopupOperatorName,
+  PopupRow,
+  PopupShareButton,
+  PopupStationId,
+} from "./popupParts";
 import { TechnologySummary } from "./technologySummary";
 import { useLightbox } from "@/components/lightbox";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { CloseButton } from "@/components/ui/close-button";
+import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLocationPhotos } from "@/features/station-details/api";
-import { CopyButton } from "@/features/station-details/components/copyButton";
-import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { VirtualStationBadge } from "@/features/station-details/components/virtualStationBadge";
-import { usePreferences } from "@/hooks/usePreferences";
-import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
-import { formatCoordinates } from "@/lib/geo/coordinates";
+import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import type { LocationInfo, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
-
-const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 
 type PopupStationListProps = {
   isLoading: boolean;
   isEmpty: boolean;
+  loadFailed: boolean;
   isUkeSource: boolean;
   ukeStations?: UkeStation[] | null;
   stations: StationWithoutCells[] | null;
@@ -34,6 +42,7 @@ type PopupStationListProps = {
 function PopupStationList({
   isLoading,
   isEmpty,
+  loadFailed,
   isUkeSource,
   ukeStations,
   stations,
@@ -42,6 +51,7 @@ function PopupStationList({
   onOpenUkeStationDetails,
 }: PopupStationListProps) {
   const { t } = useTranslation(["main", "stationDetails"]);
+  const actionCount = showAddToList ? 1 : 0;
 
   if (isLoading) {
     return (
@@ -55,159 +65,91 @@ function PopupStationList({
     return <div className="px-3 py-4 text-center text-muted-foreground text-xs">{isUkeSource ? t("popup.noPermits") : t("popup.noStations")}</div>;
   }
   if (isUkeSource && ukeStations) {
-    return ukeStations.map((station) => {
-      const mnc = station.operator?.mnc;
-      const operatorName = station.operator?.name || t("unknownOperator");
-      const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
-      const bands = getPermitBands(station.permits);
-      const permitCount = `${station.permits.length} ${station.permits.length === 1 ? t("stationDetails:permits.permit") : t("stationDetails:permits.permits")}`;
-
-      return (
-        <div key={station.id} className="relative border-b border-border/30 last:border-0">
-          <button
-            type="button"
-            className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
-            onClick={() => onOpenUkeStationDetails(station)}
-            style={{ backgroundImage: getOperatorTintGradient(color) }}
-          >
-            <div className="flex min-w-0 items-center gap-1.5">
-              <StationTitle stationId={station.station_id} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
-            </div>
-            <TechnologySummary bands={bands} detail={permitCount} />
-          </button>
-          {showAddToList ? (
-            <div className="absolute top-2 right-2">
-              <Suspense>
-                <AddToListPopover ukeStationId={station.id} />
-              </Suspense>
-            </div>
-          ) : null}
-        </div>
-      );
-    });
+    return ukeStations.map((station) => (
+      <PopupRow
+        key={station.id}
+        mnc={station.operator?.mnc}
+        onOpen={() => onOpenUkeStationDetails(station)}
+        title={
+          <>
+            <PopupOperatorName name={station.operator?.name || t("unknownOperator")} />
+            <PopupStationId id={station.station_id} />
+            {isUkeStationExpired(station) ? <PopupExpiredLabel /> : null}
+          </>
+        }
+        actionCount={actionCount}
+        actions={showAddToList ? <PopupAddToListButton ukeStationId={station.id} /> : null}
+      >
+        <TechnologySummary
+          bands={getPermitBands(station.permits)}
+          detail={t("stationDetails:permits.permitsCount", { count: station.permits.length })}
+          className="pl-0"
+        />
+      </PopupRow>
+    ));
   }
   if (stations) {
     return stations.map((station) => {
-      const mnc = station.operator?.mnc;
-      const operatorName = station.operator?.name || t("unknownOperator");
-      const stationId = station.station_id;
-      const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
       const hasCells = station.cells !== undefined;
-      const showTechnologySummary = station.status !== "pending";
-      const bands = hasCells && station.cells?.length ? getStationBands(station.cells) : [];
+      const networksId = station.extra_identificators?.networks_id;
       let technologySummary = null;
-      if (showTechnologySummary) technologySummary = hasCells ? <TechnologySummary bands={bands} /> : <TechnologySummarySkeleton />;
+      if (station.status !== "pending" && hasCells)
+        technologySummary = <TechnologySummary bands={station.cells?.length ? getStationBands(station.cells) : []} className="pl-0" />;
+      else if (station.status !== "pending" && !loadFailed) technologySummary = <TechnologySummarySkeleton />;
 
       return (
-        <div key={station.id} className="relative border-b border-border/30 last:border-0">
-          <button
-            type="button"
-            className="w-full cursor-pointer px-3 py-2 text-left transition-colors hover:bg-muted/50"
-            onClick={() => onOpenStationDetails(station.id)}
-            style={{ backgroundImage: getOperatorTintGradient(color) }}
-          >
-            <div className="flex min-w-0 items-center gap-1.5">
-              <StationTitle stationId={stationId} operator={{ name: operatorName, mnc }} stationIdClassName="text-xs text-foreground/70" />
-              {station.extra_identificators?.networks_id && (
-                <span className="text-[11px] text-foreground/70 font-mono">N!{station.extra_identificators.networks_id}</span>
-              )}
+        <PopupRow
+          key={station.id}
+          mnc={station.operator?.mnc}
+          onOpen={() => onOpenStationDetails(station.id)}
+          title={
+            <>
+              <PopupOperatorName name={station.operator?.name || t("unknownOperator")} />
+              <PopupStationId id={station.station_id} />
+              {networksId ? <span className="font-mono text-[11px] text-foreground/70">N!{networksId}</span> : null}
               <VirtualStationBadge station={station} onOpenStation={onOpenStationDetails} compact />
-            </div>
-            {technologySummary}
-          </button>
-          {showAddToList && (
-            <div className="absolute top-2 right-2">
-              <Suspense>
-                <AddToListPopover stationId={station.id} />
-              </Suspense>
-            </div>
-          )}
-        </div>
+              {station.status !== undefined && station.status !== "published" ? (
+                <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} />
+              ) : null}
+            </>
+          }
+          actionCount={actionCount}
+          actions={showAddToList ? <PopupAddToListButton stationId={station.id} /> : null}
+        >
+          {technologySummary}
+        </PopupRow>
       );
     });
   }
   return null;
 }
 
-type PopupContentProps = {
-  location: LocationInfo;
-  stations: StationWithoutCells[] | null;
-  ukeStations?: UkeStation[] | null;
-  source: StationSource;
-  showAddToList?: boolean;
-  onOpenStationDetails: (id: number) => boolean | void;
-  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
-};
-
 function StationSkeleton() {
   return (
-    <div className="px-3 py-2 border-b border-border/30 last:border-0">
-      <div className="flex items-center gap-1.5">
-        <Skeleton className="size-2 rounded-[2px]" />
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-2.5 w-12" />
+    <div className="flex gap-1.5 border-b border-border/30 px-3 py-2 last:border-0">
+      <Skeleton className="size-4 shrink-0 rounded-[3px]" />
+      <div className="min-w-0 flex-1">
+        <div className="flex h-4 items-center gap-1.5">
+          <Skeleton className="h-3 w-14" />
+          <Skeleton className="h-3 w-10" />
+        </div>
+        <TechnologySummarySkeleton />
       </div>
-      <TechnologySummarySkeleton />
     </div>
   );
 }
 
 function TechnologySummarySkeleton() {
   return (
-    <div className="mt-1.5 flex gap-2 pl-3.5">
-      <Skeleton className="h-2.75 w-8 rounded-sm" />
-      <Skeleton className="h-2.75 w-24 rounded-sm" />
+    <div className="mt-1 flex h-4 items-center gap-2">
+      <Skeleton className="h-2.5 w-8 rounded-sm" />
+      <Skeleton className="h-2.5 w-24 rounded-sm" />
     </div>
   );
 }
 
-function PopupShareButton({ location, source }: { location: LocationInfo; source: StationSource }) {
-  const [copied, setCopied] = useState(false);
-
-  const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${source === "uke" ? "~fu" : "~f"}`;
-
-  const handleShare = useCallback(() => {
-    if (navigator.share) {
-      void navigator
-        .share({
-          title: `${location.city}${location.address ? ` - ${location.address}` : ""}`,
-          url: shareUrl,
-        })
-        .then(() => {})
-        .catch((error: unknown) => {
-          if ((error as Error).name === "AbortError") return;
-        });
-      return;
-    }
-
-    void navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch((error) => {
-        console.error("Failed to copy:", error);
-      });
-  }, [location, shareUrl]);
-
-  return (
-    <button
-      type="button"
-      onClick={handleShare}
-      className="p-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0"
-      aria-label="Share location"
-    >
-      {copied ? (
-        <HugeiconsIcon icon={Tick02Icon} className="size-3 text-emerald-500" />
-      ) : (
-        <HugeiconsIcon icon={Share08Icon} className="size-3 text-muted-foreground" />
-      )}
-    </button>
-  );
-}
-
 function PopupPhotosButton({ locationId }: { locationId: number }) {
+  const { t } = useTranslation("main");
   const lightbox = useLightbox();
 
   const { data: photos = [] } = useQuery({
@@ -220,19 +162,28 @@ function PopupPhotosButton({ locationId }: { locationId: number }) {
 
   return (
     <>
-      <button
-        type="button"
-        {...lightbox.getTriggerProps(0)}
-        className="flex items-center gap-0.5 p-0.5 hover:bg-muted rounded transition-colors cursor-pointer shrink-0"
-        aria-label={`View ${photos.length} photos`}
-      >
-        <HugeiconsIcon icon={Image01Icon} className="size-3 text-muted-foreground" />
-        <span className="text-[10px] text-muted-foreground tabular-nums">{photos.length}</span>
-      </button>
+      <PopupIconButton label={t("photos.stationPhotoCount", { count: photos.length })} size="xs" className="px-1.5" {...lightbox.getTriggerProps(0)}>
+        <HugeiconsIcon icon={Image01Icon} />
+        <span className="tabular-nums">{photos.length}</span>
+      </PopupIconButton>
       <PhotoLightbox photos={photos} {...lightbox.lightboxProps} />
     </>
   );
 }
+
+type PopupContentProps = {
+  location: LocationInfo;
+  stations: StationWithoutCells[] | null;
+  ukeStations?: UkeStation[] | null;
+  source: StationSource;
+  showAddToList?: boolean;
+  loadFailed?: boolean;
+  isRetrying?: boolean;
+  onRetry?: () => void;
+  onClose: () => void;
+  onOpenStationDetails: (id: number) => boolean | void;
+  onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
+};
 
 export const PopupContent = memo(function PopupContent({
   location,
@@ -240,30 +191,44 @@ export const PopupContent = memo(function PopupContent({
   ukeStations,
   source,
   showAddToList = false,
+  loadFailed = false,
+  isRetrying = false,
+  onRetry,
+  onClose,
   onOpenStationDetails,
   onOpenUkeStationDetails,
 }: PopupContentProps) {
-  const { preferences } = usePreferences();
+  const { t } = useTranslation("main");
 
   const isUkeSource = source === "uke";
   const items = isUkeSource ? ukeStations : stations;
   const isLoading = !items;
   const isEmpty = !isLoading && items.length === 0;
+  const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isUkeSource ? "~fu" : "~f"}`;
+  const city = location.city || t("popup.unknownLocation");
+  const shareTitle = location.address ? `${city} - ${location.address}` : city;
 
   return (
     <div className="w-72 text-sm">
-      <div className="px-3 py-2 border-b border-border/50">
-        <h3 className="font-medium text-sm leading-tight pr-4">
-          {location.city}
-          {location.region && <span className="font-normal text-[11px] text-muted-foreground ml-1">· {location.region}</span>}
-        </h3>
-        {location.address && <p className="text-[11px] text-muted-foreground">{location.address}</p>}
-      </div>
+      <PopupLocationHeader
+        city={location.city}
+        region={location.region}
+        address={location.address}
+        actions={
+          <>
+            {isUkeSource ? null : <PopupPhotosButton locationId={location.id} />}
+            <PopupShareButton url={shareUrl} title={shareTitle} label={t("popup.shareLocation")} />
+            <CloseButton size="xs" onClick={onClose} />
+          </>
+        }
+      />
 
       <div className="max-h-72 overflow-y-auto custom-scrollbar">
+        {loadFailed ? <InlineError size="sm" title={t("popup.loadError")} onRetry={onRetry} isRetrying={isRetrying} className="m-1" /> : null}
         <PopupStationList
-          isLoading={isLoading}
+          isLoading={isLoading && !loadFailed}
           isEmpty={isEmpty}
+          loadFailed={loadFailed}
           isUkeSource={isUkeSource}
           ukeStations={ukeStations}
           stations={stations}
@@ -273,18 +238,7 @@ export const PopupContent = memo(function PopupContent({
         />
       </div>
 
-      <div className="group/copy flex h-7 items-center justify-between gap-2 border-t border-border/50 px-3">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-            GPS: {formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}
-          </span>
-          <CopyButton text={`${location.latitude}, ${location.longitude}`} compact />
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {!isUkeSource && <PopupPhotosButton locationId={location.id} />}
-          <PopupShareButton location={location} source={source} />
-        </div>
-      </div>
+      <PopupCoordinatesFooter latitude={location.latitude} longitude={location.longitude} />
     </div>
   );
 });

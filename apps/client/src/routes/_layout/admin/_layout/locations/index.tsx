@@ -36,9 +36,14 @@ function AdminLocationsPage() {
     setSort,
     setSortBy,
     isLoading,
+    isFetching,
     isFetchingNextPage,
     isError,
+    isRefetchError,
+    isRefetching,
+    isFetchNextPageError,
     refetch,
+    fetchNextPage,
     hasMore,
     loadMore,
   } = useLocationsData();
@@ -87,7 +92,12 @@ function AdminLocationsPage() {
             isLoading={isLoading}
             isFetchingMore={isFetchingNextPage}
             isError={isError}
+            isRefetchError={isRefetchError}
+            isLoadMoreError={isFetchNextPageError}
             onRetry={refetch}
+            onRetryLoadMore={fetchNextPage}
+            isRetrying={isFetching}
+            isRefetching={isRefetching}
             onRowClick={handleRowClick}
             getRowHref={getRowHref}
             onLoadMore={loadMore}

@@ -60,7 +60,8 @@ export type ErrorCode =
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST"
   | "PHOTO_TOO_SMALL"
-  | "PHOTO_TOO_BLURRY";
+  | "PHOTO_TOO_BLURRY"
+  | "LIST_LIMIT_REACHED";
 
 interface ErrorDefinition {
   message: string;
@@ -154,6 +155,10 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
   },
   PHOTO_TOO_BLURRY: {
     message: "Photo is too blurry. Please use a clearer image.",
+    statusCode: 400,
+  },
+  LIST_LIMIT_REACHED: {
+    message: "You have reached the maximum number of lists.",
     statusCode: 400,
   },
 };

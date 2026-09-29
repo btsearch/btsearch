@@ -29,6 +29,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { InlineError } from "@/components/ui/error-state";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,7 +49,6 @@ import { useTablePagination } from "@/hooks/useTablePageSize";
 import { ANALYZER_MAX_CELLS, isAnalyzerImportError } from "@/lib/analyzer/analyzerImport";
 import { type FileFormat, type ParsedRow, getAnalyzerFormatLabel } from "@/lib/analyzer/analyzerParsers";
 import { type AnalyzerMatchedCell, type AnalyzerResult, analyzeCells } from "@/lib/analyzer/api";
-import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getBandFromEARFCN, getBandFromUARFCN, getBandMhz } from "@/lib/cellular/bands";
 import { formatDuration, formatFileSize } from "@/lib/format";
@@ -729,7 +729,6 @@ function AnalyzerPage() {
   const analyzeStartRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
-  const [hasAnalysisError, setHasAnalysisError] = useState(false);
   const { importProgress, importFile, cancelImport } = useAnalyzerFileImport();
   const [skippedObservations, setSkippedObservations] = useState(0);
   const isImporting = importProgress !== null;
@@ -749,10 +748,39 @@ function AnalyzerPage() {
 
   const resetPage = useCallback(() => setPagination((p) => ({ ...p, pageIndex: 0 })), [setPagination]);
 
+  const mutationFn = useCallback(async () => {
+    const cells = parsedRows!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
+    return analyzeCells(cells);
+  }, [parsedRows]);
+
+  const onAnalyzeSuccess = useCallback(
+    (data: AnalyzerResult[]) => {
+      if (analyzeStartRef.current) setFinalDuration(Date.now() - analyzeStartRef.current);
+      dispatch({ type: "SET_RESULTS", payload: data });
+      resetPage();
+    },
+    [resetPage],
+  );
+
+  const {
+    mutate: handleAnalyze,
+    isPending: isLoading,
+    isError: hasAnalysisError,
+    reset: resetAnalysis,
+  } = useMutation({
+    mutationFn,
+    onMutate: () => {
+      analyzeStartRef.current = Date.now();
+      setElapsed(0);
+      setFinalDuration(null);
+    },
+    onSuccess: onAnalyzeSuccess,
+  });
+
   const handleFile = useCallback(
     async (file: File) => {
       setSkippedObservations(0);
-      setHasAnalysisError(false);
+      resetAnalysis();
       setFinalDuration(null);
       dispatch({ type: "SET_FILE", payload: { name: file.name, size: file.size } });
 
@@ -774,38 +802,8 @@ function AnalyzerPage() {
         );
       }
     },
-    [importFile, resetPage, t],
+    [importFile, resetAnalysis, resetPage, t],
   );
-
-  const mutationFn = useCallback(async () => {
-    const cells = parsedRows!.map(({ description: _d, rawLine: _r, ...cell }) => cell);
-    return analyzeCells(cells);
-  }, [parsedRows]);
-
-  const onAnalyzeSuccess = useCallback(
-    (data: AnalyzerResult[]) => {
-      if (analyzeStartRef.current) setFinalDuration(Date.now() - analyzeStartRef.current);
-      setHasAnalysisError(false);
-      dispatch({ type: "SET_RESULTS", payload: data });
-      resetPage();
-    },
-    [resetPage],
-  );
-
-  const { mutate: handleAnalyze, isPending: isLoading } = useMutation({
-    mutationFn,
-    onMutate: () => {
-      analyzeStartRef.current = Date.now();
-      setElapsed(0);
-      setFinalDuration(null);
-      setHasAnalysisError(false);
-    },
-    onSuccess: onAnalyzeSuccess,
-    onError: (error) => {
-      setHasAnalysisError(true);
-      showApiError(error);
-    },
-  });
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -1494,16 +1492,12 @@ function AnalyzerPage() {
           )}
 
           {hasAnalysisError ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2" role="alert">
-              <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0 text-destructive" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{t("errors.analysisFailed")}</p>
-                <p className="text-xs text-muted-foreground">{t("errors.analysisFailedHint")}</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => handleAnalyze()} disabled={isLoading}>
-                {t("common:actions.retry")}
-              </Button>
-            </div>
+            <InlineError
+              title={t("errors.analysisFailed")}
+              description={t("errors.analysisFailedHint")}
+              onRetry={() => handleAnalyze()}
+              isRetrying={isLoading}
+            />
           ) : null}
 
           <p className="sr-only" role="status" aria-live="polite">

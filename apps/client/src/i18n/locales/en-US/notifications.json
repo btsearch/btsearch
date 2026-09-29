@@ -20,5 +20,7 @@
   "permissionDenied": "Notification permission denied",
   "pushEnabled": "Push notifications enabled",
   "pushFailed": "Failed to enable notifications",
-  "pushDisableFailed": "Failed to disable notifications"
+  "pushDisableFailed": "Failed to disable notifications",
+  "pushUnsupported": "This browser doesn't support push notifications",
+  "pushNotConfigured": "Push notifications aren't configured in this version of the app"
 }

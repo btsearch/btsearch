@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { InternalPermitRow, StatsOperator, StatsPermitRow } from "../api";
 import { operatorDataKey, operatorSeries } from "../lib/series";
-import { StatChartCard } from "./statChartCard";
+import { type ChartErrorProps, StatChartCard } from "./statChartCard";
 
 function useBarData(rows: { operator: StatsOperator; band: { name: string } }[] | undefined, valueKey: string) {
   return useMemo(() => {
@@ -20,14 +20,27 @@ function useBarData(rows: { operator: StatsOperator; band: { name: string } }[] 
   }, [rows, valueKey]);
 }
 
-export function UkeBandBarChart({ data, isLoading }: { data?: StatsPermitRow[]; isLoading: boolean }) {
+type BandBarChartProps<T> = { data?: T[]; isLoading: boolean } & ChartErrorProps;
+
+export function UkeBandBarChart({ data, isLoading, ...errorProps }: BandBarChartProps<StatsPermitRow>) {
   const { t } = useTranslation("statistics");
   const { data: chartData, series } = useBarData(data, "unique_stations");
 
-  return <StatChartCard title={t("charts.byBand")} data={chartData} series={series} dataXKey="band" stacked height="h-96" isLoading={isLoading} />;
+  return (
+    <StatChartCard
+      title={t("charts.byBand")}
+      data={chartData}
+      series={series}
+      dataXKey="band"
+      stacked
+      height="h-96"
+      isLoading={isLoading}
+      {...errorProps}
+    />
+  );
 }
 
-export function InternalBandStationsBarChart({ data, isLoading }: { data?: InternalPermitRow[]; isLoading: boolean }) {
+export function InternalBandStationsBarChart({ data, isLoading, ...errorProps }: BandBarChartProps<InternalPermitRow>) {
   const { t } = useTranslation("statistics");
   const { data: chartData, series } = useBarData(data, "stations");
 
@@ -40,6 +53,7 @@ export function InternalBandStationsBarChart({ data, isLoading }: { data?: Inter
       stacked
       height="h-96"
       isLoading={isLoading}
+      {...errorProps}
     />
   );
 }

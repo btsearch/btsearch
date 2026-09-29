@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { type StationPhoto, fetchStationPhotos, setStationPhotoSelection } from "../api";
 import { useLightbox } from "@/components/lightbox";
@@ -10,7 +11,9 @@ import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoWithFallback, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isGloballyHandledError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Props = { stationId: number; isAdmin: boolean };
@@ -47,7 +50,13 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
   const lightbox = useLightbox();
   const [sortOrder, setSortOrder] = useState<PhotoSortOrder>("desc");
 
-  const { data: photos, isLoading } = useQuery({
+  const {
+    data: photos,
+    isLoading,
+    isFetching,
+    isLoadingError,
+    refetch,
+  } = useQuery({
     queryKey: ["station-photos", stationId],
     queryFn: () => fetchStationPhotos(stationId),
     staleTime: 1000 * 60 * 5,
@@ -74,6 +83,10 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
         photoId,
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
+    onError: (error) => {
+      if (isGloballyHandledError(error)) return;
+      toast.error(t("submissions:photos.setMainFailed"));
+    },
   });
 
   if (isLoading) {
@@ -85,6 +98,8 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
       </div>
     );
   }
+
+  if (isLoadingError) return <ErrorState className="min-h-0 py-8" title={t("photos.loadError")} onRetry={() => refetch()} isRetrying={isFetching} />;
 
   if (!photos || photos.length === 0) {
     return (

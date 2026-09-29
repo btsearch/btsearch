@@ -37,6 +37,7 @@
     "saving": "Zapisywanie...",
     "saved": "Zapisano",
     "confirm": "Zatwierdź",
+    "approve": "Zatwierdź",
     "revert": "Cofnij zmiany",
     "share": "Udostępnij",
     "view": "Zobacz",
@@ -198,12 +199,40 @@
     "edit": "Edytuj istniejącą stację"
   },
   "error": {
-    "title": "Coś poszło nie tak",
-    "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie lub odśwież stronę",
-    "staleData": "Nie udało się odświeżyć listy. Wyświetlamy wcześniej wczytane dane",
-    "tryAgain": "Spróbuj ponownie",
+    "loadTitle": "Nie udało się wczytać danych",
+    "loadDescription": "Sprawdź połączenie i spróbuj ponownie",
+    "refreshFailed": "Nie udało się odświeżyć danych",
+    "actionFailed": "Nie udało się wykonać operacji",
+    "serverUnreachable": "Nie udało się połączyć z serwerem",
+    "tryLater": "Spróbuj ponownie za chwilę",
+    "rateLimited": "Zbyt wiele zapytań",
+    "quotaExceeded": "Wykorzystano tygodniowy limit zapytań",
+    "details": "Szczegóły techniczne",
+    "notFoundTitle": "Nie znaleziono strony",
+    "goHome": "Przejdź do mapy",
     "reload": "Odśwież stronę",
     "toast": "Coś poszło nie tak. Spróbuj ponownie"
+  },
+  "errorPage": {
+    "browseStations": "Przeglądaj stacje",
+    "notFound": {
+      "title": "Brak zasięgu",
+      "description": "Pod tym adresem nie ma żadnej strony. Mogła zostać przeniesiona albo w linku jest literówka"
+    },
+    "crash": {
+      "title": "Połączenie zerwane",
+      "description": "Ta strona napotkała nieoczekiwany błąd. Połącz się ponownie, a jeśli problem wróci, odśwież stronę",
+      "retry": "Połącz ponownie"
+    },
+    "forbidden": {
+      "title": "Komórka zablokowana",
+      "description": "Ta część serwisu jest dostępna tylko dla uprawnionych kont. Jeśli to pomyłka, sprawdź, czy korzystasz z właściwego konta"
+    },
+    "signInRequired": {
+      "title": "Zaloguj się, aby kontynuować",
+      "description": "Ta część serwisu jest dostępna tylko dla zalogowanych użytkowników",
+      "signIn": "Zaloguj się"
+    }
   },
   "toast": {
     "closeStationDialogFirst": "Zamknij najpierw jedno okno, aby otworzyć kolejne"
@@ -227,9 +256,5 @@
     "learnMore": "Dowiedz się więcej",
     "accept": "Akceptuję",
     "decline": "Odrzucam"
-  },
-  "forbidden": {
-    "title": "Brak dostępu",
-    "description": "Nie masz uprawnień do wyświetlenia tej strony"
   }
 }

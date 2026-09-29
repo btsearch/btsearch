@@ -1,8 +1,8 @@
-import { Alert02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, ArrowLeft01Icon, SearchRemoveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { nanoid } from "nanoid";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DiffBadges } from "@/features/admin/cells/cellsEditor";
 import { CellsEditor } from "@/features/admin/cells/cellsEditor";
@@ -34,7 +35,7 @@ import { ukePermitsToCells } from "@/features/submissions/utils/cells";
 import { toSectorDrafts } from "@/features/submissions/utils/proposalChanges";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useSettings } from "@/hooks/useSettings";
-import { showApiError } from "@/lib/api";
+import { ApiResponseError, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { isRecent } from "@/lib/dateUtils";
 import { shallowEqual } from "@/lib/shallowEqual";
@@ -87,18 +88,24 @@ function sectorsMatchDrafts(drafts: SectorDraft[], station: Station | undefined)
 function AdminStationDetailPage() {
   const { id } = Route.useParams();
   const { uke } = Route.useSearch();
-  const navigate = useNavigate();
 
   const isCreateMode = id === "new";
 
-  const { data: station, isLoading } = useQuery({
+  const {
+    data: station,
+    error,
+    isLoading,
+    isPaused,
+    isFetching,
+    refetch,
+  } = useQuery({
     ...adminStationQueryOptions(id),
     enabled: !!id && !isCreateMode,
   });
 
   const { t } = useTranslation("admin");
 
-  if (!isCreateMode && isLoading) {
+  if (!isCreateMode && (isLoading || (isPaused && !station))) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background">
@@ -129,15 +136,30 @@ function AdminStationDetailPage() {
   }
 
   if (!isCreateMode && !station) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">{t("common:error.description")}</p>
-          <Button variant="outline" onClick={() => navigate({ to: "/admin/stations" })}>
-            {t("common:actions.back")}
-          </Button>
-        </div>
-      </div>
+    const isNotFound = !error || (error instanceof ApiResponseError && error.status === 404);
+    const backButton = (
+      <Button variant={isNotFound ? "default" : "outline"} nativeButton={false} render={<Link to="/admin/stations" />}>
+        <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+        {t("common:actions.back")}
+      </Button>
+    );
+
+    return isNotFound ? (
+      <PageErrorState
+        tone="neutral"
+        icon={SearchRemoveIcon}
+        title={t("stationDetails:page.stationNotFoundTitle")}
+        description={t("stationDetails:page.stationNotFoundDescription")}
+        action={backButton}
+      />
+    ) : (
+      <PageErrorState
+        title={t("stationDetails:page.stationUnavailableTitle")}
+        description={t("stationDetails:page.stationUnavailableDescription")}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+        action={backButton}
+      />
     );
   }
 

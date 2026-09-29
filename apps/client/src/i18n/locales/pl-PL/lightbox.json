@@ -23,7 +23,6 @@
   "goToPhoto": "Przejdź do zdjęcia {{number}}",
   "resolution": "Rozdzielczość",
   "loadFailed": "Nie udało się wczytać zdjęcia",
-  "retry": "Spróbuj ponownie",
   "shortcut": {
     "navigate": "Poprzednie lub następne zdjęcie",
     "firstLast": "Pierwsze lub ostatnie zdjęcie",

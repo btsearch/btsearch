@@ -95,7 +95,10 @@
     "deleteSuccess": "Aplikacja usunięta",
     "errors": {
       "createFailed": "Nie udało się zarejestrować aplikacji",
-      "invalidRedirect": "Podaj co najmniej jeden prawidłowy adres https:// przekierowania"
+      "invalidRedirect": "Podaj co najmniej jeden prawidłowy adres https:// przekierowania",
+      "loadFailed": "Nie udało się wczytać Twoich aplikacji",
+      "rotateFailed": "Nie udało się zmienić sekretu klienta",
+      "deleteFailed": "Nie udało się usunąć aplikacji"
     }
   },
   "authorized": {
@@ -103,6 +106,7 @@
     "description": "Aplikacje zewnętrzne, którym przyznano dostęp do Twojego konta",
     "none": "Brak autoryzowanych aplikacji",
     "noneDescription": "Tutaj pojawią się aplikacje, którym przyznasz dostęp do swojego konta",
+    "loadFailed": "Nie udało się wczytać autoryzowanych aplikacji",
     "grantedOn": "Autoryzowano {{date}}",
     "permissionCount_one": "{{count}} uprawnienie",
     "permissionCount_few": "{{count}} uprawnienia",

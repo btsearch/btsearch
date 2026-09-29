@@ -1,4 +1,4 @@
-import { Add01Icon, AlertCircleIcon, ArrowDown01Icon, Copy01Icon, Download04Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowDown01Icon, Copy01Icon, Download04Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   type CLFDescriptionTemplatePlaceholder,
@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -39,6 +38,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { InlineError } from "@/components/ui/error-state";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
@@ -153,7 +153,7 @@ type DataSourceNoticeProps = {
 };
 
 function DataSourceNotice({ isError, isFetching, isLoading, label, onRetry }: DataSourceNoticeProps) {
-  const { t } = useTranslation(["clfExport", "common"]);
+  const { t } = useTranslation("clfExport");
 
   if (isLoading)
     return (
@@ -166,15 +166,12 @@ function DataSourceNotice({ isError, isFetching, isLoading, label, onRetry }: Da
   if (!isError) return null;
 
   return (
-    <Alert variant="destructive" className="pr-20">
-      <HugeiconsIcon icon={AlertCircleIcon} className="size-4" aria-hidden="true" />
-      <AlertDescription>{t("dataSources.error", { source: label })}</AlertDescription>
-      <AlertAction>
-        <Button type="button" variant="ghost" size="xs" disabled={isFetching} onClick={onRetry}>
-          {isFetching ? t("common:actions.loading") : t("common:actions.retry")}
-        </Button>
-      </AlertAction>
-    </Alert>
+    <InlineError
+      title={t("dataSources.errorTitle", { source: label })}
+      description={t("dataSources.errorDescription")}
+      onRetry={onRetry}
+      isRetrying={isFetching}
+    />
   );
 }
 
@@ -266,7 +263,7 @@ function ClfExportPage() {
 
   const {
     data: operators = [],
-    isError: isOperatorsError,
+    isLoadingError: isOperatorsLoadError,
     isFetching: isOperatorsFetching,
     isLoading: isOperatorsLoading,
     refetch: refetchOperators,
@@ -278,7 +275,7 @@ function ClfExportPage() {
 
   const {
     data: regions = [],
-    isError: isRegionsError,
+    isLoadingError: isRegionsLoadError,
     isFetching: isRegionsFetching,
     isLoading: isRegionsLoading,
     refetch: refetchRegions,
@@ -290,7 +287,7 @@ function ClfExportPage() {
 
   const {
     data: bands = [],
-    isError: isBandsError,
+    isLoadingError: isBandsLoadError,
     isFetching: isBandsFetching,
     isLoading: isBandsLoading,
     refetch: refetchBands,
@@ -429,9 +426,9 @@ function ClfExportPage() {
     }
   }
 
-  const operatorsUnavailable = isOperatorsLoading || (isOperatorsError && operators.length === 0);
-  const regionsUnavailable = isRegionsLoading || (isRegionsError && regions.length === 0);
-  const bandsUnavailable = isBandsLoading || (isBandsError && bands.length === 0);
+  const operatorsUnavailable = isOperatorsLoading || isOperatorsLoadError;
+  const regionsUnavailable = isRegionsLoading || isRegionsLoadError;
+  const bandsUnavailable = isBandsLoading || isBandsLoadError;
   const editedTemplateCount = CLF_DESCRIPTION_TEMPLATE_RATS.filter((rat) => (templateDrafts[rat] ?? "").length > 0).length;
   let templateSaveLabel = t("templates.autoSave");
   if (templateSaveState === "saving") templateSaveLabel = t("templates.saving");
@@ -519,7 +516,7 @@ function ClfExportPage() {
                     {t("form.operatorsHint")}
                   </p>
                   <DataSourceNotice
-                    isError={isOperatorsError}
+                    isError={isOperatorsLoadError}
                     isFetching={isOperatorsFetching}
                     isLoading={isOperatorsLoading}
                     label={t("dataSources.operators")}
@@ -561,7 +558,7 @@ function ClfExportPage() {
                   </form.Field>
                 </fieldset>
                 <DataSourceNotice
-                  isError={isRegionsError}
+                  isError={isRegionsLoadError}
                   isFetching={isRegionsFetching}
                   isLoading={isRegionsLoading}
                   label={t("dataSources.regions")}
@@ -634,7 +631,7 @@ function ClfExportPage() {
                   </form.Field>
                 </fieldset>
                 <DataSourceNotice
-                  isError={isBandsError}
+                  isError={isBandsLoadError}
                   isFetching={isBandsFetching}
                   isLoading={isBandsLoading}
                   label={t("dataSources.bands")}

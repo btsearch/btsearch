@@ -1,13 +1,14 @@
-import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, Delete02Icon, SearchRemoveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { nanoid } from "nanoid";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { CellsEditor } from "@/features/admin/cells/cellsEditor";
@@ -43,7 +44,7 @@ import {
   toStationValues,
 } from "@/features/submissions/utils/proposalChanges";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
-import { fetchApiData, showApiError } from "@/lib/api";
+import { ApiResponseError, fetchApiData, showApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Band, Cell, Sector, SectorDraft, Station, UplinkType } from "@/types/station";
 
@@ -185,18 +186,40 @@ function getChangedDetailKeys(oldDetails: Record<string, unknown>, newDetails: R
   return changedKeys;
 }
 
+function BackToSubmissionsButton({ variant }: { variant: "default" | "outline" }) {
+  const { t } = useTranslation("common");
+
+  return (
+    <Button variant={variant} nativeButton={false} render={<Link to="/admin/submissions" search={{ page: 0, q: undefined }} />}>
+      <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+      {t("actions.back")}
+    </Button>
+  );
+}
+
 function SubmissionDetailPage() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const { t } = useTranslation("submissions");
 
-  const { data: submission, isLoading } = useQuery({
+  const {
+    data: submission,
+    error,
+    isLoading,
+    isPaused,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "submission", id],
     queryFn: () => fetchApiData<SubmissionDetail>(`submissions/${id}`),
     enabled: !!id,
   });
 
-  const { data: currentStation } = useQuery({
+  const {
+    data: currentStation,
+    isError: isCurrentStationError,
+    isFetching: isFetchingCurrentStation,
+    refetch: refetchCurrentStation,
+  } = useQuery({
     queryKey: ["station", submission?.station?.id],
     queryFn: () => fetchApiData<Station>(`stations/${submission?.station?.id}`),
     enabled: !!submission?.station?.id && (submission?.type === "update" || submission?.type === "delete"),
@@ -206,7 +229,7 @@ function SubmissionDetailPage() {
   const needsCurrentStation = submission && (submission.type === "update" || submission.type === "delete") && submission.station?.id;
   const isReady = submission && (!needsCurrentStation || currentStation);
 
-  if (isLoading || (submission && !isReady)) {
+  if (isLoading || (isPaused && !submission) || (submission && !isReady && !isCurrentStationError)) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background">
@@ -241,15 +264,30 @@ function SubmissionDetailPage() {
   }
 
   if (!submission) {
+    const isNotFound = !error || (error instanceof ApiResponseError && error.status === 404);
+
+    return isNotFound ? (
+      <PageErrorState
+        tone="neutral"
+        icon={SearchRemoveIcon}
+        title={t("detail.notFoundTitle")}
+        description={t("detail.notFoundDescription")}
+        action={<BackToSubmissionsButton variant="default" />}
+      />
+    ) : (
+      <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} action={<BackToSubmissionsButton variant="outline" />} />
+    );
+  }
+
+  if (!isReady) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">{t("common:error.description")}</p>
-          <Button variant="outline" onClick={() => navigate({ to: "/admin/submissions", search: { page: 0, q: undefined } })}>
-            {t("common:actions.back")}
-          </Button>
-        </div>
-      </div>
+      <PageErrorState
+        title={t("stationDetails:page.stationUnavailableTitle")}
+        description={t("stationDetails:page.stationUnavailableDescription")}
+        onRetry={() => refetchCurrentStation()}
+        isRetrying={isFetchingCurrentStation}
+        action={<BackToSubmissionsButton variant="outline" />}
+      />
     );
   }
 

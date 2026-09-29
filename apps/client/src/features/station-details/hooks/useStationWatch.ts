@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchStationWatch, unwatchStation, watchStation } from "../api";
+import { showApiError } from "@/lib/api";
 
 const stationWatchKey = (source: "internal" | "uke", stationId: number) => ["station-watch", source, stationId] as const;
 
@@ -20,13 +21,14 @@ export function useStationWatch(stationId: number, source: "internal" | "uke" = 
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<boolean>(queryKey);
       queryClient.setQueryData(queryKey, watched);
-      return { previous };
+      return { previous, queryKey };
     },
-    onError: (_error, _watched, context) => {
-      if (context?.previous !== undefined) queryClient.setQueryData(queryKey, context.previous);
+    onError: (error, watched, context) => {
+      queryClient.setQueryData(context?.queryKey ?? queryKey, context?.previous ?? !watched);
+      showApiError(error);
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey });
+    onSettled: (_data, _error, _watched, context) => {
+      void queryClient.invalidateQueries({ queryKey: context?.queryKey ?? queryKey });
     },
   });
 

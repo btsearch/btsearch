@@ -1,9 +1,11 @@
 import { isTwoFactorRedirect } from "@better-auth-ui/core/plugins/two-factor";
 import { useAuth, useSession, useSignInEmail } from "@better-auth-ui/react";
 import { type FormEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InlineError } from "@/components/ui/error-state";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useSignInContinuation } from "@/lib/auth/useSignInContinuation";
@@ -13,11 +15,13 @@ export interface FreshSessionPromptProps {
 }
 
 export function FreshSessionPrompt({ onFresh }: FreshSessionPromptProps) {
+  const { t } = useTranslation("auth");
   const auth = useAuth();
   const session = useSession(auth.authClient);
   const continueSignIn = useSignInContinuation();
   const [password, setPassword] = useState("");
   const signIn = useSignInEmail(auth.authClient, {
+    meta: { inlineError: true },
     onError: () => setPassword(""),
     onSuccess: async (data) => {
       if (isTwoFactorRedirect(data)) {
@@ -56,7 +60,9 @@ export function FreshSessionPrompt({ onFresh }: FreshSessionPromptProps) {
                 type="password"
                 required
               />
-              {signIn.error && <FieldError>{signIn.error.error?.message ?? signIn.error.message}</FieldError>}
+              {signIn.error ? (
+                <InlineError title={t("freshSession.failed")} description={signIn.error.error?.message ?? t("unexpectedError")} />
+              ) : null}
             </Field>
             <Button disabled={!password || signIn.isPending} type="submit">
               {signIn.isPending && <Spinner />}

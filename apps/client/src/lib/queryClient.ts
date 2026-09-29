@@ -1,10 +1,13 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import i18next from "i18next";
 import { toast } from "sonner";
 
 import { ApiResponseError, BackendUnavailableError, QuotaExceededError, RateLimitError, TwoFactorRequiredError } from "./api";
 
 function onRateLimitError(error: Error): void {
-  if (error instanceof RateLimitError || error instanceof QuotaExceededError) toast.error(error.message);
+  if (error instanceof RateLimitError)
+    toast.error(i18next.t("common:error.rateLimited"), { id: "rate-limited", description: i18next.t("common:error.tryLater") });
+  else if (error instanceof QuotaExceededError) toast.error(i18next.t("common:error.quotaExceeded"), { id: "quota-exceeded" });
 }
 
 export const queryClient = new QueryClient({

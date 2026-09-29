@@ -1,4 +1,4 @@
-import { deletedEntries, ukePermits, ukeStations } from "@openbts/drizzle";
+import { deletedEntries, operators, ukePermits, ukeStations } from "@openbts/drizzle";
 import { and, eq, inArray, lt } from "drizzle-orm/sql/expressions/conditions";
 /* eslint-disable no-await-in-loop */
 import { unlinkSync } from "node:fs";
@@ -108,22 +108,23 @@ export async function importDeviceRegistry(): Promise<boolean> {
   let staleCount = 0;
   for (const { operatorId, fileDate } of downloadedFiles) {
     const staleRows = await db
-      .select({ permit: ukePermits })
+      .select({ permit: ukePermits, station_id: ukeStations.station_id, operator: { name: operators.name, mnc: operators.mnc } })
       .from(ukePermits)
       .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
+      .leftJoin(operators, eq(ukeStations.operator_id, operators.id))
       .where(and(eq(ukePermits.source, "device_registry"), eq(ukeStations.operator_id, operatorId), lt(ukePermits.updatedAt, fileDate)));
     const stale = staleRows.map((row) => row.permit);
 
     if (stale.length > 0) {
       const affectedStationIds = stale.map((row) => row.uke_station_id);
       const internalStationIdByPermit = await loadInternalStationIdByPermit(stale.map((row) => row.id));
-      for (const group of chunk(stale, BATCH_SIZE)) {
+      for (const group of chunk(staleRows, BATCH_SIZE)) {
         await db.insert(deletedEntries).values(
-          group.map((row) => ({
+          group.map(({ permit, station_id, operator }) => ({
             source_table: "uke_permits",
-            source_id: row.id,
+            source_id: permit.id,
             source_type: "device_registry",
-            data: { ...row, internal_station_id: internalStationIdByPermit.get(row.id) ?? null },
+            data: { ...permit, station_id, operator, internal_station_id: internalStationIdByPermit.get(permit.id) ?? null },
             import_id: importMetadataId,
           })),
         );

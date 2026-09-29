@@ -1,5 +1,5 @@
 import { deletedEntries } from "@openbts/drizzle";
-import { type SQL, and, count, eq, gte, lte, sql } from "drizzle-orm";
+import { type SQL, and, asc, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -17,6 +17,7 @@ const schemaRoute = {
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(50),
     search: z.string().optional(),
+    sort: z.enum(["asc", "desc"]).default("desc"),
   }),
   response: {
     200: z.object({
@@ -56,8 +57,9 @@ interface Response {
 }
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<Response>>) {
-  const { source_table, source_type, from, to, page, limit, search } = req.query;
+  const { source_table, source_type, from, to, page, limit, search, sort } = req.query;
   const offset = (page - 1) * limit;
+  const direction = sort === "asc" ? asc : desc;
 
   try {
     const conditions: (SQL<unknown> | undefined)[] = [];
@@ -82,7 +84,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         .select()
         .from(deletedEntries)
         .where(where)
-        .orderBy(sql`${deletedEntries.deleted_at} DESC`)
+        .orderBy(direction(deletedEntries.deleted_at), direction(deletedEntries.id))
         .limit(limit)
         .offset(offset),
       db.select({ value: count() }).from(deletedEntries).where(where),

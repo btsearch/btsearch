@@ -1,6 +1,6 @@
 import { Calendar03Icon, Cancel01Icon, FilterIcon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, skipToken, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,14 +10,19 @@ import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT } from "@/components/ui/data-table";
+import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { ClearFiltersButton, MobileFilterRailInline } from "@/features/shared/filterPanel";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
-import { type PlannedStatus, fetchPlannedMeasurements } from "@/features/si2pem/api";
+import { type PlannedStatus, fetchPEMInstallations, fetchPlannedMeasurements } from "@/features/si2pem/api";
+import { InstallationsDataTable } from "@/features/si2pem/components/installationsDataTable";
 import { MeasurementsDataTable } from "@/features/si2pem/components/measurementsDataTable";
+import { PEM_MOBILE_ROW_HEIGHT } from "@/features/si2pem/components/pemDataTable";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -27,12 +32,13 @@ import { buildStaticPageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import type { Operator, Region } from "@/types/station";
 
-const MOBILE_MEASUREMENT_ROW_HEIGHT = 113;
+type PEMTab = PlannedStatus | "INSTALLATIONS";
+
 const PEM_MAX_PAGE_SIZE = 100;
-const PEM_TABS: PlannedStatus[] = ["PLANNED", "COMPLETED", "CANCELED", "INACTIVE"];
+const PEM_TABS: PEMTab[] = ["PLANNED", "COMPLETED", "CANCELED", "INACTIVE", "INSTALLATIONS"];
 
 type PEMMeasurementsMobileRailProps = {
-  tab: PlannedStatus;
+  tab: PEMTab;
   stationId: string;
   operator: number | null;
   region: number | null;
@@ -40,9 +46,11 @@ type PEMMeasurementsMobileRailProps = {
   regions: Region[];
   areOperatorsLoading: boolean;
   areRegionsLoading: boolean;
+  areOperatorsFetching: boolean;
+  areRegionsFetching: boolean;
   operatorsError: boolean;
   regionsError: boolean;
-  onTabChange: (value: PlannedStatus) => void;
+  onTabChange: (value: PEMTab) => void;
   onStationIdChange: (value: string) => void;
   onOperatorChange: (value: number | null) => void;
   onRegionChange: (value: number | null) => void;
@@ -60,6 +68,8 @@ function PEMMeasurementsMobileRail({
   regions,
   areOperatorsLoading,
   areRegionsLoading,
+  areOperatorsFetching,
+  areRegionsFetching,
   operatorsError,
   regionsError,
   onTabChange,
@@ -80,7 +90,7 @@ function PEMMeasurementsMobileRail({
         <MobileFilterChip
           active
           icon={Calendar03Icon}
-          label={tab === "INACTIVE" ? t("tabs.inactiveMobile") : t(`tabs.${tab.toLowerCase() as "planned" | "completed" | "canceled"}`)}
+          label={tab === "INACTIVE" ? t("tabs.inactiveMobile") : t(`tabs.${tab.toLowerCase() as Lowercase<PEMTab>}`)}
         >
           <MobileFilterPanelTitle>{t("common:labels.status")}</MobileFilterPanelTitle>
           <div className="grid gap-1">
@@ -95,7 +105,7 @@ function PEMMeasurementsMobileRail({
                   tab === value ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                {t(`tabs.${value.toLowerCase() as "planned" | "completed" | "canceled" | "inactive"}`)}
+                {t(`tabs.${value.toLowerCase() as Lowercase<PEMTab>}`)}
               </button>
             ))}
           </div>
@@ -121,14 +131,16 @@ function PEMMeasurementsMobileRail({
               className="h-9 w-full bg-background py-2 pl-8 pr-8 text-sm"
             />
             {hasSearch ? (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => onStationIdChange("")}
-                className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={t("common:actions.clear")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground"
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden="true" />
-              </button>
+              </Button>
             ) : null}
           </div>
         </MobileFilterChip>
@@ -136,12 +148,7 @@ function PEMMeasurementsMobileRail({
         <MobileFilterChip active={operator !== null} count={operator === null ? 0 : 1} icon={FilterIcon} label={t("common:labels.operator")}>
           <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
           {operatorsError ? (
-            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground" role="alert">
-              <span>{t("common:placeholder.errorFetching")}</span>
-              <Button type="button" variant="outline" size="xs" onClick={onRetryOperators}>
-                {t("common:actions.retry")}
-              </Button>
-            </div>
+            <InlineError size="sm" onRetry={onRetryOperators} isRetrying={areOperatorsFetching} />
           ) : areOperatorsLoading ? (
             <div className="text-sm text-muted-foreground" role="status">
               {t("common:actions.loading")}
@@ -160,20 +167,28 @@ function PEMMeasurementsMobileRail({
                 {t("common:labels.allOperators")}
               </button>
               {operators.length === 0 ? <p className="px-2 py-1 text-sm text-muted-foreground">{t("common:placeholder.noOperatorsFound")}</p> : null}
-              {operators.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={operator === item.mnc}
-                  onClick={() => onOperatorChange(item.mnc)}
-                  className={cn(
-                    "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-                    operator === item.mnc ? "bg-primary/10 text-primary" : "hover:bg-muted",
-                  )}
-                >
-                  <DialogOperatorName name={item.name} mnc={item.mnc} compact />
-                </button>
-              ))}
+              {operators.map((item) => {
+                const selected = operator === item.mnc;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onOperatorChange(item.mnc)}
+                    className={cn(
+                      "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
+                      selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+                    )}
+                  >
+                    <DialogOperatorName
+                      name={item.name}
+                      mnc={item.mnc}
+                      compact
+                      labelClassName={cn("text-sm leading-5 font-normal", selected ? "text-primary" : null)}
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </MobileFilterChip>
@@ -181,12 +196,7 @@ function PEMMeasurementsMobileRail({
         <MobileFilterChip active={region !== null} count={region === null ? 0 : 1} icon={Location01Icon} label={t("common:labels.region")}>
           <MobileFilterPanelTitle>{t("common:labels.region")}</MobileFilterPanelTitle>
           {regionsError ? (
-            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground" role="alert">
-              <span>{t("common:placeholder.errorFetching")}</span>
-              <Button type="button" variant="outline" size="xs" onClick={onRetryRegions}>
-                {t("common:actions.retry")}
-              </Button>
-            </div>
+            <InlineError size="sm" onRetry={onRetryRegions} isRetrying={areRegionsFetching} />
           ) : areRegionsLoading ? (
             <div className="text-sm text-muted-foreground" role="status">
               {t("common:actions.loading")}
@@ -243,9 +253,10 @@ function PEMMeasurementsPage() {
   const { t: tCommon } = useTranslation("common");
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
+  const { openStationDialog } = useFloatingDialogStack();
   const hasFloatingMobileFilters = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
   const locale = i18n.language;
-  const [tab, setTab] = useState<PlannedStatus>("PLANNED");
+  const [tab, setTab] = useState<PEMTab>("PLANNED");
   const [stationIdInput, setStationIdInput] = useState("");
   const [activeStationId, setActiveStationId] = useState("");
   const [operatorFilter, setOperatorFilter] = useState<number | null>(null);
@@ -254,20 +265,24 @@ function PEMMeasurementsPage() {
   const {
     data: allOperators = [],
     isLoading: areOperatorsLoading,
-    isError: operatorsError,
+    isFetching: areOperatorsFetching,
+    isLoadingError: operatorsError,
     refetch: refetchOperators,
   } = useQuery(operatorsQueryOptions());
-  const { data: allRegions = [], isLoading: areRegionsLoading, isError: regionsError, refetch: refetchRegions } = useQuery(regionsQueryOptions());
-  const pemOperators = allOperators.filter((operator) => TOP4_MNCS.includes(operator.mnc));
-  const selectedOperatorObj = pemOperators.find((operator) => operator.mnc === operatorFilter) ?? null;
+  const {
+    data: allRegions = [],
+    isLoading: areRegionsLoading,
+    isFetching: areRegionsFetching,
+    isLoadingError: regionsError,
+    refetch: refetchRegions,
+  } = useQuery(regionsQueryOptions());
 
-  const { containerRef, pagination, setPagination, pageSizeOptions, isPageSizeMeasured } = useTablePagination({
-    rowHeight: isMobile ? MOBILE_MEASUREMENT_ROW_HEIGHT : DATA_TABLE_ROW_HEIGHT,
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions, isPageSizeMeasured } = useTablePagination({
+    rowHeight: isMobile ? PEM_MOBILE_ROW_HEIGHT : DATA_TABLE_ROW_HEIGHT,
     headerHeight: isMobile ? 0 : DATA_TABLE_HEADER_HEIGHT,
     paginationHeight: DATA_TABLE_PAGINATION_HEIGHT,
     minRows: 1,
   });
-  const pemPageSizeOptions = pageSizeOptions.filter((pageSize) => pageSize <= PEM_MAX_PAGE_SIZE);
 
   const resetPage = useCallback(() => setPagination((prev) => ({ ...prev, pageIndex: 0 })), [setPagination]);
   const debouncedStationIdUpdate = useDebouncedCallback((value: string) => {
@@ -275,31 +290,51 @@ function PEMMeasurementsPage() {
     resetPage();
   }, 300);
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const plannedQuery = useQuery({
     queryKey: ["pem", "measurements", tab, pagination.pageIndex, pagination.pageSize, activeStationId, operatorFilter, regionFilter],
-    queryFn: ({ signal }) =>
-      fetchPlannedMeasurements(
-        {
-          page: pagination.pageIndex + 1,
-          limit: pagination.pageSize,
-          status: tab,
-          stationId: activeStationId || undefined,
-          operators: operatorFilter === null ? undefined : [operatorFilter],
-          region: regionFilter ?? undefined,
-        },
-        signal,
-      ),
+    queryFn:
+      tab === "INSTALLATIONS"
+        ? skipToken
+        : ({ signal }) =>
+            fetchPlannedMeasurements(
+              {
+                page: pagination.pageIndex + 1,
+                limit: pagination.pageSize,
+                status: tab,
+                stationId: activeStationId || undefined,
+                operators: operatorFilter === null ? undefined : [operatorFilter],
+                region: regionFilter ?? undefined,
+              },
+              signal,
+            ),
     enabled: isPageSizeMeasured,
     staleTime: 1000 * 60 * 10,
+    placeholderData: (previousData, previousQuery) => (previousQuery?.queryKey[2] === tab ? previousData : undefined),
   });
 
-  const measurements = data?.data ?? [];
-  const totalItems = data?.totalCount ?? 0;
-  const hasActiveFilters = activeStationId !== "" || operatorFilter !== null || regionFilter !== null;
-  const showInitialLoading = !isPageSizeMeasured || isLoading;
+  const installationsQuery = useQuery({
+    queryKey: ["pem", "installations", pagination.pageIndex, pagination.pageSize, activeStationId, operatorFilter, regionFilter],
+    queryFn:
+      tab === "INSTALLATIONS"
+        ? ({ signal }) =>
+            fetchPEMInstallations(
+              {
+                page: pagination.pageIndex + 1,
+                limit: pagination.pageSize,
+                stationId: activeStationId || undefined,
+                operator: operatorFilter ?? undefined,
+                region: regionFilter ?? undefined,
+              },
+              signal,
+            )
+        : skipToken,
+    enabled: isPageSizeMeasured,
+    staleTime: 1000 * 60 * 10,
+    placeholderData: keepPreviousData,
+  });
 
   const handleTabChange = useCallback(
-    (value: PlannedStatus) => {
+    (value: PEMTab) => {
       setTab(value);
       resetPage();
     },
@@ -349,6 +384,30 @@ function PEMMeasurementsPage() {
     resetPage();
   }, [debouncedStationIdUpdate, resetPage]);
 
+  const activeQuery = tab === "INSTALLATIONS" ? installationsQuery : plannedQuery;
+  const activeFilterCount = [stationIdInput.trim() !== "", operatorFilter !== null, regionFilter !== null].filter(Boolean).length;
+  const pemOperators = allOperators.filter((operator) => TOP4_MNCS.includes(operator.mnc));
+  const selectedOperatorObj = pemOperators.find((operator) => operator.mnc === operatorFilter) ?? null;
+  const pemPageSizeOptions = pageSizeOptions.filter((pageSize) => pageSize <= PEM_MAX_PAGE_SIZE);
+  const tableProps = {
+    isLoading: !isPageSizeMeasured || activeQuery.isLoading,
+    isError: activeQuery.isError,
+    isFetching: activeQuery.isFetching,
+    activeFilterCount,
+    onClearFilters: clearFilters,
+    onOpenStation: (stationId: number) => openStationDialog(stationId, "internal"),
+    onRetry: () => void activeQuery.refetch(),
+    totalItems: activeQuery.data?.totalCount ?? 0,
+    pagination,
+    autoPageSize,
+    onPaginationChange: setPagination,
+    pageSizeOptions: pemPageSizeOptions,
+    t,
+    tCommon,
+    locale,
+    isMobile,
+  };
+
   const mobileFilterRail = isMobile ? (
     <PEMMeasurementsMobileRail
       tab={tab}
@@ -359,6 +418,8 @@ function PEMMeasurementsPage() {
       regions={allRegions}
       areOperatorsLoading={areOperatorsLoading}
       areRegionsLoading={areRegionsLoading}
+      areOperatorsFetching={areOperatorsFetching}
+      areRegionsFetching={areRegionsFetching}
       operatorsError={operatorsError}
       regionsError={regionsError}
       onTabChange={handleTabChange}
@@ -373,13 +434,15 @@ function PEMMeasurementsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 px-3 pt-3">
-        <h1 className="text-2xl font-bold tracking-tight">{t("page.title")}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{t("page.description")}</p>
-      </div>
+      <header className="flex shrink-0 flex-col gap-3 px-3 pt-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">{t("page.title")}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("page.description")}</p>
+        </div>
+      </header>
 
       {!isMobile ? (
-        <div className="mt-3 flex shrink-0 flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-end">
+        <div className="mt-3 flex shrink-0 flex-wrap items-end gap-2 border-b px-3 py-2.5">
           <div className="flex flex-col gap-1">
             <span id="pem-status-filter-label" className="text-xs font-medium text-muted-foreground">
               {tCommon("labels.status")}
@@ -393,16 +456,16 @@ function PEMMeasurementsPage() {
                   aria-pressed={tab === value}
                   onClick={() => handleTabChange(value)}
                 >
-                  {t(`tabs.${value.toLowerCase() as "planned" | "completed" | "canceled" | "inactive"}`)}
+                  {t(`tabs.${value.toLowerCase() as Lowercase<PEMTab>}`)}
                 </Button>
               ))}
             </ButtonGroup>
           </div>
 
-          <div className="hidden sm:block flex-1" />
+          <div className="flex-1" />
 
-          <div className="flex items-end gap-2">
-            <div className="flex flex-1 flex-col gap-1 sm:w-48 sm:flex-none">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex w-40 flex-col gap-1 xl:w-48">
               <Label htmlFor="pem-station-id-filter" className="text-xs font-medium text-muted-foreground">
                 {tCommon("labels.stationId")}
               </Label>
@@ -420,19 +483,21 @@ function PEMMeasurementsPage() {
                   className="h-8 w-full pl-8 pr-7 bg-transparent placeholder:text-muted-foreground/60"
                 />
                 {stationIdInput ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => handleStationIdChange("")}
                     aria-label={tCommon("actions.clear")}
-                    className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
                   >
                     <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden="true" />
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </div>
 
-            <div className="flex w-40 shrink-0 flex-col gap-1 sm:w-48">
+            <div className="flex w-44 flex-col gap-1 xl:w-48">
               <Label htmlFor="pem-operator-filter" className="text-xs font-medium text-muted-foreground">
                 {tCommon("labels.operator")}
               </Label>
@@ -443,7 +508,12 @@ function PEMMeasurementsPage() {
                 <SelectTrigger id="pem-operator-filter" className="h-8 w-full text-sm" disabled={areOperatorsLoading}>
                   <SelectValue>
                     {selectedOperatorObj ? (
-                      <DialogOperatorName name={selectedOperatorObj.name} mnc={selectedOperatorObj.mnc} compact />
+                      <DialogOperatorName
+                        name={selectedOperatorObj.name}
+                        mnc={selectedOperatorObj.mnc}
+                        compact
+                        labelClassName="text-sm leading-5 font-normal"
+                      />
                     ) : areOperatorsLoading ? (
                       tCommon("actions.loading")
                     ) : operatorsError ? (
@@ -455,12 +525,7 @@ function PEMMeasurementsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {operatorsError ? (
-                    <div className="flex items-center justify-between gap-3 px-2 py-1.5 text-sm text-muted-foreground" role="alert">
-                      <span>{tCommon("placeholder.errorFetching")}</span>
-                      <Button type="button" variant="outline" size="xs" onClick={() => void refetchOperators()}>
-                        {tCommon("actions.retry")}
-                      </Button>
-                    </div>
+                    <InlineError size="sm" onRetry={() => refetchOperators()} isRetrying={areOperatorsFetching} />
                   ) : (
                     <>
                       <SelectItem value="__all__">{tCommon("labels.allOperators")}</SelectItem>
@@ -478,7 +543,7 @@ function PEMMeasurementsPage() {
               </Select>
             </div>
 
-            <div className="flex w-40 shrink-0 flex-col gap-1 sm:w-52">
+            <div className="flex w-52 flex-col gap-1">
               <Label htmlFor="pem-region-filter" className="text-xs font-medium text-muted-foreground">
                 {tCommon("labels.region")}
               </Label>
@@ -498,12 +563,7 @@ function PEMMeasurementsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {regionsError ? (
-                    <div className="flex items-center justify-between gap-3 px-2 py-1.5 text-sm text-muted-foreground" role="alert">
-                      <span>{tCommon("placeholder.errorFetching")}</span>
-                      <Button type="button" variant="outline" size="xs" onClick={() => void refetchRegions()}>
-                        {tCommon("actions.retry")}
-                      </Button>
-                    </div>
+                    <InlineError size="sm" onRetry={() => refetchRegions()} isRetrying={areRegionsFetching} />
                   ) : (
                     <>
                       <SelectItem value="__all__">{t("filters.allRegions")}</SelectItem>
@@ -520,37 +580,20 @@ function PEMMeasurementsPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </div>
-      ) : null}
 
-      {isMobile && !hasFloatingMobileFilters ? (
-        <div className="relative mt-3 w-full min-w-0 border-b after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent">
-          <div className="scrollbar-hide overflow-x-auto overflow-y-hidden px-3 py-2.5 pr-8">
-            <div className="w-max">{mobileFilterRail}</div>
+            {activeFilterCount > 0 ? <ClearFiltersButton count={activeFilterCount} onClick={clearFilters} /> : null}
           </div>
         </div>
       ) : null}
 
       <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 min-h-0 overflow-hidden">
+        {isMobile && !hasFloatingMobileFilters ? <MobileFilterRailInline>{mobileFilterRail}</MobileFilterRailInline> : null}
         <div ref={containerRef} className={cn("flex-1 min-h-0 overflow-hidden", hasFloatingMobileFilters && "max-md:mb-10")}>
-          <MeasurementsDataTable
-            data={measurements}
-            status={tab}
-            isLoading={showInitialLoading}
-            isError={isError}
-            isFetching={isFetching}
-            hasActiveFilters={hasActiveFilters}
-            onRetry={() => void refetch()}
-            totalItems={totalItems}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            pageSizeOptions={pemPageSizeOptions}
-            t={t}
-            tCommon={tCommon}
-            locale={locale}
-            isMobile={isMobile}
-          />
+          {tab === "INSTALLATIONS" ? (
+            <InstallationsDataTable data={installationsQuery.data?.data ?? []} {...tableProps} />
+          ) : (
+            <MeasurementsDataTable data={plannedQuery.data?.data ?? []} status={tab} {...tableProps} />
+          )}
         </div>
       </div>
 
@@ -558,7 +601,7 @@ function PEMMeasurementsPage() {
         ? createPortal(
             <div className="relative w-[calc(100vw-1.5rem)] min-w-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent md:hidden">
               <div className="scrollbar-hide min-w-0 flex-1 overflow-x-auto overflow-y-hidden pr-8">
-                <div className="w-max">{mobileFilterRail}</div>
+                <div className="mx-auto w-max">{mobileFilterRail}</div>
               </div>
             </div>,
             navActionTarget,
@@ -573,5 +616,8 @@ export const Route = createFileRoute("/_layout/pem-measurements")({
   head: () => buildStaticPageHead("/pem-measurements"),
   staticData: {
     mainClassName: "overflow-hidden",
+    titleKey: "items.pem",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.stations", i18nNamespace: "nav", path: "/" }],
   },
 });

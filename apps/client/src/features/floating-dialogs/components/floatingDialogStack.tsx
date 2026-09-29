@@ -8,10 +8,14 @@ import type { FloatingDialogRect } from "../geometry";
 import { assertNever, getStationHistoryTriggerId, getTopDialog } from "../types";
 import type { FloatingDialogItem, FloatingDialogPanelFrameProps, StationDialogTarget, StationHistoryFloatingDialogItem } from "../types";
 import { FloatingDialogFrame } from "./floatingDialogFrame";
+import { ErrorBoundary } from "@/components/app/errorBoundary";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useIsMobile } from "@/hooks/useMobile";
+import { cn } from "@/lib/utils";
 
 const StationDetailsDialogPanel = lazy(() =>
   import("@/features/station-details/components/stationsDetailsDialog").then((module) => ({ default: module.StationDetailsDialogPanel })),
@@ -45,7 +49,53 @@ type DialogPanelProps = FloatingDialogPanelFrameProps & {
   onStartTerrainProfile: ((station: TerrainProfileStationTarget) => void) | null;
 };
 
-function renderDialogPanel(
+type DialogPanelErrorProps = Pick<FloatingDialogPanelFrameProps, "onClose" | "className" | "contentClassName" | "headerDragProps"> & {
+  onRetry: () => void;
+};
+
+function DialogPanelError({ onClose, onRetry, className, contentClassName, headerDragProps }: DialogPanelErrorProps) {
+  const { t } = useTranslation("common");
+
+  return (
+    <div className={className}>
+      <div
+        {...headerDragProps}
+        className={cn("w-full rounded-2xl bg-background px-3 py-4 shadow-2xl sm:p-6", contentClassName, headerDragProps?.className)}
+      >
+        <ErrorState
+          className="h-full"
+          onRetry={onRetry}
+          action={
+            <Button variant="outline" size="sm" onClick={onClose}>
+              {t("actions.close")}
+            </Button>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function renderDialogPanel(dialog: FloatingDialogItem, props: DialogPanelProps): ReactNode {
+  return (
+    <ErrorBoundary
+      resetKey={dialog.key}
+      fallback={(reset) => (
+        <DialogPanelError
+          onClose={props.onClose}
+          onRetry={reset}
+          className={props.className}
+          contentClassName={props.contentClassName}
+          headerDragProps={props.headerDragProps}
+        />
+      )}
+    >
+      {renderDialogPanelContent(dialog, props)}
+    </ErrorBoundary>
+  );
+}
+
+function renderDialogPanelContent(
   dialog: FloatingDialogItem,
   { isMobile, onContentLayoutChange, onSwitchStation, onStartTerrainProfile, ...frameProps }: DialogPanelProps,
 ): ReactNode {

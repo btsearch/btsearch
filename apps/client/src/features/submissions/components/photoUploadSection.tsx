@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { InlineError } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -69,7 +70,13 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
   const [existingEditState, setExistingEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
   const lightbox = useLightbox();
 
-  const { data: existingPhotos = [], isLoading: isLoadingExisting } = useQuery({
+  const {
+    data: existingPhotos = [],
+    isLoading: isLoadingExisting,
+    isLoadingError: existingPhotosLoadError,
+    isFetching: isFetchingExisting,
+    refetch: refetchExisting,
+  } = useQuery({
     queryKey: ["submission-photos", editSubmissionId],
     queryFn: () => fetchSubmissionPhotos(editSubmissionId!),
     enabled: !!editSubmissionId,
@@ -221,7 +228,7 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
               />
               <HugeiconsIcon icon={Image01Icon} className="size-4 text-muted-foreground" />
               <span className="font-semibold text-sm">{t("photos.label")}</span>
-              {!isLoadingExisting ? (
+              {!isLoadingExisting && !existingPhotosLoadError ? (
                 <span className="text-xs text-muted-foreground">
                   ({totalCount}/{MAX_SUBMISSION_PHOTOS})
                 </span>
@@ -235,6 +242,8 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
               <div className="flex items-center justify-center py-8">
                 <Spinner />
               </div>
+            ) : existingPhotosLoadError ? (
+              <InlineError className="m-3" onRetry={() => refetchExisting()} isRetrying={isFetchingExisting} />
             ) : isEmpty ? (
               <div className="flex flex-col items-center justify-center py-10 text-sm text-muted-foreground gap-2">
                 <HugeiconsIcon icon={Image01Icon} className="size-8 opacity-20" />

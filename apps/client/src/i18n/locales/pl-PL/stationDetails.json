@@ -9,13 +9,16 @@
   "watchStation": "Obserwuj stację",
   "watchingStation": "Obserwujesz",
   "unwatchStation": "Przestań obserwować",
+  "copyFailed": "Nie udało się skopiować do schowka",
+  "shareFailed": "Nie udało się udostępnić",
   "specs": {
     "cellDetails": "Szczegóły komórek",
     "internalNotes": "Notatki wewnętrzne",
     "newCellTooltip": "Ta komórka została dodana w ciągu ostatnich 30 dni",
     "updatedCellTooltip": "Ta komórka została zaktualizowana w ciągu ostatnich 30 dni",
     "si2pemLink": "Kliknij, aby zobaczyć raporty PEM z SI2PEM",
-    "pemReports": "Raporty PEM"
+    "pemReports": "Raporty PEM",
+    "pemInstallationForm": "Formularz zgłoszenia"
   },
   "sectors": {
     "title": "Azymuty",
@@ -96,14 +99,16 @@
   "dialog": {
     "virtualStation": "Wirtualna",
     "virtualStationTitle": "Stacja wirtualna",
-    "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu UKE tej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
+    "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu UKE poniższej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
     "btsStation": "Stacja bazowa",
     "showOnMap": "Pokaż na mapie",
     "createStation": "Utwórz stację",
     "sourceDatabase": "Baza",
     "sourceUke": "UKE",
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",
-    "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych"
+    "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych",
+    "detailsLoadErrorTitle": "Nie udało się wczytać aktualnych danych stacji",
+    "detailsLoadErrorDescription": "Część informacji może być niepełna lub nieaktualna"
   },
   "comments": {
     "title": "Komentarze społeczności",
@@ -118,6 +123,7 @@
     "addImages": "Dodaj obrazy",
     "removeImage": "Usuń obraz {{number}}",
     "postComment": "Opublikuj komentarz",
+    "postFailed": "Nie udało się opublikować komentarza",
     "deleteConfirm": "Usuń komentarz",
     "deleteDescription": "Czy na pewno chcesz usunąć ten komentarz? Tej operacji nie można cofnąć",
     "deleted": "Komentarz usunięty",
@@ -135,6 +141,7 @@
     "takenAt": "Wykonano",
     "noPhotos": "Brak zdjęć",
     "noPhotosHint": "Zdjęcia są dodawane po zatwierdzeniu zgłoszeń",
+    "loadError": "Nie udało się wczytać zdjęć",
     "setAsMain": "Ustaw jako główne",
     "uploadedBy": "Przesłane przez {{username}}",
     "unknownUser": "Nieznany",

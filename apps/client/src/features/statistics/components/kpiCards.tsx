@@ -3,9 +3,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { StatsSummary } from "../api";
+import type { ChartErrorProps } from "./statChartCard";
+import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const RAT_ORDER = ["NR", "LTE", "UMTS", "CDMA", "GSM", "IOT"];
+
+type KpiCardsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
 
 function magnitudeFloor(n: number): number {
   if (n <= 0) return 0;
@@ -80,14 +84,14 @@ function KpiTile({
   );
 }
 
-export function UkeKpiCards({ data, isLoading }: { data?: StatsSummary; isLoading: boolean }) {
+export function UkeKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps) {
   const { t, i18n } = useTranslation("statistics");
   const { ref, visible } = useContainerVisible();
 
   const sortedRats = useMemo(() => (data ? [...data.by_rat].sort((a, b) => RAT_ORDER.indexOf(a.rat) - RAT_ORDER.indexOf(b.rat)) : []), [data]);
 
   if (isLoading) return <KpiSkeleton />;
-  if (!data) return null;
+  if (!data) return isError ? <InlineError onRetry={onRetry} isRetrying={isRetrying} /> : null;
 
   return (
     <div ref={ref} className="relative border border-border">
@@ -110,7 +114,7 @@ export function UkeKpiCards({ data, isLoading }: { data?: StatsSummary; isLoadin
   );
 }
 
-export function InternalKpiCards({ data, isLoading }: { data?: StatsSummary; isLoading: boolean }) {
+export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps) {
   const { t, i18n } = useTranslation("statistics");
   const { ref, visible } = useContainerVisible();
 
@@ -120,7 +124,7 @@ export function InternalKpiCards({ data, isLoading }: { data?: StatsSummary; isL
   );
 
   if (isLoading) return <KpiSkeleton />;
-  if (!data) return null;
+  if (!data) return isError ? <InlineError onRetry={onRetry} isRetrying={isRetrying} /> : null;
 
   return (
     <div ref={ref} className="relative border border-border">

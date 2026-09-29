@@ -1,6 +1,6 @@
 "use client";
 
-import { Cancel01Icon, CompassIcon, Location01Icon, MaximizeIcon, MinusSignIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, CompassIcon, Location01Icon, MapsOffIcon, MaximizeIcon, MinusSignIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -38,6 +38,7 @@ import { createPortal, preconnect } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "./spinner";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -691,9 +692,8 @@ const MapComponent = forwardRef<MapRef, MapProps>(function MapComponent(
 
   if (!webgl2Supported) {
     return (
-      <div className={cn("relative w-full h-full flex flex-col items-center justify-center gap-2 bg-muted/20", className)}>
-        <p className="font-medium">{t("webgl.title")}</p>
-        <p className="text-sm text-muted-foreground text-center max-w-xs">{t("webgl.description")}</p>
+      <div className={cn("relative flex h-full w-full items-center justify-center bg-muted/20 p-4", className)}>
+        <ErrorState tone="neutral" icon={MapsOffIcon} title={t("webgl.title")} description={t("webgl.description")} className="w-full max-w-md" />
       </div>
     );
   }

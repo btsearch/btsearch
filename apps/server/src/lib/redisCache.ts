@@ -1,12 +1,10 @@
-import redis from "../../database/redis.js";
-import { acquireRedisLock, releaseOwnedRedisLock } from "../../lib/redisLock.js";
-import { type CacheOptions, type CacheResult, type StaleCacheStore, withStaleCache } from "../../lib/staleCache.js";
+import redis from "../database/redis.js";
+import { acquireRedisLock, releaseOwnedRedisLock } from "./redisLock.js";
+import { type CacheOptions, type CacheResult, type StaleCacheStore, withStaleCache } from "./staleCache.js";
 
 const redisStore: StaleCacheStore = {
   read: (key) => redis.get(key),
-  async tryAcquireLock(key, token, ttlSeconds) {
-    return acquireRedisLock(key, token, ttlSeconds);
-  },
+  tryAcquireLock: acquireRedisLock,
   async write(key, ttlSeconds, value) {
     await redis.setEx(key, ttlSeconds, value);
   },

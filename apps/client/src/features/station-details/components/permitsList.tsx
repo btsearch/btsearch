@@ -1,4 +1,4 @@
-import { AlertCircleIcon, ArrowDown01Icon, ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
@@ -10,6 +10,7 @@ import { StationLink } from "./stationLink";
 import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
@@ -57,7 +58,14 @@ type PermitsListProps = {
 
 export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
-  const { data: fetchedPermits = [], isLoading, error } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
+  const {
+    data: fetchedPermits = [],
+    isLoading,
+    isFetching,
+    isLoadingError,
+    isRefetchError,
+    refetch,
+  } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
 
   const permits = externalPermits ?? fetchedPermits;
   const permitsByRat = useMemo(() => groupPermitsByRat(permits), [permits]);
@@ -96,29 +104,31 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
     );
   }
 
-  if (!externalPermits && error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground px-4">
-        <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-        </div>
-        <p className="text-sm">{t("common:placeholder.errorFetching")}</p>
+  if (!externalPermits && isLoadingError) return <ErrorState className="min-h-0 py-8" onRetry={() => refetch()} isRetrying={isFetching} />;
+
+  const staleNotice =
+    !externalPermits && isRefetchError ? (
+      <div className="flex justify-center">
+        <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} />
       </div>
-    );
-  }
+    ) : null;
 
   if (permits.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
-        <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
-        <p className="text-sm">{t("permits.noPermits")}</p>
-        {physicalStation ? <PermitHolderNote station={physicalStation} /> : null}
-      </div>
+      <>
+        {staleNotice}
+        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+          <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
+          <p className="text-sm">{t("permits.noPermits")}</p>
+          {physicalStation ? <PermitHolderNote station={physicalStation} /> : null}
+        </div>
+      </>
     );
   }
 
   return (
     <div className="space-y-4">
+      {staleNotice}
       {ukeStations.length > 0 ? <UkeStationLinks stations={ukeStations} /> : null}
       {Array.from(permitsByRat.entries()).map(([rat, ratPermits]) => (
         <CollapsiblePermitGroup key={rat} rat={rat} ratPermits={ratPermits} t={t} i18n={i18n} showAntennaData={hasDeviceRegistryData} />

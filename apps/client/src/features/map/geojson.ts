@@ -1,17 +1,8 @@
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
 
-import {
-  calculateDistance,
-  calculateLinkDirectionalSpeeds,
-  calculateRadiolineSpeed,
-  formatBandwidth,
-  formatDistance,
-  formatFrequency,
-  formatSpeed,
-  groupRadioLinesIntoLinks,
-} from "./utils";
-import { getOperatorColor, resolveOperatorMnc } from "@/lib/cellular/operators";
-import type { LocationWithStations, RadioLine, StationSource, UkeLocationWithPermits } from "@/types/station";
+import { type DuplexRadioLink, getRadioLineMnc } from "./utils";
+import { getOperatorColor } from "@/lib/cellular/operators";
+import type { LocationWithStations, StationSource, UkeLocationWithPermits } from "@/types/station";
 
 export const DEFAULT_COLOR = "#3b82f6";
 
@@ -101,34 +92,20 @@ export function ukeLocationsToGeoJSON(locations: UkeLocationWithPermits[], sourc
   return { type: "FeatureCollection", features };
 }
 
-export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
+export function radioLinesToGeoJSON(links: DuplexRadioLink[]): {
   lines: FeatureCollection;
   endpoints: FeatureCollection;
 } {
-  const links = groupRadioLinesIntoLinks(radioLines);
   const lineFeatures: Feature[] = [];
   const endpointFeatures: Feature[] = [];
 
   for (const link of links) {
-    const first = link.directions[0];
-    const mnc = resolveOperatorMnc(first.operator?.mnc, first.operator?.name);
-    const color = mnc ? getOperatorColor(mnc) : DEFAULT_COLOR;
-    const distance = calculateDistance(link.a.latitude, link.a.longitude, link.b.latitude, link.b.longitude);
-    const distanceFormatted = formatDistance(distance);
-
-    const { dl, ul } = calculateLinkDirectionalSpeeds(link);
-
-    const directionsJson = JSON.stringify(
-      link.directions.map((d) => {
-        const calcSpeed = d.link.ch_width && d.link.modulation_type ? calculateRadiolineSpeed(d.link.ch_width, d.link.modulation_type) : null;
-        return {
-          freq: formatFrequency(d.link.freq),
-          bandwidth: calcSpeed !== null ? formatSpeed(calcSpeed) : d.link.bandwidth ? formatBandwidth(d.link.bandwidth) : null,
-          polarization: d.link.polarization ?? null,
-          forward: d.tx.latitude === link.a.latitude && d.tx.longitude === link.a.longitude,
-        };
-      }),
-    );
+    const mnc = getRadioLineMnc(link);
+    const properties = {
+      radioLineId: link.directions[0].id,
+      color: mnc ? getOperatorColor(mnc) : DEFAULT_COLOR,
+      isExpired: link.isExpired,
+    };
 
     lineFeatures.push({
       type: "Feature",
@@ -139,40 +116,12 @@ export function radioLinesToGeoJSON(radioLines: RadioLine[]): {
           [link.b.longitude, link.b.latitude],
         ],
       },
-      properties: {
-        groupId: link.groupId,
-        radioLineId: first.id,
-        operatorName: first.operator?.name ?? "",
-        operatorMnc: first.operator?.mnc ?? null,
-        color,
-        isExpired: link.isExpired,
-        distanceFormatted,
-        directionsJson,
-        directionCount: link.directions.length,
-        linkType: link.linkType,
-        dlSpeed: dl !== null ? formatSpeed(dl) : null,
-        ulSpeed: ul !== null ? formatSpeed(ul) : null,
-      },
+      properties,
     });
 
-    const sharedEndpointProps = {
-      groupId: link.groupId,
-      radioLineId: first.id,
-      color,
-      operatorName: first.operator?.name ?? "",
-      operatorMnc: first.operator?.mnc ?? null,
-      isExpired: link.isExpired,
-      distanceFormatted,
-      directionsJson,
-      directionCount: link.directions.length,
-      linkType: link.linkType,
-      dlSpeed: dl !== null ? formatSpeed(dl) : null,
-      ulSpeed: ul !== null ? formatSpeed(ul) : null,
-    };
-
     endpointFeatures.push(
-      createPointFeature(link.a.longitude, link.a.latitude, sharedEndpointProps),
-      createPointFeature(link.b.longitude, link.b.latitude, sharedEndpointProps),
+      createPointFeature(link.a.longitude, link.a.latitude, properties),
+      createPointFeature(link.b.longitude, link.b.latitude, properties),
     );
   }
 

@@ -1,8 +1,9 @@
-import { Add01Icon, Cancel01Icon, Location01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { NearbyPanel } from "./useLocationPickerState";
+import { CloseButton } from "@/components/ui/close-button";
 import { MapMarker, MarkerContent } from "@/components/ui/map";
 import type { LocationWithStations } from "@/types/station";
 
@@ -25,11 +26,9 @@ export function NearbyLocationsPanel({ nearbyPanel, onLocationSelect, onClose, o
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          <div className="px-2.5 py-1.5 border-b bg-muted/50 flex items-center justify-between">
+          <div className="py-1 pr-1 pl-2.5 border-b bg-muted/50 flex items-center justify-between">
             <span className="text-[11px] font-medium text-muted-foreground">{t("locationPicker.nearbyLocations")}</span>
-            <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Close">
-              <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-            </button>
+            <CloseButton size="xs" onClick={onClose} />
           </div>
           <div className="max-h-28 overflow-y-auto">
             {nearbyPanel.locations.map((loc) => (

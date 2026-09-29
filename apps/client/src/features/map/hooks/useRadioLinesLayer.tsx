@@ -8,7 +8,7 @@ import {
   type PointLike,
   Popup,
 } from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { RadioLineTooltipContent } from "../components/radioLineTooltipContent";
@@ -20,10 +20,8 @@ import {
   RADIOLINES_LINE_LAYER_ID,
   RADIOLINES_SOURCE_ID,
 } from "../constants";
-import type { DuplexRadioLink, RadioLinkType } from "../utils";
-import { findDuplexLinkByRadioLineId } from "../utils";
+import type { DuplexRadioLink } from "../utils";
 import { onBeforeStyleChange } from "@/components/ui/map";
-import { normalizeOperatorName } from "@/lib/cellular/operators";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 
 type GeoJsonSourceData = Parameters<GeoJSONSource["setData"]>[0];
@@ -78,7 +76,7 @@ function createEndpointLayerConfig(minzoom: number): LayerSpecification {
   };
 }
 
-const HITBOX_LAYERS = [RADIOLINES_HITBOX_LAYER_ID, RADIOLINES_ENDPOINT_LAYER_ID] as const;
+const HITBOX_LAYER_IDS = [RADIOLINES_HITBOX_LAYER_ID, RADIOLINES_ENDPOINT_LAYER_ID];
 const ALL_LAYERS = [RADIOLINES_LINE_LAYER_ID, RADIOLINES_HITBOX_LAYER_ID, RADIOLINES_ENDPOINT_LAYER_ID] as const;
 
 type ActiveTooltip = {
@@ -88,16 +86,16 @@ type ActiveTooltip = {
 };
 
 function destroyTooltip(state: ActiveTooltip | null): null {
-  state?.root.unmount();
-  state?.popup.remove();
+  if (state === null) return null;
+  state.popup.remove();
+  queueMicrotask(() => state.root.unmount());
   return null;
 }
 
 function buildTooltip(state: ActiveTooltip | null, cacheKey: string): ActiveTooltip {
   if (state?.cacheKey === cacheKey) return state;
 
-  state?.root.unmount();
-  state?.popup.remove();
+  destroyTooltip(state);
 
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -112,47 +110,29 @@ function buildTooltip(state: ActiveTooltip | null, cacheKey: string): ActiveTool
   return { popup, root, cacheKey };
 }
 
-type Direction = { freq: string; bandwidth: string | null; polarization: string | null; forward: boolean };
-
-type TooltipEntry = {
-  radioLineId: number;
-  color: string;
-  operatorName: string;
-  distance: string;
-  directionCount: number;
-  directions: Direction[];
-  linkType: RadioLinkType | undefined;
-  dlSpeed: string | null | undefined;
-  ulSpeed: string | null | undefined;
-};
-
-function deduplicateByGroupId(features: MapGeoJSONFeature[], duplexLinks: DuplexRadioLink[]): DuplexRadioLink[] {
-  const seen = new Set<string>();
-  const result: DuplexRadioLink[] = [];
-  for (const f of features) {
-    const link = findDuplexLinkByRadioLineId(f.properties?.radioLineId, duplexLinks);
-    if (!link || seen.has(link.groupId)) continue;
-    seen.add(link.groupId);
-    result.push(link);
-  }
-  return result;
+function indexLinksByRadioLineId(links: DuplexRadioLink[]): Map<number, DuplexRadioLink> {
+  const index = new Map<number, DuplexRadioLink>();
+  for (const link of links) for (const direction of link.directions) index.set(direction.id, link);
+  return index;
 }
 
-function parseDirections(raw: string | undefined): Direction[] {
-  try {
-    return JSON.parse(raw ?? "[]");
-  } catch {
-    return [];
+function getFeatureLinks(features: MapGeoJSONFeature[] | undefined, linkByRadioLineId: Map<number, DuplexRadioLink>): DuplexRadioLink[] {
+  const links = new Set<DuplexRadioLink>();
+  for (const feature of features ?? []) {
+    const link = linkByRadioLineId.get(feature.properties?.radioLineId);
+    if (link) links.add(link);
   }
+  return [...links];
 }
 
 export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJSON, duplexLinks, minZoom, onFeatureClick }: UseRadioLinesLayerArgs) {
-  const stableRefs = useRef({ onFeatureClick, duplexLinks, linesGeoJSON, endpointsGeoJSON });
+  const linkByRadioLineId = useMemo(() => indexLinksByRadioLineId(duplexLinks), [duplexLinks]);
+  const stableRefs = useRef({ onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON });
   const tooltipRef = useRef<ActiveTooltip | null>(null);
 
   useEffect(() => {
-    stableRefs.current = { onFeatureClick, duplexLinks, linesGeoJSON, endpointsGeoJSON };
-  }, [onFeatureClick, duplexLinks, linesGeoJSON, endpointsGeoJSON]);
+    stableRefs.current = { onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON };
+  }, [onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -190,8 +170,7 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
     const handleClick = (e: MapLayerMouseEvent) => {
       if (isNearStation(e.point)) return;
 
-      const allFeatures = map.queryRenderedFeatures(e.point, { layers: [...HITBOX_LAYERS] });
-      const links = deduplicateByGroupId(allFeatures, stableRefs.current.duplexLinks);
+      const links = getFeatureLinks(e.features, stableRefs.current.linkByRadioLineId);
       if (!links.length) return;
 
       tooltipRef.current = destroyTooltip(tooltipRef.current);
@@ -208,49 +187,21 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
         return;
       }
 
-      const allFeatures = map.queryRenderedFeatures(e.point, { layers: [...HITBOX_LAYERS] });
-      const uniqueLinks = deduplicateByGroupId(allFeatures, stableRefs.current.duplexLinks);
-      const entries: TooltipEntry[] = uniqueLinks.map((link) => {
-        const p = allFeatures.find((f) => f.properties?.radioLineId === link.directions[0].id)?.properties ?? {};
-        return {
-          radioLineId: link.directions[0].id,
-          color: p.color ?? "#3b82f6",
-          operatorName: p.operatorName ?? "",
-          distance: p.distanceFormatted ?? "",
-          directionCount: p.directionCount ?? 1,
-          directions: parseDirections(p.directionsJson),
-          linkType: p.linkType as RadioLinkType | undefined,
-          dlSpeed: p.dlSpeed,
-          ulSpeed: p.ulSpeed,
-        };
-      });
-
-      if (!entries.length) {
+      const links = getFeatureLinks(e.features, stableRefs.current.linkByRadioLineId);
+      if (!links.length) {
         tooltipRef.current = destroyTooltip(tooltipRef.current);
         return;
       }
 
-      const cacheKey = entries.map((entry) => entry.radioLineId).join(",");
-      const tooltip = buildTooltip(tooltipRef.current, cacheKey);
+      const previousTooltip = tooltipRef.current;
+      const tooltip = buildTooltip(previousTooltip, links.map((link) => link.groupId).join(","));
       tooltipRef.current = tooltip;
 
-      tooltip.root.render(
-        <div className={entries.length > 1 ? "divide-y divide-border/40" : undefined}>
-          {entries.map((entry) => (
-            <RadioLineTooltipContent
-              key={entry.radioLineId}
-              color={entry.color}
-              operatorName={normalizeOperatorName(entry.operatorName)}
-              distanceFormatted={entry.distance}
-              directions={entry.directions}
-              directionCount={entry.directionCount}
-              linkType={entry.linkType}
-              dlSpeed={entry.dlSpeed}
-              ulSpeed={entry.ulSpeed}
-            />
-          ))}
-        </div>,
-      );
+      if (tooltip === previousTooltip) {
+        tooltip.popup.setLngLat(e.lngLat);
+        return;
+      }
+      tooltip.root.render(<RadioLineTooltipContent links={links} />);
       tooltip.popup.setLngLat(e.lngLat).addTo(map);
     };
 
@@ -260,24 +211,21 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
     };
 
     const attachLayerListeners = () => {
-      for (const layerId of HITBOX_LAYERS) {
-        map.on("click", layerId, handleClick);
-        if (!useHoverListeners) continue;
-        map.on("mouseenter", layerId, handleMouseEnter);
-        map.on("mousemove", layerId, handleMouseMove);
-        map.on("mouseleave", layerId, handleMouseLeave);
-      }
+      map.on("click", HITBOX_LAYER_IDS, handleClick);
+      if (!useHoverListeners) return;
+      map.on("mouseenter", HITBOX_LAYER_IDS, handleMouseEnter);
+      map.on("mousemove", HITBOX_LAYER_IDS, handleMouseMove);
+      map.on("mouseleave", HITBOX_LAYER_IDS, handleMouseLeave);
     };
 
     const detachLayerListeners = () => {
-      for (const layerId of HITBOX_LAYERS) {
-        map.off("click", layerId, handleClick);
-        if (!useHoverListeners) continue;
-        map.off("mouseenter", layerId, handleMouseEnter);
-        map.off("mousemove", layerId, handleMouseMove);
-        map.off("mouseleave", layerId, handleMouseLeave);
+      map.off("click", HITBOX_LAYER_IDS, handleClick);
+      if (useHoverListeners) {
+        map.off("mouseenter", HITBOX_LAYER_IDS, handleMouseEnter);
+        map.off("mousemove", HITBOX_LAYER_IDS, handleMouseMove);
+        map.off("mouseleave", HITBOX_LAYER_IDS, handleMouseLeave);
+        map.getCanvas().style.cursor = "";
       }
-      if (useHoverListeners) map.getCanvas().style.cursor = "";
       tooltipRef.current = destroyTooltip(tooltipRef.current);
     };
 

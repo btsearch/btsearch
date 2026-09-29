@@ -1,13 +1,4 @@
-import {
-  ArrowDown01Icon,
-  ArrowUp01Icon,
-  Camera01Icon,
-  Cancel01Icon,
-  FilterIcon,
-  Location01Icon,
-  RefreshIcon,
-  Search01Icon,
-} from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowUp01Icon, Camera01Icon, Cancel01Icon, FilterIcon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -27,6 +18,7 @@ import { useLightbox } from "@/components/lightbox";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { ClearFiltersButton } from "@/features/shared/filterPanel";
 import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
@@ -48,17 +41,6 @@ import type { Operator, Region, StationStatus } from "@/types/station";
 const ALL_FILTER_VALUE = "__all__";
 const STORAGE_KEY = "photos:filters";
 const STORAGE_VERSION = 1;
-
-function ClearFiltersButton({ count, onClick, className }: { count: number; onClick: () => void; className?: string }) {
-  const { t } = useTranslation("common");
-  return (
-    <Button type="button" variant="ghost" size="sm" className={cn("text-muted-foreground", className)} onClick={onClick}>
-      <HugeiconsIcon icon={Cancel01Icon} className="size-3" data-icon="inline-start" />
-      {t("actions.clearAll")}
-      <span className="ml-1 bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 text-[10px] font-bold leading-none">{count}</span>
-    </Button>
-  );
-}
 
 type StationPhotoGroup = {
   stationId: number;
@@ -549,7 +531,19 @@ export function PhotosGallery() {
 
   const { data: operators = [] } = useQuery(operatorsQueryOptions());
   const { data: regions = [] } = useQuery(regionsQueryOptions());
-  const { data, isLoading, isError, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } = usePhotosGallery(filters);
+  const {
+    data,
+    isLoading,
+    isLoadingError,
+    isFetching,
+    isRefetching,
+    isRefetchError,
+    isFetchNextPageError,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = usePhotosGallery(filters);
 
   const photos = useMemo(() => data?.pages.flatMap((page) => page.data) ?? [], [data]);
   const stationGroups = useMemo(() => groupPhotosByStation(photos), [photos]);
@@ -626,14 +620,14 @@ export function PhotosGallery() {
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage && lightboxIndex === null) void fetchNextPage();
+        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage && !isFetchNextPageError && lightboxIndex === null) void fetchNextPage();
       },
       { root, rootMargin: "900px 0px", threshold: 0 },
     );
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, lightboxIndex]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError, lightboxIndex]);
 
   useEffect(() => {
     writeStoredFilters(storedFilters);
@@ -688,18 +682,8 @@ export function PhotosGallery() {
 
   const content = (() => {
     if (isLoading) return <GallerySkeleton layout={layout} />;
-    if (isError)
-      return (
-        <div className="flex min-h-[45vh] flex-col items-center justify-center text-center">
-          <HugeiconsIcon icon={Camera01Icon} className="mb-3 size-10 text-muted-foreground/50" />
-          <h2 className="text-base font-semibold">{t("photos.errorTitle")}</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("photos.errorSubtitle")}</p>
-          <Button type="button" variant="outline" size="sm" className="mt-4 gap-2" onClick={retry}>
-            <HugeiconsIcon icon={RefreshIcon} className="size-4" />
-            {t("photos.retry")}
-          </Button>
-        </div>
-      );
+    if (isLoadingError)
+      return <ErrorState title={t("photos.errorTitle")} description={t("photos.errorSubtitle")} onRetry={retry} isRetrying={isFetching} />;
     if (photos.length === 0)
       return (
         <div className="flex min-h-[45vh] flex-col items-center justify-center text-center">
@@ -810,11 +794,11 @@ export function PhotosGallery() {
               <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">{t("photos.title")}</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("photos.subtitle")}</p>
             </div>
-            {isLoading || isError ? null : (
+            {data ? (
               <p className="text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
                 {t("photos.loadedCount", { count: loadedCount, total: totalCount })}
               </p>
-            )}
+            ) : null}
           </header>
 
           <div className={cn("mb-5 flex flex-col gap-2 border-b pb-4", showFloatingMobileFilters && "max-md:hidden")}>
@@ -954,11 +938,15 @@ export function PhotosGallery() {
             </div>
           </div>
 
+          {isRefetchError ? <StaleDataNotice className="mb-4" onRetry={retry} isRetrying={isRefetching} /> : null}
+
           {content}
 
           <div ref={sentinelRef} className="h-8" aria-hidden="true" />
 
-          {isFetchingNextPage ? (
+          {isFetchNextPageError ? (
+            <InlineError className="mb-5" title={t("photos.loadMoreError")} onRetry={() => fetchNextPage()} isRetrying={isFetchingNextPage} />
+          ) : isFetchingNextPage ? (
             <div className="flex items-center justify-center gap-2 py-5 text-sm text-muted-foreground">
               <Spinner className="size-4" />
               {t("photos.loadingMore")}

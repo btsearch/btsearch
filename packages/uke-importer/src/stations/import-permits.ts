@@ -1,4 +1,4 @@
-import { deletedEntries, ukePermits } from "@openbts/drizzle";
+import { deletedEntries, operators, ukePermits, ukeStations } from "@openbts/drizzle";
 import { and, eq, lt } from "drizzle-orm";
 /* eslint-disable no-await-in-loop */
 import path from "node:path";
@@ -223,22 +223,24 @@ async function archiveAndDeleteStalePermits(files: PermitFile[], bandMap: Map<st
     if (!bandId) continue;
 
     const stalePermits = await db
-      .select()
+      .select({ permit: ukePermits, station_id: ukeStations.station_id, operator: { name: operators.name, mnc: operators.mnc } })
       .from(ukePermits)
+      .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
+      .leftJoin(operators, eq(ukeStations.operator_id, operators.id))
       .where(and(eq(ukePermits.source, "permits"), eq(ukePermits.band_id, bandId), lt(ukePermits.updatedAt, file.fileDate)));
 
     if (stalePermits.length === 0) continue;
 
-    const affectedStationIds = stalePermits.map((permit) => permit.uke_station_id);
-    const internalStationIdByPermit = await loadInternalStationIdByPermit(stalePermits.map((permit) => permit.id));
+    const affectedStationIds = stalePermits.map(({ permit }) => permit.uke_station_id);
+    const internalStationIdByPermit = await loadInternalStationIdByPermit(stalePermits.map(({ permit }) => permit.id));
 
     for (const group of chunk(stalePermits, BATCH_SIZE)) {
       await db.insert(deletedEntries).values(
-        group.map((permit) => ({
+        group.map(({ permit, station_id, operator }) => ({
           source_table: "uke_permits",
           source_id: permit.id,
           source_type: "permits",
-          data: { ...permit, internal_station_id: internalStationIdByPermit.get(permit.id) ?? null },
+          data: { ...permit, station_id, operator, internal_station_id: internalStationIdByPermit.get(permit.id) ?? null },
           import_id: importMetadataId,
         })),
       );

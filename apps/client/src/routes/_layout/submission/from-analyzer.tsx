@@ -1,8 +1,8 @@
 import { AirportTowerIcon, AlertCircleIcon, CheckmarkCircle02Icon, File02Icon, InformationCircleIcon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { Navigate, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useCallback, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,7 +67,6 @@ function FormAnalyzerPage() {
 }
 
 function AnalyzerReviewGate({ canApplyDirectly }: { canApplyDirectly: boolean }) {
-  const navigate = useNavigate();
   const settingsQuery = useSettings();
   const bandsQuery = useQuery(bandsQueryOptions());
   const submissionsEnabled = settingsQuery.data?.submissionsEnabled;
@@ -75,13 +75,10 @@ function AnalyzerReviewGate({ canApplyDirectly }: { canApplyDirectly: boolean })
   const { loadedDraft: draft } = Route.useLoaderData();
   const { draft: draftId } = Route.useSearch();
 
-  useEffect(() => {
-    if (shouldRedirect) void navigate({ to: "/" });
-  }, [shouldRedirect, navigate]);
-
   const isLoading = (submissionsEnabled === undefined && settingsQuery.isPending) || (bands === undefined && bandsQuery.isPending);
   const hasLoadError = (submissionsEnabled === undefined && settingsQuery.isError) || (bands === undefined && bandsQuery.isError);
 
+  if (shouldRedirect) return <Navigate to="/" replace />;
   if (isLoading) return <AnalyzerReviewSkeleton />;
   if (hasLoadError) {
     return (
@@ -89,6 +86,7 @@ function AnalyzerReviewGate({ canApplyDirectly }: { canApplyDirectly: boolean })
         onRetry={() => {
           void Promise.all([settingsQuery.refetch(), bandsQuery.refetch()]);
         }}
+        isRetrying={settingsQuery.isFetching || bandsQuery.isFetching}
       />
     );
   }
@@ -449,24 +447,10 @@ function AnalyzerReviewSkeleton() {
   );
 }
 
-function AnalyzerReviewLoadError({ onRetry }: { onRetry: () => void }) {
-  const { t } = useTranslation(["submissions", "common"]);
+function AnalyzerReviewLoadError({ onRetry, isRetrying }: { onRetry: () => void; isRetrying: boolean }) {
+  const { t } = useTranslation("submissions");
 
-  return (
-    <div className="flex flex-1 items-center justify-center overflow-y-auto p-4">
-      <div className="w-full max-w-lg rounded-xl border bg-card p-6 text-center">
-        <div className="mx-auto flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" aria-hidden="true" />
-        </div>
-        <h1 className="mt-4 text-lg font-semibold">{t("batch.loadErrorTitle")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("batch.loadErrorDescription")}</p>
-        <Button className="mt-5" onClick={onRetry}>
-          <HugeiconsIcon icon={RefreshIcon} className="size-4" aria-hidden="true" />
-          {t("common:actions.retry")}
-        </Button>
-      </div>
-    </div>
-  );
+  return <PageErrorState title={t("batch.loadErrorTitle")} description={t("batch.loadErrorDescription")} onRetry={onRetry} isRetrying={isRetrying} />;
 }
 
 function AnalyzerReviewEmpty({ hasRemovals, onRestore, onBack }: { hasRemovals: boolean; onRestore: () => void; onBack: () => void }) {

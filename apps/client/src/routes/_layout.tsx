@@ -12,6 +12,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { NavActionsProvider } from "@/contexts/navActions";
+import { PageContentContext } from "@/contexts/pageContent";
 import { PageSectionsProvider } from "@/contexts/pageSections";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
@@ -93,7 +94,9 @@ function AppLayout() {
           <MobileTopAd adSlot={mobileTopAdSlot} onDismiss={() => setMobileTopAdDismissed(true)} />
         </Suspense>
       ) : null}
-      <Outlet />
+      <PageContentContext.Provider value>
+        <Outlet />
+      </PageContentContext.Provider>
     </>
   );
 

@@ -118,7 +118,19 @@ export function useLocationsData() {
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  const { data, fetchNextPage, hasNextPage, isLoading, isFetching, isFetchingNextPage, isError, refetch } = useInfiniteQuery({
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    isError,
+    isRefetchError,
+    isRefetching,
+    isFetchNextPageError,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ["admin-locations-list", FETCH_LIMIT, filters.operators, selectedRegionCodes, sort, sortBy, debouncedSearch],
     queryFn: ({ pageParam }) =>
       fetchLocationsList({
@@ -173,7 +185,11 @@ export function useLocationsData() {
     isFetching,
     isFetchingNextPage,
     isError,
+    isRefetchError,
+    isRefetching,
+    isFetchNextPageError,
     refetch,
+    fetchNextPage,
     hasMore: hasNextPage,
     loadMore: hasNextPage ? fetchNextPage : undefined,
   };

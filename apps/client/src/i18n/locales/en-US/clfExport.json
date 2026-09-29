@@ -39,7 +39,8 @@
     "regions": "regions",
     "bands": "bands",
     "loading": "Loading {{source}}...",
-    "error": "Could not load {{source}}. The remaining settings are still available"
+    "errorTitle": "Could not load {{source}}",
+    "errorDescription": "The remaining settings are still available"
   },
   "templates": {
     "title": "Description templates (advanced)",

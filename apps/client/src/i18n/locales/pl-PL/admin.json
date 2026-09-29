@@ -71,6 +71,7 @@
       "approved": "Zatwierdzone"
     },
     "approveSuccess": "Komentarz zatwierdzony",
+    "approveError": "Nie udało się zatwierdzić komentarza",
     "deleteTitle": "Usuń komentarz",
     "deleteDesc": "Czy na pewno chcesz usunąć ten komentarz? Spowoduje to również usunięcie wszystkich załączników. Tej operacji nie można cofnąć",
     "deleteSuccess": "Komentarz usunięty",
@@ -140,6 +141,8 @@
     "userListsDisabled": "Listy użytkowników są wyłączone"
   },
   "users": {
+    "notFoundTitle": "Nie znaleziono użytkownika",
+    "notFoundDescription": "To konto nie istnieje lub zostało usunięte",
     "picker": {
       "searchPlaceholder": "Szukaj użytkowników...",
       "noUsers": "Nie znaleziono użytkowników",
@@ -233,7 +236,8 @@
       "error": "Błąd"
     },
     "failure": {
-      "dashboard": "Import UKE wymaga uwagi"
+      "dashboard": "Import UKE wymaga uwagi",
+      "job": "Import nie powiódł się"
     },
     "startedAt": "Rozpoczęto",
     "finishedAt": "Zakończono",

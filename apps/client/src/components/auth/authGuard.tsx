@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AuthDialog } from "@/components/auth/authDialog";
+import { AuthRequired } from "@/components/auth/authRequired";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
 
@@ -15,7 +15,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const enforced = settings?.enforceAuthForAllRoutes === true;
   const authenticated = !!session?.user;
 
-  if (enforced && !authenticated && !isPending) return <AuthDialog open forced onOpenChange={() => {}} />;
+  if (enforced && !authenticated && !isPending) return <AuthRequired showMapLink={false} />;
 
   return <>{children}</>;
 }

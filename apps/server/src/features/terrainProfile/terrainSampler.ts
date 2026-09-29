@@ -1,7 +1,7 @@
 import { sql as postgres } from "@openbts/drizzle/db";
 import { createHash } from "node:crypto";
 
-import { withRedisStaleCache } from "./cache.js";
+import { withRedisStaleCache } from "../../lib/redisCache.js";
 import { TERRAIN_PROFILE_MAX_DISTANCE_M, TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
 import type { ResolvedTerrainStation, TerrainProfileRequest, TerrainSampleResult } from "./types.js";
 import { type AaiGrid, DEFAULT_WCS_FORMAT, parseAaiGrid } from "./wcs.js";

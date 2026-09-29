@@ -23,7 +23,6 @@
   "goToPhoto": "Go to photo {{number}}",
   "resolution": "Resolution",
   "loadFailed": "Couldn't load this photo",
-  "retry": "Try again",
   "shortcut": {
     "navigate": "Previous or next photo",
     "firstLast": "First or last photo",

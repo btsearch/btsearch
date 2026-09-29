@@ -15,6 +15,7 @@ import { RevertOperationDialog } from "./revertDialog";
 import type { RevertDialogCounts } from "./revertDialog";
 import { UserChip } from "./userChip";
 import { Button } from "@/components/ui/button";
+import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -86,18 +87,8 @@ const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert 
   );
 });
 
-function OperationDetailFallback({ isError, onRetry }: { isError: boolean; onRetry: () => void }) {
-  const { t } = useTranslation("common");
-
-  if (isError)
-    return (
-      <div className="mx-4 rounded-lg border border-destructive/25 bg-destructive/5 p-3" role="alert">
-        <p className="text-sm text-destructive">{t("error.title")}</p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-          {t("actions.retry")}
-        </Button>
-      </div>
-    );
+function OperationDetailFallback({ isError, isRetrying, onRetry }: { isError: boolean; isRetrying: boolean; onRetry: () => unknown }) {
+  if (isError) return <ErrorState className="mx-4 mb-4 flex-1" onRetry={onRetry} isRetrying={isRetrying} />;
 
   return (
     <div className="space-y-4 px-4" aria-hidden="true">
@@ -166,15 +157,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
         <Skeleton className="h-24 w-full" />
       </div>
     );
-  else if (detailQuery.isError)
-    changesContent = (
-      <div className="rounded-lg border border-destructive/25 bg-destructive/5 p-3" role="alert">
-        <p className="text-sm text-destructive">{t("common:error.title")}</p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={() => void detailQuery.refetch()}>
-          {t("common:actions.retry")}
-        </Button>
-      </div>
-    );
+  else if (detailQuery.isLoadingError) changesContent = <InlineError onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />;
   else
     changesContent = (
       <div className="space-y-4">
@@ -198,6 +181,9 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
 
           {operation ? (
             <div className="flex flex-col gap-5 px-4 pb-4">
+              {detailQuery.isRefetchError ? (
+                <StaleDataNotice className="self-start" onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />
+              ) : null}
               {operation.reverted_by_operation_id !== null ? (
                 <p className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">{t("auditLogs.revert.alreadyReverted")}</p>
               ) : null}
@@ -309,7 +295,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
               ) : null}
             </div>
           ) : (
-            <OperationDetailFallback isError={detailQuery.isError} onRetry={() => void detailQuery.refetch()} />
+            <OperationDetailFallback isError={detailQuery.isError} isRetrying={detailQuery.isFetching} onRetry={() => detailQuery.refetch()} />
           )}
         </SheetContent>
       </Sheet>

@@ -5,11 +5,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -153,10 +153,7 @@ function ImportJobDetails({ job }: { job: ImportJobStatus }) {
       </dl>
 
       {job.error ? (
-        <Alert variant="destructive" className="border-destructive/20 bg-destructive/5">
-          <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" />
-          <AlertDescription className="whitespace-pre-wrap wrap-break-word">{job.error}</AlertDescription>
-        </Alert>
+        <InlineError title={t("ukeImport.failure.job")} description={<span className="whitespace-pre-wrap wrap-break-word">{job.error}</span>} />
       ) : null}
 
       {job.steps.length > 0 ? (
@@ -192,12 +189,19 @@ function ImportJobDetails({ job }: { job: ImportJobStatus }) {
   );
 }
 
-function LatestImportBody({ status, isError }: { status: ImportJobStatus | undefined; isError: boolean }) {
+type LatestImportProps = {
+  status: ImportJobStatus | undefined;
+  isError: boolean;
+  isRetrying: boolean;
+  onRetry: () => unknown;
+};
+
+function LatestImportBody({ status, isError, isRetrying, onRetry }: LatestImportProps) {
   const { t } = useTranslation("admin");
 
   if (status?.state === "idle") return <p className="text-sm text-muted-foreground">{t("ukeImport.latest.empty")}</p>;
   if (status) return <ImportJobDetails job={status} />;
-  if (isError) return <p className="text-sm text-destructive">{t("ukeImport.latest.loadError")}</p>;
+  if (isError) return <ErrorState title={t("ukeImport.latest.loadError")} onRetry={onRetry} isRetrying={isRetrying} />;
 
   return (
     <div role="status" aria-label={t("ukeImport.latest.loading")} className="flex flex-col gap-4">
@@ -218,7 +222,7 @@ function LatestImportBody({ status, isError }: { status: ImportJobStatus | undef
   );
 }
 
-function LatestImportPanel({ status, isError }: { status: ImportJobStatus | undefined; isError: boolean }) {
+function LatestImportPanel({ status, isError, isRetrying, onRetry }: LatestImportProps) {
   const { t } = useTranslation("admin");
   const outcome = status && status.state !== "idle" ? getJobOutcome(status) : null;
 
@@ -233,7 +237,7 @@ function LatestImportPanel({ status, isError }: { status: ImportJobStatus | unde
         ) : null}
       </PanelHeader>
       <div className="p-4">
-        <LatestImportBody status={status} isError={isError} />
+        <LatestImportBody status={status} isError={isError} isRetrying={isRetrying} onRetry={onRetry} />
       </div>
     </section>
   );
@@ -274,11 +278,7 @@ function ManualImportControls({ isRunning }: { isRunning: boolean }) {
           {isRunning ? t("ukeImport.alreadyRunning") : t("ukeImport.startImport")}
         </Button>
       </div>
-      {startMutation.isError ? (
-        <p role="alert" className="text-xs text-destructive">
-          {t("ukeImport.startFailed")}
-        </p>
-      ) : null}
+      {startMutation.isError ? <InlineError title={t("ukeImport.startFailed")} /> : null}
     </div>
   );
 }
@@ -354,7 +354,7 @@ function ImportHistoryList({ jobs }: { jobs: ImportJobStatus[] }) {
 
 function ImportHistoryPanel({ currentJobId, isStatusPending }: { currentJobId: string | undefined; isStatusPending: boolean }) {
   const { t } = useTranslation("admin");
-  const { data: history, isPending, isError } = useQuery(importHistoryQueryOptions);
+  const { data: history, isPending, isError, isFetching, refetch } = useQuery(importHistoryQueryOptions);
   const previousImports = history?.filter((job) => job.id !== currentJobId) ?? [];
 
   let content: ReactNode;
@@ -372,12 +372,10 @@ function ImportHistoryPanel({ currentJobId, isStatusPending }: { currentJobId: s
     );
   } else if (previousImports.length > 0) {
     content = <ImportHistoryList jobs={previousImports} />;
+  } else if (isError && history === undefined) {
+    content = <ErrorState title={t("ukeImport.history.loadError")} onRetry={() => refetch()} isRetrying={isFetching} className="m-4" />;
   } else {
-    content = (
-      <p className={cn("px-4 py-6 text-sm", isError ? "text-destructive" : "text-muted-foreground")}>
-        {isError ? t("ukeImport.history.loadError") : t("ukeImport.history.empty")}
-      </p>
-    );
+    content = <p className="px-4 py-6 text-sm text-muted-foreground">{t("ukeImport.history.empty")}</p>;
   }
 
   return (
@@ -390,7 +388,13 @@ function ImportHistoryPanel({ currentJobId, isStatusPending }: { currentJobId: s
 
 function UkeImportPage() {
   const { t } = useTranslation("admin");
-  const { data: status, isPending: isStatusPending, isError: isStatusError } = useQuery(importStatusQueryOptions);
+  const {
+    data: status,
+    isPending: isStatusPending,
+    isError: isStatusError,
+    isFetching: isStatusFetching,
+    refetch: refetchStatus,
+  } = useQuery(importStatusQueryOptions);
 
   return (
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-4 min-h-0 overflow-hidden">
@@ -403,7 +407,7 @@ function UkeImportPage() {
       </div>
       <div className="@container flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="grid gap-4 pb-16 @4xl:grid-cols-2 @4xl:items-start @4xl:gap-x-6">
-          <LatestImportPanel status={status} isError={isStatusError} />
+          <LatestImportPanel status={status} isError={isStatusError} isRetrying={isStatusFetching} onRetry={() => refetchStatus()} />
           <ImportHistoryPanel currentJobId={status?.id} isStatusPending={isStatusPending} />
         </div>
       </div>

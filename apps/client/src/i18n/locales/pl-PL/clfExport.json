@@ -39,7 +39,8 @@
     "regions": "regionów",
     "bands": "pasm",
     "loading": "Ładowanie: {{source}}...",
-    "error": "Nie udało się wczytać: {{source}}. Pozostałe ustawienia są nadal dostępne"
+    "errorTitle": "Nie udało się wczytać: {{source}}",
+    "errorDescription": "Pozostałe ustawienia są nadal dostępne"
   },
   "templates": {
     "title": "Szablony opisów (zaawansowane)",

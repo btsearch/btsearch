@@ -33,7 +33,7 @@ import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTablePagination } from "@/hooks/useTablePageSize";
-import { API_BASE, fetchJson, showApiError } from "@/lib/api";
+import { API_BASE, fetchJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const EMPTY_COMMENTS: AdminComment[] = [];
@@ -150,7 +150,7 @@ function AdminCommentsPage() {
   const navActionTarget = useNavActionTarget();
   const hasFloatingRail = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState<CommentsStatusFilter>("all");
@@ -166,7 +166,7 @@ function AdminCommentsPage() {
   const [lightboxComment, setLightboxComment] = useState<AdminComment | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin-comments", pagination.pageIndex, pagination.pageSize, debouncedSearch, statusFilter, sortBy, sort, selectedAuthorIds],
     queryFn: () => {
       const params = new URLSearchParams({
@@ -197,7 +197,7 @@ function AdminCommentsPage() {
       void queryClient.invalidateQueries({ queryKey: ["admin-comments"] });
       setDeleteTarget(null);
     },
-    onError: showApiError,
+    onError: () => toast.error(t("comments.deleteError")),
   });
 
   const approveMutation = useMutation({
@@ -214,7 +214,7 @@ function AdminCommentsPage() {
       toast.success(t("comments.approveSuccess"));
       void queryClient.invalidateQueries({ queryKey: ["admin-comments"] });
     },
-    onError: showApiError,
+    onError: () => toast.error(t("comments.approveError")),
   });
 
   const editMutation = useMutation({
@@ -232,7 +232,7 @@ function AdminCommentsPage() {
       void queryClient.invalidateQueries({ queryKey: ["admin-comments"] });
       setEditTarget(null);
     },
-    onError: showApiError,
+    onError: () => toast.error(t("comments.editError")),
   });
 
   const handleEdit = useCallback((comment: AdminComment) => {
@@ -330,9 +330,13 @@ function AdminCommentsPage() {
         <CommentsDataTable
           data={data?.data ?? EMPTY_COMMENTS}
           isLoading={isLoading}
+          isError={isError}
+          isRetrying={isFetching}
+          onRetry={refetch}
           total={data?.totalCount ?? 0}
           containerRef={containerRef}
           pagination={pagination}
+          autoPageSize={autoPageSize}
           setPagination={setPagination}
           pageSizeOptions={pageSizeOptions}
           sortBy={sortBy}

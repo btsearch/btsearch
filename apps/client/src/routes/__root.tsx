@@ -1,6 +1,6 @@
 import type { AuthClient } from "@better-auth-ui/core";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { HeadContent, Outlet, Link as RouterLink, createRootRoute, useNavigate } from "@tanstack/react-router";
+import { HeadContent, Outlet, Link as RouterLink, createRootRoute, useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -49,6 +49,7 @@ declare global {
 
 type AuthLinkProps = { href: string; className?: string; children?: ReactNode };
 type AppProvidersProps = { children: ReactNode };
+type AppErrorBoundaryProps = { children: ReactNode };
 
 const ADS_PRIVILEGED_ROLES = new Set(["admin", "editor"]);
 
@@ -132,6 +133,12 @@ function SeoHead() {
   return <HeadContent />;
 }
 
+function AppErrorBoundary({ children }: AppErrorBoundaryProps) {
+  const pathname = useLocation({ select: (location) => location.pathname });
+
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 function AppProviders({ children }: AppProvidersProps) {
   const navigate = useNavigate();
   const { i18n: i18nInstance } = useTranslation();
@@ -161,9 +168,9 @@ function AppProviders({ children }: AppProvidersProps) {
     >
       <AdsLoader />
       <RybbitIdentify />
-      <ErrorBoundary>
+      <AppErrorBoundary>
         <FloatingDialogStackProvider>{children}</FloatingDialogStackProvider>
-      </ErrorBoundary>
+      </AppErrorBoundary>
       <Toaster />
       <ReloadPrompt />
       <CookieConsentBanner />

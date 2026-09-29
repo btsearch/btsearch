@@ -1,7 +1,11 @@
+import { ArrowLeft01Icon, UserRemove01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Navigate, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DangerZoneCard } from "@/features/admin/users/components/DangerZoneCard";
 import { ManageUserCard } from "@/features/admin/users/components/ManageUserCard";
@@ -14,9 +18,16 @@ import { authClient } from "@/lib/auth/client";
 
 function AdminUserDetailPage() {
   const { id: userId } = Route.useParams();
-  const navigate = useNavigate();
+  const { t } = useTranslation("admin");
 
-  const { data: userData, isLoading } = useQuery({
+  const {
+    data: userData,
+    error,
+    isLoading,
+    isPaused,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "user", userId],
     queryFn: async () => {
       const result = await authClient.admin.listUsers({
@@ -28,7 +39,7 @@ function AdminUserDetailPage() {
         },
       });
       if (result.error) throw result.error;
-      return result.data?.users?.[0] as unknown as AdminUser | undefined;
+      return (result.data?.users?.[0] as unknown as AdminUser | undefined) ?? null;
     },
     enabled: !!userId,
   });
@@ -54,7 +65,7 @@ function AdminUserDetailPage() {
 
   if (!userId) return <Navigate to="/admin/users" replace />;
 
-  if (isLoading) {
+  if (isLoading || (isPaused && !userData)) {
     return (
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-4">
@@ -73,15 +84,23 @@ function AdminUserDetailPage() {
   }
 
   if (!userData) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">User not found</p>
-          <Button variant="outline" onClick={() => navigate({ to: "/admin/users" })}>
-            Back to Users
-          </Button>
-        </div>
-      </div>
+    const backButton = (
+      <Button variant={error ? "outline" : "default"} nativeButton={false} render={<Link to="/admin/users" />}>
+        <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+        {t("common:actions.back")}
+      </Button>
+    );
+
+    return error ? (
+      <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} action={backButton} />
+    ) : (
+      <PageErrorState
+        tone="neutral"
+        icon={UserRemove01Icon}
+        title={t("users.notFoundTitle")}
+        description={t("users.notFoundDescription")}
+        action={backButton}
+      />
     );
   }
 

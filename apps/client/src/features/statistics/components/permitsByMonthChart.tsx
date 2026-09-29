@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { permitSnapshotQueryOptions } from "../queries";
 import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric, buildSnapshotBands } from "./permitSnapshotBandChart";
 import { PermitSnapshotImage, exportPermitSnapshotImage } from "./permitSnapshotImage";
+import type { ChartErrorProps } from "./statChartCard";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { ErrorState } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
@@ -84,7 +86,14 @@ function SnapshotMetricToggle({ value, onValueChange }: { value: SnapshotMetric;
   );
 }
 
-function SnapshotComparisonGrid({ bands, isLoading, metric }: { bands: SnapshotBand[]; isLoading: boolean; metric: SnapshotMetric }) {
+function SnapshotComparisonGrid({
+  bands,
+  isLoading,
+  metric,
+  isError,
+  onRetry,
+  isRetrying,
+}: { bands: SnapshotBand[]; isLoading: boolean; metric: SnapshotMetric } & ChartErrorProps) {
   const { t } = useTranslation("statistics");
 
   if (isLoading) {
@@ -96,6 +105,14 @@ function SnapshotComparisonGrid({ bands, isLoading, metric }: { bands: SnapshotB
             <div className="h-56 animate-pulse rounded bg-muted/40" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="border-t border-border p-4">
+        <ErrorState onRetry={onRetry} isRetrying={isRetrying} />
       </div>
     );
   }
@@ -123,7 +140,7 @@ export function PermitsByMonthChart() {
   const [metric, setMetric] = useState<SnapshotMetric>("stations");
   const [isExporting, setIsExporting] = useState(false);
   const exportImageRef = useRef<HTMLDivElement>(null);
-  const { data, isLoading } = useQuery(permitSnapshotQueryOptions(month));
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(permitSnapshotQueryOptions(month));
   const bands = useMemo(() => buildSnapshotBands(data?.rows), [data?.rows]);
 
   const description = data?.snapshot_date
@@ -172,7 +189,14 @@ export function PermitsByMonthChart() {
           </Button>
         </div>
       </div>
-      <SnapshotComparisonGrid bands={bands} isLoading={isLoading} metric={metric} />
+      <SnapshotComparisonGrid
+        bands={bands}
+        isLoading={isLoading}
+        metric={metric}
+        isError={isLoadingError}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
       {isExporting ? <PermitSnapshotImage ref={exportImageRef} bands={bands} description={description} metric={metric} month={month} /> : null}
     </div>
   );

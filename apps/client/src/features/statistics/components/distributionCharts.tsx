@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 
 import type { StatsOperator, StatsSummary } from "../api";
 import { operatorColor, operatorDataKey } from "../lib/series";
+import type { ChartErrorProps } from "./statChartCard";
 import { EvilPieChart, Label, Legend, Pie, Tooltip } from "@/components/evilcharts/charts/pie-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
+import { ErrorState } from "@/components/ui/error-state";
 
 const RAT_COLORS: Record<string, string> = {
   LTE: "var(--chart-1)",
@@ -16,6 +18,7 @@ const RAT_COLORS: Record<string, string> = {
 };
 
 type PieRow = { name: string; value: number };
+type DistributionChartsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
 const EMPTY_PIE: { data: PieRow[]; config: ChartConfig } = { data: [], config: {} };
 
 function buildRatPieData(rows: StatsSummary["by_rat"]): { data: PieRow[]; config: ChartConfig } {
@@ -66,7 +69,15 @@ function PiePanel({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data, isLoading }: { data?: StatsSummary; isLoading: boolean }) {
+function DistributionError({ onRetry, isRetrying }: Omit<ChartErrorProps, "isError">) {
+  return (
+    <div className="relative border border-border p-4">
+      <ErrorState onRetry={onRetry} isRetrying={isRetrying} />
+    </div>
+  );
+}
+
+export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data, isLoading, isError, onRetry, isRetrying }: DistributionChartsProps) {
   const { t, i18n } = useTranslation("statistics");
   const locale = i18n.language;
 
@@ -78,6 +89,8 @@ export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data,
 
   const ratFormatter = useMemo(() => makeLabelFormatter(ratPie.data, locale), [ratPie.data, locale]);
   const operatorFormatter = useMemo(() => makeLabelFormatter(operatorPie.data, locale), [operatorPie.data, locale]);
+
+  if (isError) return <DistributionError onRetry={onRetry} isRetrying={isRetrying} />;
 
   return (
     <div className="relative border border-border">
@@ -105,7 +118,13 @@ export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data,
   );
 });
 
-export const InternalDistributionCharts = memo(function InternalDistributionCharts({ data, isLoading }: { data?: StatsSummary; isLoading: boolean }) {
+export const InternalDistributionCharts = memo(function InternalDistributionCharts({
+  data,
+  isLoading,
+  isError,
+  onRetry,
+  isRetrying,
+}: DistributionChartsProps) {
   const { t, i18n } = useTranslation("statistics");
   const locale = i18n.language;
 
@@ -115,6 +134,8 @@ export const InternalDistributionCharts = memo(function InternalDistributionChar
   );
 
   const formatter = useMemo(() => makeLabelFormatter(operatorPie.data, locale), [operatorPie.data, locale]);
+
+  if (isError) return <DistributionError onRetry={onRetry} isRetrying={isRetrying} />;
 
   return (
     <div className="relative border border-border">

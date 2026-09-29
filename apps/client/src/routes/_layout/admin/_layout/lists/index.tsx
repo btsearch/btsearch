@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Cancel01Icon, Delete02Icon, Globe02Icon, ListViewIcon, LockIcon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Delete02Icon, Globe02Icon, ListViewIcon, LockIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { useNavActionTarget } from "@/contexts/navActions";
@@ -98,7 +99,7 @@ function AdminListsPage() {
   const navActionTarget = useNavActionTarget();
   const hasFloatingRail = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const { containerRef, pagination, setPagination, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = useTablePagination(TABLE_PAGINATION_CONFIG);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -112,7 +113,7 @@ function AdminListsPage() {
     [setPagination],
   );
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["admin", "lists", pagination.pageIndex, pagination.pageSize, debouncedSearch],
     queryFn: () => fetchUserLists(pagination.pageSize, pagination.pageIndex + 1, debouncedSearch || undefined, true),
     placeholderData: keepPreviousData,
@@ -250,26 +251,18 @@ function AdminListsPage() {
           </div>
         </div>
 
-        <div ref={containerRef} className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div ref={containerRef} className="custom-scrollbar relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+          {isError && lists.length > 0 ? (
+            <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} className="absolute right-2 top-2 z-20" />
+          ) : null}
           <div className="custom-scrollbar overflow-x-auto overflow-y-hidden">
             <DataTable.Root table={table} className="block rounded-b-none border-b-0">
               <DataTable.Table>
                 <DataTable.Header />
                 {isLoading ? (
                   <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
-                ) : isError ? (
-                  <tbody>
-                    <tr>
-                      <td colSpan={columns.length} className="h-64 text-center">
-                        <div className="flex flex-col items-center justify-center text-muted-foreground">
-                          <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                            <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-                          </div>
-                          <p>{t("common:error.title")}</p>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
+                ) : isError && lists.length === 0 ? (
+                  <DataTable.Error columns={columns.length} rows={autoPageSize} onRetry={() => refetch()} isRetrying={isFetching} />
                 ) : lists.length === 0 ? (
                   <tbody>
                     <tr>

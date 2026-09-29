@@ -3,7 +3,6 @@ import {
   ArrowDown01Icon,
   ArrowRight01Icon,
   ArrowUpRight01Icon,
-  Cancel01Icon,
   Clock01Icon,
   CompassIcon,
   EarthIcon,
@@ -34,6 +33,8 @@ import { StationTitle } from "./stationTitle";
 import { photoThumbUrl, photoUrl } from "@/components/photos/photoFiles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/ui/close-button";
+import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
@@ -554,25 +555,14 @@ export function StationHistoryDialogPanel({
   const canOpenAdminHistory = canOpenAuditLog || userRole === "editor";
   const [revertTarget, setRevertTarget] = useState<StationHistoryItem | null>(null);
 
-  const {
-    data,
-    isError,
-    isFetchNextPageError,
-    isFetching,
-    isFetchingNextPage,
-    isPending,
-    isRefetchError,
-    isRefetching,
-    hasNextPage,
-    fetchNextPage,
-    refetch,
-  } = useInfiniteQuery({
-    queryKey: ["station-history", stationId],
-    queryFn: ({ pageParam, signal }) => fetchStationHistory(stationId, pageParam, signal),
-    initialPageParam: null as number | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    staleTime: 30_000,
-  });
+  const { data, isError, isFetchNextPageError, isFetchingNextPage, isPending, isRefetchError, isRefetching, hasNextPage, fetchNextPage, refetch } =
+    useInfiniteQuery({
+      queryKey: ["station-history", stationId],
+      queryFn: ({ pageParam, signal }) => fetchStationHistory(stationId, pageParam, signal),
+      initialPageParam: null as number | null,
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      staleTime: 30_000,
+    });
 
   const pages = data?.pages;
   const items = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
@@ -606,10 +596,6 @@ export function StationHistoryDialogPanel({
   const groups = useMemo(() => groupHistoryByDay(items, i18n.language), [items, i18n.language]);
   const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions");
 
-  let loadMoreLabel = t("history.loadMore");
-  if (isFetchingNextPage) loadMoreLabel = t("common:actions.loading");
-  else if (isFetchNextPageError) loadMoreLabel = t("common:actions.retry");
-
   let historyContent: ReactNode;
   if (isPending)
     historyContent = (
@@ -629,20 +615,10 @@ export function StationHistoryDialogPanel({
       </>
     );
   else if (isError && items.length === 0)
-    historyContent = (
-      <div
-        className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-destructive/25 bg-destructive/5 px-6 py-10 text-center"
-        role="alert"
-      >
-        <p className="text-sm font-semibold text-foreground">{t("history.error")}</p>
-        <Button variant="outline" size="sm" className="mt-4" disabled={isFetching} onClick={() => void refetch()}>
-          {isFetching ? t("common:actions.loading") : t("common:actions.retry")}
-        </Button>
-      </div>
-    );
+    historyContent = <ErrorState className="flex-1" title={t("history.error")} onRetry={() => refetch()} isRetrying={isRefetching} />;
   else if (items.length === 0)
     historyContent = (
-      <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
+      <div className="flex min-h-56 flex-1 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
         <HugeiconsIcon icon={Clock01Icon} className="size-7 text-muted-foreground" />
         <h3 className="mt-3 text-sm font-semibold text-foreground">{t("history.empty")}</h3>
         <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("history.emptyHint")}</p>
@@ -651,6 +627,11 @@ export function StationHistoryDialogPanel({
   else
     historyContent = (
       <>
+        {isRefetchError ? (
+          <div className="mb-1 flex justify-center">
+            <StaleDataNotice message={t("history.refreshError")} onRetry={() => refetch()} isRetrying={isRefetching} />
+          </div>
+        ) : null}
         {groups.map((group) => (
           <section key={group.key} aria-label={group.label}>
             <h3 className="sticky top-0 z-10 -mx-3 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground sm:-mx-4 sm:px-4">
@@ -669,27 +650,15 @@ export function StationHistoryDialogPanel({
             </div>
           </section>
         ))}
-        {isRefetchError && !isFetchNextPageError ? (
-          <div
-            className="my-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2"
-            role="alert"
-          >
-            <p className="text-xs text-destructive">{t("history.refreshError")}</p>
-            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}>
-              {t("common:actions.retry")}
-            </Button>
-          </div>
-        ) : null}
         {hasNextPage ? (
-          <div ref={loadMoreRef} className="space-y-2 py-2">
+          <div ref={loadMoreRef} className="py-2">
             {isFetchNextPageError ? (
-              <p className="text-center text-xs text-destructive" role="alert">
-                {t("history.loadMoreError")}
-              </p>
-            ) : null}
-            <Button variant="outline" size="sm" className="w-full" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
-              {loadMoreLabel}
-            </Button>
+              <InlineError size="sm" title={t("history.loadMoreError")} onRetry={() => fetchNextPage()} isRetrying={isFetchingNextPage} />
+            ) : (
+              <Button variant="outline" size="sm" className="w-full" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+                {isFetchingNextPage ? t("common:actions.loading") : t("history.loadMore")}
+              </Button>
+            )}
           </div>
         ) : (
           <p className="py-2 text-center text-xs text-muted-foreground">{t("history.end")}</p>
@@ -743,16 +712,7 @@ export function StationHistoryDialogPanel({
                     <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
                   </Link>
                 )}
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  onClick={onClose}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  aria-label={t("common:actions.close")}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
-                </button>
+                <CloseButton ref={closeButtonRef} onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
               </div>
             </div>
           </div>
@@ -762,7 +722,7 @@ export function StationHistoryDialogPanel({
             className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable"
             aria-busy={isPending || isFetchingNextPage}
           >
-            <div ref={bodyContentRef} className="px-3 py-2 sm:px-4 sm:py-2.5">
+            <div ref={bodyContentRef} className={cn("px-3 py-2 sm:px-4 sm:py-2.5", !isPending && items.length === 0 && "flex min-h-full flex-col")}>
               {historyContent}
             </div>
           </div>

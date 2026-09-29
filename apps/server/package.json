@@ -1,6 +1,6 @@
 {
   "name": "@openbts/sora",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "Sora - Core backend service",
   "license": "GPL-3.0",

@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -252,11 +253,18 @@ export function OAuthAppsCard({ userId }: { userId: string }) {
 
   const queryKey = ["account", "oauth-apps", userId];
 
-  const { data: apps = [], isLoading } = useQuery({
+  const {
+    data: apps = [],
+    isLoading,
+    isLoadingError,
+    isRefetchError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey,
     queryFn: async () => {
       const res = await authClient.oauth2.getClients();
-      if (res.error) throw new Error(res.error.message ?? "Failed to load applications");
+      if (res.error) throw new Error(res.error.message ?? t("oauth:apps.errors.loadFailed"));
       return (res.data ?? []) as OAuthApp[];
     },
   });
@@ -264,7 +272,7 @@ export function OAuthAppsCard({ userId }: { userId: string }) {
   const rotateMutation = useMutation({
     mutationFn: async (clientId: string) => {
       const res = await authClient.oauth2.client.rotateSecret({ client_id: clientId });
-      if (res.error) throw new Error(res.error.message ?? "Failed to rotate secret");
+      if (res.error) throw new Error(res.error.message ?? t("oauth:apps.errors.rotateFailed"));
       return res.data as { client_id: string; client_secret?: string };
     },
     onSuccess: (data) => {
@@ -277,7 +285,7 @@ export function OAuthAppsCard({ userId }: { userId: string }) {
   const deleteMutation = useMutation({
     mutationFn: async (clientId: string) => {
       const res = await authClient.oauth2.deleteClient({ client_id: clientId });
-      if (res.error) throw new Error(res.error.message ?? "Failed to delete application");
+      if (res.error) throw new Error(res.error.message ?? t("oauth:apps.errors.deleteFailed"));
     },
     onSuccess: () => {
       toast.success(t("oauth:apps.deleteSuccess"));
@@ -306,8 +314,11 @@ export function OAuthAppsCard({ userId }: { userId: string }) {
     );
   }
 
+  if (isLoadingError) return <ErrorState title={t("oauth:apps.errors.loadFailed")} onRetry={() => refetch()} isRetrying={isFetching} />;
+
   return (
     <>
+      {isRefetchError ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} /> : null}
       <Card className="gap-0">
         {apps.length === 0 ? (
           <CardContent className="flex flex-col items-center justify-center py-8 text-center">

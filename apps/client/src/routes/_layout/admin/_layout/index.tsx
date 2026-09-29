@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 const EditorNotes = lazy(() => import("@/features/admin/dashboard/EditorNotes").then((m) => ({ default: m.EditorNotes })));
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
 import {
@@ -110,6 +111,9 @@ function AdminDashboardPage() {
       toast.success(t("comments.approveSuccess", { ns: "admin" }));
       void queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "pending-comments"] });
     },
+    onError: () => {
+      toast.error(t("comments.approveError", { ns: "admin" }));
+    },
   });
 
   const deleteMutation = useMutation({
@@ -123,6 +127,9 @@ function AdminDashboardPage() {
     onSuccess: () => {
       toast.success(t("comments.deleteSuccess", { ns: "admin" }));
       void queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "pending-comments"] });
+    },
+    onError: () => {
+      toast.error(t("comments.deleteError", { ns: "admin" }));
     },
   });
 
@@ -144,7 +151,10 @@ function AdminDashboardPage() {
       }))
     : [];
 
+  const pendingCountText = submissionsQuery.isLoadingError ? "-" : pendingCount;
+  const pendingCommentCountText = commentsQuery.isLoadingError ? "-" : pendingCommentCount;
   const importNeedsAttention = isImportStatusInProgress(importStatus) || importStatus?.state === "error";
+  const failedImportStepLabels = failedImportSourceSteps.map((step) => t(`ukeImport.steps.${step.key}`, { ns: "admin" })).join(", ");
 
   const importStateColor =
     importStatus?.state === "running"
@@ -179,7 +189,7 @@ function AdminDashboardPage() {
               to="/admin/submissions"
               search={{ page: 0, q: undefined }}
               className="flex flex-col gap-0.5 group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded-sm"
-              aria-label={`${pendingCount} ${t("dashboard.toReview", { ns: "admin", count: pendingCount })}`}
+              aria-label={`${pendingCountText} ${t("dashboard.toReview", { ns: "admin", count: pendingCount })}`}
             >
               {submissionsQuery.isLoading ? (
                 <Skeleton className="h-7 w-14" aria-hidden="true" />
@@ -188,7 +198,7 @@ function AdminDashboardPage() {
                   aria-hidden="true"
                   className={cn("text-2xl font-bold tabular-nums leading-none", pendingCount > 0 ? "text-amber-500" : "text-muted-foreground")}
                 >
-                  {pendingCount}
+                  {pendingCountText}
                 </span>
               )}
               <span aria-hidden="true" className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
@@ -219,13 +229,13 @@ function AdminDashboardPage() {
             <Link
               to="/admin/comments"
               className="flex flex-col gap-0.5 group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring rounded-sm"
-              aria-label={`${pendingCommentCount} ${t("dashboard.toModerate", { ns: "admin", count: pendingCommentCount })}`}
+              aria-label={`${pendingCommentCountText} ${t("dashboard.toModerate", { ns: "admin", count: pendingCommentCount })}`}
             >
               {commentsQuery.isLoading ? (
                 <Skeleton className="h-7 w-8" aria-hidden="true" />
               ) : (
                 <span aria-hidden="true" className="text-2xl font-bold tabular-nums leading-none">
-                  {pendingCommentCount}
+                  {pendingCommentCountText}
                 </span>
               )}
               <span aria-hidden="true" className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
@@ -235,40 +245,44 @@ function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:flex sm:items-start gap-y-3" role="list" aria-label={t("dashboard.databaseStats", { ns: "admin" })}>
-          {statsItems.map(({ key, label, value, weeklyDelta }, i) => (
-            <div key={key} role="listitem" className={cn("flex flex-col gap-0.5", i > 0 && "sm:ml-5 sm:pl-5 sm:border-l border-border")}>
-              {statsQuery.isLoading ? (
-                <Skeleton className="h-5 w-14" aria-hidden="true" />
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[15px] font-semibold tabular-nums">{(value ?? 0).toLocaleString()}</span>
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                  </div>
-                  {weeklyDelta !== undefined && (
-                    <div
-                      className={cn(
-                        "flex items-center gap-0.5",
-                        weeklyDelta > 0 ? "text-emerald-500" : weeklyDelta < 0 ? "text-destructive" : "text-muted-foreground",
-                      )}
-                    >
-                      <HugeiconsIcon
-                        icon={weeklyDelta > 0 ? ArrowUp01Icon : weeklyDelta < 0 ? ArrowDown01Icon : MinusSignIcon}
-                        className="size-3 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="text-[10px] tabular-nums">
-                        {weeklyDelta > 0 ? "+" : ""}
-                        {weeklyDelta} {t("dashboard.thisWeek", { ns: "admin" })}
-                      </span>
+        {statsQuery.isLoadingError ? (
+          <InlineError size="sm" onRetry={() => statsQuery.refetch()} isRetrying={statsQuery.isFetching} className="self-start" />
+        ) : (
+          <div className="grid grid-cols-2 sm:flex sm:items-start gap-y-3" role="list" aria-label={t("dashboard.databaseStats", { ns: "admin" })}>
+            {statsItems.map(({ key, label, value, weeklyDelta }, i) => (
+              <div key={key} role="listitem" className={cn("flex flex-col gap-0.5", i > 0 && "sm:ml-5 sm:pl-5 sm:border-l border-border")}>
+                {statsQuery.isLoading ? (
+                  <Skeleton className="h-5 w-14" aria-hidden="true" />
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[15px] font-semibold tabular-nums">{(value ?? 0).toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+                    {weeklyDelta !== undefined && (
+                      <div
+                        className={cn(
+                          "flex items-center gap-0.5",
+                          weeklyDelta > 0 ? "text-emerald-500" : weeklyDelta < 0 ? "text-destructive" : "text-muted-foreground",
+                        )}
+                      >
+                        <HugeiconsIcon
+                          icon={weeklyDelta > 0 ? ArrowUp01Icon : weeklyDelta < 0 ? ArrowDown01Icon : MinusSignIcon}
+                          className="size-3 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span className="text-[10px] tabular-nums">
+                          {weeklyDelta > 0 ? "+" : ""}
+                          {weeklyDelta} {t("dashboard.thisWeek", { ns: "admin" })}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_minmax(0,0.65fr)_200px] gap-4 md:flex-1 md:min-h-0">
@@ -304,6 +318,8 @@ function AdminDashboardPage() {
                     </div>
                   ))}
                 </div>
+              ) : submissionsQuery.isLoadingError ? (
+                <InlineError size="sm" onRetry={() => submissionsQuery.refetch()} isRetrying={submissionsQuery.isFetching} className="m-2" />
               ) : submissions.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-8">
                   <HugeiconsIcon icon={TaskDone02Icon} className="size-7 opacity-20" aria-hidden="true" />
@@ -387,6 +403,8 @@ function AdminDashboardPage() {
                       </div>
                     ))}
                   </div>
+                ) : commentsQuery.isLoadingError ? (
+                  <InlineError size="sm" onRetry={() => commentsQuery.refetch()} isRetrying={commentsQuery.isFetching} className="m-1.5" />
                 ) : comments.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
                     <HugeiconsIcon icon={MessageMultiple01Icon} className="size-6 opacity-20" aria-hidden="true" />
@@ -486,6 +504,8 @@ function AdminDashboardPage() {
                         </div>
                       ))}
                     </div>
+                  ) : auditQuery.isLoadingError ? (
+                    <InlineError size="sm" onRetry={() => auditQuery.refetch()} isRetrying={auditQuery.isFetching} className="m-1.5" />
                   ) : (
                     auditOperations.map((operation) => {
                       const actorName = operation.actor?.name ?? operation.actor?.username ?? t("auditLogs.actor.system", { ns: "admin" });
@@ -532,34 +552,38 @@ function AdminDashboardPage() {
             <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               {t("dashboard.dataFreshness", { ns: "admin" })}
             </h2>
-            <div className="flex flex-col gap-2" role="list" aria-label={t("dashboard.dataFreshness", { ns: "admin" })}>
-              {freshnessItems.map(({ key, label, date }) => (
-                <div key={key} role="listitem" className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      aria-hidden="true"
-                      className={cn(
-                        "size-1.5 rounded-full shrink-0",
-                        statsQuery.isLoading ? "bg-muted animate-pulse" : date ? "bg-emerald-500" : "bg-amber-500",
-                      )}
-                    />
-                    <span className="text-[11px] text-muted-foreground">{label}</span>
-                    <span className="sr-only">
-                      {statsQuery.isLoading
-                        ? ""
-                        : date
-                          ? t("dashboard.freshnessFresh", { ns: "admin" })
-                          : t("dashboard.freshnessStale", { ns: "admin" })}
-                    </span>
+            {statsQuery.isLoadingError ? (
+              <InlineError size="sm" />
+            ) : (
+              <div className="flex flex-col gap-2" role="list" aria-label={t("dashboard.dataFreshness", { ns: "admin" })}>
+                {freshnessItems.map(({ key, label, date }) => (
+                  <div key={key} role="listitem" className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          "size-1.5 rounded-full shrink-0",
+                          statsQuery.isLoading ? "bg-muted animate-pulse" : date ? "bg-emerald-500" : "bg-amber-500",
+                        )}
+                      />
+                      <span className="text-[11px] text-muted-foreground">{label}</span>
+                      <span className="sr-only">
+                        {statsQuery.isLoading
+                          ? ""
+                          : date
+                            ? t("dashboard.freshnessFresh", { ns: "admin" })
+                            : t("dashboard.freshnessStale", { ns: "admin" })}
+                      </span>
+                    </div>
+                    {statsQuery.isLoading ? (
+                      <Skeleton className="h-3 w-20" aria-hidden="true" />
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{date ? formatShortDate(date, i18n.language) : "-"}</span>
+                    )}
                   </div>
-                  {statsQuery.isLoading ? (
-                    <Skeleton className="h-3 w-20" aria-hidden="true" />
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground tabular-nums">{date ? formatShortDate(date, i18n.language) : "-"}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {isAdmin ? <div className="border-t border-border" aria-hidden="true" /> : null}
@@ -574,14 +598,7 @@ function AdminDashboardPage() {
               </div>
 
               {importStatus?.state === "error" || failedImportSourceSteps.length > 0 ? (
-                <div className="rounded-md border border-destructive/20 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive" role="alert">
-                  <p className="font-medium">{t("ukeImport.failure.dashboard", { ns: "admin" })}</p>
-                  {failedImportSourceSteps.length > 0 ? (
-                    <p className="mt-0.5 text-destructive/80">
-                      {failedImportSourceSteps.map((step) => t(`ukeImport.steps.${step.key}`, { ns: "admin" })).join(", ")}
-                    </p>
-                  ) : null}
-                </div>
+                <InlineError size="sm" title={t("ukeImport.failure.dashboard", { ns: "admin" })} description={failedImportStepLabels} />
               ) : null}
 
               {importNeedsAttention && (

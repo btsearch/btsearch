@@ -9,7 +9,7 @@ import { StatChartCard } from "./statChartCard";
 export function ContributionsChart() {
   const { t } = useTranslation("statistics");
   const [granularity, setGranularity] = useState<"daily" | "monthly">("monthly");
-  const { data, isLoading } = useQuery(contributionsHistoryQueryOptions({ granularity }));
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(contributionsHistoryQueryOptions({ granularity }));
   const chartData = useMemo(
     () =>
       data?.map((row) => ({
@@ -42,6 +42,9 @@ export function ContributionsChart() {
       height="h-80"
       showBrush
       isLoading={isLoading}
+      isError={isLoadingError}
+      onRetry={() => refetch()}
+      isRetrying={isFetching}
     />
   );
 }

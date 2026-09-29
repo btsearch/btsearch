@@ -1,4 +1,4 @@
-import { Alert02Icon, ArrowUpRight01Icon, Cancel01Icon, Radar01Icon } from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, Radar01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, useId, useMemo } from "react";
@@ -10,6 +10,8 @@ import { DialogOperatorName } from "./dialogOperatorName";
 import { SI2PEMLogo } from "./si2pemLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/ui/close-button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
@@ -87,31 +89,11 @@ function SI2PEMAntennaList({ antennas }: { antennas: SI2PEMAntenna[] }) {
   );
 }
 
-type SI2PEMAntennaErrorProps = {
-  isRetrying: boolean;
-  onRetry: () => void;
-};
-
-function SI2PEMAntennaError({ isRetrying, onRetry }: SI2PEMAntennaErrorProps) {
-  const { t } = useTranslation(["stationDetails", "common"]);
-
-  return (
-    <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-destructive/25 bg-destructive/5 px-6 py-10 text-center">
-      <HugeiconsIcon icon={Alert02Icon} className="size-7 text-destructive" />
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{t("si2pemAntennaData.errorTitle")}</h3>
-      <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("si2pemAntennaData.errorDescription")}</p>
-      <Button variant="outline" size="sm" className="mt-4" disabled={isRetrying} onClick={onRetry}>
-        {isRetrying ? t("common:actions.loading") : t("common:actions.retry")}
-      </Button>
-    </div>
-  );
-}
-
 function SI2PEMAntennaEmpty() {
   const { t } = useTranslation("stationDetails");
 
   return (
-    <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
+    <div className="flex min-h-56 flex-1 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
       <HugeiconsIcon icon={Radar01Icon} className="size-7 text-muted-foreground" />
       <h3 className="mt-3 text-sm font-semibold text-foreground">{t("si2pemAntennaData.emptyTitle")}</h3>
       <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("si2pemAntennaData.emptyDescription")}</p>
@@ -154,7 +136,6 @@ export function SI2PEMAntennaDialogPanel({
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const titleId = useId();
   const headerDragClassName = headerDragProps?.className;
-  const operatorColor = operatorMnc ? getOperatorColor(operatorMnc) : "#3b82f6";
   const reportDate = useMemo(
     () => new Intl.DateTimeFormat(i18n.language, { dateStyle: "long" }).format(new Date(report.date)),
     [i18n.language, report.date],
@@ -171,6 +152,8 @@ export function SI2PEMAntennaDialogPanel({
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
   });
+  const hasAntennas = antennas !== undefined && antennas.length > 0;
+
   return (
     <div className={cn("relative", className)} style={style} role="dialog" aria-labelledby={titleId}>
       <div
@@ -183,7 +166,7 @@ export function SI2PEMAntennaDialogPanel({
         <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
           <div
             className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
+            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorMnc ? getOperatorColor(operatorMnc) : "#3b82f6") }}
           >
             <div id={titleId} className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
@@ -211,25 +194,36 @@ export function SI2PEMAntennaDialogPanel({
                 <span className="hidden sm:inline">{t("si2pemAntennaData.openReport")}</span>
                 <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
               </a>
-              <button
-                type="button"
-                onClick={onClose}
-                onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={t("common:actions.close")}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
-              </button>
+              <CloseButton onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
             </div>
           </div>
         </div>
 
         <div ref={bodyRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
-          <div ref={bodyContentRef} className="px-3 py-2 sm:px-4 sm:py-2.5">
+          <div ref={bodyContentRef} className={cn("px-3 py-2 sm:px-4 sm:py-2.5", !isLoading && !hasAntennas && "flex min-h-full flex-col")}>
             {isLoading ? <SI2PEMAntennaLoading /> : null}
-            {error ? <SI2PEMAntennaError isRetrying={isFetching} onRetry={() => void refetch()} /> : null}
+            {error && !antennas ? (
+              <ErrorState
+                className="flex-1"
+                title={t("si2pemAntennaData.errorTitle")}
+                description={t("si2pemAntennaData.errorDescription")}
+                onRetry={() => refetch()}
+                isRetrying={isFetching}
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    nativeButton={false}
+                    render={<a href={report.details.document_url} target="_blank" rel="noreferrer" />}
+                  >
+                    {t("si2pemAntennaData.openReport")}
+                    <HugeiconsIcon icon={ArrowUpRight01Icon} data-icon="inline-end" />
+                  </Button>
+                }
+              />
+            ) : null}
             {!error && antennas?.length === 0 ? <SI2PEMAntennaEmpty /> : null}
-            {antennas && antennas.length > 0 ? <SI2PEMAntennaList antennas={antennas} /> : null}
+            {hasAntennas ? <SI2PEMAntennaList antennas={antennas} /> : null}
           </div>
         </div>
       </div>

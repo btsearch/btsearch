@@ -5,6 +5,7 @@ import {
   MapsLocation01Icon,
   Note01Icon,
   PencilEdit02Icon,
+  SearchRemoveIcon,
   SignalFull02Icon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
@@ -16,8 +17,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CollapsibleSection } from "@/components/content/collapsibleSection";
-import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
+import { EntityNotFound, EntityRouteError, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
+import { InlineError } from "@/components/ui/error-state";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
@@ -75,6 +77,14 @@ function stationHead(station: Station) {
   );
 }
 
+function StationNotFound() {
+  return <EntityNotFound icon={SearchRemoveIcon} titleKey="page.stationNotFoundTitle" descriptionKey="page.stationNotFoundDescription" />;
+}
+
+function StationRouteError() {
+  return <EntityRouteError titleKey="page.stationUnavailableTitle" descriptionKey="page.stationUnavailableDescription" />;
+}
+
 function StationPage() {
   const { id } = Route.useParams();
   const stationId = Number(id);
@@ -85,12 +95,17 @@ function StationPage() {
   const { preferences } = usePreferences();
   const { openStationDialog, openStationHistoryDialog } = useFloatingDialogStack();
 
-  const { data: station } = useQuery(stationQueryOptions(stationId));
+  const { data: station, error: stationError } = useQuery(stationQueryOptions(stationId));
 
   const userRole = session?.user?.role as string | undefined;
   const isAdmin = userRole === "admin" || userRole === "editor";
 
-  const { data: photos = [] } = useQuery({
+  const {
+    data: photos,
+    isError: isPhotosError,
+    isFetching: isFetchingPhotos,
+    refetch: refetchPhotos,
+  } = useQuery({
     queryKey: ["station-photos", stationId],
     queryFn: () => fetchStationPhotos(stationId),
     staleTime: 1000 * 60 * 5,
@@ -103,7 +118,10 @@ function StationPage() {
     [station?.sectors],
   );
 
-  if (!station) return <EntityPageMessage titleKey="page.stationUnavailableTitle" descriptionKey="page.stationUnavailableDescription" />;
+  if (!station) {
+    if (stationError instanceof ApiResponseError && stationError.status === 404) return <StationNotFound />;
+    return stationError ? <StationRouteError /> : null;
+  }
 
   const operatorColor = getOperatorColor(station.operator.mnc);
   const stationNotes = station.notes?.trim();
@@ -249,9 +267,14 @@ function StationPage() {
             </div>
           </div>
         ) : null}
-        {photos.length > 0 ? (
+        {photos !== undefined && photos.length > 0 ? (
           <div className="border-t px-4 py-3 sm:px-6">
             <PhotoStrip photos={photos} />
+          </div>
+        ) : null}
+        {isPhotosError && photos === undefined ? (
+          <div className="border-t px-4 py-3 sm:px-6">
+            <InlineError title={t("photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
           </div>
         ) : null}
       </header>
@@ -344,6 +367,6 @@ export const Route = createFileRoute("/_layout/stations_/$id")({
     }
   },
   head: ({ loaderData }) => (loaderData ? stationHead(loaderData) : { meta: [{ name: "robots", content: "noindex" }] }),
-  notFoundComponent: () => <EntityPageMessage titleKey="page.stationNotFoundTitle" descriptionKey="page.stationNotFoundDescription" />,
-  errorComponent: () => <EntityPageMessage titleKey="page.stationUnavailableTitle" descriptionKey="page.stationUnavailableDescription" />,
+  notFoundComponent: StationNotFound,
+  errorComponent: StationRouteError,
 });

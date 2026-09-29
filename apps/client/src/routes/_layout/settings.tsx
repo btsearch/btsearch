@@ -32,6 +32,7 @@ import { ActiveSessions } from "@/components/auth/settings/security/active-sessi
 import { LinkedAccounts } from "@/components/auth/settings/security/linked-accounts";
 import { TwoFactorSettings } from "@/components/auth/two-factor/two-factor-settings";
 import { Button } from "@/components/ui/button";
+import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { PreferencesContent } from "@/features/account/PreferencesContent";
 import { fetchRegions } from "@/features/shared/api";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { API_BASE, fetchJson, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
@@ -70,10 +71,18 @@ function PasswordSection({ userId }: { userId: string }) {
     queryFn: () => fetchJson<{ data: { hasPassword: boolean } }>(`${API_BASE}/account/password`).then((r) => r.data),
   });
 
-  const { data: passkeys, isError: passkeysError } = useQuery({
+  const {
+    data: passkeys,
+    isError: passkeysError,
+    isFetching: isFetchingPasskeys,
+    refetch: refetchPasskeys,
+  } = useQuery({
     queryKey: ["passkeys", userId],
-    queryFn: () => authClient.passkey.listUserPasskeys(),
-    select: (r) => r.data ?? [],
+    queryFn: async () => {
+      const result = await authClient.passkey.listUserPasskeys();
+      if (result.error) throw result.error;
+      return result.data ?? [];
+    },
   });
 
   const removeMutation = useMutation({
@@ -82,17 +91,13 @@ function PasswordSection({ userId }: { userId: string }) {
       toast.success(t("security.passwordless.success"));
       void qc.invalidateQueries({ queryKey: ["account", "password", userId] });
     },
-    onError: (err: Error) => toast.error(err.message || t("security.passwordless.removeError")),
+    onError: showApiError,
   });
 
   const hasPassword = passwordStatus?.hasPassword ?? null;
   const hasPasskey = (passkeys?.length ?? 0) > 0;
 
-  const passwordlessHint = passkeysError
-    ? t("security.passwordless.passkeyLoadError")
-    : !hasPasskey
-      ? t("security.passwordless.requiresPasskey")
-      : t("security.passwordless.description");
+  const passwordlessHint = hasPasskey || passkeysError ? t("security.passwordless.description") : t("security.passwordless.requiresPasskey");
 
   return (
     <>
@@ -116,6 +121,14 @@ function PasswordSection({ userId }: { userId: string }) {
               {t(removeMutation.isPending ? "security.passwordless.removing" : "security.passwordless.remove")}
             </Button>
           </div>
+          {passkeysError ? (
+            <InlineError
+              className="mt-3"
+              title={t("security.passwordless.passkeysLoadFailed")}
+              onRetry={() => refetchPasskeys()}
+              isRetrying={isFetchingPasskeys}
+            />
+          ) : null}
         </div>
       ) : null}
     </>
@@ -126,9 +139,12 @@ function EmailVerificationCard({ email, emailVerified }: { email: string; emailV
   const { t } = useTranslation("settings");
 
   const resendMutation = useMutation({
-    mutationFn: () => authClient.sendVerificationEmail({ email, callbackURL: "/settings" }),
+    mutationFn: async () => {
+      const { error } = await authClient.sendVerificationEmail({ email, callbackURL: "/settings" });
+      if (error) throw error;
+    },
     onSuccess: () => toast.success(t("account.emailVerification.resendSuccess")),
-    onError: (err: Error) => toast.error(err.message ?? t("account.emailVerification.resendError")),
+    onError: () => toast.error(t("account.emailVerification.resendError")),
   });
 
   return (
@@ -186,7 +202,14 @@ type ProfileData = {
 };
 
 function ProfileTab({ userId, username }: { userId: string; username: string | undefined }) {
-  const { data: profileData, isLoading } = useQuery({
+  const { t } = useTranslation("settings");
+  const {
+    data: profileData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["account", "profile", userId],
     queryFn: () => fetchJson<{ data: ProfileData }>(`${API_BASE}/account/profile`).then((r) => r.data),
   });
@@ -194,6 +217,9 @@ function ProfileTab({ userId, username }: { userId: string; username: string | u
     queryKey: ["regions"],
     queryFn: fetchRegions,
   });
+
+  if (isError && !profileData)
+    return <ErrorState className="max-w-2xl" title={t("profile.loadError")} onRetry={() => refetch()} isRetrying={isFetching} />;
 
   if (isLoading || !profileData)
     return (
@@ -262,7 +288,7 @@ function ProfileForm({
       qc.setQueryData(["account", "profile", userId], data);
       toast.success(t("profile.saveSuccess"));
     },
-    onError: (err: Error) => toast.error(err.message || t("profile.saveError")),
+    onError: showApiError,
   });
 
   const remaining = 500 - bio.length;

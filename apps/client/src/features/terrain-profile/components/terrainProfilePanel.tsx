@@ -1,7 +1,5 @@
 import {
   AlertCircleIcon,
-  ArrowReloadHorizontalIcon,
-  Cancel01Icon,
   CheckmarkCircle02Icon,
   InformationCircleIcon,
   LinkSquare02Icon,
@@ -25,6 +23,8 @@ import {
   samplesFromArrays,
 } from "../types";
 import { Button } from "@/components/ui/button";
+import { CloseButton } from "@/components/ui/close-button";
+import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -208,6 +208,11 @@ export default function TerrainProfilePanel({
   const operatorMnc = resolveOperatorMnc(resolved?.station.operator?.mnc ?? null, operatorLabel ?? "");
   const operatorSwatchColor = resolveSwatchColor(hasStation, operatorMnc, operatorLabel);
   const isFailed = error !== null || failedAnalysis !== null;
+  const failureCode = failedAnalysis?.errors[0]?.code;
+  const failureDescription =
+    failureCode === undefined
+      ? t("states.failedDescription")
+      : t(`states.failureCodes.${failureCode}`, { defaultValue: t("states.failedDescription") });
   const isProcessing = station !== null && error === null && (isWorking || analysis?.status === "pending");
   const surfaceOnlyIssue =
     ready !== null &&
@@ -309,23 +314,15 @@ export default function TerrainProfilePanel({
                 </SelectContent>
               </Select>
             ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={t("common:actions.close")}
-              className="absolute top-2.5 right-3 flex size-7 items-center justify-center rounded-md transition-colors hover:bg-muted md:static"
-            >
-              <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
-            </button>
+            <CloseButton onClick={onClose} className="absolute top-2.5 right-3 md:static" />
           </div>
         </div>
       </div>
 
       <div className="shrink-0 overflow-visible px-3 py-3 custom-scrollbar scrollbar-gutter-stable md:min-h-0 md:flex-1 md:overflow-y-auto">
         {gpsError !== null ? (
-          <div id="terrain-profile-gps-error" role="alert" className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-destructive">
-            <HugeiconsIcon icon={AlertCircleIcon} className="mt-px size-3.5 shrink-0" />
-            <span>{t(`receiver.gpsErrors.${gpsError}`)}</span>
+          <div id="terrain-profile-gps-error" className="mb-2">
+            <InlineError size="sm" title={t(`receiver.gpsErrors.${gpsError}`)} />
           </div>
         ) : null}
 
@@ -343,18 +340,7 @@ export default function TerrainProfilePanel({
         ) : null}
 
         {isFailed ? (
-          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-            <HugeiconsIcon icon={AlertCircleIcon} className="mt-0.5 size-4 shrink-0 text-destructive" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-destructive">{t("states.failed")}</p>
-              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                {failedAnalysis?.errors[0]?.message ?? error?.message ?? t("states.failedDescription")}
-              </p>
-            </div>
-            <Button type="button" variant="outline" size="icon-sm" onClick={onRetry} aria-label={t("actions.retry")}>
-              <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" />
-            </Button>
-          </div>
+          <InlineError title={t("states.failed")} description={failureDescription} onRetry={onRetry} retryLabel={t("actions.retry")} />
         ) : null}
 
         {analysis?.status === "selection_required" && !isFailed ? (

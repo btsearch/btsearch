@@ -17,7 +17,9 @@
     "reviewedAt": "Review Date",
     "reviewerResponse": "Reviewer Response",
     "staleWarning": "This submission was modified since you opened it. Please review the updated version before proceeding",
-    "deletedUser": "Deleted user"
+    "deletedUser": "Deleted user",
+    "notFoundTitle": "Submission not found",
+    "notFoundDescription": "This submission doesn't exist or has been deleted"
   },
   "locationPicker": {
     "title": "Location",
@@ -190,12 +192,12 @@
   },
   "mySubmissions": {
     "reviewedBy": "Reviewed by",
-    "staleDataWarning": "Couldn't refresh submissions. Showing previously loaded data",
     "openChanges": "View submitted changes for {{stationId}}",
     "editTooltip": "Edit submission",
     "deleteTooltip": "Delete submission",
     "confirmDelete": "Are you sure you want to delete this submission?",
-    "confirmDeleteDesc": "This can't be undone. The submission will be permanently deleted"
+    "confirmDeleteDesc": "This can't be undone. The submission will be permanently deleted",
+    "loadMoreError": "Couldn't load more submissions"
   },
   "changesSheet": {
     "title": "Submission changes",

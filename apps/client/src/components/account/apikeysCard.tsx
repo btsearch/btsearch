@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -253,7 +254,14 @@ export function ApiKeysCard({ userId }: { userId: string }) {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyInfo | null>(null);
 
-  const { data: keys = [], isLoading } = useQuery({
+  const {
+    data: keys = [],
+    isLoading,
+    isLoadingError,
+    isRefetchError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["account", "api-keys", userId],
     queryFn: () => fetchJson<{ data: ApiKeyInfo[] }>(`${API_BASE}/account/api-keys`).then((r) => r.data),
   });
@@ -264,7 +272,7 @@ export function ApiKeysCard({ userId }: { userId: string }) {
   const revokeMutation = useMutation({
     mutationFn: async (keyId: string) => {
       const result = await authClient.apiKey.delete({ keyId });
-      if (result.error) throw new Error(result.error.message ?? "Failed to revoke key");
+      if (result.error) throw new Error(result.error.message ?? t("apiKeys.errors.revokeFailed"));
     },
     onSuccess: () => {
       toast.success(t("apiKeys.revokeSuccess"));
@@ -293,8 +301,11 @@ export function ApiKeysCard({ userId }: { userId: string }) {
     );
   }
 
+  if (isLoadingError) return <ErrorState title={t("apiKeys.errors.loadFailed")} onRetry={() => refetch()} isRetrying={isFetching} />;
+
   return (
     <>
+      {isRefetchError ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} /> : null}
       <Card className="gap-0">
         {keys.length === 0 ? (
           <CardContent className="flex flex-col items-center justify-center py-8 text-center">
@@ -326,7 +337,7 @@ export function ApiKeysCard({ userId }: { userId: string }) {
                         <tr key={key.id} className="border-b last:border-b-0">
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-medium text-sm">{key.name ?? "Unnamed"}</p>
+                              <p className="font-medium text-sm">{key.name ?? t("apiKeys.unnamed")}</p>
                               <span
                                 className={cn(
                                   "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
@@ -416,7 +427,9 @@ export function ApiKeysCard({ userId }: { userId: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("apiKeys.revokeConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("apiKeys.revokeConfirmDescription", { name: revokeTarget?.name ?? "Unnamed" })}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {t("apiKeys.revokeConfirmDescription", { name: revokeTarget?.name ?? t("apiKeys.unnamed") })}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>

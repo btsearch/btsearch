@@ -10,6 +10,7 @@ import type { ChartType } from "./chartTypeContext";
 import { ChartTypeToggle } from "./chartTypeToggle";
 import type { Series } from "./statChart";
 import { StatChartCard } from "./statChartCard";
+import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Operator } from "@/types/station";
@@ -141,11 +142,23 @@ export function HistoryChart({ operators }: { operators?: Operator[] }) {
   const [chartType, setChartType] = useState<ChartType>("line");
   const [, startTransition] = useTransition();
 
-  const { data: historyData, isLoading: bandLoading } = useQuery({
+  const {
+    data: historyData,
+    isLoading: bandLoading,
+    isLoadingError: isBandLoadError,
+    isFetching: isBandFetching,
+    refetch: refetchBand,
+  } = useQuery({
     ...statsHistoryQueryOptions({ operator_id: operatorId, granularity }),
     enabled: viewMode === "by-band",
   });
-  const { data: stationsData, isLoading: stationsLoading } = useQuery({
+  const {
+    data: stationsData,
+    isLoading: stationsLoading,
+    isLoadingError: isStationsLoadError,
+    isFetching: isStationsFetching,
+    refetch: refetchStations,
+  } = useQuery({
     ...statsStationsHistoryQueryOptions({ operator_id: operatorId, granularity }),
     enabled: viewMode === "by-operator",
   });
@@ -175,6 +188,7 @@ export function HistoryChart({ operators }: { operators?: Operator[] }) {
   );
 
   const isEmpty = viewMode === "by-band" ? bandCharts.length === 0 : operatorChart.chartData.length === 0;
+  const hasLoadError = viewMode === "by-band" ? isBandLoadError : isStationsLoadError;
 
   function renderContent() {
     if (isLoading) {
@@ -199,6 +213,17 @@ export function HistoryChart({ operators }: { operators?: Operator[] }) {
           <div className="px-4 py-4">
             <Skeleton className="h-72 w-full" />
           </div>
+        </div>
+      );
+    }
+
+    if (hasLoadError) {
+      return (
+        <div className="relative border border-border p-4">
+          <ErrorState
+            onRetry={() => (viewMode === "by-band" ? refetchBand() : refetchStations())}
+            isRetrying={viewMode === "by-band" ? isBandFetching : isStationsFetching}
+          />
         </div>
       );
     }

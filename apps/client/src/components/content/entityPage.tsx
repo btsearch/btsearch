@@ -1,31 +1,45 @@
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
+import type { IconSvgElement } from "@hugeicons/react";
+import { useRouter } from "@tanstack/react-router";
+import { useTransition } from "react";
 import { useTranslation } from "react-i18next";
+
+import { StationsLinkButton } from "@/components/app/errorScreens";
+import { PageErrorState } from "@/components/ui/error-state";
 
 export const entityPageChipClassName =
   "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors";
 
-type EntityPageMessageProps = {
+type EntityPageStateProps = {
   titleKey: string;
   descriptionKey: string;
 };
 
-export function EntityPageMessage({ titleKey, descriptionKey }: EntityPageMessageProps) {
-  const { t } = useTranslation(["stationDetails", "nav"]);
+export function EntityNotFound({ icon, titleKey, descriptionKey }: EntityPageStateProps & { icon: IconSvgElement }) {
+  const { t } = useTranslation("stationDetails");
+
   return (
-    <main className="mx-auto w-full max-w-xl px-4 py-16 text-center">
-      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={InformationCircleIcon} className="size-6" />
-      </div>
-      <h1 className="text-base font-semibold">{t(titleKey)}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t(descriptionKey)}</p>
-      <Link
-        to="/stations"
-        className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-      >
-        {t("nav:items.database")}
-      </Link>
-    </main>
+    <PageErrorState
+      tone="neutral"
+      icon={icon}
+      title={t(titleKey)}
+      description={t(descriptionKey)}
+      action={<StationsLinkButton variant="default" />}
+    />
+  );
+}
+
+export function EntityRouteError({ titleKey, descriptionKey }: EntityPageStateProps) {
+  const { t } = useTranslation("stationDetails");
+  const router = useRouter();
+  const [isRetrying, startRetry] = useTransition();
+
+  return (
+    <PageErrorState
+      title={t(titleKey)}
+      description={t(descriptionKey)}
+      onRetry={() => startRetry(() => router.invalidate())}
+      isRetrying={isRetrying}
+      action={<StationsLinkButton />}
+    />
   );
 }

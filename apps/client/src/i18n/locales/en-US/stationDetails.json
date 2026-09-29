@@ -9,13 +9,16 @@
   "watchStation": "Watch station",
   "watchingStation": "Watching",
   "unwatchStation": "Stop watching",
+  "copyFailed": "Couldn't copy to clipboard",
+  "shareFailed": "Couldn't share",
   "specs": {
     "cellDetails": "Cell Details",
     "internalNotes": "Internal Notes",
     "newCellTooltip": "This cell was added in the last 30 days",
     "updatedCellTooltip": "This cell was updated in the last 30 days",
     "si2pemLink": "View all EMF reports from SI2PEM",
-    "pemReports": "EMF reports"
+    "pemReports": "EMF reports",
+    "pemInstallationForm": "Filing form"
   },
   "sectors": {
     "title": "Azimuths",
@@ -96,14 +99,16 @@
   "dialog": {
     "virtualStation": "Virtual",
     "virtualStationTitle": "Virtual station",
-    "virtualStationPhysical": "Runs on this physical station's hardware and UKE permit via <ranSharingLink>RAN sharing</ranSharingLink>",
+    "virtualStationPhysical": "Runs on below's physical station's hardware and UKE permit via <ranSharingLink>RAN sharing</ranSharingLink>",
     "btsStation": "Base station",
     "showOnMap": "Show on map",
     "createStation": "Create station",
     "sourceDatabase": "Database",
     "sourceUke": "UKE",
     "inactiveStationTitle": "Station marked for deletion",
-    "inactiveStationDescription": "This station is no longer active and is pending removal from the database"
+    "inactiveStationDescription": "This station is no longer active and is pending removal from the database",
+    "detailsLoadErrorTitle": "Couldn't load the latest station details",
+    "detailsLoadErrorDescription": "Some information may be incomplete or out of date"
   },
   "comments": {
     "title": "Community Comments",
@@ -118,6 +123,7 @@
     "addImages": "Add images",
     "removeImage": "Remove image {{number}}",
     "postComment": "Post comment",
+    "postFailed": "Couldn't post the comment",
     "deleteConfirm": "Delete comment",
     "deleteDescription": "Are you sure you want to delete this comment? This action cannot be undone",
     "deleted": "Comment deleted",
@@ -135,6 +141,7 @@
     "takenAt": "Taken",
     "noPhotos": "No photos yet",
     "noPhotosHint": "Photos are added when submissions are approved",
+    "loadError": "Couldn't load photos",
     "setAsMain": "Set as main",
     "uploadedBy": "Uploaded by {{username}}",
     "unknownUser": "Unknown",

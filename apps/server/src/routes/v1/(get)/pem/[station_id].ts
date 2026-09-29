@@ -2,20 +2,15 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { SI2PEMClient, type SI2PEMMeasureProperties, SI2PEM_WMS_LAYERS, escapeCqlLiteral, si2pemDateToISO } from "si2pem-reader";
 import { z } from "zod/v4";
 
-import redis from "../../../../database/redis.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { MNC_TO_ENTITY } from "../../../../features/pem/entities.js";
+import { toSI2PEMFileUrl, warsawDateTimeToISO } from "../../../../features/pem/si2pemValues.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
+import { withRedisStaleCache } from "../../../../lib/redisCache.js";
 
-const CACHE_TTL = 86400; // 24h
+const REPORTS_CACHE = { freshTtlSeconds: 86400, staleTtlSeconds: 7 * 86400 };
 const si2pem = new SI2PEMClient();
-
-const MNC_TO_ENTITY: Record<number, string> = {
-  26001: "Polkomtel Sp. z o.o.",
-  26002: "T-Mobile Polska S.A.",
-  26003: "Orange Polska S.A.",
-  26006: "P4 Sp. z o.o.",
-};
 
 type Params = { Params: { station_id: string }; Querystring: { lat: number; lng: number; operator: number } };
 
@@ -26,7 +21,7 @@ const mapMeasurement = z.object({
 
 const searchMeasurement = z.object({
   document_url: z.url(),
-  installation_document: z.url(),
+  installation_document: z.url().nullable(),
   lab_name: z.string(),
 });
 
@@ -36,7 +31,7 @@ const PemReportResponse = z.object({
   date: z.iso.datetime({ offset: true }),
   type: z.enum(["map_measurement", "search_measurement"]),
   antenna_data_available: z.boolean(),
-  details: z.union([mapMeasurement, searchMeasurement]),
+  details: z.union([searchMeasurement, mapMeasurement]),
 });
 type PemReport = z.infer<typeof PemReportResponse>;
 
@@ -63,7 +58,7 @@ async function fetchInstallations(stationId: string, entityName: string): Promis
   const normalized = json.results.flatMap((result) => {
     const url = result.report_file;
     if (!url || result.base_station?.identity_name !== stationId) return [];
-    const date = si2pemDateToISO(result.published_at);
+    const date = warsawDateTimeToISO(result.published_at);
     if (!date) return [];
     return [{ date, result, url }];
   });
@@ -82,7 +77,7 @@ async function fetchInstallations(stationId: string, entityName: string): Promis
       antenna_data_available: false,
       details: {
         document_url: url,
-        installation_document: result.installation_file ?? "",
+        installation_document: toSI2PEMFileUrl(result.installation_file),
         lab_name: result.entity,
       },
     });
@@ -145,13 +140,9 @@ function mergeAndSort(reports: PemReport[][]): PemReport[] {
   return reports.flat().sort((a, b) => b.date.localeCompare(a.date));
 }
 
-async function withCache(cacheKey: string, load: () => Promise<PemReport[]>): Promise<PemReport[]> {
-  const cached = await redis.get(cacheKey);
-  if (cached) return JSON.parse(cached) as PemReport[];
-
-  const reports = await load();
-  await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(reports));
-  return reports;
+async function loadCachedReports(key: string, load: () => Promise<PemReport[]>): Promise<PemReport[]> {
+  const { value } = await withRedisStaleCache(key, REPORTS_CACHE, load);
+  return value;
 }
 
 async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<PemReport[]>>) {
@@ -159,8 +150,8 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<P
   const { lat, lng, operator: mnc } = req.query;
 
   const entityName = MNC_TO_ENTITY[mnc];
-  const reportRequests = [withCache(`pem:map:v1:${station_id}:${lat}:${lng}`, () => fetchWmsReports(station_id, lat, lng))];
-  if (entityName) reportRequests.push(withCache(`pem:search:v1:${station_id}:${mnc}`, () => fetchInstallations(station_id, entityName)));
+  const reportRequests = [loadCachedReports(`pem:map:v2:${station_id}:${lat}:${lng}`, () => fetchWmsReports(station_id, lat, lng))];
+  if (entityName) reportRequests.push(loadCachedReports(`pem:search:v2:${station_id}:${mnc}`, () => fetchInstallations(station_id, entityName)));
 
   const reportResults = await Promise.allSettled(reportRequests);
   const failure = reportResults.find((result): result is PromiseRejectedResult => result.status === "rejected");

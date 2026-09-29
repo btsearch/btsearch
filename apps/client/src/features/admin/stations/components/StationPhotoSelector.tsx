@@ -11,6 +11,7 @@ import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/com
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import type { LocationPhoto } from "@/features/station-details/api";
 import {
@@ -21,7 +22,7 @@ import {
   updateLocationPhotoTakenAt,
   uploadAndAssignStationPhotos,
 } from "@/features/station-details/api";
-import { createAuditOperationHandle } from "@/lib/api";
+import { createAuditOperationHandle, isGloballyHandledError } from "@/lib/api";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
@@ -34,13 +35,25 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
   const dragCounter = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const { data: locationPhotos = [], isLoading: loadingLocation } = useQuery({
+  const {
+    data: locationPhotos = [],
+    isLoading: loadingLocation,
+    isLoadingError: locationLoadError,
+    isFetching: fetchingLocation,
+    refetch: refetchLocation,
+  } = useQuery({
     queryKey: ["location-photos", locationId],
     queryFn: () => fetchLocationPhotos(locationId),
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: stationPhotos = [], isLoading: loadingStation } = useQuery({
+  const {
+    data: stationPhotos = [],
+    isLoading: loadingStation,
+    isLoadingError: stationLoadError,
+    isFetching: fetchingStation,
+    refetch: refetchStation,
+  } = useQuery({
     queryKey: ["station-photos", stationId],
     queryFn: () => fetchStationPhotos(stationId),
     staleTime: 1000 * 60 * 5,
@@ -79,7 +92,10 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
       void queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] });
       setEditState(null);
     },
-    onError: () => toast.error(t("photos.noteFailed")),
+    onError: (error) => {
+      if (isGloballyHandledError(error)) return;
+      toast.error(t("photos.noteFailed"));
+    },
   });
 
   const isDirty = useMemo(() => {
@@ -98,7 +114,10 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
       void queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] });
       toast.success(t("photos.selectionSaved"));
     },
-    onError: () => toast.error(t("photos.selectionFailed")),
+    onError: (error) => {
+      if (isGloballyHandledError(error)) return;
+      toast.error(t("photos.selectionFailed"));
+    },
   });
 
   const uploadMutation = useMutation({
@@ -183,16 +202,24 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     }
   }
 
-  if (isLoading) {
+  if (isLoading || locationLoadError || stationLoadError) {
     return (
       <div className="border rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
           <HugeiconsIcon icon={Image01Icon} className="size-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{t("photos.label")}</span>
         </div>
-        <div className="flex items-center justify-center py-8">
-          <Spinner />
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Spinner />
+          </div>
+        ) : (
+          <InlineError
+            className="m-3"
+            onRetry={() => Promise.all([refetchLocation(), refetchStation()])}
+            isRetrying={fetchingLocation || fetchingStation}
+          />
+        )}
       </div>
     );
   }
@@ -260,12 +287,16 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
                 role="button"
                 tabIndex={0}
                 className={cn(
-                  "rounded-lg overflow-hidden border-2 transition-colors bg-muted cursor-pointer select-none focus:outline-none",
+                  "rounded-lg overflow-hidden border-2 transition-colors bg-muted cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                   isSelected ? "border-primary" : "border-transparent",
                 )}
-                onClick={() => toggleSelect(photo)}
+                onClick={(e) => {
+                  if (e.target instanceof Node && e.currentTarget.contains(e.target)) toggleSelect(photo);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") toggleSelect(photo);
+                  if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                  e.preventDefault();
+                  toggleSelect(photo);
                 }}
               >
                 <PhotoImage

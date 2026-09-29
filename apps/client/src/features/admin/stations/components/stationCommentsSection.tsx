@@ -19,8 +19,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
-import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
+import { API_BASE, fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
 import type { StationComment } from "@/types/station";
@@ -38,7 +39,13 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const { data: comments = [], isLoading } = useQuery({
+  const {
+    data: comments = [],
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () =>
       fetchApiData<StationComment[]>(`stations/${stationId}/comments`, {
@@ -59,7 +66,7 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
       void queryClient.invalidateQueries({ queryKey: ["station-comments", stationId] });
       setDeleteTarget(null);
     },
-    onError: showApiError,
+    onError: () => toast.error(tAdmin("comments.deleteError")),
   });
 
   return (
@@ -83,6 +90,8 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
               <div className="flex items-center justify-center py-8">
                 <Spinner />
               </div>
+            ) : isError && comments.length === 0 ? (
+              <InlineError className="m-4" onRetry={() => refetch()} isRetrying={isFetching} />
             ) : comments.length === 0 ? (
               <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t("stationComments.noComments")}</div>
             ) : (

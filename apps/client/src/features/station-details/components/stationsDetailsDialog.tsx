@@ -19,6 +19,7 @@ import { StationInfoCard } from "./stationInfoCard";
 import { UKELogo } from "./ukeLogo";
 import { VirtualStationBadge } from "./virtualStationBadge";
 import { WatchButton } from "./watchButton";
+import { InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
@@ -93,7 +94,7 @@ function InternalStationDialogPanel({
   const isAdmin = userRole === "admin" || userRole === "editor";
   const { preferences } = usePreferences();
 
-  const { data: station, isLoading, error } = useQuery(stationQueryOptions(stationId));
+  const { data: station, isLoading, isFetching, error, refetch } = useQuery(stationQueryOptions(stationId));
   const { data: linkedUkeStation } = useQuery({
     ...stationPermitsQueryOptions(stationId),
     select: selectFirstUkeStation,
@@ -249,6 +250,8 @@ function InternalStationDialogPanel({
         stationId={stationId}
         isLoading={isLoading}
         error={error}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
         station={station}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -282,9 +285,10 @@ function UkeStationDialogPanel({
   const isAdmin = userRole === "admin" || userRole === "editor";
   const isLoggedIn = !!session?.user;
 
-  const { data, isLoading, error } = useQuery(ukeStationQueryOptions(stationId));
+  const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useQuery(ukeStationQueryOptions(stationId));
 
   const station = data ?? placeholder;
+  const showDetailsError = !data && (error !== null || (isFetching && errorUpdateCount > 0));
   const operatorName = station?.operator?.name ?? t("main:unknownOperator");
   const location = station?.location;
   const internalStation = data?.internalStation;
@@ -372,6 +376,19 @@ function UkeStationDialogPanel({
     >
       {station ? (
         <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
+          {showDetailsError ? (
+            <InlineError
+              title={t("dialog.detailsLoadErrorTitle")}
+              description={t("dialog.detailsLoadErrorDescription")}
+              onRetry={() => refetch()}
+              isRetrying={isFetching}
+            />
+          ) : null}
+          {error && data ? (
+            <div className="mb-3 flex justify-center">
+              <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} />
+            </div>
+          ) : null}
           <StationInfoCard
             source="uke"
             stationCode={station.station_id}
@@ -399,7 +416,7 @@ function UkeStationDialogPanel({
           <PermitsList permits={[]} isExternalLoading />
         </div>
       ) : error ? (
-        <StationDetailsError error={error} />
+        <StationDetailsError error={error} onRetry={() => refetch()} isRetrying={isFetching} onClose={onClose} />
       ) : null}
     </StationDialogShell>
   );

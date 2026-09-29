@@ -1,11 +1,15 @@
-import { TaskDaily01Icon } from "@hugeicons/core-free-icons";
+import { TaskDaily01Icon, TaskRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
 import { type JSX, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { MapLinkButton } from "@/components/app/errorScreens";
+import { ErrorState } from "@/components/ui/error-state";
 import { Map as LibreMap, MapControls, useMap } from "@/components/ui/map";
+import { Spinner } from "@/components/ui/spinner";
 import { useListDetail } from "@/features/lists/hooks/useListDetail";
 import type { LocationsResponse } from "@/features/map/api";
 import { buildFilterParams, fetchLocations, fetchRadioLines } from "@/features/map/api";
@@ -21,6 +25,7 @@ import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActi
 import type { SearchStation } from "@/features/map/searchApi";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
+import { ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import type { LocationWithStations, StationFilters, StationWithoutCells } from "@/types/station";
 
@@ -29,6 +34,7 @@ const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesL
 const LIST_MAP_FILTERS_STORAGE_KEY = "list-map:filters";
 const LIST_FETCH_LIMIT = 1000;
 const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-radiolines"]);
+const LIST_UNAVAILABLE_STATUSES = new Set([401, 403, 404]);
 
 type ListMapContextProps = { name: string };
 
@@ -44,6 +50,7 @@ function ListMapContext({ name }: ListMapContextProps): JSX.Element {
 }
 
 function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
+  const { t } = useTranslation(["lists", "common"]);
   const navigate = useNavigate();
   const { map, isLoaded } = useMap();
   useMapPositionPersistence({ map, isLoaded });
@@ -65,7 +72,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     });
   }, []);
 
-  const { data: listData, isLoading, isError } = useListDetail(uuid);
+  const { data: listData, error: listError, isLoading, isPaused, isFetching, refetch } = useListDetail(uuid);
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   const filterParams = buildFilterParams(filters).toString();
@@ -215,6 +222,9 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
   const listName = listData?.name;
   const listMapContext = useMemo(() => (listName !== undefined ? <ListMapContext name={listName} /> : undefined), [listName]);
+  const isListLoading = isLoading || (isPaused && listData === undefined);
+  const isListUnavailable = !isListLoading && !listData;
+  const isListNotFound = !uuid || (listError instanceof ApiResponseError && LIST_UNAVAILABLE_STATUSES.has(listError.status));
 
   return (
     <>
@@ -233,11 +243,30 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
         mapContext={listMapContext}
       />
 
-      {(isError || (!isLoading && !listData)) && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <p className="text-muted-foreground text-sm">This list was not found or is private.</p>
+      {isListLoading || isListUnavailable ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm">
+          {isListLoading ? (
+            <div role="status" className="flex items-center gap-2 rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground shadow-lg">
+              <Spinner />
+              {t("common:actions.loading")}
+            </div>
+          ) : (
+            <div className="w-full max-w-md rounded-xl bg-background shadow-lg">
+              {isListNotFound ? (
+                <ErrorState
+                  tone="neutral"
+                  icon={TaskRemove01Icon}
+                  title={t("notFoundTitle")}
+                  description={t("notFoundDescription")}
+                  action={<MapLinkButton variant="outline" size="sm" />}
+                />
+              ) : (
+                <ErrorState onRetry={() => refetch()} isRetrying={isFetching} />
+              )}
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
 
       <StationsLayer
         filters={filters}

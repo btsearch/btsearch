@@ -9,6 +9,7 @@ import { RequireAuth } from "@/components/auth/requireAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { regionsQueryOptions } from "@/features/shared/queries";
@@ -56,7 +57,7 @@ function HuntersFilterBar({
   const { t } = useTranslation("main");
 
   return (
-    <div className="sticky top-0 z-20 -mx-6 border-b bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="sticky top-0 z-20 -mx-6 border-b bg-background/95 px-6 py-3 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <label className="relative block min-w-0 sm:max-w-sm sm:flex-1">
@@ -231,31 +232,17 @@ function HuntersEmptyState() {
   );
 }
 
-function HuntersErrorState() {
-  const { t } = useTranslation("main");
-
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 px-6 py-14 text-center">
-      <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-        <HugeiconsIcon icon={Radar01Icon} className="size-7" />
-      </div>
-      <h2 className="text-base font-semibold">{t("hunters.errorTitle")}</h2>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("hunters.errorSubtitle")}</p>
-    </div>
-  );
-}
-
 function HuntersContent() {
   const { t } = useTranslation("main");
   const [search, setSearch] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<SelectedRegion>("all");
-  const { data: hunters = [], isLoading: huntersLoading, isError } = useHunters();
+  const { data: hunters, isLoading: huntersLoading, isError, isFetching, isRefetchError, refetch } = useHunters();
   const { data: regions = [] } = useQuery(regionsQueryOptions());
 
   const regionMap = useMemo(() => new Map(regions.map((region) => [region.id, region.name])), [regions]);
   const filteredHunters = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return hunters
+    return (hunters ?? [])
       .filter((hunter) => selectedRegion === "all" || hunter.regions.includes(selectedRegion))
       .filter((hunter) => {
         if (!normalizedSearch) return true;
@@ -283,10 +270,11 @@ function HuntersContent() {
         />
 
         <div className="pt-5">
+          {isRefetchError ? <StaleDataNotice className="mb-3" onRetry={() => refetch()} isRetrying={isFetching} /> : null}
           {huntersLoading ? (
             <HuntersSkeleton />
-          ) : isError ? (
-            <HuntersErrorState />
+          ) : isError && !hunters ? (
+            <ErrorState title={t("hunters.errorTitle")} description={t("hunters.errorSubtitle")} onRetry={() => refetch()} isRetrying={isFetching} />
           ) : filteredHunters.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {filteredHunters.map((hunter) => (

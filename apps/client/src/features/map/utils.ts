@@ -10,6 +10,7 @@ import {
   getModulationBits,
 } from "@openbts/shared/radiolinesUtils";
 
+import { resolveOperatorMnc } from "@/lib/cellular/operators";
 import { isPermitExpired } from "@/lib/dateUtils";
 import type { Cell, LocationInfo, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation, UkeStationPermit } from "@/types/station";
 
@@ -155,6 +156,15 @@ export function getPermitBands(permits: Array<{ band?: UkeStationPermit["band"] 
     return acc;
   }, []);
   return sortBands([...new Set(bands)]);
+}
+
+export function getRadioLineMnc(link: DuplexRadioLink): number | null | undefined {
+  const first = link.directions[0];
+  return resolveOperatorMnc(first.operator?.mnc, first.operator?.name);
+}
+
+export function isUkeStationExpired(station: UkeStation): boolean {
+  return station.permits.length > 0 && station.permits.every((permit) => isPermitExpired(permit.expiry_date));
 }
 
 export function calculateLinkDirectionalSpeeds(link: DuplexRadioLink): { dl: number | null; ul: number | null } {

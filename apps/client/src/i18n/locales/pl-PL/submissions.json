@@ -17,7 +17,9 @@
     "reviewedAt": "Data rozpatrzenia",
     "reviewerResponse": "Odpowiedź sprawdzającego",
     "staleWarning": "To zgłoszenie zostało zmodyfikowane od momentu otwarcia. Przejrzyj zaktualizowaną wersję przed kontynuowaniem",
-    "deletedUser": "Usunięty użytkownik"
+    "deletedUser": "Usunięty użytkownik",
+    "notFoundTitle": "Nie znaleziono zgłoszenia",
+    "notFoundDescription": "To zgłoszenie nie istnieje lub zostało usunięte"
   },
   "locationPicker": {
     "title": "Lokalizacja",
@@ -192,12 +194,12 @@
   },
   "mySubmissions": {
     "reviewedBy": "Sprawdzone przez",
-    "staleDataWarning": "Nie udało się odświeżyć zgłoszeń. Wyświetlamy wcześniej wczytane dane",
     "openChanges": "Zobacz przesłane zmiany dla {{stationId}}",
     "editTooltip": "Edytuj zgłoszenie",
     "deleteTooltip": "Usuń zgłoszenie",
     "confirmDelete": "Czy na pewno chcesz usunąć to zgłoszenie?",
-    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zgłoszenie zostanie trwale usunięte"
+    "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zgłoszenie zostanie trwale usunięte",
+    "loadMoreError": "Nie udało się wczytać kolejnych zgłoszeń"
   },
   "changesSheet": {
     "title": "Zmiany w zgłoszeniu",

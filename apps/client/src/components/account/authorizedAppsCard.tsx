@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemSeparator, ItemTitle } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import { API_BASE, fetchJson } from "@/lib/api";
@@ -45,11 +46,18 @@ export function AuthorizedAppsCard({ userId }: { userId: string }) {
 
   const queryKey = ["account", "oauth-authorizations", userId];
 
-  const { data: authorizations = [], isLoading } = useQuery({
+  const {
+    data: authorizations = [],
+    isLoading,
+    isLoadingError,
+    isRefetchError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey,
     queryFn: async () => {
       const res = await authClient.oauth2.getConsents();
-      if (res.error) throw new Error(res.error.message ?? "Failed to load authorizations");
+      if (res.error) throw new Error(res.error.message ?? t("oauth:authorized.loadFailed"));
       const consents: Consent[] = res.data ?? [];
       return Promise.all(
         consents.map(async (consent): Promise<AuthorizedApp> => {
@@ -86,19 +94,27 @@ export function AuthorizedAppsCard({ userId }: { userId: string }) {
     );
   }
 
+  if (isLoadingError) return <ErrorState title={t("oauth:authorized.loadFailed")} onRetry={() => refetch()} isRetrying={isFetching} />;
+
+  const staleNotice = isRefetchError ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} /> : null;
+
   if (authorizations.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-          <p className="text-sm font-medium">{t("oauth:authorized.none")}</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm">{t("oauth:authorized.noneDescription")}</p>
-        </CardContent>
-      </Card>
+      <>
+        {staleNotice}
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm font-medium">{t("oauth:authorized.none")}</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm">{t("oauth:authorized.noneDescription")}</p>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
   return (
     <>
+      {staleNotice}
       <Card className="p-0">
         <CardContent className="p-0">
           <ItemGroup className="gap-0">

@@ -10,7 +10,7 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -18,6 +18,8 @@ import type { Notification } from "../api";
 import { useNotifications } from "../useNotifications";
 import { usePushSubscription } from "../usePushSubscription";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { InlineError } from "@/components/ui/error-state";
+import { Spinner } from "@/components/ui/spinner";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { fetchUkeStation } from "@/features/station-details/api";
 import { showApiError } from "@/lib/api";
@@ -164,10 +166,16 @@ function NotificationItem({ notification, onRead }: { notification: Notification
   );
 }
 
+function NotificationsLoadError({ onRetry }: { onRetry: () => unknown }) {
+  const isFetching = useIsFetching({ queryKey: ["notifications"] }) > 0;
+
+  return <InlineError size="sm" onRetry={onRetry} isRetrying={isFetching} />;
+}
+
 export function NotificationsBell({ className }: { className?: string } = {}) {
   const { t } = useTranslation("notifications");
   const { data: session } = authClient.useSession();
-  const { notifications, totalUnread, markAllRead, markRead } = useNotifications();
+  const { notifications, totalUnread, isLoading, isLoadingError, refetch, markAllRead, markRead } = useNotifications();
   const { subscription, permission, isSubscribing, subscribe, isSupported } = usePushSubscription();
 
   if (!session?.user) return null;
@@ -237,7 +245,13 @@ export function NotificationsBell({ className }: { className?: string } = {}) {
           </>
         )}
 
-        {visibleNotifications.length === 0 ? (
+        {isLoadingError ? (
+          <NotificationsLoadError onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <div className="flex justify-center py-8">
+            <Spinner className="size-4" />
+          </div>
+        ) : visibleNotifications.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">{t("empty")}</div>
         ) : (
           visibleNotifications.map((n) => <NotificationItem key={n.id} notification={n} onRead={markRead} />)

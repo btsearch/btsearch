@@ -29,6 +29,11 @@
     "processing": "Reading LiDAR terrain and running analysis...",
     "failed": "The profile could not be calculated",
     "failedDescription": "Check the selected endpoints and try again",
+    "failureCodes": {
+      "PATH_DISTANCE_OUT_OF_RANGE": "The receiver is too close to or too far from the station. Move the marker and try again",
+      "ANTENNA_DATA_UNAVAILABLE": "This station has no usable antenna height and frequency data",
+      "TERRAIN_DATA_UNAVAILABLE": "GUGiK did not return enough terrain data for this path"
+    },
     "outOfAzimuth": "The receiver is outside the selected antenna's main azimuth. Choose a different sector to see the profile"
   },
   "selection": {

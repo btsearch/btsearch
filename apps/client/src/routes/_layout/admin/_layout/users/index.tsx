@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Cancel01Icon, CheckmarkCircle02Icon, Search01Icon, ShieldUserIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, CheckmarkCircle02Icon, Search01Icon, ShieldUserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -11,13 +11,12 @@ import { useTranslation } from "react-i18next";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
 import type { AdminUser } from "@/features/admin/users/types";
 import { MobileFilterRailInline } from "@/features/shared/filterPanel";
@@ -320,30 +319,34 @@ function UserMobileRow({ user, locale, t }: { user: AdminUser; locale: string; t
 type UsersMobileListProps = {
   isLoading: boolean;
   isError: boolean;
+  isRetrying: boolean;
   users: AdminUser[];
   pageSize: number;
+  autoPageSize: number;
+  rowHeight: number;
   locale: string;
   listRef: (node: HTMLUListElement | null) => void;
   onRetry: () => unknown;
 };
 
-function UsersMobileList({ isLoading, isError, users, pageSize, locale, listRef, onRetry }: UsersMobileListProps) {
+function UsersMobileList({
+  isLoading,
+  isError,
+  isRetrying,
+  users,
+  pageSize,
+  autoPageSize,
+  rowHeight,
+  locale,
+  listRef,
+  onRetry,
+}: UsersMobileListProps) {
   const { t } = useTranslation(["admin", "common"]);
 
   if (isError && users.length === 0)
     return (
-      <div
-        className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-t-lg border border-b-0 bg-card px-4 text-center text-muted-foreground"
-        role="alert"
-      >
-        <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-destructive/5 text-destructive/60">
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-        </div>
-        <p className="font-medium text-foreground">{t("common:error.title")}</p>
-        <p className="mt-1 max-w-md text-sm">{t("common:error.description")}</p>
-        <Button type="button" variant="outline" className="mt-4" onClick={() => void onRetry()}>
-          {t("common:actions.retry")}
-        </Button>
+      <div className="flex flex-col rounded-t-lg border border-b-0 bg-card p-3" style={{ minHeight: autoPageSize * rowHeight }}>
+        <ErrorState className="flex-1" onRetry={onRetry} isRetrying={isRetrying} />
       </div>
     );
 
@@ -460,6 +463,9 @@ function AdminUsersPage() {
     onPaginationChange: setPagination,
   });
 
+  const showError = isError && users.length === 0;
+  const showStaleNotice = isError && users.length > 0;
+
   const mobileFilterRail = isMobile ? (
     <UsersMobileFilterRail
       search={search}
@@ -532,39 +538,23 @@ function AdminUsersPage() {
         ref={containerRef}
         className={cn(
           "relative flex-1 min-h-0 overflow-x-hidden",
-          isMobile ? "overflow-y-auto overscroll-y-contain" : pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip",
+          isMobile ? "overflow-y-auto overscroll-y-contain" : pagination.pageSize > autoPageSize || showError ? "overflow-y-auto" : "overflow-y-clip",
           hasFloatingMobileFilters && "mb-10",
         )}
         aria-busy={isFetching}
       >
-        {isMobile && isFetching && !isLoading ? (
-          <div
-            className="absolute right-2 top-2 z-20 inline-flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm"
-            role="status"
-          >
-            <Spinner role="presentation" aria-hidden="true" className="size-3.5" />
-            {t("common:actions.updating")}
-          </div>
-        ) : null}
-        {isMobile && !isFetching && isError && users.length > 0 ? (
-          <div
-            className="absolute right-2 top-2 z-20 inline-flex items-center gap-2 rounded-md border border-destructive/30 bg-background/95 px-2 py-1 text-xs text-destructive shadow-sm"
-            role="alert"
-          >
-            <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
-            {t("common:placeholder.errorFetching")}
-            <Button type="button" variant="ghost" size="xs" onClick={() => void refetch()}>
-              {t("common:actions.retry")}
-            </Button>
-          </div>
-        ) : null}
+        {isMobile && isFetching && !isLoading && !isError ? <DataTable.UpdatingIndicator /> : null}
+        {showStaleNotice ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} className="absolute right-2 top-2 z-20" /> : null}
         {isMobile ? (
           <div className="flex flex-col">
             <UsersMobileList
               isLoading={isLoading}
               isError={isError}
+              isRetrying={isFetching}
               users={users}
               pageSize={pagination.pageSize}
+              autoPageSize={autoPageSize}
+              rowHeight={mobileRowHeight}
               locale={i18n.language}
               listRef={listRef}
               onRetry={refetch}
@@ -581,6 +571,8 @@ function AdminUsersPage() {
                   <DataTable.Header />
                   {isLoading ? (
                     <DataTable.Skeleton rows={pagination.pageSize} columns={columns.length} />
+                  ) : showError ? (
+                    <DataTable.Error columns={columns.length} rows={autoPageSize} onRetry={() => refetch()} isRetrying={isFetching} />
                   ) : (
                     <DataTable.Body onRowClick={(user) => navigate({ to: "/admin/users/$id", params: { id: (user as AdminUser).id } })} />
                   )}

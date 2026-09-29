@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AuthDialog } from "@/components/auth/authDialog";
+import { AuthRequired } from "@/components/auth/authRequired";
 import { authClient } from "@/lib/auth/client";
 
 type AuthenticatedSession = NonNullable<ReturnType<typeof authClient.useSession>["data"]>;
@@ -17,7 +17,7 @@ export function RequireAuth(props: RequireAuthProps) {
     );
   }
 
-  if (!session?.user) return <AuthDialog open forced onOpenChange={() => {}} />;
+  if (!session?.user) return <AuthRequired />;
 
   return <>{props.render ? props.render(session) : props.children}</>;
 }

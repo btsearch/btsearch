@@ -51,16 +51,16 @@ type ActiveTooltip = {
 };
 
 function destroyTooltip(state: ActiveTooltip | null): null {
-  state?.root.unmount();
-  state?.popup.remove();
+  if (state === null) return null;
+  state.popup.remove();
+  queueMicrotask(() => state.root.unmount());
   return null;
 }
 
 function buildTooltip(state: ActiveTooltip | null, locationId: number): ActiveTooltip {
   if (state?.activeLocationId === locationId) return state;
 
-  state?.root.unmount();
-  state?.popup.remove();
+  destroyTooltip(state);
 
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -309,7 +309,10 @@ export function useMapLayer({
       if (!data) return;
 
       const content = renderHoverTooltip(data);
-      if (!content) return;
+      if (!content) {
+        tooltipRef.current = destroyTooltip(tooltipRef.current);
+        return;
+      }
 
       const tooltip = buildTooltip(tooltipRef.current, data.locationId);
       tooltipRef.current = tooltip;
@@ -336,7 +339,10 @@ export function useMapLayer({
       }
 
       const content = renderHoverTooltip(data);
-      if (!content) return;
+      if (!content) {
+        tooltipRef.current = destroyTooltip(tooltipRef.current);
+        return;
+      }
 
       const tooltip = buildTooltip(tooltipRef.current, data.locationId);
       tooltipRef.current = tooltip;

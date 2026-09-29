@@ -83,7 +83,8 @@
     "groupAzimuths": "Azymuty",
     "notifications": "Powiadomienia",
     "notificationsHint": "Zarządzaj subskrypcjami powiadomień push dla tej przeglądarki",
-    "notificationsBlocked": "Powiadomienia są zablokowane przez przeglądarkę. Włącz je w ustawieniach przeglądarki, aby korzystać z tej funkcji",
+    "notificationsBlocked": "Powiadomienia są zablokowane przez przeglądarkę",
+    "notificationsBlockedHint": "Włącz je w ustawieniach przeglądarki, aby korzystać z tej funkcji",
     "pushTitle": "Powiadomienia push",
     "pushLabel": "Włącz powiadomienia push",
     "ukeUpdates": "Aktualizacje danych UKE",
@@ -98,6 +99,7 @@
     "newSubmissions": "Nowe zgłoszenia",
     "newSubmissionsHint": "Otrzymuj powiadomienie, gdy użytkownicy nadeślą nowe dane do weryfikacji",
     "newSubmissionsLabel": "Powiadamiaj mnie o nowych zgłoszeniach",
+    "notificationPrefsError": "Nie udało się zapisać ustawienia powiadomień",
     "privacy": "Prywatność",
     "adConsent": "Reklamowe pliki cookie",
     "adConsentHint": "Zezwól na spersonalizowane reklamy, które pomagają utrzymać serwis bezpłatnym. Reklamy są wyświetlane tylko po wyrażeniu zgody",
@@ -177,7 +179,7 @@
       "noPassword": "Brak hasła. Logowanie tylko przez klucze dostępu",
       "requiresPasskey": "Musisz mieć co najmniej jeden klucz dostępu, zanim usuniesz hasło",
       "removeError": "Nie udało się usunąć hasła",
-      "passkeyLoadError": "Nie udało się wczytać kluczy dostępu. Odśwież stronę i spróbuj ponownie"
+      "passkeysLoadFailed": "Nie udało się wczytać kluczy dostępu"
     }
   },
   "apiKeys": {
@@ -201,6 +203,7 @@
     "revokeSuccess": "Klucz API został unieważniony",
     "noKeys": "Brak kluczy API",
     "noKeysDescription": "Utwórz klucz API, aby programistycznie korzystać z API BTSearch",
+    "unnamed": "Bez nazwy",
     "typeBadge": {
       "secret": "Tajny",
       "publishable": "Publiczny"
@@ -238,7 +241,9 @@
     },
     "errors": {
       "createFailed": "Nie udało się utworzyć klucza API",
-      "nameRequired": "Nazwa jest wymagana"
+      "nameRequired": "Nazwa jest wymagana",
+      "loadFailed": "Nie udało się wczytać kluczy API",
+      "revokeFailed": "Nie udało się unieważnić klucza API"
     }
   },
   "sessions": {
@@ -262,6 +267,7 @@
     "saving": "Zapisywanie...",
     "saveSuccess": "Profil zapisany",
     "saveError": "Nie udało się zapisać profilu",
+    "loadError": "Nie udało się wczytać profilu",
     "viewProfile": "Zobacz profil",
     "visibility": {
       "title": "Widoczność profilu",

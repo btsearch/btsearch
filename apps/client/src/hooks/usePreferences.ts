@@ -477,3 +477,11 @@ export function usePreferences() {
 export function getPreferences(): UserPreferences {
   return getSnapshot();
 }
+
+export function useGpsFormat(): GpsFormat {
+  return useSyncExternalStore(
+    subscribe,
+    () => getSnapshot().gpsFormat,
+    () => DEFAULT_PREFERENCES.gpsFormat,
+  );
+}

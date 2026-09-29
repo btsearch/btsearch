@@ -8,7 +8,6 @@ import {
   FilterIcon,
   Location01Icon,
   MapsIcon,
-  RefreshIcon,
   Route02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
@@ -22,6 +21,7 @@ import { toast } from "sonner";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +38,7 @@ import {
   isUnknownRegionKmzFile,
 } from "@/features/kmz/api";
 import { useKmzDates, useKmzList } from "@/features/kmz/hooks";
+import { ClearFiltersButton } from "@/features/shared/filterPanel";
 import { regionsQueryOptions } from "@/features/shared/queries";
 import { useIsMobile } from "@/hooks/useMobile";
 import { formatDayMonthYear, formatFileSize } from "@/lib/format";
@@ -78,17 +79,6 @@ function KmzTypeSwitcher({ type, onChange }: { type: KmzType; onChange: (type: K
   );
 }
 
-function ClearFiltersButton({ count, onClick, className }: { count: number; onClick: () => void; className?: string }) {
-  const { t } = useTranslation("common");
-  return (
-    <Button type="button" variant="ghost" size="sm" className={cn("text-muted-foreground", className)} onClick={onClick}>
-      <HugeiconsIcon icon={Cancel01Icon} className="size-3" data-icon="inline-start" />
-      {t("actions.clearAll")}
-      <span className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground">{count}</span>
-    </Button>
-  );
-}
-
 function KmzStateMessage({ icon, title, subtitle, action }: { icon: IconSvgElement; title: string; subtitle: string; action?: ReactNode }) {
   return (
     <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
@@ -124,10 +114,10 @@ type KmzMobileFilterRailProps = {
   sortBy: KmzSortBy;
   order: KmzOrder;
   availableDates: string[];
+  noDatesLabel: string;
   regions: Region[];
   selectedRegion: Region | null;
   activeFilterCount: number;
-  filesCount: number;
   onTypeChange: (type: KmzType) => void;
   onSourceChange: (source: KmzSource) => void;
   onDateChange: (date: string) => void;
@@ -145,10 +135,10 @@ function KmzMobileFilterRail({
   sortBy,
   order,
   availableDates,
+  noDatesLabel,
   regions,
   selectedRegion,
   activeFilterCount,
-  filesCount,
   onTypeChange,
   onSourceChange,
   onDateChange,
@@ -178,6 +168,8 @@ function KmzMobileFilterRail({
         </button>
       ))}
 
+      <span aria-hidden="true" className="mx-0.5 h-5 w-px shrink-0 bg-border" />
+
       {type === "stations" ? (
         <MobileFilterChip active={source !== "all"} count={source !== "all" ? 1 : 0} icon={FilterIcon} label={t("source.label")}>
           <MobileFilterPanelTitle>{t("source.label")}</MobileFilterPanelTitle>
@@ -203,7 +195,7 @@ function KmzMobileFilterRail({
         <MobileFilterPanelTitle>{t("common:labels.date")}</MobileFilterPanelTitle>
         <div className="grid max-h-64 gap-1 overflow-y-auto">
           {availableDates.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("list.noDates")}</p>
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">{noDatesLabel}</p>
           ) : (
             availableDates.map((value) => (
               <button
@@ -297,11 +289,6 @@ function KmzMobileFilterRail({
           {t("common:actions.clearAll")}
         </button>
       ) : null}
-
-      <div className="inline-flex h-8 max-w-44 shrink-0 items-center rounded-full border border-border bg-background px-3 text-xs font-medium text-muted-foreground">
-        <HugeiconsIcon icon={MapsIcon} className="mr-1.5 size-3.5 shrink-0" />
-        <span className="truncate">{t("list.count", { count: filesCount })}</span>
-      </div>
     </div>
   );
 }
@@ -319,11 +306,20 @@ function KmzListPage() {
   const [order, setOrder] = useState<KmzOrder>("asc");
   const [downloadingFileName, setDownloadingFileName] = useState<string | null>(null);
 
-  const { data: datesData, isLoading: isDatesLoading } = useKmzDates(type, source);
+  const {
+    data: datesData,
+    isLoading: isDatesLoading,
+    isError: isDatesError,
+    isFetching: isDatesFetching,
+    refetch: refetchDates,
+  } = useKmzDates(type, source);
   const availableDates = useMemo(() => datesData ?? [], [datesData]);
   const selectedDate = date !== null && availableDates.includes(date) ? date : (availableDates[0] ?? null);
 
-  const { data, isLoading, isError, refetch } = useKmzList({ type, source, date: selectedDate, region }, { enabled: selectedDate !== null });
+  const { data, isLoading, isError, isFetching, isRefetchError, refetch } = useKmzList(
+    { type, source, date: selectedDate, region },
+    { enabled: selectedDate !== null },
+  );
   const { data: regions = [] } = useQuery(regionsQueryOptions());
 
   const selectedRegion = useMemo(() => (region === null ? null : (regions.find((item) => item.code === region) ?? null)), [region, regions]);
@@ -337,7 +333,9 @@ function KmzListPage() {
   }, [data, sortBy, order]);
 
   const sortLabels = useMemo(() => ({ region: t("sort.region"), size: t("sort.size") }), [t]);
-  const showNoDatesState = !isDatesLoading && availableDates.length === 0;
+  const isDatesUnavailable = isDatesError && datesData === undefined;
+  const showNoDatesState = !isDatesLoading && !isDatesUnavailable && availableDates.length === 0;
+  const noDatesLabel = isDatesUnavailable ? t("common:placeholder.errorFetching") : t("list.noDates");
   const activeFilterCount = [type === "stations" && source !== "all", region !== null, sortBy !== "region", order !== "asc"].filter(Boolean).length;
   const showFloatingMobileFilters = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
@@ -386,22 +384,14 @@ function KmzListPage() {
     return file.region?.name ?? t("region.allRegions");
   }
 
-  const content = showNoDatesState ? (
+  const content = isDatesUnavailable ? (
+    <ErrorState title={t("list.errorTitle")} description={t("list.errorSubtitle")} onRetry={() => refetchDates()} isRetrying={isDatesFetching} />
+  ) : showNoDatesState ? (
     <KmzStateMessage icon={MapsIcon} title={t("list.noDates")} subtitle={t("list.noDatesSubtitle")} />
   ) : isLoading || isDatesLoading ? (
     <KmzListSkeleton />
-  ) : isError ? (
-    <KmzStateMessage
-      icon={MapsIcon}
-      title={t("list.errorTitle")}
-      subtitle={t("list.errorSubtitle")}
-      action={
-        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => void refetch()}>
-          <HugeiconsIcon icon={RefreshIcon} className="size-4" />
-          {t("common:actions.retry")}
-        </Button>
-      }
-    />
+  ) : isError && !data ? (
+    <ErrorState title={t("list.errorTitle")} description={t("list.errorSubtitle")} onRetry={() => refetch()} isRetrying={isFetching} />
   ) : files.length === 0 ? (
     <KmzStateMessage
       icon={MapsIcon}
@@ -478,7 +468,7 @@ function KmzListPage() {
                 <span className="text-xs font-medium text-muted-foreground">{t("common:labels.date")}</span>
                 <Select value={selectedDate ?? ""} onValueChange={(value) => value && setDate(value)}>
                   <SelectTrigger className="h-8 w-full" disabled={availableDates.length === 0}>
-                    <SelectValue>{selectedDate ? formatDayMonthYear(selectedDate) : t("list.noDates")}</SelectValue>
+                    <SelectValue>{selectedDate ? formatDayMonthYear(selectedDate) : noDatesLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {availableDates.map((value) => (
@@ -540,14 +530,17 @@ function KmzListPage() {
           ) : null}
         </div>
 
-        <div className="pt-5">{content}</div>
+        <div className="pt-5">
+          {isRefetchError ? <StaleDataNotice className="mb-3" onRetry={() => refetch()} isRetrying={isFetching} /> : null}
+          {content}
+        </div>
       </div>
 
       {showFloatingMobileFilters &&
         createPortal(
           <div className="flex items-center gap-1 max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 md:hidden">
             <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-              <div className="w-max">
+              <div className="mx-auto w-max">
                 <KmzMobileFilterRail
                   type={type}
                   source={source}
@@ -557,10 +550,10 @@ function KmzListPage() {
                   sortBy={sortBy}
                   order={order}
                   availableDates={availableDates}
+                  noDatesLabel={noDatesLabel}
                   regions={regions}
                   selectedRegion={selectedRegion}
                   activeFilterCount={activeFilterCount}
-                  filesCount={files.length}
                   onSourceChange={handleSourceChange}
                   onDateChange={setDate}
                   onRegionChange={setRegion}

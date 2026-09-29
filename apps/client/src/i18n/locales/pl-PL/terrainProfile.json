@@ -29,6 +29,11 @@
     "processing": "Odczytywanie terenu LiDAR i analizowanie danych...",
     "failed": "Nie udało się obliczyć profilu",
     "failedDescription": "Sprawdź wybrane końce trasy i spróbuj ponownie",
+    "failureCodes": {
+      "PATH_DISTANCE_OUT_OF_RANGE": "Odbiornik jest zbyt blisko stacji lub zbyt daleko od niej. Przesuń znacznik i spróbuj ponownie",
+      "ANTENNA_DATA_UNAVAILABLE": "Brak użytecznych danych o wysokości i częstotliwości anten tej stacji",
+      "TERRAIN_DATA_UNAVAILABLE": "GUGiK nie zwrócił wystarczających danych terenu dla tej trasy"
+    },
     "outOfAzimuth": "Odbiornik znajduje się poza głównym azymutem wybranej anteny. Wybierz inny sektor, aby zobaczyć profil"
   },
   "selection": {

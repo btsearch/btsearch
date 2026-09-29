@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { type LocationPhoto, fetchLocationPhotos, fetchStationPhotos } from "@/features/station-details/api";
 import { formatMonthYear } from "@/lib/format";
@@ -109,21 +110,39 @@ export function SubmissionPhotosPanel({
   const previewUrls = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
   useEffect(() => () => previewUrls.forEach((url) => URL.revokeObjectURL(url)), [previewUrls]);
 
-  const { data: locationPhotos = [], isLoading: isLoadingLocationPhotos } = useQuery({
+  const {
+    data: locationPhotos = [],
+    isLoading: isLoadingLocationPhotos,
+    isLoadingError: locationPhotosLoadError,
+    isFetching: isFetchingLocationPhotos,
+    refetch: refetchLocationPhotos,
+  } = useQuery({
     queryKey: ["location-photos", locationId],
     queryFn: () => fetchLocationPhotos(locationId!),
     enabled: shouldRender && locationId !== undefined,
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: stationPhotos = [], isLoading: isLoadingStationPhotos } = useQuery({
+  const {
+    data: stationPhotos = [],
+    isLoading: isLoadingStationPhotos,
+    isLoadingError: stationPhotosLoadError,
+    isFetching: isFetchingStationPhotos,
+    refetch: refetchStationPhotos,
+  } = useQuery({
     queryKey: ["station-photos", stationId],
     queryFn: () => fetchStationPhotos(stationId!),
     enabled: shouldRender && stationId !== undefined,
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: submissionPhotos = [], isLoading: isLoadingSubmissionPhotos } = useQuery({
+  const {
+    data: submissionPhotos = [],
+    isLoading: isLoadingSubmissionPhotos,
+    isLoadingError: submissionPhotosLoadError,
+    isFetching: isFetchingSubmissionPhotos,
+    refetch: refetchSubmissionPhotos,
+  } = useQuery({
     queryKey: ["submission-photos", editSubmissionId],
     queryFn: () => fetchSubmissionPhotos(editSubmissionId!),
     enabled: shouldRender && editSubmissionId !== undefined,
@@ -187,7 +206,8 @@ export function SubmissionPhotosPanel({
   const uploadTotalCount = submissionPhotos.length + photos.length;
   const remainingSlots = MAX_SUBMISSION_PHOTOS - uploadTotalCount;
   const isLocationLoading = locationId !== undefined && (isLoadingLocationPhotos || isLoadingStationPhotos);
-  const showLocationPhotosSection = locationId !== undefined && (isLocationLoading || locationPhotos.length > 0);
+  const hasLocationPhotosError = locationId !== undefined && (locationPhotosLoadError || stationPhotosLoadError);
+  const showLocationPhotosSection = locationId !== undefined && (isLocationLoading || hasLocationPhotosError || locationPhotos.length > 0);
   const isUploadEmpty = uploadTotalCount === 0 && !isLoadingSubmissionPhotos;
 
   const toggleRemoval = useCallback(
@@ -238,6 +258,7 @@ export function SubmissionPhotosPanel({
   }
 
   function processFiles(files: File[]) {
+    if (submissionPhotosLoadError) return;
     const valid: File[] = [];
     for (const file of files) {
       if (file.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: file.name, size: MAX_PHOTO_SIZE_LABEL }));
@@ -340,35 +361,45 @@ export function SubmissionPhotosPanel({
                 <PhotoSubsection
                   title={t("photos.locationPhotos")}
                   meta={
-                    !isLocationLoading && locationPhotos.length > 0
+                    !isLocationLoading && !hasLocationPhotosError && locationPhotos.length > 0
                       ? t("photos.selectionCount", { selected: selectedLocationPhotoIds.size, total: locationPhotos.length })
                       : undefined
                   }
                 >
-                  {renderLocationPhotoContent({
-                    assignedLocationPhotoIds,
-                    currentMainLocationPhotoId,
-                    hasUploadMainProposal,
-                    isLoading: isLocationLoading,
-                    locationLightbox,
-                    locationPhotos,
-                    mainLocationPhotoId,
-                    markedForRemovalIds,
-                    onSetLocationPhotoAsMain: setLocationPhotoAsMain,
-                    onToggleRemoval: toggleRemoval,
-                    selectedLocationPhotoIds,
-                    t,
-                    toggleLocationPhoto,
-                  })}
+                  {hasLocationPhotosError ? (
+                    <InlineError
+                      className="m-3"
+                      onRetry={() => Promise.all([refetchLocationPhotos(), refetchStationPhotos()])}
+                      isRetrying={isFetchingLocationPhotos || isFetchingStationPhotos}
+                    />
+                  ) : (
+                    renderLocationPhotoContent({
+                      assignedLocationPhotoIds,
+                      currentMainLocationPhotoId,
+                      hasUploadMainProposal,
+                      isLoading: isLocationLoading,
+                      locationLightbox,
+                      locationPhotos,
+                      mainLocationPhotoId,
+                      markedForRemovalIds,
+                      onSetLocationPhotoAsMain: setLocationPhotoAsMain,
+                      onToggleRemoval: toggleRemoval,
+                      selectedLocationPhotoIds,
+                      t,
+                      toggleLocationPhoto,
+                    })
+                  )}
                 </PhotoSubsection>
               ) : null}
 
               <PhotoSubsection
                 title={mode === "existing" ? t("photos.uploadedPhotos") : t("photos.label")}
-                meta={!isLoadingSubmissionPhotos ? `${uploadTotalCount}/${MAX_SUBMISSION_PHOTOS}` : undefined}
+                meta={!isLoadingSubmissionPhotos && !submissionPhotosLoadError ? `${uploadTotalCount}/${MAX_SUBMISSION_PHOTOS}` : undefined}
               >
                 {isLoadingSubmissionPhotos ? (
                   <CenteredSpinner />
+                ) : submissionPhotosLoadError ? (
+                  <InlineError className="m-3" onRetry={() => refetchSubmissionPhotos()} isRetrying={isFetchingSubmissionPhotos} />
                 ) : isUploadEmpty ? (
                   <EmptyUploadState onUploadClick={() => fileInputRef.current?.click()} />
                 ) : (

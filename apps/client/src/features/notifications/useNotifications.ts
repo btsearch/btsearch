@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { NotificationsResponse } from "./api";
 import { markAllRead as apiMarkAllRead, markRead as apiMarkRead, fetchNotifications } from "./api";
+import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
 export function useNotifications() {
@@ -17,7 +18,14 @@ export function useNotifications() {
     enabled: !!session?.user,
   });
 
+  const resyncNotifications = () => {
+    if (queryClient.isMutating({ mutationKey: ["notifications"] }) !== 1) return;
+    void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    void queryClient.invalidateQueries({ queryKey: ["notifications-badge"] });
+  };
+
   const markAllMutation = useMutation({
+    mutationKey: ["notifications"],
     mutationFn: apiMarkAllRead,
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["notifications"] });
@@ -32,16 +40,15 @@ export function useNotifications() {
       });
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(["notifications"], context.previous);
+      showApiError(error);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      void queryClient.invalidateQueries({ queryKey: ["notifications-badge"] });
-    },
+    onSettled: resyncNotifications,
   });
 
   const markReadMutation = useMutation({
+    mutationKey: ["notifications"],
     mutationFn: apiMarkRead,
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["notifications"] });
@@ -57,19 +64,19 @@ export function useNotifications() {
       });
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(["notifications"], context.previous);
+      showApiError(error);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      void queryClient.invalidateQueries({ queryKey: ["notifications-badge"] });
-    },
+    onSettled: resyncNotifications,
   });
 
   return {
     notifications: query.data?.data ?? [],
     totalUnread: query.data?.totalUnread ?? 0,
     isLoading: query.isLoading,
+    isLoadingError: query.isLoadingError,
+    refetch: query.refetch,
     markAllRead: () => markAllMutation.mutate(),
     markRead: (id: string) => markReadMutation.mutate(id),
   };

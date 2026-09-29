@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
@@ -185,7 +186,7 @@ function TotpVerifyForm({ onSuccess }: { onSuccess: () => void }) {
             </InputOTPGroup>
           </InputOTP>
         </div>
-        {error && <p className="text-sm text-destructive text-center">{error}</p>}
+        {error ? <InlineError title={t("totp.failed")} description={error} /> : null}
         <Button size="lg" className="w-full" disabled={isSubmitting || code.length !== 6} onClick={() => handleVerify(code)}>
           {isSubmitting ? (
             <>
@@ -236,7 +237,7 @@ function SignInForm({
             onSuccess();
           },
           onError(ctx: { error: AuthRequestError }) {
-            setError(ctx.error.message ?? "An unexpected error occurred");
+            setError(ctx.error.message ?? t("unexpectedError"));
             if (ctx.error.code === "EMAIL_NOT_VERIFIED") setVerificationEmail(value.email);
           },
         },
@@ -362,9 +363,7 @@ function SignInForm({
           </form.Field>
           {error ? (
             <div className="space-y-1.5">
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
+              <InlineError title={t("signIn.failed")} description={error} />
               {verificationEmail !== null ? (
                 <button
                   type="button"
@@ -423,7 +422,7 @@ function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void; onSwit
       });
 
       if (signUpError) {
-        setError(signUpError.message ?? "An unexpected error occurred");
+        setError(signUpError.message ?? t("unexpectedError"));
         return;
       }
 
@@ -519,7 +518,7 @@ function SignUpForm({ onSuccess, onSwitchView }: { onSuccess: () => void; onSwit
               </div>
             )}
           </form.Field>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error ? <InlineError title={t("signUp.failed")} description={error} /> : null}
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
               <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
@@ -550,12 +549,14 @@ export function AuthDialog({ open, onOpenChange, forced = false }: AuthDialogPro
   const [view, setView] = useState<"signIn" | "signUp" | "totp">("signIn");
 
   useEffect(() => {
+    if (!open) return;
+
     function handle() {
       setView("totp");
     }
     window.addEventListener("two-factor-redirect", handle);
     return () => window.removeEventListener("two-factor-redirect", handle);
-  }, []);
+  }, [open]);
 
   function handleOpenChange(nextOpen: boolean, details: DialogRootChangeEventDetails) {
     if (forced && !nextOpen && BLOCKED_REASONS.has(details.reason)) return;

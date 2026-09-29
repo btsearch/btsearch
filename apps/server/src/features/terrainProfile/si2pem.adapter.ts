@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { SI2PEMClient, type SI2PEMLaboratoryReport } from "si2pem-reader";
 import type { SI2PEMAntenna } from "si2pem-reader/reports";
 
-import { withRedisStaleCache } from "./cache.js";
+import { withRedisStaleCache } from "../../lib/redisCache.js";
 import { TERRAIN_UPSTREAM_TIMEOUT_MS } from "./config.js";
 import type { AntennaCandidate, ResolvedTerrainStation, SI2PEMReport, TerrainWarningCode } from "./types.js";
 

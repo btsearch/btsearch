@@ -1,8 +1,9 @@
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
+import { PageErrorState } from "@/components/ui/error-state";
 import { SubmissionForm } from "@/features/submissions/components/submissionForm";
-import { useSettings } from "@/hooks/useSettings";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 type SubmissionSearch = {
   station?: string;
@@ -12,9 +13,10 @@ type SubmissionSearch = {
 
 function SubmissionsPage() {
   const { station: stationId, edit: editId, uke } = Route.useSearch();
-  const { data: settings, isLoading } = useSettings();
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissionsEnabled");
 
-  if (!isLoading && !settings?.submissionsEnabled) return <Navigate to="/" replace />;
+  if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
+  if (isDisabled) return <Navigate to="/" replace />;
 
   return (
     <RequireAuth>

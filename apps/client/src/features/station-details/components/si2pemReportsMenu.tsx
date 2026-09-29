@@ -1,6 +1,6 @@
 import { ArrowRight01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
+import { Fragment, type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { PemReport } from "../api";
@@ -30,6 +30,26 @@ type SI2PEMReportsMenuProps = {
   operatorName: string;
   operatorMnc?: number | null;
 };
+
+type ReportItemContentProps = {
+  dateLabel: string;
+  tag: string;
+  labName: string;
+  children?: ReactNode;
+};
+
+function ReportItemContent({ dateLabel, tag, labName, children }: ReportItemContentProps) {
+  return (
+    <div className="min-w-0 flex-1">
+      <span className="flex items-center gap-1.5">
+        <span className="whitespace-nowrap text-sm font-medium">{dateLabel}</span>
+        <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">{tag}</span>
+        {children}
+      </span>
+      <span className="block truncate text-[11px] text-muted-foreground">{labName}</span>
+    </div>
+  );
+}
 
 export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, operatorMnc }: SI2PEMReportsMenuProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
@@ -74,33 +94,38 @@ export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, 
             <DropdownMenuLabel className="py-1 text-xs font-medium text-muted-foreground">{year}</DropdownMenuLabel>
             {items.map(({ report, dateLabel, isLatest, sourceLabel }) => {
               const showAntennaData = report.source === "map" && report.antenna_data_available;
+              const installationDocument = "installation_document" in report.details ? report.details.installation_document : null;
               const openAntennaDialog = () => {
                 openSI2PEMReportDialog({ report, latitude, longitude, operatorName, operatorMnc });
               };
 
               return (
-                <DropdownMenuItem
-                  key={`${report.station_id}_${report.date}_${report.source}`}
-                  render={showAntennaData ? undefined : <a target="_blank" href={report.details.document_url} />}
-                  onClick={showAntennaData ? openAntennaDialog : undefined}
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="whitespace-nowrap text-sm font-medium">{dateLabel}</span>
-                      <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground">
-                        {t(`common:labels.${sourceLabel}`)}
-                      </span>
+                <Fragment key={`${report.source}:${report.details.document_url}`}>
+                  <DropdownMenuItem
+                    render={showAntennaData ? undefined : <a target="_blank" rel="noopener noreferrer" href={report.details.document_url} />}
+                    onClick={showAntennaData ? openAntennaDialog : undefined}
+                  >
+                    <ReportItemContent dateLabel={dateLabel} tag={t(`common:labels.${sourceLabel}`)} labName={report.details.lab_name}>
                       {isLatest ? (
                         <span className="shrink-0 text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-400">
                           {t("common:labels.latest")}
                         </span>
                       ) : null}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">{report.details.lab_name}</span>
-                  </div>
-                  {showAntennaData ? <span className="sr-only">{t("si2pemAntennaData.action")}</span> : null}
-                  <HugeiconsIcon icon={showAntennaData ? ArrowRight01Icon : ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
-                </DropdownMenuItem>
+                    </ReportItemContent>
+                    {showAntennaData ? <span className="sr-only">{t("si2pemAntennaData.action")}</span> : null}
+                    <HugeiconsIcon
+                      icon={showAntennaData ? ArrowRight01Icon : ArrowUpRight01Icon}
+                      className="size-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </DropdownMenuItem>
+                  {installationDocument ? (
+                    <DropdownMenuItem render={<a target="_blank" rel="noopener noreferrer" href={installationDocument} />}>
+                      <ReportItemContent dateLabel={dateLabel} tag={t("specs.pemInstallationForm")} labName={report.details.lab_name} />
+                      <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </DropdownMenuItem>
+                  ) : null}
+                </Fragment>
               );
             })}
           </DropdownMenuGroup>

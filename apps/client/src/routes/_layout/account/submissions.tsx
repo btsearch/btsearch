@@ -5,14 +5,16 @@ import { useTranslation } from "react-i18next";
 
 import { RequireAuth } from "@/components/auth/requireAuth";
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { MySubmissions } from "@/features/account/components/mySubmissions";
-import { useSettings } from "@/hooks/useSettings";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function MySubmissionsPage() {
   const { t } = useTranslation("submissions");
-  const { data: settings, isLoading } = useSettings();
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissionsEnabled");
 
-  if (!isLoading && !settings?.submissionsEnabled) return <Navigate to="/" replace />;
+  if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
+  if (isDisabled) return <Navigate to="/" replace />;
 
   return (
     <RequireAuth>

@@ -21,11 +21,10 @@ function SpeedItem({ direction, speed, iconSize }: SpeedItemProps) {
 
   return (
     <Tooltip>
-      <TooltipTrigger tabIndex={-1}>
-        <span className="inline-flex items-center gap-0.5 cursor-default">
-          <HugeiconsIcon icon={icon} className={cn(iconSize, "text-foreground")} />
-          <span className="text-emerald-600">{speed}</span>
-        </span>
+      <TooltipTrigger render={<span />} className="inline-flex cursor-default items-center gap-0.5">
+        <HugeiconsIcon icon={icon} className={cn(iconSize, "text-foreground")} aria-hidden="true" />
+        <span className="sr-only">{label}</span>
+        <span className="text-emerald-600">{speed}</span>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
@@ -49,9 +48,9 @@ export function DirectionalSpeedBadge({ dl, ul, iconSize = "size-2.5" }: Directi
         <SpeedItem direction="both" speed={dl} iconSize={iconSize} />
       ) : (
         <>
-          {hasDl && <SpeedItem direction="dl" speed={dl} iconSize={iconSize} />}
-          {hasDl && hasUl && <span className="text-muted-foreground/40 mx-0.5">/</span>}
-          {hasUl && <SpeedItem direction="ul" speed={ul} iconSize={iconSize} />}
+          {hasDl ? <SpeedItem direction="dl" speed={dl} iconSize={iconSize} /> : null}
+          {hasDl && hasUl ? <span className="mx-0.5 text-muted-foreground/40">/</span> : null}
+          {hasUl ? <SpeedItem direction="ul" speed={ul} iconSize={iconSize} /> : null}
         </>
       )}
     </span>

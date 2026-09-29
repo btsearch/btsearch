@@ -6,7 +6,7 @@ import {
   LockKeyIcon,
   Mail01Icon,
   Message01Icon,
-  UserIcon,
+  UserRemove01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -14,10 +14,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
+import { MapLinkButton } from "@/components/app/errorScreens";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { API_BASE, ApiResponseError, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { resolveAvatarUrl } from "@/lib/format";
@@ -86,8 +88,11 @@ function UserProfilePage() {
 
   const {
     data: profile,
+    error,
     isLoading,
-    isError,
+    isFetching,
+    isRefetchError,
+    refetch,
   } = useQuery({
     queryKey: ["user-profile", username],
     queryFn: () => fetchJson<{ data: ProfileData }>(`${API_BASE}/users/${username}`).then((r) => r.data),
@@ -96,16 +101,19 @@ function UserProfilePage() {
 
   if (isLoading) return <ProfileSkeleton />;
 
-  if (isError || !profile)
-    return (
-      <main className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center py-24 text-center px-4">
-        <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <HugeiconsIcon icon={UserIcon} className="size-8 text-muted-foreground/40" />
-        </div>
-        <p className="text-base font-semibold text-foreground">{t("userProfile.notFoundTitle")}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t("userProfile.notFoundSubtitle", { username })}</p>
-      </main>
-    );
+  if (!profile) {
+    if (error instanceof ApiResponseError && error.status === 404)
+      return (
+        <PageErrorState
+          tone="neutral"
+          icon={UserRemove01Icon}
+          title={t("userProfile.notFoundTitle")}
+          description={t("userProfile.notFoundSubtitle", { username })}
+          action={<MapLinkButton />}
+        />
+      );
+    return <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} />;
+  }
 
   const joinDate = new Date(profile.createdAt).toLocaleDateString(i18n.language, { year: "numeric", month: "long" });
 
@@ -203,6 +211,8 @@ function UserProfilePage() {
             </div>
           )}
         </div>
+
+        {isRefetchError ? <StaleDataNotice className="mt-4" onRetry={() => refetch()} isRetrying={isFetching} /> : null}
 
         {!profile.isPrivate && session?.user.id === profile.id && profile.profileVisibility === "private" && (
           <div className="flex items-center gap-2 mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-xs text-yellow-700 dark:text-yellow-400">

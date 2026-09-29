@@ -10,7 +10,8 @@ import { fetchRadioLineGroup } from "../api";
 import { radioLinesToGeoJSON } from "../geojson";
 import { useRadioLinesLayer } from "../hooks/useRadioLinesLayer";
 import { type DuplexRadioLink, findDuplexLinkByRadioLineId, groupRadioLinesIntoLinks } from "../utils";
-import { RadioLineFooter, RadioLinePopupContent } from "./radioLinePopupContent";
+import { PopupCoordinatesFooter } from "./popupParts";
+import { RadioLinePopupContent } from "./radioLinePopupContent";
 import { useMap } from "@/components/ui/map";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -56,9 +57,9 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
   const fetchedPendingDuplexLinks = useMemo(() => groupRadioLinesIntoLinks(pendingRadioLines ?? []), [pendingRadioLines]);
 
   const { lines, endpoints } = useMemo(() => {
-    if (!radioLines.length) return { lines: EMPTY_LINES, endpoints: EMPTY_ENDPOINTS };
-    return radioLinesToGeoJSON(radioLines);
-  }, [radioLines]);
+    if (!duplexLinks.length) return { lines: EMPTY_LINES, endpoints: EMPTY_ENDPOINTS };
+    return radioLinesToGeoJSON(duplexLinks);
+  }, [duplexLinks]);
 
   const cleanupPopup = useCallback(() => {
     const popup = popupRef.current;
@@ -66,7 +67,7 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
     popupRef.current = null;
     popupRootRef.current = null;
     popup?.remove();
-    popupRoot?.unmount();
+    if (popupRoot) queueMicrotask(() => popupRoot.unmount());
   }, []);
 
   useEffect(() => cleanupPopup, [cleanupPopup]);
@@ -89,8 +90,8 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
       container.tabIndex = -1;
 
       const popup = new Popup({
-        className: "station-map-popup radioline-map-popup",
-        closeButton: true,
+        className: "station-map-popup",
+        closeButton: false,
         closeOnClick: true,
         maxWidth: "none",
         offset: 12,
@@ -114,13 +115,13 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
                 <RadioLinePopupContent
                   key={link.groupId}
                   link={link}
-                  isFirst={index === 0}
                   showAddToList={showAddToList}
                   onOpenDetails={handleOpenDetails}
+                  onClose={index === 0 ? () => popup.remove() : undefined}
                 />
               ))}
             </div>
-            <RadioLineFooter coordinates={coordinates} />
+            <PopupCoordinatesFooter latitude={coordinates[1]} longitude={coordinates[0]} />
           </div>
         </QueryClientProvider>,
       );
@@ -131,7 +132,7 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
         const popupRoot = popupRootRef.current;
         popupRef.current = null;
         popupRootRef.current = null;
-        popupRoot?.unmount();
+        if (popupRoot) queueMicrotask(() => popupRoot.unmount());
       });
       popup.addTo(map);
     },

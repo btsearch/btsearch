@@ -13,7 +13,7 @@ export function formatFrequency(freqMhz: number): string {
 }
 
 export function formatSpeed(mbps: number): string {
-  return mbps >= 1000 ? `${(mbps / 1000).toFixed(2)} Gbps` : `~${Math.round(mbps)} Mbps`;
+  return mbps >= 1000 ? `${(mbps / 1000).toFixed(2)} Gbps` : `${Math.round(mbps)} Mbps`;
 }
 
 export function formatBandwidth(bandwidth: string): string {

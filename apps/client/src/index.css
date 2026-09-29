@@ -237,6 +237,36 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+@theme {
+  --animate-signal-wave: signal-wave 2.4s ease-in-out infinite;
+  --animate-signal-flicker: signal-flicker 3.2s step-end infinite;
+
+  @keyframes signal-wave {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+    35% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes signal-flicker {
+    0%,
+    48%,
+    56%,
+    84%,
+    100% {
+      opacity: 1;
+    }
+    46%,
+    52%,
+    80% {
+      opacity: 0.2;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -311,19 +341,8 @@
     background: transparent !important;
   }
 
-  .maplibregl-popup.radioline-map-popup .maplibregl-popup-close-button {
-    display: inline-flex !important;
-    width: 1rem !important;
-    height: 1rem !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    right: 0.5rem !important;
-    top: 0.5rem !important;
-    line-height: 1 !important;
-  }
-
-  .station-hover-tooltip .maplibregl-popup-content {
+  .station-hover-tooltip .maplibregl-popup-content,
+  .radioline-tooltip .maplibregl-popup-content {
     pointer-events: none !important;
   }
 

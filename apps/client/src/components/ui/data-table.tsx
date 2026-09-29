@@ -1,6 +1,9 @@
 import { type HeaderGroup, type Header as HeaderType, type Row, type RowData, type Table as TableInstance, flexRender } from "@tanstack/react-table";
 import { type ReactNode, createContext, memo, useContext, useId, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
+import { ErrorState, type ErrorStateProps } from "@/components/ui/error-state";
+import { Spinner } from "@/components/ui/spinner";
 import { hasModifierKey, isInteractiveTarget } from "@/lib/dom/keyboard";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
@@ -260,6 +263,54 @@ function Empty({ columns, children }: EmptyProps) {
   );
 }
 
+const STATE_BODY_INSET = 12;
+
+type StateBodyProps = ErrorStateProps & {
+  columns: number;
+  rows?: number;
+};
+
+function StateBody({ columns, rows, className, isStatus = false, ...props }: StateBodyProps & { isStatus?: boolean }) {
+  const fillStyle = rows === undefined ? undefined : { minHeight: rows * DATA_TABLE_ROW_HEIGHT - STATE_BODY_INSET * 2 };
+
+  return (
+    <tbody>
+      <tr>
+        <td colSpan={columns} style={{ padding: STATE_BODY_INSET }}>
+          <div role={isStatus ? "status" : undefined} className="flex" style={fillStyle}>
+            <ErrorState className={cn("flex-1", className)} {...props} />
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  );
+}
+
+function ErrorBody(props: StateBodyProps) {
+  return <StateBody {...props} />;
+}
+
+function EmptyStateBody(props: Omit<StateBodyProps, "tone"> & { title: ReactNode }) {
+  return <StateBody {...props} tone="neutral" isStatus />;
+}
+
+function UpdatingIndicator({ className }: { className?: string }) {
+  const { t } = useTranslation("common");
+
+  return (
+    <div
+      role="status"
+      className={cn(
+        "absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm",
+        className,
+      )}
+    >
+      <Spinner role="presentation" aria-hidden="true" className="size-3.5" />
+      {t("actions.updating")}
+    </div>
+  );
+}
+
 interface PaginationFooterProps {
   children: ReactNode;
   className?: string;
@@ -279,5 +330,8 @@ export const DataTable = {
   Skeleton,
   SkeletonRows,
   Empty,
+  EmptyState: EmptyStateBody,
+  Error: ErrorBody,
   PaginationFooter,
+  UpdatingIndicator,
 };

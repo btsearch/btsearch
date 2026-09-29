@@ -1,4 +1,4 @@
-import { Globe02Icon, Location01Icon, MapsLocation01Icon } from "@hugeicons/core-free-icons";
+import { Globe02Icon, Location01Icon, LocationRemove01Icon, MapsLocation01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { createLocationSEOMetadata, parseSEOEntityId } from "@openbts/shared/seo";
 import { queryOptions, useQuery } from "@tanstack/react-query";
@@ -6,8 +6,9 @@ import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { CollapsibleSection } from "@/components/content/collapsibleSection";
-import { EntityPageMessage, entityPageChipClassName } from "@/components/content/entityPage";
+import { EntityNotFound, EntityRouteError, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
+import { InlineError } from "@/components/ui/error-state";
 import { fetchLocationWithStations, locationQueryKey } from "@/features/map/api";
 import { fetchLocationPhotos } from "@/features/station-details/api";
 import { CopyButton } from "@/features/station-details/components/copyButton";
@@ -66,16 +67,32 @@ function locationHead(location: LocationWithStations) {
   );
 }
 
+function LocationNotFound() {
+  return <EntityNotFound icon={LocationRemove01Icon} titleKey="page.locationNotFoundTitle" descriptionKey="page.locationNotFoundDescription" />;
+}
+
+function LocationRouteError() {
+  return <EntityRouteError titleKey="page.locationUnavailableTitle" descriptionKey="page.locationUnavailableDescription" />;
+}
+
 function LocationPage() {
   const { id } = Route.useParams();
   const locationId = Number(id);
   const { t } = useTranslation(["stationDetails", "main", "nav", "common"]);
   const { preferences } = usePreferences();
 
-  const { data: location } = useQuery(locationPageQueryOptions(locationId));
-  const { data: photos = [] } = useQuery(locationPhotosQueryOptions(locationId));
+  const { data: location, error: locationError } = useQuery(locationPageQueryOptions(locationId));
+  const {
+    data: photos,
+    isError: isPhotosError,
+    isFetching: isFetchingPhotos,
+    refetch: refetchPhotos,
+  } = useQuery(locationPhotosQueryOptions(locationId));
 
-  if (!location) return <EntityPageMessage titleKey="page.locationUnavailableTitle" descriptionKey="page.locationUnavailableDescription" />;
+  if (!location) {
+    if (locationError instanceof ApiResponseError && locationError.status === 404) return <LocationNotFound />;
+    return locationError ? <LocationRouteError /> : null;
+  }
 
   const city = location.city || t("page.unknownLocation");
   const label = locationLabel(location, city);
@@ -108,9 +125,14 @@ function LocationPage() {
             />
           </div>
         </div>
-        {photos.length > 0 ? (
+        {photos !== undefined && photos.length > 0 ? (
           <div className="border-t px-4 py-3 sm:px-6">
             <PhotoStrip photos={photos} />
+          </div>
+        ) : null}
+        {isPhotosError && photos === undefined ? (
+          <div className="border-t px-4 py-3 sm:px-6">
+            <InlineError title={t("photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
           </div>
         ) : null}
       </header>
@@ -170,6 +192,6 @@ export const Route = createFileRoute("/_layout/locations/$id")({
     }
   },
   head: ({ loaderData }) => (loaderData ? locationHead(loaderData) : { meta: [{ name: "robots", content: "noindex" }] }),
-  notFoundComponent: () => <EntityPageMessage titleKey="page.locationNotFoundTitle" descriptionKey="page.locationNotFoundDescription" />,
-  errorComponent: () => <EntityPageMessage titleKey="page.locationUnavailableTitle" descriptionKey="page.locationUnavailableDescription" />,
+  notFoundComponent: LocationNotFound,
+  errorComponent: LocationRouteError,
 });

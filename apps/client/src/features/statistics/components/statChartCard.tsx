@@ -5,9 +5,16 @@ import type { ChartType } from "./chartTypeContext";
 import type { Series } from "./statChart";
 import { StatChart } from "./statChart";
 import type { ChartLegendVariant } from "@/components/evilcharts/ui/legend";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 
-interface Props {
+export type ChartErrorProps = {
+  isError?: boolean;
+  onRetry?: () => unknown;
+  isRetrying?: boolean;
+};
+
+interface Props extends ChartErrorProps {
   title: ReactNode;
   description?: ReactNode;
   toolbar?: ReactNode;
@@ -45,6 +52,9 @@ export const StatChartCard = memo(function StatChartCard({
   connectNulls = false,
   showDots = true,
   legendVariant = "vertical-bar",
+  isError = false,
+  onRetry,
+  isRetrying,
 }: Props) {
   const resolvedMinWidth = minWidth ?? (standalone ? "min-w-[720px]" : "min-w-0");
   const { t } = useTranslation("statistics");
@@ -77,7 +87,13 @@ export const StatChartCard = memo(function StatChartCard({
   );
 
   let body: ReactNode;
-  if (data.length === 0 && !isLoading) {
+  if (isError) {
+    body = (
+      <div className={cn("flex items-center justify-center p-4", height)}>
+        <ErrorState onRetry={onRetry} isRetrying={isRetrying} className="w-full max-w-md" />
+      </div>
+    );
+  } else if (data.length === 0 && !isLoading) {
     body = <div className={cn("flex items-center justify-center p-4 text-muted-foreground text-xs", height)}>{t("charts.noData")}</div>;
   } else if (standalone) {
     body = (

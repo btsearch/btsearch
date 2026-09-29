@@ -1,11 +1,11 @@
-import { AirportTowerIcon, AlertCircleIcon, Delete02Icon, Location01Icon, SignalFull02Icon } from "@hugeicons/core-free-icons";
+import { AirportTowerIcon, Delete02Icon, Location01Icon, SignalFull02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubmissionCellCounts } from "@/features/admin/submissions/components/submissionListParts";
@@ -386,20 +386,22 @@ export function SubmissionChangesSheet({ submission, operators, open, onOpenChan
 
         {detailQuery.isLoading && submission ? <ChangesSheetSkeleton /> : null}
 
-        {detailQuery.isError ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-            <span className="flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <HugeiconsIcon icon={AlertCircleIcon} className="size-5" aria-hidden="true" />
-            </span>
-            <p className="mt-3 text-sm font-medium">{t("changesSheet.loadError")}</p>
-            <Button size="sm" variant="outline" className="mt-4" onClick={() => void detailQuery.refetch()}>
-              {t("common:actions.retry")}
-            </Button>
-          </div>
+        {detailQuery.isLoadingError ? (
+          <ErrorState
+            className="m-4 flex-1"
+            title={t("changesSheet.loadError")}
+            onRetry={() => detailQuery.refetch()}
+            isRetrying={detailQuery.isFetching}
+          />
         ) : null}
 
         {detailQuery.data ? (
           <div className="space-y-6 px-4 py-4 pb-8">
+            {detailQuery.isRefetchError ? (
+              <div className="flex justify-center">
+                <StaleDataNotice onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />
+              </div>
+            ) : null}
             <StationChanges submission={detailQuery.data} operators={operators} />
             <CellChanges submission={detailQuery.data} />
             <SubmissionLocationPhotoSelectionsSection

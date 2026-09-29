@@ -14,6 +14,7 @@ import { SnapshotDetails } from "./snapshot";
 import { useReplay } from "./useReplay";
 import { useStationCorrelation } from "./useStationCorrelation";
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/ui/error-state";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -474,12 +475,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
               </p>
             </div>
           ) : null}
-          {error ? (
-            <div className="shrink-0 space-y-1 border-b bg-destructive/5 px-4 py-3" role="alert">
-              <p className="text-xs font-medium text-destructive">{t("import.failed")}</p>
-              <p className="text-xs text-muted-foreground">{t("import.retry")}</p>
-            </div>
-          ) : null}
+          {error ? <InlineError title={t("import.failed")} description={t("import.retry")} className="mx-4 mt-4 shrink-0" /> : null}
 
           {!log && (
             <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">

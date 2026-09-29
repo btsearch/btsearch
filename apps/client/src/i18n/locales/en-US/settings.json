@@ -83,7 +83,8 @@
     "groupAzimuths": "Azimuths",
     "notifications": "Notifications",
     "notificationsHint": "Manage push notification subscriptions for this browser",
-    "notificationsBlocked": "Notifications are blocked by the browser. Enable them in your browser settings to use this feature",
+    "notificationsBlocked": "Notifications are blocked by the browser",
+    "notificationsBlockedHint": "Enable them in your browser settings to use this feature",
     "pushTitle": "Push notifications",
     "pushLabel": "Enable push notifications",
     "ukeUpdates": "UKE Data Updates",
@@ -98,6 +99,7 @@
     "newSubmissions": "New Submissions",
     "newSubmissionsHint": "Get notified when users submit new data for review",
     "newSubmissionsLabel": "Notify me about new submissions",
+    "notificationPrefsError": "Couldn't save the notification setting",
     "privacy": "Privacy",
     "adConsent": "Advertising Cookies",
     "adConsentHint": "Allow personalized ads that help keep this site free. Ads are shown only when consent is given",
@@ -177,7 +179,7 @@
       "noPassword": "No password set. Passkey sign-in only",
       "requiresPasskey": "You need at least one passkey before removing your password",
       "removeError": "Failed to remove password",
-      "passkeyLoadError": "Could not load passkeys. Refresh to try again"
+      "passkeysLoadFailed": "Couldn't load passkeys"
     }
   },
   "apiKeys": {
@@ -201,6 +203,7 @@
     "revokeSuccess": "API key revoked successfully",
     "noKeys": "No API keys yet",
     "noKeysDescription": "Create an API key to access the BTSearch API programmatically",
+    "unnamed": "Unnamed",
     "typeBadge": {
       "secret": "Secret",
       "publishable": "Public"
@@ -236,7 +239,9 @@
     },
     "errors": {
       "createFailed": "Failed to create API key",
-      "nameRequired": "Name is required"
+      "nameRequired": "Name is required",
+      "loadFailed": "Couldn't load API keys",
+      "revokeFailed": "Failed to revoke API key"
     }
   },
   "sessions": {
@@ -260,6 +265,7 @@
     "saving": "Saving...",
     "saveSuccess": "Profile saved",
     "saveError": "Failed to save profile",
+    "loadError": "Couldn't load your profile",
     "viewProfile": "View profile",
     "visibility": {
       "title": "Profile visibility",

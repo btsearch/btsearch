@@ -5,6 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { StaleDataNotice } from "@/components/ui/error-state";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRegisterPageSections } from "@/contexts/pageSections";
@@ -119,6 +120,12 @@ function LazyChart({ children, fallback }: { children: ReactNode; fallback: Reac
   );
 }
 
+type ChartQuery = { data: unknown; isLoading: boolean; isError: boolean; isFetching: boolean; refetch: () => unknown };
+
+function getChartQueryState(query: ChartQuery) {
+  return { isLoading: query.isLoading, isError: query.isError && query.data === undefined, onRetry: query.refetch, isRetrying: query.isFetching };
+}
+
 function formatRefreshCountdown(milliseconds: number) {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const hours = Math.floor(totalSeconds / 3600);
@@ -162,12 +169,10 @@ function StatisticsRefreshStatus({ label, lastUpdated, queryKey }: { label: stri
 
 function StatisticsPage() {
   const { t } = useTranslation("statistics");
-  const { data: summaryResponse, isLoading: summaryLoading } = useQuery(statsSummaryQueryOptions());
-  const { data: permitsResponse, isLoading: permitsLoading } = useQuery(statsPermitsQueryOptions());
-  const { data: voivodeships, isLoading: voivodeshipsLoading } = useQuery(statsVoivodeshipsQueryOptions());
+  const summaryQuery = useQuery(statsSummaryQueryOptions());
+  const permitsQuery = useQuery(statsPermitsQueryOptions());
+  const voivodeshipsQuery = useQuery(statsVoivodeshipsQueryOptions());
   const { data: operators } = useQuery(operatorsQueryOptions());
-  const summary = summaryResponse?.data;
-  const permits = permitsResponse?.data;
 
   useRegisterPageSections([
     { id: "uke-permits", title: t("stationDetails:tabs.permits") },
@@ -176,6 +181,16 @@ function StatisticsPage() {
     { id: "permit-snapshot", title: t("sections.permitSnapshot") },
     { id: "history", title: t("charts.history") },
   ]);
+
+  const summaryResponse = summaryQuery.data;
+  const permitsResponse = permitsQuery.data;
+  const summary = summaryResponse?.data;
+  const permits = permitsResponse?.data;
+  const voivodeships = voivodeshipsQuery.data;
+  const summaryState = getChartQueryState(summaryQuery);
+  const permitsState = getChartQueryState(permitsQuery);
+  const voivodeshipsState = getChartQueryState(voivodeshipsQuery);
+  const staleQueries = [summaryQuery, permitsQuery, voivodeshipsQuery].filter((query) => query.isRefetchError);
 
   return (
     <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
@@ -203,36 +218,43 @@ function StatisticsPage() {
               ) : null}
             </div>
           ) : null}
+          {staleQueries.length > 0 ? (
+            <StaleDataNotice
+              className="mt-3"
+              onRetry={() => Promise.all(staleQueries.map((query) => query.refetch()))}
+              isRetrying={staleQueries.some((query) => query.isFetching)}
+            />
+          ) : null}
         </div>
 
         <section id="uke-permits" className="space-y-4">
           <SectionHeader>{t("stationDetails:tabs.permits")}</SectionHeader>
-          <UkeKpiCards data={summary} isLoading={summaryLoading} />
+          <UkeKpiCards data={summary} {...summaryState} />
           <div className="space-y-4 pt-1">
             <Suspense fallback={distributionSkeleton}>
-              <UkeDistributionCharts data={summary} isLoading={summaryLoading} />
+              <UkeDistributionCharts data={summary} {...summaryState} />
             </Suspense>
             <LazyChart fallback={chartSkeleton}>
-              <UkeBandBarChart data={permits?.uke} isLoading={permitsLoading} />
+              <UkeBandBarChart data={permits?.uke} {...permitsState} />
             </LazyChart>
             <LazyChart fallback={tallChartSkeleton}>
-              <UkeVoivodeshipChart data={voivodeships?.uke} isLoading={voivodeshipsLoading} />
+              <UkeVoivodeshipChart data={voivodeships?.uke} {...voivodeshipsState} />
             </LazyChart>
           </div>
         </section>
 
         <section id="internal-db" className="space-y-4">
           <SectionHeader>{t("main:stats.internalData")}</SectionHeader>
-          <InternalKpiCards data={summary} isLoading={summaryLoading} />
+          <InternalKpiCards data={summary} {...summaryState} />
           <div className="space-y-4 pt-1">
             <LazyChart fallback={chartSkeleton}>
-              <InternalDistributionCharts data={summary} isLoading={summaryLoading} />
+              <InternalDistributionCharts data={summary} {...summaryState} />
             </LazyChart>
             <LazyChart fallback={chartSkeleton}>
-              <InternalBandStationsBarChart data={permits?.internal} isLoading={permitsLoading} />
+              <InternalBandStationsBarChart data={permits?.internal} {...permitsState} />
             </LazyChart>
             <LazyChart fallback={tallChartSkeleton}>
-              <InternalVoivodeshipChart data={voivodeships?.internal} isLoading={voivodeshipsLoading} />
+              <InternalVoivodeshipChart data={voivodeships?.internal} {...voivodeshipsState} />
             </LazyChart>
           </div>
         </section>

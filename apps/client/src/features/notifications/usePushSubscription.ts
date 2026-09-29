@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { subscribeToPush, unsubscribeFromPush } from "./api";
@@ -55,6 +56,7 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
 }
 
 export function usePushSubscription() {
+  const { t } = useTranslation("notifications");
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(getStoredId);
   const [permission, setPermission] = useState<NotificationPermission>(() => (isPushSupported() ? Notification.permission : "default"));
@@ -98,7 +100,7 @@ export function usePushSubscription() {
 
   const subscribe = useCallback(async () => {
     if (!isPushSupported()) {
-      toast.error("Push notifications are not supported by this browser");
+      toast.error(t("pushUnsupported"));
       return;
     }
 
@@ -109,12 +111,12 @@ export function usePushSubscription() {
       setPermission(perm);
 
       if (perm !== "granted") {
-        toast.error("Notification permission denied");
+        toast.error(t("permissionDenied"));
         return;
       }
 
       if (!VAPID_PUBLIC_KEY) {
-        toast.error("Push notifications are not configured in this client build");
+        toast.error(t("pushNotConfigured"));
         return;
       }
 
@@ -144,13 +146,13 @@ export function usePushSubscription() {
       setStoredId(id);
       setSubscription(sub);
       setSubscriptionId(id);
-      toast.success("Push notifications enabled");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to enable notifications");
+      toast.success(t("pushEnabled"));
+    } catch {
+      toast.error(t("pushFailed"));
     } finally {
       setIsSubscribing(false);
     }
-  }, []);
+  }, [t]);
 
   const unsubscribe = useCallback(async () => {
     const sub = subscriptionRef.current;
@@ -162,9 +164,9 @@ export function usePushSubscription() {
       setSubscription(null);
       setSubscriptionId(null);
     } catch {
-      toast.error("Failed to disable notifications");
+      toast.error(t("pushDisableFailed"));
     }
-  }, []);
+  }, [t]);
 
   const isSupported = isPushSupported();
 

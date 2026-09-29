@@ -1,4 +1,4 @@
-import { InformationCircleIcon, SignalFull02Icon } from "@hugeicons/core-free-icons";
+import { SearchRemoveIcon, SignalFull02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -14,10 +14,12 @@ import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
 import { StationInfoCard } from "./stationInfoCard";
+import { Button } from "@/components/ui/button";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RAT_ORDER } from "@/features/shared/rat";
 import { useSettings } from "@/hooks/useSettings";
-import { fetchApiData } from "@/lib/api";
+import { ApiResponseError, fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 import type { Station, StationComment } from "@/types/station";
@@ -26,6 +28,8 @@ type StationDetailsBodyProps = {
   stationId: number;
   isLoading: boolean;
   error: unknown;
+  onRetry: () => unknown;
+  isRetrying: boolean;
   station?: Station;
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
@@ -38,6 +42,8 @@ export function StationDetailsBody({
   stationId,
   isLoading,
   error,
+  onRetry,
+  isRetrying,
   station,
   activeTab,
   onTabChange,
@@ -83,7 +89,7 @@ export function StationDetailsBody({
   const {
     data: comments,
     isLoading: commentsLoading,
-    error: commentsError,
+    isLoadingError: commentsLoadError,
   } = useQuery({
     queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () => fetchApiData<StationComment[]>(`stations/${stationId}/comments`, { allowedErrors: [404, 403] }).then((data) => data ?? []),
@@ -121,11 +127,15 @@ export function StationDetailsBody({
     activeTabIndex === 0 ? "translate3d(0, 0, 0)" : `translate3d(calc(${activeTabIndex * 100}% + ${activeTabIndex * tabGapRem}rem), 0, 0)`;
 
   if (isLoading) return <StationDetailsSkeleton />;
-  if (error) return <StationDetailsError error={error} />;
-  if (!station) return null;
+  if (!station) return error ? <StationDetailsError error={error} onRetry={onRetry} isRetrying={isRetrying} onClose={onClose} /> : null;
 
   return (
     <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
+      {error ? (
+        <div className="mb-3 flex justify-center">
+          <StaleDataNotice onRetry={onRetry} isRetrying={isRetrying} />
+        </div>
+      ) : null}
       <div
         className="relative grid gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-inset ring-border/50"
         style={{ gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` }}
@@ -230,7 +240,7 @@ export function StationDetailsBody({
             className={cn(
               "mt-5",
               (comments?.length ?? 0) > 0 && "border-t border-border/60 pt-5",
-              (displayedTab !== "comments" || commentsLoading || !!commentsError) && "hidden",
+              (displayedTab !== "comments" || commentsLoading || commentsLoadError) && "hidden",
             )}
           >
             <AddCommentForm key={`${stationId}:${currentUserId}`} stationId={stationId} />
@@ -298,15 +308,33 @@ function StationDetailsSkeleton() {
   );
 }
 
-export function StationDetailsError({ error }: { error: unknown }) {
-  const { t } = useTranslation("common");
+type StationDetailsErrorProps = {
+  error: unknown;
+  onRetry: () => unknown;
+  isRetrying: boolean;
+  onClose: () => void;
+};
+
+export function StationDetailsError({ error, onRetry, isRetrying, onClose }: StationDetailsErrorProps) {
+  const { t } = useTranslation(["stationDetails", "common"]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-      <div className="size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-4">
-        <HugeiconsIcon icon={InformationCircleIcon} className="size-6" />
-      </div>
-      <p className="text-muted-foreground max-w-xs">{error instanceof Error ? error.message : t("placeholder.errorFetching")}</p>
+    <div className="px-3 py-4 sm:p-6">
+      {error instanceof ApiResponseError && error.status === 404 ? (
+        <ErrorState
+          tone="neutral"
+          icon={SearchRemoveIcon}
+          title={t("page.stationNotFoundTitle")}
+          description={t("page.stationNotFoundDescription")}
+          action={
+            <Button variant="outline" size="sm" onClick={onClose}>
+              {t("common:actions.close")}
+            </Button>
+          }
+        />
+      ) : (
+        <ErrorState title={t("page.stationUnavailableTitle")} onRetry={onRetry} isRetrying={isRetrying} />
+      )}
     </div>
   );
 }

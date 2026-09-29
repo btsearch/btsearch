@@ -1,5 +1,4 @@
-import { ImageNotFound01Icon, ReloadIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ImageNotFound01Icon } from "@hugeicons/core-free-icons";
 import { type MotionValue, motion, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { type ReelMotion, readReelMotion, reelAppearance } from "./reelLayout";
 import type { LightboxSlide, Size } from "./types";
 import type { ZoomController } from "./useZoomPan";
-import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -173,16 +172,13 @@ export function LightboxSlideView({ slide, offset, registryKey, size, initialX, 
         </div>
       ) : null}
       {status === "error" ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-muted/40 p-4 text-center text-sm text-muted-foreground">
-          <HugeiconsIcon icon={ImageNotFound01Icon} className="size-8 opacity-60" aria-hidden="true" />
-          <span>{t("loadFailed")}</span>
-          {isCurrent ? (
-            <Button variant="outline" className="cursor-pointer text-foreground" onClick={() => setStatus("loading")}>
-              <HugeiconsIcon icon={ReloadIcon} aria-hidden="true" />
-              {t("retry")}
-            </Button>
-          ) : null}
-        </div>
+        <ErrorState
+          className="absolute inset-0 min-h-0 p-4"
+          icon={ImageNotFound01Icon}
+          title={t("loadFailed")}
+          description={null}
+          onRetry={isCurrent ? () => setStatus("loading") : undefined}
+        />
       ) : null}
     </motion.div>
   );

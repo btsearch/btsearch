@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { type ComponentProps, type FocusEventHandler, type ReactNode, type Ref, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxChip,
@@ -374,9 +375,23 @@ export function RegionCombobox({ regions, selectedRegions, onChange }: RegionCom
   );
 }
 
+export function ClearFiltersButton({ count, onClick, className }: { count: number; onClick: () => void; className?: string }) {
+  const { t } = useTranslation("common");
+
+  return (
+    <Button type="button" variant="ghost" size="sm" className={cn("text-muted-foreground", className)} onClick={onClick}>
+      <HugeiconsIcon icon={Cancel01Icon} className="size-3" data-icon="inline-start" />
+      {t("actions.clearAll")}
+      <span aria-hidden="true" className="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground">
+        {count}
+      </span>
+    </Button>
+  );
+}
+
 export function MobileFilterRailInline({ children }: { children: ReactNode }) {
   return (
-    <div className="relative mb-2 w-full min-w-0 shrink-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent">
+    <div className="relative mb-2 w-full min-w-0 shrink-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-linear-to-l after:from-background after:to-transparent">
       <div className="scrollbar-hide overflow-x-auto overflow-y-hidden pr-8">
         <div className="w-max">{children}</div>
       </div>

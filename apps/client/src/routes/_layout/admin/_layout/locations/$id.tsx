@@ -1,4 +1,12 @@
-import { AirportTowerIcon, ArrowLeft01Icon, Cancel01Icon, Delete02Icon, Location01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  AirportTowerIcon,
+  ArrowLeft01Icon,
+  Cancel01Icon,
+  Delete02Icon,
+  Location01Icon,
+  LocationRemove01Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,24 +44,30 @@ import type { ProposedLocationForm } from "@/features/submissions/types";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useScrolled } from "@/hooks/useScrolled";
-import { showApiError } from "@/lib/api";
+import { ApiResponseError, showApiError } from "@/lib/api";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 function AdminLocationDetailPage() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const { t } = useTranslation("admin");
 
   const locationId = Number(id);
 
-  const { data: location, isLoading } = useQuery({
+  const {
+    data: location,
+    error,
+    isLoading,
+    isPaused,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "location", id],
     queryFn: () => fetchLocationDetail(locationId),
     enabled: !!id && !Number.isNaN(locationId),
   });
 
-  if (isLoading) {
+  if (isLoading || (isPaused && !location)) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background px-4 py-2.5 flex items-center justify-between gap-4">
@@ -76,15 +91,30 @@ function AdminLocationDetailPage() {
   }
 
   if (!location) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">{t("common:error.description")}</p>
-          <Button variant="outline" onClick={() => navigate({ to: "/admin/locations" })}>
-            {t("common:actions.back")}
-          </Button>
-        </div>
-      </div>
+    const isNotFound = !error || (error instanceof ApiResponseError && error.status === 404);
+    const backButton = (
+      <Button variant={isNotFound ? "default" : "outline"} nativeButton={false} render={<Link to="/admin/locations" />}>
+        <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+        {t("common:actions.back")}
+      </Button>
+    );
+
+    return isNotFound ? (
+      <PageErrorState
+        tone="neutral"
+        icon={LocationRemove01Icon}
+        title={t("stationDetails:page.locationNotFoundTitle")}
+        description={t("stationDetails:page.locationNotFoundDescription")}
+        action={backButton}
+      />
+    ) : (
+      <PageErrorState
+        title={t("stationDetails:page.locationUnavailableTitle")}
+        description={t("stationDetails:page.locationUnavailableDescription")}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+        action={backButton}
+      />
     );
   }
 

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { type SearchStation, searchStations } from "../api";
 import type { SubmissionMode } from "../types";
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { getStationBands } from "@/features/map/utils";
@@ -47,7 +48,13 @@ export function StationSelector({ mode, selectedStation, onModeChange, onStation
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: searchResults = [], isLoading } = useQuery({
+  const {
+    data: searchResults = [],
+    isLoading,
+    isLoadingError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["stations-search", debouncedQuery],
     queryFn: () => searchStations(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
@@ -145,6 +152,8 @@ export function StationSelector({ mode, selectedStation, onModeChange, onStation
                   <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto">
                     {isLoading ? (
                       <div className="p-3 text-center text-sm text-muted-foreground">{t("common:actions.loading")}</div>
+                    ) : isLoadingError ? (
+                      <InlineError size="sm" title={t("main:search.errorTitle")} onRetry={() => refetch()} isRetrying={isFetching} className="m-1" />
                     ) : searchResults.length === 0 ? (
                       <div className="p-3 text-center text-sm text-muted-foreground">{t("main:search.noResults")}</div>
                     ) : (

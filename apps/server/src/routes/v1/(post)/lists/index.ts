@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
@@ -41,7 +42,8 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const userId = req.userSession.user.id;
 
   const [listCountRow] = await db.select({ count: count() }).from(userLists).where(eq(userLists.created_by, userId));
-  if ((listCountRow?.count ?? 0) >= 10) throw new ErrorResponse("BAD_REQUEST", { message: "You have reached the maximum limit of 10 lists" });
+  if ((listCountRow?.count ?? 0) >= MAX_USER_LISTS)
+    throw new ErrorResponse("LIST_LIMIT_REACHED", { message: `You have reached the maximum limit of ${MAX_USER_LISTS} lists` });
 
   const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.create" }, async (tx, audit) => {
     const [result] = await tx

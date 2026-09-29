@@ -1,5 +1,7 @@
 import { API_BASE, fetchJson } from "@/lib/api";
 
+export type ListOperator = { name: string; mnc: number | null; count: number };
+
 export type UserListSummary = {
   id: number;
   uuid: string;
@@ -11,6 +13,7 @@ export type UserListSummary = {
   radiolines: number[];
   stationCount: number;
   radiolineCount: number;
+  operators: ListOperator[];
   createdAt: string;
   updatedAt: string;
   createdBy: { uuid: string; name?: string; username?: string | null; image?: string | null };
@@ -29,7 +32,7 @@ export type UserListDetail = {
   updatedAt: string;
 };
 
-type ListsResponse = { data: UserListSummary[]; totalCount: number };
+type ListsResponse = { data: UserListSummary[]; totalCount: number; maxLists: number };
 type ListDetailResponse = { data: UserListDetail };
 type CreateListBody = {
   name: string;
@@ -40,7 +43,7 @@ type CreateListBody = {
 };
 type UpdateListBody = Partial<{
   name: string;
-  description: string;
+  description: string | null;
   is_public: boolean;
   notificationsEnabled: boolean;
   stations: { internal: number[]; uke: number[] };

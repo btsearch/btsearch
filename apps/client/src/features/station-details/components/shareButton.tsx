@@ -2,6 +2,7 @@ import { Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -27,9 +28,9 @@ export function ShareButton({ title, text, url, size = "sm", className }: ShareB
           text,
           url: shareUrl,
         })
-        .then(() => {})
         .catch((error: unknown) => {
-          if ((error as Error).name === "AbortError") return;
+          if (error instanceof Error && error.name === "AbortError") return;
+          toast.error(t("shareFailed"));
         });
       return;
     }
@@ -40,10 +41,8 @@ export function ShareButton({ title, text, url, size = "sm", className }: ShareB
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch((error) => {
-        console.error("Failed to copy to clipboard:", error);
-      });
-  }, [title, text, shareUrl]);
+      .catch(() => toast.error(t("copyFailed")));
+  }, [title, text, shareUrl, t]);
 
   const iconSize = size === "sm" ? "size-3.5" : "size-4";
   const buttonPadding = size === "sm" ? "p-1" : "p-1.5";

@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import type { PlannedStatus } from "../api";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { formatShortDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 export type MeasurementSummaryData = {
   station_id: string | null;
@@ -18,7 +17,7 @@ export type MeasurementSummaryData = {
   lab: { name: string } | null;
 };
 
-export function getMeasurementDate(measurement: MeasurementSummaryData, locale: string) {
+export function getMeasurementDate(measurement: Pick<MeasurementSummaryData, "status" | "disabled_date" | "date">, locale: string) {
   if (measurement.status === "INACTIVE") return measurement.disabled_date ? formatShortDate(measurement.disabled_date, locale) : "-";
 
   const from = measurement.date?.from ? formatShortDate(measurement.date.from, locale) : "-";
@@ -26,44 +25,33 @@ export function getMeasurementDate(measurement: MeasurementSummaryData, locale: 
   return from === to ? from : `${from}-${to}`;
 }
 
-type MeasurementSummaryProps = {
-  measurement: MeasurementSummaryData;
-  locale: string;
-  unknownCityLabel: string;
-  noAddressLabel: string;
-  action?: ReactNode;
-  stackLab?: boolean;
-  labDetail?: string | null;
-  stationIdClassName?: string;
-  className?: string;
+type PEMStationTitleProps = {
+  stationId: string | null;
+  operator: { name: string; mnc?: number | null } | null;
 };
 
-export function MeasurementSummary({
-  measurement,
-  locale,
-  unknownCityLabel,
-  noAddressLabel,
-  action,
-  stackLab = false,
-  labDetail,
-  stationIdClassName,
-  className,
-}: MeasurementSummaryProps) {
-  const city = measurement.location.city || unknownCityLabel;
-  const regionName = measurement.region?.name;
-  const address = measurement.location.address;
-  const labName = measurement.lab?.name;
-
+export function PEMStationTitle({ stationId, operator }: PEMStationTitleProps) {
   return (
-    <div className={cn("min-w-0", className)}>
+    <div className="flex min-w-0 items-center gap-2">
+      <StationTitle stationId={stationId ?? "-"} operator={operator ?? undefined} stationIdClassName="underline-offset-2 group-hover:underline" />
+    </div>
+  );
+}
+
+type PEMRecordSummaryProps = PEMStationTitleProps & {
+  city: string;
+  regionName?: string | null;
+  address: string;
+  noAddressLabel: string;
+  action?: ReactNode;
+  footer: ReactNode;
+};
+
+export function PEMRecordSummary({ stationId, operator, city, regionName, address, noAddressLabel, action, footer }: PEMRecordSummaryProps) {
+  return (
+    <div className="min-w-0">
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <StationTitle
-            stationId={measurement.station_id ?? "-"}
-            operator={measurement.operator ?? undefined}
-            stationIdClassName={stationIdClassName}
-          />
-        </div>
+        <PEMStationTitle stationId={stationId} operator={operator} />
         {action}
       </div>
 
@@ -74,21 +62,54 @@ export function MeasurementSummary({
             <span className="font-medium text-foreground">{city}</span>
             {regionName ? <span className="text-xs text-muted-foreground"> · {regionName}</span> : null}
           </div>
-          <div className="truncate text-xs text-muted-foreground underline-offset-2 group-hover:underline group-focus-visible:underline">
-            {address || noAddressLabel}
-          </div>
+          <div className="truncate text-xs text-muted-foreground underline-offset-2 group-hover:underline">{address || noAddressLabel}</div>
         </div>
       </div>
 
-      <div className={cn("mt-2 min-w-0 text-xs text-muted-foreground", stackLab ? "space-y-0.5" : "flex items-center justify-between gap-3")}>
-        <div className={cn("tabular-nums", stackLab ? null : "shrink-0")}>{getMeasurementDate(measurement, locale)}</div>
-        {labName || labDetail ? (
-          <div className="flex min-w-0">
-            {labName ? <span className="truncate">{labName}</span> : null}
-            {labDetail ? <span className={cn("shrink-0", labName ? "ml-1" : null)}>({labDetail})</span> : null}
-          </div>
-        ) : null}
-      </div>
+      {footer}
     </div>
+  );
+}
+
+type MeasurementSummaryProps = {
+  measurement: MeasurementSummaryData;
+  locale: string;
+  unknownCityLabel: string;
+  noAddressLabel: string;
+  action?: ReactNode;
+  footerAction?: ReactNode;
+};
+
+export function MeasurementSummary({ measurement, locale, unknownCityLabel, noAddressLabel, action, footerAction }: MeasurementSummaryProps) {
+  const labName = measurement.lab?.name;
+  const lab = labName ? (
+    <div className="flex min-w-0">
+      <span className="truncate">{labName}</span>
+    </div>
+  ) : null;
+
+  return (
+    <PEMRecordSummary
+      stationId={measurement.station_id}
+      operator={measurement.operator}
+      city={measurement.location.city || unknownCityLabel}
+      regionName={measurement.region?.name}
+      address={measurement.location.address}
+      noAddressLabel={noAddressLabel}
+      action={action}
+      footer={
+        <div className="mt-2 min-w-0 text-xs text-muted-foreground flex items-center justify-between gap-3">
+          <div className="tabular-nums shrink-0">{getMeasurementDate(measurement, locale)}</div>
+          {footerAction ? (
+            <div className="flex min-w-0 items-center gap-1.5">
+              {lab}
+              <div className="-my-1 flex shrink-0 items-center">{footerAction}</div>
+            </div>
+          ) : (
+            lab
+          )}
+        </div>
+      }
+    />
   );
 }

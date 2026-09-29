@@ -4,7 +4,6 @@ import {
   ArrowRight02Icon,
   Building02Icon,
   Calendar03Icon,
-  Cancel01Icon,
   DashboardSpeed01Icon,
   FlashIcon,
   HashtagIcon,
@@ -28,6 +27,7 @@ import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderSty
 import { StationInfoItem } from "./stationInfoItem";
 import { UKELogo } from "./ukeLogo";
 import { Badge } from "@/components/ui/badge";
+import { CloseButton } from "@/components/ui/close-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
@@ -232,15 +232,7 @@ export function RadioLineDetailsDialogPanel({
                 size="md"
                 className={stationDialogHeaderIconActionClassName}
               />
-              <button
-                type="button"
-                onClick={onClose}
-                onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:pointer-events-none"
-                aria-label={t("common:actions.close")}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-5 shrink-0" />
-              </button>
+              <CloseButton onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
             </div>
           </div>
         </div>

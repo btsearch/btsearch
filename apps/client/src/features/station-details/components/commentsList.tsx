@@ -1,4 +1,4 @@
-import { AlertCircleIcon, Delete02Icon, Image01Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, Image01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -53,7 +54,10 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
   const {
     data: comments = [],
     isLoading,
-    error,
+    isFetching,
+    isLoadingError,
+    isRefetchError,
+    refetch,
   } = useQuery({
     queryKey: ["station-comments", stationId, currentUserId],
     queryFn: () => fetchComments(stationId),
@@ -119,17 +123,16 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-        <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0" />
-        <p>{t("comments.unavailable")}</p>
-      </div>
-    );
-  }
+  if (isLoadingError)
+    return <ErrorState className="min-h-0 py-8" title={t("comments.unavailable")} onRetry={() => refetch()} isRetrying={isFetching} />;
 
   return (
     <div className="space-y-5">
+      {isRefetchError ? (
+        <div className="flex justify-center">
+          <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} />
+        </div>
+      ) : null}
       {comments.length === 0 ? (
         <div className="py-8 text-center">
           <p className="text-sm font-medium text-foreground">{t("comments.noComments")}</p>

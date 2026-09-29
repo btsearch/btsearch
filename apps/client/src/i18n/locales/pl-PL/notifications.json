@@ -20,5 +20,7 @@
   "permissionDenied": "Odmówiono dostępu do powiadomień",
   "pushEnabled": "Włączono powiadomienia push",
   "pushFailed": "Nie udało się włączyć powiadomień",
-  "pushDisableFailed": "Nie udało się wyłączyć powiadomień"
+  "pushDisableFailed": "Nie udało się wyłączyć powiadomień",
+  "pushUnsupported": "Ta przeglądarka nie obsługuje powiadomień push",
+  "pushNotConfigured": "Powiadomienia push nie są skonfigurowane w tej wersji aplikacji"
 }

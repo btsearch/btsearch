@@ -1,4 +1,4 @@
-import { Cancel01Icon, Database02Icon, File02Icon } from "@hugeicons/core-free-icons";
+import { Database02Icon, File02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { DialogOperatorName } from "./dialogOperatorName";
 import { StationDialogActionBar } from "./stationDialogActionBar";
+import { CloseButton } from "@/components/ui/close-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
@@ -66,7 +67,6 @@ export function StationDialogShell({
   style,
   headerDragProps,
 }: StationDialogShellProps) {
-  const { t } = useTranslation("common");
   const operatorColor = typeof operatorMnc === "number" ? getOperatorColor(operatorMnc) : "#3b82f6";
   const enterClassName = enterFrom ? ENTER_FROM_CLASS_NAMES[enterFrom] : undefined;
 
@@ -88,15 +88,7 @@ export function StationDialogShell({
             <div className="absolute top-2 right-2 flex shrink-0 flex-col items-end gap-1 sm:static sm:-mt-1 sm:-mr-2">
               <div className="flex items-center gap-0.5">
                 {actions}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted [&_svg]:pointer-events-none"
-                  aria-label={t("actions.close")}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-5 shrink-0" />
-                </button>
+                <CloseButton onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
               </div>
               {sourceSwitch}
             </div>

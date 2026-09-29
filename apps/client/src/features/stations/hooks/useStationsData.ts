@@ -283,6 +283,9 @@ export function useStationsData() {
     isFetching,
     isFetchingNextPage,
     isError: isListError,
+    isRefetchError: isListRefetchError,
+    isRefetching: isListRefetching,
+    isFetchNextPageError,
     refetch: refetchList,
   } = useInfiniteQuery({
     queryKey: ["stations-list", FETCH_LIMIT, filters.operators, filters.bands, filters.rat, filters.status, selectedRegionNames, sort, sortBy],
@@ -319,6 +322,8 @@ export function useStationsData() {
     isLoading: isSearching,
     isFetching: isSearchFetching,
     isError: isSearchError,
+    isRefetchError: isSearchRefetchError,
+    isRefetching: isSearchRefetching,
     refetch: refetchSearch,
   } = useQuery({
     queryKey: ["station-search-table", combinedSearchQuery, sort, searchQuerySortBy],
@@ -376,7 +381,11 @@ export function useStationsData() {
     isFetching: isSearchMode ? isSearchFetching : isFetching,
     isFetchingNextPage: isSearchMode ? false : isFetchingNextPage,
     isError: isSearchMode ? isSearchError : isListError,
+    isRefetchError: isSearchMode ? isSearchRefetchError : isListRefetchError,
+    isRefetching: isSearchMode ? isSearchRefetching : isListRefetching,
+    isFetchNextPageError: isSearchMode ? false : isFetchNextPageError,
     refetch: isSearchMode ? refetchSearch : refetchList,
+    fetchNextPage,
     hasMore: isSearchMode ? false : hasNextPage,
     loadMore: hasNextPage && !isSearchMode ? fetchNextPage : undefined,
   };

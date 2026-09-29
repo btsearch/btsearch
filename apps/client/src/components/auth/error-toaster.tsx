@@ -32,6 +32,7 @@ export function ErrorToaster() {
       if (!matchMutation({ mutationKey: authMutationKeys.all }, mutation)) {
         return;
       }
+      if (mutation.meta?.inlineError === true) return;
       if (isSessionNotFreshError(error)) return;
 
       const err = error as BetterFetchError;

@@ -1,51 +1,17 @@
 import { operators, regions } from "@openbts/drizzle";
-import db from "@openbts/drizzle/db";
-import { eq, inArray } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
 import { SI2PEMClient, type SI2PEMExtendedBaseStationProperties, SI2PEM_WFS_FEATURE_TYPES, si2pemDateToISO } from "si2pem-reader";
 import z from "zod";
 
-import redis from "../../../../database/redis.ts";
 import { ErrorResponse } from "../../../../errors.ts";
+import { ENTITY_TO_MNC, MNC_TO_ENTITY, fetchOperatorsMap } from "../../../../features/pem/entities.ts";
+import { attachInternalStationIds } from "../../../../features/pem/internalStations.ts";
+import { toSI2PEMFileUrl } from "../../../../features/pem/si2pemValues.ts";
+import { VOIVODESHIP_TO_TERYT_PREFIX, fetchRegion, fetchRegionsMap } from "../../../../features/pem/voivodeships.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
-
-export const MNC_TO_ENTITY: Record<number, string> = {
-  26001: "Towerlink Poland Sp. z o.o.",
-  26002: "T-Mobile Polska S.A.",
-  26003: "Orange Polska S.A.",
-  26006: "P4 Sp. z o.o.",
-};
-export const ENTITY_TO_MNC: Record<string, number> = {
-  "Towerlink Poland Sp. z o.o.": 26001,
-  "Polkomtel Sp. z o.o.": 26001,
-  "T-Mobile Polska S.A.": 26002,
-  "Orange Polska S.A.": 26003,
-  "P4 Sp. z o.o.": 26006,
-};
-
-export const VOIVODESHIP_TO_TERYT_PREFIX: Record<string, string> = {
-  Dolnośląskie: "02",
-  "Kujawsko-pomorskie": "04",
-  Lubelskie: "06",
-  Lubuskie: "08",
-  Łódzkie: "10",
-  Małopolskie: "12",
-  Mazowieckie: "14",
-  Opolskie: "16",
-  Podkarpackie: "18",
-  Podlaskie: "20",
-  Pomorskie: "22",
-  Śląskie: "24",
-  Świętokrzyskie: "26",
-  "Warmińsko-mazurskie": "28",
-  Wielkopolskie: "30",
-  Zachodniopomorskie: "32",
-};
-export const TERYT_PREFIX_TO_VOIVODESHIP: Record<string, string> = Object.fromEntries(
-  Object.entries(VOIVODESHIP_TO_TERYT_PREFIX).map(([name, prefix]) => [prefix, name]),
-);
+import { withRedisStaleCache } from "../../../../lib/redisCache.ts";
 
 const operatorSchema = createSelectSchema(operators);
 const regionSchema = createSelectSchema(regions);
@@ -70,8 +36,11 @@ const PEMItemSchema = z.object({
     .nullable(),
   status: z.enum(["PLANNED", "COMPLETED", "CANCELED", "INACTIVE"]),
   disabled_date: z.iso.datetime({ offset: true }).nullable().optional(),
+  report_url: z.url().nullable(),
+  internal_station_id: z.number().int().nullable(),
 });
 type PEMItem = z.infer<typeof PEMItemSchema>;
+type UnmatchedPEMItem = Omit<PEMItem, "internal_station_id">;
 
 const schemaRoute = {
   querystring: z.object({
@@ -95,7 +64,7 @@ const schemaRoute = {
     station_id: z.string().optional(),
     operator: z
       .string()
-      .refine((v) => v in ENTITY_TO_MNC)
+      .refine((v) => Object.hasOwn(ENTITY_TO_MNC, v))
       .optional(),
     region: z.coerce.number().int().positive().optional(),
   }),
@@ -110,10 +79,13 @@ const schemaRoute = {
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type ResBody = z.infer<(typeof schemaRoute.response)["200"]>;
 
-const MAP_CACHE_TTL = 3600;
+const MAP_CACHE = { freshTtlSeconds: 3600, staleTtlSeconds: 6 * 3600 };
+const PLANNED_CACHE = { freshTtlSeconds: 3600, staleTtlSeconds: 86400 };
+const PUBLISHED_CACHE = { freshTtlSeconds: 86400, staleTtlSeconds: 7 * 86400 };
+const CACHE_KEY_PREFIX = "pem:planned:v3";
 const si2pem = new SI2PEMClient();
 
-type ParsedWmsFeature = Omit<PEMItem, "id" | "region" | "operator"> & { operatorName: string };
+type ParsedWmsFeature = Omit<UnmatchedPEMItem, "id" | "region" | "operator" | "report_url"> & { operatorName: string };
 
 type InactiveStationProperties = SI2PEMExtendedBaseStationProperties & {
   identity_names?: string | null;
@@ -124,17 +96,16 @@ type InactiveStationProperties = SI2PEMExtendedBaseStationProperties & {
   operator?: string | null;
 };
 
-async function fetchOperatorsMap(mncs: number[]) {
-  const rows = mncs.length ? await db.select().from(operators).where(inArray(operators.mnc, mncs)) : [];
-  return new Map(rows.map((op) => [op.mnc, op]));
-}
-
-async function withCache<T>(key: string, ttl: number, fn: () => Promise<T>): Promise<T> {
-  const cached = await redis.get(key);
-  if (cached) return JSON.parse(cached) as T;
-  const result = await fn();
-  await redis.setEx(key, ttl, JSON.stringify(result));
-  return result;
+async function toPEMItems(features: ParsedWmsFeature[], region: PEMItem["region"]): Promise<PEMItem[]> {
+  const operatorsMap = await fetchOperatorsMap(features.map((f) => ENTITY_TO_MNC[f.operatorName]));
+  const items: UnmatchedPEMItem[] = features.map(({ operatorName, ...f }) => ({
+    ...f,
+    id: null,
+    region,
+    operator: operatorsMap.get(ENTITY_TO_MNC[operatorName] ?? 0) ?? null,
+    report_url: null,
+  }));
+  return attachInternalStationIds(items);
 }
 
 async function handleBoundsMode(bbox: [number, number, number, number], mncs: number[] | undefined): Promise<ResBody> {
@@ -182,16 +153,7 @@ async function handleBoundsMode(bbox: [number, number, number, number], mncs: nu
   const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recent = parsed.filter((f) => f.date && new Date(f.date.to) >= oneMonthAgo);
   const filtered = mncs?.length ? recent.filter((f) => mncs.includes(ENTITY_TO_MNC[f.operatorName] ?? 0)) : recent;
-
-  const uniqueMncs = [...new Set(filtered.map((f) => ENTITY_TO_MNC[f.operatorName]).filter(Boolean))] as number[];
-  const operatorsMap = await fetchOperatorsMap(uniqueMncs);
-
-  const data: PEMItem[] = filtered.map(({ operatorName, ...f }) => ({
-    ...f,
-    id: null,
-    region: null,
-    operator: operatorsMap.get(ENTITY_TO_MNC[operatorName] ?? 0) ?? null,
-  }));
+  const data = await toPEMItems(filtered, null);
 
   return { totalCount: data.length, data };
 }
@@ -204,7 +166,9 @@ async function handleInactiveStationsMode(
   operatorName: string | undefined,
   regionRow: typeof regions.$inferSelect | undefined,
 ): Promise<ResBody> {
-  const terytLo = regionRow ? Number.parseInt(VOIVODESHIP_TO_TERYT_PREFIX[regionRow.name]!, 10) * 100000 : undefined;
+  const terytPrefix = regionRow ? VOIVODESHIP_TO_TERYT_PREFIX[regionRow.name] : undefined;
+  if (regionRow && terytPrefix === undefined) return { totalCount: 0, data: [] };
+  const terytLo = terytPrefix === undefined ? undefined : Number.parseInt(terytPrefix, 10) * 100000;
   const cqlFilter = [
     "is_old=true AND is_active=false",
     stationId ? `AND identity_name='${stationId.replace(/'/g, "''")}'` : "",
@@ -266,22 +230,11 @@ async function handleInactiveStationsMode(
   };
   const sorted = [...filtered].sort((a, b) => toTime(b.disabled_date) - toTime(a.disabled_date));
 
-  const uniqueMncs = [...new Set(sorted.map((f) => ENTITY_TO_MNC[f.operatorName]).filter(Boolean))] as number[];
-  const operatorsMap = await fetchOperatorsMap(uniqueMncs);
   const offset = (page - 1) * limit;
-
-  const data: PEMItem[] = sorted.slice(offset, offset + limit).map(({ operatorName, ...f }) => ({
-    ...f,
-    id: null,
-    region: regionRow ?? null,
-    operator: operatorsMap.get(ENTITY_TO_MNC[operatorName] ?? 0) ?? null,
-  }));
+  const data = await toPEMItems(sorted.slice(offset, offset + limit), regionRow ?? null);
 
   return { totalCount: sorted.length, data };
 }
-
-const PLANNED_CACHE_TTL = 3600;
-const PUBLISHED_CACHE_TTL = 86400;
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -315,17 +268,12 @@ async function handlePaginationMode(
   const results =
     mncs && mncs.length > 1 ? json.results.filter((r) => mncs.includes(ENTITY_TO_MNC[r.base_station.operator ?? ""] ?? 0)) : json.results;
 
-  const uniqueMncs = [...new Set(results.map((r) => ENTITY_TO_MNC[r.base_station.operator ?? ""]).filter(Boolean))] as number[];
-  const uniqueRegions = [...new Set(results.map((r) => capitalize(r.base_station.voivodeship)).filter(Boolean))] as string[];
-
-  const [operatorsMap, dbRegions] = await Promise.all([
-    fetchOperatorsMap(uniqueMncs),
-    uniqueRegions.length ? db.select().from(regions).where(inArray(regions.name, uniqueRegions)) : Promise.resolve([]),
+  const [operatorsMap, regionsMap] = await Promise.all([
+    fetchOperatorsMap(results.map((r) => ENTITY_TO_MNC[r.base_station.operator ?? ""])),
+    fetchRegionsMap(results.map((r) => capitalize(r.base_station.voivodeship))),
   ]);
 
-  const regionsMap = new Map(dbRegions.map((r) => [r.name, r]));
-
-  const data: PEMItem[] = results.map((result) => {
+  const items: UnmatchedPEMItem[] = results.map((result) => {
     const mnc = ENTITY_TO_MNC[result.base_station.operator];
     const region = capitalize(result.base_station.voivodeship);
     const from = si2pemDateToISO(result.date_from);
@@ -345,8 +293,10 @@ async function handlePaginationMode(
       lab: result.lab,
       date: from && to ? { from, to } : null,
       status: result.status,
+      report_url: toSI2PEMFileUrl(result.report),
     };
   });
+  const data = await attachInternalStationIds(items);
 
   return { totalCount: json.count, data };
 }
@@ -354,23 +304,29 @@ async function handlePaginationMode(
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResBody>>) {
   const { bounds, page, limit, status, operators: mncs, station_id, operator, region } = req.query;
 
-  const regionRow = region !== undefined ? (await db.select().from(regions).where(eq(regions.id, region)).limit(1))[0] : undefined;
+  const loadRegion = async () => (region === undefined ? undefined : fetchRegion(region));
 
   if (bounds) {
-    const bbox = bounds.join(",");
-    return res.send(await withCache(`pem:map:${bbox}:${mncs?.join(",") ?? ""}`, MAP_CACHE_TTL, () => handleBoundsMode(bounds, mncs)));
+    const cacheKey = `${CACHE_KEY_PREFIX}:map:${bounds.join(",")}:${mncs?.join(",") ?? ""}`;
+    const { value } = await withRedisStaleCache(cacheKey, MAP_CACHE, () => handleBoundsMode(bounds, mncs));
+    return res.send(value);
   }
 
+  const filtersKey = `${page}:${limit}:${mncs?.join(",") ?? ""}:${station_id ?? ""}:${operator ?? ""}:${region ?? ""}`;
   if (status === "INACTIVE") {
-    const cacheKey = `pem:inactive:${page}:${limit}:${mncs?.join(",") ?? ""}:${station_id ?? ""}:${operator ?? ""}:${region ?? ""}`;
-    return res.send(
-      await withCache(cacheKey, PUBLISHED_CACHE_TTL, () => handleInactiveStationsMode(page, limit, mncs, station_id, operator, regionRow)),
+    const cacheKey = `${CACHE_KEY_PREFIX}:inactive:${filtersKey}`;
+    const { value } = await withRedisStaleCache(cacheKey, PUBLISHED_CACHE, async () =>
+      handleInactiveStationsMode(page, limit, mncs, station_id, operator, await loadRegion()),
     );
+    return res.send(value);
   }
 
-  const cacheKey = `pem:planned:${status}:${page}:${limit}:${mncs?.join(",") ?? ""}:${station_id ?? ""}:${operator ?? ""}:${region ?? ""}`;
-  const ttl = status === "PLANNED" ? PLANNED_CACHE_TTL : PUBLISHED_CACHE_TTL;
-  return res.send(await withCache(cacheKey, ttl, () => handlePaginationMode(page, limit, status, mncs, station_id, operator, regionRow?.name)));
+  const cacheKey = `${CACHE_KEY_PREFIX}:list:${status}:${filtersKey}`;
+  const cacheOptions = status === "PLANNED" ? PLANNED_CACHE : PUBLISHED_CACHE;
+  const { value } = await withRedisStaleCache(cacheKey, cacheOptions, async () =>
+    handlePaginationMode(page, limit, status, mncs, station_id, operator, (await loadRegion())?.name),
+  );
+  return res.send(value);
 }
 
 const plannedMeasurements: Route<ReqQuery, ResBody> = {

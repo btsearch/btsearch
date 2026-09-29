@@ -98,10 +98,17 @@
   },
   "popup": {
     "loading": "Loading stations...",
+    "loadError": "Couldn't load stations",
     "noStations": "No stations",
     "noPermits": "No permits",
     "yourLocation": "Your location",
-    "accuracy": "Accuracy"
+    "accuracy": "Accuracy",
+    "shareLocation": "Share location",
+    "shareRadioline": "Share microwave link",
+    "linkCopied": "Link copied",
+    "copyCoordinates": "Copy coordinates",
+    "unknownLocation": "Unknown location",
+    "moreStations": "+{{count}} more"
   },
   "overlay": {
     "locations_one": "location",
@@ -152,7 +159,7 @@
     "showAzimuths": "Azimuths",
     "radiolineOperator": "Microwave Link Operator",
     "radiolineOperators_one": "{{count, number}} microwave link operator",
-    "radiolineOperators_others": "{{count, number}} microwave link operators",
+    "radiolineOperators_other": "{{count, number}} microwave link operators",
     "searchRadiolineOperators": "Search microwave link operators...",
     "toggleHint": "<kbd>F</kbd> toggle panel · <kbd>Shift</kbd>+<kbd>F</kbd> clear all filters",
     "ratKeybindHint": "+letter",
@@ -175,7 +182,7 @@
     "filteredEmptySubtitle": "Clear filters or widen the search to see more station photos",
     "errorTitle": "Could not load photos",
     "errorSubtitle": "Refresh the gallery or try again in a moment",
-    "retry": "Retry",
+    "loadMoreError": "Couldn't load more photos",
     "searchPlaceholder": "Search station, city, address, region, note...",
     "allRegions": "All regions",
     "allStatuses": "All statuses",
@@ -240,6 +247,7 @@
     "privateSubtitle": "Only the user can see their full profile",
     "notFoundTitle": "User not found",
     "notFoundSubtitle": "The profile @{{username}} does not exist",
+    "stationFallback": "Station #{{id}}",
     "comments": "Comments",
     "noComments": "No comments yet",
     "photos": "Photos",
@@ -263,28 +271,5 @@
   "webgl": {
     "title": "Map unavailable",
     "description": "Your device does not support WebGL2 or has it disabled. Enable it in your browser settings to use the map"
-  },
-  "deletedEntries": {
-    "title": "Deleted Entries",
-    "subtitle": "View entries removed during UKE imports",
-    "columns": {
-      "deletedAt": "Deleted At",
-      "sourceTable": "Table",
-      "sourceType": "Source",
-      "sourceId": "Original ID",
-      "identifier": "Identifier",
-      "importId": "Import"
-    },
-    "filters": {
-      "allTables": "All Tables",
-      "allSources": "All Sources",
-      "dateFrom": "From",
-      "dateTo": "To",
-      "searchPlaceholder": "Search by ID or permit..."
-    },
-    "empty": {
-      "title": "No deleted entries found",
-      "subtitle": "Try adjusting your filters"
-    }
   }
 }

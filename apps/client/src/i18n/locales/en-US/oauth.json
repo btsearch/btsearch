@@ -95,7 +95,10 @@
     "deleteSuccess": "Application deleted",
     "errors": {
       "createFailed": "Failed to register application",
-      "invalidRedirect": "Enter at least one valid https:// redirect URI"
+      "invalidRedirect": "Enter at least one valid https:// redirect URI",
+      "loadFailed": "Couldn't load your applications",
+      "rotateFailed": "Failed to rotate the client secret",
+      "deleteFailed": "Failed to delete the application"
     }
   },
   "authorized": {
@@ -103,6 +106,7 @@
     "description": "Third-party applications you granted access to your account",
     "none": "No authorized applications",
     "noneDescription": "Applications you grant access to your account will appear here",
+    "loadFailed": "Couldn't load authorized applications",
     "grantedOn": "Authorized {{date}}",
     "permissionCount_one": "{{count}} permission",
     "permissionCount_other": "{{count}} permissions",

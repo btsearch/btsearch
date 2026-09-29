@@ -7,7 +7,6 @@ import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PopupContent } from "../components/popupContent";
 import { POINT_LAYER_ID } from "../constants";
 import { toLocationInfo } from "../utils";
-import { showApiError } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import type { LocationInfo, StationFilters, StationSource, StationWithoutCells, UkeStation } from "@/types/station";
 
@@ -46,6 +45,7 @@ type PopupLocationContentProps = {
   filters: StationFilters;
   filterStations?: (stations: StationWithoutCells[]) => StationWithoutCells[];
   showAddToList?: boolean;
+  onClose: () => void;
   onOpenStationDetails: (id: number) => boolean | void;
   onOpenUkeStationDetails: (station: UkeStation) => boolean | void;
 };
@@ -58,18 +58,15 @@ function PopupLocationContent({
   filters,
   filterStations,
   showAddToList,
+  onClose,
   onOpenStationDetails,
   onOpenUkeStationDetails,
 }: PopupLocationContentProps) {
-  const { data } = useQuery({
+  const { data, isError, isFetching, refetch } = useQuery({
     queryKey: locationQueryKey(location.id, filters),
     queryFn: () => fetchLocationWithStations(location.id, filters),
     staleTime: 1000 * 60 * 2,
     enabled: source !== "uke",
-    throwOnError: (error) => {
-      showApiError(error);
-      return false;
-    },
   });
 
   const fetched = source !== "uke" && data?.id === location.id ? data : null;
@@ -83,6 +80,10 @@ function PopupLocationContent({
       ukeStations={ukeStations ?? undefined}
       source={source}
       showAddToList={showAddToList}
+      loadFailed={isError && fetched === null}
+      isRetrying={isFetching}
+      onRetry={() => refetch()}
+      onClose={onClose}
       onOpenStationDetails={onOpenStationDetails}
       onOpenUkeStationDetails={onOpenUkeStationDetails}
     />
@@ -128,6 +129,7 @@ export function useMapPopup({
             filters={detailsFilters}
             filterStations={filterStations}
             showAddToList={showAddToList}
+            onClose={() => entry.popup.remove()}
             onOpenStationDetails={(id) => {
               const didOpen = onOpenStationDetails(id, entry.source);
               if (didOpen !== false) entry.popup.remove();
@@ -180,7 +182,7 @@ export function useMapPopup({
 
       const popup = new Popup({
         className: "station-map-popup",
-        closeButton: true,
+        closeButton: false,
         closeOnClick: false,
         maxWidth: "none",
         offset: 12,
@@ -239,7 +241,7 @@ export function useMapPopup({
     setOpenLocations([]);
     for (const entry of entries) {
       entry.popup.remove();
-      entry.root.unmount();
+      queueMicrotask(() => entry.root.unmount());
     }
   }, []);
 

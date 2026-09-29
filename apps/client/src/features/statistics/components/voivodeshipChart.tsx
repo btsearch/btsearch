@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 
 import type { StatsOperator, VoivodeshipInternalRow, VoivodeshipUkeRow } from "../api";
 import { operatorDataKey, operatorSeries } from "../lib/series";
-import { StatChartCard } from "./statChartCard";
+import { type ChartErrorProps, StatChartCard } from "./statChartCard";
+
+type VoivodeshipChartProps<T> = { data?: T[]; isLoading: boolean } & ChartErrorProps;
 
 function useRegionBarData(rows: { operator: StatsOperator; region: { name: string } }[] | undefined, valueKey: string) {
   return useMemo(() => {
@@ -31,7 +33,7 @@ function useRegionBarData(rows: { operator: StatsOperator; region: { name: strin
   }, [rows, valueKey]);
 }
 
-export function UkeVoivodeshipChart({ data, isLoading }: { data?: VoivodeshipUkeRow[]; isLoading: boolean }) {
+export function UkeVoivodeshipChart({ data, isLoading, ...errorProps }: VoivodeshipChartProps<VoivodeshipUkeRow>) {
   const { t } = useTranslation("statistics");
   const { chartData, series } = useRegionBarData(data, "unique_stations");
 
@@ -45,11 +47,12 @@ export function UkeVoivodeshipChart({ data, isLoading }: { data?: VoivodeshipUke
       height="h-140"
       showBrush
       isLoading={isLoading}
+      {...errorProps}
     />
   );
 }
 
-export function InternalVoivodeshipChart({ data, isLoading }: { data?: VoivodeshipInternalRow[]; isLoading: boolean }) {
+export function InternalVoivodeshipChart({ data, isLoading, ...errorProps }: VoivodeshipChartProps<VoivodeshipInternalRow>) {
   const { t } = useTranslation("statistics");
   const { chartData, series } = useRegionBarData(data, "stations");
 
@@ -63,6 +66,7 @@ export function InternalVoivodeshipChart({ data, isLoading }: { data?: Voivodesh
       height="h-140"
       showBrush
       isLoading={isLoading}
+      {...errorProps}
     />
   );
 }

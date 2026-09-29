@@ -72,7 +72,7 @@ type PemReportDetails =
     }
   | {
       document_url: string;
-      installation_document: string;
+      installation_document: string | null;
       lab_name: string;
     };
 

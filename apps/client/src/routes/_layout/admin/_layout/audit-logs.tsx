@@ -1,6 +1,5 @@
 import {
   Activity01Icon,
-  AlertCircleIcon,
   ArrowDown01Icon,
   Calendar03Icon,
   Cancel01Icon,
@@ -21,15 +20,14 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { DatePickerButton } from "@/features/admin/audit-operations/components/datePickerButton";
 import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operationDetailSheet";
@@ -41,6 +39,7 @@ import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/q
 import type { AuditOperationSummary } from "@/features/admin/audit-operations/types";
 import { UserPicker } from "@/features/admin/users/components/UserPicker";
 import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
+import { ClearFiltersButton } from "@/features/shared/filterPanel";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
@@ -464,8 +463,10 @@ function AuditOperationMobileRow({
 type AuditOperationsMobileListProps = {
   isLoading: boolean;
   isError: boolean;
+  isRetrying: boolean;
   operations: AuditOperationSummary[];
   pageSize: number;
+  autoPageSize: number;
   sort: "asc" | "desc";
   locale: string;
   onSortToggle: () => void;
@@ -476,8 +477,10 @@ type AuditOperationsMobileListProps = {
 function AuditOperationsMobileList({
   isLoading,
   isError,
+  isRetrying,
   operations,
   pageSize,
+  autoPageSize,
   sort,
   locale,
   onSortToggle,
@@ -485,24 +488,7 @@ function AuditOperationsMobileList({
   onRetry,
 }: AuditOperationsMobileListProps) {
   const { t } = useTranslation(["admin", "common"]);
-
-  if (isError && operations.length === 0)
-    return (
-      <div
-        className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-t-lg border border-b-0 bg-card px-4 text-center text-muted-foreground"
-        role="alert"
-      >
-        <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-destructive/5 text-destructive/60">
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-        </div>
-        <p className="font-medium text-foreground">{t("common:error.title")}</p>
-        <p className="mt-1 max-w-md text-sm">{t("common:error.description")}</p>
-        <Button type="button" variant="outline" className="mt-4" onClick={() => void onRetry()}>
-          {t("common:actions.retry")}
-        </Button>
-      </div>
-    );
-
+  const showError = isError && operations.length === 0;
   const sortDirection = sort === "asc" ? t("common:sorting.ascending") : t("common:sorting.descending");
 
   return (
@@ -528,7 +514,12 @@ function AuditOperationsMobileList({
           {MOBILE_AUDIT_SKELETON_ROWS.slice(0, Math.min(pageSize, MOBILE_AUDIT_SKELETON_ROWS.length))}
         </div>
       ) : null}
-      {!isLoading && operations.length === 0 ? (
+      {showError ? (
+        <div className="flex flex-col p-3" style={{ minHeight: autoPageSize * MOBILE_PAGINATION_CONFIG.rowHeight }}>
+          <ErrorState className="flex-1" onRetry={onRetry} isRetrying={isRetrying} />
+        </div>
+      ) : null}
+      {!isLoading && !showError && operations.length === 0 ? (
         <div className="flex min-h-64 flex-1 flex-col items-center justify-center px-4 text-center text-muted-foreground" role="status">
           <HugeiconsIcon icon={Search01Icon} className="mb-2 size-10 opacity-20" />
           <p className="font-medium text-foreground">{t("auditLogs.empty.title")}</p>
@@ -550,32 +541,32 @@ type AuditOperationsTableRowsProps = {
   columnsCount: number;
   isLoading: boolean;
   isError: boolean;
+  isRetrying: boolean;
   operations: AuditOperationSummary[];
   pageSize: number;
+  autoPageSize: number;
   onOpenOperation: (operationId: number) => void;
+  onRetry: () => unknown;
 };
 
-function AuditOperationsTableRows({ columnsCount, isLoading, isError, operations, pageSize, onOpenOperation }: AuditOperationsTableRowsProps) {
-  const { t } = useTranslation(["admin", "common"]);
+function AuditOperationsTableRows({
+  columnsCount,
+  isLoading,
+  isError,
+  isRetrying,
+  operations,
+  pageSize,
+  autoPageSize,
+  onOpenOperation,
+  onRetry,
+}: AuditOperationsTableRowsProps) {
+  const { t } = useTranslation("admin");
   const handleRowClick = useCallback((row: AuditOperationSummary) => onOpenOperation(row.id), [onOpenOperation]);
 
   if (isLoading) return <DataTable.Skeleton rows={pageSize} columns={columnsCount} />;
 
-  if (isError)
-    return (
-      <tbody>
-        <tr>
-          <td colSpan={columnsCount} className="h-64 text-center">
-            <div className="flex flex-col items-center justify-center text-muted-foreground">
-              <div className="size-10 rounded-full bg-destructive/5 flex items-center justify-center text-destructive/50 mb-3">
-                <HugeiconsIcon icon={AlertCircleIcon} className="size-5" />
-              </div>
-              <p>{t("common:error.title")}</p>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    );
+  if (isError && operations.length === 0)
+    return <DataTable.Error columns={columnsCount} rows={autoPageSize} onRetry={onRetry} isRetrying={isRetrying} />;
 
   if (operations.length === 0)
     return (
@@ -741,6 +732,9 @@ function AdminAuditLogsPage() {
     onPaginationChange: setPagination,
   });
 
+  const showError = isError && operations.length === 0;
+  const showStaleNotice = isError && operations.length > 0;
+
   return (
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
       <div className="flex flex-col gap-3 shrink-0">
@@ -837,15 +831,7 @@ function AdminAuditLogsPage() {
             />
           </div>
 
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-muted-foreground">
-              <HugeiconsIcon icon={Cancel01Icon} className="size-3" data-icon="inline-start" />
-              {t("common:actions.clearAll")}
-              <span className="ml-1 bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                {activeFilterCount}
-              </span>
-            </Button>
-          )}
+          {hasActiveFilters ? <ClearFiltersButton count={activeFilterCount} onClick={clearAllFilters} /> : null}
         </div>
       </div>
 
@@ -853,38 +839,21 @@ function AdminAuditLogsPage() {
         ref={containerRef}
         className={cn(
           "relative flex-1 min-h-0 max-md:mb-10 overflow-x-hidden",
-          isMobile ? "overflow-y-auto overscroll-y-contain" : pagination.pageSize > autoPageSize ? "overflow-y-auto" : "overflow-y-clip",
+          isMobile ? "overflow-y-auto overscroll-y-contain" : pagination.pageSize > autoPageSize || showError ? "overflow-y-auto" : "overflow-y-clip",
         )}
         aria-busy={isMobile && isFetching}
       >
-        {isMobile && isFetching && !isLoading ? (
-          <div
-            className="absolute right-2 top-2 z-40 inline-flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs text-muted-foreground shadow-sm"
-            role="status"
-          >
-            <Spinner role="presentation" aria-hidden="true" className="size-3.5" />
-            {t("common:actions.updating")}
-          </div>
-        ) : null}
-        {isMobile && !isFetching && isError && operations.length > 0 ? (
-          <div
-            className="absolute right-2 top-2 z-40 inline-flex items-center gap-2 rounded-md border border-destructive/30 bg-background/95 px-2 py-1 text-xs text-destructive shadow-sm"
-            role="alert"
-          >
-            <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
-            {t("common:placeholder.errorFetching")}
-            <Button type="button" variant="ghost" size="xs" onClick={() => void refetch()}>
-              {t("common:actions.retry")}
-            </Button>
-          </div>
-        ) : null}
+        {isMobile && isFetching && !isLoading && !isError ? <DataTable.UpdatingIndicator className="z-40" /> : null}
+        {showStaleNotice ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} className="absolute right-2 top-2 z-40" /> : null}
         {isMobile ? (
           <div className="flex flex-col">
             <AuditOperationsMobileList
               isLoading={isLoading}
               isError={isError}
+              isRetrying={isFetching}
               operations={operations}
               pageSize={pagination.pageSize}
+              autoPageSize={autoPageSize}
               sort={sort}
               locale={i18n.language}
               onSortToggle={handleSortToggle}
@@ -905,9 +874,12 @@ function AdminAuditLogsPage() {
                     columnsCount={columns.length}
                     isLoading={isLoading}
                     isError={isError}
+                    isRetrying={isFetching}
                     operations={operations}
                     pageSize={pagination.pageSize}
+                    autoPageSize={autoPageSize}
                     onOpenOperation={openOperation}
+                    onRetry={refetch}
                   />
                 </DataTable.Table>
               </DataTable.Root>
@@ -934,7 +906,7 @@ function AdminAuditLogsPage() {
         ? createPortal(
             <div className="max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1">
               <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:hidden">
-                <div className="w-max">
+                <div className="mx-auto w-max">
                   <AuditOperationsMobileFilterRail
                     entityFilter={entityFilter}
                     kindsFilter={kindsFilter}

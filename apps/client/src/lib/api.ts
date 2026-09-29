@@ -2,6 +2,7 @@ import { fromBinary, toJson } from "@bufbuild/protobuf";
 import type { DescMessage } from "@bufbuild/protobuf";
 import { AUDIT_OPERATION_ID_HEADER, AUDIT_OPERATION_KIND_HEADER } from "@openbts/shared/audit";
 import type { ClientSettableAuditOperationKind } from "@openbts/shared/audit";
+import i18next from "i18next";
 import { customAlphabet, nanoid } from "nanoid";
 import { toast } from "sonner";
 
@@ -197,15 +198,25 @@ export async function postApiData<T, B = unknown>(endpoint: string, body: B, ide
   return result.data;
 }
 
+export function isGloballyHandledError(error: unknown): boolean {
+  return error instanceof RateLimitError || error instanceof QuotaExceededError || error instanceof DuplicateRequestError;
+}
+
 export function showApiError(error: unknown) {
-  if (error instanceof RateLimitError || error instanceof QuotaExceededError || error instanceof DuplicateRequestError) return;
-  if (error instanceof ApiResponseError) {
-    for (const err of error.errors) {
-      toast.error(err.message || err.code);
-    }
-  } else if (error instanceof Error) {
-    toast.error(error.message);
-  } else {
-    toast.error("An unexpected error occurred");
+  if (isGloballyHandledError(error)) return;
+  if (error instanceof BackendUnavailableError) {
+    toast.error(i18next.t("common:error.serverUnreachable"), {
+      description: i18next.t(error.status === 0 ? "common:error.loadDescription" : "common:error.tryLater"),
+    });
+    return;
   }
+  if (error instanceof ApiResponseError) {
+    for (const err of error.errors) toast.error(i18next.t("common:error.actionFailed"), { description: err.message || err.code });
+    return;
+  }
+  if (error instanceof TwoFactorRequiredError) {
+    toast.error(i18next.t("common:error.actionFailed"), { description: i18next.t("settings:twoFactor.setupRequired") });
+    return;
+  }
+  toast.error(i18next.t("common:error.actionFailed"), { description: i18next.t("common:error.tryLater") });
 }

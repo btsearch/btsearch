@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { createList } from "@/features/lists/api";
-import { cn } from "@/lib/utils";
+import { ApiResponseError, showApiError } from "@/lib/api";
 
 type Props = {
   open: boolean;
@@ -18,27 +19,6 @@ type Props = {
   initialRadiolineIds?: number[];
   initialUkeStationId?: number;
 };
-
-type ToggleProps = { checked: boolean; onChange: (checked: boolean) => void };
-
-function Toggle({ checked, onChange }: ToggleProps): JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn("relative inline-flex h-5 w-9 items-center rounded-full transition-colors", checked ? "bg-primary" : "bg-muted")}
-    >
-      <span
-        className={cn(
-          "inline-block h-3.5 w-3.5 rounded-full bg-background shadow-md transform transition-transform",
-          checked ? "translate-x-4.5" : "translate-x-1",
-        )}
-      />
-    </button>
-  );
-}
 
 export function CreateListDialog({ open, onOpenChange, initialStationId, initialRadiolineIds, initialUkeStationId }: Props): JSX.Element {
   const { t } = useTranslation(["lists", "common"]);
@@ -56,6 +36,13 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
       setName("");
       setDescription("");
       setIsPublic(false);
+    },
+    onError: (error) => {
+      if (error instanceof ApiResponseError && error.errors.some((entry) => entry.code === "LIST_LIMIT_REACHED")) {
+        toast.error(t("lists:limitReached"), { description: t("lists:limitReachedHint") });
+        return;
+      }
+      showApiError(error);
     },
   });
 
@@ -94,8 +81,8 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
             />
           </div>
           <div className="flex items-center justify-between">
-            <Label>{t("lists:public")}</Label>
-            <Toggle checked={isPublic} onChange={setIsPublic} />
+            <Label htmlFor="list-public">{t("lists:public")}</Label>
+            <Switch id="list-public" checked={isPublic} onCheckedChange={setIsPublic} />
           </div>
         </div>
         <DialogFooter>
