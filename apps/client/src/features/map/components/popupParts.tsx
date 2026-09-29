@@ -124,15 +124,21 @@ export function PopupLocationHeader({ city, region, address, actions }: PopupLoc
   const { t } = useTranslation("main");
 
   return (
-    <div className={cn("flex items-start gap-2 border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm leading-5 font-medium text-pretty">
-          {city || t("popup.unknownLocation")}
-          {region ? <span className="ml-1 text-[11px] font-normal text-muted-foreground">· {region}</span> : null}
-        </h3>
-        {address ? <p className="text-[11px] text-muted-foreground">{address}</p> : null}
-      </div>
-      {actions ? <div className="-my-0.5 flex shrink-0 items-center">{actions}</div> : null}
+    <div className={cn("flow-root border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
+      {actions ? <div className="float-right -my-0.5 ml-2 flex items-center">{actions}</div> : null}
+      <h3 className="overflow-x-clip text-sm leading-5 font-medium">
+        {city || t("popup.unknownLocation")}
+        {region ? (
+          <>
+            <span className="[word-spacing:0.375rem]">{" "}</span>
+            <span className="text-[11px] font-normal whitespace-nowrap text-muted-foreground">
+              <span className="-ml-1.5 inline-block w-1.5">·</span>
+              {region}
+            </span>
+          </>
+        ) : null}
+      </h3>
+      {address ? <p className="text-[11px] text-muted-foreground">{address}</p> : null}
     </div>
   );
 }
