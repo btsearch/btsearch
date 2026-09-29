@@ -1,4 +1,4 @@
-import { ArrowRight01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, ArrowUpRight01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Fragment, type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,9 @@ type ReportItem = {
 };
 
 type SI2PEMReportsMenuProps = {
-  reports: PemReport[];
+  reports: PemReport[] | undefined;
+  isLoading: boolean;
+  onRetry: () => void;
   latitude: number;
   longitude: number;
   operatorName: string;
@@ -51,11 +53,45 @@ function ReportItemContent({ dateLabel, tag, labName, children }: ReportItemCont
   );
 }
 
-export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, operatorMnc }: SI2PEMReportsMenuProps) {
+const STATUS_ITEM_CLASS_NAME = "text-muted-foreground data-disabled:opacity-100";
+
+type ReportsMenuStatusProps = Pick<SI2PEMReportsMenuProps, "reports" | "isLoading" | "onRetry">;
+
+function ReportsMenuStatus({ reports, isLoading, onRetry }: ReportsMenuStatusProps) {
+  const { t } = useTranslation(["stationDetails", "common"]);
+
+  if (isLoading)
+    return (
+      <DropdownMenuItem disabled className={STATUS_ITEM_CLASS_NAME}>
+        {t("common:actions.loading")}
+      </DropdownMenuItem>
+    );
+  if (reports === undefined) {
+    return (
+      <DropdownMenuItem onClick={() => onRetry()}>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">{t("common:actions.retry")}</span>
+          <span className="block text-[11px] text-muted-foreground">{t("specs.pemReportsError")}</span>
+        </span>
+        <HugeiconsIcon icon={RefreshIcon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </DropdownMenuItem>
+    );
+  }
+  if (reports.length === 0)
+    return (
+      <DropdownMenuItem disabled className={STATUS_ITEM_CLASS_NAME}>
+        {t("specs.pemReportsEmpty")}
+      </DropdownMenuItem>
+    );
+  return null;
+}
+
+export function SI2PEMReportsMenu({ reports, isLoading, onRetry, latitude, longitude, operatorName, operatorMnc }: SI2PEMReportsMenuProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { openSI2PEMReportDialog } = useFloatingDialogStack();
 
   const reportsByYear = useMemo(() => {
+    if (!reports) return [];
     const formatter = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
     const sorted = [...reports].sort((a, b) => b.date.localeCompare(a.date));
     const latestReport = sorted.find((report) => report.source === "map") ?? sorted[0];
@@ -80,15 +116,23 @@ export function SI2PEMReportsMenu({ reports, latitude, longitude, operatorName, 
       <Tooltip>
         <TooltipTrigger
           render={
-            <DropdownMenuTrigger className="inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 hover:bg-muted rounded transition-colors cursor-pointer" />
+            <DropdownMenuTrigger
+              aria-busy={isLoading || undefined}
+              className="inline-flex items-center gap-1.5 -mx-1 px-1 py-0.5 hover:bg-muted rounded transition-colors cursor-pointer"
+            />
           }
         >
-          <SI2PEMLogo className="h-3.5" />
-          <span className="text-xs text-muted-foreground tabular-nums">{reports.length}</span>
+          <SI2PEMLogo className="h-3.5" label="SI2PEM" />
+          {isLoading ? (
+            <span className="h-3 w-2 animate-pulse rounded-sm bg-muted" />
+          ) : (
+            <span className="text-xs text-muted-foreground tabular-nums">{reports?.length ?? "-"}</span>
+          )}
         </TooltipTrigger>
         <TooltipContent>{t("specs.si2pemLink")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="start" sideOffset={4} positionerClassName="z-[9999]" className="w-auto max-w-96 max-h-80 overflow-y-auto">
+        <ReportsMenuStatus reports={reports} isLoading={isLoading} onRetry={onRetry} />
         {reportsByYear.map(([year, items]) => (
           <DropdownMenuGroup key={year}>
             <DropdownMenuLabel className="py-1 text-xs font-medium text-muted-foreground">{year}</DropdownMenuLabel>

@@ -13,7 +13,7 @@ import { CommentsList } from "./commentsList";
 import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
-import { StationInfoCard } from "./stationInfoCard";
+import { StationInfoCard, StationInfoCardSkeleton } from "./stationInfoCard";
 import { Button } from "@/components/ui/button";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -126,7 +126,7 @@ export function StationDetailsBody({
   const tabPillTransform =
     activeTabIndex === 0 ? "translate3d(0, 0, 0)" : `translate3d(calc(${activeTabIndex * 100}% + ${activeTabIndex * tabGapRem}rem), 0, 0)`;
 
-  if (isLoading) return <StationDetailsSkeleton />;
+  if (isLoading) return <StationDetailsSkeleton tabCount={tabCount} showInfoCard={displayedTab === "specs"} />;
   if (!station) return error ? <StationDetailsError error={error} onRetry={onRetry} isRetrying={isRetrying} onClose={onClose} /> : null;
 
   return (
@@ -183,7 +183,6 @@ export function StationDetailsBody({
               uplink={station.uplink}
               extraIdentificators={station.extra_identificators}
               onClose={onClose}
-              onLayoutChange={onContentLayoutChange}
             />
 
             <section>
@@ -259,52 +258,52 @@ export function StationDetailsBody({
   );
 }
 
-function StationDetailsSkeleton() {
+function StationDetailsSkeleton({ tabCount, showInfoCard }: { tabCount: number; showInfoCard: boolean }) {
+  const { t } = useTranslation("common");
+
   return (
-    <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
-      <div className="flex gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-inset ring-border/50">
-        {[1, 2, 3].map((i) => (
-          <div key={`skeleton-tab-${i}`} className="flex-1 flex items-center justify-center gap-2 py-2 px-2 sm:px-3">
+    <output className="block px-3 py-4 space-y-6 sm:p-6 sm:space-y-8" aria-label={t("actions.loading")}>
+      <div
+        className="grid gap-1 rounded-full bg-muted/60 p-1 ring-1 ring-inset ring-border/50"
+        style={{ gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: tabCount }, (_, i) => (
+          <div key={`skeleton-tab-${i}`} className="flex h-9 items-center justify-center gap-2 px-2 sm:px-3">
             <Skeleton className="size-5 rounded sm:size-4" />
             <Skeleton className="h-4 w-16 rounded hidden sm:block" />
           </div>
         ))}
       </div>
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-32 rounded" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 p-4 border rounded-xl">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={`skeleton-field-${i}`} className="flex items-center gap-2">
-              <Skeleton className="size-4 rounded shrink-0" />
-              <Skeleton className="h-3 w-20 rounded" />
-              <Skeleton className="h-3 w-24 rounded ml-auto" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-24 rounded" />
-        {[1, 2].map((i) => (
-          <div key={`skeleton-card-${i}`} className="rounded-xl border overflow-hidden">
-            <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
-              <Skeleton className="size-4 rounded" />
-              <Skeleton className="h-4 w-12 rounded" />
-              <Skeleton className="h-3 w-16 rounded ml-auto" />
-            </div>
-            <div className="p-4 space-y-3">
-              {[1, 2, 3].map((j) => (
-                <div key={`skeleton-row-${j}`} className="flex gap-4">
-                  <Skeleton className="h-4 w-20 rounded" />
-                  <Skeleton className="h-4 w-16 rounded" />
-                  <Skeleton className="h-4 w-32 rounded" />
-                  <Skeleton className="h-4 w-24 rounded" />
-                </div>
-              ))}
-            </div>
+      <div className="space-y-8">
+        {showInfoCard ? <StationInfoCardSkeleton /> : null}
+        <section>
+          <div className="mb-3 flex h-5 items-center">
+            <Skeleton className="h-4 w-24 rounded" />
           </div>
-        ))}
+          <div className="space-y-4">
+            {[1, 2].map((i) => (
+              <div key={`skeleton-card-${i}`} className="rounded-xl border overflow-hidden">
+                <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
+                  <Skeleton className="size-4 rounded" />
+                  <Skeleton className="h-4 w-12 rounded" />
+                  <Skeleton className="h-3 w-16 rounded ml-auto" />
+                </div>
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3].map((j) => (
+                    <div key={`skeleton-row-${j}`} className="flex gap-4">
+                      <Skeleton className="h-4 w-20 rounded" />
+                      <Skeleton className="h-4 w-16 rounded" />
+                      <Skeleton className="h-4 w-32 rounded" />
+                      <Skeleton className="h-4 w-24 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
+    </output>
   );
 }
 

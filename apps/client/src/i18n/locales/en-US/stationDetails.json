@@ -18,7 +18,9 @@
     "updatedCellTooltip": "This cell was updated in the last 30 days",
     "si2pemLink": "View all EMF reports from SI2PEM",
     "pemReports": "EMF reports",
-    "pemInstallationForm": "Filing form"
+    "pemInstallationForm": "Filing form",
+    "pemReportsEmpty": "No EMF reports in SI2PEM",
+    "pemReportsError": "Couldn't load the EMF reports"
   },
   "sectors": {
     "title": "Azimuths",

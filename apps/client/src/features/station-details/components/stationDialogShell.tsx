@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { StationDialogActionBar } from "./stationDialogActionBar";
 import { CloseButton } from "@/components/ui/close-button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
@@ -153,16 +154,16 @@ export function StationDialogHeading({
       {createdAt && updatedAt ? (
         <div className="flex flex-col items-start pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
           <Tooltip>
-            <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] text-muted-foreground/80">
+            <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80">
               {tCommon("labels.created")}: {formatRelativeTime(createdAt, tCommon)}
             </TooltipTrigger>
             <TooltipContent>{formatFullDate(createdAt, i18n.language)}</TooltipContent>
           </Tooltip>
-          <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">·</span>
+          <span className="hidden text-[11px] leading-4 text-muted-foreground/40 sm:inline">·</span>
           <time
             dateTime={updatedAt}
             title={formatFullDate(updatedAt, i18n.language)}
-            className="whitespace-nowrap text-[11px] text-muted-foreground/80"
+            className="whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80"
           >
             {tCommon("labels.updated")}: {formatRelativeTime(updatedAt, tCommon)}
           </time>
@@ -233,9 +234,31 @@ export function StationSourceSwitch({ source, onSwitch, onPrefetch }: StationSou
 
 export function StationDialogHeadingSkeleton() {
   return (
-    <div className="space-y-2">
-      <div className="h-5 w-48 bg-muted rounded animate-pulse" />
-      <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex h-5 items-center gap-2 pr-28 sm:pr-0">
+        <Skeleton className="h-5 w-8 rounded-[2px]" />
+        <Skeleton className="h-4 w-32 rounded" />
+        <Skeleton className="h-3 w-14 rounded" />
+      </div>
+      <div className="flex h-5 items-center">
+        <Skeleton className="h-3.5 w-28 rounded" />
+      </div>
+      <div className="flex h-4 items-center">
+        <Skeleton className="h-3 w-48 max-w-full rounded" />
+      </div>
+      <div className="flex flex-col items-start pt-0.5 sm:flex-row sm:items-center sm:gap-2">
+        <div className="flex h-4 items-center">
+          <Skeleton className="h-2.5 w-24 rounded" />
+        </div>
+        <div className="flex h-4 items-center">
+          <Skeleton className="h-2.5 w-28 rounded" />
+        </div>
+      </div>
+      <StationDialogActionBar>
+        <Skeleton className="h-6 w-16" />
+        <Skeleton className="size-6 md:w-24" />
+        <Skeleton className="size-6 md:w-24" />
+      </StationDialogActionBar>
     </div>
   );
 }

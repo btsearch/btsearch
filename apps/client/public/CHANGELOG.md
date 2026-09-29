@@ -19,6 +19,7 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Photos on the photo gallery page are now the same size for every station
 - The information card in the station dialog and on the station page now rearranges its details to fit, so it no longer leaves an empty column when a station has no elevation, uplink or PEM reports
 - UKE stations now open in the same dialog as regular stations, with the same header, information card and map links, and they can be used for a terrain profile too
+- Stations that are both in the database and in UKE now have a Database / UKE switch in the dialog header that flips the same dialog between the two views
 - UKE stations that are already in the database no longer offer to create them again
 - The UKE Permits tab and the permits section on the station page now link to the UKE station the permits come from
 - API: proposed sectors in submission responses now include `operation` (`add`, `update` or `delete`), update submissions only store the azimuths that change, and sectors sent without `operation` are still read as the full azimuth list

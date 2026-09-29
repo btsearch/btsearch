@@ -2,7 +2,6 @@ import { Globe02Icon, Location01Icon, MapsLocation01Icon, MountainIcon, Radar01I
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { fetchElevation, fetchPemReports } from "../api";
@@ -10,8 +9,9 @@ import { CopyButton } from "./copyButton";
 import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
-import { StationInfoItem } from "./stationInfoItem";
+import { StationInfoItem, StationInfoItemSkeleton } from "./stationInfoItem";
 import { StationUplinkItem } from "./stationUplinkItem";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
@@ -22,6 +22,10 @@ const stationInfoGridClassName =
 
 const stationInfoGroupClassName = "grid grid-cols-subgrid gap-y-4 @md:has-[>:nth-child(2)]:col-span-2 @3xl:has-[>:nth-child(3)]:col-span-3";
 
+const stationInfoCardClassName = "space-y-4 rounded-xl border p-3 @lg:p-4";
+
+const stationInfoLinksClassName = "flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3";
+
 type StationInfoGridProps = {
   stationCode: string;
   operator: { name: string; mnc?: number | null };
@@ -29,40 +33,33 @@ type StationInfoGridProps = {
   showPemReports?: boolean;
   uplink?: StationUplink;
   extraIdentificators?: ExtraIdentificator;
-  onLayoutChange?: () => void;
 };
 
-export function StationInfoGrid({
-  stationCode,
-  operator,
-  location,
-  showPemReports = true,
-  uplink,
-  extraIdentificators,
-  onLayoutChange,
-}: StationInfoGridProps) {
+export function StationInfoGrid({ stationCode, operator, location, showPemReports = true, uplink, extraIdentificators }: StationInfoGridProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const { preferences } = usePreferences();
+  const isPemEnabled = showPemReports && !!stationCode && !!location && typeof operator.mnc === "number";
+  const isElevationEnabled = !!location && preferences.showElevation;
 
-  const { data: pemReports } = useQuery({
+  const {
+    data: pemReports,
+    isPending: isPemPending,
+    refetch: refetchPemReports,
+  } = useQuery({
     queryKey: ["station-pem", stationCode, location?.latitude, location?.longitude, operator.mnc],
     queryFn: () => fetchPemReports(stationCode, location!.latitude, location!.longitude, operator.mnc!),
     staleTime: 1000 * 60 * 60,
-    enabled: showPemReports && !!stationCode && !!location && typeof operator.mnc === "number",
+    enabled: isPemEnabled,
     retry: false,
   });
 
-  const { data: elevation } = useQuery({
+  const { data: elevation, isPending: isElevationPending } = useQuery({
     queryKey: ["elevation", location?.latitude, location?.longitude],
     queryFn: () => fetchElevation(location!.latitude, location!.longitude),
     staleTime: 1000 * 60 * 60 * 24,
-    enabled: !!location && preferences.showElevation,
+    enabled: isElevationEnabled,
     retry: false,
   });
-
-  useLayoutEffect(() => {
-    onLayoutChange?.();
-  }, [pemReports?.length, elevation, onLayoutChange]);
 
   return (
     <div className={stationInfoGridClassName}>
@@ -71,18 +68,18 @@ export function StationInfoGrid({
           <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
             <span className="font-mono wrap-break-word">{formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}</span>
             {preferences.navLinksDisplay === "inline" && (
-              <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" />
+              <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" className="flex" />
             )}
             <CopyButton text={`${location.latitude}, ${location.longitude}`} />
           </StationInfoItem>
           <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
             <span>{location.region?.name || "-"}</span>
           </StationInfoItem>
-          {elevation !== undefined && (
+          {isElevationEnabled ? (
             <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
-              <span>{elevation} m</span>
+              {isElevationPending ? <Skeleton className="h-4 w-12 rounded" /> : <span>{elevation === undefined ? "-" : `${elevation} m`}</span>}
             </StationInfoItem>
-          )}
+          ) : null}
         </div>
       ) : null}
       <div className={stationInfoGroupClassName}>
@@ -91,10 +88,12 @@ export function StationInfoGrid({
           <CopyButton text={stationCode} />
         </StationInfoItem>
         {uplink ? <StationUplinkItem uplink={uplink} /> : null}
-        {location && pemReports && pemReports.length > 0 ? (
+        {isPemEnabled ? (
           <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
             <SI2PEMReportsMenu
               reports={pemReports}
+              isLoading={isPemPending}
+              onRetry={refetchPemReports}
               latitude={location.latitude}
               longitude={location.longitude}
               operatorName={operator.name}
@@ -112,6 +111,17 @@ export function StationInfoGrid({
   );
 }
 
+function useStationInfoLinks() {
+  const { preferences } = usePreferences();
+  const isOnMap = useLocation({ select: ({ pathname }) => pathname === "/" || pathname.startsWith("/lists/") });
+
+  return {
+    preferences,
+    showMapLink: !isOnMap,
+    navigationApps: preferences.navLinksDisplay === "buttons" ? preferences.navigationApps : [],
+  };
+}
+
 type StationInfoCardProps = StationInfoGridProps & {
   source: StationSource;
   onClose: () => void;
@@ -119,19 +129,17 @@ type StationInfoCardProps = StationInfoGridProps & {
 
 export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCardProps) {
   const { t } = useTranslation("stationDetails");
-  const { preferences } = usePreferences();
-  const isOnMap = useLocation({ select: ({ pathname }) => pathname === "/" || pathname.startsWith("/lists/") });
+  const { showMapLink, navigationApps } = useStationInfoLinks();
   const { location } = gridProps;
-  const showNavigationButtons = preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0;
   const mapFilter = source === "uke" ? "fu" : "f";
 
   return (
     <section className="@container">
-      <div className="space-y-4 rounded-xl border p-3 @lg:p-4">
+      <div className={stationInfoCardClassName}>
         <StationInfoGrid {...gridProps} />
-        {location && (!isOnMap || showNavigationButtons) ? (
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
-            {!isOnMap && (
+        {location && (showMapLink || navigationApps.length > 0) ? (
+          <div className={stationInfoLinksClassName}>
+            {showMapLink && (
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -149,7 +157,38 @@ export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCa
                 <TooltipContent>{t("dialog.showOnMap")}</TooltipContent>
               </Tooltip>
             )}
-            {showNavigationButtons && <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />}
+            {navigationApps.length > 0 && <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+export function StationInfoCardSkeleton() {
+  const { preferences, showMapLink, navigationApps } = useStationInfoLinks();
+  const hasInlineNavLinks = preferences.navLinksDisplay === "inline" && preferences.navigationApps.length > 0;
+
+  return (
+    <section className="@container">
+      <div className={stationInfoCardClassName}>
+        <div className={stationInfoGridClassName}>
+          <div className={stationInfoGroupClassName}>
+            <StationInfoItemSkeleton valueClassName="w-36" lineClassName={hasInlineNavLinks ? "h-6" : "h-5.5"} />
+            <StationInfoItemSkeleton valueClassName="w-24" />
+            {preferences.showElevation ? <StationInfoItemSkeleton valueClassName="w-12" /> : null}
+          </div>
+          <div className={stationInfoGroupClassName}>
+            <StationInfoItemSkeleton valueClassName="w-20" lineClassName="h-5.5" />
+            <StationInfoItemSkeleton valueClassName="w-20" />
+          </div>
+        </div>
+        {showMapLink || navigationApps.length > 0 ? (
+          <div className={stationInfoLinksClassName}>
+            {showMapLink ? <Skeleton className="h-6.5 w-28" /> : null}
+            {navigationApps.map((app) => (
+              <Skeleton key={app} className="h-6.5 w-24" />
+            ))}
           </div>
         ) : null}
       </div>

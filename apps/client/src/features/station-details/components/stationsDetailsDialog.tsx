@@ -37,7 +37,6 @@ import type { StationSource, UkePermit, UkeStation } from "@/types/station";
 type StationDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
   switchedFrom?: StationDialogTarget;
-  onContentLayoutChange?: () => void;
   onSwitchStation?: (target: StationDialogTarget) => void;
   onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
@@ -47,21 +46,26 @@ type StationDetailsDialogPanelProps = StationDialogPanelProps & {
   ukeStation?: UkeStation;
   initialTab?: TabId;
   showPhotoPanel?: boolean;
+  onContentLayoutChange?: () => void;
 };
-
-const STATION_SOURCE_SWITCH_ENABLED = false;
 
 export function StationDetailsDialogPanel({
   source,
   ukeStation,
   initialTab,
   showPhotoPanel,
-  onSwitchStation,
+  onContentLayoutChange,
   ...panelProps
 }: StationDetailsDialogPanelProps) {
-  const switchStation = STATION_SOURCE_SWITCH_ENABLED ? onSwitchStation : undefined;
-  if (source === "uke") return <UkeStationDialogPanel placeholder={ukeStation} onSwitchStation={switchStation} {...panelProps} />;
-  return <InternalStationDialogPanel initialTab={initialTab} showPhotoPanel={showPhotoPanel} onSwitchStation={switchStation} {...panelProps} />;
+  if (source === "uke") return <UkeStationDialogPanel placeholder={ukeStation} {...panelProps} />;
+  return (
+    <InternalStationDialogPanel
+      initialTab={initialTab}
+      showPhotoPanel={showPhotoPanel}
+      onContentLayoutChange={onContentLayoutChange}
+      {...panelProps}
+    />
+  );
 }
 
 function selectFirstUkeStation(permits: UkePermit[]) {
@@ -71,6 +75,7 @@ function selectFirstUkeStation(permits: UkePermit[]) {
 type InternalStationDialogPanelProps = StationDialogPanelProps & {
   initialTab?: TabId;
   showPhotoPanel?: boolean;
+  onContentLayoutChange?: () => void;
 };
 
 function InternalStationDialogPanel({
@@ -272,7 +277,6 @@ function UkeStationDialogPanel({
   placeholder,
   switchedFrom,
   onClose,
-  onContentLayoutChange,
   onSwitchStation,
   onStartTerrainProfile,
   ...frameProps
@@ -395,7 +399,6 @@ function UkeStationDialogPanel({
             operator={{ name: operatorName, mnc: station.operator?.mnc }}
             location={location}
             onClose={onClose}
-            onLayoutChange={onContentLayoutChange}
           />
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">

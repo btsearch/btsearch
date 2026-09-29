@@ -18,7 +18,9 @@
     "updatedCellTooltip": "Ta komórka została zaktualizowana w ciągu ostatnich 30 dni",
     "si2pemLink": "Kliknij, aby zobaczyć raporty PEM z SI2PEM",
     "pemReports": "Raporty PEM",
-    "pemInstallationForm": "Formularz zgłoszenia"
+    "pemInstallationForm": "Formularz zgłoszenia",
+    "pemReportsEmpty": "Brak raportów PEM w SI2PEM",
+    "pemReportsError": "Nie udało się wczytać raportów PEM"
   },
   "sectors": {
     "title": "Azymuty",
