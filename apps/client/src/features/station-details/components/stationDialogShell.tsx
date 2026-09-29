@@ -43,6 +43,7 @@ type StationDialogShellProps = FloatingDialogPanelFrameProps & {
   operatorMnc?: number | null;
   heading: ReactNode;
   actions?: ReactNode;
+  toolbar?: ReactNode;
   sourceSwitch?: ReactNode;
   banners?: ReactNode;
   aside?: ReactNode;
@@ -54,6 +55,7 @@ export function StationDialogShell({
   operatorMnc,
   heading,
   actions,
+  toolbar,
   sourceSwitch,
   banners,
   aside,
@@ -81,18 +83,20 @@ export function StationDialogShell({
         )}
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragProps?.className)}>
-          <div
-            className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
-          >
-            <div className={cn("flex-1 min-w-0", enterClassName)}>{heading}</div>
-            <div className="absolute top-2 right-2 flex shrink-0 flex-col items-end gap-1 sm:static sm:-mt-1 sm:-mr-2">
-              <div className="flex items-center gap-0.5">
+          <div className="relative px-4 py-3 sm:px-6 sm:py-3.5" style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}>
+            <div className="flex items-start gap-3">
+              <div className={cn("flex-1 min-w-0", enterClassName)}>{heading}</div>
+              <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
                 {actions}
                 <CloseButton onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
               </div>
-              {sourceSwitch}
             </div>
+            {toolbar || sourceSwitch ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {toolbar ? <StationDialogActionBar className={enterClassName}>{toolbar}</StationDialogActionBar> : null}
+                {sourceSwitch ? <div className="-mr-2 ml-auto">{sourceSwitch}</div> : null}
+              </div>
+            ) : null}
           </div>
           {banners}
         </div>
@@ -114,10 +118,8 @@ type StationDialogHeadingProps = {
   badges?: ReactNode;
   location?: { city: string | null; address: string | null } | null;
   status?: ReactNode;
-  hasSourceSwitch?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  actions?: ReactNode;
 };
 
 export function StationDialogHeading({
@@ -127,10 +129,8 @@ export function StationDialogHeading({
   badges,
   location,
   status,
-  hasSourceSwitch = false,
   createdAt,
   updatedAt,
-  actions,
 }: StationDialogHeadingProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const { t: tCommon } = useTranslation("common");
@@ -144,7 +144,7 @@ export function StationDialogHeading({
       </div>
       {location ? (
         <>
-          <div className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", hasSourceSwitch && "min-h-7 pr-28 sm:min-h-0 sm:pr-0")}>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <p className="min-w-0 truncate text-sm font-semibold text-foreground">{location.city}</p>
             {status}
           </div>
@@ -169,7 +169,6 @@ export function StationDialogHeading({
           </time>
         </div>
       ) : null}
-      {actions ? <StationDialogActionBar>{actions}</StationDialogActionBar> : null}
     </div>
   );
 }
@@ -224,7 +223,7 @@ export function StationSourceSwitch({ source, onSwitch, onPrefetch }: StationSou
             )}
           >
             <HugeiconsIcon icon={option.icon} className="size-3" aria-hidden="true" />
-            {t(option.labelKey)}
+            <span className="sr-only sm:not-sr-only">{t(option.labelKey)}</span>
           </button>
         );
       })}
@@ -254,11 +253,16 @@ export function StationDialogHeadingSkeleton() {
           <Skeleton className="h-2.5 w-28 rounded" />
         </div>
       </div>
-      <StationDialogActionBar>
-        <Skeleton className="h-6 w-16" />
-        <Skeleton className="size-6 md:w-24" />
-        <Skeleton className="size-6 md:w-24" />
-      </StationDialogActionBar>
     </div>
+  );
+}
+
+export function StationDialogToolbarSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-6 w-16" />
+      <Skeleton className="size-6 md:w-24" />
+      <Skeleton className="size-6 md:w-24" />
+    </>
   );
 }

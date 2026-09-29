@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 type StationDialogActionBarProps = {
   children: ReactNode;
+  className?: string;
 };
 
 export const stationDialogInlineActionClassName = cn(
@@ -14,9 +15,9 @@ export const stationDialogInlineActionClassName = cn(
 
 export const stationDialogInlineActionLabelClassName = "hidden whitespace-nowrap text-xs font-medium leading-none md:inline";
 
-export function StationDialogActionBar({ children }: StationDialogActionBarProps) {
+export function StationDialogActionBar({ children, className }: StationDialogActionBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+    <div className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-1", className)}>
       <div className="flex flex-wrap items-center gap-1 md:-ml-1.5">{children}</div>
     </div>
   );

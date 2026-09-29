@@ -14,7 +14,13 @@ import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
 import { stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName, stationDialogPrimaryActionClassName } from "./stationDialogHeaderStyles";
-import { StationDialogHeading, StationDialogHeadingSkeleton, StationDialogShell, StationSourceSwitch } from "./stationDialogShell";
+import {
+  StationDialogHeading,
+  StationDialogHeadingSkeleton,
+  StationDialogShell,
+  StationDialogToolbarSkeleton,
+  StationSourceSwitch,
+} from "./stationDialogShell";
 import { StationInfoCard } from "./stationInfoCard";
 import { UKELogo } from "./ukeLogo";
 import { VirtualStationBadge } from "./virtualStationBadge";
@@ -149,40 +155,43 @@ function InternalStationDialogPanel({
             }
             location={{ city: station.location.city, address: stationAddress || null }}
             status={station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
-            hasSourceSwitch={sourceSwitch !== null}
             createdAt={station.createdAt}
             updatedAt={station.updatedAt}
-            actions={
-              <>
-                <button
-                  id={getStationHistoryTriggerId(station.id)}
-                  type="button"
-                  aria-haspopup="dialog"
-                  onClick={() =>
-                    openStationHistoryDialog({
-                      stationId: station.id,
-                      stationCode: station.station_id,
-                      operatorName: station.operator.name,
-                      operatorMnc: station.operator.mnc,
-                    })
-                  }
-                  className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}
-                >
-                  <HugeiconsIcon icon={Clock01Icon} className="size-3.5" />
-                  <span className="whitespace-nowrap text-xs font-medium leading-none">{t("history.action")}</span>
-                </button>
-                <StationDialogActions
-                  source="internal"
-                  id={station.id}
-                  stationCode={station.station_id}
-                  operatorName={station.operator.name}
-                  location={station.location}
-                  onStartTerrainProfile={onStartTerrainProfile}
-                  onClose={onClose}
-                />
-              </>
-            }
           />
+        ) : null
+      }
+      toolbar={
+        isLoading ? (
+          <StationDialogToolbarSkeleton />
+        ) : station ? (
+          <>
+            <button
+              id={getStationHistoryTriggerId(station.id)}
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() =>
+                openStationHistoryDialog({
+                  stationId: station.id,
+                  stationCode: station.station_id,
+                  operatorName: station.operator.name,
+                  operatorMnc: station.operator.mnc,
+                })
+              }
+              className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}
+            >
+              <HugeiconsIcon icon={Clock01Icon} className="size-3.5" />
+              <span className="whitespace-nowrap text-xs font-medium leading-none">{t("history.action")}</span>
+            </button>
+            <StationDialogActions
+              source="internal"
+              id={station.id}
+              stationCode={station.station_id}
+              operatorName={station.operator.name}
+              location={station.location}
+              onStartTerrainProfile={onStartTerrainProfile}
+              onClose={onClose}
+            />
+          </>
         ) : null
       }
       actions={
@@ -323,26 +332,29 @@ function UkeStationDialogPanel({
             operatorName={operatorName}
             operatorMnc={station.operator?.mnc}
             stationCode={station.station_id}
-            hasSourceSwitch={sourceSwitch !== null}
             location={location}
             createdAt={station.createdAt}
             updatedAt={station.updatedAt}
-            actions={
-              location && (isLoggedIn || onStartTerrainProfile) ? (
-                <StationDialogActions
-                  source="uke"
-                  id={station.id}
-                  stationCode={station.station_id}
-                  operatorName={operatorName}
-                  location={location}
-                  onStartTerrainProfile={onStartTerrainProfile}
-                  onClose={onClose}
-                />
-              ) : null
-            }
           />
         ) : isLoading ? (
           <StationDialogHeadingSkeleton />
+        ) : null
+      }
+      toolbar={
+        station ? (
+          location && (isLoggedIn || onStartTerrainProfile) ? (
+            <StationDialogActions
+              source="uke"
+              id={station.id}
+              stationCode={station.station_id}
+              operatorName={operatorName}
+              location={location}
+              onStartTerrainProfile={onStartTerrainProfile}
+              onClose={onClose}
+            />
+          ) : null
+        ) : isLoading ? (
+          <StationDialogToolbarSkeleton />
         ) : null
       }
       actions={
