@@ -81,22 +81,27 @@ export function DetailHeader({ actionBar, operator, stationCode, badges, compact
               variant="ghost"
               size="sm"
               onClick={() => window.history.back()}
-              className="shrink-0 text-muted-foreground hover:text-foreground gap-2 pl-1 pr-3 -ml-2 hover:bg-muted/50 transition-colors"
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-              <span className="font-medium">{t("actions.back")}</span>
-            </Button>
-            <div
-              inert={!showCompactTitle}
               className={cn(
-                "flex min-w-0 items-center gap-1.5 transition-[opacity,translate] duration-150 ease-out motion-reduce:transition-none md:hidden",
-                showCompactTitle ? "opacity-100" : "translate-y-1 opacity-0",
+                "shrink-0 text-muted-foreground hover:text-foreground gap-2 pl-1 pr-3 -ml-2 hover:bg-muted/50 transition-colors",
+                !navActionTarget && "max-sm:px-1.5",
               )}
             >
-              {operator ? <DialogOperatorName name={operator.name} mnc={operator.mnc} compact /> : null}
-              <span className={cn("shrink-0 text-xs font-medium text-muted-foreground", stationCode && "font-mono")}>{title}</span>
-              {compactBadges}
-            </div>
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              <span className={cn("font-medium", !navActionTarget && "max-sm:sr-only")}>{t("actions.back")}</span>
+            </Button>
+            {navActionTarget ? (
+              <div
+                inert={!showCompactTitle}
+                className={cn(
+                  "flex min-w-0 items-center gap-1.5 transition-[opacity,translate] duration-150 ease-out motion-reduce:transition-none md:hidden",
+                  showCompactTitle ? "opacity-100" : "translate-y-1 opacity-0",
+                )}
+              >
+                {operator ? <DialogOperatorName name={operator.name} mnc={operator.mnc} compact /> : null}
+                <span className={cn("shrink-0 text-xs font-medium text-muted-foreground", stationCode && "font-mono")}>{title}</span>
+                {compactBadges}
+              </div>
+            ) : null}
           </div>
           {!navActionTarget && actionBar}
         </div>
