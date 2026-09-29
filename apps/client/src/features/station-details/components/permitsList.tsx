@@ -1,9 +1,11 @@
-import { AlertCircleIcon, ArrowDown01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, ArrowDown01Icon, ArrowUpRight01Icon, DocumentCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { stationPermitsQueryOptions } from "../queries";
+import { groupPermitsByUkeStation } from "../utils";
 import { StationLink } from "./stationLink";
 import { UKESourceBadge } from "@/components/cellular/ukeSourceBadge";
 import { Badge } from "@/components/ui/badge";
@@ -12,22 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
-import { fetchApiData } from "@/lib/api";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-import type { PhysicalStation, UkePermit, UkeStationPermit } from "@/types/station";
-
-async function fetchPermits(stationId: number, isUkeSource: boolean): Promise<UkeStationPermit[]> {
-  if (isUkeSource) {
-    const permit = await fetchApiData<UkePermit>(`uke/permits/${stationId}`);
-    return permit ? [permit] : [];
-  }
-
-  const permits = await fetchApiData<UkePermit[]>(`stations/${stationId}/permits`, {
-    allowedErrors: [404],
-  });
-  return permits ?? [];
-}
+import type { PhysicalStation, UkeStation, UkeStationPermit } from "@/types/station";
 
 function groupPermitsByRat(permits: UkeStationPermit[]): Map<string, UkeStationPermit[]> {
   const groups = new Map<string, UkeStationPermit[]>();
@@ -61,30 +50,18 @@ function groupPermitsByRat(permits: UkeStationPermit[]): Map<string, UkeStationP
 
 type PermitsListProps = {
   stationId?: number;
-  isUkeSource?: boolean;
   permits?: UkeStationPermit[];
   isExternalLoading?: boolean;
   physicalStation?: PhysicalStation;
 };
 
-export function PermitsList({ stationId, isUkeSource = false, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
+export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
-  const {
-    data: fetchedPermits = [],
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["station-permits", stationId, isUkeSource],
-    queryFn: () => {
-      if (stationId === undefined) return Promise.resolve([]);
-      return fetchPermits(stationId, isUkeSource);
-    },
-    enabled: !!stationId && !externalPermits,
-    staleTime: 1000 * 60 * 10,
-  });
+  const { data: fetchedPermits = [], isLoading, error } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
 
   const permits = externalPermits ?? fetchedPermits;
   const permitsByRat = useMemo(() => groupPermitsByRat(permits), [permits]);
+  const ukeStations = useMemo(() => groupPermitsByUkeStation(fetchedPermits), [fetchedPermits]);
   const hasDeviceRegistryData = useMemo(() => permits.some((p) => p.source === "device_registry"), [permits]);
 
   if (isExternalLoading || (!externalPermits && isLoading)) {
@@ -142,8 +119,33 @@ export function PermitsList({ stationId, isUkeSource = false, permits: externalP
 
   return (
     <div className="space-y-4">
+      {ukeStations.length > 0 ? <UkeStationLinks stations={ukeStations} /> : null}
       {Array.from(permitsByRat.entries()).map(([rat, ratPermits]) => (
         <CollapsiblePermitGroup key={rat} rat={rat} ratPermits={ratPermits} t={t} i18n={i18n} showAntennaData={hasDeviceRegistryData} />
+      ))}
+    </div>
+  );
+}
+
+function UkeStationLinks({ stations }: { stations: UkeStation[] }) {
+  const { t } = useTranslation("stationDetails");
+  const { openUkePermitDialog } = useFloatingDialogStack();
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+      <span>{t("permits.ukeStation")}</span>
+      {stations.map((station) => (
+        <button
+          key={station.id}
+          type="button"
+          onClick={() => openUkePermitDialog(station)}
+          className="group inline-flex min-w-0 cursor-pointer items-center gap-1 font-medium text-foreground focus-visible:outline-none"
+        >
+          <span className="truncate underline-offset-2 group-hover:underline group-focus-visible:underline">
+            {station.location ? [station.location.city, station.location.address].filter(Boolean).join(", ") : station.station_id}
+          </span>
+          <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </button>
       ))}
     </div>
   );

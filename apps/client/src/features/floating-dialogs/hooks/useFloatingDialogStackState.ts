@@ -4,16 +4,31 @@ import { toast } from "sonner";
 
 import { type FloatingDialogRect, areFloatingDialogRectsEqual, createInitialFloatingDialogRect } from "../geometry";
 import { assertNever, getTopDialog } from "../types";
-import type { FloatingDialogItem, FloatingDialogOpenRequest, SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
+import type {
+  FloatingDialogItem,
+  FloatingDialogKind,
+  FloatingDialogOpenRequest,
+  SI2PEMReportDialogPayload,
+  StationDialogTarget,
+  StationHistoryDialogPayload,
+} from "../types";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { TabId } from "@/features/station-details/tabs";
 import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
 const MAX_DIALOGS_PER_KIND = 2;
+const INITIAL_DIALOG_SIZES: Partial<Record<FloatingDialogKind, { width: number; height: number }>> = {
+  "si2pem-report": { width: 730, height: 800 },
+  "station-history": { width: 900, height: 680 },
+};
 
 function getNextZIndex(dialogs: FloatingDialogItem[]): number {
   return (getTopDialog(dialogs)?.zIndex ?? FLOATING_DIALOG_Z_INDEX_BASE) + 1;
+}
+
+function getDialogFamily(dialog: FloatingDialogItem | FloatingDialogOpenRequest): string {
+  return dialog.kind === "station" ? `station:${dialog.source}` : dialog.kind;
 }
 
 function normalizeZIndexes(dialogs: FloatingDialogItem[]): FloatingDialogItem[] {
@@ -24,90 +39,44 @@ function normalizeZIndexes(dialogs: FloatingDialogItem[]): FloatingDialogItem[] 
   });
 }
 
-type ResolvedDialogRequest = {
-  key: string;
-  matchesPayload: (dialog: FloatingDialogItem) => boolean;
-  create: (rect: FloatingDialogRect, zIndex: number) => FloatingDialogItem;
-  update: (dialog: FloatingDialogItem, zIndex: number) => FloatingDialogItem;
-};
-
-function resolveDialogRequest(request: FloatingDialogOpenRequest): ResolvedDialogRequest {
+function getDialogKey(request: FloatingDialogOpenRequest): string {
   switch (request.kind) {
-    case "station": {
-      const key = `station:${request.source}:${request.id}`;
-      return {
-        key,
-        matchesPayload: (dialog) => dialog.kind === "station",
-        create: (rect, zIndex) => ({ ...request, key, rect, zIndex }),
-        update: (dialog, zIndex) => (dialog.kind === "station" ? { ...dialog, zIndex } : dialog),
-      };
-    }
-    case "uke-permit": {
-      const key = `uke-permit:${request.station.id}`;
-      return {
-        key,
-        matchesPayload: (dialog) => dialog.kind === "uke-permit" && dialog.station === request.station,
-        create: (rect, zIndex) => ({ kind: "uke-permit", key, station: request.station, rect, zIndex }),
-        update: (dialog, zIndex) => (dialog.kind === "uke-permit" ? { ...dialog, station: request.station, zIndex } : dialog),
-      };
-    }
-    case "radioline": {
-      const key = `radioline:${request.link.groupId}`;
-      return {
-        key,
-        matchesPayload: (dialog) => dialog.kind === "radioline" && dialog.link === request.link,
-        create: (rect, zIndex) => ({ kind: "radioline", key, link: request.link, rect, zIndex }),
-        update: (dialog, zIndex) => (dialog.kind === "radioline" ? { ...dialog, link: request.link, zIndex } : dialog),
-      };
-    }
-    case "si2pem-report": {
-      const key = `si2pem-report:${request.report.details.document_url}`;
-      return {
-        key,
-        matchesPayload: (dialog) =>
-          dialog.kind === "si2pem-report" &&
-          dialog.report === request.report &&
-          dialog.latitude === request.latitude &&
-          dialog.longitude === request.longitude &&
-          dialog.operatorName === request.operatorName &&
-          dialog.operatorMnc === request.operatorMnc,
-        create: (rect, zIndex) => ({
-          kind: "si2pem-report",
-          key,
-          report: request.report,
-          latitude: request.latitude,
-          longitude: request.longitude,
-          operatorName: request.operatorName,
-          operatorMnc: request.operatorMnc,
-          rect,
-          zIndex,
-        }),
-        update: (dialog, zIndex) => (dialog.kind === "si2pem-report" ? { ...dialog, ...request, zIndex } : dialog),
-      };
-    }
-    case "station-history": {
-      const key = `station-history:${request.stationId}`;
-      return {
-        key,
-        matchesPayload: (dialog) =>
-          dialog.kind === "station-history" &&
-          dialog.stationId === request.stationId &&
-          dialog.stationCode === request.stationCode &&
-          dialog.operatorName === request.operatorName &&
-          dialog.operatorMnc === request.operatorMnc,
-        create: (rect, zIndex) => ({
-          kind: "station-history",
-          key,
-          stationId: request.stationId,
-          stationCode: request.stationCode,
-          operatorName: request.operatorName,
-          operatorMnc: request.operatorMnc,
-          rect,
-          zIndex,
-        }),
-        update: (dialog, zIndex) => (dialog.kind === "station-history" ? { ...dialog, ...request, zIndex } : dialog),
-      };
-    }
+    case "station":
+      return `station:${request.source}:${request.id}`;
+    case "radioline":
+      return `radioline:${request.link.groupId}`;
+    case "si2pem-report":
+      return `si2pem-report:${request.report.details.document_url}`;
+    case "station-history":
+      return `station-history:${request.stationId}`;
+    default:
+      return assertNever(request);
+  }
+}
+
+function hasSamePayload(dialog: FloatingDialogItem, request: FloatingDialogOpenRequest): boolean {
+  switch (request.kind) {
+    case "station":
+      return dialog.kind === "station";
+    case "radioline":
+      return dialog.kind === "radioline" && dialog.link === request.link;
+    case "si2pem-report":
+      return (
+        dialog.kind === "si2pem-report" &&
+        dialog.report === request.report &&
+        dialog.latitude === request.latitude &&
+        dialog.longitude === request.longitude &&
+        dialog.operatorName === request.operatorName &&
+        dialog.operatorMnc === request.operatorMnc
+      );
+    case "station-history":
+      return (
+        dialog.kind === "station-history" &&
+        dialog.stationId === request.stationId &&
+        dialog.stationCode === request.stationCode &&
+        dialog.operatorName === request.operatorName &&
+        dialog.operatorMnc === request.operatorMnc
+      );
     default:
       return assertNever(request);
   }
@@ -117,6 +86,7 @@ export function useFloatingDialogStackState() {
   const { t } = useTranslation("common");
   const [dialogs, setDialogs] = useState<FloatingDialogItem[]>([]);
   const dialogsRef = useRef<FloatingDialogItem[]>([]);
+  const lastFrameIdRef = useRef(0);
 
   const setDialogsSynced = useCallback((updater: (current: FloatingDialogItem[]) => FloatingDialogItem[]) => {
     const current = dialogsRef.current;
@@ -142,32 +112,65 @@ export function useFloatingDialogStackState() {
 
   const openDialog = useCallback(
     (request: FloatingDialogOpenRequest) => {
-      const resolved = resolveDialogRequest(request);
+      const key = getDialogKey(request);
       const current = dialogsRef.current;
-      const existingDialog = current.find((dialog) => dialog.key === resolved.key);
+      const existingDialog = current.find((dialog) => dialog.key === key);
 
       if (existingDialog !== undefined) {
-        const isTopDialog = getTopDialog(current)?.key === resolved.key;
-        if (isTopDialog && resolved.matchesPayload(existingDialog)) return true;
+        const isTopDialog = getTopDialog(current)?.key === key;
+        if (isTopDialog && hasSamePayload(existingDialog, request)) return true;
 
         const zIndex = isTopDialog ? existingDialog.zIndex : getNextZIndex(current);
-        setDialogsSynced((previous) => previous.map((dialog) => (dialog.key === resolved.key ? resolved.update(dialog, zIndex) : dialog)));
+        setDialogsSynced((previous) => previous.map((dialog) => (dialog.key === key ? { ...dialog, ...request, zIndex } : dialog)));
         return true;
       }
 
-      const familyCount = current.filter((dialog) => dialog.kind === request.kind).length;
+      const family = getDialogFamily(request);
+      const familyCount = current.filter((dialog) => getDialogFamily(dialog) === family).length;
       if (familyCount >= MAX_DIALOGS_PER_KIND) {
         toast.info(t("toast.closeStationDialogFirst"));
         return false;
       }
 
-      const initialSize =
-        request.kind === "si2pem-report" ? { width: 730, height: 800 } : request.kind === "station-history" ? { width: 900, height: 680 } : undefined;
-      const dialog = resolved.create(createInitialFloatingDialogRect(familyCount, initialSize), getNextZIndex(current));
+      lastFrameIdRef.current += 1;
+      const dialog: FloatingDialogItem = {
+        ...request,
+        key,
+        frameId: lastFrameIdRef.current,
+        rect: createInitialFloatingDialogRect(familyCount, INITIAL_DIALOG_SIZES[request.kind]),
+        zIndex: getNextZIndex(current),
+      };
       setDialogsSynced((previous) => [...previous, dialog]);
       return true;
     },
     [setDialogsSynced, t],
+  );
+
+  const switchStationDialog = useCallback(
+    (key: string, target: StationDialogTarget) => {
+      const request: FloatingDialogOpenRequest = { kind: "station", ...target };
+      const targetKey = getDialogKey(request);
+      setDialogsSynced((current) => {
+        const dialog = current.find((item) => item.key === key);
+        if (dialog?.kind !== "station" || key === targetKey) return current;
+
+        if (current.some((item) => item.key === targetKey)) {
+          const zIndex = getNextZIndex(current);
+          return current.filter((item) => item !== dialog).map((item) => (item.key === targetKey ? { ...item, zIndex } : item));
+        }
+
+        const switched: FloatingDialogItem = {
+          ...request,
+          switchedFrom: { id: dialog.id, source: dialog.source, ukeStation: dialog.ukeStation },
+          key: targetKey,
+          frameId: dialog.frameId,
+          rect: dialog.rect,
+          zIndex: dialog.zIndex,
+        };
+        return current.map((item) => (item === dialog ? switched : item));
+      });
+    },
+    [setDialogsSynced],
   );
 
   const openStationDialog = useCallback(
@@ -175,7 +178,10 @@ export function useFloatingDialogStackState() {
     [openDialog],
   );
 
-  const openUkePermitDialog = useCallback((station: UkeStation) => openDialog({ kind: "uke-permit", station }), [openDialog]);
+  const openUkePermitDialog = useCallback(
+    (station: UkeStation) => openDialog({ kind: "station", id: station.id, source: "uke", ukeStation: station }),
+    [openDialog],
+  );
 
   const openRadioLineDialog = useCallback((link: DuplexRadioLink) => openDialog({ kind: "radioline", link }), [openDialog]);
 
@@ -221,6 +227,7 @@ export function useFloatingDialogStackState() {
 
   return {
     dialogs,
+    switchStationDialog,
     openStationDialog,
     openUkePermitDialog,
     openRadioLineDialog,

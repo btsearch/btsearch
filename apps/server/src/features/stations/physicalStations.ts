@@ -38,6 +38,20 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
   return physicalStations;
 }
 
+export async function findPermitHolderStation(permitIds: number[]): Promise<PhysicalStation | null> {
+  if (permitIds.length === 0) return null;
+
+  const [station] = await db
+    .select({ id: stations.id, station_id: stations.station_id, status: stations.status, operator: operators })
+    .from(stationsPermits)
+    .innerJoin(stations, eq(stations.id, stationsPermits.station_id))
+    .innerJoin(operators, eq(operators.id, stations.operator_id))
+    .where(inArray(stationsPermits.permit_id, permitIds))
+    .orderBy(sql`${stations.status} = 'inactive'`, asc(stations.id))
+    .limit(1);
+  return station ?? null;
+}
+
 export async function findPhysicalStation(
   stationId: number,
   locationId: number | undefined,

@@ -1,15 +1,11 @@
 import {
   Alert02Icon,
   Clock01Icon,
-  Globe02Icon,
   Location01Icon,
   MapsLocation01Icon,
-  MountainIcon,
   Note01Icon,
   PencilEdit02Icon,
-  Radar01Icon,
   SignalFull02Icon,
-  Tag01Icon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -27,25 +23,21 @@ import { useFloatingDialogStack } from "@/features/floating-dialogs/components/f
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { RAT_ORDER } from "@/features/shared/rat";
-import { fetchElevation, fetchPemReports, fetchStationPhotos } from "@/features/station-details/api";
+import { fetchStationPhotos } from "@/features/station-details/api";
 import { CellTable } from "@/features/station-details/components/cellTable";
 import { CommentsList } from "@/features/station-details/components/commentsList";
-import { CopyButton } from "@/features/station-details/components/copyButton";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "@/features/station-details/components/extraIdentificators";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { PermitsList } from "@/features/station-details/components/permitsList";
 import { SectorMiniCompass } from "@/features/station-details/components/sectorMiniCompass";
 import { ShareButton } from "@/features/station-details/components/shareButton";
-import { SI2PEMReportsMenu } from "@/features/station-details/components/si2pemReportsMenu";
 import {
   StationDialogActionBar,
   stationDialogInlineActionClassName,
   stationDialogInlineActionLabelClassName,
 } from "@/features/station-details/components/stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
-import { StationInfoItem, stationInfoGroupClassName } from "@/features/station-details/components/stationInfoItem";
-import { StationUplinkItem } from "@/features/station-details/components/stationUplinkItem";
+import { StationInfoGrid } from "@/features/station-details/components/stationInfoCard";
 import { VirtualStationBadge } from "@/features/station-details/components/virtualStationBadge";
 import { WatchButton } from "@/features/station-details/components/watchButton";
 import { stationQueryOptions } from "@/features/station-details/queries";
@@ -57,7 +49,6 @@ import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
-import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
 import type { Station } from "@/types/station";
@@ -98,22 +89,6 @@ function StationPage() {
 
   const userRole = session?.user?.role as string | undefined;
   const isAdmin = userRole === "admin" || userRole === "editor";
-
-  const { data: pemReports } = useQuery({
-    queryKey: ["station-pem", station?.station_id, station?.location.latitude, station?.location.longitude, station?.operator?.mnc],
-    queryFn: () => fetchPemReports(station!.station_id, station!.location.latitude, station!.location.longitude, station!.operator.mnc),
-    staleTime: 1000 * 60 * 60,
-    enabled: !!station?.station_id && !station.physicalStation,
-    retry: false,
-  });
-
-  const { data: elevation } = useQuery({
-    queryKey: ["elevation", station?.location.latitude, station?.location.longitude],
-    queryFn: () => fetchElevation(station!.location.latitude, station!.location.longitude),
-    staleTime: 1000 * 60 * 60 * 24,
-    enabled: !!station?.location && preferences.showElevation,
-    retry: false,
-  });
 
   const { data: photos = [] } = useQuery({
     queryKey: ["station-photos", stationId],
@@ -285,48 +260,14 @@ function StationPage() {
         <aside className="min-w-0 space-y-5 sm:space-y-6 lg:col-start-2">
           <CollapsibleSection title={t("page.info")}>
             <div className="@container space-y-4">
-              <div className={stationInfoGroupClassName}>
-                <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
-                  <span className="font-mono wrap-break-word">
-                    {formatCoordinates(station.location.latitude, station.location.longitude, preferences.gpsFormat)}
-                  </span>
-                  {preferences.navLinksDisplay === "inline" && (
-                    <NavigationLinks latitude={station.location.latitude} longitude={station.location.longitude} displayMode="inline" />
-                  )}
-                  <CopyButton text={`${station.location.latitude}, ${station.location.longitude}`} />
-                </StationInfoItem>
-                <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
-                  <span>{station.location.region?.name || "-"}</span>
-                </StationInfoItem>
-                {elevation !== undefined && (
-                  <StationInfoItem icon={<HugeiconsIcon icon={MountainIcon} className="size-4" />} label={t("common:labels.elevation")}>
-                    <span>{elevation} m</span>
-                  </StationInfoItem>
-                )}
-              </div>
-              <div className={stationInfoGroupClassName}>
-                <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
-                  <span className="font-mono">{station.station_id}</span>
-                  <CopyButton text={station.station_id || ""} />
-                </StationInfoItem>
-                {station.uplink ? <StationUplinkItem uplink={station.uplink} /> : null}
-                {pemReports && pemReports.length > 0 ? (
-                  <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
-                    <SI2PEMReportsMenu
-                      reports={pemReports}
-                      latitude={station.location.latitude}
-                      longitude={station.location.longitude}
-                      operatorName={station.operator.name}
-                      operatorMnc={station.operator.mnc}
-                    />
-                  </StationInfoItem>
-                ) : null}
-              </div>
-              {hasExtraIdentificators(station.extra_identificators) ? (
-                <div className={stationInfoGroupClassName}>
-                  <ExtraIdentificatorsDisplay data={station.extra_identificators} operatorMnc={station.operator?.mnc} />
-                </div>
-              ) : null}
+              <StationInfoGrid
+                stationCode={station.station_id}
+                operator={station.operator}
+                location={station.location}
+                showPemReports={!station.physicalStation}
+                uplink={station.uplink}
+                extraIdentificators={station.extra_identificators}
+              />
               <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                 <Link to="/" hash={mapHash} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />

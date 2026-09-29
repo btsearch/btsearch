@@ -281,6 +281,7 @@ export type UkeStation = {
         updatedAt?: string;
       })
     | null;
+  internalStation?: PhysicalStation | null;
 };
 
 export type CommentAttachment = {

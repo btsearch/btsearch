@@ -64,6 +64,7 @@
     "sourceRadiolines": "Radiolinie",
     "noPermits": "Brak pozwoleń UKE dla tej stacji",
     "permitHolder": "W tej lokalizacji pozwolenie ma stacja",
+    "ukeStation": "Stacja UKE:",
     "decisionTypeP": "Pozwolenie",
     "decisionTypeZmP": "Zmiana Pozwolenia",
     "newPermitTooltip": "To pozwolenie zostało dodane w ciągu ostatnich 30 dni",
@@ -99,6 +100,8 @@
     "btsStation": "Stacja bazowa",
     "showOnMap": "Pokaż na mapie",
     "createStation": "Utwórz stację",
+    "sourceDatabase": "Baza",
+    "sourceUke": "UKE",
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",
     "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych"
   },

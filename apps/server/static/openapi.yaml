@@ -3466,7 +3466,17 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: "#/components/schemas/UkeStationWithLocationAndPermits" }
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/UkeStationWithLocationAndPermits"
+                      - type: object
+                        required: [internalStation]
+                        properties:
+                          internalStation:
+                            description: The station in the database that holds this UKE station's permits, or null when none of its permits are linked to a station
+                            allOf:
+                              - $ref: "#/components/schemas/PhysicalStation"
+                            nullable: true
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }

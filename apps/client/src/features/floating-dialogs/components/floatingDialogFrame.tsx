@@ -36,6 +36,7 @@ export type FloatingDialogRenderProps = {
 type FloatingDialogFrameProps = {
   rect: FloatingDialogRect;
   zIndex: number;
+  contentKey?: string;
   fitHeightToContent?: boolean;
   onFocus: () => void;
   onRectChange: (rect: FloatingDialogRect) => void;
@@ -57,7 +58,15 @@ function isInteractiveTarget(target: EventTarget | null) {
   return target.closest("button,a,input,textarea,select,[role='button']") !== null;
 }
 
-export function FloatingDialogFrame({ rect, zIndex, fitHeightToContent = true, onFocus, onRectChange, children }: FloatingDialogFrameProps) {
+export function FloatingDialogFrame({
+  rect,
+  zIndex,
+  contentKey,
+  fitHeightToContent = true,
+  onFocus,
+  onRectChange,
+  children,
+}: FloatingDialogFrameProps) {
   const { t } = useTranslation("common");
   const isPresent = useIsPresent();
   const reduceMotion = useReducedMotion() === true;
@@ -138,7 +147,7 @@ export function FloatingDialogFrame({ rect, zIndex, fitHeightToContent = true, o
       resizeObserver.disconnect();
       if (frameId !== null) cancelAnimationFrame(frameId);
     };
-  }, [fitDialogToContent, fitHeightToContent]);
+  }, [contentKey, fitDialogToContent, fitHeightToContent]);
 
   const beginInteraction = useCallback(
     (event: ReactPointerEvent<HTMLElement>, mode: FloatingDialogInteractionMode) => {

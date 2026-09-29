@@ -26,8 +26,6 @@ export function getStationHistoryTriggerId(stationId: number): string {
   return `station-history-trigger-${stationId}`;
 }
 
-export type FloatingDialogKind = "station" | "uke-permit" | "radioline" | "si2pem-report" | "station-history";
-
 export type SI2PEMReportDialogPayload = {
   report: PemReport;
   latitude: number;
@@ -43,46 +41,30 @@ export type StationHistoryDialogPayload = {
   operatorMnc?: number | null;
 };
 
-type FloatingDialogItemBase = {
+export type StationDialogTarget = {
+  id: number;
+  source: StationSource;
+  initialTab?: TabId;
+  ukeStation?: UkeStation;
+  switchedFrom?: StationDialogTarget;
+};
+
+export type FloatingDialogOpenRequest =
+  | ({ kind: "station" } & StationDialogTarget)
+  | { kind: "radioline"; link: DuplexRadioLink }
+  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)
+  | ({ kind: "station-history" } & StationHistoryDialogPayload);
+
+export type FloatingDialogKind = FloatingDialogOpenRequest["kind"];
+
+export type FloatingDialogItem = FloatingDialogOpenRequest & {
   key: string;
+  frameId: number;
   rect: FloatingDialogRect;
   zIndex: number;
 };
 
-export type StationFloatingDialogItem = FloatingDialogItemBase & {
-  kind: "station";
-  id: number;
-  source: StationSource;
-  initialTab?: TabId;
-};
-
-export type UkePermitFloatingDialogItem = FloatingDialogItemBase & {
-  kind: "uke-permit";
-  station: UkeStation;
-};
-
-export type RadioLineFloatingDialogItem = FloatingDialogItemBase & {
-  kind: "radioline";
-  link: DuplexRadioLink;
-};
-
-export type SI2PEMReportFloatingDialogItem = FloatingDialogItemBase & SI2PEMReportDialogPayload & { kind: "si2pem-report" };
-
-export type StationHistoryFloatingDialogItem = FloatingDialogItemBase & StationHistoryDialogPayload & { kind: "station-history" };
-
-export type FloatingDialogItem =
-  | StationFloatingDialogItem
-  | UkePermitFloatingDialogItem
-  | RadioLineFloatingDialogItem
-  | SI2PEMReportFloatingDialogItem
-  | StationHistoryFloatingDialogItem;
-
-export type FloatingDialogOpenRequest =
-  | { kind: "station"; id: number; source: StationSource; initialTab?: TabId }
-  | { kind: "uke-permit"; station: UkeStation }
-  | { kind: "radioline"; link: DuplexRadioLink }
-  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)
-  | ({ kind: "station-history" } & StationHistoryDialogPayload);
+export type StationHistoryFloatingDialogItem = Extract<FloatingDialogItem, { kind: "station-history" }>;
 
 export function getTopDialog(dialogs: FloatingDialogItem[]): FloatingDialogItem | undefined {
   let topDialog: FloatingDialogItem | undefined;

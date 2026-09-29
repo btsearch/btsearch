@@ -64,6 +64,7 @@
     "sourceRadiolines": "Microwave links",
     "noPermits": "No UKE permits for this station",
     "permitHolder": "At this location, the permit is held by station",
+    "ukeStation": "UKE station:",
     "decisionTypeP": "Permit",
     "decisionTypeZmP": "Permit Change",
     "newPermitTooltip": "This permit was added in the last 30 days",
@@ -99,6 +100,8 @@
     "btsStation": "Base station",
     "showOnMap": "Show on map",
     "createStation": "Create station",
+    "sourceDatabase": "Database",
+    "sourceUke": "UKE",
     "inactiveStationTitle": "Station marked for deletion",
     "inactiveStationDescription": "This station is no longer active and is pending removal from the database"
   },

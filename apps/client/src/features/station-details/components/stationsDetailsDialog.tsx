@@ -1,24 +1,28 @@
-import { Alert02Icon, Cancel01Icon, Clock01Icon, Note01Icon, PencilEdit02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Alert02Icon, Clock01Icon, Note01Icon, PencilEdit02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { stationQueryOptions } from "../queries";
+import { stationPermitsQueryOptions, stationQueryOptions, ukeStationQueryOptions } from "../queries";
 import type { TabId } from "../tabs";
-import { StationDetailsBody } from "./dialogBody";
-import { DialogOperatorName } from "./dialogOperatorName";
+import { groupPermitsByUkeStation } from "../utils";
+import { StationDetailsBody, StationDetailsError } from "./dialogBody";
 import { MainPhotoPanel } from "./mainPhotoPanel";
+import { PermitsList } from "./permitsList";
 import { ShareButton } from "./shareButton";
-import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
-import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
+import { stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
+import { stationDialogHeaderIconActionClassName, stationDialogPrimaryActionClassName } from "./stationDialogHeaderStyles";
+import { StationDialogHeading, StationDialogHeadingSkeleton, StationDialogShell, StationSourceSwitch } from "./stationDialogShell";
+import { StationInfoCard } from "./stationInfoCard";
+import { UKELogo } from "./ukeLogo";
 import { VirtualStationBadge } from "./virtualStationBadge";
 import { WatchButton } from "./watchButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
-import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
+import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/features/floating-dialogs/types";
 import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
@@ -26,38 +30,62 @@ import type { TerrainProfileStationTarget } from "@/features/terrain-profile/typ
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
-import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { StationSource, UkePermit, UkeStation } from "@/types/station";
 
-type StationDetailsDialogPanelProps = FloatingDialogPanelFrameProps & {
+type StationDialogPanelProps = FloatingDialogPanelFrameProps & {
   stationId: number;
-  source: "internal" | "uke";
-  initialTab?: TabId;
+  switchedFrom?: StationDialogTarget;
   onContentLayoutChange?: () => void;
-  showPhotoPanel?: boolean;
+  onSwitchStation?: (target: StationDialogTarget) => void;
   onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
 };
 
+type StationDetailsDialogPanelProps = StationDialogPanelProps & {
+  source: StationSource;
+  ukeStation?: UkeStation;
+  initialTab?: TabId;
+  showPhotoPanel?: boolean;
+};
+
+const STATION_SOURCE_SWITCH_ENABLED = false;
+
 export function StationDetailsDialogPanel({
-  stationId,
   source,
+  ukeStation,
   initialTab,
-  onClose,
-  className,
-  contentClassName,
-  contentRef,
-  bodyRef,
-  bodyContentRef,
-  onContentLayoutChange,
-  style,
-  headerDragProps,
-  showPhotoPanel = true,
-  onStartTerrainProfile,
+  showPhotoPanel,
+  onSwitchStation,
+  ...panelProps
 }: StationDetailsDialogPanelProps) {
-  const { t, i18n } = useTranslation(["stationDetails", "common"]);
-  const { t: tCommon } = useTranslation("common");
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? (source === "uke" ? "permits" : "specs"));
+  const switchStation = STATION_SOURCE_SWITCH_ENABLED ? onSwitchStation : undefined;
+  if (source === "uke") return <UkeStationDialogPanel placeholder={ukeStation} onSwitchStation={switchStation} {...panelProps} />;
+  return <InternalStationDialogPanel initialTab={initialTab} showPhotoPanel={showPhotoPanel} onSwitchStation={switchStation} {...panelProps} />;
+}
+
+function selectFirstUkeStation(permits: UkePermit[]) {
+  return groupPermitsByUkeStation(permits).at(0);
+}
+
+type InternalStationDialogPanelProps = StationDialogPanelProps & {
+  initialTab?: TabId;
+  showPhotoPanel?: boolean;
+};
+
+function InternalStationDialogPanel({
+  stationId,
+  initialTab,
+  switchedFrom,
+  showPhotoPanel = true,
+  onClose,
+  onContentLayoutChange,
+  onSwitchStation,
+  onStartTerrainProfile,
+  ...frameProps
+}: InternalStationDialogPanelProps) {
+  const { t } = useTranslation(["stationDetails", "common"]);
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "specs");
+  const queryClient = useQueryClient();
   const { openStationDialog, openStationHistoryDialog } = useFloatingDialogStack();
   const { data: settings } = useSettings();
   const { data: session } = authClient.useSession();
@@ -65,185 +93,124 @@ export function StationDetailsDialogPanel({
   const isAdmin = userRole === "admin" || userRole === "editor";
   const { preferences } = usePreferences();
 
-  const { data: station, isLoading, error } = useQuery(stationQueryOptions(stationId, source));
+  const { data: station, isLoading, error } = useQuery(stationQueryOptions(stationId));
+  const { data: linkedUkeStation } = useQuery({
+    ...stationPermitsQueryOptions(stationId),
+    select: selectFirstUkeStation,
+    enabled: onSwitchStation !== undefined,
+  });
 
-  const operatorColor = station ? getOperatorColor(station.operator.mnc) : "#3b82f6";
+  const ukeTarget: StationDialogTarget | undefined = linkedUkeStation
+    ? { source: "uke", id: linkedUkeStation.id, ukeStation: linkedUkeStation }
+    : switchedFrom;
+  const sourceSwitch =
+    onSwitchStation && ukeTarget ? (
+      <StationSourceSwitch
+        source="internal"
+        onSwitch={() => onSwitchStation(ukeTarget)}
+        onPrefetch={() => void queryClient.prefetchQuery(ukeStationQueryOptions(ukeTarget.id))}
+      />
+    ) : null;
   const stationNotes = station?.notes?.trim();
-  const headerDragClassName = headerDragProps?.className;
-  const hasStationActions = !!session?.user || !!onStartTerrainProfile;
   const stationCity = station?.location.city || t("page.unknownLocation");
   const stationAddress = station?.extra_address || station?.location.address;
 
   return (
-    <div className={cn("relative", className)} style={style}>
-      <div
-        ref={contentRef}
-        className={cn(
-          "relative bg-background rounded-2xl shadow-2xl w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden",
-          contentClassName,
-        )}
-      >
-        <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragClassName)}>
-          <div
-            className="relative flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
-          >
-            <div className="flex-1 min-w-0">
-              {isLoading ? (
-                <div className="space-y-2">
-                  <div className="h-5 w-48 bg-muted rounded animate-pulse" />
-                  <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-                </div>
-              ) : station ? (
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
-                    <DialogOperatorName name={station.operator.name} mnc={station.operator.mnc} />
-                    <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{station.station_id}</span>
-                    <VirtualStationBadge station={station} onOpenStation={(id) => openStationDialog(id, "internal")} />
-                    {station.is_confirmed ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                        <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("common:labels.confirmed")}</span>
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">{station.location.city}</p>
-                    {station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
-                  </div>
-                  <p className="text-xs leading-4 text-muted-foreground">
-                    {station.extra_address || station.location.address || t("dialog.btsStation")}
-                  </p>
-                  <div className="flex flex-col items-start pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-                    <Tooltip>
-                      <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] text-muted-foreground/80">
-                        {tCommon("labels.created")}: {formatRelativeTime(station.createdAt, tCommon)}
-                      </TooltipTrigger>
-                      <TooltipContent>{formatFullDate(station.createdAt, i18n.language)}</TooltipContent>
-                    </Tooltip>
-                    <span className="hidden text-[11px] text-muted-foreground/40 sm:inline">·</span>
-                    <time
-                      dateTime={station.updatedAt}
-                      title={formatFullDate(station.updatedAt, i18n.language)}
-                      className="whitespace-nowrap text-[11px] text-muted-foreground/80"
-                    >
-                      {tCommon("labels.updated")}: {formatRelativeTime(station.updatedAt, tCommon)}
-                    </time>
-                  </div>
-                  {source === "internal" || hasStationActions ? (
-                    <StationDialogActionBar>
-                      {source === "internal" ? (
-                        <button
-                          id={getStationHistoryTriggerId(station.id)}
-                          type="button"
-                          aria-haspopup="dialog"
-                          onClick={() =>
-                            openStationHistoryDialog({
-                              stationId: station.id,
-                              stationCode: station.station_id,
-                              operatorName: station.operator.name,
-                              operatorMnc: station.operator.mnc,
-                            })
-                          }
-                          className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}
-                        >
-                          <HugeiconsIcon icon={Clock01Icon} className="size-3.5" />
-                          <span className="whitespace-nowrap text-xs font-medium leading-none">{t("history.action")}</span>
-                        </button>
-                      ) : null}
-                      {hasStationActions ? (
-                        <>
-                          <AddToListPopover
-                            stationId={station.id}
-                            size="md"
-                            className={stationDialogInlineActionClassName}
-                            showLabel
-                            labelClassName={stationDialogInlineActionLabelClassName}
-                            showTooltip={false}
-                          />
-                          <WatchButton
-                            stationId={station.id}
-                            size="md"
-                            className={stationDialogInlineActionClassName}
-                            showLabel
-                            labelClassName={stationDialogInlineActionLabelClassName}
-                            showTooltip={false}
-                          />
-                          {onStartTerrainProfile ? (
-                            <TerrainProfileAnalyzeButton
-                              target={{
-                                source: "internal",
-                                id: station.id,
-                                stationId: station.station_id,
-                                operatorName: station.operator.name,
-                                latitude: station.location.latitude,
-                                longitude: station.location.longitude,
-                              }}
-                              onStart={(target) => {
-                                onStartTerrainProfile(target);
-                                onClose();
-                              }}
-                              size="md"
-                              className={stationDialogInlineActionClassName}
-                              showLabel
-                              labelClassName={stationDialogInlineActionLabelClassName}
-                              showTooltip={false}
-                            />
-                          ) : null}
-                        </>
-                      ) : null}
-                    </StationDialogActionBar>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-            <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
-              {station && (
-                <>
-                  <ShareButton
-                    title={`${station.station_id} (${station.operator.name})`}
-                    text={`${station.station_id} (${station.operator.name}) - ${stationCity}${stationAddress ? ` ${stationAddress}` : ""}`}
-                    url={`${window.location.origin}/stations/${station.id}`}
-                    size="md"
-                    className={stationDialogHeaderIconActionClassName}
-                  />
-                  {isAdmin ? (
-                    <Link
-                      to="/admin/stations/$id"
-                      params={{ id: String(station.id) }}
-                      search={{ uke: undefined }}
-                      className="ml-1 mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                      onClick={onClose}
-                    >
-                      <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                      <span className="hidden sm:inline">{t("common:actions.edit")}</span>
-                    </Link>
-                  ) : (
-                    settings?.submissionsEnabled && (
-                      <Link
-                        to="/submission"
-                        search={{ station: String(station.id) }}
-                        className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                        onClick={onClose}
-                      >
-                        <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                        <span className="hidden sm:inline">{t("common:actions.edit")}</span>
-                      </Link>
-                    )
-                  )}
-                </>
-              )}
-              <button
-                type="button"
+    <StationDialogShell
+      {...frameProps}
+      onClose={onClose}
+      operatorMnc={station?.operator.mnc}
+      sourceSwitch={sourceSwitch}
+      enterFrom={switchedFrom ? "left" : undefined}
+      heading={
+        isLoading ? (
+          <StationDialogHeadingSkeleton />
+        ) : station ? (
+          <StationDialogHeading
+            operatorName={station.operator.name}
+            operatorMnc={station.operator.mnc}
+            stationCode={station.station_id}
+            badges={
+              <>
+                <VirtualStationBadge station={station} onOpenStation={(id) => openStationDialog(id, "internal")} />
+                {station.is_confirmed ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
+                    <span className="hidden sm:inline">{t("common:labels.confirmed")}</span>
+                  </span>
+                ) : null}
+              </>
+            }
+            location={{ city: station.location.city, address: stationAddress || null }}
+            status={station.status ? <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} /> : null}
+            hasSourceSwitch={sourceSwitch !== null}
+            createdAt={station.createdAt}
+            updatedAt={station.updatedAt}
+            actions={
+              <>
+                <button
+                  id={getStationHistoryTriggerId(station.id)}
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() =>
+                    openStationHistoryDialog({
+                      stationId: station.id,
+                      stationCode: station.station_id,
+                      operatorName: station.operator.name,
+                      operatorMnc: station.operator.mnc,
+                    })
+                  }
+                  className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}
+                >
+                  <HugeiconsIcon icon={Clock01Icon} className="size-3.5" />
+                  <span className="whitespace-nowrap text-xs font-medium leading-none">{t("history.action")}</span>
+                </button>
+                <StationDialogActions
+                  source="internal"
+                  id={station.id}
+                  stationCode={station.station_id}
+                  operatorName={station.operator.name}
+                  location={station.location}
+                  onStartTerrainProfile={onStartTerrainProfile}
+                  onClose={onClose}
+                />
+              </>
+            }
+          />
+        ) : null
+      }
+      actions={
+        station ? (
+          <>
+            <ShareButton
+              title={`${station.station_id} (${station.operator.name})`}
+              text={`${station.station_id} (${station.operator.name}) - ${stationCity}${stationAddress ? ` ${stationAddress}` : ""}`}
+              url={`${window.location.origin}/stations/${station.id}`}
+              size="md"
+              className={stationDialogHeaderIconActionClassName}
+            />
+            {isAdmin ? (
+              <Link
+                to="/admin/stations/$id"
+                params={{ id: String(station.id) }}
+                search={{ uke: undefined }}
+                className={stationDialogPrimaryActionClassName}
                 onClick={onClose}
-                onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted [&_svg]:pointer-events-none"
-                aria-label={t("common:actions.close")}
               >
-                <HugeiconsIcon icon={Cancel01Icon} className="size-5 shrink-0" />
-              </button>
-            </div>
-          </div>
+                <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+                <span className="hidden sm:inline">{t("common:actions.edit")}</span>
+              </Link>
+            ) : settings?.submissionsEnabled ? (
+              <Link to="/submission" search={{ station: String(station.id) }} className={stationDialogPrimaryActionClassName} onClick={onClose}>
+                <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+                <span className="hidden sm:inline">{t("common:actions.edit")}</span>
+              </Link>
+            ) : null}
+          </>
+        ) : null
+      }
+      banners={
+        <>
           {stationNotes ? (
             <div className="border-t border-primary/20 bg-primary/8 px-6 py-3 text-primary">
               <div className="flex items-start gap-2.5">
@@ -268,29 +235,221 @@ export function StationDetailsDialogPanel({
               </div>
             </div>
           ) : null}
-        </div>
+        </>
+      }
+      aside={
+        showPhotoPanel && preferences.showStationPhotoPanel ? (
+          <div className="absolute top-0 left-full pl-3 hidden xl:flex h-full max-h-[calc(100dvh-2rem)]">
+            <MainPhotoPanel stationId={stationId} onOpenPhotoTab={() => setActiveTab("photos")} />
+          </div>
+        ) : null
+      }
+    >
+      <StationDetailsBody
+        stationId={stationId}
+        isLoading={isLoading}
+        error={error}
+        station={station}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onClose={onClose}
+        isAdmin={isAdmin}
+        onContentLayoutChange={onContentLayoutChange}
+      />
+    </StationDialogShell>
+  );
+}
 
-        <StationDetailsBody
-          stationId={stationId}
-          source={source}
-          isLoading={isLoading}
-          error={error}
-          station={station}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onClose={onClose}
-          isAdmin={isAdmin}
-          bodyRef={bodyRef}
-          bodyContentRef={bodyContentRef}
-          onContentLayoutChange={onContentLayoutChange}
+type UkeStationDialogPanelProps = StationDialogPanelProps & {
+  placeholder?: UkeStation;
+};
+
+function UkeStationDialogPanel({
+  stationId,
+  placeholder,
+  switchedFrom,
+  onClose,
+  onContentLayoutChange,
+  onSwitchStation,
+  onStartTerrainProfile,
+  ...frameProps
+}: UkeStationDialogPanelProps) {
+  const { t } = useTranslation(["stationDetails", "common"]);
+  const queryClient = useQueryClient();
+  const { data: settings } = useSettings();
+  const { data: session } = authClient.useSession();
+  const userRole = session?.user?.role as string | undefined;
+  const isAdmin = userRole === "admin" || userRole === "editor";
+  const isLoggedIn = !!session?.user;
+
+  const { data, isLoading, error } = useQuery(ukeStationQueryOptions(stationId));
+
+  const station = data ?? placeholder;
+  const operatorName = station?.operator?.name ?? t("main:unknownOperator");
+  const location = station?.location;
+  const internalStation = data?.internalStation;
+  const canCreateStation = !!data && !internalStation;
+  const internalTarget: StationDialogTarget | undefined = internalStation ? { source: "internal", id: internalStation.id } : switchedFrom;
+  const sourceSwitch =
+    onSwitchStation && internalTarget ? (
+      <StationSourceSwitch
+        source="uke"
+        onSwitch={() => onSwitchStation(internalTarget)}
+        onPrefetch={() => {
+          void queryClient.prefetchQuery(stationQueryOptions(internalTarget.id));
+          void queryClient.prefetchQuery(stationPermitsQueryOptions(internalTarget.id));
+        }}
+      />
+    ) : null;
+
+  return (
+    <StationDialogShell
+      {...frameProps}
+      onClose={onClose}
+      operatorMnc={station?.operator?.mnc}
+      sourceSwitch={sourceSwitch}
+      enterFrom={switchedFrom ? "right" : undefined}
+      heading={
+        station ? (
+          <StationDialogHeading
+            operatorName={operatorName}
+            operatorMnc={station.operator?.mnc}
+            stationCode={station.station_id}
+            hasSourceSwitch={sourceSwitch !== null}
+            location={location}
+            createdAt={station.createdAt}
+            updatedAt={station.updatedAt}
+            actions={
+              location && (isLoggedIn || onStartTerrainProfile) ? (
+                <StationDialogActions
+                  source="uke"
+                  id={station.id}
+                  stationCode={station.station_id}
+                  operatorName={operatorName}
+                  location={location}
+                  onStartTerrainProfile={onStartTerrainProfile}
+                  onClose={onClose}
+                />
+              ) : null
+            }
+          />
+        ) : isLoading ? (
+          <StationDialogHeadingSkeleton />
+        ) : null
+      }
+      actions={
+        station ? (
+          <>
+            {location ? (
+              <ShareButton
+                title={`${station.station_id} (${operatorName})`}
+                text={`UKE: ${station.station_id} (${operatorName}) - ${location.city || t("page.unknownLocation")}${location.address ? ` ${location.address}` : ""}`}
+                url={`${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~fu~U${station.id}`}
+                size="md"
+                className={stationDialogHeaderIconActionClassName}
+              />
+            ) : null}
+            {canCreateStation && isAdmin ? (
+              <Link
+                to="/admin/stations/$id"
+                params={{ id: "new" }}
+                search={{ uke: station.station_id }}
+                className={stationDialogPrimaryActionClassName}
+                onClick={onClose}
+              >
+                <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+                <span className="hidden sm:inline">{t("dialog.createStation")}</span>
+              </Link>
+            ) : canCreateStation && isLoggedIn && settings?.submissionsEnabled ? (
+              <Link to="/submission" search={{ uke: station.station_id }} className={stationDialogPrimaryActionClassName} onClick={onClose}>
+                <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+                <span className="hidden sm:inline">{t("dialog.createStation")}</span>
+              </Link>
+            ) : null}
+          </>
+        ) : null
+      }
+    >
+      {station ? (
+        <div className="px-3 py-4 space-y-6 sm:p-6 sm:space-y-8">
+          <StationInfoCard
+            source="uke"
+            stationCode={station.station_id}
+            operator={{ name: operatorName, mnc: station.operator?.mnc }}
+            location={location}
+            onClose={onClose}
+            onLayoutChange={onContentLayoutChange}
+          />
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t("tabs.permits")}</h3>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help opacity-60 transition-opacity hover:opacity-100">
+                  <UKELogo className="h-3" />
+                  <span className="sr-only">UKE</span>
+                </TooltipTrigger>
+                <TooltipContent>{t("permits.sourceUke")}</TooltipContent>
+              </Tooltip>
+            </div>
+            <PermitsList permits={station.permits} />
+          </section>
+        </div>
+      ) : isLoading ? (
+        <div className="px-3 py-4 sm:p-6">
+          <PermitsList permits={[]} isExternalLoading />
+        </div>
+      ) : error ? (
+        <StationDetailsError error={error} />
+      ) : null}
+    </StationDialogShell>
+  );
+}
+
+type StationDialogActionsProps = {
+  source: StationSource;
+  id: number;
+  stationCode: string;
+  operatorName: string;
+  location: { latitude: number; longitude: number };
+  onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
+  onClose: () => void;
+};
+
+function StationDialogActions({ source, id, stationCode, operatorName, location, onStartTerrainProfile, onClose }: StationDialogActionsProps) {
+  return (
+    <>
+      <AddToListPopover
+        stationId={source === "internal" ? id : undefined}
+        ukeStationId={source === "uke" ? id : undefined}
+        size="md"
+        className={stationDialogInlineActionClassName}
+        showLabel
+        labelClassName={stationDialogInlineActionLabelClassName}
+        showTooltip={false}
+      />
+      <WatchButton
+        stationId={id}
+        source={source}
+        size="md"
+        className={stationDialogInlineActionClassName}
+        showLabel
+        labelClassName={stationDialogInlineActionLabelClassName}
+        showTooltip={false}
+      />
+      {onStartTerrainProfile ? (
+        <TerrainProfileAnalyzeButton
+          target={{ source, id, stationId: stationCode, operatorName, latitude: location.latitude, longitude: location.longitude }}
+          onStart={(target) => {
+            onStartTerrainProfile(target);
+            onClose();
+          }}
+          size="md"
+          className={stationDialogInlineActionClassName}
+          showLabel
+          labelClassName={stationDialogInlineActionLabelClassName}
+          showTooltip={false}
         />
-      </div>
-
-      {source === "internal" && showPhotoPanel && preferences.showStationPhotoPanel && (
-        <div className="absolute top-0 left-full pl-3 hidden xl:flex h-full max-h-[calc(100dvh-2rem)]">
-          <MainPhotoPanel stationId={stationId} onOpenPhotoTab={() => setActiveTab("photos")} />
-        </div>
-      )}
-    </div>
+      ) : null}
+    </>
   );
 }

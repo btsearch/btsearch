@@ -52,6 +52,7 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
         onClose={stack.closeDialog}
         onFocus={stack.focusDialog}
         onRectChange={stack.updateDialogRect}
+        onSwitchStation={stack.switchStationDialog}
         onStartTerrainProfile={terrainProfileStartHandler}
       />
     </FloatingDialogStackContext.Provider>

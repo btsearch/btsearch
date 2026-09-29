@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { findPermitHolderStation, physicalStationSchema } from "../../../../../features/stations/physicalStations.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -35,6 +36,7 @@ const stationResponseSchema = ukeStationsSchema.extend({
   operator: operatorsSchema.nullable(),
   location: ukeLocationsSchema.extend({ region: regionsSchema }),
   permits: z.array(permitResponseSchema),
+  internalStation: physicalStationSchema.nullable(),
 });
 
 const responseSchema = z.object({
@@ -99,6 +101,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     });
     if (!station) throw new ErrorResponse("NOT_FOUND");
 
+    const internalStation = await findPermitHolderStation(station.permits.map((permit) => permit.id));
     const data = {
       ...station,
       createdAt: iso(station.createdAt),
@@ -114,6 +117,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
         createdAt: iso(permit.createdAt),
         updatedAt: iso(permit.updatedAt),
       })),
+      internalStation,
     } satisfies StationData;
 
     return res.send({ data });

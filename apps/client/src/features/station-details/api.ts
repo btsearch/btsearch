@@ -59,6 +59,8 @@ export const fetchStationHistory = (stationId: number, cursor: number | null, si
     { signal },
   );
 export const fetchUkeStation = (id: number) => fetchApiData<UkeStation>(`uke/stations/${id}`);
+export const fetchStationPermits = (stationId: number) =>
+  fetchApiData<UkePermit[]>(`stations/${stationId}/permits`, { allowedErrors: [404] }).then((permits) => permits ?? []);
 export const fetchUkePermit = (id: string) => fetchApiData<UkePermit[]>(`uke/permits?station_id=${id}`, { proto: UKEPermitsResponseSchema });
 export const fetchStationWatch = (stationId: number, source: "internal" | "uke" = "internal") =>
   fetchApiData<{ watched: boolean }>(source === "uke" ? `uke/stations/${stationId}/watch` : `stations/${stationId}/watch`);
