@@ -1,3 +1,4 @@
+import { normalizeStationId } from "@openbts/shared/stationId";
 import readline from "node:readline";
 import XLSX from "xlsx";
 
@@ -77,7 +78,7 @@ export async function readMnoNamesFromDeviceRegistryFile(spec: FileSpec): Promis
     const cells = parseCsvLine(line);
     if (cells.every((cell) => !cell || cell.trim() === "")) continue;
 
-    const stationId = (cells[worksheet.columns.stationId] ?? "").trim();
+    const stationId = normalizeStationId(cells[worksheet.columns.stationId] ?? "");
     const mnoName = (cells[worksheet.columns.mnoName] ?? "").trim();
     if (!stationId || !mnoName) continue;
 

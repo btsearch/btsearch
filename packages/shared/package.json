@@ -40,6 +40,10 @@
     "./seo": {
       "types": "./src/seo.ts",
       "default": "./dist/src/seo.js"
+    },
+    "./stationId": {
+      "types": "./src/stationId.ts",
+      "default": "./dist/src/stationId.js"
     }
   },
   "scripts": {

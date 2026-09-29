@@ -1,3 +1,4 @@
+import { normalizeStationId } from "@openbts/shared/stationId";
 import readline from "node:readline";
 import XLSX from "xlsx";
 
@@ -85,7 +86,7 @@ export async function processOperatorFile(
       continue;
     }
 
-    const stationId = (cells[columns.stationId] ?? "").trim();
+    const stationId = normalizeStationId(cells[columns.stationId] ?? "");
     if (!stationId) {
       logger.warn(`Missing station ID in row ${rowCount} for operator ${operatorKey}`);
       continue;

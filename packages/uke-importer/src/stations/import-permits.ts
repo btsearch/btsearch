@@ -1,4 +1,5 @@
 import { deletedEntries, operators, ukePermits, ukeStations } from "@openbts/drizzle";
+import { normalizeStationId } from "@openbts/shared/stationId";
 import { and, eq, lt } from "drizzle-orm";
 /* eslint-disable no-await-in-loop */
 import path from "node:path";
@@ -166,7 +167,7 @@ async function insertUkePermits(
 
       return {
         station: {
-          station_id: String(row.IdStacji || "").trim(),
+          station_id: normalizeStationId(String(row.IdStacji || "")),
           operator_id: operatorId,
           location_id: locationId,
           createdAt: fileDate,
