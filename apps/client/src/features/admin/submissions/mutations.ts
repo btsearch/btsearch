@@ -1,6 +1,7 @@
 import { type QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
+import { createConservativeStationImpact, invalidateStationUpdateQueries } from "@/features/admin/stations/queries";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
 import type { LocationPayload, SectorPayload, StationPayload } from "@/features/submissions/types";
 import { sectorAssignmentPayload } from "@/features/submissions/utils/cells";
@@ -66,7 +67,7 @@ export function useSaveSubmissionMutation() {
 export function useApproveSubmissionMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ submissionId, reviewNotes }: { submissionId: string; reviewNotes: string }) => {
+    mutationFn: async ({ submissionId, reviewNotes }: { submissionId: string; reviewNotes: string; stationId: number | null }) => {
       return fetchJson(`${API_BASE}/submissions/${submissionId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +76,7 @@ export function useApproveSubmissionMutation() {
     },
     onSuccess: (_data, payload) => {
       invalidateSubmissionQueries(queryClient, payload.submissionId);
+      invalidateStationUpdateQueries(queryClient, createConservativeStationImpact(payload.stationId), { conservative: true });
     },
   });
 }

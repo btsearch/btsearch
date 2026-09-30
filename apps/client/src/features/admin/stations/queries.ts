@@ -4,7 +4,7 @@ import { fetchApiData } from "@/lib/api";
 import type { Station } from "@/types/station";
 
 export type StationUpdateImpact = {
-  stationId: number;
+  stationId: number | null;
   oldLocationId: number | null;
   newLocationId: number | null;
   stationMetadataChanged: boolean;
@@ -17,7 +17,7 @@ export type StationUpdateImpact = {
   uplinkChanged: boolean;
 };
 
-export function createConservativeStationImpact(stationId: number): StationUpdateImpact {
+export function createConservativeStationImpact(stationId: number | null): StationUpdateImpact {
   return {
     stationId,
     oldLocationId: null,
@@ -95,10 +95,12 @@ export function invalidateStationUpdateQueriesBatch(
     const stationListingChanged =
       impact.stationMetadataChanged || impact.locationMetadataChanged || impact.locationMoved || impact.cellsChanged || impact.uplinkChanged;
 
-    if (stationDetailChanged) stationDetailIds.add(impact.stationId);
-    if (impact.locationMetadataChanged) locationMetadataStationIds.add(impact.stationId);
+    if (impact.stationId !== null) {
+      if (stationDetailChanged) stationDetailIds.add(impact.stationId);
+      if (impact.locationMetadataChanged) locationMetadataStationIds.add(impact.stationId);
+      if (conservative || impact.locationMoved) stationPhotoIds.add(impact.stationId);
+    }
     if (stationListingChanged) for (const locationId of impactLocationIds) locationIds.add(locationId);
-    if (conservative || impact.locationMoved) stationPhotoIds.add(impact.stationId);
     if (impact.locationMoved) for (const locationId of impactLocationIds) locationPhotoIds.add(locationId);
     stationMetadataChanged ||= impact.stationMetadataChanged;
     locationMetadataChanged ||= impact.locationMetadataChanged;
@@ -135,7 +137,7 @@ export function invalidateStationUpdateQueriesBatch(
   if (!locationMetadataChanged)
     for (const stationId of stationDetailIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station-for-submission", stationId] }));
 
-  if (stationDetailIds.size > 0)
+  if (stationDataChanged || sectorsChanged)
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: ["admin", "audit-operations"] }),
       queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "audit-operations"] }),

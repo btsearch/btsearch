@@ -1,8 +1,9 @@
-import { Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +38,7 @@ type SubmissionDetailHeaderProps = {
   operator: Operator | null;
   isReadOnly: boolean;
   isProcessing: boolean;
+  hasUnsavedChanges: boolean;
   onApprove: () => void;
   onReject: () => void;
   onSave: () => void;
@@ -48,6 +50,7 @@ export function SubmissionDetailHeader({
   operator,
   isReadOnly,
   isProcessing,
+  hasUnsavedChanges,
   onApprove,
   onReject,
   onSave,
@@ -110,6 +113,12 @@ export function SubmissionDetailHeader({
                 <AlertDialogTitle>{t("rejectApproveCard.confirmApprove")}</AlertDialogTitle>
                 <AlertDialogDescription>{t("rejectApproveCard.confirmApproveDesc")}</AlertDialogDescription>
               </AlertDialogHeader>
+              {hasUnsavedChanges ? (
+                <Alert className="border-yellow-600/30 bg-yellow-300/15 text-yellow-800 dark:border-yellow-400/30 dark:bg-yellow-400/12 dark:text-yellow-300">
+                  <HugeiconsIcon icon={Alert02Icon} aria-hidden="true" />
+                  <AlertDescription className="text-current">{t("rejectApproveCard.confirmApproveUnsaved")}</AlertDescription>
+                </Alert>
+              ) : null}
               <AlertDialogFooter>
                 <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
                 <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onApprove} disabled={isProcessing}>

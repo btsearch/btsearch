@@ -45,6 +45,7 @@ import {
 } from "@/features/submissions/utils/proposalChanges";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { ApiResponseError, fetchApiData, showApiError } from "@/lib/api";
+import { shallowEqual } from "@/lib/shallowEqual";
 import { cn } from "@/lib/utils";
 import type { Band, Cell, Sector, SectorDraft, Station, UplinkType } from "@/types/station";
 
@@ -186,6 +187,19 @@ function getChangedDetailKeys(oldDetails: Record<string, unknown>, newDetails: R
   return changedKeys;
 }
 
+function haveSectorsChanged(sectors: SectorDraft[], saved: SectorDraft[]): boolean {
+  return (
+    sectors.length !== saved.length ||
+    sectors.some((sector, index) => sector._localId !== saved[index]?._localId || sector.azimuth !== saved[index]?.azimuth)
+  );
+}
+
+function haveCellsChanged(cells: LocalCell[], saved: LocalCell[]): boolean {
+  if (cells.length !== saved.length) return true;
+  const savedCells = new Set(saved);
+  return cells.some((cell) => !savedCells.has(cell));
+}
+
 function BackToSubmissionsButton({ variant }: { variant: "default" | "outline" }) {
   const { t } = useTranslation("common");
 
@@ -200,36 +214,42 @@ function BackToSubmissionsButton({ variant }: { variant: "default" | "outline" }
 function SubmissionDetailPage() {
   const { id } = Route.useParams();
   const { t } = useTranslation("submissions");
+  const [mountedAt] = useState(Date.now);
 
   const {
     data: submission,
+    dataUpdatedAt: submissionUpdatedAt,
     error,
-    isLoading,
-    isPaused,
     isFetching,
+    isFetchedAfterMount: isSubmissionFetchedAfterMount,
     refetch,
   } = useQuery({
     queryKey: ["admin", "submission", id],
     queryFn: () => fetchApiData<SubmissionDetail>(`submissions/${id}`),
     enabled: !!id,
+    staleTime: 0,
   });
 
   const {
     data: currentStation,
-    isError: isCurrentStationError,
+    dataUpdatedAt: currentStationUpdatedAt,
     isFetching: isFetchingCurrentStation,
+    isFetchedAfterMount: isCurrentStationFetchedAfterMount,
     refetch: refetchCurrentStation,
   } = useQuery({
     queryKey: ["station", submission?.station?.id],
     queryFn: () => fetchApiData<Station>(`stations/${submission?.station?.id}`),
     enabled: !!submission?.station?.id && (submission?.type === "update" || submission?.type === "delete"),
-    staleTime: 1000 * 60 * 30,
+    staleTime: 0,
   });
 
   const needsCurrentStation = submission && (submission.type === "update" || submission.type === "delete") && submission.station?.id;
-  const isReady = submission && (!needsCurrentStation || currentStation);
+  const isSubmissionFresh = submission !== undefined && submissionUpdatedAt >= mountedAt;
+  const isCurrentStationFresh = currentStation !== undefined && currentStationUpdatedAt >= mountedAt;
+  const isSubmissionPending = !isSubmissionFresh && !isSubmissionFetchedAfterMount;
+  const isCurrentStationPending = needsCurrentStation && !isCurrentStationFresh && !isCurrentStationFetchedAfterMount;
 
-  if (isLoading || (isPaused && !submission) || (submission && !isReady && !isCurrentStationError)) {
+  if (isSubmissionPending || isCurrentStationPending) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background">
@@ -263,7 +283,7 @@ function SubmissionDetailPage() {
     );
   }
 
-  if (!submission) {
+  if (!isSubmissionFresh) {
     const isNotFound = !error || (error instanceof ApiResponseError && error.status === 404);
 
     return isNotFound ? (
@@ -279,7 +299,7 @@ function SubmissionDetailPage() {
     );
   }
 
-  if (!isReady) {
+  if (needsCurrentStation && !isCurrentStationFresh) {
     return (
       <PageErrorState
         title={t("stationDetails:page.stationUnavailableTitle")}
@@ -291,12 +311,13 @@ function SubmissionDetailPage() {
     );
   }
 
-  return <SubmissionDetailForm key={submission.id} submission={submission} currentStation={currentStation ?? null} />;
+  return <SubmissionDetailForm key={submission.id} submission={submission} initialStation={currentStation ?? null} />;
 }
 
-function SubmissionDetailForm({ submission, currentStation }: { submission: SubmissionDetail; currentStation: Station | null }) {
+function SubmissionDetailForm({ submission, initialStation }: { submission: SubmissionDetail; initialStation: Station | null }) {
   const { t } = useTranslation(["submissions", "common"]);
   const queryClient = useQueryClient();
+  const [currentStation] = useState(initialStation);
 
   const [reviewNotes, setReviewNotes] = useState(submission.review_notes ?? "");
   const initialUpdatedAt = useRef(submission.updatedAt);
@@ -394,6 +415,15 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
     operatorMnc: selectedOperator?.mnc ?? null,
   });
 
+  const [savedForm, setSavedForm] = useState(() => ({ stationForm, extraForm, uplinkForm, locationForm, sectors, cells: localCells }));
+  const hasUnsavedChanges =
+    !shallowEqual(stationForm, savedForm.stationForm) ||
+    !shallowEqual(extraForm, savedForm.extraForm) ||
+    !shallowEqual(uplinkForm, savedForm.uplinkForm) ||
+    !shallowEqual(locationForm, savedForm.locationForm) ||
+    haveSectorsChanged(sectors, savedForm.sectors) ||
+    haveCellsChanged(localCells, savedForm.cells);
+
   const isProcessing = isSaving || isApproving || isRejecting;
 
   const checkStaleness = useCallback(async (): Promise<boolean> => {
@@ -437,6 +467,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onSuccess: (response) => {
           const updatedAt = (response as { data?: { updatedAt?: string } })?.data?.updatedAt;
           if (updatedAt) initialUpdatedAt.current = updatedAt;
+          setSavedForm({ stationForm, extraForm, uplinkForm, locationForm, sectors, cells: localCells });
           toast.success(t("toast.saved"));
         },
         onError: (error) => showApiError(error),
@@ -466,7 +497,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
   const handleApprove = useCallback(async () => {
     if (await checkStaleness()) return;
     approveSubmission(
-      { submissionId: submission.id, reviewNotes },
+      { submissionId: submission.id, reviewNotes, stationId: submission.station?.id ?? null },
       {
         onSuccess: () => {
           toast.success(t("toast.approved"));
@@ -475,7 +506,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         onError: (error) => showApiError(error),
       },
     );
-  }, [approveSubmission, checkStaleness, reviewNotes, submission.id, t]);
+  }, [approveSubmission, checkStaleness, reviewNotes, submission.id, submission.station?.id, t]);
 
   const handleReject = useCallback(async () => {
     if (await checkStaleness()) return;
@@ -633,6 +664,7 @@ function SubmissionDetailForm({ submission, currentStation }: { submission: Subm
         operator={selectedOperator ?? currentOperator}
         isReadOnly={isReadOnly}
         isProcessing={isProcessing}
+        hasUnsavedChanges={hasUnsavedChanges}
         onApprove={handleApprove}
         onReject={handleReject}
         onSave={handleSave}

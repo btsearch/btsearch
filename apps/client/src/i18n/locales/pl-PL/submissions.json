@@ -38,7 +38,8 @@
     "confirmReject": "Czy na pewno chcesz odrzucić to zgłoszenie?",
     "confirmRejectDesc": "Tej operacji nie można cofnąć. Stacja nie zostanie dodana do bazy danych",
     "confirmApprove": "Czy na pewno chcesz zatwierdzić to zgłoszenie?",
-    "confirmApproveDesc": "Tej operacji nie można cofnąć. Stacja zostanie dodana do bazy danych, a zgłoszenie oznaczone jako zatwierdzone"
+    "confirmApproveDesc": "Tej operacji nie można cofnąć. Stacja zostanie dodana do bazy danych, a zgłoszenie oznaczone jako zatwierdzone",
+    "confirmApproveUnsaved": "Masz niezapisane zmiany. Zapisz je przed zatwierdzeniem, inaczej zostaną utracone"
   },
   "deletionBanner": "To zgłoszenie dotyczy usunięcia stacji {{stationId}}. Po zatwierdzeniu stacja zostanie oznaczona jako nieaktywna",
   "adminTitle": "Zarządzanie zgłoszeniami",

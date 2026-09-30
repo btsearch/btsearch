@@ -38,7 +38,8 @@
     "confirmReject": "Are you sure you want to reject this submission?",
     "confirmRejectDesc": "This can't be undone. The station won't be added to the database",
     "confirmApprove": "Are you sure you want to approve this submission?",
-    "confirmApproveDesc": "This can't be undone. The station will be added to the database and the submission marked as approved"
+    "confirmApproveDesc": "This can't be undone. The station will be added to the database and the submission marked as approved",
+    "confirmApproveUnsaved": "You have unsaved changes. Save them before approving, or they'll be lost"
   },
   "deletionBanner": "This submission requests deletion of station {{stationId}}. If approved, the station will be marked as inactive",
   "adminTitle": "Submission management",

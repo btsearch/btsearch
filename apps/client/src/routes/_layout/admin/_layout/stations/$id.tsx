@@ -88,24 +88,27 @@ function sectorsMatchDrafts(drafts: SectorDraft[], station: Station | undefined)
 function AdminStationDetailPage() {
   const { id } = Route.useParams();
   const { uke } = Route.useSearch();
+  const [mountedAt] = useState(Date.now);
 
   const isCreateMode = id === "new";
 
   const {
     data: station,
+    dataUpdatedAt,
     error,
-    isLoading,
-    isPaused,
     isFetching,
+    isFetchedAfterMount,
     refetch,
   } = useQuery({
     ...adminStationQueryOptions(id),
     enabled: !!id && !isCreateMode,
+    staleTime: 0,
   });
 
   const { t } = useTranslation("admin");
+  const isStationFresh = station !== undefined && dataUpdatedAt >= mountedAt;
 
-  if (!isCreateMode && (isLoading || (isPaused && !station))) {
+  if (!isCreateMode && !isStationFresh && !isFetchedAfterMount) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background">
@@ -135,7 +138,7 @@ function AdminStationDetailPage() {
     );
   }
 
-  if (!isCreateMode && !station) {
+  if (!isCreateMode && !isStationFresh) {
     const isNotFound = !error || (error instanceof ApiResponseError && error.status === 404);
     const backButton = (
       <Button variant={isNotFound ? "default" : "outline"} nativeButton={false} render={<Link to="/admin/stations" />}>
@@ -309,6 +312,7 @@ function StationDetailForm({
   const { t } = useTranslation("stations");
   const queryClient = useQueryClient();
 
+  const [originalStation, setOriginalStation] = useState(station);
   const [formState, dispatch] = useReducer(formReducer, station, getInitialFormState);
   const {
     stationId,
@@ -550,7 +554,7 @@ function StationDetailForm({
         localCells,
         sectors,
         deletedServerCellIds,
-        originalStation: station,
+        originalStation,
         networksId: networksId ?? undefined,
         networksName: networksName || undefined,
         mnoName: mnoName || undefined,
@@ -593,7 +597,8 @@ function StationDetailForm({
           void queryClient
             .query(adminStationQueryOptions(result.stationId))
             .then((fresh) => {
-              dispatch({ type: "CLEAR_DELETED" });
+              setOriginalStation(fresh);
+              dispatch({ type: "LOAD_STATION", payload: fresh });
               setLocalCells(sortAndMapCells(fresh.cells));
               const freshRats = new Set(fresh.cells.map((c) => c.rat));
               setEnabledRats(RAT_ORDER.filter((r) => freshRats.has(r)));
@@ -603,6 +608,11 @@ function StationDetailForm({
         },
         onError: (error) => {
           showApiError(error);
+          if (originalStation)
+            void queryClient
+              .query(adminStationQueryOptions(originalStation.id))
+              .then(setOriginalStation)
+              .catch(() => undefined);
         },
       },
     );
@@ -617,6 +627,7 @@ function StationDetailForm({
       return;
     }
     if (!station) return;
+    setOriginalStation(station);
     dispatch({ type: "LOAD_STATION", payload: station });
     const existingRats = new Set(station.cells.map((c) => c.rat));
     setEnabledRats(RAT_ORDER.filter((r) => existingRats.has(r)));
@@ -624,14 +635,14 @@ function StationDetailForm({
     setSectors(toSectorDrafts(station.sectors));
   };
 
-  const originalCells = useMemo(() => station?.cells ?? [], [station]);
+  const originalCells = useMemo(() => originalStation?.cells ?? [], [originalStation]);
   const originalCellsById = useMemo(() => new Map(originalCells.map((cell) => [cell.id, cell])), [originalCells]);
   const deletedServerCellIdSet = useMemo(() => new Set(deletedServerCellIds), [deletedServerCellIds]);
-  const initial = useMemo(() => getInitialFormState(station), [station]);
+  const initial = useMemo(() => getInitialFormState(originalStation), [originalStation]);
 
   const hasChanges = useMemo(() => {
     if (isCreateMode) return true;
-    if (!station) return false;
+    if (!originalStation) return false;
 
     if (stationId !== initial.stationId) return true;
     if (operatorId !== initial.operatorId) return true;
@@ -648,14 +659,14 @@ function StationDetailForm({
     if (formState.uplinkType !== initial.uplinkType) return true;
     if (formState.uplinkSpeed !== initial.uplinkSpeed) return true;
     if (formState.uplinkModel !== initial.uplinkModel) return true;
-    if (!sectorsMatchDrafts(sectors, station)) return true;
+    if (!sectorsMatchDrafts(sectors, originalStation)) return true;
     for (const lc of localCells) {
       if (getLocalCellDiffStatus(lc, originalCells) !== "unchanged") return true;
     }
     return false;
   }, [
     isCreateMode,
-    station,
+    originalStation,
     initial,
     stationId,
     operatorId,
