@@ -14,7 +14,7 @@ const UKE_OPERATOR_NAME_MAP: Record<string, string> = {
   "tatrzańskie ochotnicze pogotowie ratunkowe": "TOPR",
 };
 
-export async function upsertRegions(items: Array<{ name: string; code: string }>): Promise<Map<string, number>> {
+export async function upsertRegions(items: { name: string; code: string }[]): Promise<Map<string, number>> {
   const unique = Array.from(new Map(items.filter((i) => i.name && i.code).map((i) => [i.name, i])).values());
   if (!unique.length) return new Map();
 
@@ -34,9 +34,9 @@ export async function upsertRegions(items: Array<{ name: string; code: string }>
 }
 
 export async function upsertBands(
-  keys: Array<{ rat: (typeof ratEnum.enumValues)[number]; value: number; variant: (typeof BandVariant.enumValues)[number] }>,
+  keys: { rat: (typeof ratEnum.enumValues)[number]; value: number; variant: (typeof BandVariant.enumValues)[number] }[],
 ): Promise<Map<string, number>> {
-  const unique: Array<{ rat: (typeof ratEnum.enumValues)[number]; value: number; variant: (typeof BandVariant.enumValues)[number] }> = [];
+  const unique: { rat: (typeof ratEnum.enumValues)[number]; value: number; variant: (typeof BandVariant.enumValues)[number] }[] = [];
   const seen = new Set<string>();
   for (const k of keys) {
     if (k.rat === "NR" && k.value === 3600) k.value = 3500;
@@ -147,7 +147,7 @@ export async function upsertUkeOperators(rawNames: string[]): Promise<Map<string
 }
 
 export async function upsertUkeLocations(
-  items: Array<{ regionName: string; city: string | null; address: string | null; lon: number; lat: number }>,
+  items: { regionName: string; city: string | null; address: string | null; lon: number; lat: number }[],
   regionIds: Map<string, number>,
 ): Promise<Map<string, number>> {
   const uniq: typeof items = [];

@@ -164,7 +164,7 @@ async function handleInactiveStationsMode(
   mncs: number[] | undefined,
   stationId: string | undefined,
   operatorName: string | undefined,
-  regionRow: typeof regions.$inferSelect | undefined,
+  regionRow: z.infer<typeof regionSchema> | undefined,
 ): Promise<ResBody> {
   const terytPrefix = regionRow ? VOIVODESHIP_TO_TERYT_PREFIX[regionRow.name] : undefined;
   if (regionRow && terytPrefix === undefined) return { totalCount: 0, data: [] };

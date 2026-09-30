@@ -249,11 +249,9 @@ export function useCellDrafts<T extends CellDraftBase>({
   const deleteCellFn = useCallback(
     (localId: string) => {
       if (disabled) return;
-      setCells((prev) => {
-        const cell = prev.find((c) => c._localId === localId);
-        if (cell && onDelete) onDelete(cell);
-        return prev.filter((c) => c._localId !== localId);
-      });
+      const cell = cellsRef.current.find((c) => c._localId === localId);
+      if (cell && onDelete) onDelete(cell);
+      setCells((prev) => prev.filter((c) => c._localId !== localId));
     },
     [disabled, onDelete],
   );

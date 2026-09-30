@@ -1,6 +1,7 @@
 import type { MultipartFile } from "@fastify/multipart";
 import { attachments, submissionLocationPhotoSelections, submissionPhotos } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -13,6 +14,8 @@ import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
 import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
 import { extractExifDate, parseTakenAt } from "../../../../../utils/photoTakenAt.js";
+
+const attachmentInsertSchema = createInsertSchema(attachments);
 
 const MAX_PHOTOS_PER_SUBMISSION = 10;
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -37,7 +40,7 @@ const schemaRoute = {
 type ReqParams = { Params: { id: string } };
 type RequestData = ReqParams;
 type PendingPhoto = {
-  attachment: typeof attachments.$inferInsert;
+  attachment: z.infer<typeof attachmentInsertSchema>;
   attachmentUuid: string;
   note: string | null;
   takenAt: Date | null;

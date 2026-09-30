@@ -1,8 +1,11 @@
 import { stationUplinks, type stations } from "@openbts/drizzle";
 import { inArray, sql } from "drizzle-orm";
+import { createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
-export type UplinkType = typeof stationUplinks.$inferSelect.type;
+const stationUplinkSelectSchema = createSelectSchema(stationUplinks);
+
+export type UplinkType = z.infer<typeof stationUplinkSelectSchema>["type"];
 
 export const uplinkSpeedSchema = z.int().min(1).max(2147483647);
 

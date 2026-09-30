@@ -21,7 +21,7 @@ export async function patchCell(stationId: number, cellId: number, body: Record<
 
 export async function patchCells(
   stationId: number,
-  cellsData: Array<{ cell_id: number } & Record<string, unknown>>,
+  cellsData: ({ cell_id: number } & Record<string, unknown>)[],
   auditOperation?: AuditOperationHandle,
 ) {
   return fetchJson<{ data: Cell[] }>(`${API_BASE}/stations/${stationId}/cells`, {

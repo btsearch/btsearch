@@ -1,7 +1,6 @@
 import { POLAND_BOUNDS } from "./constants";
-import type { OSMResult } from "./types";
 import { postApiData } from "@/lib/api";
-import { forwardGeocode } from "@/lib/geo/geocoding";
+import { type GeocodingSearchResponse, searchPlaces } from "@/lib/geo/geocoding";
 import type { Location, Operator, Station } from "@/types/station";
 
 const GPS_REGEX = /([+-]?\d+\.\d+)[,\s]+\s*([+-]?\d+\.\d+)/;
@@ -72,8 +71,7 @@ export type UkeSearchResult = {
 
 export const searchUkePermits = (query: string) => postApiData<UkeSearchResult, { query: string }>("uke/search", { query });
 
-export async function searchLocations(query: string): Promise<OSMResult[]> {
-  if (query.length < 3) return [];
-  const results = await forwardGeocode(query);
-  return results.slice(0, 5);
+export async function searchLocations(query: string, signal?: AbortSignal): Promise<GeocodingSearchResponse> {
+  if (query.trim().length < 3) return { source: null, results: [] };
+  return searchPlaces(query, signal);
 }

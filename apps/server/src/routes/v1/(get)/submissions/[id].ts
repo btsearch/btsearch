@@ -77,7 +77,7 @@ type Submission = z.infer<typeof submissionsSchema> & {
   submitter: z.infer<typeof userSchema> | null;
   reviewer: z.infer<typeof userSchema> | null;
   sectors: z.infer<typeof proposedSectorsSchema>[];
-  cells: Array<z.infer<typeof proposedCellsSchema> & { details: z.infer<typeof proposedDetailsSchema> }>;
+  cells: (z.infer<typeof proposedCellsSchema> & { details: z.infer<typeof proposedDetailsSchema> })[];
   locationPhotoSelections: LocationPhotoSelection[];
   locationPhotoRemovalSelections: LocationPhotoDetails[];
 };

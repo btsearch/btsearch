@@ -31,6 +31,7 @@ import {
   type UkeStation,
   type UplinkType,
 } from "@/types/station";
+
 type StationStatusOption = { status: StationStatus; icon: IconSvgElement };
 
 const STATION_STATUS_OPTIONS: StationStatusOption[] = [
@@ -133,7 +134,7 @@ export const StationInfoForm = memo(function StationInfoForm({
   const trimmedStationId = stationId.trim();
   const { latitude, longitude } = location;
 
-  const selectedStatusOption = status ? STATION_STATUS_OPTIONS.find((option) => option.status === status) : undefined;
+  const selectedStatusOption = STATION_STATUS_OPTIONS.find((option) => option.status === status);
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
 
@@ -144,9 +145,8 @@ export const StationInfoForm = memo(function StationInfoForm({
   }, [stationDbId]);
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
-    const mnc = selectedOperatorMnc;
-    if (!trimmedStationId || !mnc) return [];
-    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, mnc));
+    if (!trimmedStationId || !selectedOperatorMnc) return [];
+    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, selectedOperatorMnc));
   }, [selectedOperatorMnc, trimmedStationId]);
 
   const fetchSI2PEMAzimuthSectors = useCallback(async () => {
@@ -176,16 +176,13 @@ export const StationInfoForm = memo(function StationInfoForm({
     [fetchUkeAzimuthSectors, selectedOperatorMnc, trimmedStationId],
   );
 
-  const azimuthSources = useMemo(
-    () =>
-      stationDbId && trimmedStationId
-        ? {
-            ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-            ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
-          }
-        : undefined,
-    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, selectedOperatorMnc, stationDbId, trimmedStationId],
-  );
+  const azimuthSources = useMemo(() => {
+    if (!stationDbId || !trimmedStationId) return undefined;
+    return {
+      ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+      ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+    };
+  }, [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, selectedOperatorMnc, stationDbId, trimmedStationId]);
 
   const handleFetchSibling = useCallback(async () => {
     if (!stationDbId) return;
@@ -293,10 +290,10 @@ export const StationInfoForm = memo(function StationInfoForm({
               <HugeiconsIcon icon={Globe02Icon} className="size-4 text-muted-foreground" />
               <span className="font-semibold text-sm">Extra Identificators</span>
             </div>
-            {stationDbId && showExtraIdsFields && (
+            {siblingSectors && (
               <Button type="button" variant="outline" size="sm" onClick={handleFetchSibling} disabled={isFetchingSibling} className="gap-1.5">
-                <SiblingLogo className="h-3.5 w-auto shrink-0" />
-                {isFetchingSibling ? t("sibling.fetching") : t("sibling.fetchFrom", { brand: siblingBrand })}
+                {siblingSectors.icon}
+                {isFetchingSibling ? t("sibling.fetching") : t("sibling.fetchFrom", { brand: siblingSectors.brand })}
               </Button>
             )}
           </div>
@@ -343,6 +340,7 @@ export const StationInfoForm = memo(function StationInfoForm({
         onUkeStationSelect={onUkeStationSelect}
         currentLocation={currentLocation}
         showEditLocationLink={showEditLocationLink}
+        existingLocationMatch="select"
       />
 
       <SectorsPanel

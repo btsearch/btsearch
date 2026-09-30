@@ -1,16 +1,35 @@
-import { AirportTowerIcon, Location04Icon, MapsIcon, Route02Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import {
+  AirportTowerIcon,
+  City02Icon,
+  Globe02Icon,
+  Gps01Icon,
+  Home01Icon,
+  InformationCircleIcon,
+  Location01Icon,
+  Location04Icon,
+  Mailbox01Icon,
+  MapsIcon,
+  Route02Icon,
+  Search01Icon,
+  SignpostIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import type { SearchStation, UkeSearchPermitStation } from "../../searchApi";
 import { getStationBands } from "../../utils";
 import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
 import { ErrorState, InlineError } from "@/components/ui/error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
+import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
+import { useGpsFormat } from "@/hooks/usePreferences";
+import { formatCoordinates } from "@/lib/geo/coordinates";
+import type { GeocodingKind } from "@/lib/geo/geocoding";
 import { cn } from "@/lib/utils";
 
 export type SearchFailureSource = "locations" | "stations" | "uke";
@@ -33,6 +52,21 @@ type SearchResultsProps = {
   onRetry: () => void;
   onSelect: (option: SearchResultOption) => void;
 };
+
+const LOCATION_KIND_ICONS: Record<GeocodingKind, IconSvgElement> = {
+  country: Globe02Icon,
+  region: MapsIcon,
+  county: MapsIcon,
+  city: City02Icon,
+  district: MapsIcon,
+  postcode: Mailbox01Icon,
+  street: SignpostIcon,
+  address: Home01Icon,
+  place: Location01Icon,
+};
+
+const RESULT_ICON_CLASS_NAME =
+  "size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-aria-selected:text-foreground";
 
 function ResultGroupHeader({ id, icon, label, count }: { id: string; icon: IconSvgElement; label: string; count: number }) {
   const { t } = useTranslation("main");
@@ -82,7 +116,7 @@ function getPermitEvidence(station: UkeSearchPermitStation, query: string): { ki
   return null;
 }
 
-function joinPresent(values: Array<string | null | undefined>): string {
+function joinPresent(values: (string | null | undefined)[]): string {
   return values.filter((value): value is string => Boolean(value)).join(" · ");
 }
 
@@ -141,6 +175,7 @@ export function SearchResults({
   onSelect,
 }: SearchResultsProps) {
   const { t } = useTranslation("main");
+  const gpsFormat = useGpsFormat();
   const normalizedQuery = normalizeEvidenceValue(queryText);
 
   return (
@@ -210,29 +245,25 @@ export function SearchResults({
                             activeKey={activeKey}
                             onActiveKeyChange={onActiveKeyChange}
                             onSelect={onSelect}
-                            className="flex items-center gap-3"
                           >
-                            <HugeiconsIcon
-                              icon={Location04Icon}
-                              className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
-                              aria-hidden="true"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <span className="font-mono text-sm font-bold transition-colors group-hover:text-primary">
-                                {result.lat.toFixed(6)}, {result.lng.toFixed(6)}
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <HugeiconsIcon icon={Gps01Icon} className={RESULT_ICON_CLASS_NAME} aria-hidden="true" />
+                              <span className="truncate font-mono text-sm font-medium tabular-nums group-hover:underline">
+                                {formatCoordinates(result.lat, result.lng, gpsFormat)}
                               </span>
-                              {result.address ? <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{result.address}</p> : null}
-                              {isGpsAddressLoading ? (
-                                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                  <Spinner className="size-3" aria-hidden="true" />
-                                  {t("searchResults.resolvingAddress")}
-                                </p>
-                              ) : null}
                             </div>
+                            {result.address ? <p className="mt-1 truncate text-[11px] text-muted-foreground">{result.address}</p> : null}
+                            {!result.address && isGpsAddressLoading ? (
+                              <>
+                                <Skeleton className="mt-1.5 mb-1 h-2.5 w-44 max-w-full rounded-sm" aria-hidden="true" />
+                                <span className="sr-only">{t("searchResults.resolvingAddress")}</span>
+                              </>
+                            ) : null}
                           </SearchResultOptionButton>
                         );
                       })}
                     </div>
+                    {group.source ? <GeocodingAttribution source={group.source} className="px-4 pb-2" /> : null}
                   </div>
                 );
 
@@ -243,7 +274,6 @@ export function SearchResults({
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
                         const { result } = option;
-                        const [primaryName, ...secondaryParts] = result.display_name.split(",");
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -252,22 +282,28 @@ export function SearchResults({
                             activeKey={activeKey}
                             onActiveKeyChange={onActiveKeyChange}
                             onSelect={onSelect}
-                            className="flex flex-col gap-0.5"
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="line-clamp-1 text-sm font-bold transition-colors group-hover:text-primary">{primaryName}</span>
-                              {result.addresstype === "place" || result.type === "place" || result.type === "locality" ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-700 shadow-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
-                                  <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-                                  {t("common:labels.city")}
-                                </span>
-                              ) : null}
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <HugeiconsIcon icon={LOCATION_KIND_ICONS[result.kind]} className={RESULT_ICON_CLASS_NAME} aria-hidden="true" />
+                              <span className="truncate text-sm font-medium group-hover:underline">{result.name}</span>
                             </div>
-                            <span className="line-clamp-1 text-[11px] text-muted-foreground">{secondaryParts.join(",").trim()}</span>
+                            <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                              <span className="font-medium text-foreground/70">{t(`searchResults.kinds.${result.kind}`)}</span>
+                              {result.description ? (
+                                <>
+                                  {" "}
+                                  <span className="text-muted-foreground/40" aria-hidden="true">
+                                    ·
+                                  </span>{" "}
+                                  {result.description}
+                                </>
+                              ) : null}
+                            </p>
                           </SearchResultOptionButton>
                         );
                       })}
                     </div>
+                    {group.source ? <GeocodingAttribution source={group.source} className="px-4 pb-2" /> : null}
                   </div>
                 );
 
@@ -307,12 +343,20 @@ export function SearchResults({
                           </SearchResultOptionButton>
                         );
                       })}
-                      {stationTotalCount > group.options.length ? (
-                        <div className="border-t border-dashed bg-muted/10 px-4 py-3 text-center text-[11px] italic text-muted-foreground">
-                          {t("search.showingTop", { shown: group.options.length, total: stationTotalCount })}
-                        </div>
-                      ) : null}
                     </div>
+                    {stationTotalCount > group.options.length ? (
+                      <p className="flex items-center gap-2 border-t bg-muted/30 px-4 py-2 text-[11px] leading-4 text-muted-foreground">
+                        <HugeiconsIcon icon={InformationCircleIcon} className="size-3.5 shrink-0" aria-hidden="true" />
+                        <span>
+                          <Trans
+                            t={t}
+                            i18nKey="search.showingTop"
+                            values={{ shown: group.options.length, total: stationTotalCount }}
+                            components={{ num: <span className="font-medium text-foreground/80 tabular-nums" /> }}
+                          />
+                        </span>
+                      </p>
+                    ) : null}
                   </div>
                 );
 

@@ -76,7 +76,7 @@ function LayerTiles({ layers }: { layers: LayerTileConfig[] }) {
           <span className="absolute top-1 left-1.5 hidden font-mono text-[9px] text-muted-foreground md:inline">{layer.keybind}</span>
           {layer.active ? <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} className="absolute top-1 right-1 size-3" aria-hidden="true" /> : null}
           <HugeiconsIcon icon={layer.icon} className="size-4" aria-hidden="true" />
-          <span className="max-w-full truncate">{layer.label}</span>
+          <span className="max-w-full">{layer.label}</span>
         </button>
       ))}
     </div>

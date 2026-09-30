@@ -173,8 +173,8 @@ export function findColumnIndices(headerCells: string[]): ColumnIndices | null {
   return indices as ColumnIndices;
 }
 
-export function buildBandKeysArray(fileBandKeys: Set<string>): Array<{ rat: Rat; value: number; variant: "commercial" | "railway" }> {
-  const result: Array<{ rat: Rat; value: number; variant: "commercial" | "railway" }> = [];
+export function buildBandKeysArray(fileBandKeys: Set<string>): { rat: Rat; value: number; variant: "commercial" | "railway" }[] {
+  const result: { rat: Rat; value: number; variant: "commercial" | "railway" }[] = [];
   for (const key of fileBandKeys) {
     const [rawRat, valueText, rawVariant] = key.split(":");
     const rat = parseRat(rawRat ?? "");

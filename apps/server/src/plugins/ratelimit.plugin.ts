@@ -50,6 +50,18 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
         roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
       },
       { url: "/api/v1/terrain-profile/analyses/:analysis_id", max: 120, window: 60 },
+      {
+        url: "/api/v1/geocoding/search",
+        max: 20,
+        window: 60,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
+      },
+      {
+        url: "/api/v1/geocoding/reverse",
+        max: 5,
+        window: 60,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
+      },
     ],
   });
 

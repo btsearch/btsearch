@@ -103,7 +103,7 @@ type EntryCoverage = "full" | "partial";
 type RevertNode = {
   id: number;
   skippedTargetEntryIds: Set<number>;
-  entries: Array<{ id: number; targetEntryId: number }>;
+  entries: { id: number; targetEntryId: number }[];
 };
 
 export type ActiveRevertCoverage = {
@@ -164,7 +164,7 @@ async function loadRevertGraph(handle: Database | DbTx, rootOperationIds: readon
           freshRows.map((row) => row.id),
         ),
       );
-    const entriesByOperation = new Map<number, Array<{ id: number; targetEntryId: number }>>();
+    const entriesByOperation = new Map<number, { id: number; targetEntryId: number }[]>();
     for (const row of entryRows) {
       const targetEntryId = revertedEntryId(row.metadata);
       if (targetEntryId === null) continue;

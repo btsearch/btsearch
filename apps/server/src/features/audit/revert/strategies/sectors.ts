@@ -174,7 +174,7 @@ function selectedCellStopsReferencing(context: StrategyContext, cellId: number, 
 
 type SectorReferences = {
   dependents: RevertDependent[];
-  cellDependencies: Array<{ entryId: number; sectorId: number }>;
+  cellDependencies: { entryId: number; sectorId: number }[];
 };
 
 async function referencedExtras(context: StrategyContext, extraIds: readonly number[]): Promise<SectorReferences> {

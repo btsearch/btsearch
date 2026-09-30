@@ -49,13 +49,13 @@
 
     <script>
       (function () {
+        var theme = "light";
         try {
           var stored = localStorage.getItem("ui-theme");
-          var theme = stored === "dark" || stored === "light" ? stored : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          document.documentElement.classList.add(theme);
-        } catch (e) {
-          document.documentElement.classList.add("light");
-        }
+          theme = stored === "dark" || stored === "light" ? stored : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        } catch (e) {}
+        document.documentElement.classList.add(theme);
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "dark" ? "#070b0d" : "#fafcfd");
       })();
     </script>
 

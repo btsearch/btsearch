@@ -27,6 +27,7 @@ import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
 import { PreSerializationHook } from "./hooks/preSerialization.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
+import { isFirstPartyOrigin } from "./lib/firstPartyOrigin.js";
 import { getRuntimeSettings, initRuntimeSettings } from "./lib/runtimeSettings.js";
 import { loadDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { auth } from "./plugins/betterauth.plugin.js";
@@ -69,12 +70,6 @@ const CORS_OPTIONS = {
   ],
   maxAge: 86400,
 };
-
-function isFirstPartyOrigin(origin: string | undefined) {
-  if (origin === undefined || !URL.canParse(origin)) return false;
-  const { hostname } = new URL(origin);
-  return hostname === "btsearch.pl" || (process.env.NODE_ENV !== "production" && hostname === "localhost");
-}
 
 function getUnionBranchIssues(params: unknown): $ZodIssue[][] | undefined {
   if (typeof params !== "object" || params === null || !("errors" in params)) return undefined;

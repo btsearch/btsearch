@@ -91,7 +91,7 @@ export type AuditOperationRow = {
 };
 
 export type AuditOperationWithEntries = AuditOperationSummary & {
-  entries: Array<AuditEntry & { revertible: boolean; revert_reason?: string }>;
+  entries: (AuditEntry & { revertible: boolean; revert_reason?: string })[];
   revertible: boolean;
   reverts: Pick<AuditOperationSummary, "id" | "kind" | "createdAt"> | null;
   reverted_by: Pick<AuditOperationSummary, "id" | "kind" | "createdAt"> | null;

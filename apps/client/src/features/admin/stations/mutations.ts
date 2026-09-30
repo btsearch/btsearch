@@ -7,7 +7,6 @@ import {
   createStation,
   deleteCell,
   deleteStation,
-  patchCell,
   patchCells,
   patchStation,
   putStationSectors,
@@ -18,7 +17,7 @@ import { type StationUpdateImpact, invalidateStationUpdateQueries } from "./quer
 import type { CellDraftBase } from "@/features/admin/cells/cellEditRow";
 import { pickCellDetails } from "@/features/submissions/api";
 import { orderSectorsById, remapSectorAssignment } from "@/features/submissions/utils/cells";
-import { createAuditOperationHandle } from "@/lib/api";
+import { type AuditOperationHandle, createAuditOperationHandle } from "@/lib/api";
 import { shallowEqual } from "@/lib/shallowEqual";
 import type { Cell, Sector, SectorDraft, Station, StationStatus, UplinkType } from "@/types/station";
 
@@ -59,24 +58,6 @@ export function useDeleteStationMutation() {
   });
 }
 
-export function useDeleteCellMutation(stationId: number) {
-  return useMutation({
-    mutationFn: (cellId: number) => deleteCell(stationId, cellId),
-  });
-}
-
-export function usePatchCellMutation(stationId: number) {
-  return useMutation({
-    mutationFn: ({ cellId, body }: { cellId: number; body: Record<string, unknown> }) => patchCell(stationId, cellId, body),
-  });
-}
-
-export function useCreateCellsMutation(stationId: number) {
-  return useMutation({
-    mutationFn: (cellsData: Record<string, unknown>[]) => createCells(stationId, cellsData),
-  });
-}
-
 function sectorLocalIdToOriginalId(localId: string | null | undefined): number | null {
   if (!localId?.startsWith("sector-")) return null;
   const id = Number.parseInt(localId.slice("sector-".length), 10);
@@ -88,16 +69,17 @@ function resolveSectorId(localId: string | null | undefined, sectorIdByLocalId?:
   return sectorIdByLocalId?.get(localId) ?? sectorLocalIdToOriginalId(localId);
 }
 
-function sectorsChanged(drafts: SectorDraft[], original: Sector[] | undefined): boolean {
+export function sectorsChanged(drafts: SectorDraft[], original: Sector[] | undefined): boolean {
   const originalSectors = original ?? [];
   if (drafts.length !== originalSectors.length) return true;
   return drafts.some((draft, index) => draft.azimuth !== originalSectors[index]?.azimuth);
 }
 
 function toSectorPayload(drafts: SectorDraft[]): { id?: number; azimuth: number }[] {
-  return drafts.flatMap((sector) =>
-    typeof sector.azimuth === "number" ? [{ ...(sector.id !== undefined ? { id: sector.id } : {}), azimuth: sector.azimuth }] : [],
-  );
+  return drafts.flatMap((sector) => {
+    if (typeof sector.azimuth !== "number") return [];
+    return [sector.id === undefined ? { azimuth: sector.azimuth } : { id: sector.id, azimuth: sector.azimuth }];
+  });
 }
 
 function makeSectorIdMap(drafts: SectorDraft[], persisted?: Sector[]): Map<string, number> {
@@ -124,6 +106,53 @@ export function isCellModified(lc: LocalCell, originalCells: Cell[], sectorIdByL
   );
 }
 
+type LocationFields = {
+  region_id: number | null;
+  city?: string;
+  address?: string;
+  longitude: number | null;
+  latitude: number | null;
+};
+
+type LocationDetails = Pick<LocationFields, "region_id" | "city" | "address">;
+
+type CompleteLocation = LocationFields & { region_id: number; longitude: number; latitude: number };
+
+export type ExistingLocation = LocationFields & { id: number };
+
+function isCompleteLocation(location: LocationFields): location is CompleteLocation {
+  return location.region_id !== null && location.longitude !== null && location.latitude !== null;
+}
+
+async function createLocationFromFields(location: CompleteLocation, auditOperation: AuditOperationHandle): Promise<number> {
+  const { data } = await createLocation(
+    {
+      region_id: location.region_id,
+      city: location.city || undefined,
+      address: location.address || undefined,
+      longitude: location.longitude,
+      latitude: location.latitude,
+    },
+    auditOperation,
+  );
+  return data.id;
+}
+
+async function patchLocationDetails(
+  locationId: number,
+  next: LocationDetails,
+  current: LocationDetails,
+  auditOperation: AuditOperationHandle,
+): Promise<boolean> {
+  const locationPatch: Record<string, unknown> = {};
+  if ((next.city ?? "") !== (current.city ?? "")) locationPatch.city = next.city || null;
+  if ((next.address ?? "") !== (current.address ?? "")) locationPatch.address = next.address || null;
+  if (next.region_id !== current.region_id) locationPatch.region_id = next.region_id;
+  if (Object.keys(locationPatch).length === 0) return false;
+  await patchLocation(locationId, locationPatch, auditOperation);
+  return true;
+}
+
 export interface SaveStationPayload {
   isCreateMode: boolean;
   stationId: string;
@@ -131,14 +160,8 @@ export interface SaveStationPayload {
   notes: string;
   extraAddress: string;
   isConfirmed: boolean;
-  location: {
-    region_id: number | null;
-    city?: string;
-    address?: string;
-    longitude: number | null;
-    latitude: number | null;
-  };
-  existingLocationId: number | null;
+  location: LocationFields;
+  existingLocation: ExistingLocation | null;
   localCells: LocalCell[];
   sectors: SectorDraft[];
   deletedServerCellIds: number[];
@@ -153,6 +176,26 @@ export interface SaveStationPayload {
   uplinkModel?: string;
 }
 
+function hasExtraIdValues(payload: SaveStationPayload): boolean {
+  return payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName;
+}
+
+function toExtraIdsPayload(payload: SaveStationPayload): { networks_id: number | null; networks_name: string | null; mno_name: string | null } {
+  return {
+    networks_id: payload.networksId ?? null,
+    networks_name: payload.networksName || null,
+    mno_name: payload.mnoName || null,
+  };
+}
+
+function toUplinkPayload(payload: SaveStationPayload): { type: UplinkType | null; speed: number | null; model: string | null } {
+  return {
+    type: payload.uplinkType ?? null,
+    speed: payload.uplinkSpeed ?? null,
+    model: payload.uplinkModel || null,
+  };
+}
+
 const partiallyCreatedStationIds = new WeakMap<SaveStationPayload, number>();
 
 export function useSaveStationMutation() {
@@ -161,6 +204,7 @@ export function useSaveStationMutation() {
   return useMutation({
     mutationFn: async (payload: SaveStationPayload) => {
       const auditOperation = createAuditOperationHandle(payload.isCreateMode ? "station.create" : "station.edit");
+      const { existingLocation } = payload;
       const { sectors, localIdMap } = orderSectorsById(payload.sectors);
       const localCells: LocalCell[] = payload.localCells.map((cell) => ({
         ...cell,
@@ -168,26 +212,9 @@ export function useSaveStationMutation() {
       }));
 
       if (payload.isCreateMode) {
-        if (payload.location.region_id === null || payload.location.longitude === null || payload.location.latitude === null) {
-          throw new Error("Location required");
-        }
+        if (!isCompleteLocation(payload.location)) throw new Error("Location required");
 
-        let locationId: number;
-        if (payload.existingLocationId !== null) {
-          locationId = payload.existingLocationId;
-        } else {
-          const locationRes = await createLocation(
-            {
-              region_id: payload.location.region_id,
-              city: payload.location.city || undefined,
-              address: payload.location.address || undefined,
-              longitude: payload.location.longitude,
-              latitude: payload.location.latitude,
-            },
-            auditOperation,
-          );
-          locationId = locationRes.data.id;
-        }
+        const locationId = existingLocation !== null ? existingLocation.id : await createLocationFromFields(payload.location, auditOperation);
 
         const cellsPayload = localCells.map((lc) => ({
           station_id: 0,
@@ -199,7 +226,7 @@ export function useSaveStationMutation() {
           details: pickCellDetails(lc.rat, lc.details),
         }));
 
-        const res = await createStation(
+        const { data: createdStation } = await createStation(
           {
             station_id: payload.stationId,
             operator_id: payload.operatorId,
@@ -211,61 +238,32 @@ export function useSaveStationMutation() {
           },
           auditOperation,
         );
-        partiallyCreatedStationIds.set(payload, res.data.id);
+        partiallyCreatedStationIds.set(payload, createdStation.id);
+        const locationMetadataChanged =
+          existingLocation !== null && (await patchLocationDetails(existingLocation.id, payload.location, existingLocation, auditOperation));
 
         let sectorIdByLocalId = new Map<string, number>();
         if (sectors.length > 0) {
-          const savedSectors = await putStationSectors(res.data.id, toSectorPayload(sectors), auditOperation);
+          const savedSectors = await putStationSectors(createdStation.id, toSectorPayload(sectors), auditOperation);
           sectorIdByLocalId = makeSectorIdMap(sectors, savedSectors.data);
         }
 
-        const assignedCreatedCells = localCells.flatMap((lc, index) => {
-          const created = res.data.cells[index];
+        const cellSectorPatches = localCells.flatMap((lc, index) => {
+          const createdCell = createdStation.cells[index];
           const sectorId = resolveSectorId(lc._sectorLocalId, sectorIdByLocalId);
-          if (!created || sectorId === null) return [];
-          return [{ created, sectorId }];
+          if (!createdCell || sectorId === null) return [];
+          return [{ cell_id: createdCell.id, sector_id: sectorId }];
         });
-        if (assignedCreatedCells.length > 0) {
-          await patchCells(
-            res.data.id,
-            assignedCreatedCells.map(({ created, sectorId }) => ({
-              cell_id: created.id,
-              sector_id: sectorId,
-            })),
-            auditOperation,
-          );
-        }
+        if (cellSectorPatches.length > 0) await patchCells(createdStation.id, cellSectorPatches, auditOperation);
 
-        if (!payload.skipExtraIds && (payload.networksId !== undefined || payload.networksName || payload.mnoName)) {
-          await updateExtraIds(
-            res.data.id,
-            {
-              networks_id: payload.networksId ?? null,
-              networks_name: payload.networksName || null,
-              mno_name: payload.mnoName || null,
-            },
-            auditOperation,
-          );
-        }
+        if (!payload.skipExtraIds && hasExtraIdValues(payload)) await updateExtraIds(createdStation.id, toExtraIdsPayload(payload), auditOperation);
 
-        if (payload.uplinkType) {
-          await updateUplink(
-            res.data.id,
-            {
-              type: payload.uplinkType,
-              speed: payload.uplinkSpeed ?? null,
-              model: payload.uplinkModel || null,
-            },
-            auditOperation,
-          );
-        }
+        if (payload.uplinkType) await updateUplink(createdStation.id, toUplinkPayload(payload), auditOperation);
 
-        return { mode: "create" as const, station: res.data };
+        return { mode: "create" as const, station: createdStation, locationMetadataChanged };
       }
 
-      if (!payload.originalStation) {
-        throw new Error("Original station required for update");
-      }
+      if (!payload.originalStation) throw new Error("Original station required for update");
 
       const station = payload.originalStation;
       const originalCells = station.cells;
@@ -287,48 +285,24 @@ export function useSaveStationMutation() {
         ...(payload.stationStatus !== undefined && { status: payload.stationStatus }),
       };
 
-      if (payload.existingLocationId !== null && payload.existingLocationId !== (station.location?.id ?? null)) {
-        stationPatch.location_id = payload.existingLocationId;
+      if (existingLocation !== null && existingLocation.id !== (station.location?.id ?? null)) {
+        stationPatch.location_id = existingLocation.id;
+        locationMetadataChanged = await patchLocationDetails(existingLocation.id, payload.location, existingLocation, auditOperation);
       } else if (station.location) {
         const coordsChanged =
           payload.location.latitude !== (station.location.latitude ?? null) || payload.location.longitude !== (station.location.longitude ?? null);
-        if (coordsChanged && payload.location.latitude !== null && payload.location.longitude !== null && payload.location.region_id !== null) {
-          const locationRes = await createLocation(
-            {
-              region_id: payload.location.region_id,
-              city: payload.location.city || undefined,
-              address: payload.location.address || undefined,
-              longitude: payload.location.longitude,
-              latitude: payload.location.latitude,
-            },
-            auditOperation,
-          );
-          stationPatch.location_id = locationRes.data.id;
+        if (coordsChanged && isCompleteLocation(payload.location)) {
+          stationPatch.location_id = await createLocationFromFields(payload.location, auditOperation);
         } else if (!coordsChanged) {
-          const locationPatch: Record<string, unknown> = {};
-          if (payload.location.city !== (station.location.city ?? "")) locationPatch.city = payload.location.city || null;
-          if (payload.location.address !== (station.location.address ?? "")) locationPatch.address = payload.location.address || null;
-          if (payload.location.region_id !== (station.location.region?.id ?? null)) locationPatch.region_id = payload.location.region_id;
-          if (Object.keys(locationPatch).length > 0) {
-            await patchLocation(station.location.id, locationPatch, auditOperation);
-            locationMetadataChanged = true;
-          }
+          const currentLocation = { ...station.location, region_id: station.location.region?.id ?? null };
+          locationMetadataChanged = await patchLocationDetails(station.location.id, payload.location, currentLocation, auditOperation);
         }
-      } else if (payload.location.latitude !== null && payload.location.longitude !== null && payload.location.region_id !== null) {
-        const locationRes = await createLocation(
-          {
-            region_id: payload.location.region_id,
-            city: payload.location.city || undefined,
-            address: payload.location.address || undefined,
-            longitude: payload.location.longitude,
-            latitude: payload.location.latitude,
-          },
-          auditOperation,
-        );
-        stationPatch.location_id = locationRes.data.id;
+      } else if (isCompleteLocation(payload.location)) {
+        stationPatch.location_id = await createLocationFromFields(payload.location, auditOperation);
       }
 
       const newCells = localCells.filter((lc) => !lc._serverId);
+      const persistedCells = localCells.filter(hasServerId);
       const createdNewCellsByLocalId = new Map<string, Cell>();
       const initialNewCellSectorIds = new Map<string, number | null>();
       if (newCells.length > 0) {
@@ -353,11 +327,10 @@ export function useSaveStationMutation() {
         });
       }
 
-      if (payload.deletedServerCellIds.length > 0) {
+      if (payload.deletedServerCellIds.length > 0)
         await Promise.all(payload.deletedServerCellIds.map((cellId) => deleteCell(station.id, cellId, auditOperation)));
-      }
 
-      const cellsToPreclearSector = localCells.filter(hasServerId).filter((lc) => {
+      const cellsToPreclearSector = persistedCells.filter((lc) => {
         if (deletedServerCellIdSet.has(lc._serverId)) return false;
         const original = originalCells.find((cell) => cell.id === lc._serverId);
         return original?.sector_id !== null && original?.sector_id !== undefined && removedSectorIds.has(original.sector_id);
@@ -378,7 +351,7 @@ export function useSaveStationMutation() {
         sectorIdByLocalId = makeSectorIdMap(sectors, savedSectors.data);
       }
 
-      const modifiedCells = localCells.filter(hasServerId).filter((lc) => isCellModified(lc, originalCells, sectorIdByLocalId));
+      const modifiedCells = persistedCells.filter((lc) => isCellModified(lc, originalCells, sectorIdByLocalId));
       const createdCellSectorPatches = newCells.flatMap((lc) => {
         const createdCell = createdNewCellsByLocalId.get(lc._localId);
         const sectorId = resolveSectorId(lc._sectorLocalId, sectorIdByLocalId);
@@ -397,9 +370,7 @@ export function useSaveStationMutation() {
         })),
         ...createdCellSectorPatches,
       ];
-      if (cellPatches.length > 0) {
-        await patchCells(station.id, cellPatches, auditOperation);
-      }
+      if (cellPatches.length > 0) await patchCells(station.id, cellPatches, auditOperation);
 
       const stationMetadataChanged =
         stationPatch.station_id !== station.station_id ||
@@ -414,46 +385,26 @@ export function useSaveStationMutation() {
 
       if (stationChanged) await patchStation(station.id, stationPatch, auditOperation);
 
-      const existingNetworksId = payload.originalStation?.extra_identificators?.networks_id ?? null;
+      const existingExtraIds = station.extra_identificators;
+      const existingNetworksId = existingExtraIds?.networks_id ?? null;
+      const extraIdsPayload = toExtraIdsPayload(payload);
       const extraIdsFieldsChanged =
-        (payload.networksId ?? null) !== existingNetworksId ||
-        (payload.networksName || null) !== (payload.originalStation?.extra_identificators?.networks_name || null) ||
-        (payload.mnoName || null) !== (payload.originalStation?.extra_identificators?.mno_name || null);
+        extraIdsPayload.networks_id !== existingNetworksId ||
+        extraIdsPayload.networks_name !== (existingExtraIds?.networks_name || null) ||
+        extraIdsPayload.mno_name !== (existingExtraIds?.mno_name || null);
 
-      const existingHasExtraIds = existingNetworksId !== null || !!payload.originalStation?.extra_identificators?.mno_name;
-      const shouldUpdateExtraIds =
-        !payload.skipExtraIds &&
-        ((payload.networksId !== null && payload.networksId !== undefined) || !!payload.networksName || !!payload.mnoName || existingHasExtraIds) &&
-        extraIdsFieldsChanged;
-      if (shouldUpdateExtraIds) {
-        await updateExtraIds(
-          station.id,
-          {
-            networks_id: payload.networksId ?? null,
-            networks_name: payload.networksName || null,
-            mno_name: payload.mnoName || null,
-          },
-          auditOperation,
-        );
-      }
+      const shouldUpdateExtraIds = !payload.skipExtraIds && extraIdsFieldsChanged;
+      if (shouldUpdateExtraIds) await updateExtraIds(station.id, extraIdsPayload, auditOperation);
 
-      const existingUplink = payload.originalStation?.uplink;
+      const existingUplink = station.uplink;
+      const uplinkPayload = toUplinkPayload(payload);
       const uplinkChanged =
-        (payload.uplinkType ?? null) !== (existingUplink?.type ?? null) ||
-        (payload.uplinkSpeed ?? null) !== (existingUplink?.speed ?? null) ||
-        (payload.uplinkModel || null) !== (existingUplink?.model ?? null);
-      if (uplinkChanged) {
-        await updateUplink(
-          station.id,
-          {
-            type: payload.uplinkType ?? null,
-            speed: payload.uplinkSpeed ?? null,
-            model: payload.uplinkModel || null,
-          },
-          auditOperation,
-        );
-      }
+        uplinkPayload.type !== (existingUplink?.type ?? null) ||
+        uplinkPayload.speed !== (existingUplink?.speed ?? null) ||
+        uplinkPayload.model !== (existingUplink?.model ?? null);
+      if (uplinkChanged) await updateUplink(station.id, uplinkPayload, auditOperation);
 
+      const cellCountChanged = newCells.length > 0 || payload.deletedServerCellIds.length > 0;
       const impact: StationUpdateImpact = {
         stationId: station.id,
         oldLocationId,
@@ -461,8 +412,8 @@ export function useSaveStationMutation() {
         stationMetadataChanged,
         locationMetadataChanged,
         locationMoved,
-        cellsChanged: newCells.length > 0 || payload.deletedServerCellIds.length > 0 || cellsToPreclearSector.length > 0 || cellPatches.length > 0,
-        cellCountChanged: newCells.length > 0 || payload.deletedServerCellIds.length > 0,
+        cellsChanged: cellCountChanged || cellsToPreclearSector.length > 0 || cellPatches.length > 0,
+        cellCountChanged,
         sectorsChanged: haveSectorsChanged,
         extraIdsChanged: shouldUpdateExtraIds,
         uplinkChanged,
@@ -483,12 +434,12 @@ export function useSaveStationMutation() {
         oldLocationId: null,
         newLocationId: locationId,
         stationMetadataChanged: true,
-        locationMetadataChanged: false,
+        locationMetadataChanged: result.locationMetadataChanged,
         locationMoved: locationId !== null,
         cellsChanged: result.station.cells.length > 0,
         cellCountChanged: true,
         sectorsChanged: payload.sectors.length > 0,
-        extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+        extraIdsChanged: !payload.skipExtraIds && hasExtraIdValues(payload),
         uplinkChanged: !!payload.uplinkType,
       });
     },
@@ -502,14 +453,14 @@ export function useSaveStationMutation() {
           {
             stationId,
             oldLocationId: null,
-            newLocationId: payload.existingLocationId,
+            newLocationId: payload.existingLocation?.id ?? null,
             stationMetadataChanged: true,
-            locationMetadataChanged: false,
+            locationMetadataChanged: payload.existingLocation !== null,
             locationMoved: false,
             cellsChanged: payload.localCells.length > 0,
             cellCountChanged: true,
             sectorsChanged: payload.sectors.length > 0,
-            extraIdsChanged: !payload.skipExtraIds && (payload.networksId !== undefined || !!payload.networksName || !!payload.mnoName),
+            extraIdsChanged: !payload.skipExtraIds && hasExtraIdValues(payload),
             uplinkChanged: !!payload.uplinkType,
           },
           { conservative: true, refetchAdminDetail: true },

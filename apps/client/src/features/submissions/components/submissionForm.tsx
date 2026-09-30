@@ -6,7 +6,7 @@ import { type ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type SearchStation, fetchSiblingSectors } from "../api";
-import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, StationAction, SubmissionMode } from "../types";
+import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, SubmissionMode } from "../types";
 import { ActionSelector } from "./actionSelector";
 import { CellsSection } from "./cellsSection";
 import { ExtraIdentificatorsSection } from "./extraIdentificatorsSection";
@@ -16,7 +16,7 @@ import { RatSelector } from "./ratSelector";
 import { StationSelector } from "./stationSelector";
 import { SubmissionPhotosPanel } from "./submissionPhotosPanel";
 import { SubmitSection } from "./submitSection";
-import { useSubmissionForm } from "./useSubmissionForm";
+import { type FormValues, useSubmissionForm } from "./useSubmissionForm";
 import { EmptyPanel } from "@/components/content/emptyPanel";
 import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
@@ -40,9 +40,15 @@ function hasCompleteLocation(location: ProposedLocationForm): boolean {
   return location.latitude !== null && location.longitude !== null && location.region_id !== null;
 }
 
+type StationTarget = Pick<FormValues, "mode" | "action" | "selectedStation" | "location">;
+
+function canEditStation({ mode, action, selectedStation, location }: StationTarget): boolean {
+  if (mode === "new") return hasCompleteLocation(location);
+  return selectedStation !== null && action !== "delete";
+}
+
 type SubmissionSectorsPanelFieldsProps = {
   mode: SubmissionMode;
-  action: StationAction;
   selectedStation: SearchStation | null;
   newStation: ProposedStationForm;
   selectedRats: RatType[];
@@ -55,7 +61,6 @@ type SubmissionSectorsPanelFieldsProps = {
 
 function SubmissionSectorsPanelFields({
   mode,
-  action,
   selectedStation,
   newStation,
   selectedRats,
@@ -108,20 +113,13 @@ function SubmissionSectorsPanelFields({
     [canFetchSiblingSectors, fetchSiblingAzimuthSectors, selectedStationId, siblingBrand, siblingSectorsIcon],
   );
 
-  const azimuthSources = useMemo(
-    () =>
-      trimmedStationId
-        ? {
-            ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-            ...(ukeOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
-          }
-        : undefined,
-    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, trimmedStationId, ukeOperatorMnc],
-  );
-
-  if (mode === "existing" && action === "delete") return null;
-  if (mode === "new" && !hasCompleteLocation(location)) return null;
-  if (mode !== "new" && !selectedStation) return null;
+  const azimuthSources = useMemo(() => {
+    if (!trimmedStationId) return undefined;
+    return {
+      ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+      ...(ukeOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+    };
+  }, [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, trimmedStationId, ukeOperatorMnc]);
 
   return (
     <SectorsPanel
@@ -241,6 +239,8 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
                 errors={formErrors.location}
                 onLocationChange={handleLocationChange}
                 onUkeStationSelect={mode === "new" ? handleUkeStationSelect : undefined}
+                currentLocation={mode === "existing" ? selectedStation?.location : undefined}
+                existingLocationMatch={mode === "new" && !isEditMode ? "select" : "compare"}
               />
             );
           }}
@@ -330,10 +330,11 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
           })}
         >
           {({ mode, action, selectedStation, newStation, selectedRats, location, cells, sectors }) => {
+            if (!canEditStation({ mode, action, selectedStation, location })) return null;
+
             return (
               <SubmissionSectorsPanelFields
                 mode={mode}
-                action={action}
                 selectedStation={selectedStation}
                 newStation={newStation}
                 selectedRats={selectedRats}
@@ -381,12 +382,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
           })}
         >
           {({ mode, action, selectedStation, selectedRats, location }) => {
-            if (mode === "existing" && action === "delete") return null;
-            if (mode === "new") {
-              if (!hasCompleteLocation(location)) return null;
-            } else if (!selectedStation) {
-              return null;
-            }
+            if (!canEditStation({ mode, action, selectedStation, location })) return null;
 
             return <RatSelector selectedRats={selectedRats} onRatsChange={handleRatsChange} />;
           }}
@@ -435,9 +431,7 @@ export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeS
           })}
         >
           {({ selectedRats, cells, originalCells, sectors, mode, action, operatorId }) => {
-            if (mode === "existing" && action === "delete") {
-              return <EmptyPanel>{t("deleteStation.warning")}</EmptyPanel>;
-            }
+            if (mode === "existing" && action === "delete") return <EmptyPanel>{t("deleteStation.warning")}</EmptyPanel>;
 
             const operatorMnc = mncById.get(operatorId ?? -1) ?? null;
 

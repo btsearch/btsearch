@@ -31,6 +31,8 @@ export function ThemeProvider({ children, defaultTheme = "system", storageKey = 
       root.classList.remove("light", "dark");
       if (theme === "system") root.classList.add(mediaQuery.matches ? "dark" : "light");
       else root.classList.add(theme);
+      const themeColor = getComputedStyle(root).getPropertyValue("--shell-background").trim();
+      if (themeColor) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
     };
 
     applyTheme();

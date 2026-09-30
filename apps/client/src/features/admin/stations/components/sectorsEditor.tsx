@@ -269,24 +269,24 @@ type SectorsPanelProps = SectorsEditorProps & {
   siblingSectors?: {
     brand: string;
     icon: ReactNode;
-    onFetch: () => Promise<Array<{ azimuth: number }>>;
+    onFetch: () => Promise<{ azimuth: number }[]>;
   };
   ukeSectors?: {
-    onFetch: () => Promise<Array<{ azimuth: number }>>;
+    onFetch: () => Promise<{ azimuth: number }[]>;
   };
   azimuthSources?: {
     si2pem?: {
-      onFetch: () => Promise<Array<{ azimuth: number }>>;
+      onFetch: () => Promise<{ azimuth: number }[]>;
     };
     uke?: {
-      onFetch: () => Promise<Array<{ azimuth: number }>>;
+      onFetch: () => Promise<{ azimuth: number }[]>;
     };
   };
 };
 
 type AzimuthSource = "si2pem" | "uke";
 
-function applyFetchedAzimuths(sectors: SectorDraft[], fetchedSectors: Array<{ azimuth: number }>): SectorDraft[] {
+function applyFetchedAzimuths(sectors: SectorDraft[], fetchedSectors: { azimuth: number }[]): SectorDraft[] {
   const copyCount = Math.min(fetchedSectors.length, MAX_SECTORS);
   const next = [...sectors];
 
@@ -299,13 +299,13 @@ function applyFetchedAzimuths(sectors: SectorDraft[], fetchedSectors: Array<{ az
   return next;
 }
 
-function sortByAzimuth(sectors: Array<{ azimuth: number }>) {
+function sortByAzimuth(sectors: { azimuth: number }[]) {
   return [...sectors].sort((a, b) => a.azimuth - b.azimuth);
 }
 
-export function ukePermitsToAzimuthSectors(permits: Array<{ sectors?: Array<{ azimuth: number | null }> }>): Array<{ azimuth: number }> {
+export function ukePermitsToAzimuthSectors(permits: { sectors?: { azimuth: number | null }[] }[]): { azimuth: number }[] {
   const seen = new Set<number>();
-  const sectors: Array<{ azimuth: number }> = [];
+  const sectors: { azimuth: number }[] = [];
 
   for (const permit of permits) {
     for (const sector of permit.sectors ?? []) {

@@ -14,6 +14,8 @@ import {
   ukeStations,
 } from "@openbts/drizzle";
 import { and, count, eq, isNull, ne } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import type { DbTx } from "../../../../types/global.js";
 import type { AuditEntry } from "../../types.js";
@@ -21,6 +23,11 @@ import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot,
 import { changedFields, staleFields } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type RevertDependent, type StrategyContext, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, snapshotFieldNames, stringField } from "./common.js";
+
+const bandSelectSchema = createSelectSchema(bands);
+const bandInsertSchema = createInsertSchema(bands);
+const operatorInsertSchema = createInsertSchema(operators);
+const regionInsertSchema = createInsertSchema(regions);
 
 function positiveDependents(rows: RevertDependent[]): RevertDependent[] {
   return rows.filter((row) => row.count > 0);
@@ -212,7 +219,7 @@ async function addOperatorParentConflict(
 }
 
 async function addBandUniqueConflicts(context: StrategyContext, plan: PlannedEntry, id: number, target: SnapshotRecord): Promise<void> {
-  type BandRow = typeof bands.$inferSelect;
+  type BandRow = z.infer<typeof bandSelectSchema>;
   const name = stringField(target, "name");
   if (name !== null) {
     const [duplicate] = await context.tx
@@ -332,7 +339,7 @@ async function planOperatorRevert(context: StrategyContext, entry: AuditEntry, i
             ...row,
             id,
             parent_id: plan.droppedFields.has("parent_id") || deferredParent ? null : parentId,
-          } as typeof operators.$inferInsert);
+          } as z.infer<typeof operatorInsertSchema>);
         state.sequenceTables.add("operators");
       },
     });
@@ -432,7 +439,7 @@ async function planBandRevert(context: StrategyContext, entry: AuditEntry, id: n
         await tx
           .insert(bands)
           .overridingSystemValue()
-          .values({ ...row, id } as typeof bands.$inferInsert);
+          .values({ ...row, id } as z.infer<typeof bandInsertSchema>);
         state.sequenceTables.add("bands");
       },
     });
@@ -525,7 +532,7 @@ async function planRegionRevert(context: StrategyContext, entry: AuditEntry, id:
         await tx
           .insert(regions)
           .overridingSystemValue()
-          .values({ ...row, id } as typeof regions.$inferInsert);
+          .values({ ...row, id } as z.infer<typeof regionInsertSchema>);
         state.sequenceTables.add("regions");
       },
     });

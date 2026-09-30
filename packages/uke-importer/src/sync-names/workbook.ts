@@ -26,7 +26,7 @@ function readFirstRow(sheet: XLSX.WorkSheet): string[] {
   const range = XLSX.utils.decode_range(ref);
   range.e.r = range.s.r;
 
-  const rows = XLSX.utils.sheet_to_json<Array<string | number | boolean | null>>(sheet, {
+  const rows = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
     header: 1,
     range,
     blankrows: false,

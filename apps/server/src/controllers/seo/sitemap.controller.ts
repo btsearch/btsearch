@@ -56,7 +56,7 @@ const publishedLocationActivity = db
   .groupBy(stations.location_id)
   .as("published_location_activity");
 
-function latestIso(...values: Array<Date | null | undefined>): string | undefined {
+function latestIso(...values: (Date | null | undefined)[]): string | undefined {
   let latest: Date | undefined;
   for (const value of values) {
     if (value === null || value === undefined || Number.isNaN(value.getTime())) continue;

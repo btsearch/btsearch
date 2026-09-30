@@ -1,4 +1,4 @@
-import { Location01Icon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
+import { Location01Icon, LocationCheck01Icon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -7,7 +7,7 @@ import type { MapMouseEvent } from "maplibre-gl";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type GeocodingResult, fetchLocationsInViewport, fetchUkeLocationsInViewport, reverseGeocode } from "../api";
+import { type GeocodingResult, type GeocodingSource, fetchLocationsInViewport, fetchUkeLocationsInViewport, reverseGeocode } from "../api";
 import type { ProposedLocationForm } from "../types";
 import type { LocationErrors } from "../utils/validation";
 import { NearbyLocationsPanel } from "./NearbyLocationsPanel";
@@ -23,10 +23,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { ChangeBadge } from "@/features/admin/submissions/components/common";
 import { PICKER_LAYER_IDS, PICKER_NEARBY_RADIUS_METERS, PICKER_UKE_LAYER_IDS, POLAND_CENTER } from "@/features/map/constants";
-import { getOperatorData } from "@/features/map/geojson";
+import { createPointFeature, getOperatorData } from "@/features/map/geojson";
 import { useAzimuthLayer } from "@/features/map/hooks/useAzimuthLayer";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { attachUkeLocationToStations, calculateDistance } from "@/features/map/utils";
+import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { regionsQueryOptions } from "@/features/shared/queries";
 import { usePreferences } from "@/hooks/usePreferences";
 import { cn } from "@/lib/utils";
@@ -36,29 +37,28 @@ function roundCoord(value: number): number {
   return Math.round(value * 1000000) / 1000000;
 }
 
+function locationToPickerFeature(loc: LocationWithStations | UkeLocationWithPermits, pieImagePrefix: string): Feature {
+  const stations = loc.stations ?? [];
+  const { operators, isMultiOperator, color } = getOperatorData(stations.map((s) => s.operator?.mnc));
+
+  return createPointFeature(loc.longitude, loc.latitude, {
+    locationId: loc.id,
+    city: loc.city ?? "",
+    address: loc.address ?? "",
+    stationCount: stations.length,
+    color,
+    isMultiOperator,
+    operators: JSON.stringify(operators),
+    pieImageId: isMultiOperator ? `${pieImagePrefix}-${operators.join("-")}` : undefined,
+  });
+}
+
 function locationsToPickerGeoJSON(locations: LocationWithStations[]): FeatureCollection {
   const features: Feature[] = [];
 
   for (const loc of locations) {
     if (!loc.latitude || !loc.longitude) continue;
-
-    const { operators, isMultiOperator, color } = getOperatorData((loc.stations ?? []).map((s) => s.operator?.mnc));
-    const pieImageId = isMultiOperator ? `picker-pie-${operators.join("-")}` : undefined;
-
-    features.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [loc.longitude, loc.latitude] },
-      properties: {
-        locationId: loc.id,
-        city: loc.city ?? "",
-        address: loc.address ?? "",
-        stationCount: loc.stations?.length ?? 0,
-        color,
-        isMultiOperator,
-        operators: JSON.stringify(operators),
-        pieImageId,
-      },
-    });
+    features.push(locationToPickerFeature(loc, "picker-pie"));
   }
 
   return { type: "FeatureCollection", features };
@@ -69,42 +69,25 @@ function ukeLocationsToPickerGeoJSON(locations: UkeLocationWithPermits[]): Featu
 
   for (const loc of locations) {
     if (!loc.latitude || !loc.longitude || !loc.stations?.length) continue;
-
-    const { operators, isMultiOperator, color } = getOperatorData(loc.stations.map((s) => s.operator?.mnc));
-    const pieImageId = isMultiOperator ? `picker-uke-pie-${operators.join("-")}` : undefined;
-
-    features.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [loc.longitude, loc.latitude] },
-      properties: {
-        locationId: loc.id,
-        city: loc.city ?? "",
-        address: loc.address ?? "",
-        stationCount: loc.stations.length,
-        color,
-        isMultiOperator,
-        operators: JSON.stringify(operators),
-        pieImageId,
-      },
-    });
+    features.push(locationToPickerFeature(loc, "picker-uke-pie"));
   }
 
   return { type: "FeatureCollection", features };
 }
 
-function applyGeocodeResult(result: GeocodingResult, regions: Region[], onLocationChange: (patch: Partial<ProposedLocationForm>) => void) {
-  const city = result.address.city || result.address.town || result.address.village || result.address.municipality;
-  const addressParts = [result.address.road, result.address.house_number].filter(Boolean);
-  const address = addressParts.join(" ") || result.display_name?.split(",")[0];
-  const regionName = result.address.state?.replace(" Voivodeship", "").replace("województwo ", "");
-  const matchedRegion = regions.find((r) => r.name.toLowerCase() === regionName?.toLowerCase());
+function geocodeResultToLocationPatch(result: GeocodingResult, regions: Region[]): Partial<ProposedLocationForm> {
+  const { street, houseNumber, city, municipality, region } = result.address;
+  const streetName = street ?? (houseNumber ? city : null);
+  const address = [streetName, houseNumber].filter(Boolean).join(" ") || result.name;
+  const locality = city ?? municipality?.replace(/^gmina\s+/i, "");
+  const matchedRegion = regions.find((r) => r.name.toLowerCase() === region?.toLowerCase());
 
   const patch: Partial<ProposedLocationForm> = {};
-  if (city) patch.city = city;
+  if (locality) patch.city = locality;
   if (address) patch.address = address;
   if (matchedRegion) patch.region_id = matchedRegion.id;
 
-  onLocationChange(patch);
+  return patch;
 }
 
 function computeNearby(coords: { lat: number; lng: number }, locations: LocationWithStations[]): (LocationWithStations & { distance: number })[] {
@@ -114,6 +97,25 @@ function computeNearby(coords: { lat: number; lng: number }, locations: Location
     if (distance <= PICKER_NEARBY_RADIUS_METERS) nearby.push({ ...loc, distance });
   }
   return nearby.sort((a, b) => a.distance - b.distance).slice(0, 5);
+}
+
+function findLocationAt(locations: LocationWithStations[], latitude: number | null, longitude: number | null): LocationWithStations | null {
+  if (latitude === null || longitude === null) return null;
+  const lat = roundCoord(latitude);
+  const lng = roundCoord(longitude);
+  return locations.find((loc) => roundCoord(loc.latitude) === lat && roundCoord(loc.longitude) === lng) ?? null;
+}
+
+function isSameText(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? "").trim() === (b ?? "").trim();
+}
+
+function diffLocationDetails(location: ProposedLocationForm, existing: LocationWithStations) {
+  return {
+    region: location.region_id !== (existing.region?.id ?? null),
+    city: !isSameText(location.city, existing.city),
+    address: !isSameText(location.address, existing.address),
+  };
 }
 
 type LocationPickerProps = {
@@ -126,6 +128,7 @@ type LocationPickerProps = {
   locationDiffs?: { coords: boolean; city: boolean; address: boolean; region: boolean } | null;
   currentLocation?: Location | null;
   showEditLocationLink?: boolean;
+  existingLocationMatch?: "compare" | "select";
 };
 
 export const LocationPicker = memo(function LocationPicker({
@@ -138,19 +141,31 @@ export const LocationPicker = memo(function LocationPicker({
   locationDiffs,
   currentLocation,
   showEditLocationLink,
+  existingLocationMatch,
 }: LocationPickerProps) {
   const { t } = useTranslation(["submissions", "common"]);
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
+  const [geocodingSource, setGeocodingSource] = useState<GeocodingSource | null>(null);
   const [showUkeLocations, setShowUkeLocations] = useState(false);
+  const [matchedLocation, setMatchedLocation] = useState<LocationWithStations | null>(null);
 
   const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const coordinatesRef = useRef({ latitude: location.latitude, longitude: location.longitude });
+
+  useEffect(() => {
+    coordinatesRef.current = { latitude: location.latitude, longitude: location.longitude };
+  }, [location.latitude, location.longitude]);
 
   const handleFetchAddress = async () => {
-    if (location.latitude === null || location.longitude === null) return;
+    const { latitude, longitude } = location;
+    if (latitude === null || longitude === null) return;
     setIsFetchingAddress(true);
-    const result = await reverseGeocode(location.latitude, location.longitude).catch(() => null);
-    if (result) applyGeocodeResult(result, regions, onLocationChange);
+    const response = await reverseGeocode(latitude, longitude);
     setIsFetchingAddress(false);
+    const current = coordinatesRef.current;
+    if (!response?.result || current.latitude !== latitude || current.longitude !== longitude) return;
+    onLocationChange(geocodeResultToLocationPatch(response.result, regions));
+    setGeocodingSource(response.source);
   };
 
   const handleMapCoordinatesSet = useCallback(
@@ -180,12 +195,16 @@ export const LocationPicker = memo(function LocationPicker({
   const hasCoordinates = location.latitude !== null && location.longitude !== null;
 
   const [initialView] = useState(() => {
-    const has = location.longitude !== null && location.longitude !== undefined && location.latitude !== null && location.latitude !== undefined;
-    return {
-      center: (has ? [location.longitude, location.latitude] : POLAND_CENTER) as [number, number],
-      zoom: has ? 15 : 6,
-    };
+    const { latitude, longitude } = location;
+    if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) return { center: POLAND_CENTER, zoom: 6 };
+    return { center: [longitude, latitude] as [number, number], zoom: 15 };
   });
+
+  const existingMatch = existingLocationMatch && matchedLocation && matchedLocation.id !== currentLocation?.id ? matchedLocation : null;
+  const existingDiffs = existingMatch ? diffLocationDetails(location, existingMatch) : null;
+  const detailDiffs = existingDiffs ?? locationDiffs;
+  const detailsBaseline = existingMatch ?? currentLocation;
+  const hasExistingDetailChanges = existingDiffs !== null && (existingDiffs.region || existingDiffs.city || existingDiffs.address);
 
   return (
     <div className="border rounded-xl overflow-hidden">
@@ -193,7 +212,7 @@ export const LocationPicker = memo(function LocationPicker({
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={Location01Icon} className="size-4 text-muted-foreground" />
           <span className="font-semibold text-sm">{t("common:labels.location")}</span>
-          {showEditLocationLink && currentLocation?.id && (
+          {showEditLocationLink && currentLocation?.id ? (
             <Link
               to={`/admin/locations/${currentLocation.id}` as "/"}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -201,7 +220,7 @@ export const LocationPicker = memo(function LocationPicker({
               <HugeiconsIcon icon={PencilEdit01Icon} className="size-3" />
               {t("common:actions.edit")}
             </Link>
-          )}
+          ) : null}
         </div>
         {onUkeStationSelect && (
           <label htmlFor="enable-uke-locations" className="flex items-center gap-1.5 cursor-pointer">
@@ -218,6 +237,9 @@ export const LocationPicker = memo(function LocationPicker({
             azimuthStationId={azimuthStationId}
             onCoordinatesSet={handleMapCoordinatesSet}
             onExistingLocationSelect={handleExistingLocationSelect}
+            selectsExistingLocation={existingLocationMatch === "select"}
+            currentLocationId={currentLocation?.id}
+            onMatchedLocationChange={setMatchedLocation}
             showUkeLocations={showUkeLocations}
             onUkeStationSelect={onUkeStationSelect}
             currentLocation={locationDiffs?.coords ? currentLocation : null}
@@ -227,7 +249,7 @@ export const LocationPicker = memo(function LocationPicker({
       </div>
 
       <div className="p-4 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Button
             type="button"
             variant="outline"
@@ -239,6 +261,7 @@ export const LocationPicker = memo(function LocationPicker({
             {isFetchingAddress ? <Spinner className="size-3.5" /> : <HugeiconsIcon icon={Location01Icon} className="size-3.5" />}
             {t("locationPicker.fetchAddress")}
           </Button>
+          {geocodingSource ? <GeocodingAttribution source={geocodingSource} /> : null}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -298,7 +321,7 @@ export const LocationPicker = memo(function LocationPicker({
             </SelectContent>
           </Select>
           {errors?.region_id && <p className="text-xs text-destructive">{t(errors.region_id)}</p>}
-          {locationDiffs?.region && currentLocation && <ChangeBadge label={t("diff.was")} current={currentLocation.region.name} />}
+          {detailDiffs?.region && detailsBaseline && <ChangeBadge label={t("diff.was")} current={detailsBaseline.region.name} />}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -313,7 +336,7 @@ export const LocationPicker = memo(function LocationPicker({
               onChange={(e) => onLocationChange({ city: e.target.value })}
               className="h-8 text-sm"
             />
-            {locationDiffs?.city && currentLocation && <ChangeBadge label={t("diff.was")} current={currentLocation.city || "-"} />}
+            {detailDiffs?.city && detailsBaseline && <ChangeBadge label={t("diff.was")} current={detailsBaseline.city || "-"} />}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="address" className="text-xs">
@@ -327,9 +350,24 @@ export const LocationPicker = memo(function LocationPicker({
               className={cn("h-8 text-sm", errors?.address && "border-destructive")}
             />
             {errors?.address && <p className="text-xs text-destructive">{t(errors.address)}</p>}
-            {locationDiffs?.address && currentLocation && <ChangeBadge label={t("diff.was")} current={currentLocation.address || "-"} />}
+            {detailDiffs?.address && detailsBaseline && <ChangeBadge label={t("diff.was")} current={detailsBaseline.address || "-"} />}
           </div>
         </div>
+
+        {existingMatch ? (
+          <div className="min-h-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-lg border bg-muted/50 px-3 py-1.5">
+            <div className="flex min-w-0 items-center gap-1.5 text-xs">
+              <HugeiconsIcon icon={LocationCheck01Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">{t("locationPicker.existingLocation")}</span>
+              <span className="text-muted-foreground">· {t("common:labels.stations", { count: existingMatch.stations?.length ?? 0 })}</span>
+            </div>
+            {hasExistingDetailChanges ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => handleExistingLocationSelect(existingMatch)} className="text-xs">
+                {t("locationPicker.useExistingAddress")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -358,6 +396,9 @@ type PickerMapInnerProps = {
   azimuthStationId?: number;
   onCoordinatesSet: (lat: number, lon: number) => void;
   onExistingLocationSelect: (loc: LocationWithStations) => void;
+  selectsExistingLocation: boolean;
+  currentLocationId?: number;
+  onMatchedLocationChange: (loc: LocationWithStations | null) => void;
   showUkeLocations: boolean;
   onUkeStationSelect?: (station: UkeStation) => void;
   currentLocation?: Location | null;
@@ -368,6 +409,9 @@ function PickerMapInner({
   azimuthStationId,
   onCoordinatesSet,
   onExistingLocationSelect,
+  selectsExistingLocation,
+  currentLocationId,
+  onMatchedLocationChange,
   showUkeLocations,
   onUkeStationSelect,
   currentLocation,
@@ -401,9 +445,9 @@ function PickerMapInner({
   const ukeGeoJSON = useMemo(() => ukeLocationsToPickerGeoJSON(viewportUkeLocations), [viewportUkeLocations]);
   const azimuthLocations = useMemo(
     () =>
-      viewportLocations.flatMap((location) => {
-        const azimuthStation = location.stations.find((station) => station.id === azimuthStationId);
-        return azimuthStation ? [{ ...location, stations: [azimuthStation] }] : [];
+      viewportLocations.flatMap((loc) => {
+        const azimuthStation = loc.stations.find((station) => station.id === azimuthStationId);
+        return azimuthStation ? [{ ...loc, stations: [azimuthStation] }] : [];
       }),
     [azimuthStationId, viewportLocations],
   );
@@ -455,9 +499,7 @@ function PickerMapInner({
         if (ukeFeatures.length > 0) {
           const locationId = ukeFeatures[0].properties?.locationId;
           const ukeLoc = viewportUkeLocationsRef.current.find((l) => l.id === locationId);
-          if (ukeLoc) {
-            dispatchPanel({ type: "SELECT_UKE", location: ukeLoc, stations: attachUkeLocationToStations(ukeLoc.stations ?? [], ukeLoc) });
-          }
+          if (ukeLoc) dispatchPanel({ type: "SELECT_UKE", location: ukeLoc, stations: attachUkeLocationToStations(ukeLoc.stations ?? [], ukeLoc) });
           return;
         }
       }
@@ -485,11 +527,8 @@ function PickerMapInner({
     if (!map || location.latitude === null || location.longitude === null) return;
 
     const last = lastInternalCoordsRef.current;
-    if (last && roundCoord(last.lat) === roundCoord(location.latitude) && roundCoord(last.lng) === roundCoord(location.longitude)) {
-      lastInternalCoordsRef.current = null;
-      return;
-    }
     lastInternalCoordsRef.current = null;
+    if (last && roundCoord(last.lat) === roundCoord(location.latitude) && roundCoord(last.lng) === roundCoord(location.longitude)) return;
 
     map.flyTo({
       center: [location.longitude, location.latitude],
@@ -499,23 +538,24 @@ function PickerMapInner({
     });
   }, [map, location.latitude, location.longitude]);
 
+  const matchedLocation = useMemo(
+    () => findLocationAt(viewportLocations, location.latitude, location.longitude),
+    [viewportLocations, location.latitude, location.longitude],
+  );
   const matchedLocationIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (location.latitude === null || location.longitude === null) {
-      matchedLocationIdRef.current = null;
-      return;
-    }
-    const lat = roundCoord(location.latitude);
-    const lng = roundCoord(location.longitude);
-    const match = viewportLocations.find((l) => roundCoord(l.latitude) === lat && roundCoord(l.longitude) === lng);
-    if (match) {
-      if (matchedLocationIdRef.current !== match.id && userHasInteractedRef.current) {
-        matchedLocationIdRef.current = match.id;
-        callbackRefs.current.onExistingLocationSelect(match);
-      } else if (!userHasInteractedRef.current) matchedLocationIdRef.current = match.id;
-    } else matchedLocationIdRef.current = null;
-  }, [location.latitude, location.longitude, viewportLocations]);
+    onMatchedLocationChange(matchedLocation);
+  }, [matchedLocation, onMatchedLocationChange]);
+
+  useEffect(() => {
+    const matchedId = matchedLocation?.id ?? null;
+    if (matchedLocationIdRef.current === matchedId) return;
+    matchedLocationIdRef.current = matchedId;
+    if (!matchedLocation) return;
+    if (!userHasInteractedRef.current && (!selectsExistingLocation || matchedLocation.id === currentLocationId)) return;
+    callbackRefs.current.onExistingLocationSelect(matchedLocation);
+  }, [matchedLocation, selectsExistingLocation, currentLocationId]);
 
   const handleDragEnd = useCallback(
     (lngLat: { lng: number; lat: number }) => {

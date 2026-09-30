@@ -151,7 +151,7 @@ async function loadLocationNames(rows: AuditRow[], currentLocationId: number | n
   return names;
 }
 
-async function fetchAuthors(rows: Array<typeof auditOperations.$inferSelect>): Promise<Map<string, StationHistoryAuthor>> {
+async function fetchAuthors(rows: (typeof auditOperations.$inferSelect)[]): Promise<Map<string, StationHistoryAuthor>> {
   const authorIds = [...new Set(rows.map((row) => row.actor_id).filter((id): id is string => id !== null))];
   const authorRows =
     authorIds.length > 0

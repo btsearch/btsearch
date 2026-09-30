@@ -126,7 +126,7 @@ export async function updateOperatorParents(): Promise<void> {
   const parentOfNetworks = nameToId.get("NetWorks");
   const parentOfPlus = nameToId.get("Plus");
 
-  const updates: Array<{ child: number; parent: number }> = [];
+  const updates: { child: number; parent: number }[] = [];
   const tmobile = nameToId.get("T-Mobile");
   if (tmobile && parentOfNetworks) updates.push({ child: tmobile, parent: parentOfNetworks });
   const orange = nameToId.get("Orange");
@@ -155,7 +155,7 @@ export async function writeLocations(items: PreparedLocation[], regionIds: Regio
   }));
 
   const batchSize = options.batchSize ?? values.length;
-  const inserted: Array<{ id: number; longitude: number; latitude: number }> = [];
+  const inserted: { id: number; longitude: number; latitude: number }[] = [];
   if (values.length) {
     for (const [groupIdx, group] of chunkArray(values, batchSize).entries()) {
       if (group.length === 0) continue;
@@ -345,7 +345,7 @@ export async function writeCellsAndDetails(
     updatedAt: p.cell.date_updated ?? undefined,
   }));
 
-  const inserted: Array<{ id: number }> = [];
+  const inserted: { id: number }[] = [];
   for (const group of chunkArray(baseValues, batchSize)) {
     if (group.length === 0) continue;
     const part = await db.insert(cells).values(group).returning({ id: cells.id });

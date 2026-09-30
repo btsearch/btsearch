@@ -1,6 +1,6 @@
 import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../../searchApi";
 import type { FilterKeyword } from "../../types";
-import type { GeocodingResult } from "@/lib/geo/geocoding";
+import type { GeocodingResult, GeocodingSource } from "@/lib/geo/geocoding";
 
 export type GpsSearchResult = {
   lat: number;
@@ -20,8 +20,8 @@ export type SearchResultOption = GpsSearchOption | LocationSearchOption | Statio
 export type SearchOption = FilterSearchOption | SearchResultOption;
 
 export type SearchResultGroup =
-  | { kind: "gps"; options: GpsSearchOption[] }
-  | { kind: "location"; options: LocationSearchOption[] }
+  | { kind: "gps"; options: GpsSearchOption[]; source: GeocodingSource | null }
+  | { kind: "location"; options: LocationSearchOption[]; source: GeocodingSource | null }
   | { kind: "station"; options: StationSearchOption[] }
   | { kind: "permit"; options: PermitSearchOption[] }
   | { kind: "radioline"; options: RadiolineSearchOption[] };
@@ -35,7 +35,9 @@ type SearchResultCapabilities = {
 
 type BuildSearchResultOptionsArgs = {
   gpsResult: GpsSearchResult | null;
+  gpsSource: GeocodingSource | null;
   locationResults: GeocodingResult[];
+  locationSource: GeocodingSource | null;
   stationResults: SearchStation[];
   permitResults: UkeSearchPermitStation[];
   radiolineResults: UkeSearchRadioline[];
@@ -56,7 +58,9 @@ export function buildAutocompleteOptions(keywords: FilterKeyword[]): SearchOptio
 
 export function buildSearchResultOptions({
   gpsResult,
+  gpsSource,
   locationResults,
+  locationSource,
   stationResults,
   permitResults,
   radiolineResults,
@@ -65,7 +69,7 @@ export function buildSearchResultOptions({
   const gpsOptions: GpsSearchOption[] =
     capabilities.location && gpsResult ? [{ kind: "gps", key: `gps:${gpsResult.lat}:${gpsResult.lng}`, result: gpsResult }] : [];
   const locationOptions: LocationSearchOption[] = capabilities.location
-    ? locationResults.map((result) => ({ kind: "location", key: `location:${result.place_id}`, result }))
+    ? locationResults.map((result) => ({ kind: "location", key: `location:${result.id}`, result }))
     : [];
   const stationOptions: StationSearchOption[] = capabilities.station
     ? stationResults.slice(0, MAX_STATION_RESULTS).map((result) => ({ kind: "station", key: `station:${result.id}`, result }))
@@ -77,8 +81,8 @@ export function buildSearchResultOptions({
     ? radiolineResults.map((result) => ({ kind: "radioline", key: `radioline:${result.id}`, result }))
     : [];
   const groups: SearchResultGroup[] = [];
-  if (gpsOptions.length > 0) groups.push({ kind: "gps", options: gpsOptions });
-  if (locationOptions.length > 0) groups.push({ kind: "location", options: locationOptions });
+  if (gpsOptions.length > 0) groups.push({ kind: "gps", options: gpsOptions, source: gpsSource });
+  if (locationOptions.length > 0) groups.push({ kind: "location", options: locationOptions, source: locationSource });
   if (stationOptions.length > 0) groups.push({ kind: "station", options: stationOptions });
   if (permitOptions.length > 0) groups.push({ kind: "permit", options: permitOptions });
   if (radiolineOptions.length > 0) groups.push({ kind: "radioline", options: radiolineOptions });

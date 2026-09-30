@@ -11,7 +11,7 @@ export type CookieConsent = "accepted" | "rejected";
 
 const CONSENT_KEY = "openbts:cookie-consent";
 
-let listeners: Array<() => void> = [];
+let listeners: (() => void)[] = [];
 let cachedConsent: CookieConsent | null | undefined = undefined;
 
 function readConsent(): CookieConsent | null {

@@ -36,7 +36,7 @@ type StoredAnalyzerResult = Pick<AnalyzerResult, "status" | "warnings"> & {
 
 export interface AnalyzerDraft {
   id: string;
-  selectedRows: Array<{ index: number; parsedRow: StoredParsedRow; result: StoredAnalyzerResult }>;
+  selectedRows: { index: number; parsedRow: StoredParsedRow; result: StoredAnalyzerResult }[];
   metadata: {
     fileName: string | null;
     fileFormat: FileFormat | null;

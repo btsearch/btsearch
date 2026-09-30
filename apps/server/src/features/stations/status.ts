@@ -1,9 +1,13 @@
-import type { stations } from "@openbts/drizzle";
+import { stations } from "@openbts/drizzle";
 import { sql } from "drizzle-orm";
+import { createSelectSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import { ErrorResponse } from "../../errors.js";
 
-export type StationStatus = typeof stations.$inferSelect.status;
+const stationSelectSchema = createSelectSchema(stations);
+
+export type StationStatus = z.infer<typeof stationSelectSchema>["status"];
 
 type StationStatusState = {
   status: StationStatus;

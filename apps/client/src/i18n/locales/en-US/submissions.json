@@ -28,7 +28,9 @@
     "nearbyLocations": "Nearby stations",
     "createNewLocation": "Create new location here",
     "showUkeLocations": "Show UKE locations",
-    "selectStation": "Select a station to import"
+    "selectStation": "Select a station to import",
+    "existingLocation": "Existing location",
+    "useExistingAddress": "Use existing address"
   },
   "header": {
     "reject": "Reject submission",

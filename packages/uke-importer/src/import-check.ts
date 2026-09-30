@@ -22,7 +22,7 @@ export async function getLastImportedFileNames(importType: ImportType): Promise<
 
 export async function recordImportMetadata(
   importType: ImportType,
-  fileLinks: Array<{ href: string; text: string }>,
+  fileLinks: { href: string; text: string }[],
   status: "success" | "failed",
 ): Promise<number> {
   const fileList = JSON.stringify(fileLinks.map((l) => l.href).sort());

@@ -19,6 +19,8 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Notifications have a new look: each one shows the station with its operator logo, a short summary of what changed and who reviewed or sent the submission
 - Long reviewer notes in notifications can be expanded, and older notifications load on request
 - The station dialog no longer has a UKE Permits tab. Permits are still shown after switching the dialog to UKE and on the station page
+- Place search on the map, addresses for typed GPS coordinates and the Auto-fill address button now use Geoapify and LocationIQ instead of Mapbox, and show which of them found the result
+- The location picker in submissions and in the admin station editor now shows when the selected point is an existing location and how many stations it has, marks the address details that differ from it and can restore them with Use existing address. Reviewers see the same on the submission page
 - API: `GET /account/api-keys` now includes `limits` with `maxKeys` and `nextCreateAt`
 
 ### 🩹 Fixes
@@ -42,6 +44,12 @@ If you found some bugs or want us to add new feature, please do so via [our GitH
 - Grouped notifications about new photos or comments now count the events correctly
 - Notification titles now follow the app language
 - Reviewer notes in notifications now keep up to 500 characters instead of 200, and a shortened note ends with "..."
+- A station created from UKE at the coordinates of an existing location now uses that location and its address, so approving the submission no longer replaces the address and city of the stations already there
+- The admin station editor now also picks the existing location when a station created from UKE or typed coordinates land on it, so the form shows the address that is saved
+- Moving the marker in the admin station editor after picking an existing location now saves the new coordinates instead of attaching the station to the picked location
+- Address changes made in the admin station editor after picking an existing location are now saved instead of being dropped
+- Clearing a station's networks name in the admin station editor is now saved, also when it was the station's only extra identifier
+- Auto-fill address no longer fills in the address of the previous point when the marker is moved while the address is being looked up
 
 # 2026-09-28
 

@@ -183,7 +183,7 @@ async function handleOAuthClientWrite(ctx: HookCtx) {
     throw new APIError("BAD_REQUEST", { message: "Custom application logos are not supported" });
 }
 
-const beforeHandlers: Array<{ path: string; handler: (ctx: HookCtx) => Promise<unknown> }> = [
+const beforeHandlers: { path: string; handler: (ctx: HookCtx) => Promise<unknown> }[] = [
   { path: "/sign-up/email", handler: handleSignUp },
   { path: "/sign-in/social", handler: handleSocialSignIn },
   { path: VERIFICATION_RESEND_PATH, handler: handleVerificationResend },

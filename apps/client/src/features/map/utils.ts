@@ -148,7 +148,7 @@ export function getStationBands(cells: Cell[]): string[] {
   return sortBands([...new Set(cells.map((c) => `${c.rat}${c.band.value ?? ""}`))]);
 }
 
-export function getPermitBands(permits: Array<{ band?: UkeStationPermit["band"] }>): string[] {
+export function getPermitBands(permits: { band?: UkeStationPermit["band"] }[]): string[] {
   const bands = permits.reduce<string[]>((acc, p) => {
     if (!p.band) return acc;
     const rat = p.band.rat === "GSM" && p.band.variant === "railway" ? "GSM-R" : p.band.rat;

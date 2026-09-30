@@ -198,21 +198,24 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   const reverseGeocodeQuery = useQuery({
     queryKey: ["reverse-geocode", gpsCoords?.lat, gpsCoords?.lng],
-    queryFn: () => reverseGeocode(gpsCoords!.lat, gpsCoords!.lng),
+    queryFn: ({ signal }) => reverseGeocode(gpsCoords!.lat, gpsCoords!.lng, signal),
     enabled: resultsQueryEnabled && onLocationSelect !== undefined && !!gpsCoords,
     staleTime: 1000 * 60 * 60,
   });
 
-  const gpsResult = useMemo(
-    () => (gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, address: reverseGeocodeQuery.data?.display_name ?? null } : null),
-    [gpsCoords, reverseGeocodeQuery.data?.display_name],
-  );
+  const reverseGeocodeData = reverseGeocodeQuery.data;
+  const gpsResult = useMemo(() => {
+    if (!gpsCoords) return null;
+    const place = reverseGeocodeData?.result;
+    return { lat: gpsCoords.lat, lng: gpsCoords.lng, address: place ? [place.name, place.description].filter(Boolean).join(", ") : null };
+  }, [gpsCoords, reverseGeocodeData]);
+  const gpsSource = reverseGeocodeData?.result ? reverseGeocodeData.source : null;
 
   const shouldSearchLocations = resultsQueryEnabled && onLocationSelect !== undefined && searchKeyword.trim().length >= 3;
 
   const locationQuery = useQuery({
     queryKey: ["geocoding-search", searchKeyword],
-    queryFn: () => searchLocations(searchKeyword),
+    queryFn: ({ signal }) => searchLocations(searchKeyword, signal),
     enabled: shouldSearchLocations,
     staleTime: 1000 * 60 * 60,
     placeholderData: (previous) => previous,
@@ -234,7 +237,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     placeholderData: (previous) => previous,
   });
 
-  const locationResults = shouldSearchLocations ? (locationQuery.data ?? EMPTY_RESULTS) : EMPTY_RESULTS;
+  const locationResults = shouldSearchLocations ? (locationQuery.data?.results ?? EMPTY_RESULTS) : EMPTY_RESULTS;
+  const locationSource = shouldSearchLocations ? (locationQuery.data?.source ?? null) : null;
   const stationResults = isUkeSource ? EMPTY_RESULTS : (stationQuery.data ?? EMPTY_RESULTS);
   const permitResults = isUkeSource ? (ukeQuery.data?.stations ?? EMPTY_RESULTS) : EMPTY_RESULTS;
   const radiolineResults = isUkeSource ? (ukeQuery.data?.radiolines ?? EMPTY_RESULTS) : EMPTY_RESULTS;
@@ -242,7 +246,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     () =>
       buildSearchResultOptions({
         gpsResult,
+        gpsSource,
         locationResults,
+        locationSource,
         stationResults,
         permitResults,
         radiolineResults,
@@ -255,7 +261,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       }),
     [
       gpsResult,
+      gpsSource,
       locationResults,
+      locationSource,
       onLocationSelect,
       onRadiolineSelect,
       onStationSelect,
@@ -340,7 +348,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         break;
       case "location":
         if (!onLocationSelect) return;
-        onLocationSelect(Number.parseFloat(option.result.lat), Number.parseFloat(option.result.lon));
+        onLocationSelect(option.result.latitude, option.result.longitude);
         break;
       case "station":
         if (!onStationSelect) return;

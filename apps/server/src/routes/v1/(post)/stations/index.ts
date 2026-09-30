@@ -166,15 +166,13 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       }
 
       const cellsWithDetails = (
-        full.cells as Array<
-          z.infer<typeof cellsSchema> & {
-            band: z.infer<typeof bandsSchema>;
-            gsm?: z.infer<typeof gsmCellsSchema>;
-            umts?: z.infer<typeof umtsCellsSchema>;
-            lte?: z.infer<typeof lteCellsSchema>;
-            nr?: z.infer<typeof nrCellsSchema>;
-          }
-        >
+        full.cells as (z.infer<typeof cellsSchema> & {
+          band: z.infer<typeof bandsSchema>;
+          gsm?: z.infer<typeof gsmCellsSchema>;
+          umts?: z.infer<typeof umtsCellsSchema>;
+          lte?: z.infer<typeof lteCellsSchema>;
+          nr?: z.infer<typeof nrCellsSchema>;
+        })[]
       ).map((cell) => {
         const { gsm, umts, lte, nr, band, ...rest } = cell;
         const details: z.infer<typeof cellDetailsSchema> = gsm ?? umts ?? lte ?? nr ?? null;

@@ -17,54 +17,84 @@ import {
   umtsCells,
 } from "@openbts/drizzle";
 import { asc, eq, inArray } from "drizzle-orm";
+import { createSelectSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import type { DbTx } from "../../types/global.js";
+import type { submissionsSelectSchema } from "../submissions/create.js";
+import type {
+  gsmSelectSchema,
+  lteSelectSchema,
+  nrSelectSchema,
+  proposedCellsSelectSchema,
+  proposedLocationsSelectSchema,
+  proposedStationsSelectSchema,
+  umtsSelectSchema,
+} from "../submissions/helpers.js";
 import type { AuditMetadata, AuditRecorder } from "./types.js";
 
-type CellWithRatRows = typeof cells.$inferSelect & {
-  gsm: typeof gsmCells.$inferSelect | null;
-  umts: typeof umtsCells.$inferSelect | null;
-  lte: typeof lteCells.$inferSelect | null;
-  nr: typeof nrCells.$inferSelect | null;
+const cellSelectSchema = createSelectSchema(cells);
+const gsmCellSelectSchema = createSelectSchema(gsmCells);
+const umtsCellSelectSchema = createSelectSchema(umtsCells);
+const lteCellSelectSchema = createSelectSchema(lteCells);
+const nrCellSelectSchema = createSelectSchema(nrCells);
+const proposedGSMCellSelectSchema = createSelectSchema(proposedGSMCells);
+const proposedUMTSCellSelectSchema = createSelectSchema(proposedUMTSCells);
+const proposedLTECellSelectSchema = createSelectSchema(proposedLTECells);
+const proposedNRCellSelectSchema = createSelectSchema(proposedNRCells);
+const proposedSectorSelectSchema = createSelectSchema(proposedSectors);
+
+type CellRow = z.infer<typeof cellSelectSchema>;
+type GsmCellRow = z.infer<typeof gsmCellSelectSchema>;
+type UmtsCellRow = z.infer<typeof umtsCellSelectSchema>;
+type LteCellRow = z.infer<typeof lteCellSelectSchema>;
+type NrCellRow = z.infer<typeof nrCellSelectSchema>;
+type SubmissionRow = z.infer<typeof submissionsSelectSchema>;
+type ProposedCellRow = z.infer<typeof proposedCellsSelectSchema>;
+type ProposedStationRow = z.infer<typeof proposedStationsSelectSchema>;
+type ProposedLocationRow = z.infer<typeof proposedLocationsSelectSchema>;
+type ProposedSectorRow = z.infer<typeof proposedSectorSelectSchema>;
+
+type CellWithRatRows = CellRow & {
+  gsm: GsmCellRow | null;
+  umts: UmtsCellRow | null;
+  lte: LteCellRow | null;
+  nr: NrCellRow | null;
 };
 
-type ProposedCellWithRatRows = typeof proposedCells.$inferSelect & {
-  gsm: typeof proposedGSMCells.$inferSelect | null;
-  umts: typeof proposedUMTSCells.$inferSelect | null;
-  lte: typeof proposedLTECells.$inferSelect | null;
-  nr: typeof proposedNRCells.$inferSelect | null;
+type ProposedCellWithRatRows = ProposedCellRow & {
+  gsm: z.infer<typeof proposedGSMCellSelectSchema> | null;
+  umts: z.infer<typeof proposedUMTSCellSelectSchema> | null;
+  lte: z.infer<typeof proposedLTECellSelectSchema> | null;
+  nr: z.infer<typeof proposedNRCellSelectSchema> | null;
 };
 
-type SubmissionDraftRow = typeof submissions.$inferSelect & {
-  proposedStation: typeof proposedStations.$inferSelect | null;
-  proposedLocation: typeof proposedLocations.$inferSelect | null;
-  proposedSectors: (typeof proposedSectors.$inferSelect)[];
+type SubmissionDraftRow = SubmissionRow & {
+  proposedStation: ProposedStationRow | null;
+  proposedLocation: ProposedLocationRow | null;
+  proposedSectors: ProposedSectorRow[];
   proposedCells: ProposedCellWithRatRows[];
 };
 
-type RatSnapshot =
-  | Omit<typeof gsmCells.$inferSelect, "cell_id">
-  | Omit<typeof umtsCells.$inferSelect, "cell_id">
-  | Omit<typeof lteCells.$inferSelect, "cell_id">
-  | Omit<typeof nrCells.$inferSelect, "cell_id">;
+type RatSnapshot = Omit<GsmCellRow, "cell_id"> | Omit<UmtsCellRow, "cell_id"> | Omit<LteCellRow, "cell_id"> | Omit<NrCellRow, "cell_id">;
 
 type ProposedRatSnapshot =
-  | Omit<typeof proposedGSMCells.$inferSelect, "proposed_cell_id">
-  | Omit<typeof proposedUMTSCells.$inferSelect, "proposed_cell_id">
-  | Omit<typeof proposedLTECells.$inferSelect, "proposed_cell_id">
-  | Omit<typeof proposedNRCells.$inferSelect, "proposed_cell_id">;
+  | z.infer<typeof gsmSelectSchema>
+  | z.infer<typeof umtsSelectSchema>
+  | z.infer<typeof lteSelectSchema>
+  | z.infer<typeof nrSelectSchema>;
 
 type StableProposalRow<T> = Omit<T, "id" | "submission_id" | "createdAt" | "updatedAt">;
 
-export type CellSnapshot = typeof cells.$inferSelect & { details: RatSnapshot | null };
+export type CellSnapshot = CellRow & { details: RatSnapshot | null };
 export type SectorSnapshot = { id: number; azimuth: number };
 export type PhotoSelectionSnapshot = { location_photo_id: number; is_main: boolean };
 export type PhotoSelectionSnapshots = Map<number, PhotoSelectionSnapshot[]>;
-export type SubmissionDraftSnapshot = typeof submissions.$inferSelect & {
-  proposedStation: StableProposalRow<typeof proposedStations.$inferSelect> | null;
-  proposedLocation: StableProposalRow<typeof proposedLocations.$inferSelect> | null;
-  sectors: StableProposalRow<typeof proposedSectors.$inferSelect>[];
-  cells: Array<StableProposalRow<typeof proposedCells.$inferSelect> & { details: ProposedRatSnapshot | null }>;
+export type SubmissionDraftSnapshot = SubmissionRow & {
+  proposedStation: StableProposalRow<ProposedStationRow> | null;
+  proposedLocation: StableProposalRow<ProposedLocationRow> | null;
+  sectors: StableProposalRow<ProposedSectorRow>[];
+  cells: (StableProposalRow<ProposedCellRow> & { details: ProposedRatSnapshot | null })[];
 };
 
 function omitCellId<T extends { cell_id: number }>(row: T): Omit<T, "cell_id"> {

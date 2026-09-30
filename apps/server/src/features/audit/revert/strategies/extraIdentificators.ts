@@ -1,11 +1,15 @@
 import { extraIdentificators, stations } from "@openbts/drizzle";
 import { and, eq, isNull, ne } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type StrategyContext, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, snapshotFieldNames } from "./common.js";
+
+const extraIdentificatorInsertSchema = createInsertSchema(extraIdentificators);
 
 const EXTRA_ID_UNIQUE_CONSTRAINT = "extra_identificators_networks_id_unique";
 
@@ -42,7 +46,7 @@ async function addUniqueConflict(context: StrategyContext, plan: PlannedEntry, i
     );
 }
 
-function markStations(state: ApplyState, ...stationIds: Array<number | null>): void {
+function markStations(state: ApplyState, ...stationIds: (number | null)[]): void {
   for (const stationId of stationIds) if (stationId !== null) state.affectedStationIds.add(stationId);
 }
 
@@ -96,7 +100,7 @@ export async function planExtraIdentificatorRevert(context: StrategyContext, ent
         await tx
           .insert(extraIdentificators)
           .overridingSystemValue()
-          .values({ ...row, id } as typeof extraIdentificators.$inferInsert);
+          .values({ ...row, id } as z.infer<typeof extraIdentificatorInsertSchema>);
         state.sequenceTables.add("extra_identificators");
         markStations(state, numberField(oldValues, "station_id"));
       },

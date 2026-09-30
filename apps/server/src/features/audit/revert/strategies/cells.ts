@@ -1,5 +1,7 @@
 import { bands, cells, gsmCells, lteCells, nrCells, proposedCells, stationSectors, stations, umtsCells } from "@openbts/drizzle";
 import { count, eq } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import {
   type NormalRat,
@@ -15,6 +17,8 @@ import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot,
 import { changedFields, staleFields, staleNestedFields } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type StrategyContext, addCellChange, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, stringField } from "./common.js";
+
+const cellInsertSchema = createInsertSchema(cells);
 
 function detailsSnapshot(snapshot: SnapshotRecord, rat: string): SnapshotRecord | null {
   if (isSnapshotRecord(snapshot.details)) return snapshot.details;
@@ -198,7 +202,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
         await tx
           .insert(cells)
           .overridingSystemValue()
-          .values({ ...cellRow, id, sector_id: sectorToRestore } as typeof cells.$inferInsert);
+          .values({ ...cellRow, id, sector_id: sectorToRestore } as z.infer<typeof cellInsertSchema>);
         if (isNormalRat(rat) && details !== null) {
           const restored = await insertRATCellDetailsReturning(tx, rat, id, details as unknown as RATInsertDetails);
           if (restored === null) throw new Error(`Failed to restore ${rat} details for cell ${id}`);

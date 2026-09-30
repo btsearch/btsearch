@@ -35,6 +35,9 @@ import { verifyPermissions } from "../../../../../plugins/auth/utils.js";
 import type { DbTx } from "../../../../../types/global.js";
 
 const submissionsSelectSchema = createSelectSchema(submissions);
+const submissionInsertSchema = createInsertSchema(submissions);
+const proposedStationInsertSchema = createInsertSchema(proposedStations);
+const proposedLocationInsertSchema = createInsertSchema(proposedLocations);
 
 const cellInputSchema = createInsertSchema(proposedCells)
   .omit({ createdAt: true, updatedAt: true, submission_id: true })
@@ -92,7 +95,8 @@ type ExistingSubmission = NonNullable<Awaited<ReturnType<typeof db.query.submiss
 type RequestBody = z.infer<typeof requestSchema>;
 type ProposedCellInput = NonNullable<RequestBody["cells"]>[number];
 type ProposedCellDetails = z.infer<typeof detailsSelectSchema>;
-type ProposedCellWithRelations = typeof proposedCells.$inferSelect & {
+type SubmissionInsert = z.infer<typeof submissionInsertSchema>;
+type ProposedCellWithRelations = z.infer<typeof proposedCellsSelectSchema> & {
   gsm: ProposedCellDetails;
   umts: ProposedCellDetails;
   lte: ProposedCellDetails;
@@ -119,8 +123,8 @@ async function hasActualChanges(body: RequestBody, existing: ExistingSubmission)
   return clearsStoredRows(existing.id, body);
 }
 
-function buildSubmissionUpdate(body: RequestBody): Partial<typeof submissions.$inferInsert> {
-  const updateFields: Partial<typeof submissions.$inferInsert> = { updatedAt: new Date() };
+function buildSubmissionUpdate(body: RequestBody): Partial<SubmissionInsert> {
+  const updateFields: Partial<SubmissionInsert> = { updatedAt: new Date() };
   if (body.review_notes !== undefined) updateFields.review_notes = body.review_notes;
   if (body.submitter_note !== undefined) updateFields.submitter_note = body.submitter_note;
   return updateFields;
@@ -179,7 +183,7 @@ async function replaceProposedStation(tx: DbTx, submissionId: string, station: R
     notes: normalizeText(station.notes),
     changed_fields: isStationUpdate ? changedStationFields(station) : null,
     submission_id: submissionId,
-  } as typeof proposedStations.$inferInsert);
+  } as z.infer<typeof proposedStationInsertSchema>);
 }
 
 async function replaceProposedLocation(tx: DbTx, submissionId: string, location: RequestBody["location"], isStationUpdate: boolean): Promise<void> {
@@ -190,7 +194,7 @@ async function replaceProposedLocation(tx: DbTx, submissionId: string, location:
     ...location,
     changed_fields: isStationUpdate ? changedLocationFields(location) : null,
     submission_id: submissionId,
-  } as typeof proposedLocations.$inferInsert);
+  } as z.infer<typeof proposedLocationInsertSchema>);
 }
 
 async function replaceProposedSectors(tx: DbTx, submissionId: string, sectors: RequestBody["sectors"]): Promise<void> {

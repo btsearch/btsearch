@@ -53,14 +53,14 @@ export interface CellExportData {
   is_confirmed?: boolean | null;
   sector_index?: number;
   sector_azimuth?: number;
-  nr_bands?: Array<{ value: number; duplex: "FDD" | "TDD" | null }>; // associated NR bands at same station (for LTE cells)
+  nr_bands?: { value: number; duplex: "FDD" | "TDD" | null }[]; // associated NR bands at same station (for LTE cells)
   nr_band_pcis?: NRBandPCIs[];
 }
 
 export interface NRBandPCIs {
   value: number;
   duplex: "FDD" | "TDD" | null;
-  pcis: Array<{ value: number; is_confirmed: boolean | null }>;
+  pcis: { value: number; is_confirmed: boolean | null }[];
   has_missing_pci: boolean;
 }
 
@@ -307,7 +307,7 @@ function isNrNonStandalone(cell: CellExportData): boolean {
   return cell.rat === "NR" && cell.nr_type === "nsa";
 }
 
-function uniqueNRPcis(pcis: Array<{ value: number; is_confirmed: boolean | null }>): Array<{ value: number; is_confirmed: boolean | null }> {
+function uniqueNRPcis(pcis: { value: number; is_confirmed: boolean | null }[]): { value: number; is_confirmed: boolean | null }[] {
   const byValue = new Map<number, { value: number; is_confirmed: boolean | null }>();
   for (const pci of pcis) {
     const existing = byValue.get(pci.value);
@@ -334,7 +334,7 @@ function getNRBandPciTemplateEntries(nr_band_pcis: NRBandPCIs[]): NRBandPciTempl
       has_missing_pci: b.has_missing_pci,
     }))
     .filter(
-      (b): b is { desig: string; value: number; pcis: Array<{ value: number; is_confirmed: boolean | null }>; has_missing_pci: boolean } =>
+      (b): b is { desig: string; value: number; pcis: { value: number; is_confirmed: boolean | null }[]; has_missing_pci: boolean } =>
         b.desig !== null,
     )
     .sort((a, b) => Number.parseInt(a.desig.slice(1), 10) - Number.parseInt(b.desig.slice(1), 10));

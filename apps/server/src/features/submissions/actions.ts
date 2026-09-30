@@ -15,7 +15,9 @@ import db from "@openbts/drizzle/db";
 import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { logger } from "better-auth";
 import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify";
+import type { z } from "zod/v4";
 
 import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
@@ -170,7 +172,7 @@ type ApprovalDuplicateCheckDraft = Pick<ApprovalDraft, "proposedStation" | "prop
 type ApprovalStationContext = { operatorId: number | null; stationStringId: string | null };
 type CellAuditChanges = {
   added: number[];
-  updated: Array<{ id: number; old: CellSnapshot }>;
+  updated: { id: number; old: CellSnapshot }[];
   deleted: CellSnapshot[];
 };
 
@@ -277,7 +279,10 @@ function extractUplinkFields(proposedStation: NonNullable<ApprovalDraft["propose
   };
 }
 
-type UplinkValues = Pick<typeof stationUplinks.$inferSelect, "type" | "speed" | "model">;
+const stationUplinkSelectSchema = createSelectSchema(stationUplinks);
+const stationInsertSchema = createInsertSchema(stations);
+
+type UplinkValues = Pick<z.infer<typeof stationUplinkSelectSchema>, "type" | "speed" | "model">;
 
 async function saveStationUplink(audit: AuditRecorder, stationId: number, values: UplinkValues, submissionId: string): Promise<boolean> {
   const { tx } = audit;
@@ -557,7 +562,7 @@ async function applyStationIdentityUpdate(
     }
   }
 
-  const updateValues: Partial<typeof stations.$inferInsert> = { updatedAt: new Date() };
+  const updateValues: Partial<z.infer<typeof stationInsertSchema>> = { updatedAt: new Date() };
   if (nextStationStringId !== undefined) updateValues.station_id = nextStationStringId;
   if (nextOperatorId !== undefined) updateValues.operator_id = nextOperatorId;
   if (nextNotes !== undefined) updateValues.notes = nextNotes;
@@ -867,7 +872,7 @@ async function applyProposedCells(
   sectorIdByLocalId: ReadonlyMap<string, number>,
 ): Promise<CellAuditChanges> {
   const changes: CellAuditChanges = { added: [], updated: [], deleted: [] };
-  const writeTasks: Array<() => Promise<void>> = [];
+  const writeTasks: (() => Promise<void>)[] = [];
 
   for (const proposed of proposedCellRows) {
     switch (proposed.operation) {

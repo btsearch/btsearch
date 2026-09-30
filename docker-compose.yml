@@ -17,7 +17,6 @@ services:
       dockerfile: apps/client/Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3030/api/v1}
-        - VITE_MAPBOX_ACCESS_TOKEN=${VITE_MAPBOX_ACCESS_TOKEN:-}
         - VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY:-}
         - VITE_APP_NAME=${VITE_APP_NAME:-${APP_NAME:-OpenBTS}}
         - VITE_ADSENSE_CLIENT=${VITE_ADSENSE_CLIENT:-}
@@ -56,6 +55,9 @@ services:
       # Resend (email)
       - RESEND_API_KEY=
       - RESEND_FROM=noreply@openbts.sakilabs.com
+      # Geocoding, requests alternate between the configured providers
+      - GEOAPIFY_API_KEY=
+      - LOCATIONIQ_API_KEY=
       # VAPID push notifications (fill in after running: web-push generate-vapid-keys --json):
       - VAPID_SUBJECT=
       - VAPID_PUBLIC_KEY=

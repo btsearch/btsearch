@@ -66,6 +66,6 @@ export interface OperatorPlan {
   missingStationIds: string[];
   unchangedCount: number;
   inserts: TargetMnoName[];
-  updates: Array<TargetMnoName & { extraIdentifierIds: number[]; oldMnoName: string | null }>;
+  updates: (TargetMnoName & { extraIdentifierIds: number[]; oldMnoName: string | null })[];
   preview: PlannedChange[];
 }

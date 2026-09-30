@@ -32,23 +32,31 @@ type ExtraIdentificatorsType = {
   mno_name: string;
 };
 
+type StationFormType = {
+  station_id: string;
+  operator_id: number | null;
+  notes: string;
+};
+
+type UplinkFormType = {
+  uplink_type: UplinkType | null;
+  uplink_speed: number | null;
+  uplink_model: string;
+};
+
 type SubmissionStationFormProps = {
   submission: SubmissionDetail;
-  stationForm: {
-    station_id: string;
-    operator_id: number | null;
-    notes: string;
-  };
-  onStationFormChange: (patch: Partial<{ station_id: string; operator_id: number | null; notes: string }>) => void;
+  stationForm: StationFormType;
+  onStationFormChange: (patch: Partial<StationFormType>) => void;
   extraIdsForm: ExtraIdentificatorsType;
   onExtraIdsChange: (patch: Partial<ExtraIdentificatorsType>) => void;
-  uplinkForm: { uplink_type: UplinkType | null; uplink_speed: number | null; uplink_model: string };
-  onUplinkFormChange: (patch: Partial<{ uplink_type: UplinkType | null; uplink_speed: number | null; uplink_model: string }>) => void;
+  uplinkForm: UplinkFormType;
+  onUplinkFormChange: (patch: Partial<UplinkFormType>) => void;
   locationForm: ProposedLocationForm;
   onLocationFormChange: (patch: Partial<ProposedLocationForm>) => void;
   sectors: SectorDraft[];
   onSectorsChange: (sectors: SectorDraft[]) => void;
-  cells: Array<{ band_id: number; _sectorLocalId?: string | null }>;
+  cells: { band_id: number; _sectorLocalId?: string | null }[];
   operators: Operator[];
   selectedOperator?: Operator;
   currentOperator?: Operator | null;
@@ -105,6 +113,7 @@ export function SubmissionStationForm({
   const SiblingLogo = siblingMnc === ORANGE_MNC ? OrangeIcon : TMobileIcon;
   const currentStationId = currentStation?.id;
   const currentUplink = currentStation?.uplink;
+  const currentExtraIds = currentStation?.extra_identificators;
 
   const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
 
@@ -116,9 +125,8 @@ export function SubmissionStationForm({
 
   const fetchUkeAzimuthSectors = useCallback(async () => {
     const trimmedStationId = stationForm.station_id.trim();
-    const mnc = selectedOperatorMnc;
-    if (!trimmedStationId || !mnc) return [];
-    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, mnc));
+    if (!trimmedStationId || !selectedOperatorMnc) return [];
+    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, selectedOperatorMnc));
   }, [selectedOperatorMnc, stationForm.station_id]);
 
   const siblingSectors = useMemo(
@@ -139,16 +147,13 @@ export function SubmissionStationForm({
     return (await fetchSI2PEMAzimuths(trimmedStationId, locationForm.latitude, locationForm.longitude)).map((azimuth) => ({ azimuth }));
   }, [locationForm.latitude, locationForm.longitude, stationForm.station_id]);
 
-  const azimuthSources = useMemo(
-    () =>
-      stationForm.station_id.trim()
-        ? {
-            ...(locationForm.latitude !== null && locationForm.longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-            ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
-          }
-        : undefined,
-    [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, locationForm.latitude, locationForm.longitude, selectedOperatorMnc, stationForm.station_id],
-  );
+  const azimuthSources = useMemo(() => {
+    if (!stationForm.station_id.trim()) return undefined;
+    return {
+      ...(locationForm.latitude !== null && locationForm.longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
+      ...(selectedOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
+    };
+  }, [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, locationForm.latitude, locationForm.longitude, selectedOperatorMnc, stationForm.station_id]);
 
   const handleFetchSibling = useCallback(async () => {
     if (!currentStationId) return;
@@ -281,10 +286,9 @@ export function SubmissionStationForm({
                       onChange={(e) => onExtraIdsChange({ networks_id: e.target.value ? Number(e.target.value) : null })}
                       className="font-mono"
                     />
-                    {currentStation?.extra_identificators?.networks_id !== undefined &&
-                      extraIdsForm.networks_id !== currentStation.extra_identificators.networks_id && (
-                        <ChangeBadge label={t("diff.was")} current={String(currentStation.extra_identificators.networks_id ?? "-")} />
-                      )}
+                    {currentExtraIds?.networks_id !== undefined && extraIdsForm.networks_id !== currentExtraIds.networks_id && (
+                      <ChangeBadge label={t("diff.was")} current={String(currentExtraIds.networks_id ?? "-")} />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>{t("common:labels.networksName")}</Label>
@@ -294,10 +298,9 @@ export function SubmissionStationForm({
                       placeholder={t("common:placeholder.optional")}
                       onChange={(e) => onExtraIdsChange({ networks_name: e.target.value })}
                     />
-                    {currentStation?.extra_identificators?.networks_name !== undefined &&
-                      extraIdsForm.networks_name !== (currentStation.extra_identificators.networks_name ?? "") && (
-                        <ChangeBadge label={t("diff.was")} current={currentStation.extra_identificators.networks_name ?? "-"} />
-                      )}
+                    {currentExtraIds?.networks_name !== undefined && extraIdsForm.networks_name !== (currentExtraIds.networks_name ?? "") && (
+                      <ChangeBadge label={t("diff.was")} current={currentExtraIds.networks_name ?? "-"} />
+                    )}
                   </div>
                 </div>
               )}
@@ -309,10 +312,9 @@ export function SubmissionStationForm({
                   placeholder={t("common:placeholder.optional")}
                   onChange={(e) => onExtraIdsChange({ mno_name: e.target.value })}
                 />
-                {currentStation?.extra_identificators?.mno_name !== undefined &&
-                  extraIdsForm.mno_name !== (currentStation.extra_identificators.mno_name ?? "") && (
-                    <ChangeBadge label={t("diff.was")} current={currentStation.extra_identificators.mno_name ?? "-"} />
-                  )}
+                {currentExtraIds?.mno_name !== undefined && extraIdsForm.mno_name !== (currentExtraIds.mno_name ?? "") && (
+                  <ChangeBadge label={t("diff.was")} current={currentExtraIds.mno_name ?? "-"} />
+                )}
               </div>
             </>
           )}
@@ -327,6 +329,7 @@ export function SubmissionStationForm({
             onLocationChange={handleLocationChange}
             locationDiffs={locationDiffs}
             currentLocation={currentStation?.location ?? null}
+            existingLocationMatch={isFormDisabled ? undefined : "compare"}
           />
         </div>
       )}

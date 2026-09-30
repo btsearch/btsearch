@@ -74,7 +74,7 @@ function toAuditEntry(row: typeof auditLogs.$inferSelect): AuditEntry {
   return { ...row, metadata: metadata(row.metadata) };
 }
 
-async function summaries(handle: Database | DbTx, rows: Array<typeof auditOperations.$inferSelect>): Promise<AuditOperationSummary[]> {
+async function summaries(handle: Database | DbTx, rows: (typeof auditOperations.$inferSelect)[]): Promise<AuditOperationSummary[]> {
   if (rows.length === 0) return [];
   const operationIds = rows.map((row) => row.id);
   const aggregateRows = await handle

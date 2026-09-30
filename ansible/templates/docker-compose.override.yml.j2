@@ -6,7 +6,6 @@ services:
       args:
         - VITE_API_URL=https://{{ openbts_domain }}/api/v1
         - VITE_VAPID_PUBLIC_KEY=
-        - VITE_MAPBOX_ACCESS_TOKEN=
         - VITE_APP_NAME=OpenBTS
         - VITE_ADSENSE_CLIENT=
         - VITE_ADSENSE_MAP_MOBILE_SLOT=
@@ -33,6 +32,9 @@ services:
       # Resend (email)
       - RESEND_API_KEY=
       - RESEND_FROM=noreply@openbts.sakilabs.com
+      # Geocoding, requests alternate between the configured providers:
+      - GEOAPIFY_API_KEY=
+      - LOCATIONIQ_API_KEY=
       # Optional Axiom logging:
       - AXIOM_TOKEN=
       - AXIOM_DATASET=openbts

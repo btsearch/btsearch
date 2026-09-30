@@ -1,6 +1,6 @@
 import type { MultipartFile, MultipartValue } from "@fastify/multipart";
 import { attachments, stationComments } from "@openbts/drizzle";
-import { createSelectSchema } from "drizzle-orm/zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +16,7 @@ import { getRuntimeSettings } from "../../../../../../lib/runtimeSettings.js";
 import { assertStationPhotoQuality, decodeHeicToRaw, isHeic } from "../../../../../../utils/image.js";
 
 const stationCommentSelectSchema = createSelectSchema(stationComments);
+const attachmentInsertSchema = createInsertSchema(attachments);
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -60,7 +61,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     if (!station) throw new ErrorResponse("NOT_FOUND");
 
     let content: string | undefined;
-    const pendingAttachments: (typeof attachments.$inferInsert)[] = [];
+    const pendingAttachments: z.infer<typeof attachmentInsertSchema>[] = [];
     const validatedAttachments: { uuid: string; type: string }[] = [];
 
     await ensureUploadDir();

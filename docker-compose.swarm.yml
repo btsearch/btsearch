@@ -20,6 +20,9 @@ x-server-common: &server-common
     # Resend (email)
     - RESEND_API_KEY=${RESEND_API_KEY}
     - RESEND_FROM=${RESEND_FROM:-noreply@openbts.sakilabs.com}
+    # Geocoding, requests alternate between the configured providers
+    - GEOAPIFY_API_KEY=${GEOAPIFY_API_KEY}
+    - LOCATIONIQ_API_KEY=${LOCATIONIQ_API_KEY}
     # AXIOM HQ logging
     - AXIOM_TOKEN=${AXIOM_TOKEN}
     - AXIOM_DATASET=${AXIOM_DATASET:-openbts}

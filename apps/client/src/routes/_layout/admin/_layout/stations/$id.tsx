@@ -21,7 +21,7 @@ import { StationCommentsSection } from "@/features/admin/stations/components/sta
 import { StationDetailHeader } from "@/features/admin/stations/components/stationDetailHeader";
 import { StationInfoForm } from "@/features/admin/stations/components/stationInfoForm";
 import { StationPhotoSelector } from "@/features/admin/stations/components/StationPhotoSelector";
-import { type LocalCell, isCellModified, useSaveStationMutation } from "@/features/admin/stations/mutations";
+import { type ExistingLocation, type LocalCell, isCellModified, sectorsChanged, useSaveStationMutation } from "@/features/admin/stations/mutations";
 import { adminStationQueryOptions } from "@/features/admin/stations/queries";
 import { fetchUkePermitsByStationId } from "@/features/map/api";
 import { groupPermitsByStation } from "@/features/map/utils";
@@ -68,8 +68,7 @@ function sortAndMapCells(cells: Cell[]): LocalCell[] {
 type CellDiffStatus = "added" | "modified" | "unchanged";
 
 function getLocalCellDiffStatus(lc: LocalCell, originalCells: Cell[]): CellDiffStatus {
-  if (!lc._serverId) return "added";
-  if (!originalCells.some((c) => c.id === lc._serverId)) return "added";
+  if (!lc._serverId || !originalCells.some((c) => c.id === lc._serverId)) return "added";
   return isCellModified(lc, originalCells) ? "modified" : "unchanged";
 }
 
@@ -79,10 +78,10 @@ function getDiffBorderClass(status: CellDiffStatus): string | undefined {
   return undefined;
 }
 
-function sectorsMatchDrafts(drafts: SectorDraft[], station: Station | undefined): boolean {
-  const original = station?.sectors ?? [];
-  if (drafts.length !== original.length) return false;
-  return drafts.every((draft, index) => draft.azimuth === original[index]?.azimuth);
+function getRecentCellRowClass(cell: Cell): string | undefined {
+  if (isRecent(cell.createdAt)) return "bg-green-500/5";
+  if (isRecent(cell.updatedAt)) return "bg-amber-500/5";
+  return undefined;
 }
 
 function AdminStationDetailPage() {
@@ -184,14 +183,14 @@ const emptyLocation: ProposedLocationForm = {
   latitude: null,
 };
 
-function getInitialFormState(station: Station | undefined): {
+type StationFormState = {
   stationId: string;
   operatorId: number | null;
   notes: string;
   extraAddress: string;
   isConfirmed: boolean;
   location: ProposedLocationForm;
-  existingLocationId: number | null;
+  existingLocation: ExistingLocation | null;
   deletedServerCellIds: number[];
   networksId: number | null;
   networksName: string;
@@ -200,23 +199,27 @@ function getInitialFormState(station: Station | undefined): {
   uplinkType: UplinkType | null;
   uplinkSpeed: number | null;
   uplinkModel: string;
-} {
+};
+
+function getInitialFormState(station: Station | undefined): StationFormState {
+  const location: ProposedLocationForm = station?.location
+    ? {
+        region_id: station.location.region?.id ?? null,
+        city: station.location.city ?? "",
+        address: station.location.address ?? "",
+        longitude: station.location.longitude ?? null,
+        latitude: station.location.latitude ?? null,
+      }
+    : { ...emptyLocation };
+
   return {
     stationId: station?.station_id ?? "",
     operatorId: station?.operator?.id ?? null,
     notes: station?.notes ?? "",
     extraAddress: station?.extra_address ?? "",
     isConfirmed: station?.is_confirmed ?? false,
-    location: station?.location
-      ? {
-          region_id: station.location.region?.id ?? null,
-          city: station.location.city ?? "",
-          address: station.location.address ?? "",
-          longitude: station.location.longitude ?? null,
-          latitude: station.location.latitude ?? null,
-        }
-      : { ...emptyLocation },
-    existingLocationId: station?.location?.id ?? null,
+    location,
+    existingLocation: station?.location ? { ...location, id: station.location.id } : null,
     deletedServerCellIds: [],
     networksId: station?.extra_identificators?.networks_id ?? null,
     networksName: station?.extra_identificators?.networks_name ?? "",
@@ -249,7 +252,7 @@ type FormAction =
   | { type: "SET_UPLINK_SPEED"; payload: number | null }
   | { type: "SET_UPLINK_MODEL"; payload: string };
 
-function formReducer(state: ReturnType<typeof getInitialFormState>, action: FormAction): ReturnType<typeof getInitialFormState> {
+function formReducer(state: StationFormState, action: FormAction): StationFormState {
   switch (action.type) {
     case "SET_STATION_ID":
       return { ...state, stationId: action.payload };
@@ -261,18 +264,21 @@ function formReducer(state: ReturnType<typeof getInitialFormState>, action: Form
       return { ...state, extraAddress: action.payload };
     case "SET_CONFIRMED":
       return { ...state, isConfirmed: action.payload };
-    case "PATCH_LOCATION":
-      return { ...state, location: { ...state.location, ...action.payload } };
+    case "PATCH_LOCATION": {
+      const location = { ...state.location, ...action.payload };
+      const coordsChanged = location.latitude !== state.location.latitude || location.longitude !== state.location.longitude;
+      return { ...state, location, existingLocation: coordsChanged ? null : state.existingLocation };
+    }
     case "SET_LOCATION":
-      return { ...state, location: action.payload, existingLocationId: null };
+      return { ...state, location: action.payload, existingLocation: null };
     case "SET_EXISTING_LOCATION":
-      return { ...state, location: action.payload.location, existingLocationId: action.payload.id };
+      return { ...state, location: action.payload.location, existingLocation: { ...action.payload.location, id: action.payload.id } };
     case "ADD_DELETED_ID":
       return { ...state, deletedServerCellIds: [...state.deletedServerCellIds, action.payload] };
     case "CLEAR_DELETED":
       return { ...state, deletedServerCellIds: [] };
     case "RESET_CREATE":
-      return { ...getInitialFormState(undefined), location: { ...emptyLocation } };
+      return getInitialFormState(undefined);
     case "LOAD_STATION":
       return getInitialFormState(action.payload);
     case "SET_NETWORKS_ID":
@@ -321,12 +327,15 @@ function StationDetailForm({
     extraAddress,
     isConfirmed,
     location,
-    existingLocationId,
+    existingLocation,
     deletedServerCellIds,
     networksId,
     networksName,
     mnoName,
     stationStatus,
+    uplinkType,
+    uplinkSpeed,
+    uplinkModel,
   } = formState;
 
   const { data: settings } = useSettings();
@@ -355,7 +364,7 @@ function StationDetailForm({
       rat: rat as (typeof RAT_ORDER)[number],
       band_id: defaultBand.id,
       type: DEFAULT_CELL_TYPE,
-      is_confirmed: isAdmin ?? false,
+      is_confirmed: isAdmin,
       notes: "",
       details: {},
     }),
@@ -495,12 +504,20 @@ function StationDetailForm({
 
   useEffect(() => {
     if (!preloadUkePermits?.length || hasAppliedUkePreload.current) return;
-    const station = groupPermitsByStation(preloadUkePermits)[0];
-    if (station) {
-      hasAppliedUkePreload.current = true;
-      handleUkeStationSelect(station);
-    }
-  }, [preloadUkePermits, preloadUkeStationId, handleUkeStationSelect]);
+    const ukeStation = groupPermitsByStation(preloadUkePermits)[0];
+    if (!ukeStation) return;
+    hasAppliedUkePreload.current = true;
+    handleUkeStationSelect(ukeStation);
+  }, [preloadUkePermits, handleUkeStationSelect]);
+
+  const loadStation = (nextStation: Station) => {
+    setOriginalStation(nextStation);
+    dispatch({ type: "LOAD_STATION", payload: nextStation });
+    const loadedRats = new Set(nextStation.cells.map((cell) => cell.rat));
+    setEnabledRats(RAT_ORDER.filter((rat) => loadedRats.has(rat)));
+    setLocalCells(sortAndMapCells(nextStation.cells));
+    setSectors(toSectorDrafts(nextStation.sectors));
+  };
 
   const handleSaveStation = () => {
     if (isCreateMode) {
@@ -550,7 +567,7 @@ function StationDetailForm({
         extraAddress,
         isConfirmed,
         location,
-        existingLocationId,
+        existingLocation,
         localCells,
         sectors,
         deletedServerCellIds,
@@ -560,9 +577,9 @@ function StationDetailForm({
         mnoName: mnoName || undefined,
         skipExtraIds: false,
         stationStatus,
-        uplinkType: formState.uplinkType,
-        uplinkSpeed: formState.uplinkSpeed ?? undefined,
-        uplinkModel: formState.uplinkModel || undefined,
+        uplinkType,
+        uplinkSpeed: uplinkSpeed ?? undefined,
+        uplinkModel: uplinkModel || undefined,
       },
       {
         onSuccess: (result) => {
@@ -596,14 +613,7 @@ function StationDetailForm({
           toast.success(t("toast.saved"));
           void queryClient
             .query(adminStationQueryOptions(result.stationId))
-            .then((fresh) => {
-              setOriginalStation(fresh);
-              dispatch({ type: "LOAD_STATION", payload: fresh });
-              setLocalCells(sortAndMapCells(fresh.cells));
-              const freshRats = new Set(fresh.cells.map((c) => c.rat));
-              setEnabledRats(RAT_ORDER.filter((r) => freshRats.has(r)));
-              setSectors(toSectorDrafts(fresh.sectors));
-            })
+            .then(loadStation)
             .catch(() => toast.error(t("toast.refreshFailed")));
         },
         onError: (error) => {
@@ -626,13 +636,7 @@ function StationDetailForm({
       setSectors([]);
       return;
     }
-    if (!station) return;
-    setOriginalStation(station);
-    dispatch({ type: "LOAD_STATION", payload: station });
-    const existingRats = new Set(station.cells.map((c) => c.rat));
-    setEnabledRats(RAT_ORDER.filter((r) => existingRats.has(r)));
-    setLocalCells(sortAndMapCells(station.cells));
-    setSectors(toSectorDrafts(station.sectors));
+    if (station) loadStation(station);
   };
 
   const originalCells = useMemo(() => originalStation?.cells ?? [], [originalStation]);
@@ -649,21 +653,18 @@ function StationDetailForm({
     if (notes !== initial.notes) return true;
     if (extraAddress !== initial.extraAddress) return true;
     if (isConfirmed !== initial.isConfirmed) return true;
-    if (!shallowEqual(location as unknown as Record<string, unknown>, initial.location as unknown as Record<string, unknown>)) return true;
+    if (!shallowEqual(location, initial.location)) return true;
     if (deletedServerCellIds.length > 0) return true;
     if (localCells.length !== originalCells.length) return true;
     if (networksId !== initial.networksId) return true;
     if (networksName !== initial.networksName) return true;
     if (mnoName !== initial.mnoName) return true;
     if (stationStatus !== initial.stationStatus) return true;
-    if (formState.uplinkType !== initial.uplinkType) return true;
-    if (formState.uplinkSpeed !== initial.uplinkSpeed) return true;
-    if (formState.uplinkModel !== initial.uplinkModel) return true;
-    if (!sectorsMatchDrafts(sectors, originalStation)) return true;
-    for (const lc of localCells) {
-      if (getLocalCellDiffStatus(lc, originalCells) !== "unchanged") return true;
-    }
-    return false;
+    if (uplinkType !== initial.uplinkType) return true;
+    if (uplinkSpeed !== initial.uplinkSpeed) return true;
+    if (uplinkModel !== initial.uplinkModel) return true;
+    if (sectorsChanged(sectors, originalStation.sectors)) return true;
+    return localCells.some((lc) => getLocalCellDiffStatus(lc, originalCells) !== "unchanged");
   }, [
     isCreateMode,
     originalStation,
@@ -681,9 +682,9 @@ function StationDetailForm({
     networksName,
     mnoName,
     stationStatus,
-    formState.uplinkType,
-    formState.uplinkSpeed,
-    formState.uplinkModel,
+    uplinkType,
+    uplinkSpeed,
+    uplinkModel,
     sectors,
   ]);
 
@@ -713,18 +714,10 @@ function StationDetailForm({
   const getStationCellProps = useCallback(
     (cell: LocalCell) => {
       const diffStatus = getLocalCellDiffStatus(cell, originalCells);
-      let rowClassName: string | undefined;
-      if (diffStatus === "unchanged" && cell._serverId) {
-        const original = originalCellsById.get(cell._serverId);
-        if (original) {
-          const isNew = isRecent(original.createdAt);
-          if (isNew) rowClassName = "bg-green-500/5";
-          else if (isRecent(original.updatedAt)) rowClassName = "bg-amber-500/5";
-        }
-      }
+      const original = diffStatus === "unchanged" && cell._serverId ? originalCellsById.get(cell._serverId) : undefined;
       return {
         leftBorderClass: getDiffBorderClass(diffStatus),
-        rowClassName,
+        rowClassName: original ? getRecentCellRowClass(original) : undefined,
         disabled: areCellActionsLocked,
         showDelete: !areCellActionsLocked,
       };
@@ -776,9 +769,9 @@ function StationDetailForm({
               stationId={stationId}
               operatorId={operatorId}
               notes={notes}
-              {...(!isCreateMode && { extraAddress })}
+              extraAddress={isCreateMode ? undefined : extraAddress}
               isConfirmed={isConfirmed}
-              status={!isCreateMode ? stationStatus : undefined}
+              status={isCreateMode ? undefined : stationStatus}
               location={location}
               onLocationChange={handleLocationChange}
               onExistingLocationSelect={handleExistingLocationSelect}
@@ -794,9 +787,9 @@ function StationDetailForm({
               onSectorsChange={handleSectorsChange}
               derivedSectorCount={derivedSectorCount}
               assignedSectorLocalIds={assignedSectorLocalIds}
-              uplinkType={formState.uplinkType}
-              uplinkSpeed={formState.uplinkSpeed}
-              uplinkModel={formState.uplinkModel}
+              uplinkType={uplinkType}
+              uplinkSpeed={uplinkSpeed}
+              uplinkModel={uplinkModel}
             />
 
             {isCreateMode ? (

@@ -10,7 +10,7 @@
     "noResultsHint": "Try other keywords or filters",
     "errorTitle": "Could not load search results",
     "partialError": "Some result sources could not be loaded",
-    "showingTop": "Showing {{shown, number}} of {{total, number}} stations"
+    "showingTop": "Showing <num>{{shown, number}}</num> of <num>{{total, number}}</num> stations"
   },
   "autocomplete": {
     "availableFilters": "Available filters",
@@ -82,6 +82,17 @@
     "permits": "UKE stations",
     "resolvingAddress": "Resolving address...",
     "unknownEndpoint": "Unknown endpoint",
+    "kinds": {
+      "country": "Country",
+      "region": "Region",
+      "county": "County",
+      "city": "Locality",
+      "district": "District",
+      "postcode": "Postal code",
+      "street": "Street",
+      "address": "Address",
+      "place": "Place"
+    },
     "match": {
       "stationId": "Matched station ID",
       "networkId": "Matched NetWorks ID",
@@ -137,7 +148,7 @@
     "showingStations": "Fetched {{count, number}} stations",
     "layers": "Layers",
     "operator": "BTS operator",
-    "showPlannedPem": "Planned EMF measurements",
+    "showPlannedPem": "Planned EMF",
     "radiolineOperator": "Microwave link operator",
     "searchRadiolineOperators": "Search microwave link operators...",
     "toggleHint": "<kbd>F</kbd> toggle panel · <kbd>Shift</kbd>+<kbd>F</kbd> clear all filters",

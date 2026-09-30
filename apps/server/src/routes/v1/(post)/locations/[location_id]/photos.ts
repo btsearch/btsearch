@@ -1,5 +1,6 @@
 import type { MultipartFile } from "@fastify/multipart";
 import { attachments, locationPhotos } from "@openbts/drizzle";
+import { createInsertSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -11,6 +12,8 @@ import type { JSONBody, Route } from "../../../../../interfaces/routes.interface
 import { decodePhotoInput, encodeStationPhoto } from "../../../../../utils/image.js";
 import { type PhotoFileFields, deletePhotoFiles, photoFileFields, photoFileShape, writePhotoFiles } from "../../../../../utils/photoFiles.js";
 import { extractExifDate, parseTakenAt } from "../../../../../utils/photoTakenAt.js";
+
+const attachmentInsertSchema = createInsertSchema(attachments);
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
@@ -33,7 +36,7 @@ const schemaRoute = {
 
 type ReqParams = { Params: { location_id: number } };
 type PhotoItem = PhotoFileFields & { id: number; attachment_uuid: string; mime_type: string; createdAt: string };
-type PreparedPhoto = { attachment: typeof attachments.$inferInsert; note: string | null; takenAt: Date | null };
+type PreparedPhoto = { attachment: z.infer<typeof attachmentInsertSchema>; note: string | null; takenAt: Date | null };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<PhotoItem[]>>) {
   const { location_id } = req.params;

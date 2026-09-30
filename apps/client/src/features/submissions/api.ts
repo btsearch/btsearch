@@ -3,7 +3,12 @@ import type { PhotoFileFields } from "@/components/photos/photoFiles";
 import type { SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { getCellDetailDefaultValue, getCellDetailKeys } from "@/features/shared/rat";
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
-import { type GeocodingResult, reverseGeocode as reverseGeocodeWithMapbox } from "@/lib/geo/geocoding";
+import {
+  type GeocodingResult,
+  type GeocodingSource,
+  type ReverseGeocodingResponse,
+  reverseGeocode as requestReverseGeocode,
+} from "@/lib/geo/geocoding";
 import type {
   Band,
   CellDetails,
@@ -73,14 +78,10 @@ export async function searchStations(query: string): Promise<SearchStation[]> {
   return postApiData<SearchStation[], { query: string }>("search", { query });
 }
 
-export type { GeocodingResult };
+export type { GeocodingResult, GeocodingSource };
 
-export async function reverseGeocode(lat: number, lon: number): Promise<GeocodingResult | null> {
-  try {
-    return await reverseGeocodeWithMapbox(lat, lon);
-  } catch {
-    return null;
-  }
+export async function reverseGeocode(lat: number, lon: number): Promise<ReverseGeocodingResponse | null> {
+  return requestReverseGeocode(lat, lon).catch(() => null);
 }
 
 export async function fetchLocationsInViewport(

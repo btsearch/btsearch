@@ -10,7 +10,7 @@
     "noResultsHint": "Spróbuj innych słów kluczowych lub filtrów",
     "errorTitle": "Nie udało się wczytać wyników",
     "partialError": "Nie udało się wczytać części źródeł wyników",
-    "showingTop": "Pokazano {{shown, number}} z {{total, number}} stacji"
+    "showingTop": "Pokazano <num>{{shown, number}}</num> z <num>{{total, number}}</num> stacji"
   },
   "autocomplete": {
     "availableFilters": "Dostępne filtry",
@@ -82,6 +82,17 @@
     "permits": "Stacje UKE",
     "resolvingAddress": "Ustalanie adresu...",
     "unknownEndpoint": "Nieznany punkt końcowy",
+    "kinds": {
+      "country": "Kraj",
+      "region": "Województwo",
+      "county": "Powiat",
+      "city": "Miejscowość",
+      "district": "Dzielnica",
+      "postcode": "Kod pocztowy",
+      "street": "Ulica",
+      "address": "Adres",
+      "place": "Miejsce"
+    },
     "match": {
       "stationId": "Dopasowanie w ID stacji",
       "networkId": "Dopasowanie w ID NetWorks",
@@ -143,7 +154,7 @@
     "showingStations": "Pobrano {{count, number}} stacji",
     "layers": "Warstwy",
     "operator": "Operator BTS",
-    "showPlannedPem": "Planowane pomiary PEM",
+    "showPlannedPem": "Planowane PEM",
     "radiolineOperator": "Operator radiolinii",
     "searchRadiolineOperators": "Szukaj operatorów radiolinii...",
     "toggleHint": "<kbd>F</kbd> panel · <kbd>Shift</kbd>+<kbd>F</kbd> wyczyść filtry",

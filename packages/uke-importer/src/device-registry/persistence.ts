@@ -83,7 +83,7 @@ export async function persistDeviceRegistryRows(
     .filter((value): value is NonNullable<typeof value> => value !== null);
 
   const permitsByKey = new Map<string, (typeof permitValues)[number]["permit"]>();
-  const sectorsByPermitKey = new Map<string, Array<(typeof values)[number]["sector"]>>();
+  const sectorsByPermitKey = new Map<string, (typeof values)[number]["sector"][]>();
   for (const row of permitValues) {
     const permitKey = getUkePermitKey(row.permit);
     permitsByKey.set(permitKey, row.permit);
@@ -115,13 +115,13 @@ export async function persistDeviceRegistryRows(
           expiry_date: ukePermits.expiry_date,
         });
 
-      const sectorValues: Array<{
+      const sectorValues: {
         permit_id: number;
         azimuth: number | null;
         elevation: number | null;
         antenna_height: number | null;
         antenna_type: "indoor" | "outdoor" | null;
-      }> = [];
+      }[] = [];
       for (const permit of inserted) {
         const sectors = sectorsByPermitKey.get(getUkePermitKey(permit)) ?? [];
         for (const sector of sectors) sectorValues.push({ permit_id: permit.id, ...sector });

@@ -1,11 +1,15 @@
 import { stationUplinks, stations } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type StrategyContext, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, snapshotFieldNames } from "./common.js";
+
+const stationUplinkInsertSchema = createInsertSchema(stationUplinks);
 
 const UPLINK_UNIQUE_CONSTRAINT = "station_uplinks_station_id_unique";
 
@@ -40,7 +44,7 @@ async function addUniqueConflict(context: StrategyContext, plan: PlannedEntry, i
     );
 }
 
-function markStations(state: ApplyState, ...stationIds: Array<number | null>): void {
+function markStations(state: ApplyState, ...stationIds: (number | null)[]): void {
   for (const stationId of stationIds) if (stationId !== null) state.affectedStationIds.add(stationId);
 }
 
@@ -94,7 +98,7 @@ export async function planStationUplinkRevert(context: StrategyContext, entry: A
         await tx
           .insert(stationUplinks)
           .overridingSystemValue()
-          .values({ ...row, id } as typeof stationUplinks.$inferInsert);
+          .values({ ...row, id } as z.infer<typeof stationUplinkInsertSchema>);
         state.sequenceTables.add("station_uplinks");
         markStations(state, numberField(oldValues, "station_id"));
       },

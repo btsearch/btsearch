@@ -1,6 +1,7 @@
 import { gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
 import type { Database } from "@openbts/drizzle/db";
 import { eq } from "drizzle-orm";
+import { createSelectSchema } from "drizzle-orm/zod";
 import type z from "zod";
 
 import type { DbTx } from "../../types/global.ts";
@@ -28,11 +29,16 @@ export type LTEInsertDetails = z.infer<typeof lteInsertSchema>;
 export type NRInsertDetails = z.infer<typeof nrInsertSchema>;
 export type RATInsertDetails = GSMInsertDetails | UMTSInsertDetails | LTEInsertDetails | NRInsertDetails;
 export type RATUpdateDetails = GSMUpdateDetails | UMTSUpdateDetails | LTEUpdateDetails | NRUpdateDetails;
+const gsmCellSelectSchema = createSelectSchema(gsmCells);
+const umtsCellSelectSchema = createSelectSchema(umtsCells);
+const lteCellSelectSchema = createSelectSchema(lteCells);
+const nrCellSelectSchema = createSelectSchema(nrCells);
+
 export type RATCellDetailsRow =
-  | typeof gsmCells.$inferSelect
-  | typeof umtsCells.$inferSelect
-  | typeof lteCells.$inferSelect
-  | typeof nrCells.$inferSelect;
+  | z.infer<typeof gsmCellSelectSchema>
+  | z.infer<typeof umtsCellSelectSchema>
+  | z.infer<typeof lteCellSelectSchema>
+  | z.infer<typeof nrCellSelectSchema>;
 type DbWriter = DbTx | Database;
 
 export function isNormalRat(rat: string): rat is NormalRat {
