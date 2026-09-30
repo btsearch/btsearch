@@ -17,7 +17,6 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import type { SearchStation, UkeSearchPermitStation } from "../../searchApi";
 import { getStationBands } from "../../utils";
 import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
 import { ErrorState, InlineError } from "@/components/ui/error-state";
@@ -25,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
+import { HighlightedText } from "@/features/shared/HighlightedText";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
 import { useGpsFormat } from "@/hooks/usePreferences";
@@ -84,36 +84,8 @@ function ResultGroupHeader({ id, icon, label, count }: { id: string; icon: IconS
   );
 }
 
-function normalizeEvidenceValue(value: string): string {
+function normalizeSearchText(value: string): string {
   return value.trim().toLocaleLowerCase();
-}
-
-function includesLiteral(value: string | number | null | undefined, query: string): boolean {
-  if (value === null || value === undefined || query === "") return false;
-  return normalizeEvidenceValue(String(value)).includes(query);
-}
-
-function getInternalStationEvidence(station: SearchStation, query: string): "stationId" | "networkId" | "location" | null {
-  if (query === "") return null;
-  if (includesLiteral(station.station_id, query)) return "stationId";
-  if (includesLiteral(station.extra_identificators?.networks_id, query)) return "networkId";
-  if (
-    includesLiteral(station.extra_address, query) ||
-    includesLiteral(station.location?.address, query) ||
-    includesLiteral(station.location?.city, query)
-  ) {
-    return "location";
-  }
-  return null;
-}
-
-function getPermitEvidence(station: UkeSearchPermitStation, query: string): { kind: "stationId" | "permit" | "location"; value?: string } | null {
-  if (query === "") return null;
-  if (includesLiteral(station.station_id, query)) return { kind: "stationId" };
-  const permit = station.permits.find((item) => includesLiteral(item.decision_number, query));
-  if (permit) return { kind: "permit", value: permit.decision_number };
-  if (includesLiteral(station.location?.address, query) || includesLiteral(station.location?.city, query)) return { kind: "location" };
-  return null;
 }
 
 function joinPresent(values: (string | null | undefined)[]): string {
@@ -176,7 +148,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   const { t } = useTranslation("main");
   const gpsFormat = useGpsFormat();
-  const normalizedQuery = normalizeEvidenceValue(queryText);
+  const normalizedQuery = normalizeSearchText(queryText);
 
   return (
     <div
@@ -315,7 +287,6 @@ export function SearchResults({
                       {group.options.map((option) => {
                         const station = option.result;
                         const location = joinPresent([station.location?.city, station.extra_address ?? station.location?.address]);
-                        const evidence = getInternalStationEvidence(station, normalizedQuery);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -330,16 +301,21 @@ export function SearchResults({
                                 stationId={station.station_id}
                                 operator={station.operator ?? undefined}
                                 stationIdClassName="group-hover:underline"
+                                highlight={normalizedQuery}
                               />
                               {station.extra_identificators?.networks_id ? (
                                 <span className="shrink-0 font-mono text-[11px] text-foreground/70">
-                                  N!{station.extra_identificators.networks_id}
+                                  N!
+                                  <HighlightedText text={String(station.extra_identificators.networks_id)} query={normalizedQuery} />
                                 </span>
                               ) : null}
                             </div>
-                            {location ? <p className="mt-1 truncate text-[11px] text-muted-foreground">{location}</p> : null}
+                            {location ? (
+                              <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                                <HighlightedText text={location} query={normalizedQuery} />
+                              </p>
+                            ) : null}
                             <TechnologySummary bands={getStationBands(station.cells)} className="mt-0.5 pl-0" />
-                            {evidence ? <p className="mt-1 text-[10px] font-medium text-primary">{t(`searchResults.match.${evidence}`)}</p> : null}
                           </SearchResultOptionButton>
                         );
                       })}
@@ -368,7 +344,10 @@ export function SearchResults({
                       {group.options.map((option) => {
                         const permit = option.result;
                         const location = joinPresent([permit.location?.city, permit.location?.address]);
-                        const evidence = getPermitEvidence(permit, normalizedQuery);
+                        const matchedPermit =
+                          normalizedQuery === ""
+                            ? undefined
+                            : permit.permits.find((item) => normalizeSearchText(item.decision_number).includes(normalizedQuery));
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -383,14 +362,17 @@ export function SearchResults({
                                 stationId={permit.station_id}
                                 operator={permit.operator ?? undefined}
                                 stationIdClassName="group-hover:underline"
+                                highlight={normalizedQuery}
                               />
+                              {matchedPermit ? (
+                                <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
+                                  <HighlightedText text={matchedPermit.decision_number} query={normalizedQuery} />
+                                </span>
+                              ) : null}
                             </div>
-                            {location ? <p className="mt-1 truncate text-[11px] text-muted-foreground">{location}</p> : null}
-                            {evidence ? (
-                              <p className="mt-1 text-[10px] font-medium text-primary">
-                                {evidence.kind === "permit"
-                                  ? t("searchResults.match.permit", { permit: evidence.value })
-                                  : t(`searchResults.match.${evidence.kind}`)}
+                            {location ? (
+                              <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                                <HighlightedText text={location} query={normalizedQuery} />
                               </p>
                             ) : null}
                           </SearchResultOptionButton>
@@ -409,7 +391,6 @@ export function SearchResults({
                         const radioline = option.result;
                         const txCity = radioline.tx.city?.trim() || null;
                         const rxCity = radioline.rx.city?.trim() || null;
-                        const permitMatches = includesLiteral(radioline.permit_number, normalizedQuery);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -431,25 +412,20 @@ export function SearchResults({
                                 <span className="text-sm font-semibold text-muted-foreground">{t("unknownOperator")}</span>
                               )}
                               <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
-                                {radioline.permit_number}
+                                <HighlightedText text={radioline.permit_number} query={normalizedQuery} />
                               </span>
                             </div>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
                               {txCity && rxCity ? (
                                 <>
-                                  {txCity}
+                                  <HighlightedText text={txCity} query={normalizedQuery} />
                                   <span aria-hidden="true"> ↔ </span>
-                                  {rxCity}
+                                  <HighlightedText text={rxCity} query={normalizedQuery} />
                                 </>
                               ) : (
-                                (txCity ?? rxCity ?? t("searchResults.unknownEndpoint"))
+                                <HighlightedText text={txCity ?? rxCity ?? t("searchResults.unknownEndpoint")} query={normalizedQuery} />
                               )}
                             </p>
-                            {permitMatches ? (
-                              <p className="mt-1 text-[10px] font-medium text-primary">
-                                {t("searchResults.match.permit", { permit: radioline.permit_number })}
-                              </p>
-                            ) : null}
                           </SearchResultOptionButton>
                         );
                       })}

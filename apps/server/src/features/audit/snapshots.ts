@@ -3,17 +3,13 @@ import {
   gsmCells,
   lteCells,
   nrCells,
-  proposedCells,
   proposedGSMCells,
   proposedLTECells,
-  proposedLocations,
   proposedNRCells,
   proposedSectors,
-  proposedStations,
   proposedUMTSCells,
   stationPhotoSelections,
   stationSectors,
-  submissions,
   umtsCells,
 } from "@openbts/drizzle";
 import { asc, eq, inArray } from "drizzle-orm";

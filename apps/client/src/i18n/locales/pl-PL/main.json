@@ -92,12 +92,6 @@
       "street": "Ulica",
       "address": "Adres",
       "place": "Miejsce"
-    },
-    "match": {
-      "stationId": "Dopasowanie w ID stacji",
-      "networkId": "Dopasowanie w ID NetWorks",
-      "location": "Dopasowanie w lokalizacji",
-      "permit": "Dopasowanie w pozwoleniu: {{permit}}"
     }
   },
   "popup": {

@@ -92,12 +92,6 @@
       "street": "Street",
       "address": "Address",
       "place": "Place"
-    },
-    "match": {
-      "stationId": "Matched station ID",
-      "networkId": "Matched NetWorks ID",
-      "location": "Matched location",
-      "permit": "Matched permit: {{permit}}"
     }
   },
   "popup": {
