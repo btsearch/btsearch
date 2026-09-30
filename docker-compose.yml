@@ -101,9 +101,8 @@ services:
     restart: unless-stopped
 
   postgres:
-    build:
-      context: .
-      dockerfile: docker/postgres/Dockerfile
+    image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       # Initial database setup, you can remove it after the first run
       - POSTGRES_USER=user
@@ -111,6 +110,7 @@ services:
       - POSTGRES_DB=openbts
     volumes:
       - postgres-volume:/var/lib/postgresql/18/docker
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     restart: unless-stopped
 
   pgbouncer:

@@ -35,10 +35,10 @@ The server requires PostgreSQL and Redis. You can spin these up using the provid
 
 ```bash
 # Start only the database and redis services
-docker-compose up -d db redis
+docker-compose up -d postgres pgbouncer redis
 ```
 
-This docker compose file provides custom PostgreSQL build with PostGIS already installed since our server requires that.
+The database runs the official `postgis/postgis` image (PostgreSQL 18 with PostGIS, which the server requires), with `docker/postgres/postgresql.conf` mounted as its config.
 
 Ensure the database is running before starting the server.
 

@@ -191,13 +191,15 @@ services:
         condition: on-failure
 
   postgres:
-    image: btsearch-postgres
+    image: postgis/postgis:18-3.6@sha256:60f6ad1d21ea86a67d47780b9a0d1e1d200500f62b19293fa834d0dea80b8677
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
       - POSTGRES_DB=${POSTGRES_DB:-openbts}
     volumes:
       - postgres-volume:/var/lib/postgresql/18/docker
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - type: tmpfs
         target: /dev/shm
         tmpfs:
