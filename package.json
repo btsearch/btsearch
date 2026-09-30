@@ -2,6 +2,7 @@
   "name": "@sakilabs/openbts",
   "license": "GPL-3.0",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
@@ -12,12 +13,12 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "tsx": "4.23.13"
+    "tsx": "4.23.15"
   },
   "devDependencies": {
-    "oxfmt": "0.66.0",
-    "oxlint": "1.81.0",
-    "oxlint-tsgolint": "7.0.2001",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "oxlint-tsgolint": "7.0.2003",
     "typescript": "7.0.2"
   },
   "engines": {
@@ -26,5 +27,5 @@
     "pnpm": ">=11",
     "yarn": "please-use-pnpm"
   },
-  "packageManager": "pnpm@12.6.0"
+  "packageManager": "pnpm@12.8.1"
 }

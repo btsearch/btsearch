@@ -17,24 +17,15 @@ import { accountProfileQueryOptions, apiKeysQueryOptions, isPublishableKey } fro
 import { SETTINGS_SECTION_IDS } from "../sections";
 import { scrollToSettingsSection } from "./settingsPrimitives";
 import { RoleBadge } from "@/components/app/roleBadge";
+import { roleWashClassName } from "@/components/app/roleTone";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { authClient } from "@/lib/auth/client";
-import { resolveAvatarUrl } from "@/lib/format";
+import { getInitials, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type SettingsUser = NonNullable<ReturnType<typeof authClient.useSession>["data"]>["user"];
-
-export function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(([first]) => first)
-    .join("")
-    .toUpperCase();
-}
 
 function StatusChip({ icon, iconClassName, label, sectionId }: { icon: IconSvgElement; iconClassName?: string; label: string; sectionId: string }) {
   return (
@@ -63,7 +54,7 @@ export function IdentityBanner({ user }: { user: SettingsUser }) {
 
   return (
     <section aria-label={user.name} className="overflow-hidden rounded-2xl border border-border/70 bg-background">
-      <div className="flex items-start gap-4 bg-linear-115 from-primary/14 via-primary/6 via-34% to-transparent to-70% px-4 py-4 sm:px-6 sm:py-5">
+      <div className={cn("flex items-start gap-4 px-4 py-4 sm:px-6 sm:py-5", roleWashClassName(user.role))}>
         <div className="flex min-w-0 flex-1 items-center gap-3.5 sm:gap-4">
           <Avatar className="size-12 shrink-0 sm:size-14">
             <AvatarImage src={resolveAvatarUrl(user.image)} alt="" />

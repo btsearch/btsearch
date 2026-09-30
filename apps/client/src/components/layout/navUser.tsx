@@ -1,68 +1,52 @@
-import { Logout02Icon, Settings02Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ElipsisIcon } from "@/components/ui/elipsis-icon";
+import { AccountMenuContent, type AccountUser } from "./accountMenu";
+import { UserAvatar } from "@/components/app/userAvatar";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth/client";
-import { resolveAvatarUrl } from "@/lib/format";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function NavUser({ data: session }: { data: ReturnType<typeof authClient.useSession>["data"] }) {
+export function NavUser({ user }: { user: AccountUser }) {
   const { isMobile } = useSidebar();
   const { t } = useTranslation("nav");
-
-  if (!session || !session.user) return null;
-
-  const { user } = session;
 
   return (
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" />}
+          render={
+            <SidebarMenuButton
+              size="lg"
+              tooltip={t("floating.account")}
+              className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+            />
+          }
         >
-          <Avatar className="h-8 w-8 rounded-lg">
-            <AvatarImage src={resolveAvatarUrl(user.image)} />
-            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <UserAvatar user={user} />
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{user.name}</span>
-            <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
+            <span className="truncate text-xs text-muted-foreground">{user.username ? `@${user.username}` : user.email}</span>
           </div>
-          <ElipsisIcon className="ml-auto size-4" />
+          <HugeiconsIcon icon={UnfoldMoreIcon} className="ml-auto text-muted-foreground" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-(--anchor-width) min-w-48 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
-          <DropdownMenuGroup>
-            {user.username && (
-              <DropdownMenuItem render={<Link to="/users/$username" params={{ username: user.username }} />}>
-                <HugeiconsIcon icon={UserIcon} className="size-4" />
-                {t("items.myProfile")}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem render={<Link to="/settings" search={{ tab: "account" }} />}>
-              <HugeiconsIcon icon={Settings02Icon} className="size-4" />
-              {t("items.accountSettings")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={async () => {
-                await authClient.signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      window.location.href = "/";
-                    },
-                  },
-                });
-              }}
-            >
-              <HugeiconsIcon icon={Logout02Icon} className="size-4" />
-              {t("common:actions.signOut")}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
+        <AccountMenuContent user={user} side={isMobile ? "top" : "right"} align="end" sideOffset={isMobile ? 4 : 16} collisionPadding={8} />
       </DropdownMenu>
+    </SidebarMenuItem>
+  );
+}
+
+export function NavUserSkeleton() {
+  return (
+    <SidebarMenuItem>
+      <div aria-hidden="true" className="flex h-12 items-center gap-2 px-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+        <Skeleton className="size-8 shrink-0 rounded-full" />
+        <div className="grid flex-1 gap-1.5 group-data-[collapsible=icon]:hidden">
+          <Skeleton className="h-2.5 w-24" />
+          <Skeleton className="h-2 w-16" />
+        </div>
+      </div>
     </SidebarMenuItem>
   );
 }

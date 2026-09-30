@@ -10,7 +10,7 @@ import { linkedAccountsQueryOptions } from "../queries";
 import { useSettingsErrorHandler } from "../reauth";
 import { SETTINGS_SECTION_IDS } from "../sections";
 import { ConfirmDialog } from "./confirmDialog";
-import { type SettingsUser, getInitials } from "./identityBanner";
+import type { SettingsUser } from "./identityBanner";
 import { PasswordInput } from "./passwordInput";
 import {
   SETTINGS_DESCRIPTION_CLASS,
@@ -42,7 +42,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { USER_PROFILE_QUERY_KEY } from "@/features/user-profile/queries";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { resolveAvatarUrl } from "@/lib/format";
+import { getInitials, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const loadAvatarCropDialog = () => import("@/components/account/avatarCropDialog");

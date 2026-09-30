@@ -2,14 +2,19 @@ FROM node:26-alpine AS builder
 
 WORKDIR /app
 
-RUN npm install --global pnpm@12.6.0
+RUN npm install --global pnpm@12.8.1
 
 # Copy workspace config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/typescript-configs/package.json ./packages/typescript-configs/
-COPY packages/shared/package.json ./packages/shared/
+COPY packages/drizzle/package.json ./packages/drizzle/
 COPY packages/proto/package.json ./packages/proto/
+COPY packages/uke-importer/package.json ./packages/uke-importer/
+COPY packages/shared/package.json ./packages/shared/
 COPY apps/client/package.json ./apps/client/
+COPY apps/db-migrate/package.json ./apps/db-migrate/
+COPY apps/discord-bot/package.json ./apps/discord-bot/
+COPY apps/server/package.json ./apps/server/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile

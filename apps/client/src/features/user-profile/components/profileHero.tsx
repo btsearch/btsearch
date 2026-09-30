@@ -7,12 +7,12 @@ import { useTranslation } from "react-i18next";
 import type { UserProfile } from "../queries";
 import { EDIT_PROFILE_SEARCH, PROFILE_SECTION_IDS } from "./profileSections";
 import { RoleBadge } from "@/components/app/roleBadge";
+import { roleWashClassName } from "@/components/app/roleTone";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { getInitials } from "@/features/settings/components/identityBanner";
 import { scrollToSettingsSection } from "@/features/settings/components/settingsPrimitives";
 import { useCopyText } from "@/features/settings/copyText";
-import { resolveAvatarUrl } from "@/lib/format";
+import { getInitials, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function CopyLinkButton({ iconOnly = false, className }: { iconOnly?: boolean; className?: string }) {
@@ -107,7 +107,7 @@ export function ProfileHero({ profile, isOwner }: { profile: UserProfile; isOwne
 
   return (
     <section aria-labelledby="profile-name" className="overflow-hidden rounded-2xl border border-border/70 bg-background">
-      <div className="bg-linear-115 from-primary/14 via-primary/6 via-34% to-transparent to-70% px-4 py-4 sm:px-7 sm:py-7">
+      <div className={cn("px-4 py-4 sm:px-7 sm:py-7", roleWashClassName(user.role))}>
         <div className="flex items-start gap-4 sm:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-3.5 sm:gap-5">
             <Avatar className="size-16 shrink-0 sm:size-22">

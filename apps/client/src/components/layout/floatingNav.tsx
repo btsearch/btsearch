@@ -2,16 +2,13 @@ import {
   ArrowDown01Icon,
   ArrowUp01Icon,
   ComputerIcon,
-  GitBranchIcon,
   Login01Icon,
-  Logout02Icon,
   Moon02Icon,
   Note01Icon,
   Settings02Icon,
   StarIcon,
   Sun03Icon,
   TaskDaily01Icon,
-  UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -32,21 +29,14 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AccountMenuContent } from "./accountMenu";
+import { UserAvatar } from "@/components/app/userAvatar";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { useTheme } from "@/components/preferences/themeProvider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type PageSection, usePageSectionsActiveId, usePageSectionsList } from "@/contexts/pageSections";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
@@ -55,7 +45,6 @@ import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
 import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
 import { authClient } from "@/lib/auth/client";
-import { resolveAvatarUrl } from "@/lib/format";
 import {
   type TranslatedNavItem,
   type TranslatedNavSection,
@@ -85,6 +74,7 @@ const FLOATING_NAV_SWIPE_MIN_DISTANCE = 32;
 const FLOATING_NAV_SWIPE_MAX_HORIZONTAL_DRIFT = 48;
 const FLOATING_ICON_CONTROL_CLASS =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+const FLOATING_ACCOUNT_CLUSTER_CLASS = "relative z-10 flex shrink-0 items-center gap-0.5";
 const MOBILE_PAGE_SECTION_CHIP_CLASS =
   "inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
 const flagComponents: Record<string, ComponentType<{ className?: string }>> = { US, PL };
@@ -718,119 +708,64 @@ function FloatingSettingsLink() {
   );
 }
 
-const FloatingAccountCluster = memo(function FloatingAccountCluster({ notificationsAnchor }: { notificationsAnchor: RefObject<HTMLElement | null> }) {
+const FloatingAccountCluster = memo(function FloatingAccountCluster({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
   const { t } = useTranslation("nav");
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const user = session?.user;
-  const gitCommit = import.meta.env.VITE_GIT_COMMIT as string | undefined;
-  const appVersion = import.meta.env.VITE_APP_VERSION as string | undefined;
-  const buildMetadataTitle = [gitCommit, appVersion ? `v${appVersion}` : undefined].filter(Boolean).join(" · ");
+
+  if (user) {
+    return (
+      <div className={FLOATING_ACCOUNT_CLUSTER_CLASS}>
+        <NotificationsBell className={FLOATING_ICON_CONTROL_CLASS} side="top" anchor={anchor} />
+        <FloatingSettingsLink />
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("floating.account")} />}
+          >
+            <UserAvatar user={user} size="sm" />
+          </DropdownMenuTrigger>
+          <AccountMenuContent
+            user={user}
+            side="top"
+            align="end"
+            sideOffset={8}
+            anchor={anchor}
+            collisionPadding={8}
+            className="max-md:w-[calc(100vw-1rem)]"
+          />
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <div className={FLOATING_ACCOUNT_CLUSTER_CLASS}>
+        <FloatingSettingsLink />
+        <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center">
+          <Skeleton className="size-6 rounded-full" />
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative z-10 flex shrink-0 items-center gap-0.5">
-      {user ? (
-        <>
-          <NotificationsBell className={FLOATING_ICON_CONTROL_CLASS} side="top" anchor={notificationsAnchor} />
-          <FloatingSettingsLink />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("floating.account")} />}
-            >
-              <Avatar className="size-6 rounded-full">
-                <AvatarImage src={resolveAvatarUrl(user.image)} />
-                <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="min-w-56" side="top" align="end" sideOffset={8}>
-              <div className="flex items-center gap-2 px-1.5 py-1.5">
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarImage src={resolveAvatarUrl(user.image)} />
-                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 text-sm">
-                  <p className="truncate font-medium">{user.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                {user.username ? (
-                  <DropdownMenuItem render={<Link to="/users/$username" params={{ username: user.username }} />}>
-                    <HugeiconsIcon icon={UserIcon} className="size-4" />
-                    {t("items.myProfile")}
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem render={<Link to="/settings" search={{ tab: "account" }} />}>
-                  <HugeiconsIcon icon={Settings02Icon} className="size-4" />
-                  {t("items.accountSettings")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <FloatingThemeMenuItems />
-                <DropdownMenuSeparator />
-                <FloatingLanguageMenuItems />
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await authClient.signOut({
-                      fetchOptions: {
-                        onSuccess: () => {
-                          window.location.href = "/";
-                        },
-                      },
-                    });
-                  }}
-                >
-                  <HugeiconsIcon icon={Logout02Icon} className="size-4" />
-                  {t("common:actions.signOut")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              {buildMetadataTitle ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-muted-foreground" title={buildMetadataTitle}>
-                    <HugeiconsIcon icon={GitBranchIcon} className="size-3 shrink-0" />
-                    <span className="min-w-0 truncate">
-                      {gitCommit ? (
-                        <a
-                          href={`https://github.com/btsearch/btsearch/commit/${gitCommit}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-primary hover:underline"
-                        >
-                          {gitCommit}
-                        </a>
-                      ) : null}
-                      {appVersion ? (
-                        <span>
-                          {gitCommit ? " " : ""}(v{appVersion})
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      ) : (
-        <>
-          <FloatingSettingsLink />
-          <FloatingThemeControl />
-          <FloatingLanguageControl />
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-full px-2.5"
-            aria-label={t("common:actions.signIn")}
-            onClick={() => setAuthDialogOpen(true)}
-          >
-            <HugeiconsIcon icon={Login01Icon} className="size-4" />
-            <span className="hidden sm:inline">{t("common:actions.signIn")}</span>
-          </Button>
-          <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
-        </>
-      )}
+    <div className={FLOATING_ACCOUNT_CLUSTER_CLASS}>
+      <FloatingSettingsLink />
+      <FloatingThemeControl />
+      <FloatingLanguageControl />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 rounded-full px-2.5"
+        aria-label={t("common:actions.signIn")}
+        onClick={() => setAuthDialogOpen(true)}
+      >
+        <HugeiconsIcon icon={Login01Icon} className="size-4" />
+        <span className="hidden sm:inline">{t("common:actions.signIn")}</span>
+      </Button>
+      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
     </div>
   );
 });
@@ -1157,7 +1092,7 @@ export function FloatingNav() {
                   </LayoutGroup>
                   {!isMobile ? <FloatingActionSlot label={t("floating.actions")} placement="main" transition={transition} /> : null}
                   <div className="relative z-10 mx-0.5 h-5 w-px shrink-0 bg-border" />
-                  <FloatingAccountCluster notificationsAnchor={navRef} />
+                  <FloatingAccountCluster anchor={navRef} />
                   <button
                     type="button"
                     aria-label={t("floating.hide")}

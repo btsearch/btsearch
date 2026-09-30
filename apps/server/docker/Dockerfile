@@ -4,7 +4,7 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN npm install --global pnpm@12.6.0
+RUN npm install --global pnpm@12.8.1
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
@@ -13,6 +13,9 @@ COPY packages/drizzle/package.json ./packages/drizzle/
 COPY packages/proto/package.json ./packages/proto/
 COPY packages/uke-importer/package.json ./packages/uke-importer/
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/client/package.json ./apps/client/
+COPY apps/db-migrate/package.json ./apps/db-migrate/
+COPY apps/discord-bot/package.json ./apps/discord-bot/
 COPY apps/server/package.json ./apps/server/
 
 RUN pnpm install --frozen-lockfile
@@ -36,16 +39,20 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-RUN npm install --global pnpm@12.6.0
+RUN npm install --global pnpm@12.8.1
 
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/packages/typescript-configs/package.json ./packages/typescript-configs/
 COPY --from=builder /app/packages/drizzle/package.json ./packages/drizzle/
 COPY --from=builder /app/packages/proto/package.json ./packages/proto/
 COPY --from=builder /app/packages/uke-importer/package.json ./packages/uke-importer/
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/apps/client/package.json ./apps/client/
+COPY --from=builder /app/apps/db-migrate/package.json ./apps/db-migrate/
+COPY --from=builder /app/apps/discord-bot/package.json ./apps/discord-bot/
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --filter @openbts/sora...
 
 FROM oven/bun:alpine
 

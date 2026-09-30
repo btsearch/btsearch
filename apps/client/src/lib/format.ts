@@ -6,6 +6,16 @@ export function resolveAvatarUrl(image: string | null | undefined): string | und
   return `/uploads/${image}`;
 }
 
+export function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(([first]) => first)
+    .join("")
+    .toUpperCase();
+}
+
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);

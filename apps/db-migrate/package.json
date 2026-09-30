@@ -13,7 +13,7 @@
   "dependencies": {
     "@openbts/drizzle": "workspace:*",
     "cli-progress": "3.12.0",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.4",
     "drizzle-orm": "1.0.0-rc.4",
     "node-sql-parser": "5.4.0",
     "ora": "9.4.1",
@@ -23,9 +23,8 @@
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*",
     "@types/cli-progress": "3.11.6",
-    "@types/node": "26.4.0",
+    "@types/node": "26.6.3",
     "@types/papaparse": "5.5.2",
-    "@types/pg": "8.23.1",
-    "tsx": "4.23.13"
+    "@types/pg": "8.23.1"
   }
 }

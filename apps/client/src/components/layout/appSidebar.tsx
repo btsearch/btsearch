@@ -4,9 +4,10 @@ import { Link, useLocation } from "@tanstack/react-router";
 import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { AccountUser } from "./accountMenu";
 import { NavLists } from "./navLists";
 import { NavMain, PageSectionList } from "./navMain";
-import { NavUser } from "./navUser";
+import { NavUser, NavUserSkeleton } from "./navUser";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { LanguageSwitcher } from "@/components/preferences/languageSwitcher";
 import { ThemeToggle } from "@/components/preferences/themeToggle";
@@ -20,10 +21,30 @@ import { authClient } from "@/lib/auth/client";
 import { adminNavConfig, authNavConfig, infoNavConfig, navMainConfig, translateAdminNav, translateNav } from "@/lib/navConfig";
 import { cn } from "@/lib/utils";
 
+function SidebarAccountItem({ user, isPending, onSignIn }: { user: AccountUser | undefined; isPending: boolean; onSignIn: () => void }) {
+  const { t } = useTranslation("nav");
+  if (isPending) return <NavUserSkeleton />;
+  if (user) return <NavUser user={user} />;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton size="lg" onClick={onSignIn} className="cursor-pointer">
+        <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+          <HugeiconsIcon icon={Login01Icon} className="size-4" />
+        </div>
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-semibold">{t("common:actions.signIn")}</span>
+          <span className="truncate text-xs text-muted-foreground">{t("auth.signInHint", "Access your account")}</span>
+        </div>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation("nav");
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const { data: settings } = useSettings();
   const { visible: isWCO, isMacOS } = useWindowControlsOverlay();
 
@@ -37,6 +58,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const pathname = useLocation({ select: (location) => location.pathname });
   const pageSections = usePageSectionsList();
   const isSettingsPage = pathname === "/settings";
+  const isGuest = !isPending && !session?.user;
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
@@ -104,63 +126,54 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
               </div>
             ) : null}
           </SidebarMenuItem>
-          <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <div className="grid grid-cols-2 gap-1">
-              <ThemeToggle />
-              <LanguageSwitcher />
-            </div>
-          </SidebarMenuItem>
-          {!session?.user && (
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" onClick={() => setAuthDialogOpen(true)} className="cursor-pointer">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <HugeiconsIcon icon={Login01Icon} className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{t("common:actions.signIn")}</span>
-                  <span className="truncate text-xs text-muted-foreground">{t("auth.signInHint", "Access your account")}</span>
-                </div>
-              </SidebarMenuButton>
+          {isGuest ? (
+            <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+              <div className="grid grid-cols-2 gap-1">
+                <ThemeToggle />
+                <LanguageSwitcher />
+              </div>
             </SidebarMenuItem>
-          )}
-          {session?.user && <NavUser data={session} />}
+          ) : null}
+          <SidebarAccountItem user={session?.user} isPending={isPending} onSignIn={() => setAuthDialogOpen(true)} />
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" className="w-full h-62.5" />
           </SidebarMenuItem>
-          <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
-              {(import.meta.env.VITE_GIT_COMMIT || import.meta.env.VITE_APP_VERSION) && (
-                <div
-                  className="flex items-center gap-1.5 min-w-0"
-                  title={[import.meta.env.VITE_GIT_COMMIT, import.meta.env.VITE_APP_VERSION && `v${import.meta.env.VITE_APP_VERSION}`]
-                    .filter(Boolean)
-                    .join(" · ")}
-                >
-                  <HugeiconsIcon icon={GitBranchIcon} className="size-3 shrink-0" />
-                  <span className="truncate">
-                    {import.meta.env.VITE_GIT_COMMIT && (
-                      <a
-                        href={`https://github.com/btsearch/btsearch/commit/${import.meta.env.VITE_GIT_COMMIT}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-primary hover:underline"
-                      >
-                        {import.meta.env.VITE_GIT_COMMIT}
-                      </a>
-                    )}
-                    {import.meta.env.VITE_APP_VERSION && (
-                      <span className="text-muted-foreground">
-                        {import.meta.env.VITE_GIT_COMMIT ? " " : ""}(v{import.meta.env.VITE_APP_VERSION})
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
-              <Link to="/changelog" className={cn("shrink-0 hover:underline p-2 -m-2", pathname === "/changelog" && "text-foreground")}>
-                {t("items.changelog")}
-              </Link>
-            </div>
-          </SidebarMenuItem>
+          {isGuest ? (
+            <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
+                {(import.meta.env.VITE_GIT_COMMIT || import.meta.env.VITE_APP_VERSION) && (
+                  <div
+                    className="flex items-center gap-1.5 min-w-0"
+                    title={[import.meta.env.VITE_GIT_COMMIT, import.meta.env.VITE_APP_VERSION && `v${import.meta.env.VITE_APP_VERSION}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  >
+                    <HugeiconsIcon icon={GitBranchIcon} className="size-3 shrink-0" />
+                    <span className="truncate">
+                      {import.meta.env.VITE_GIT_COMMIT && (
+                        <a
+                          href={`https://github.com/btsearch/btsearch/commit/${import.meta.env.VITE_GIT_COMMIT}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline"
+                        >
+                          {import.meta.env.VITE_GIT_COMMIT}
+                        </a>
+                      )}
+                      {import.meta.env.VITE_APP_VERSION && (
+                        <span className="text-muted-foreground">
+                          {import.meta.env.VITE_GIT_COMMIT ? " " : ""}(v{import.meta.env.VITE_APP_VERSION})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <Link to="/changelog" className={cn("shrink-0 hover:underline p-2 -m-2", pathname === "/changelog" && "text-foreground")}>
+                  {t("items.changelog")}
+                </Link>
+              </div>
+            </SidebarMenuItem>
+          ) : null}
         </SidebarMenu>
       </SidebarFooter>
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />

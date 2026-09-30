@@ -123,6 +123,7 @@ const MOBILE_DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const listeners = new Set<() => void>();
+const appliedCloudSnapshots = new WeakSet<object>();
 let cachedSnapshot: UserPreferences | null = null;
 let cachedRaw: string | null = null;
 let cachedProfile: PreferenceProfile | null = null;
@@ -399,12 +400,14 @@ export function usePreferences() {
   );
 
   useEffect(() => {
-    if (activeCloudPreferences === null) return;
+    if (activeCloudPreferences === null || appliedCloudSnapshots.has(activeCloudPreferences)) return;
+    appliedCloudSnapshots.add(activeCloudPreferences);
     replacePreferencesForProfile(activeProfile, activeCloudPreferences);
   }, [activeCloudPreferences, activeProfile]);
 
   useEffect(() => {
-    if (clfDescriptionTemplates === null) return;
+    if (clfDescriptionTemplates === null || appliedCloudSnapshots.has(clfDescriptionTemplates)) return;
+    appliedCloudSnapshots.add(clfDescriptionTemplates);
     setPreferences({ clfDescriptionTemplates });
   }, [clfDescriptionTemplates]);
 
