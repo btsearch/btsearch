@@ -291,6 +291,11 @@
   body {
     @apply font-sans bg-background text-foreground;
   }
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    body {
+      @apply fixed inset-0;
+    }
+  }
   html {
     @apply font-sans;
   }
