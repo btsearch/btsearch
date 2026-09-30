@@ -1,0 +1,2 @@
+DROP INDEX "notifications_user_station_type_unread_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "notifications_user_station_type_unread_unique" ON "notifications" ("user_id","station_id","type") WHERE "readAt" IS NULL AND "station_id" IS NOT NULL AND "type" IN ('station_cells_changed', 'station_photos_added', 'station_comment_approved', 'station_uke_permit_added');
