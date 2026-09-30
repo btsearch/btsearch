@@ -11,6 +11,7 @@ import svgr from "vite-plugin-svgr";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const ENTRIES_AWARE_MERGE_THRESHOLD = 20_000;
 
 function getGitCommit(): string {
   try {
@@ -94,7 +95,7 @@ export default defineConfig({
         },
       },
       injectManifest: {
-        globPatterns: ["index.html", "assets/index-*.{js,css}", "assets/fonts/*.woff2", "favicon.ico", "btsearch.webp"],
+        globPatterns: ["index.html", "assets/index-*.{js,css}", "assets/fonts/nunito-sans-latin*.woff2", "favicon.ico", "btsearch.webp"],
         globIgnores: ["sw.js"],
       },
       pwaAssets: { disabled: false, config: true },
@@ -108,7 +109,7 @@ export default defineConfig({
       experimental: { lazyBarrel: true },
       output: {
         entryFileNames: "assets/[name]-[hash:8].js",
-        chunkFileNames: "assets/[name]-[hash:8].js",
+        chunkFileNames: (chunk) => `assets/${chunk.name.replace(/~.*/, "")}-[hash:8].js`,
         assetFileNames: "assets/[name]-[hash:8][extname]",
         comments: {
           annotation: true,
@@ -136,33 +137,43 @@ export default defineConfig({
               priority: 20,
             },
             {
+              name: "i18n-vendor",
+              test: /node_modules[\\/](i18next|react-i18next)/,
+              priority: 18,
+            },
+            {
+              name: "initial-vendor",
+              test: /node_modules/,
+              tags: ["$initial"],
+              priority: 16,
+            },
+            {
               name: "ui-vendor",
               test: /node_modules[\\/](@base-ui|@hugeicons|@floating-ui)/,
               priority: 15,
               entriesAware: true,
+              entriesAwareMergeThreshold: ENTRIES_AWARE_MERGE_THRESHOLD,
             },
             {
               name: "tanstack-vendor",
               test: /node_modules[\\/]@tanstack[\\/](react-query|react-table|react-form|react-virtual|query-core|table-core|form-core|virtual-core)/,
               priority: 13,
               entriesAware: true,
+              entriesAwareMergeThreshold: ENTRIES_AWARE_MERGE_THRESHOLD,
             },
             {
               name: "auth-vendor",
-              test: /node_modules[\\/](better-auth|@daveyplate)/,
+              test: /node_modules[\\/]@?better-auth/,
               priority: 12,
               entriesAware: true,
-            },
-            {
-              name: "i18n-vendor",
-              test: /node_modules[\\/](i18next|react-i18next)/,
-              priority: 11,
+              entriesAwareMergeThreshold: ENTRIES_AWARE_MERGE_THRESHOLD,
             },
             {
               name: "vendor",
               test: /node_modules/,
               priority: 10,
               entriesAware: true,
+              entriesAwareMergeThreshold: ENTRIES_AWARE_MERGE_THRESHOLD,
             },
           ],
         },

@@ -68,10 +68,10 @@ export function DeletedEntryDetailSheet({ entry, open, onOpenChange }: DeletedEn
 
         <div className="flex flex-col gap-5 px-4 pb-4">
           <section className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("deletedEntries.detail.overview")}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("common:labels.overview")}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("deletedEntries.columns.sourceType")}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common:labels.source")}</span>
                 <span className="text-sm font-medium">
                   <UKESourceBadge source={entry.source_type} />
                 </span>
@@ -101,8 +101,8 @@ export function DeletedEntryDetailSheet({ entry, open, onOpenChange }: DeletedEn
               <table className="w-full text-xs table-fixed">
                 <thead>
                   <tr className="bg-muted/50 border-b">
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-1/3">{t("deletedEntries.detail.field")}</th>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-2/3">{t("deletedEntries.detail.value")}</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-1/3">{t("common:labels.field")}</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-2/3">{t("common:labels.value")}</th>
                   </tr>
                 </thead>
                 <tbody>

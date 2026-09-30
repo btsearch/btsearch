@@ -1,36 +1,20 @@
-import type { AuthClient } from "@better-auth-ui/core";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { HeadContent, Outlet, Link as RouterLink, createRootRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { HeadContent, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useRef } from "react";
 import { I18nextProvider } from "react-i18next";
 
 import { BackendStatusProvider } from "@/components/app/backendStatus";
 import { CookieConsentBanner } from "@/components/app/cookieConsentBanner";
 import { ErrorBoundary } from "@/components/app/errorBoundary";
 import { ReloadPrompt } from "@/components/app/reloadPrompt";
-import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { FloatingDialogStackProvider } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { loadAdsenseScript } from "@/hooks/useCookieConsent";
-import {
-  plPLAuthLocalization,
-  plPLDeleteUserLocalization,
-  plPLMultiSessionLocalization,
-  plPLPasskeyLocalization,
-  plPLTwoFactorLocalization,
-  plPLUsernameLocalization,
-} from "@/i18n/authLocalization";
 import i18n from "@/i18n/config";
 import { APP_NAME } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { deleteUserPlugin } from "@/lib/auth/deleteUserPlugin";
-import { multiSessionPlugin } from "@/lib/auth/multiSessionPlugin";
-import { passkeyPlugin } from "@/lib/auth/passkeyPlugin";
-import { twoFactorPlugin } from "@/lib/auth/twoFactorPlugin";
-import { usernamePlugin } from "@/lib/auth/usernamePlugin";
 import { queryClient } from "@/lib/queryClient";
 import { buildDefaultMeta } from "@/lib/seo";
 import "@/index.css";
@@ -47,7 +31,6 @@ declare global {
   }
 }
 
-type AuthLinkProps = { href: string; className?: string; children?: ReactNode };
 type AppProvidersProps = { children: ReactNode };
 type AppErrorBoundaryProps = { children: ReactNode };
 
@@ -121,10 +104,6 @@ function RybbitIdentify() {
   return null;
 }
 
-function AuthLink({ href, ...props }: AuthLinkProps) {
-  return <RouterLink to={href} {...props} />;
-}
-
 function SeoHead() {
   useEffect(() => {
     for (const element of document.querySelectorAll("[data-seo-inject], [data-seo-fallback]")) element.remove();
@@ -140,32 +119,8 @@ function AppErrorBoundary({ children }: AppErrorBoundaryProps) {
 }
 
 function AppProviders({ children }: AppProvidersProps) {
-  const navigate = useNavigate();
-  const { i18n: i18nInstance } = useTranslation();
-  const isPolish = i18nInstance.language === "pl-PL";
-
-  const plugins = useMemo(
-    () => [
-      twoFactorPlugin(isPolish ? { localization: plPLTwoFactorLocalization } : {}),
-      passkeyPlugin(isPolish ? { localization: plPLPasskeyLocalization } : {}),
-      multiSessionPlugin(isPolish ? { localization: plPLMultiSessionLocalization } : {}),
-      deleteUserPlugin(isPolish ? { localization: plPLDeleteUserLocalization } : {}),
-      usernamePlugin(isPolish ? { localization: plPLUsernameLocalization } : {}),
-    ],
-    [isPolish],
-  );
-
   return (
-    <AuthProvider
-      authClient={authClient as unknown as AuthClient}
-      queryClient={queryClient}
-      navigate={navigate}
-      basePaths={{ auth: "/account" }}
-      Link={AuthLink}
-      socialProviders={["github", "google"]}
-      plugins={plugins}
-      localization={isPolish ? plPLAuthLocalization : undefined}
-    >
+    <>
       <AdsLoader />
       <RybbitIdentify />
       <AppErrorBoundary>
@@ -174,7 +129,7 @@ function AppProviders({ children }: AppProvidersProps) {
       <Toaster />
       <ReloadPrompt />
       <CookieConsentBanner />
-    </AuthProvider>
+    </>
   );
 }
 

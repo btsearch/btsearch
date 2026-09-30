@@ -11,7 +11,6 @@
     "height": "Receiver height",
     "useGps": "Use GPS",
     "locating": "Locating...",
-    "coordinates": "Receiver coordinates",
     "hint": "Drag the blue marker on the map to move the receive point",
     "gpsErrors": {
       "unsupported": "This browser cannot access your location. Drag the marker on the map instead",
@@ -22,7 +21,6 @@
     }
   },
   "empty": {
-    "stationTitle": "Select a station",
     "stationDescription": "Open a station's details and choose Analyze terrain profile under Actions"
   },
   "states": {
@@ -59,7 +57,6 @@
   "metrics": {
     "pathLoss": "Path loss",
     "pathLossDescription": "Signal attenuation along the modeled path according to ITU-R P.1812. Lower values mean less loss. This estimate does not include the station's actual transmit power or directional antenna pattern",
-    "antennaHeight": "Antenna height",
     "beamOffset": "Beam offset (est.)",
     "beamOffsetDescription": "Vertical angle between the receiver direction and the estimated beam center. Closer to 0° means the receiver is closer to the beam axis, \"+\" means above it and \"-\" means below it",
     "beamOffsetUnavailableDescription": "The offset cannot be calculated because this data source does not provide a reliable antenna tilt",
@@ -84,7 +81,6 @@
     },
     "series": {
       "surfaceElevationM": "Surface / vegetation",
-      "terrainElevationM": "Terrain",
       "lineOfSightElevationM": "Line of sight"
     }
   },
@@ -95,7 +91,6 @@
     "noReport": "No matching SI2PEM report"
   },
   "warnings": {
-    "title": "Data notes",
     "codes": {
       "ANTENNA_SELECTION_REQUIRED": "Choose the antenna sector to continue",
       "ANTENNA_SELECTION_INVALID": "The selected antenna is no longer available",

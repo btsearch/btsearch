@@ -39,7 +39,7 @@ export function useSubmissionsColumns({
         }),
         columnHelper.display({
           id: "changes",
-          header: () => <span title={t("table.cellCountsLegend")}>{t("table.changes")}</span>,
+          header: () => <span title={t("table.cellCountsLegend")}>{t("common:labels.changes")}</span>,
           size: 190,
           cell: ({ row }) => <SubmissionChangesSummary submission={row.original} />,
         }),

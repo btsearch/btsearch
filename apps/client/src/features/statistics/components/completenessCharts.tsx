@@ -12,7 +12,7 @@ export function CompletenessCharts() {
   const stationData = useMemo(
     () => [
       {
-        metric: t("completeness.stations"),
+        metric: t("common:labels.stations"),
         withSectors: data?.stations.withSectors ?? 0,
         withExtraIds: data?.stations.withExtraIds ?? 0,
         withoutSectors: Math.max((data?.stations.total ?? 0) - (data?.stations.withSectors ?? 0), 0),

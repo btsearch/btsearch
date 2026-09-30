@@ -88,7 +88,7 @@ export function CommentsDataTable({
               <tbody>
                 <DataTable.Empty columns={columnCount}>
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <span>{t("comments.table.empty")}</span>
+                    <span>{tCommon("empty.comments")}</span>
                     <span className="text-sm">{t("comments.table.emptyHint")}</span>
                   </div>
                 </DataTable.Empty>

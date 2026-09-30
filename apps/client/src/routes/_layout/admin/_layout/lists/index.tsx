@@ -142,7 +142,7 @@ function AdminListsPage() {
     () =>
       columnHelper.columns([
         columnHelper.accessor("name", {
-          header: t("admin:lists.table.name"),
+          header: t("common:labels.name"),
           size: 240,
           cell: ({ row }) => (
             <div className="min-w-0">
@@ -178,22 +178,22 @@ function AdminListsPage() {
             getValue() ? (
               <Badge variant="secondary" className="gap-1">
                 <HugeiconsIcon icon={Globe02Icon} className="size-3" />
-                {t("admin:lists.table.public")}
+                {t("lists:public")}
               </Badge>
             ) : (
               <Badge variant="outline" className="gap-1">
                 <HugeiconsIcon icon={LockIcon} className="size-3" />
-                {t("admin:lists.table.private")}
+                {t("lists:private")}
               </Badge>
             ),
         }),
         columnHelper.accessor("stationCount", {
-          header: t("admin:lists.table.stations"),
+          header: t("common:labels.stations"),
           size: 100,
           cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
         }),
         columnHelper.accessor("radiolineCount", {
-          header: t("admin:lists.table.radiolines"),
+          header: t("common:labels.radiolines"),
           size: 110,
           cell: ({ getValue }) => <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{getValue()}</span>,
         }),
@@ -240,7 +240,7 @@ function AdminListsPage() {
       <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("admin:breadcrumbs.lists")}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.lists")}</h1>
           </div>
           <div className={cn("relative w-full md:max-w-xs", hasFloatingRail && "max-md:hidden")}>
             <HugeiconsIcon
@@ -331,9 +331,9 @@ function AdminListsPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/lists/")({
   component: AdminListsPage,
   staticData: {
-    titleKey: "breadcrumbs.lists",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" }],
+    titleKey: "items.lists",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
     allowedRoles: ["admin"],
   },
 });

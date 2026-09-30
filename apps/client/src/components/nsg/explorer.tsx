@@ -347,7 +347,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
             isCompact ? "order-1" : "order-2 border-t @min-[1000px]:order-1 @min-[1000px]:border-t-0 @min-[1000px]:border-r",
             dragging && "ring-2 ring-inset ring-primary",
           )}
-          aria-label={t("page.title")}
+          aria-label={t("nav:items.nsg")}
           onDragOver={(event) => {
             event.preventDefault();
             if (!isParsing) setDragging(true);
@@ -384,11 +384,12 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
             <header className={cn("flex shrink-0 items-center gap-2 border-b bg-muted/30 px-4", isCompact ? "py-0" : "py-2.5")}>
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-sm font-semibold" title={log?.sourceName}>
-                  {log?.sourceName ?? t("page.title")}
+                  {log?.sourceName ?? t("nav:items.nsg")}
                 </h1>
                 {log && !isCompact ? (
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {formatBytes(log.sourceBytes)} · {formatDuration(log.durationSeconds * 1000)} · {t("history.cells", { count: log.cells.length })}
+                    {formatBytes(log.sourceBytes)} · {formatDuration(log.durationSeconds * 1000)} ·{" "}
+                    {t("common:labels.cells", { count: log.cells.length })}
                   </p>
                 ) : null}
               </div>

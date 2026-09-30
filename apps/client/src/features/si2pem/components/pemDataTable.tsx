@@ -68,7 +68,7 @@ function PEMStationLink({ stationId, context, t, onOpen }: PEMStationLinkProps) 
         }
       >
         <HugeiconsIcon icon={AirportTowerIcon} data-icon="inline-start" aria-hidden="true" />
-        {t("table.station")}
+        {t("common:labels.station")}
         <span className="sr-only"> {context}</span>
       </TooltipTrigger>
       <TooltipContent>{t("table.openStation")}</TooltipContent>

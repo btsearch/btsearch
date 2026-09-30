@@ -334,7 +334,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
                         e.stopPropagation();
                         setMain(photo.id);
                       }}
-                      title={t("photos.setAsMain")}
+                      title={t("common:photos.setAsMain")}
                     >
                       <HugeiconsIcon icon={StarIcon} className="size-3.5" />
                     </button>

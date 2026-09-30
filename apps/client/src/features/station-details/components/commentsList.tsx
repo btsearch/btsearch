@@ -40,6 +40,11 @@ const fetchComments = (stationId: number) =>
 const photoIndex = (attachments: CommentAttachment[], attachmentIndex: number) =>
   attachments.slice(0, attachmentIndex).filter((attachment) => attachment.type.startsWith("image/")).length;
 
+const authorInitial = (author: StationComment["author"], locale: string) => {
+  const [first] = author?.name || author?.username || "";
+  return first ? first.toLocaleUpperCase(locale) : null;
+};
+
 type CommentsListProps = {
   stationId: number;
   isAdmin?: boolean;
@@ -75,7 +80,7 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
     },
     onSuccess: (_data, commentId) => {
       const wasPending = comments.some((comment) => comment.id === commentId && comment.status === "pending");
-      toast.success(t(wasPending ? "comments.withdrawn" : "comments.deleted"));
+      toast.success(t(wasPending ? "comments.withdrawn" : "admin:comments.deleteSuccess"));
       return queryClient.invalidateQueries({ queryKey: ["station-comments", stationId] });
     },
     onError: (error) => showApiError(error),
@@ -135,7 +140,7 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
       ) : null}
       {comments.length === 0 ? (
         <div className="py-8 text-center">
-          <p className="text-sm font-medium text-foreground">{t("comments.noComments")}</p>
+          <p className="text-sm font-medium text-foreground">{t("common:empty.comments")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("comments.noCommentsHint")}</p>
         </div>
       ) : (
@@ -145,11 +150,7 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
               <Avatar className="size-8 shrink-0 border">
                 <AvatarImage src={resolveAvatarUrl(comment.author?.image)} alt="" />
                 <AvatarFallback className="text-xs font-semibold text-muted-foreground">
-                  {comment.author?.name ? (
-                    comment.author.name.charAt(0).toLocaleUpperCase(i18n.language)
-                  ) : (
-                    <HugeiconsIcon icon={UserIcon} className="size-4" />
-                  )}
+                  {authorInitial(comment.author, i18n.language) ?? <HugeiconsIcon icon={UserIcon} className="size-4" aria-hidden="true" />}
                 </AvatarFallback>
               </Avatar>
 
@@ -159,14 +160,17 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
                     <Link
                       to="/users/$username"
                       params={{ username: comment.author.username }}
+                      preload="intent"
                       className="max-w-full truncate text-sm font-semibold text-foreground underline-offset-2 hover:underline"
                     >
-                      {comment.author.name}
+                      {comment.author.name || `@${comment.author.username}`}
                     </Link>
                   ) : (
                     <span className="truncate text-sm font-semibold text-foreground">{comment.author?.name ?? t("comments.unknownAuthor")}</span>
                   )}
-                  {comment.author?.username && <span className="truncate text-xs text-muted-foreground">@{comment.author.username}</span>}
+                  {comment.author?.username && comment.author.name ? (
+                    <span className="truncate text-xs text-muted-foreground">@{comment.author.username}</span>
+                  ) : null}
                   <time
                     dateTime={comment.createdAt}
                     title={new Date(comment.createdAt).toLocaleString(i18n.language)}
@@ -184,8 +188,8 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
                             variant="ghost"
                             size="icon"
                             className="cursor-pointer text-muted-foreground hover:text-destructive"
-                            aria-label={comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}
-                            title={comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}
+                            aria-label={comment.status === "pending" ? t("comments.withdraw") : t("admin:comments.deleteTitle")}
+                            title={comment.status === "pending" ? t("comments.withdraw") : t("admin:comments.deleteTitle")}
                             disabled={deleteMutation.isPending}
                           />
                         }
@@ -194,7 +198,9 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{comment.status === "pending" ? t("comments.withdraw") : t("comments.deleteConfirm")}</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {comment.status === "pending" ? t("comments.withdraw") : t("admin:comments.deleteTitle")}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
                             {comment.status === "pending" ? t("comments.withdrawDescription") : t("comments.deleteDescription")}
                           </AlertDialogDescription>

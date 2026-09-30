@@ -255,7 +255,7 @@ function HuntersContent() {
       <div className="w-full px-6 py-6">
         <header className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">{t("hunters.title")}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.hunters")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("hunters.subtitle")}</p>
           </div>
           <p className="shrink-0 text-sm font-medium text-muted-foreground">{t("hunters.count", { count: filteredHunters.length })}</p>
@@ -274,7 +274,12 @@ function HuntersContent() {
           {huntersLoading ? (
             <HuntersSkeleton />
           ) : isError && !hunters ? (
-            <ErrorState title={t("hunters.errorTitle")} description={t("hunters.errorSubtitle")} onRetry={() => refetch()} isRetrying={isFetching} />
+            <ErrorState
+              title={t("hunters.errorTitle")}
+              description={t("common:error.reloadOrTryLater")}
+              onRetry={() => refetch()}
+              isRetrying={isFetching}
+            />
           ) : filteredHunters.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {filteredHunters.map((hunter) => (
@@ -301,7 +306,7 @@ function HuntersPage() {
 export const Route = createFileRoute("/_layout/hunters")({
   component: HuntersPage,
   staticData: {
-    titleKey: "hunters.breadcrumb",
-    i18nNamespace: "main",
+    titleKey: "items.hunters",
+    i18nNamespace: "nav",
   },
 });

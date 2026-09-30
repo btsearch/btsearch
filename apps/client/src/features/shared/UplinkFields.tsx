@@ -52,12 +52,12 @@ export function UplinkFields({
   const inputClass = isCompact ? "h-8 text-sm" : "";
   const labelClass = isCompact ? "text-xs" : "";
   const gapClass = isCompact ? "gap-3" : "gap-4";
-  const typeLabel = uplinkType ? t(`labels.${uplinkTypeKey(uplinkType)}`) : t("labels.uplinkUnknown");
+  const typeLabel = uplinkType ? t(`labels.${uplinkTypeKey(uplinkType)}`) : t("labels.unknown");
 
   return (
     <>
       <div className="flex items-center gap-2">
-        <Label className={`shrink-0 ${labelClass}`}>{t("labels.uplink")}</Label>
+        <Label className={`shrink-0 ${labelClass}`}>Uplink</Label>
         {readOnly ? (
           <span className="flex items-center gap-2 text-sm font-medium">
             {uplinkType ? <UplinkTypeIcon type={uplinkType} /> : null}
@@ -83,7 +83,7 @@ export function UplinkFields({
               <SelectItem value="none">
                 <span className="flex items-center gap-2">
                   <span className="size-3.5 shrink-0" />
-                  <span>{t("labels.uplinkUnknown")}</span>
+                  <span>{t("labels.unknown")}</span>
                 </span>
               </SelectItem>
               {UPLINK_TYPES.map((type) => (

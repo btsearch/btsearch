@@ -44,8 +44,8 @@ export function StationCounter({
   });
 
   const sourceItems: { label: string; date: string | null | undefined; value: StationSource }[] = [
-    { label: t("filters.internalDb"), date: stats?.lastUpdated.stations, value: "internal" },
-    { label: t("stationDetails:tabs.permits"), date: stats?.lastUpdated.stations_permits, value: "uke" },
+    { label: t("stats.internalData"), date: stats?.lastUpdated.stations, value: "internal" },
+    { label: tCommon("labels.ukePermits"), date: stats?.lastUpdated.stations_permits, value: "uke" },
   ];
 
   return (

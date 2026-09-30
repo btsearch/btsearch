@@ -171,7 +171,7 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
 
     if (localPendingMatch === null && isPendingRadioLinesError) {
       consumedPendingIdRef.current = pendingRadiolineId;
-      toast.error(t("placeholder.errorFetching"));
+      toast.error(t("error.loadTitle"));
       onPendingRadiolineConsumed?.(null);
     }
   }, [isPendingRadioLinesError, localPendingMatch, onPendingRadiolineConsumed, openRadioLineDialog, pendingMatch, pendingRadiolineId, t]);

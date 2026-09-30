@@ -43,7 +43,7 @@ export function CollapsibleHeader({ rat, cellsCount, diffCounts, onAddCell, onAd
         <RatGenerationLabel rat={rat} />
         <span className="font-semibold text-sm">{rat}</span>
         <span className="text-xs text-muted-foreground inline sm:hidden">({cellsCount})</span>
-        <span className="text-xs text-muted-foreground hidden sm:inline">({t("stations:cells.cellsCount", { count: cellsCount })})</span>
+        <span className="text-xs text-muted-foreground hidden sm:inline">({t("common:labels.cells", { count: cellsCount })})</span>
         <DiffBadge count={diffCounts.added} color="green" label={t("stations:cells.diffAdded", { count: diffCounts.added })} />
         <DiffBadge count={diffCounts.modified} color="amber" label={t("stations:cells.diffModified", { count: diffCounts.modified })} />
         <DiffBadge count={diffCounts.deleted} color="red" label={t("stations:cells.diffDeleted", { count: diffCounts.deleted })} />

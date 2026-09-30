@@ -301,7 +301,7 @@ export type StationComment = {
   author?: {
     id: string;
     username: string | null;
-    name: string;
+    name: string | null;
     image: string | null;
   };
 };

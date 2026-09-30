@@ -2,60 +2,47 @@
   "sections": {
     "stations": "Stations",
     "contribute": "Submissions",
-    "settings": "Settings",
     "admin": "Admin",
     "info": "Information",
-    "lists": "My Lists"
+    "lists": "My lists"
   },
   "items": {
-    "mapView": "Map View",
+    "mapView": "Map view",
     "database": "Database",
-    "photos": "Photo Gallery",
-    "clfExport": "CLF Export",
-    "kmz": "KMZ Downloads",
-    "submitStation": "New Submission",
-    "preferences": "Preferences",
+    "photos": "Photo gallery",
+    "clfExport": "CLF export",
+    "kmz": "KMZ downloads",
+    "submitStation": "New submission",
     "changelog": "Changelog",
-    "accountSettings": "Account Settings",
-    "myProfile": "My Profile",
-    "mySubmissions": "My Submissions",
+    "accountSettings": "Account settings",
+    "myProfile": "My profile",
+    "mySubmissions": "My submissions",
     "dashboard": "Dashboard",
     "users": "Users",
     "stations": "Stations",
     "submissions": "Submissions",
     "locations": "Locations",
     "settings": "Settings",
-    "ukeImport": "UKE Import",
+    "ukeImport": "UKE import",
     "lists": "Lists",
     "comments": "Comments",
-    "auditLogs": "Audit Logs",
-    "deletedEntries": "Deleted Entries",
+    "auditLogs": "Audit logs",
+    "deletedEntries": "Deleted entries",
     "statistics": "Statistics",
     "about": "About",
     "contact": "Contact",
-    "privacy": "Privacy Policy",
-    "terms": "Terms of Service",
-    "myLists": "My Lists",
-    "sharedList": "Shared List",
+    "privacy": "Privacy policy",
+    "terms": "Terms of service",
+    "sharedList": "Shared list",
     "viewAllLists": "View all",
-    "analyzer": "Log Analyzer",
+    "analyzer": "Log analyzer",
     "nsg": "NSG Explorer",
-    "apiDocs": "API Docs",
-    "releasenotes": "v3 - What's new?",
+    "apiDocs": "API docs",
     "discord": "Discord",
     "fundraiser": "Fundraiser",
     "spectrum": "Spectrum",
     "pem": "EMF measurements",
-    "hunters": "BTS Hunters"
-  },
-  "secondary": {
-    "settings": "Settings",
-    "help": "Help",
-    "about": "About"
-  },
-  "user": {
-    "logout": "Log out",
-    "login": "Log in"
+    "hunters": "BTS hunters"
   },
   "floating": {
     "label": "Floating navigation",
@@ -63,11 +50,9 @@
     "hide": "Hide navigation",
     "show": "Show navigation",
     "openSection": "Open {{section}} navigation",
-    "mobileTitle": "Navigation",
     "account": "Account menu"
   },
   "auth": {
-    "signIn": "Sign In",
     "signInHint": "Sign in to submit and track stations"
   }
 }

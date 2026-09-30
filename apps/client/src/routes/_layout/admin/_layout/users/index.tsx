@@ -75,8 +75,8 @@ function isBannedFilter(value: unknown): value is BannedFilter {
 }
 
 function getRoleLabel(t: TFunction, role: string | undefined): string {
-  if (role === "admin") return t("users.filters.roleAdmin");
-  if (role === "editor") return t("users.filters.roleEditor");
+  if (role === "admin") return t("common:roles.admin");
+  if (role === "editor") return t("common:roles.editor");
   if (role === undefined || role === "user") return t("users.filters.roleUser");
   return role;
 }
@@ -88,7 +88,7 @@ function getRoleFilterLabel(t: TFunction, role: RoleFilter): string {
 function getBannedFilterLabel(t: TFunction, banned: BannedFilter): string {
   if (banned === "true") return t("users.filters.banned");
   if (banned === "false") return t("users.filters.active");
-  return t("users.filters.allStatuses");
+  return t("common:labels.allStatuses");
 }
 
 function formatUserCreatedDate(value: Date, locale: string): string {
@@ -131,7 +131,7 @@ function useColumns() {
     () =>
       columnHelper.columns([
         columnHelper.accessor("name", {
-          header: t("users.table.name"),
+          header: t("common:labels.name"),
           size: 250,
           cell: ({ row }) => (
             <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ function useColumns() {
           ),
         }),
         columnHelper.accessor("email", {
-          header: t("users.table.email"),
+          header: t("common:labels.email"),
           size: 250,
           cell: ({ getValue }) => <span className="truncate">{getValue()}</span>,
         }),
@@ -160,7 +160,7 @@ function useColumns() {
           },
         }),
         columnHelper.accessor("banned", {
-          header: t("users.table.status"),
+          header: t("common:labels.status"),
           size: 120,
           cell: ({ getValue }) => {
             const banned = getValue();
@@ -169,7 +169,7 @@ function useColumns() {
           },
         }),
         columnHelper.accessor("createdAt", {
-          header: t("users.table.created"),
+          header: t("common:labels.created"),
           size: 150,
           cell: ({ getValue }) => new Date(getValue()).toLocaleDateString(),
         }),
@@ -230,8 +230,8 @@ function UsersMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={roleFilter !== "all"} icon={ShieldUserIcon} label={t("users.filters.labelRole")}>
-        <MobileFilterPanelTitle>{t("users.filters.labelRole")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={roleFilter !== "all"} icon={ShieldUserIcon} label={t("users.table.role")}>
+        <MobileFilterPanelTitle>{t("users.table.role")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {ROLE_FILTERS.map((role) => (
             <button
@@ -250,8 +250,8 @@ function UsersMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={bannedFilter !== "all"} icon={CheckmarkCircle02Icon} label={t("users.filters.labelStatus")}>
-        <MobileFilterPanelTitle>{t("users.filters.labelStatus")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={bannedFilter !== "all"} icon={CheckmarkCircle02Icon} label={t("common:labels.status")}>
+        <MobileFilterPanelTitle>{t("common:labels.status")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {BANNED_FILTERS.map((banned) => (
             <button
@@ -484,7 +484,7 @@ function AdminUsersPage() {
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex items-center gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">{t("users.filters.labelRole")}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("users.table.role")}</label>
               <Select
                 value={roleFilter}
                 onValueChange={(value) => {
@@ -497,13 +497,13 @@ function AdminUsersPage() {
                 <SelectContent className="min-w-40">
                   <SelectItem value="all">{t("users.filters.allRoles")}</SelectItem>
                   <SelectItem value="user">{t("users.filters.roleUser")}</SelectItem>
-                  <SelectItem value="editor">{t("users.filters.roleEditor")}</SelectItem>
-                  <SelectItem value="admin">{t("users.filters.roleAdmin")}</SelectItem>
+                  <SelectItem value="editor">{t("common:roles.editor")}</SelectItem>
+                  <SelectItem value="admin">{t("common:roles.admin")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">{t("users.filters.labelStatus")}</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("common:labels.status")}</label>
               <Select
                 value={bannedFilter}
                 onValueChange={(value) => {
@@ -511,10 +511,10 @@ function AdminUsersPage() {
                 }}
               >
                 <SelectTrigger className="w-32">
-                  <SelectValue placeholder={t("users.filters.allStatuses")} />
+                  <SelectValue placeholder={t("common:labels.allStatuses")} />
                 </SelectTrigger>
                 <SelectContent className="min-w-40">
-                  <SelectItem value="all">{t("users.filters.allStatuses")}</SelectItem>
+                  <SelectItem value="all">{t("common:labels.allStatuses")}</SelectItem>
                   <SelectItem value="false">{t("users.filters.active")}</SelectItem>
                   <SelectItem value="true">{t("users.filters.banned")}</SelectItem>
                 </SelectContent>
@@ -603,8 +603,8 @@ function AdminUsersPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/users/")({
   component: AdminUsersPage,
   staticData: {
-    titleKey: "breadcrumbs.users",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", i18nNamespace: "admin" }],
+    titleKey: "items.users",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", i18nNamespace: "nav" }],
   },
 });

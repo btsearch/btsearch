@@ -157,7 +157,7 @@ export function SearchInput({
                 mode === "map" && "bg-background text-foreground shadow-sm",
               )}
             >
-              {t("search.modeMap")}
+              {t("common:labels.map")}
             </button>
           </div>
         ) : null}

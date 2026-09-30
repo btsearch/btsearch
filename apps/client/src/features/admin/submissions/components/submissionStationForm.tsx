@@ -216,7 +216,7 @@ export function SubmissionStationForm({
                 uplinkForm.uplink_type !== (currentUplink?.type ?? null) && (
                   <ChangeBadge
                     label={t("diff.was")}
-                    current={currentUplink ? t(`common:labels.${uplinkTypeKey(currentUplink.type)}`) : t("common:labels.uplinkUnknown")}
+                    current={currentUplink ? t(`common:labels.${uplinkTypeKey(currentUplink.type)}`) : t("common:labels.unknown")}
                   />
                 )
               }

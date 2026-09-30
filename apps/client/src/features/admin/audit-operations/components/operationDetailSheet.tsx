@@ -54,13 +54,7 @@ function getEntryActionClass(op: AuditEntry["op"]): string {
 const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert }: { entry: AuditEntry; onRevert: (entry: AuditEntry) => void }) {
   const { t } = useTranslation("admin");
   const revertButton = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      disabled={!entry.revertible}
-      onClick={() => onRevert(entry)}
-      aria-label={t("auditLogs.revert.entryAction")}
-    >
+    <Button variant="ghost" size="icon-sm" disabled={!entry.revertible} onClick={() => onRevert(entry)} aria-label={t("common:actions.revertChange")}>
       <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" aria-hidden="true" />
     </Button>
   );
@@ -189,14 +183,14 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
               ) : null}
 
               <section className="flex flex-col gap-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.overview")}</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("common:labels.overview")}</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.columns.kind")}</span>
                     <OperationKindBadge kind={operation.kind} t={t} className="w-fit" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.columns.source")}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common:labels.source")}</span>
                     <span className="text-sm uppercase">{operation.source}</span>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -211,7 +205,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                   ) : null}
                   {operation.station_ids.length > 0 || submissionId !== null ? (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.links")}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common:labels.links")}</span>
                       <div className="flex flex-wrap gap-2">
                         {operation.station_ids.map((stationId) => (
                           <Link
@@ -222,7 +216,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                             className="text-sm text-primary hover:underline"
                             onClick={() => handleOpenChange(false)}
                           >
-                            {t("auditLogs.detail.station")} #{stationId}
+                            {t("common:labels.station")} #{stationId}
                           </Link>
                         ))}
                         {submissionId !== null ? (
@@ -261,7 +255,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
 
               <section className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.changes")}</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("common:labels.changes")}</h3>
                   {fullRevertControl}
                 </div>
                 {changesContent}

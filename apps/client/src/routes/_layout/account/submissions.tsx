@@ -21,7 +21,7 @@ function MySubmissionsPage() {
       <main className="flex-1 flex flex-col min-h-0 pl-3 pt-3 pr-3 gap-3">
         <div className="flex items-start justify-between gap-4 shrink-0">
           <div className="space-y-1">
-            <h1 className="text-xl font-bold tracking-tight">{t("userPage.title")}</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t("nav:items.mySubmissions")}</h1>
             <p className="text-muted-foreground text-sm">{t("userPage.description")}</p>
           </div>
           <Button size="sm" nativeButton={false} render={<Link to="/submission" />}>
@@ -38,8 +38,8 @@ function MySubmissionsPage() {
 export const Route = createFileRoute("/_layout/account/submissions")({
   component: MySubmissionsPage,
   staticData: {
-    titleKey: "userPage.title",
-    i18nNamespace: "submissions",
-    breadcrumbs: [{ titleKey: "account.title", i18nNamespace: "settings", path: "/settings" }],
+    titleKey: "items.mySubmissions",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "labels.account", i18nNamespace: "common", path: "/settings" }],
   },
 });

@@ -23,7 +23,7 @@ function ListsPage() {
 export const Route = createFileRoute("/_layout/lists/")({
   component: ListsPage,
   staticData: {
-    titleKey: "items.myLists",
+    titleKey: "sections.lists",
     i18nNamespace: "nav",
   },
 });

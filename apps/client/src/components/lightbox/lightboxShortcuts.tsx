@@ -20,13 +20,13 @@ export function LightboxShortcuts({ onClose }: { onClose: () => void }) {
     { label: t("shortcut.firstLast"), keys: ["Home", "End"] },
     { label: t("shortcut.zoom"), keys: ["+", "−"] },
     { label: t("shortcut.fit"), keys: ["0"] },
-    { label: t("shortcut.actualSize"), keys: ["1"] },
+    { label: t("actualSize"), keys: ["1"] },
     { label: t("shortcut.pan"), keys: ["↑", "↓", "←", "→"] },
-    { label: t("shortcut.peek"), keys: ["P"] },
-    { label: t("shortcut.details"), keys: ["I"] },
-    { label: t("shortcut.fullscreen"), keys: ["F"] },
-    { label: t("shortcut.shortcuts"), keys: ["?"] },
-    { label: t("shortcut.close"), keys: ["Esc"] },
+    { label: t("showNeighbours"), keys: ["P"] },
+    { label: t("common:labels.details"), keys: ["I"] },
+    { label: t("fullscreen"), keys: ["F"] },
+    { label: t("shortcuts"), keys: ["?"] },
+    { label: t("common:actions.close"), keys: ["Esc"] },
   ];
 
   return (
@@ -44,7 +44,13 @@ export function LightboxShortcuts({ onClose }: { onClose: () => void }) {
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="mb-4 text-base leading-none font-medium">{t("shortcuts")}</h2>
-        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("close")} className="absolute top-2 right-2 cursor-pointer">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label={t("common:actions.close")}
+          className="absolute top-2 right-2 cursor-pointer"
+        >
           <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" />
         </Button>
         <ul className="flex flex-col gap-2.5">

@@ -1,20 +1,14 @@
 {
   "deletedEntries": {
-    "title": "Usunięte wpisy",
     "subtitle": "Przeglądaj wpisy usunięte podczas importów UKE",
     "columns": {
       "deletedAt": "Data usunięcia",
       "createdAt": "Data utworzenia",
-      "sourceType": "Źródło",
       "sourceId": "Oryginalne ID",
       "identifier": "Identyfikator",
       "importId": "Import"
     },
     "filters": {
-      "allSources": "Wszystkie",
-      "dateFrom": "Od",
-      "dateTo": "Do",
-      "dateRange": "Zakres dat",
       "searchPlaceholder": "Szukaj po ID lub pozwoleniu..."
     },
     "empty": {
@@ -25,10 +19,7 @@
     },
     "detail": {
       "title": "Usunięty wpis",
-      "overview": "Przegląd",
-      "data": "Zapisane dane",
-      "field": "Pole",
-      "value": "Wartość"
+      "data": "Zapisane dane"
     }
   }
 }

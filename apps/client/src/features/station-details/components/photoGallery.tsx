@@ -21,7 +21,7 @@ type PhotoSortOrder = "asc" | "desc";
 
 function PhotoMeta({ photo, locale }: { photo: StationPhoto; locale: string }) {
   const { t } = useTranslation("stationDetails");
-  const username = photo.author?.username ?? t("photos.unknownUser");
+  const username = photo.author?.username ?? t("common:labels.unknown");
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -99,7 +99,8 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
     );
   }
 
-  if (isLoadingError) return <ErrorState className="min-h-0 py-8" title={t("photos.loadError")} onRetry={() => refetch()} isRetrying={isFetching} />;
+  if (isLoadingError)
+    return <ErrorState className="min-h-0 py-8" title={t("common:photos.loadError")} onRetry={() => refetch()} isRetrying={isFetching} />;
 
   if (!photos || photos.length === 0) {
     return (
@@ -156,8 +157,8 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
                 </span>
               ) : null}
               {isRecentPhoto(photo.createdAt) ? (
-                <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-medium text-white" title={t("main:photos.recent")}>
-                  {t("main:photos.recent")}
+                <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-medium text-white" title={t("common:labels.new")}>
+                  {t("common:labels.new")}
                 </span>
               ) : null}
             </span>
@@ -182,7 +183,7 @@ export function PhotoGallery({ stationId, isAdmin }: Props) {
                 disabled={setMainMutation.isPending}
                 className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white rounded-md px-2 py-0.5 text-xs font-medium"
               >
-                {t("photos.setAsMain")}
+                {t("common:photos.setAsMain")}
               </button>
             ) : null}
           </div>

@@ -3,19 +3,13 @@
   "announce": "Photo {{current}} of {{total}}",
   "previous": "Previous photo",
   "next": "Next photo",
-  "close": "Close",
   "zoomIn": "Zoom in",
   "zoomOut": "Zoom out",
   "fit": "Fit",
   "actualSize": "Actual size",
   "showNeighbours": "Show neighbouring photos",
   "hideNeighbours": "Hide neighbouring photos",
-  "details": "Details",
-  "download": "Download",
   "openOriginal": "Open original",
-  "share": "Share",
-  "copyLink": "Copy link",
-  "linkCopied": "Link copied",
   "copyFailed": "Couldn't copy the link",
   "fullscreen": "Fullscreen",
   "exitFullscreen": "Exit fullscreen",
@@ -28,12 +22,6 @@
     "firstLast": "First or last photo",
     "zoom": "Zoom in or out",
     "fit": "Fit to screen",
-    "actualSize": "Actual size",
-    "pan": "Move around a zoomed photo",
-    "peek": "Show neighbouring photos",
-    "details": "Details",
-    "fullscreen": "Fullscreen",
-    "shortcuts": "Keyboard shortcuts",
-    "close": "Close"
+    "pan": "Move around a zoomed photo"
   }
 }

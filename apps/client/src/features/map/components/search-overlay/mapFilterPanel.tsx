@@ -238,7 +238,7 @@ function DataInfo({ stats, locale, className }: { stats: DataStats; locale: stri
         <HugeiconsIcon icon={InformationCircleIcon} className="size-3 shrink-0" aria-hidden="true" />
         <span className="min-w-0 truncate">
           {t("main:stats.internalData")}: <span className="font-medium tabular-nums text-foreground">{formatDate(stats.lastUpdated.stations)}</span> ·{" "}
-          {t("stationDetails:tabs.permits")}:{" "}
+          {t("common:labels.ukePermits")}:{" "}
           <span className="font-medium tabular-nums text-foreground">{formatDate(stats.lastUpdated.stations_permits)}</span>
         </span>
       </p>
@@ -328,14 +328,14 @@ export function FilterPanel({
   const ratOptions = filters.source === "uke" ? UKE_RAT_OPTIONS : RAT_OPTIONS;
   const bandValues = useMemo(() => sortBandsUnknownLast(uniqueBandValues), [uniqueBandValues]);
   const dataSources: { id: StationSource; label: string; icon: typeof Database02Icon }[] = [
-    { id: "internal", label: t("main:filters.internalDb"), icon: Database02Icon },
-    { id: "uke", label: t("stationDetails:tabs.permits"), icon: File02Icon },
+    { id: "internal", label: t("main:stats.internalData"), icon: Database02Icon },
+    { id: "uke", label: t("common:labels.ukePermits"), icon: File02Icon },
   ];
 
   const layers = [
     {
       key: "stations",
-      label: t("main:filters.showStations"),
+      label: t("common:labels.stations"),
       icon: AirportTowerIcon,
       active: filters.showStations,
       keybind: "S",
@@ -343,7 +343,7 @@ export function FilterPanel({
     },
     {
       key: "radiolines",
-      label: t("main:filters.showRadiolines"),
+      label: t("common:labels.radiolines"),
       icon: Route02Icon,
       active: filters.showRadiolines,
       keybind: "R",
@@ -362,7 +362,7 @@ export function FilterPanel({
       : null,
     {
       key: "azimuths",
-      label: t("main:filters.showAzimuths"),
+      label: t("common:labels.azimuths"),
       icon: Navigation03Icon,
       active: preferences.showAzimuths,
       keybind: "A",
@@ -458,7 +458,7 @@ export function FilterPanel({
 
         {filters.source === "internal" ? (
           <FilterPanelSection
-            title={t("main:filters.uplinkType")}
+            title="Uplink"
             onClear={filters.uplinkTypes.length > 0 ? () => onFiltersChange((current) => ({ ...current, uplinkTypes: [] })) : undefined}
           >
             <div className="flex flex-wrap gap-1.5">

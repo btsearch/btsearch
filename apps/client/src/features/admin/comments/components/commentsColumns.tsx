@@ -67,7 +67,7 @@ export function createCommentsColumns({
     },
     {
       id: "author",
-      header: t("comments.table.author"),
+      header: tCommon("labels.author"),
       size: 180,
       cell: ({ row }) => {
         const author = row.original.author;
@@ -87,7 +87,7 @@ export function createCommentsColumns({
     },
     {
       id: "station",
-      header: t("comments.table.station"),
+      header: tCommon("labels.station"),
       size: 160,
       cell: ({ row }) => {
         const station = row.original.station;

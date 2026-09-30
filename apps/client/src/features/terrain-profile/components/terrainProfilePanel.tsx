@@ -334,7 +334,7 @@ export default function TerrainProfilePanel({
 
         {station === null ? (
           <div className="rounded-lg border border-dashed px-4 py-6 text-center">
-            <p className="text-sm font-medium">{t("empty.stationTitle")}</p>
+            <p className="text-sm font-medium">{t("common:actions.selectStation")}</p>
             <p className="mt-1 text-xs text-muted-foreground">{t("empty.stationDescription")}</p>
           </div>
         ) : null}
@@ -386,7 +386,7 @@ export default function TerrainProfilePanel({
                 description={t("metrics.fieldStrengthDescription")}
               />
               <InlineMetric
-                label={t("metrics.antennaHeight")}
+                label={t("common:labels.antennaHeight")}
                 value={selectedCandidate === undefined ? "-" : `${selectedCandidate.antenna.mountedHeight.toFixed(1)} m`}
               />
               {verticalAlignment !== undefined ? (

@@ -89,7 +89,7 @@ export function StationSelector({ mode, selectedStation, onModeChange, onStation
       <div className="flex items-center justify-between gap-3 rounded-t-xl border-b bg-muted/50 px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
           <HugeiconsIcon icon={AirportTowerIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="truncate text-sm font-semibold tracking-tight">{t("submissionSelector.title")}</span>
+          <span className="truncate text-sm font-semibold tracking-tight">{t("common:actions.selectStation")}</span>
         </div>
         <div className="flex shrink-0 items-center rounded-lg border bg-card p-0.5 shadow-sm">
           <button

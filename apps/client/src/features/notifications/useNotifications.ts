@@ -1,17 +1,27 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type Query, type QueryKey, keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { NotificationsResponse } from "./api";
 import { markAllRead as apiMarkAllRead, markRead as apiMarkRead, fetchNotifications } from "./api";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
-export function useNotifications() {
+export const NOTIFICATIONS_PAGE_SIZE = 20;
+const NOTIFICATIONS_MAX_LIMIT = 100;
+
+const notificationCaches = {
+  predicate: (query: Query) => query.queryKey[0] === "notifications" || query.queryKey[0] === "notifications-badge",
+};
+
+type NotificationsSnapshot = { previous: [QueryKey, NotificationsResponse | undefined][] };
+
+export function useNotifications(limit = NOTIFICATIONS_PAGE_SIZE) {
   const { data: session } = authClient.useSession();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => fetchNotifications({ limit: 20, offset: 0 }),
+    queryKey: ["notifications", limit],
+    queryFn: () => fetchNotifications({ limit, offset: 0 }),
+    placeholderData: keepPreviousData,
     refetchInterval: 30_000,
     refetchIntervalInBackground: true,
     staleTime: 10_000,
@@ -24,57 +34,58 @@ export function useNotifications() {
     void queryClient.invalidateQueries({ queryKey: ["notifications-badge"] });
   };
 
+  const applyOptimisticUpdate = async (update: (data: NotificationsResponse) => NotificationsResponse): Promise<NotificationsSnapshot> => {
+    await queryClient.cancelQueries(notificationCaches);
+    const previous = queryClient.getQueriesData<NotificationsResponse>(notificationCaches);
+    queryClient.setQueriesData<NotificationsResponse>(notificationCaches, (old) => (old ? update(old) : old));
+    return { previous };
+  };
+
+  const rollback = (error: Error, _variables: unknown, context: NotificationsSnapshot | undefined) => {
+    context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    showApiError(error);
+  };
+
   const markAllMutation = useMutation({
     mutationKey: ["notifications"],
     mutationFn: apiMarkAllRead,
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["notifications"] });
-      const previous = queryClient.getQueryData<NotificationsResponse>(["notifications"]);
-      queryClient.setQueryData<NotificationsResponse>(["notifications"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          totalUnread: 0,
-          data: old.data.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })),
-        };
-      });
-      return { previous };
+    onMutate: () => {
+      const readAt = new Date().toISOString();
+      return applyOptimisticUpdate((old) => ({ ...old, totalUnread: 0, data: old.data.map((n) => ({ ...n, readAt: n.readAt ?? readAt })) }));
     },
-    onError: (error, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(["notifications"], context.previous);
-      showApiError(error);
-    },
+    onError: rollback,
     onSettled: resyncNotifications,
   });
 
   const markReadMutation = useMutation({
     mutationKey: ["notifications"],
     mutationFn: apiMarkRead,
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["notifications"] });
-      const previous = queryClient.getQueryData<NotificationsResponse>(["notifications"]);
-      queryClient.setQueryData<NotificationsResponse>(["notifications"], (old) => {
-        if (!old) return old;
-        const wasUnread = old.data.some((n) => n.id === id && !n.readAt);
-        return {
-          ...old,
-          totalUnread: wasUnread ? Math.max(0, old.totalUnread - 1) : old.totalUnread,
-          data: old.data.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n)),
-        };
-      });
-      return { previous };
+    onMutate: (id: string) => {
+      const readAt = new Date().toISOString();
+      const wasUnread = queryClient
+        .getQueriesData<NotificationsResponse>(notificationCaches)
+        .some(([, data]) => data?.data.some((n) => n.id === id && n.readAt === null));
+      return applyOptimisticUpdate((old) => ({
+        ...old,
+        totalUnread: wasUnread ? Math.max(0, old.totalUnread - 1) : old.totalUnread,
+        data: old.data.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? readAt } : n)),
+      }));
     },
-    onError: (error, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(["notifications"], context.previous);
-      showApiError(error);
-    },
+    onError: rollback,
     onSettled: resyncNotifications,
   });
 
+  const notifications = query.data?.data ?? [];
+  const totalCount = query.data?.totalCount ?? 0;
+
   return {
-    notifications: query.data?.data ?? [],
+    notifications,
     totalUnread: query.data?.totalUnread ?? 0,
+    hasMore: notifications.length < totalCount && limit < NOTIFICATIONS_MAX_LIMIT,
+    reachedEnd: notifications.length >= totalCount,
+    nextLimit: Math.min(limit + NOTIFICATIONS_PAGE_SIZE, NOTIFICATIONS_MAX_LIMIT),
     isLoading: query.isLoading,
+    isLoadingMore: query.isPlaceholderData,
     isLoadingError: query.isLoadingError,
     refetch: query.refetch,
     markAllRead: () => markAllMutation.mutate(),

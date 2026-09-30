@@ -5,7 +5,6 @@
     "backHome": "Wróć do BTSearch",
     "wantsAccess": "{{app}} prosi o dostęp do Twojego konta BTSearch",
     "unknownApp": "Nieznana aplikacja",
-    "accountAccess": "Konto",
     "readAccess": "Dostęp do odczytu",
     "writeAccess": "Działania w Twoim imieniu",
     "offlineAccess": "Zachowuje stały dostęp, dopóki go nie odwołasz",
@@ -13,7 +12,6 @@
     "revokeNotice": "Dostęp możesz odwołać w każdej chwili <settingsLink>tutaj</settingsLink>",
     "allow": "Zezwól na dostęp",
     "allowing": "Zezwalanie...",
-    "deny": "Anuluj",
     "denying": "Anulowanie...",
     "error": "Autoryzacja nie powiodła się. Wróć do aplikacji i spróbuj ponownie",
     "scopes": {
@@ -46,11 +44,8 @@
     "noAppsDescription": "Zarejestruj aplikację OAuth, aby Twoja strona lub narzędzie mogły logować użytkowników kontem BTSearch",
     "createApp": "Nowa aplikacja",
     "columns": {
-      "name": "Aplikacja",
-      "clientId": "Client ID",
-      "created": "Utworzono"
+      "clientId": "Client ID"
     },
-    "createdOn": "Utworzono {{date}}",
     "dialog": {
       "title": "Zarejestruj aplikację",
       "description": "Użytkownicy zobaczą te informacje na ekranie autoryzacji",
@@ -74,11 +69,9 @@
     "success": {
       "title": "Aplikacja zarejestrowana",
       "rotatedTitle": "Nowy sekret klienta",
-      "clientId": "Client ID",
       "clientSecret": "Sekret klienta (client secret)",
       "warning": "Zapisz sekret klienta - nie zostanie on ponownie wyświetlony",
-      "publicClientNote": "Aplikacje natywne nie otrzymują sekretu klienta. Autoryzacja wymaga PKCE",
-      "done": "Gotowe"
+      "publicClientNote": "Aplikacje natywne nie otrzymują sekretu klienta. Autoryzacja wymaga PKCE"
     },
     "typeBadge": {
       "web": "Web",
@@ -87,18 +80,11 @@
     "rotateSecret": "Zmień sekret",
     "rotateConfirmTitle": "Zmienić sekret klienta?",
     "rotateConfirmDescription": "Obecny sekret aplikacji \"{{name}}\" natychmiast przestanie działać",
-    "rotating": "Zmienianie...",
-    "deleteApp": "Usuń",
     "deleteConfirmTitle": "Usunąć aplikację?",
     "deleteConfirmDescription": "Aplikacja \"{{name}}\" natychmiast utraci dostęp u wszystkich użytkowników, którzy ją autoryzowali. Tej operacji nie można cofnąć",
-    "deleting": "Usuwanie...",
     "deleteSuccess": "Aplikacja usunięta",
     "errors": {
-      "createFailed": "Nie udało się zarejestrować aplikacji",
-      "invalidRedirect": "Podaj co najmniej jeden prawidłowy adres https:// przekierowania",
-      "loadFailed": "Nie udało się wczytać Twoich aplikacji",
-      "rotateFailed": "Nie udało się zmienić sekretu klienta",
-      "deleteFailed": "Nie udało się usunąć aplikacji"
+      "loadFailed": "Nie udało się wczytać Twoich aplikacji"
     }
   },
   "authorized": {
@@ -108,12 +94,11 @@
     "noneDescription": "Tutaj pojawią się aplikacje, którym przyznasz dostęp do swojego konta",
     "loadFailed": "Nie udało się wczytać autoryzowanych aplikacji",
     "grantedOn": "Autoryzowano {{date}}",
-    "permissionCount_one": "{{count}} uprawnienie",
-    "permissionCount_few": "{{count}} uprawnienia",
-    "permissionCount_many": "{{count}} uprawnień",
-    "permissionCount_other": "{{count}} uprawnienia",
+    "permissionCount_one": "{{count, number}} uprawnienie",
+    "permissionCount_few": "{{count, number}} uprawnienia",
+    "permissionCount_many": "{{count, number}} uprawnień",
+    "permissionCount_other": "{{count, number}} uprawnienia",
     "revoke": "Odwołaj dostęp",
-    "revoking": "Odwoływanie...",
     "revokeConfirmTitle": "Odwołać dostęp?",
     "revokeConfirmDescription": "Aplikacja \"{{name}}\" natychmiast utraci dostęp do Twojego konta",
     "revokeSuccess": "Dostęp odwołany"

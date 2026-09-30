@@ -151,7 +151,7 @@ export function StationDetailHeader({
           >
             {isSaving ? <Spinner /> : <HugeiconsIcon icon={isCreateMode ? Add01Icon : Tick02Icon} className="size-3.5" />}
             <span className={cn(isFloatingActionTarget && isCreateMode && "hidden sm:inline", isHeaderActionTarget && "max-md:sr-only")}>
-              {isCreateMode ? t("header.createStation") : t("common:actions.saveChanges")}
+              {isCreateMode ? t("common:actions.createStation") : t("common:actions.saveChanges")}
             </span>
           </Button>
         </TooltipTrigger>

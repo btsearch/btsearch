@@ -1,5 +1,5 @@
 import { notifications } from "@openbts/drizzle";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { type SQL, and, desc, eq, isNull } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 
@@ -21,6 +21,8 @@ type CoalesceStationNotificationResult = {
   id: string;
   isNew: boolean;
 };
+
+const COALESCE_RETRIES = 1;
 
 function numericMetadataValue(metadata: StationNotificationMetadata, key: string): number {
   const value = metadata[key];
@@ -55,20 +57,71 @@ function mergeMetadata(
     return merged;
   }
 
-  merged.count = numericMetadataValue(current ?? {}, "count") + Math.max(1, numericMetadataValue(incoming ?? {}, "count"));
+  merged.count = Math.max(1, numericMetadataValue(current ?? {}, "count")) + Math.max(1, numericMetadataValue(incoming ?? {}, "count"));
   return merged;
 }
 
-export async function coalesceOrCreateStationNotification({
-  userId,
-  stationId,
-  ukeStationId,
-  detached,
-  type,
-  title,
-  metadata,
-  actionUrl,
-}: CoalesceStationNotificationParams): Promise<CoalesceStationNotificationResult> {
+async function insertOrCoalesce(
+  params: CoalesceStationNotificationParams,
+  targetCondition: SQL,
+  retries: number,
+): Promise<CoalesceStationNotificationResult> {
+  const { userId, stationId, ukeStationId, type, title, metadata, actionUrl } = params;
+  const now = new Date();
+
+  const [inserted] = await db
+    .insert(notifications)
+    .values({
+      userId,
+      stationId: stationId ?? null,
+      ukeStationId: ukeStationId ?? null,
+      type,
+      title,
+      metadata: metadata ?? null,
+      actionUrl: actionUrl ?? null,
+      pushQueuedAt: now,
+    })
+    .onConflictDoNothing()
+    .returning({ id: notifications.id });
+
+  if (inserted) return { id: inserted.id, isNew: true };
+
+  const [existing] = await db
+    .select({ id: notifications.id, metadata: notifications.metadata })
+    .from(notifications)
+    .where(and(eq(notifications.userId, userId), targetCondition, eq(notifications.type, type), isNull(notifications.readAt)))
+    .orderBy(desc(notifications.createdAt))
+    .limit(1);
+
+  if (existing) {
+    const [updated] = await db
+      .update(notifications)
+      .set({
+        metadata: mergeMetadata(existing.metadata, metadata, type),
+        ...(actionUrl !== undefined ? { actionUrl } : {}),
+        pushQueuedAt: now,
+        pushSentAt: null,
+        updatedAt: now,
+      })
+      .where(and(eq(notifications.id, existing.id), isNull(notifications.readAt)))
+      .returning({ id: notifications.id });
+
+    if (updated) return { id: updated.id, isNew: false };
+  }
+
+  if (retries > 0) return insertOrCoalesce(params, targetCondition, retries - 1);
+  throw new Error("Failed to create station notification");
+}
+
+function stationTargetCondition({ stationId, ukeStationId }: CoalesceStationNotificationParams): SQL {
+  if (stationId !== undefined) return eq(notifications.stationId, stationId);
+  if (ukeStationId !== undefined) return eq(notifications.ukeStationId, ukeStationId);
+  throw new Error("Station notification requires a station id");
+}
+
+export async function coalesceOrCreateStationNotification(params: CoalesceStationNotificationParams): Promise<CoalesceStationNotificationResult> {
+  const { userId, detached, type, title, metadata, actionUrl } = params;
+
   if (detached) {
     const [inserted] = await db
       .insert(notifications)
@@ -88,50 +141,5 @@ export async function coalesceOrCreateStationNotification({
     return { id: inserted.id, isNew: true };
   }
 
-  const targetCondition =
-    stationId !== undefined
-      ? eq(notifications.stationId, stationId)
-      : ukeStationId !== undefined
-        ? eq(notifications.ukeStationId, ukeStationId)
-        : undefined;
-  if (targetCondition === undefined) throw new Error("Station notification requires a station id");
-
-  const [inserted] = await db
-    .insert(notifications)
-    .values({
-      userId,
-      stationId: stationId ?? null,
-      ukeStationId: ukeStationId ?? null,
-      type,
-      title,
-      metadata: metadata ?? null,
-      actionUrl: actionUrl ?? null,
-      pushQueuedAt: new Date(),
-    })
-    .onConflictDoNothing()
-    .returning({ id: notifications.id });
-
-  if (inserted) return { id: inserted.id, isNew: true };
-
-  const [existing] = await db
-    .select({ id: notifications.id, metadata: notifications.metadata })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), targetCondition, eq(notifications.type, type), isNull(notifications.readAt)))
-    .orderBy(desc(notifications.createdAt))
-    .limit(1);
-
-  if (!existing) throw new Error("Failed to create station notification");
-
-  await db
-    .update(notifications)
-    .set({
-      metadata: mergeMetadata(existing.metadata, metadata, type),
-      actionUrl: actionUrl ?? null,
-      pushQueuedAt: new Date(),
-      pushSentAt: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(notifications.id, existing.id));
-
-  return { id: existing.id, isNew: false };
+  return insertOrCoalesce(params, stationTargetCondition(params), COALESCE_RETRIES);
 }

@@ -460,7 +460,7 @@ export function SubmissionPhotosPanel({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? <Spinner /> : t("photos.remove")}
+              {deleteMutation.isPending ? <Spinner /> : t("common:actions.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -665,7 +665,7 @@ function LocationPhotoCard({
               event.stopPropagation();
               onSetLocationPhotoAsMain(photo);
             }}
-            title={t("photos.setAsMain")}
+            title={t("common:photos.setAsMain")}
           >
             <HugeiconsIcon icon={StarIcon} className="size-3.5" />
           </button>
@@ -743,7 +743,7 @@ function UploadPhotoCard({
           }
           isSaving={mutation.isPending}
         />
-        <PhotoDeleteButton onClick={onDelete} label={t("photos.remove")} />
+        <PhotoDeleteButton onClick={onDelete} label={t("common:actions.remove")} />
       </div>
     </div>
   );
@@ -794,7 +794,7 @@ function LocalPhotoCard({
             type="button"
             className="flex items-center justify-center py-2 text-xs text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors"
             onClick={onSetAsMain}
-            title={t("photos.setAsMain")}
+            title={t("common:photos.setAsMain")}
           >
             <HugeiconsIcon icon={StarIcon} className="size-3.5" />
           </button>
@@ -809,7 +809,7 @@ function LocalPhotoCard({
           onTakenAtChange={(takenAt) => setEditState(editState ? { ...editState, takenAt } : editState)}
           onSave={onSave}
         />
-        <PhotoDeleteButton onClick={onDelete} label={t("photos.remove")} />
+        <PhotoDeleteButton onClick={onDelete} label={t("common:actions.remove")} />
       </div>
     </div>
   );

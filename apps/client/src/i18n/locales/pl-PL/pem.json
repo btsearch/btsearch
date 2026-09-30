@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "Pomiary SI2PEM",
     "description": "Planowane, zakończone i odwołane pomiary pól elektromagnetycznych, nieaktywne stacje oraz zgłoszenia instalacji z systemu SI2PEM"
   },
   "tabs": {
@@ -17,11 +16,9 @@
     "disabledDate": "Data wyłączenia",
     "lab": "Laboratorium",
     "unknownCity": "Nieznana miejscowość",
-    "station": "Stacja",
     "openStation": "Otwórz tę stację w bazie",
     "installationForm": "Formularz zgłoszenia (PDF)",
-    "measurementReport": "Sprawozdanie z pomiarów (PDF)",
-    "links": "Linki"
+    "measurementReport": "Sprawozdanie z pomiarów (PDF)"
   },
   "installations": {
     "caption": "Zgłoszenia instalacji w SI2PEM",
@@ -30,9 +27,7 @@
     "referenceNo": "Znak sprawy"
   },
   "filters": {
-    "controls": "Filtry pomiarów SI2PEM",
-    "stationIdPlaceholder": "ID stacji",
-    "allRegions": "Wszystkie województwa"
+    "controls": "Filtry pomiarów SI2PEM"
   },
   "states": {
     "loading": "Wczytywanie danych SI2PEM...",

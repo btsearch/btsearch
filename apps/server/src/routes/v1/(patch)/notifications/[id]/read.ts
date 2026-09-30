@@ -1,6 +1,5 @@
 import { notifications } from "@openbts/drizzle";
-import { and, eq } from "drizzle-orm";
-import { createSelectSchema } from "drizzle-orm/zod";
+import { and, eq, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -9,17 +8,17 @@ import { ErrorResponse } from "../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
-const notificationSchema = createSelectSchema(notifications);
+const readNotificationSchema = z.object({ id: z.string(), readAt: z.date().nullable() });
 
 const schemaRoute = {
   params: z.object({ id: z.string() }),
   response: {
-    200: z.object({ data: notificationSchema }),
+    200: z.object({ data: readNotificationSchema }),
   },
 };
 
 type ReqParams = { Params: { id: string } };
-type ResponseData = { data: z.infer<typeof notificationSchema> };
+type ResponseData = { data: z.infer<typeof readNotificationSchema> };
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const session = req.userSession;
@@ -29,9 +28,9 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 
   const [updated] = await db
     .update(notifications)
-    .set({ readAt: new Date() })
+    .set({ readAt: sql`coalesce(${notifications.readAt}, now())` })
     .where(and(eq(notifications.id, id), eq(notifications.userId, session.user.id)))
-    .returning();
+    .returning({ id: notifications.id, readAt: notifications.readAt });
 
   if (!updated) throw new ErrorResponse("NOT_FOUND");
 

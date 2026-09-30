@@ -283,7 +283,7 @@ function SubmissionDetailPage() {
     return (
       <PageErrorState
         title={t("stationDetails:page.stationUnavailableTitle")}
-        description={t("stationDetails:page.stationUnavailableDescription")}
+        description={t("common:error.tryLater")}
         onRetry={() => refetchCurrentStation()}
         isRetrying={isFetchingCurrentStation}
         action={<BackToSubmissionsButton variant="outline" />}
@@ -725,8 +725,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/submissions/$id")({
     titleKey: "detail.title",
     i18nNamespace: "submissions",
     breadcrumbs: [
-      { titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" },
-      { titleKey: "breadcrumbs.submissions", path: "/admin/submissions", i18nNamespace: "admin" },
+      { titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" },
+      { titleKey: "items.submissions", path: "/admin/submissions", i18nNamespace: "nav" },
     ],
     allowedRoles: ["admin", "editor"],
   },

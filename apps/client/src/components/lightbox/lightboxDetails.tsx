@@ -26,8 +26,8 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
 
   const header = (
     <div className="flex h-14 shrink-0 items-center justify-between pr-2 pl-4">
-      <h2 className="text-sm font-medium">{t("details")}</h2>
-      <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("close")} className="cursor-pointer">
+      <h2 className="text-sm font-medium">{t("common:labels.details")}</h2>
+      <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("common:actions.close")} className="cursor-pointer">
         <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" />
       </Button>
     </div>
@@ -50,7 +50,7 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
         </Button>
         <Button variant="outline" nativeButton={false} render={<a href={originalSrc} download={slide.downloadName ?? ""} />}>
           <HugeiconsIcon icon={Download04Icon} aria-hidden="true" />
-          {t("download")}
+          {t("common:actions.download")}
         </Button>
       </div>
     </div>
@@ -62,7 +62,7 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
         {open ? (
           <motion.section
             key="details"
-            aria-label={t("details")}
+            aria-label={t("common:labels.details")}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -79,7 +79,7 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
 
   return (
     <motion.aside
-      aria-label={t("details")}
+      aria-label={t("common:labels.details")}
       inert={!open}
       initial={false}
       animate={{ width: open ? PANEL_WIDTH : 0 }}

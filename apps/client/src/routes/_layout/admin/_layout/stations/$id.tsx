@@ -155,7 +155,7 @@ function AdminStationDetailPage() {
     ) : (
       <PageErrorState
         title={t("stationDetails:page.stationUnavailableTitle")}
-        description={t("stationDetails:page.stationUnavailableDescription")}
+        description={t("common:error.tryLater")}
         onRetry={() => refetch()}
         isRetrying={isFetching}
         action={backButton}
@@ -501,7 +501,7 @@ function StationDetailForm({
   const handleSaveStation = () => {
     if (isCreateMode) {
       if (!stationId.trim()) {
-        toast.error(t("toast.stationIdRquired"));
+        toast.error(t("common:validation.stationIdRequired"));
         return;
       }
       if (!operatorId) {
@@ -515,7 +515,7 @@ function StationDetailForm({
     }
 
     if (hasGenericAddressMarker(location.address)) {
-      toast.error(t("toast.addressOwnWordForbidden"));
+      toast.error(t("common:validation.addressOwnWordForbidden"));
       return;
     }
 
@@ -843,8 +843,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/stations/$id")({
     titleKey: "breadcrumbs.editStation",
     i18nNamespace: "admin",
     breadcrumbs: [
-      { titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" },
-      { titleKey: "breadcrumbs.stations", path: "/admin/stations", i18nNamespace: "admin" },
+      { titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" },
+      { titleKey: "items.stations", path: "/admin/stations", i18nNamespace: "nav" },
     ],
     allowedRoles: ["admin", "editor"],
   },

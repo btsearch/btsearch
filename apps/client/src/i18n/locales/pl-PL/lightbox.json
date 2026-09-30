@@ -3,19 +3,13 @@
   "announce": "Zdjęcie {{current}} z {{total}}",
   "previous": "Poprzednie zdjęcie",
   "next": "Następne zdjęcie",
-  "close": "Zamknij",
   "zoomIn": "Powiększ",
   "zoomOut": "Pomniejsz",
   "fit": "Dopasuj",
   "actualSize": "Rzeczywisty rozmiar",
   "showNeighbours": "Pokaż sąsiednie zdjęcia",
   "hideNeighbours": "Ukryj sąsiednie zdjęcia",
-  "details": "Szczegóły",
-  "download": "Pobierz",
   "openOriginal": "Otwórz oryginał",
-  "share": "Udostępnij",
-  "copyLink": "Kopiuj link",
-  "linkCopied": "Skopiowano link",
   "copyFailed": "Nie udało się skopiować linku",
   "fullscreen": "Pełny ekran",
   "exitFullscreen": "Zamknij pełny ekran",
@@ -28,12 +22,6 @@
     "firstLast": "Pierwsze lub ostatnie zdjęcie",
     "zoom": "Powiększ lub pomniejsz",
     "fit": "Dopasuj do ekranu",
-    "actualSize": "Rzeczywisty rozmiar",
-    "pan": "Przesuwanie powiększonego zdjęcia",
-    "peek": "Pokaż sąsiednie zdjęcia",
-    "details": "Szczegóły",
-    "fullscreen": "Pełny ekran",
-    "shortcuts": "Skróty klawiszowe",
-    "close": "Zamknij"
+    "pan": "Przesuwanie powiększonego zdjęcia"
   }
 }

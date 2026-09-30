@@ -32,7 +32,7 @@ function CellTableComponent({ rat, cells, sectorInfoById }: CellTableProps) {
       <CollapsibleTrigger className={cn("w-full px-4 py-2.5 bg-muted/50 flex items-center gap-2 cursor-pointer", open && "border-b")}>
         <RatGenerationLabel rat={rat} />
         <span className="font-semibold text-sm">{rat}</span>
-        <span className="text-xs text-muted-foreground">({t("stations:cells.cellsCount", { count: cells.length })})</span>
+        <span className="text-xs text-muted-foreground">({t("common:labels.cells", { count: cells.length })})</span>
         <HugeiconsIcon icon={ArrowDown01Icon} className={cn("size-3.5 ml-auto text-muted-foreground transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
 
@@ -190,7 +190,7 @@ function CellTableComponent({ rat, cells, sectorInfoById }: CellTableProps) {
                                 variant="secondary"
                                 className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] px-1.5 py-0 cursor-help whitespace-nowrap"
                               >
-                                {t("common:submissionType.new")}
+                                {t("common:labels.new")}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>

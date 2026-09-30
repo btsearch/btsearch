@@ -64,11 +64,11 @@ export const PermitSnapshotImage = forwardRef<
           <div className="ml-8 flex shrink-0 items-center gap-8 text-lg text-zinc-300">
             <span className="flex items-center gap-3">
               <span className="h-4 w-7 bg-white" />
-              {t("permitsByMonth.all")}
+              {t("common:status.all")}
             </span>
             <span className="flex items-center gap-3">
               <span className="h-4 w-7 border border-white bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,white_3px,white_4px)]" />
-              {t("permitsByMonth.new")}
+              {t("common:labels.new")}
             </span>
           </div>
         </header>

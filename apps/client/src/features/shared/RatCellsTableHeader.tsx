@@ -18,7 +18,7 @@ export function getRatCellsTableHeaders(rat: string, t: TFunction, options?: { s
 
   const headers = [t("common:labels.band")];
   if (getRatShowsBandDuplex(rat)) headers.push("Duplex");
-  headers.push(...detailHeaders, t("stations:cells.cellType"), t("common:labels.notes"));
+  headers.push(...detailHeaders, t("common:labels.cellType"), t("common:labels.notes"));
   if (showConfirmed) headers.push(t("common:labels.confirmed"));
   headers.push("");
   return headers;
@@ -28,7 +28,7 @@ export function RatCellsTableHeader({ rat, t, showSectors, showConfirmed }: RatC
   const headers = getRatCellsTableHeaders(rat, t, { showConfirmed });
   const sectorHeaderIndex = getRatSectorColumnIndex(rat);
   const displayedHeaders = showSectors ? [...headers.slice(0, sectorHeaderIndex), "AZ", ...headers.slice(sectorHeaderIndex)] : headers;
-  const cellTypeHeader = t("stations:cells.cellType");
+  const cellTypeHeader = t("common:labels.cellType");
 
   return (
     <thead>

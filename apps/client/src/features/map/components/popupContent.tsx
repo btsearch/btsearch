@@ -205,7 +205,7 @@ export const PopupContent = memo(function PopupContent({
   const isLoading = !items;
   const isEmpty = !isLoading && items.length === 0;
   const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isUkeSource ? "~fu" : "~f"}`;
-  const city = location.city || t("popup.unknownLocation");
+  const city = location.city || t("common:labels.unknownLocation");
   const shareTitle = location.address ? `${city} - ${location.address}` : city;
 
   return (

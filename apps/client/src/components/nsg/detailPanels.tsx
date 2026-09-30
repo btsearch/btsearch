@@ -71,7 +71,7 @@ export function DetailPanels({
           className="min-w-0 flex-1 px-3 py-1"
         >
           <TabsList variant="line" className={cn("w-full", compact && "custom-scrollbar justify-start overflow-x-auto")}>
-            {compact ? <TabsTrigger value="cells">{t("mobile.cells")}</TabsTrigger> : null}
+            {compact ? <TabsTrigger value="cells">{t("common:labels.cells")}</TabsTrigger> : null}
             <TabsTrigger value="history">{compact ? t("mobile.history") : t("tabs.measurements")}</TabsTrigger>
             <TabsTrigger value="events">{t("tabs.events")}</TabsTrigger>
             <TabsTrigger value="signaling">{t("tabs.signaling")}</TabsTrigger>

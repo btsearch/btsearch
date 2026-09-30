@@ -3,6 +3,7 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { API_KEYS_LIMIT, API_KEY_COOLDOWN_KEY_PREFIX } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { redis } from "../../../../database/redis.js";
 import { ErrorResponse } from "../../../../errors.js";
@@ -29,16 +30,22 @@ const apiKeySchema = createSelectSchema(apikeys)
     }),
   });
 
+const limitsSchema = z.object({
+  maxKeys: z.number().nullable(),
+  nextCreateAt: z.string().nullable(),
+});
+
 const schemaRoute = {
   response: {
     200: z.object({
       data: z.array(apiKeySchema),
+      limits: limitsSchema,
     }),
   },
 };
 
 type ApiKeyResponse = z.infer<typeof apiKeySchema>;
-type ResponseBody = ApiKeyResponse[];
+type ResponseBody = { data: ApiKeyResponse[]; limits: z.infer<typeof limitsSchema> };
 
 async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseBody>>) {
   const session = req.userSession;
@@ -108,7 +115,16 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseB
     }),
   );
 
-  return res.send({ data: result });
+  const isAdmin = session.user.role === "admin";
+  const cooldownTtl = isAdmin ? 0 : await redis.ttl(`${API_KEY_COOLDOWN_KEY_PREFIX}${session.user.id}`);
+
+  return res.send({
+    data: result,
+    limits: {
+      maxKeys: isAdmin ? null : API_KEYS_LIMIT,
+      nextCreateAt: cooldownTtl > 0 ? new Date(Date.now() + cooldownTtl * 1000).toISOString() : null,
+    },
+  });
 }
 
 const getAccountApiKeys: Route<object, ResponseBody> = {

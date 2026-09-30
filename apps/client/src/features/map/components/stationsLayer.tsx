@@ -206,7 +206,7 @@ export function StationsLayer({
       if (ukeStationId && map) {
         pendingStationId.current = ukeStationId;
         queryClient
-          .fetchQuery({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
+          .query({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
           .then((station) => {
             if (station.location?.latitude && station.location?.longitude) {
               map.flyTo({
@@ -272,7 +272,7 @@ export function StationsLayer({
 
         pendingLocationId.current = locationId;
         queryClient
-          .fetchQuery({
+          .query({
             queryKey: locationQueryKey(locationId, activeFilters),
             queryFn: () => fetchLocationWithStations(locationId, activeFilters),
             staleTime: 1000 * 60 * 2,

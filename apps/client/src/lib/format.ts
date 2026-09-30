@@ -79,3 +79,28 @@ export function formatFileSize(bytes: number): string {
 
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[index]}`;
 }
+
+const EXPANDED_IPV6 = /^[\da-f]{1,4}(?::[\da-f]{1,4}){7}$/i;
+
+function compressIpv6(ip: string): string {
+  const groups = ip.split(":").map((group) => Number.parseInt(group, 16).toString(16));
+  let runStart = -1;
+  let runLength = 1;
+  for (let start = 0; start < groups.length; start++) {
+    let end = start;
+    while (groups[end] === "0") end++;
+    if (end - start > runLength) {
+      runStart = start;
+      runLength = end - start;
+    }
+  }
+
+  if (runStart === -1) return groups.join(":");
+  return `${groups.slice(0, runStart).join(":")}::${groups.slice(runStart + runLength).join(":")}`;
+}
+
+export function formatIpAddress(ip: string | null | undefined): string | null {
+  if (!ip) return null;
+  const formatted = EXPANDED_IPV6.test(ip) ? compressIpv6(ip) : ip;
+  return formatted === "::" || formatted === "0.0.0.0" ? null : formatted;
+}

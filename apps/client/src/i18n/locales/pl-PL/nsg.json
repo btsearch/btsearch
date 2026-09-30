@@ -1,7 +1,4 @@
 {
-  "page": {
-    "title": "Podgląd logów NSG"
-  },
   "import": {
     "select": "Otwórz log NSG",
     "drop": "Upuść tutaj log NSG",
@@ -35,7 +32,6 @@
   "chart": {
     "title": "Historia sygnału",
     "hint": "Wykres obejmuje komórki w eterze oraz odkodowane komórki. Wybierz punkt, aby zobaczyć pomiary z danego momentu",
-    "value": "Wartość",
     "select": "Wybierz ten punkt, aby zobaczyć pomiary",
     "metric": "Parametr sygnału",
     "signal": "Sygnał (dBm)",
@@ -57,10 +53,8 @@
     "speed": "Odtwórz z prędkością 5×"
   },
   "mobile": {
-    "detailsButton": "Szczegóły",
     "details": "Szczegóły logu",
     "close": "Zamknij szczegóły logu",
-    "cells": "Komórki",
     "history": "Historia"
   },
   "snapshot": {
@@ -83,10 +77,6 @@
     "scrub": "Przeglądaj zestawy pomiarów"
   },
   "history": {
-    "cells_one": "{{count, number}} komórka",
-    "cells_few": "{{count, number}} komórki",
-    "cells_many": "{{count, number}} komórek",
-    "cells_other": "{{count, number}} komórki",
     "title": "Historia pomiarów",
     "empty": "Żadne pomiary komórek nie pasują do wybranych filtrów"
   },
@@ -99,13 +89,11 @@
   },
   "signaling": {
     "title": "Sygnalizacja modemu",
-    "technology": "Technologia",
     "layer": "Warstwa",
     "allLayers": "Wszystkie warstwy",
     "empty": "Brak obsługiwanych komunikatów sygnalizacyjnych pasujących do filtrów",
     "truncated": "Wyświetlono {{shown, number}} z {{count, number}} odkodowanych komunikatów zachowanych z tego logu",
     "channel": "Kanał",
-    "pdu": "PDU",
     "bytes": "{{count, number}} B",
     "logCode": "Kod logu",
     "version": "Wersja",
@@ -113,8 +101,6 @@
     "transportMessage": "Komunikat {{rat}} {{layer}}",
     "transportFallback": "Pełne dekodowanie protokołu jest niedostępne dla tego komunikatu. Poniżej pokazano metadane transportowe i surowy PDU.",
     "direction": {
-      "UL": "Łącze w górę",
-      "DL": "Łącze w dół",
       "unknown": "Nieznany kierunek"
     },
     "metadata": "Metadane dekodera",
@@ -125,7 +111,6 @@
     "signalSim": "Karta SIM: slot {{slot}} / subskrypcja {{subscription}}",
     "signalNoSim": "Nie wybrano karty SIM z logu",
     "signalLegend": "Skala kolorów",
-    "noSignalData": "Brak danych",
     "fit": "Pokaż całą trasę",
     "title": "Trasa z logu",
     "empty": "W logu nie ma prawidłowych danych lokalizacji",

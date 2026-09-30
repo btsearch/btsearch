@@ -20,6 +20,7 @@ import {
   insertPreparedNotification,
   prepareNotification,
 } from "../notifications/service.js";
+import { getSubmissionStationLabels, stationLabelMetadata } from "./stationLabels.js";
 
 type PreparedNotificationDelivery = {
   params: CreateNotificationParams;
@@ -53,10 +54,14 @@ export async function cleanupOrphanedSubmissions(): Promise<void> {
       ),
     ),
   );
-  const candidates = await db.select({ id: submissions.id, submitterId: submissions.submitter_id }).from(submissions).where(condition);
+  const candidates = await db
+    .select({ id: submissions.id, submitterId: submissions.submitter_id, stationId: submissions.station_id })
+    .from(submissions)
+    .where(condition);
   if (candidates.length === 0) return;
 
   const candidateIds = candidates.map(({ id }) => id);
+  const stationLabels = await getSubmissionStationLabels(candidates.map(({ id, stationId }) => ({ id, station_id: stationId })));
   const preparedNotifications = new Map(
     await Promise.all(
       candidates.flatMap(({ id, submitterId }) => {
@@ -64,6 +69,7 @@ export async function cleanupOrphanedSubmissions(): Promise<void> {
         const params: CreateNotificationParams = {
           userId: submitterId,
           type: "submission_photo_upload_failed",
+          metadata: stationLabelMetadata(stationLabels.get(id)),
           actionUrl: "/account/submissions",
         };
         return [prepareNotification(params).then((prepared) => [id, { params, prepared } satisfies PreparedNotificationDelivery] as const)];

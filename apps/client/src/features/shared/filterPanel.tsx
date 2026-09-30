@@ -323,9 +323,11 @@ type RegionComboboxProps = {
   regions: Region[];
   selectedRegions: number[];
   onChange: (regionIds: number[]) => void;
+  placeholder?: string;
+  invalid?: boolean;
 };
 
-export function RegionCombobox({ regions, selectedRegions, onChange }: RegionComboboxProps) {
+export function RegionCombobox({ regions, selectedRegions, onChange, placeholder, invalid = false }: RegionComboboxProps) {
   const { t } = useTranslation("common");
   const chipsRef = useRef<HTMLDivElement>(null);
   const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
@@ -338,7 +340,13 @@ export function RegionCombobox({ regions, selectedRegions, onChange }: RegionCom
 
   return (
     <>
-      <Combobox multiple value={selectedRegionItems} onValueChange={(values) => onChange(values.map((region) => region.id))} items={regions}>
+      <Combobox
+        multiple
+        value={selectedRegionItems}
+        onValueChange={(values) => onChange(values.map((region) => region.id))}
+        items={regions}
+        itemToStringLabel={(region) => region.name}
+      >
         <ComboboxChips ref={chipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5">
           <HugeiconsIcon icon={Location01Icon} className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
           {visibleSelectedRegions.map((region) => (
@@ -353,8 +361,9 @@ export function RegionCombobox({ regions, selectedRegions, onChange }: RegionCom
           ) : null}
           <ComboboxChipsInput
             aria-label={t("labels.region")}
+            aria-invalid={invalid || undefined}
             className={selectedRegions.length === 0 ? "min-w-0" : "w-2 min-w-2 flex-none"}
-            placeholder={selectedRegions.length === 0 ? t("labels.allRegions") : ""}
+            placeholder={selectedRegions.length === 0 ? (placeholder ?? t("labels.allRegions")) : ""}
           />
         </ComboboxChips>
         <ComboboxContent anchor={chipsRef}>

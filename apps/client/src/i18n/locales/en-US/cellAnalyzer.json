@@ -5,8 +5,6 @@
   "file": {
     "dropHint": "Drop a file here or click to select",
     "constraints": "Supported formats: NetMonster (.ntm), NetMonitor (.csv, .clf), and NSG (.log, .gz) · up to 20,000 cells",
-    "rowCount_one": "{{count, number}} cell",
-    "rowCount_other": "{{count, number}} cells",
     "uniqueRowCount_one": "{{count, number}} unique cell",
     "uniqueRowCount_other": "{{count, number}} unique cells",
     "skippedObservations_one": "Skipped {{count, number}} incomplete or unsupported reading",
@@ -15,8 +13,8 @@
     "changeFile": "Change file"
   },
   "button": {
-    "analyze_one": "Analyze {{count}} cell",
-    "analyze_other": "Analyze {{count}} cells",
+    "analyze_one": "Analyze {{count, number}} cell",
+    "analyze_other": "Analyze {{count, number}} cells",
     "analyzing": "Analyzing..."
   },
   "table": {
@@ -25,10 +23,7 @@
     "matchResult": "Comparison result",
     "noStation": "No station assigned",
     "openStation": "Open",
-    "showOnMap": "Map",
     "sortByIdentity": "Sort by cell identifiers",
-    "visibleCount_one": "{{count, number}} result",
-    "visibleCount_other": "{{count, number}} results",
     "noResults": "No results match the selected filters"
   },
   "status": {
@@ -43,19 +38,12 @@
     "probable": "probable",
     "notFound": "not found",
     "unsupported": "not supported",
-    "summary": "Result summary",
-    "completedIn": "Completed in {{duration}}"
+    "summary": "Result summary"
   },
   "filter": {
     "anyWarning": "Any warning",
-    "status": "Status",
     "warning": "Warnings",
-    "band": "Band",
-    "allBands": "All bands",
-    "bandsCount_one": "{{count, number}} band",
-    "bandsCount_other": "{{count, number}} bands",
-    "mismatchGroup": "Mismatch",
-    "otherGroup": "Other"
+    "mismatchGroup": "Mismatch"
   },
   "warning": {
     "pciMissing": "PCI missing",

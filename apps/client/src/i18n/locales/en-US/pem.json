@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "EMF measurements",
     "description": "Browse planned, completed, and canceled electromagnetic field measurements from SI2PEM, along with inactive stations and installation filings"
   },
   "tabs": {
@@ -17,11 +16,9 @@
     "disabledDate": "Deactivation date",
     "lab": "Laboratory",
     "unknownCity": "Unknown city",
-    "station": "Station",
     "openStation": "Open this station in the database",
     "installationForm": "Filing form (PDF)",
-    "measurementReport": "Measurement report (PDF)",
-    "links": "Links"
+    "measurementReport": "Measurement report (PDF)"
   },
   "installations": {
     "caption": "SI2PEM installation filings",
@@ -30,9 +27,7 @@
     "referenceNo": "Reference no."
   },
   "filters": {
-    "controls": "EMF measurement filters",
-    "stationIdPlaceholder": "Station ID",
-    "allRegions": "All regions"
+    "controls": "EMF measurement filters"
   },
   "states": {
     "loading": "Loading EMF measurements...",

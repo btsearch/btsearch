@@ -677,7 +677,9 @@ export const notifications = pgTable(
     index("notifications_user_read_idx").on(t.userId, t.readAt),
     uniqueIndex("notifications_user_station_type_unread_unique")
       .on(t.userId, t.stationId, t.type)
-      .where(sql`${t.readAt} IS NULL AND ${t.stationId} IS NOT NULL`),
+      .where(
+        sql`${t.readAt} IS NULL AND ${t.stationId} IS NOT NULL AND ${t.type} IN ('station_cells_changed', 'station_photos_added', 'station_comment_approved', 'station_uke_permit_added')`,
+      ),
     uniqueIndex("notifications_user_uke_station_type_unread_unique")
       .on(t.userId, t.ukeStationId, t.type)
       .where(sql`${t.readAt} IS NULL AND ${t.ukeStationId} IS NOT NULL`),

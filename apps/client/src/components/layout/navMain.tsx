@@ -36,15 +36,16 @@ type NavItem = {
   items?: NavSubItem[];
 };
 
-function PageSectionList({ sections }: { sections: { id: string; title: string }[] }) {
+export function PageSectionList({ sections }: { sections: { id: string; title: string }[] }) {
   const activeId = usePageSectionsActiveId();
   const activeSectionIndex = sections.findIndex((s) => s.id === activeId);
 
   return (
     <ul className="relative ml-3.5 flex flex-col gap-0.5 py-0.5">
-      <div className="absolute inset-y-0 left-0 w-px bg-sidebar-border" />
+      <li aria-hidden="true" className="absolute inset-y-0 left-0 w-px bg-sidebar-border" />
       {activeSectionIndex >= 0 && (
-        <div
+        <li
+          aria-hidden="true"
           className="absolute left-0 w-px bg-primary transition-transform duration-200 ease-out"
           style={{
             top: "0.125rem",
@@ -74,14 +75,14 @@ function PageSectionList({ sections }: { sections: { id: string; title: string }
 }
 
 export const NavMain = memo(function NavMain({ items }: { items: NavItem[] }) {
-  const location = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { state } = useSidebar();
   const sections = usePageSectionsList();
   const isNavigating = useRouterState({ select: (s) => s.isLoading });
 
   const getInitialState = useCallback(() => {
     const defaults = items.reduce<Record<string, boolean>>((acc, item) => {
-      acc[item.key] = DEFAULT_OPEN_KEYS.has(item.key) || (item.items?.some((sub) => sub.url === location.pathname) ?? false);
+      acc[item.key] = DEFAULT_OPEN_KEYS.has(item.key) || (item.items?.some((sub) => sub.url === pathname) ?? false);
       return acc;
     }, {});
     if (typeof window === "undefined") return defaults;
@@ -96,7 +97,7 @@ export const NavMain = memo(function NavMain({ items }: { items: NavItem[] }) {
       }
     } catch {}
     return defaults;
-  }, [items, location.pathname]);
+  }, [items, pathname]);
 
   const [openState, setOpenState] = useState<Record<string, boolean>>(getInitialState);
 
@@ -128,7 +129,7 @@ export const NavMain = memo(function NavMain({ items }: { items: NavItem[] }) {
                         <TooltipTrigger render={<Link to={subItem.url} />} />
                       )
                     }
-                    isActive={!subItem.href && location.pathname === subItem.url}
+                    isActive={!subItem.href && pathname === subItem.url}
                   >
                     {subItem.icon && <HugeiconsIcon icon={subItem.icon} />}
                   </SidebarMenuButton>
@@ -160,7 +161,7 @@ export const NavMain = memo(function NavMain({ items }: { items: NavItem[] }) {
                 <CollapsibleContent>
                   <SidebarMenuSub>
                     {item.items?.map((subItem) => {
-                      const isActive = !subItem.href && location.pathname === subItem.url;
+                      const isActive = !subItem.href && pathname === subItem.url;
                       const showSections = isActive && sections.length > 0 && !isNavigating;
                       return (
                         <SidebarMenuSubItem key={subItem.href ?? subItem.url}>

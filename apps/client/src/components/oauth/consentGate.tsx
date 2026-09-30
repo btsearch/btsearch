@@ -149,7 +149,7 @@ function ConsentDialogBody({ clientId, requestedScopes, redirectUri }: { clientI
       <div className="rounded-xl border divide-y overflow-hidden">
         {grouped.identity.length > 0 ? (
           <div className="px-3 py-2.5 space-y-1.5">
-            <ScopeSectionLabel>{t("authorize.accountAccess")}</ScopeSectionLabel>
+            <ScopeSectionLabel>{t("common:labels.account")}</ScopeSectionLabel>
             {grouped.identity.map((scope) => (
               <div key={scope} className="flex items-center gap-2 text-sm">
                 <HugeiconsIcon icon={ShieldUserIcon} className="size-3.5 text-muted-foreground shrink-0" />
@@ -218,7 +218,7 @@ function ConsentDialogBody({ clientId, requestedScopes, redirectUri }: { clientI
               settingsLink: (
                 <Link
                   to="/settings"
-                  search={{ tab: "security" }}
+                  search={{ tab: "apps" }}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-foreground font-medium underline underline-offset-4 hover:text-primary"
@@ -237,7 +237,7 @@ function ConsentDialogBody({ clientId, requestedScopes, redirectUri }: { clientI
               {t("authorize.denying")}
             </>
           ) : (
-            t("authorize.deny")
+            t("common:actions.cancel")
           )}
         </Button>
         <Button className="w-full sm:w-auto" disabled={pending} onClick={() => decide(true)}>

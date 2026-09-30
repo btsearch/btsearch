@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import type { Band, CellType } from "@/types/station";
 
 export const Route = createFileRoute("/_layout/submission/from-analyzer")({
+  codeSplitGroupings: [["loader"], ["component"]],
   validateSearch: (search: Record<string, unknown>) => ({
     draft: typeof search.draft === "string" && search.draft ? search.draft : undefined,
   }),
@@ -246,7 +247,7 @@ function LoadedAnalyzerReview({ draft, draftId, bands, canApplyDirectly }: Loade
                   <div>
                     <h2 className="text-base font-semibold">{t("batch.reviewChanges")}</h2>
                     <p className="text-xs text-muted-foreground">
-                      {t("batch.stationCount", { count: includedStationCount })} · {t("batch.cellCount", { count: totalCells })}
+                      {t("common:labels.stations", { count: includedStationCount })} · {t("batch.cellCount", { count: totalCells })}
                     </p>
                   </div>
                   <div className="flex w-full items-center gap-2 sm:w-auto">

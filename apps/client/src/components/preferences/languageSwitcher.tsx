@@ -11,21 +11,27 @@ const flagComponents: Record<string, React.ComponentType<{ className?: string }>
   PL,
 };
 
-const preloadEnglishCatalog = () => void ensureLanguageResources("en-US");
+export const preloadEnglishCatalog = () => void ensureLanguageResources("en-US");
+
+export function useLanguageChange() {
+  const { i18n } = useTranslation();
+  const { data: session } = authClient.useSession();
+  const isSignedIn = Boolean(session?.user);
+
+  return (code: SupportedLanguage) => {
+    void ensureLanguageResources(code).then(() => i18n.changeLanguage(code));
+    persistLanguage(code);
+    if (isSignedIn) void authClient.updateUser({ locale: code });
+  };
+}
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
-  const { data: session } = authClient.useSession();
+  const handleLanguageChange = useLanguageChange();
   const currentUserLang = i18n.language;
 
   const currentLanguage = supportedLanguages.find((lang) => lang.code === currentUserLang);
   const FlagComponent = currentLanguage ? flagComponents[currentLanguage.countryCode] : null;
-
-  const handleLanguageChange = (code: SupportedLanguage) => {
-    void ensureLanguageResources(code).then(() => i18n.changeLanguage(code));
-    persistLanguage(code);
-    if (session?.user) void authClient.updateUser({ locale: code });
-  };
 
   return (
     <DropdownMenu>

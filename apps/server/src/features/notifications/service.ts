@@ -6,6 +6,7 @@ import db from "../../database/psql.js";
 import { getLabels, t } from "../../i18n/index.js";
 import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
+import { type StationLabel, stationLabelMetadata } from "../submissions/stationLabels.js";
 import { coalesceOrCreateStationNotification } from "./coalesceOrCreateStationNotification.js";
 import { getStationWatchers } from "./getStationWatchers.js";
 import { getUkeStationWatchers } from "./getUkeStationWatchers.js";
@@ -56,6 +57,10 @@ const NOTIFICATION_TYPE_KEY: Record<
   station_uke_permit_added: "stationUkePermitAdded",
 };
 
+export function notificationTitle(type: NotificationType, locale: string | null | undefined): string {
+  return t(NOTIFICATION_TYPE_KEY[type], locale).title;
+}
+
 export interface CreateNotificationParams {
   userId: string;
   type: NotificationType;
@@ -75,19 +80,13 @@ export interface PreparedNotification {
 export async function prepareNotification(params: CreateNotificationParams): Promise<PreparedNotification> {
   const { userId, type, stationId, metadata } = params;
 
-  const [user, stationOperatorName] = await Promise.all([
+  const [user, stationOperator] = await Promise.all([
     db.query.users.findFirst({ where: { id: userId }, columns: { locale: true } }),
-    stationId !== undefined ? getStationOperatorName(stationId) : Promise.resolve(undefined),
+    stationId !== undefined ? getStationOperator(stationId) : Promise.resolve(undefined),
   ]);
   const strings = t(NOTIFICATION_TYPE_KEY[type], user?.locale);
   const title = strings.title;
-  const enrichedMetadata =
-    stationOperatorName !== undefined
-      ? {
-          ...metadata,
-          station_operator_name: stationOperatorName,
-        }
-      : metadata;
+  const enrichedMetadata = stationOperator !== undefined ? { ...metadata, ...stationLabelMetadata(stationOperator) } : metadata;
 
   return { title, body: strings.body, locale: user?.locale, metadata: enrichedMetadata };
 }
@@ -212,31 +211,33 @@ function buildPushBody(baseBody: string, metadata: Record<string, unknown> | und
   return lines.join("\n");
 }
 
-async function getStationOperatorName(stationId: number): Promise<string | undefined> {
+type StationOperator = { operatorName: string; operatorMnc: number | null };
+
+async function getStationOperator(stationId: number): Promise<StationOperator | undefined> {
   const [station] = await db
-    .select({ operatorName: operators.name })
+    .select({ operatorName: operators.name, operatorMnc: operators.mnc })
     .from(stations)
     .innerJoin(operators, eq(stations.operator_id, operators.id))
     .where(eq(stations.id, stationId))
     .limit(1);
-  return station?.operatorName;
+  return station;
 }
 
-async function getUkeStationOperatorName(ukeStationId: number): Promise<string | undefined> {
+async function getUkeStationOperator(ukeStationId: number): Promise<StationOperator | undefined> {
   const [station] = await db
-    .select({ operatorName: operators.name })
+    .select({ operatorName: operators.name, operatorMnc: operators.mnc })
     .from(ukeStations)
     .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
     .where(eq(ukeStations.id, ukeStationId))
     .limit(1);
-  return station?.operatorName;
+  return station;
 }
 
 async function notifyWatchers(params: {
   watcherIds: string[];
   stationId?: number;
   ukeStationId?: number;
-  stationOperatorName: string | undefined;
+  stationOperator: StationOperator | undefined;
   stationStringId?: string | null;
   type: StationNotificationType;
   metadata?: Record<string, unknown>;
@@ -257,8 +258,7 @@ async function notifyWatchers(params: {
         type: params.type,
         title: strings.title,
         metadata: {
-          ...(params.stationStringId ? { station_id: params.stationStringId } : {}),
-          ...(params.stationOperatorName ? { station_operator_name: params.stationOperatorName } : {}),
+          ...stationLabelMetadata({ stationId: params.stationStringId, ...params.stationOperator }),
           ...params.metadata,
         },
         actionUrl: params.actionUrl,
@@ -274,9 +274,9 @@ export async function notifyStationWatchers(params: {
   metadata?: Record<string, unknown>;
   actionUrl?: string;
 }): Promise<void> {
-  const [watcherIds, stationOperatorName] = await Promise.all([getStationWatchers(params.stationId), getStationOperatorName(params.stationId)]);
+  const [watcherIds, stationOperator] = await Promise.all([getStationWatchers(params.stationId), getStationOperator(params.stationId)]);
   if (watcherIds.length === 0) return;
-  await notifyWatchers({ ...params, watcherIds, stationOperatorName });
+  await notifyWatchers({ ...params, watcherIds, stationOperator });
 }
 
 export async function notifyUkeStationWatchers(params: {
@@ -287,17 +287,14 @@ export async function notifyUkeStationWatchers(params: {
   actionUrl?: string;
   stationDeleted?: boolean;
 }): Promise<void> {
-  const [watcherIds, stationOperatorName] = await Promise.all([
-    getUkeStationWatchers(params.ukeStationId),
-    getUkeStationOperatorName(params.ukeStationId),
-  ]);
+  const [watcherIds, stationOperator] = await Promise.all([getUkeStationWatchers(params.ukeStationId), getUkeStationOperator(params.ukeStationId)]);
   if (watcherIds.length === 0) return;
   await notifyWatchers({
     ...params,
     ukeStationId: params.stationDeleted ? undefined : params.ukeStationId,
     detached: params.stationDeleted,
     watcherIds,
-    stationOperatorName,
+    stationOperator,
   });
 }
 
@@ -364,9 +361,7 @@ export async function deliverQueuedStationWatchNotifications(limit = 100): Promi
     .filter((r): r is PromiseFulfilledResult<{ id: string; delivered: boolean }> => r.status === "fulfilled" && r.value.delivered)
     .map((r) => r.value.id);
 
-  if (sentIds.length > 0) {
-    await db.update(notifications).set({ pushSentAt: new Date(), updatedAt: new Date() }).where(inArray(notifications.id, sentIds));
-  }
+  if (sentIds.length > 0) await db.update(notifications).set({ pushSentAt: new Date() }).where(inArray(notifications.id, sentIds));
 
   return queued.length;
 }
@@ -448,8 +443,7 @@ export async function deliverQueuedSubmissionApprovalNotifications(limit = 100):
   );
 
   const sentIds = results.flatMap((result) => (result.status === "fulfilled" && result.value.delivered ? result.value.ids : []));
-  if (sentIds.length > 0)
-    await db.update(notifications).set({ pushSentAt: new Date(), updatedAt: new Date() }).where(inArray(notifications.id, sentIds));
+  if (sentIds.length > 0) await db.update(notifications).set({ pushSentAt: new Date() }).where(inArray(notifications.id, sentIds));
 
   return queuedByUser.size;
 }
@@ -482,7 +476,7 @@ export async function notifyStaffNewSubmission(params: {
   submissionId: string;
   submitterName: string;
   submissionType: string;
-  stationId?: string;
+  station?: StationLabel;
 }): Promise<void> {
   const staffUsers = await db.select({ id: users.id, locale: users.locale }).from(users).where(inArray(users.role, STAFF_ROLES));
   if (staffUsers.length === 0) return;
@@ -490,7 +484,7 @@ export async function notifyStaffNewSubmission(params: {
   const metadata: Record<string, unknown> = {
     submitter_name: params.submitterName,
     submission_type: params.submissionType,
-    ...(params.stationId ? { station_id: params.stationId } : {}),
+    ...stationLabelMetadata(params.station),
   };
   const actionUrl = `/admin/submissions/${params.submissionId}`;
 

@@ -86,7 +86,7 @@ export function PopupShareButton({ url, title, label }: PopupShareButtonProps) {
   };
 
   return (
-    <PopupIconButton label={copied ? t("popup.linkCopied") : label} onClick={handleShare}>
+    <PopupIconButton label={copied ? t("common:actions.linkCopied") : label} onClick={handleShare}>
       <HugeiconsIcon icon={copied ? Tick02Icon : Share08Icon} className={copied ? "text-emerald-500" : undefined} />
     </PopupIconButton>
   );
@@ -127,10 +127,10 @@ export function PopupLocationHeader({ city, region, address, actions }: PopupLoc
     <div className={cn("flow-root border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
       {actions ? <div className="float-right -my-0.5 ml-2 flex items-center">{actions}</div> : null}
       <h3 className="overflow-x-clip text-sm leading-5 font-medium">
-        {city || t("popup.unknownLocation")}
+        {city || t("common:labels.unknownLocation")}
         {region ? (
           <>
-            <span className="[word-spacing:0.375rem]">{" "}</span>
+            <span className="[word-spacing:0.375rem]"> </span>
             <span className="text-[11px] font-normal whitespace-nowrap text-muted-foreground">
               <span className="-ml-1.5 inline-block w-1.5">·</span>
               {region}

@@ -13,7 +13,6 @@ import type {
   StationHistoryDialogPayload,
 } from "../types";
 import type { DuplexRadioLink } from "@/features/map/utils";
-import type { TabId } from "@/features/station-details/tabs";
 import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
@@ -173,10 +172,7 @@ export function useFloatingDialogStackState() {
     [setDialogsSynced],
   );
 
-  const openStationDialog = useCallback(
-    (id: number, source: StationSource, initialTab?: TabId) => openDialog({ kind: "station", id, source, initialTab }),
-    [openDialog],
-  );
+  const openStationDialog = useCallback((id: number, source: StationSource) => openDialog({ kind: "station", id, source }), [openDialog]);
 
   const openUkePermitDialog = useCallback(
     (station: UkeStation) => openDialog({ kind: "station", id: station.id, source: "uke", ukeStation: station }),

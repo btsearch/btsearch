@@ -30,7 +30,7 @@ function SignalTooltip({ active, payload, unit }: Partial<TooltipContentProps> &
       <p className="font-semibold tabular-nums">{formatTime(point.timestamp, true)}</p>
       <p className="text-muted-foreground">{point.series}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-        <dt>{t("chart.value")}</dt>
+        <dt>{t("common:labels.value")}</dt>
         <dd className="text-right font-mono">
           {unit ? formatDecibelValue(point.value) : formatValue(point.value)} {unit}
         </dd>

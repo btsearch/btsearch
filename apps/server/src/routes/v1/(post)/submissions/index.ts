@@ -1,9 +1,6 @@
-import { stations } from "@openbts/drizzle";
-import { inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, loadSubmissionDraftSnapshot, runAuditedOperation } from "../../../../features/audit/index.js";
 import { notifyStaffNewSubmission } from "../../../../features/notifications/service.js";
@@ -18,6 +15,7 @@ import {
   submissionsSelectSchema,
   validateSubmission,
 } from "../../../../features/submissions/create.js";
+import { getSubmissionStationLabels } from "../../../../features/submissions/stationLabels.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
@@ -81,15 +79,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 
     const submitterName = userSession.user.name || userSession.user.username || "Unknown";
 
-    const stationIdsToResolve = results.filter((s) => !s.proposedStation?.station_id && s.station_id).map((s) => s.station_id!);
-
-    const uniqueStationIds = Array.from(new Set(stationIdsToResolve));
-    const resolvedStations =
-      uniqueStationIds.length > 0
-        ? await db.select({ id: stations.id, station_id: stations.station_id }).from(stations).where(inArray(stations.id, uniqueStationIds))
-        : [];
-
-    const stationIdMap = new Map(resolvedStations.map((s) => [s.id, s.station_id]));
+    const stationLabels = await getSubmissionStationLabels(results);
 
     for (const submission of results) {
       if (
@@ -101,13 +91,11 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       )
         continue;
 
-      const stationStringId = submission.proposedStation?.station_id ?? (submission.station_id ? stationIdMap.get(submission.station_id) : undefined);
-
       void notifyStaffNewSubmission({
         submissionId: submission.id,
         submitterName,
         submissionType: submission.type ?? "new",
-        stationId: stationStringId ?? undefined,
+        station: stationLabels.get(submission.id),
       }).catch((e) => logger.error("Failed to notify staff about new submission", { error: e }));
     }
 

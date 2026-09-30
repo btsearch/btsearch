@@ -213,7 +213,9 @@ function ExportActions({ compact = false, copiedApiUrl, elapsed, finalDuration, 
         </p>
       ) : null}
       {!isSubmitting && finalDuration !== null ? (
-        <p className="text-center text-xs text-muted-foreground tabular-nums">{t("form.completed", { duration: formatDuration(finalDuration) })}</p>
+        <p className="text-center text-xs text-muted-foreground tabular-nums">
+          {t("common:time.completedIn", { duration: formatDuration(finalDuration) })}
+        </p>
       ) : null}
       {onCopyApiUrl ? (
         <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={onCopyApiUrl}>
@@ -431,14 +433,14 @@ function ClfExportPage() {
   const bandsUnavailable = isBandsLoading || isBandsLoadError;
   const editedTemplateCount = CLF_DESCRIPTION_TEMPLATE_RATS.filter((rat) => (templateDrafts[rat] ?? "").length > 0).length;
   let templateSaveLabel = t("templates.autoSave");
-  if (templateSaveState === "saving") templateSaveLabel = t("templates.saving");
-  else if (templateSaveState === "saved") templateSaveLabel = t("templates.saved");
+  if (templateSaveState === "saving") templateSaveLabel = t("common:actions.saving");
+  else if (templateSaveState === "saved") templateSaveLabel = t("common:actions.saved");
 
   return (
     <main className="flex-1 overflow-y-auto p-4 pb-24 md:pb-6">
       <div className="max-w-4xl space-y-6 lg:max-w-[100rem]">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("page.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{t("nav:items.clfExport")}</h1>
           <p className="max-w-3xl text-sm text-muted-foreground">{t("page.description")}</p>
         </div>
 

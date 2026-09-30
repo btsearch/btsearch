@@ -1,4 +1,3 @@
-import { fromBinary, toJson } from "@bufbuild/protobuf";
 import type { DescMessage } from "@bufbuild/protobuf";
 import { AUDIT_OPERATION_ID_HEADER, AUDIT_OPERATION_KIND_HEADER } from "@openbts/shared/audit";
 import type { ClientSettableAuditOperationKind } from "@openbts/shared/audit";
@@ -162,7 +161,7 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
   }
 
   if (proto !== undefined && response.headers.get("content-type") === "application/x-protobuf") {
-    const buffer = await response.arrayBuffer();
+    const [buffer, { fromBinary, toJson }] = await Promise.all([response.arrayBuffer(), import("@bufbuild/protobuf")]);
     const result = toJson(proto, fromBinary(proto, new Uint8Array(buffer)), {
       useProtoFieldName: true,
       emitDefaultValues: true,

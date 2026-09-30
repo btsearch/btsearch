@@ -14,7 +14,7 @@ export function StationUplinkItem({ uplink }: StationUplinkItemProps) {
   const { t } = useTranslation("common");
   const { icon, iconClassName } = UPLINK_APPEARANCE[uplink.type];
   const speed = typeof uplink.speed === "number" ? formatSpeedMbps(uplink.speed) : null;
-  const label = uplink.model ? `${t("labels.uplink")} · ${uplink.model}` : t("labels.uplink");
+  const label = uplink.model ? `Uplink · ${uplink.model}` : "Uplink";
 
   return (
     <StationInfoItem icon={<HugeiconsIcon icon={icon} className={cn("size-4", iconClassName)} />} label={label}>

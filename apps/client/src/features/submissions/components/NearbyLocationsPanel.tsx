@@ -42,7 +42,7 @@ export function NearbyLocationsPanel({ nearbyPanel, onLocationSelect, onClose, o
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium truncate">{loc.address || loc.city || `#${loc.id}`}</div>
                   <div className="text-[10px] text-muted-foreground leading-tight">
-                    {t("stations:stationsCount", { count: loc.stations?.length ?? 0 })} · {Math.round(loc.distance)} m
+                    {t("common:labels.stations", { count: loc.stations?.length ?? 0 })} · {Math.round(loc.distance)} m
                   </div>
                 </div>
               </button>

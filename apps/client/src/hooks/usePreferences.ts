@@ -485,3 +485,11 @@ export function useGpsFormat(): GpsFormat {
     () => DEFAULT_PREFERENCES.gpsFormat,
   );
 }
+
+export function useNavMode(): NavMode {
+  return useSyncExternalStore(
+    subscribe,
+    () => getSnapshot().navMode,
+    () => DEFAULT_PREFERENCES.navMode,
+  );
+}

@@ -23,10 +23,7 @@
     "pemReportsError": "Nie udało się wczytać raportów PEM"
   },
   "sectors": {
-    "title": "Azymuty",
-    "noAssignedCells": "Brak przypisanych komórek",
     "suggestedCount": "Sugerowana liczba azymutów:",
-    "azimuth": "Azymut",
     "empty": "Brak azymutów",
     "add": "Dodaj azymut",
     "reorder": "Zmień kolejność {{label}}"
@@ -42,9 +39,6 @@
     "antennaNumber": "Antena {{number}}",
     "unknownModel": "Nieznany model anteny",
     "fields": {
-      "height": "Wysokość",
-      "azimuth": "Azymut",
-      "eirp": "EIRP",
       "tiltRange": "Zakres tiltu",
       "measuredTilt": "Zmierzony tilt"
     }
@@ -59,7 +53,6 @@
     "sectorsCount_many": "{{count, number}} azymutów",
     "sectorsCount_other": "{{count, number}} azymutów",
     "permit": "pozwolenie",
-    "permits": "pozwoleń",
     "neverExpires": "Bezterminowe",
     "decisionNumber": "Numer decyzji",
     "expiryDate": "Data ważności",
@@ -73,9 +66,6 @@
     "decisionTypeP": "Pozwolenie",
     "decisionTypeZmP": "Zmiana Pozwolenia",
     "newPermitTooltip": "To pozwolenie zostało dodane w ciągu ostatnich 30 dni",
-    "sectors": "Azymuty",
-    "sectorsAzimuth": "Azymut",
-    "sectorsAntennaHeight": "Wysokość anteny",
     "antennaType": {
       "indoor": "Wewnętrzna",
       "indoorShort": "W",
@@ -90,21 +80,16 @@
     "ambiguousUkeStationLink": "Ten link UKE pasuje do więcej niż jednej stacji",
     "stationNotFoundDescription": "Stacja o podanym identyfikatorze nie istnieje lub została usunięta z bazy",
     "stationUnavailableTitle": "Nie udało się wczytać stacji",
-    "stationUnavailableDescription": "Spróbuj ponownie za chwilę",
     "locationNotFoundTitle": "Nie znaleziono lokalizacji",
     "locationNotFoundDescription": "Lokalizacja o podanym identyfikatorze nie istnieje lub została usunięta z bazy",
     "locationUnavailableTitle": "Nie udało się wczytać lokalizacji",
-    "locationUnavailableDescription": "Spróbuj ponownie za chwilę",
-    "unknownLocation": "Nieznana lokalizacja",
-    "locationShareText": "{{location}} ‐ stacje bazowe"
+    "locationShareText": "{{location}} - stacje bazowe"
   },
   "dialog": {
     "virtualStation": "Wirtualna",
     "virtualStationTitle": "Stacja wirtualna",
     "virtualStationPhysical": "Działa na sprzęcie i pozwoleniu UKE poniższej stacji fizycznej w ramach <ranSharingLink>RAN sharingu</ranSharingLink>",
     "btsStation": "Stacja bazowa",
-    "showOnMap": "Pokaż na mapie",
-    "createStation": "Utwórz stację",
     "sourceDatabase": "Baza",
     "sourceUke": "UKE",
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",
@@ -114,9 +99,7 @@
   },
   "comments": {
     "title": "Komentarze społeczności",
-    "loading": "Ładowanie komentarzy...",
     "unavailable": "Komentarze są obecnie niedostępne",
-    "noComments": "Brak komentarzy",
     "noCommentsHint": "Bądź pierwszą osobą, która podzieli się informacjami o tej stacji",
     "unknownAuthor": "Nieznany użytkownik",
     "file": "Plik",
@@ -126,9 +109,7 @@
     "removeImage": "Usuń obraz {{number}}",
     "postComment": "Opublikuj komentarz",
     "postFailed": "Nie udało się opublikować komentarza",
-    "deleteConfirm": "Usuń komentarz",
     "deleteDescription": "Czy na pewno chcesz usunąć ten komentarz? Tej operacji nie można cofnąć",
-    "deleted": "Komentarz usunięty",
     "withdraw": "Wycofaj komentarz",
     "withdrawDescription": "Czy na pewno chcesz wycofać ten komentarz? Tej operacji nie można cofnąć",
     "withdrawn": "Komentarz wycofany",
@@ -136,26 +117,17 @@
     "pendingApproval": "Twój komentarz został przesłany i oczekuje na zatwierdzenie, zanim stanie się widoczny dla innych"
   },
   "photos": {
-    "title": "Zdjęcia",
     "openPhoto": "Otwórz zdjęcie {{number}}",
     "photoAlt": "Zdjęcie {{number}}",
-    "uploadedAt": "Dodano",
-    "takenAt": "Wykonano",
     "noPhotos": "Brak zdjęć",
     "noPhotosHint": "Zdjęcia są dodawane po zatwierdzeniu zgłoszeń",
-    "loadError": "Nie udało się wczytać zdjęć",
-    "setAsMain": "Ustaw jako główne",
-    "uploadedBy": "Przesłane przez {{username}}",
-    "unknownUser": "Nieznany",
-    "main": "Zdjęcie główne",
-    "author": "Autor",
+    "main": "Główne zdjęcie",
     "sortOldestFirst": "Od najstarszych",
     "sortNewestFirst": "Od najnowszych"
   },
   "history": {
     "title": "Historia zmian stacji",
     "action": "Historia zmian",
-    "empty": "Brak zarejestrowanych zmian",
     "emptyHint": "Zmiany sprzed wprowadzenia rejestru zmian mogą nie być tutaj widoczne",
     "error": "Nie udało się wczytać historii zmian",
     "refreshError": "Nie udało się pobrać najnowszych zmian. Poniższa historia może być nieaktualna",
@@ -163,19 +135,12 @@
     "loadMore": "Wczytaj więcej",
     "refreshing": "Odświeżanie historii",
     "end": "Początek zarejestrowanej historii",
-    "cellCount_one": "{{count, number}} komórka",
-    "cellCount_few": "{{count, number}} komórki",
-    "cellCount_many": "{{count, number}} komórek",
-    "cellCount_other": "{{count, number}} komórki",
-    "otherCells": "Inne",
     "openAuditLog": "Logi w dzienniku",
-    "openSubmissions": "Zgłoszenia",
     "openOperation": "Otwórz w dzienniku",
     "operations": {
       "revert": "Cofnięto zmiany"
     },
     "revert": {
-      "action": "Cofnij tę zmianę",
       "reverted": "Cofnięto",
       "partiallyReverted": "Cofnięto częściowo"
     },
@@ -213,10 +178,7 @@
     "fields": {
       "cell": "Komórka",
       "photo": "Zdjęcie",
-      "mainPhoto": "Główne zdjęcie",
       "mnoName": "Nazwa MNO",
-      "uplinkType": "Typ podłączenia",
-      "uplinkSpeed": "Prędkość łącza (Mbps)",
       "uplinkModel": "Model radiolinii"
     }
   }

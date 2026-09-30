@@ -400,7 +400,7 @@ function UkeImportPage() {
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-4 min-h-0 overflow-hidden">
       <div className="flex shrink-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("ukeImport.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.ukeImport")}</h1>
           <p className="text-muted-foreground text-sm">{t("ukeImport.subtitle")}</p>
         </div>
         <ManualImportControls isRunning={isImportStatusInProgress(status)} />
@@ -419,8 +419,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/uke-import")({
   component: UkeImportPage,
   staticData: {
     mainClassName: "overflow-hidden max-md:pb-0",
-    titleKey: "breadcrumbs.ukeImport",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" }],
+    titleKey: "items.ukeImport",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
   },
 });

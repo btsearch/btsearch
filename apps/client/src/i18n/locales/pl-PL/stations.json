@@ -3,7 +3,6 @@
     "deleteStation": "Usuń stację",
     "confirmDelete": "Czy na pewno chcesz usunąć stację?",
     "confirmDeleteDesc": "Po usunięciu, stacja zostanie oznaczona jako nieaktywna i nie będzie już widoczna na mapie ani w wynikach wyszukiwania",
-    "createStation": "Utwórz stację",
     "deleteLocation": "Usuń lokalizację",
     "confirmDeleteLocation": "Czy na pewno chcesz usunąć tę lokalizację?",
     "confirmDeleteLocationDesc": "Tej operacji nie można cofnąć. Lokalizacja i jej dane zostaną trwale usunięte"
@@ -28,11 +27,7 @@
     "changedAt": "Status zmieniony: {{date}}"
   },
   "cells": {
-    "cellsCount_one": "{{count, number}} komórka",
-    "cellsCount_few": "{{count, number}} komórki",
-    "cellsCount_many": "{{count, number}} komórek",
     "notesPlaceholder": "np. budynek B2",
-    "cellType": "Rodzaj",
     "cellTypes": {
       "macrocell": "Makrokomórka",
       "microcell": "Mikrokomórka",
@@ -56,14 +51,17 @@
     "pendingReadOnly": "Nie można modyfikować komórek, gdy stacja ma status oczekujący. Zmień status na opublikowany, aby edytować komórki",
     "noStationCells": "Nie znaleziono komórek dla tej stacji",
     "noCells": "Brak komórek. Kliknij \"Dodaj komórkę\", aby dodać",
+    "diffAdded": "nowe",
     "diffAdded_one": "nowa",
     "diffAdded_few": "nowe",
     "diffAdded_many": "nowych",
     "diffAdded_other": "nowe",
+    "diffModified": "zmienione",
     "diffModified_one": "zmieniona",
     "diffModified_few": "zmienione",
     "diffModified_many": "zmienionych",
     "diffModified_other": "zmienione",
+    "diffDeleted": "usunięte",
     "diffDeleted_one": "usunięta",
     "diffDeleted_few": "usunięte",
     "diffDeleted_many": "usuniętych",
@@ -71,10 +69,6 @@
     "cellNotConfirmed": "Ta komórka nie jest potwierdzona",
     "unknownBand": "Nieznane"
   },
-  "stationsAtLocation": "Stacje w tej lokalizacji",
-  "stationsCount_one": "{{count, number}} stacja",
-  "stationsCount_few": "{{count, number}} stacje",
-  "stationsCount_many": "{{count, number}} stacji",
   "inactiveBanner": {
     "title": "Stacja nieaktywna",
     "description": "Niewidoczna na mapie. Oczekuje na usunięcie z bazy danych"
@@ -88,12 +82,9 @@
     "locationDeleted": "Lokalizacja została usunięta",
     "deleted": "Stacja została usunięta",
     "created": "Stacja została utworzona",
-    "stationIdRquired": "Identyfikator stacji jest wymagany",
     "operatorRequired": "Operator jest wymagany",
     "locationRequired": "Lokalizacja jest wymagana",
     "sectorAzimuthsRequired": "Uzupełnij azymuty (0-360)",
-    "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
-    "cellsSaved": "Komórki zostały zapisane",
     "saved": "Stacja została zapisana",
     "refreshFailed": "Stacja została zapisana, ale nie udało się wczytać jej najnowszych danych",
     "noBands": "Brak dostępnych pasm dla {{rat}}",

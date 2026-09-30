@@ -46,8 +46,8 @@ export function DeletedEntriesMobileFilterRail({
         <DeletedEntriesSearchField value={search} onChange={onSearchChange} label={t("common:labels.search")} inputClassName="h-9" />
       </MobileFilterChip>
 
-      <MobileFilterChip active={source !== "all"} icon={FilterIcon} label={t("deletedEntries.columns.sourceType")}>
-        <MobileFilterPanelTitle>{t("deletedEntries.columns.sourceType")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={source !== "all"} icon={FilterIcon} label={t("common:labels.source")}>
+        <MobileFilterPanelTitle>{t("common:labels.source")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {DELETED_ENTRY_SOURCE_FILTERS.map((value) => (
             <Button
@@ -67,20 +67,20 @@ export function DeletedEntriesMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={dateFilterCount > 0} count={dateFilterCount} icon={Calendar03Icon} label={t("deletedEntries.filters.dateRange")}>
-        <MobileFilterPanelTitle>{t("deletedEntries.filters.dateRange")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={dateFilterCount > 0} count={dateFilterCount} icon={Calendar03Icon} label={t("common:labels.dateRange")}>
+        <MobileFilterPanelTitle>{t("common:labels.dateRange")}</MobileFilterPanelTitle>
         <div className="flex flex-col gap-2">
           <div role="group" aria-labelledby="deleted-entries-mobile-date-from-label" className="flex flex-col gap-1">
             <span id="deleted-entries-mobile-date-from-label" className="px-1 text-xs text-muted-foreground">
-              {t("deletedEntries.filters.dateFrom")}
+              {t("common:labels.dateFrom")}
             </span>
-            <DatePickerButton value={dateFrom} onChange={onDateFromChange} label={t("deletedEntries.filters.dateFrom")} />
+            <DatePickerButton value={dateFrom} onChange={onDateFromChange} label={t("common:labels.dateFrom")} />
           </div>
           <div role="group" aria-labelledby="deleted-entries-mobile-date-to-label" className="flex flex-col gap-1">
             <span id="deleted-entries-mobile-date-to-label" className="px-1 text-xs text-muted-foreground">
-              {t("deletedEntries.filters.dateTo")}
+              {t("common:labels.dateTo")}
             </span>
-            <DatePickerButton value={dateTo} onChange={onDateToChange} label={t("deletedEntries.filters.dateTo")} />
+            <DatePickerButton value={dateTo} onChange={onDateToChange} label={t("common:labels.dateTo")} />
           </div>
         </div>
       </MobileFilterChip>

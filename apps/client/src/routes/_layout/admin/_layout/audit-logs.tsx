@@ -332,12 +332,12 @@ function AuditOperationsMobileFilterRail({
         active={Boolean(dateFrom || dateTo)}
         count={Number(Boolean(dateFrom)) + Number(Boolean(dateTo))}
         icon={Calendar03Icon}
-        label={t("auditLogs.filters.dateRange")}
+        label={t("common:labels.dateRange")}
       >
-        <MobileFilterPanelTitle>{t("auditLogs.filters.dateRange")}</MobileFilterPanelTitle>
+        <MobileFilterPanelTitle>{t("common:labels.dateRange")}</MobileFilterPanelTitle>
         <div className="flex flex-col gap-2">
-          <DatePickerButton value={dateFrom} onChange={onDateFromChange} label={t("auditLogs.filters.dateFrom")} />
-          <DatePickerButton value={dateTo} onChange={onDateToChange} label={t("auditLogs.filters.dateTo")} />
+          <DatePickerButton value={dateFrom} onChange={onDateFromChange} label={t("common:labels.dateFrom")} />
+          <DatePickerButton value={dateTo} onChange={onDateToChange} label={t("common:labels.dateTo")} />
         </div>
       </MobileFilterChip>
 
@@ -367,7 +367,7 @@ function getPerformerAttribution(t: TFunction, operation: AuditOperationSummary)
 
 function getOperationTargetLabel(t: TFunction, operation: AuditOperationSummary): string {
   if (operation.station_ids.length === 1) return `#${operation.station_ids[0]}`;
-  if (operation.station_ids.length > 1) return t("auditLogs.target.stations", { count: operation.station_ids.length });
+  if (operation.station_ids.length > 1) return t("common:labels.stations", { count: operation.station_ids.length });
 
   const entities = [...new Set(operation.counts.map((count) => count.entity))];
   return entities.length > 0 ? entities.map((entity) => getEntityLabel(t, entity)).join(", ") : "-";
@@ -707,12 +707,12 @@ function AdminAuditLogsPage() {
         }),
         columnHelper.display({
           id: "changes",
-          header: t("auditLogs.columns.changes"),
+          header: t("common:labels.changes"),
           size: 180,
           cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatCountsSummary(t, row.original.counts)}</span>,
         }),
         columnHelper.accessor("source", {
-          header: t("auditLogs.columns.source"),
+          header: t("common:labels.source"),
           size: 80,
           cell: ({ getValue }) => <span className="text-xs text-muted-foreground uppercase">{getValue()}</span>,
         }),
@@ -808,26 +808,26 @@ function AdminAuditLogsPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.filters.dateFrom")}</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.dateFrom")}</span>
             <DatePickerButton
               value={dateFrom}
               onChange={(v) => {
                 dispatchFilter({ type: "SET_DATE_FROM", payload: v });
                 resetPage();
               }}
-              label={t("auditLogs.filters.dateFrom")}
+              label={t("common:labels.dateFrom")}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.filters.dateTo")}</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("common:labels.dateTo")}</span>
             <DatePickerButton
               value={dateTo}
               onChange={(v) => {
                 dispatchFilter({ type: "SET_DATE_TO", payload: v });
                 resetPage();
               }}
-              label={t("auditLogs.filters.dateTo")}
+              label={t("common:labels.dateTo")}
             />
           </div>
 
@@ -956,6 +956,6 @@ export const Route = createFileRoute("/_layout/admin/_layout/audit-logs")({
   staticData: {
     titleKey: "items.auditLogs",
     i18nNamespace: "nav",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" }],
+    breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
   },
 });

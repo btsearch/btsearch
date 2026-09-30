@@ -50,7 +50,6 @@ type StationDialogPanelProps = FloatingDialogPanelFrameProps & {
 type StationDetailsDialogPanelProps = StationDialogPanelProps & {
   source: StationSource;
   ukeStation?: UkeStation;
-  initialTab?: TabId;
   showPhotoPanel?: boolean;
   onContentLayoutChange?: () => void;
 };
@@ -58,20 +57,12 @@ type StationDetailsDialogPanelProps = StationDialogPanelProps & {
 export function StationDetailsDialogPanel({
   source,
   ukeStation,
-  initialTab,
   showPhotoPanel,
   onContentLayoutChange,
   ...panelProps
 }: StationDetailsDialogPanelProps) {
   if (source === "uke") return <UkeStationDialogPanel placeholder={ukeStation} {...panelProps} />;
-  return (
-    <InternalStationDialogPanel
-      initialTab={initialTab}
-      showPhotoPanel={showPhotoPanel}
-      onContentLayoutChange={onContentLayoutChange}
-      {...panelProps}
-    />
-  );
+  return <InternalStationDialogPanel showPhotoPanel={showPhotoPanel} onContentLayoutChange={onContentLayoutChange} {...panelProps} />;
 }
 
 function selectFirstUkeStation(permits: UkePermit[]) {
@@ -79,14 +70,12 @@ function selectFirstUkeStation(permits: UkePermit[]) {
 }
 
 type InternalStationDialogPanelProps = StationDialogPanelProps & {
-  initialTab?: TabId;
   showPhotoPanel?: boolean;
   onContentLayoutChange?: () => void;
 };
 
 function InternalStationDialogPanel({
   stationId,
-  initialTab,
   switchedFrom,
   showPhotoPanel = true,
   onClose,
@@ -96,7 +85,7 @@ function InternalStationDialogPanel({
   ...frameProps
 }: InternalStationDialogPanelProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "specs");
+  const [activeTab, setActiveTab] = useState<TabId>("specs");
   const queryClient = useQueryClient();
   const { openStationDialog, openStationHistoryDialog } = useFloatingDialogStack();
   const { data: settings } = useSettings();
@@ -124,7 +113,7 @@ function InternalStationDialogPanel({
       />
     ) : null;
   const stationNotes = station?.notes?.trim();
-  const stationCity = station?.location.city || t("page.unknownLocation");
+  const stationCity = station?.location.city || t("common:labels.unknownLocation");
   const stationAddress = station?.extra_address || station?.location.address;
 
   return (
@@ -363,7 +352,7 @@ function UkeStationDialogPanel({
             {location ? (
               <ShareButton
                 title={`${station.station_id} (${operatorName})`}
-                text={`UKE: ${station.station_id} (${operatorName}) - ${location.city || t("page.unknownLocation")}${location.address ? ` ${location.address}` : ""}`}
+                text={`UKE: ${station.station_id} (${operatorName}) - ${location.city || t("common:labels.unknownLocation")}${location.address ? ` ${location.address}` : ""}`}
                 url={`${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~fu~U${station.id}`}
                 size="md"
                 className={stationDialogHeaderIconActionClassName}
@@ -378,12 +367,12 @@ function UkeStationDialogPanel({
                 onClick={onClose}
               >
                 <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                <span className="hidden sm:inline">{t("dialog.createStation")}</span>
+                <span className="hidden sm:inline">{t("common:actions.createStation")}</span>
               </Link>
             ) : canCreateStation && isLoggedIn && settings?.submissionsEnabled ? (
               <Link to="/submission" search={{ uke: station.station_id }} className={stationDialogPrimaryActionClassName} onClick={onClose}>
                 <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                <span className="hidden sm:inline">{t("dialog.createStation")}</span>
+                <span className="hidden sm:inline">{t("common:actions.createStation")}</span>
               </Link>
             ) : null}
           </>

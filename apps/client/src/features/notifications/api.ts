@@ -1,32 +1,49 @@
 import { API_BASE, fetchApiData, fetchJson, postApiData } from "@/lib/api";
 
+export type NotificationType =
+  | "submission_approved"
+  | "submission_rejected"
+  | "submission_photo_upload_failed"
+  | "new_submission"
+  | "station_cells_changed"
+  | "station_photos_added"
+  | "station_comment_approved"
+  | "station_uke_permit_added";
+
+export type NotificationStation = {
+  id: number | null;
+  station_id: string | null;
+  source: "internal" | "uke";
+  operator: { name: string; mnc: number | null } | null;
+};
+
+export type NotificationChanges = {
+  cells?: { added: number; removed: number; updated: number };
+  permits?: { added: number; deleted: number };
+  ukeStationsAdded?: number;
+  removedFromUke?: boolean;
+};
+
 export type Notification = {
   id: string;
-  userId: string;
-  type:
-    | "submission_approved"
-    | "submission_rejected"
-    | "submission_photo_upload_failed"
-    | "new_submission"
-    | "station_cells_changed"
-    | "station_photos_added"
-    | "station_comment_approved"
-    | "station_uke_permit_added";
+  type: NotificationType;
   title: string;
-  submissionId: string | null;
-  stationId: number | null;
-  ukeStationId: number | null;
-  metadata: Record<string, unknown> | null;
-  actionUrl: string | null;
   readAt: string | null;
   createdAt: string;
   updatedAt: string;
+  actionUrl: string | null;
+  station: NotificationStation | null;
+  submission: { id: string; type: "new" | "update" | "delete" | null } | null;
+  actor: { name: string } | null;
+  note: string | null;
+  changes: NotificationChanges | null;
+  count: number;
 };
 
 export type NotificationsResponse = {
   data: Notification[];
   totalUnread: number;
-  total: number;
+  totalCount: number;
 };
 
 export async function fetchNotifications(params?: { limit?: number; offset?: number }): Promise<NotificationsResponse> {
@@ -38,11 +55,11 @@ export async function fetchNotifications(params?: { limit?: number; offset?: num
 }
 
 export async function markAllRead(): Promise<{ updated: number }> {
-  return fetchJson<{ updated: number }>(`${API_BASE}/notifications/read-all`, { method: "PUT" });
+  return fetchApiData<{ updated: number }>("notifications/read-all", { method: "PUT" });
 }
 
-export async function markRead(id: string): Promise<Notification> {
-  return fetchApiData<Notification>(`notifications/${id}/read`, {
+export async function markRead(id: string): Promise<Pick<Notification, "id" | "readAt">> {
+  return fetchApiData<Pick<Notification, "id" | "readAt">>(`notifications/${id}/read`, {
     method: "PATCH",
   });
 }

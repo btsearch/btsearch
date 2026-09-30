@@ -116,7 +116,7 @@ export function LightboxToolbar({
     }
     try {
       await navigator.clipboard.writeText(url);
-      toast.success(t("linkCopied"));
+      toast.success(t("common:actions.linkCopied"));
     } catch {
       toast.error(t("copyFailed"));
     }
@@ -124,7 +124,7 @@ export function LightboxToolbar({
 
   return (
     <div className="flex h-14 items-center gap-0.5 px-2 md:gap-1 md:px-3">
-      <ToolbarButton label={t("close")} icon={Cancel01Icon} onClick={onClose} className="md:hidden" />
+      <ToolbarButton label={t("common:actions.close")} icon={Cancel01Icon} onClick={onClose} className="md:hidden" />
       {count > 1 ? (
         <span className="ml-1.5 shrink-0 text-sm text-foreground/80 tabular-nums">
           {index + 1} / {count}
@@ -159,16 +159,16 @@ export function LightboxToolbar({
           className="max-md:hidden"
         />
       ) : null}
-      <ToolbarButton label={t("details")} icon={InformationCircleIcon} shortcut="I" pressed={detailsOpen} onClick={onToggleDetails} />
+      <ToolbarButton label={t("common:labels.details")} icon={InformationCircleIcon} shortcut="I" pressed={detailsOpen} onClick={onToggleDetails} />
       <ToolbarButton
-        label={t("download")}
+        label={t("common:actions.download")}
         icon={Download04Icon}
         render={<a href={slide.fullSrc ?? slide.src} download={slide.downloadName ?? ""} />}
         className="max-md:hidden"
       />
       {shareMode !== null && !isLocalFile ? (
         <ToolbarButton
-          label={shareMode === "share" ? t("share") : t("copyLink")}
+          label={shareMode === "share" ? t("common:actions.share") : t("common:actions.copyLink")}
           icon={shareMode === "share" ? Share08Icon : Link01Icon}
           onClick={() => void share()}
         />
@@ -183,7 +183,7 @@ export function LightboxToolbar({
         />
       ) : null}
       <ToolbarButton label={t("shortcuts")} icon={KeyboardIcon} shortcut="?" onClick={onShowShortcuts} className="max-md:hidden" />
-      <ToolbarButton label={t("close")} icon={Cancel01Icon} shortcut="Esc" onClick={onClose} className="max-md:hidden" />
+      <ToolbarButton label={t("common:actions.close")} icon={Cancel01Icon} shortcut="Esc" onClick={onClose} className="max-md:hidden" />
     </div>
   );
 }

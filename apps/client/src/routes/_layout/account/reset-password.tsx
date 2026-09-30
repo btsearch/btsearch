@@ -75,16 +75,16 @@ function ResetPasswordPage() {
               <form.Field
                 name="newPassword"
                 validators={{
-                  onBlur: ({ value }) => (value.length > 0 && value.length < 8 ? t("resetPassword.passwordTooShort") : undefined),
+                  onBlur: ({ value }) => (value.length > 0 && value.length < 8 ? t("common:password.tooShort") : undefined),
                 }}
               >
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="new-password">{t("resetPassword.newPassword")}</Label>
+                    <Label htmlFor="new-password">{t("common:password.new")}</Label>
                     <Input
                       id="new-password"
                       type="password"
-                      placeholder={t("resetPassword.newPasswordPlaceholder")}
+                      placeholder={t("common:password.newPlaceholder")}
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
@@ -105,20 +105,20 @@ function ResetPasswordPage() {
                 validators={{
                   onBlur: ({ value, fieldApi }) => {
                     const newPassword = fieldApi.form.getFieldValue("newPassword");
-                    if (value && value !== newPassword) return t("resetPassword.passwordMismatch");
+                    if (value && value !== newPassword) return t("common:password.mismatch");
                     return undefined;
                   },
                   onChange: ({ value, fieldApi }) => {
                     if (!fieldApi.state.meta.isTouched) return undefined;
                     const newPassword = fieldApi.form.getFieldValue("newPassword");
-                    if (value && value !== newPassword) return t("resetPassword.passwordMismatch");
+                    if (value && value !== newPassword) return t("common:password.mismatch");
                     return undefined;
                   },
                 }}
               >
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">{t("resetPassword.confirmPassword")}</Label>
+                    <Label htmlFor="confirm-password">{t("common:password.confirm")}</Label>
                     <Input
                       id="confirm-password"
                       type="password"
@@ -142,10 +142,10 @@ function ResetPasswordPage() {
                     {isSubmitting ? (
                       <>
                         <Spinner />
-                        {t("resetPassword.submitting")}
+                        {t("common:actions.saving")}
                       </>
                     ) : (
-                      t("resetPassword.submit")
+                      t("resetPassword.title")
                     )}
                   </Button>
                 )}

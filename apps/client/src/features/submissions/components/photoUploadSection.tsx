@@ -343,7 +343,7 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
                         className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
                       >
                         <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                        {t("photos.remove")}
+                        {t("common:actions.remove")}
                       </button>
                     </div>
                   </div>
@@ -420,7 +420,7 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
                         className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
                       >
                         <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                        {t("photos.remove")}
+                        {t("common:actions.remove")}
                       </button>
                     </div>
                   </div>
@@ -466,7 +466,7 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? <Spinner /> : t("photos.remove")}
+              {deleteMutation.isPending ? <Spinner /> : t("common:actions.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

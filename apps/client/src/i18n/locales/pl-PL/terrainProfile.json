@@ -11,7 +11,6 @@
     "height": "Wysokość odbiornika",
     "useGps": "Użyj GPS",
     "locating": "Ustalanie pozycji...",
-    "coordinates": "Współrzędne odbiornika",
     "hint": "Przeciągnij niebieski znacznik na mapie, aby zmienić punkt odbioru",
     "gpsErrors": {
       "unsupported": "Ta przeglądarka nie może odczytać Twojej lokalizacji. Przeciągnij znacznik na mapie",
@@ -22,7 +21,6 @@
     }
   },
   "empty": {
-    "stationTitle": "Wybierz stację",
     "stationDescription": "Otwórz szczegóły stacji i wybierz Analizuj profil terenu w sekcji Akcje"
   },
   "states": {
@@ -59,7 +57,6 @@
   "metrics": {
     "pathLoss": "Tłumienie trasy",
     "pathLossDescription": "Tłumienie sygnału na modelowanej trasie według ITU-R P.1812. Im niższa wartość, tym mniejsze straty. Wynik nie uwzględnia rzeczywistej mocy stacji ani charakterystyki kierunkowej anteny",
-    "antennaHeight": "Wysokość anteny",
     "beamOffset": "Odchylenie od wiązki (szac.)",
     "beamOffsetDescription": "Pionowa różnica między kierunkiem do odbiornika a szacowaną osią wiązki. Im bliżej 0°, tym odbiornik znajduje się bliżej osi, \"+\" oznacza położenie powyżej osi, a \"-\" poniżej",
     "beamOffsetUnavailableDescription": "Nie można obliczyć odchylenia, ponieważ to źródło nie podaje wiarygodnego kąta pochylenia anteny",
@@ -84,7 +81,6 @@
     },
     "series": {
       "surfaceElevationM": "Pokrycie / roślinność",
-      "terrainElevationM": "Teren",
       "lineOfSightElevationM": "Linia widoczności"
     }
   },
@@ -95,7 +91,6 @@
     "noReport": "Brak pasującego raportu SI2PEM"
   },
   "warnings": {
-    "title": "Uwagi o danych",
     "codes": {
       "ANTENNA_SELECTION_REQUIRED": "Wybierz sektor antenowy, aby kontynuować",
       "ANTENNA_SELECTION_INVALID": "Wybrana antena nie jest już dostępna",

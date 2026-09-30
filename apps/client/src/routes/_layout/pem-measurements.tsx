@@ -126,7 +126,7 @@ function PEMMeasurementsMobileRail({
             <Input
               value={stationId}
               onChange={(event) => onStationIdChange(event.currentTarget.value)}
-              placeholder={t("filters.stationIdPlaceholder")}
+              placeholder={t("common:labels.stationId")}
               aria-label={t("common:labels.stationId")}
               className="h-9 w-full bg-background py-2 pl-8 pr-8 text-sm"
             />
@@ -212,7 +212,7 @@ function PEMMeasurementsMobileRail({
                   region === null ? "bg-primary/10 text-primary" : "hover:bg-muted",
                 )}
               >
-                {t("filters.allRegions")}
+                {t("common:labels.allRegions")}
               </button>
               {regions.length === 0 ? <p className="px-2 py-1 text-sm text-muted-foreground">{t("common:placeholder.noRegionsFound")}</p> : null}
               {regions.map((item) => (
@@ -436,7 +436,7 @@ function PEMMeasurementsPage() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-col gap-3 px-3 pt-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{t("page.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.pem")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("page.description")}</p>
         </div>
       </header>
@@ -479,7 +479,7 @@ function PEMMeasurementsPage() {
                   id="pem-station-id-filter"
                   value={stationIdInput}
                   onChange={(event) => handleStationIdChange(event.target.value)}
-                  placeholder={t("filters.stationIdPlaceholder")}
+                  placeholder={tCommon("labels.stationId")}
                   className="h-8 w-full pl-8 pr-7 bg-transparent placeholder:text-muted-foreground/60"
                 />
                 {stationIdInput ? (
@@ -517,7 +517,7 @@ function PEMMeasurementsPage() {
                     ) : areOperatorsLoading ? (
                       tCommon("actions.loading")
                     ) : operatorsError ? (
-                      tCommon("placeholder.errorFetching")
+                      tCommon("error.loadTitle")
                     ) : (
                       tCommon("labels.allOperators")
                     )}
@@ -554,10 +554,10 @@ function PEMMeasurementsPage() {
                       {areRegionsLoading
                         ? tCommon("actions.loading")
                         : regionsError
-                          ? tCommon("placeholder.errorFetching")
+                          ? tCommon("error.loadTitle")
                           : regionFilter !== null
-                            ? (allRegions.find((r) => r.id === regionFilter)?.name ?? t("filters.allRegions"))
-                            : t("filters.allRegions")}
+                            ? (allRegions.find((r) => r.id === regionFilter)?.name ?? tCommon("labels.allRegions"))
+                            : tCommon("labels.allRegions")}
                     </span>
                   </SelectValue>
                 </SelectTrigger>
@@ -566,7 +566,7 @@ function PEMMeasurementsPage() {
                     <InlineError size="sm" onRetry={() => refetchRegions()} isRetrying={areRegionsFetching} />
                   ) : (
                     <>
-                      <SelectItem value="__all__">{t("filters.allRegions")}</SelectItem>
+                      <SelectItem value="__all__">{tCommon("labels.allRegions")}</SelectItem>
                       {allRegions.length === 0 ? (
                         <p className="px-2 py-1.5 text-sm text-muted-foreground">{tCommon("placeholder.noRegionsFound")}</p>
                       ) : null}

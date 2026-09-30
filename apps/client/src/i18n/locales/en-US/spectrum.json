@@ -1,11 +1,10 @@
 {
-  "title": "Spectrum",
   "description": "Radio spectrum allocation for mobile operators in Poland",
   "maxBwPrefix": "max",
   "badges": {
-    "active": "NR Active",
-    "deployment": "NR Assigned",
-    "lteOnly": "LTE Only",
+    "active": "NR active",
+    "deployment": "NR assigned",
+    "lteOnly": "LTE only",
     "gsmLte": "GSM + LTE"
   },
   "bands": {

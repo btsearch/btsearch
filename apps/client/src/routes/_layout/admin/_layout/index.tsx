@@ -167,22 +167,22 @@ function AdminDashboardPage() {
 
   const statsItems = [
     { key: "stations", label: t("items.stations", { ns: "nav" }), value: stats?.counts.stations, weeklyDelta: delta?.stations },
-    { key: "cells", label: t("dashboard.stats.cells", { ns: "admin" }), value: stats?.counts.cells, weeklyDelta: delta?.cells },
-    { key: "ukePermits", label: t("dashboard.stats.ukePermits", { ns: "admin" }), value: stats?.counts.uke_permits },
-    { key: "radiolines", label: t("lists.table.radiolines", { ns: "admin" }), value: stats?.counts.uke_radiolines },
+    { key: "cells", label: t("labels.cells", { ns: "common" }), value: stats?.counts.cells, weeklyDelta: delta?.cells },
+    { key: "ukePermits", label: t("labels.ukePermits", { ns: "common" }), value: stats?.counts.uke_permits },
+    { key: "radiolines", label: t("labels.radiolines", { ns: "common" }), value: stats?.counts.uke_radiolines },
   ];
 
   const freshnessItems = [
     { key: "stations", label: t("items.stations", { ns: "nav" }), date: stats?.lastUpdated.stations ?? null },
-    { key: "ukePermits", label: t("dashboard.stats.ukePermits", { ns: "admin" }), date: stats?.lastUpdated.stations_permits ?? null },
-    { key: "radiolines", label: t("lists.table.radiolines", { ns: "admin" }), date: stats?.lastUpdated.radiolines ?? null },
+    { key: "ukePermits", label: t("labels.ukePermits", { ns: "common" }), date: stats?.lastUpdated.stations_permits ?? null },
+    { key: "radiolines", label: t("labels.radiolines", { ns: "common" }), date: stats?.lastUpdated.radiolines ?? null },
   ];
 
   return (
     <main className="flex-1 flex flex-col px-4 md:px-5 pt-5 pb-4 gap-5 overflow-y-auto md:overflow-hidden md:min-h-0">
       <div className="shrink-0 flex flex-col gap-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-bold tracking-tight">{t("breadcrumbs.dashboard", { ns: "admin" })}</h1>
+          <h1 className="text-xl font-bold tracking-tight">{t("items.dashboard", { ns: "nav" })}</h1>
 
           <div className="grid grid-cols-2 sm:flex sm:items-start gap-x-4 sm:gap-x-5">
             <Link
@@ -358,7 +358,7 @@ function AdminDashboardPage() {
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           {s.submitter?.name ?? t("detail.deletedUser", { ns: "submissions" })}
-                          {s.cells.length > 0 && <> · {t("dashboard.cells", { ns: "admin", count: s.cells.length })}</>}
+                          {s.cells.length > 0 && <> · {t("labels.cells", { count: s.cells.length })}</>}
                         </div>
                       </div>
                       <span aria-hidden="true" className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
@@ -420,7 +420,7 @@ function AdminDashboardPage() {
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-xs text-muted-foreground truncate">
-                              {c.author?.name ?? t("dashboard.unknownAuthor", { ns: "admin" })}
+                              {c.author?.name ?? t("labels.unknown", { ns: "common" })}
                               {c.station && <> · </>}
                             </span>
                             {c.station && (
@@ -536,9 +536,7 @@ function AdminDashboardPage() {
           ) : (
             <div className="flex flex-col flex-1 md:min-h-0">
               <div className="mb-2 shrink-0">
-                <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  {t("dashboard.editorNotes", { ns: "admin" })}
-                </h2>
+                <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("labels.notes", { ns: "common" })}</h2>
               </div>
               <Suspense fallback={<Skeleton className="flex-1 rounded-xl" />}>
                 <EditorNotes />
@@ -636,9 +634,9 @@ function AdminDashboardPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/")({
   component: AdminDashboardPage,
   staticData: {
-    titleKey: "breadcrumbs.dashboard",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", i18nNamespace: "admin" }],
+    titleKey: "items.dashboard",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", i18nNamespace: "nav" }],
     allowedRoles: ["admin", "editor"],
   },
 });

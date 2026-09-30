@@ -110,7 +110,7 @@ function AdminLocationDetailPage() {
     ) : (
       <PageErrorState
         title={t("stationDetails:page.locationUnavailableTitle")}
-        description={t("stationDetails:page.locationUnavailableDescription")}
+        description={t("common:error.tryLater")}
         onRetry={() => refetch()}
         isRetrying={isFetching}
         action={backButton}
@@ -148,7 +148,7 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
 
   const handleSave = () => {
     if (hasGenericAddressMarker(locationForm.address)) {
-      toast.error(t("toast.addressOwnWordForbidden"));
+      toast.error(t("common:validation.addressOwnWordForbidden"));
       return;
     }
 
@@ -337,10 +337,10 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
               <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" />
-                  <span className="font-semibold text-sm">{t("stations:stationsAtLocation")}</span>
+                  <span className="font-semibold text-sm">{t("stationDetails:page.stationsAtLocation")}</span>
                 </div>
                 <Badge variant="secondary" className="text-xs">
-                  {t("stations:stationsCount", { count: stations.length })}
+                  {t("common:labels.stations", { count: stations.length })}
                 </Badge>
               </div>
 
@@ -364,8 +364,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/locations/$id")({
     titleKey: "breadcrumbs.editLocation",
     i18nNamespace: "admin",
     breadcrumbs: [
-      { titleKey: "breadcrumbs.admin", path: "/admin/locations", i18nNamespace: "admin" },
-      { titleKey: "breadcrumbs.locations", path: "/admin/locations", i18nNamespace: "admin" },
+      { titleKey: "sections.admin", path: "/admin/locations", i18nNamespace: "nav" },
+      { titleKey: "items.locations", path: "/admin/locations", i18nNamespace: "nav" },
     ],
     allowedRoles: ["admin", "editor"],
   },

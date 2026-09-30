@@ -26,7 +26,7 @@ export function ActionSelector({ action, onActionChange }: ActionSelectorProps) 
       <div className="flex shrink-0 items-center rounded-lg border bg-card p-0.5 shadow-sm">
         <button
           type="button"
-          aria-label={t("actionSelector.update")}
+          aria-label={t("common:submissionType.update")}
           aria-pressed={action === "update"}
           onClick={() => onActionChange("update")}
           className={cn(
@@ -37,11 +37,11 @@ export function ActionSelector({ action, onActionChange }: ActionSelectorProps) 
           )}
         >
           <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-          <span className="hidden sm:inline">{t("actionSelector.update")}</span>
+          <span className="hidden sm:inline">{t("common:submissionType.update")}</span>
         </button>
         <button
           type="button"
-          aria-label={t("actionSelector.delete")}
+          aria-label={t("common:submissionType.delete")}
           aria-pressed={action === "delete"}
           onClick={() => onActionChange("delete")}
           className={cn(
@@ -52,7 +52,7 @@ export function ActionSelector({ action, onActionChange }: ActionSelectorProps) 
           )}
         >
           <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
-          <span className="hidden sm:inline">{t("actionSelector.delete")}</span>
+          <span className="hidden sm:inline">{t("common:submissionType.delete")}</span>
         </button>
       </div>
     </div>

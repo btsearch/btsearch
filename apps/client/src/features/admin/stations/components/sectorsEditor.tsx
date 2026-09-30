@@ -211,7 +211,7 @@ export function SectorsEditor({
         <div className="space-y-0.5">
           {sectors.length > 0 ? (
             <>
-              <div className="px-1 pb-1 text-xs text-muted-foreground">{t("sectors.azimuth")}</div>
+              <div className="px-1 pb-1 text-xs text-muted-foreground">{t("labels.azimuth", { ns: "common" })}</div>
               <Reorder.Group
                 as="div"
                 axis="xy"
@@ -395,7 +395,7 @@ export function SectorsPanel({
               fetchFailed: t("azimuthFetch.si2pem.fetchFailed", { ns: "submissions" }),
             }
           : {
-              notFound: t("azimuthFetch.uke.notFound", { ns: "submissions" }),
+              notFound: t("ukeSectors.notFound", { ns: "submissions" }),
               fetched: t("azimuthFetch.uke.fetched", { ns: "submissions" }),
               fetchFailed: t("azimuthFetch.uke.fetchFailed", { ns: "submissions" }),
             };
@@ -425,7 +425,7 @@ export function SectorsPanel({
               icon={ArrowDown01Icon}
               className="size-3.5 text-muted-foreground transition-transform group-data-panel-open:rotate-0 -rotate-90"
             />
-            <span className="font-semibold text-sm">{t("tabs.sectors")}</span>
+            <span className="font-semibold text-sm">{t("labels.azimuths", { ns: "common" })}</span>
           </CollapsibleTrigger>
           <div className="flex items-center gap-2">
             {!readOnly && hasAzimuthSources ? (
@@ -435,9 +435,7 @@ export function SectorsPanel({
                     <Button type="button" variant="outline" size="sm" disabled={fetchingAzimuthSource !== null} className="h-7 gap-1.5 text-xs" />
                   }
                 >
-                  {fetchingAzimuthSource !== null
-                    ? t("azimuthFetch.fetching", { ns: "submissions" })
-                    : t("azimuthFetch.fetch", { ns: "submissions" })}
+                  {fetchingAzimuthSource !== null ? t("sibling.fetching", { ns: "submissions" }) : t("azimuthFetch.fetch", { ns: "submissions" })}
                   <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

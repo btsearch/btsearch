@@ -484,7 +484,7 @@ function SpectrumPage() {
     <main className="flex-1 overflow-y-auto p-4">
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
+          <h1 className="text-2xl font-bold">{t("nav:items.spectrum")}</h1>
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
 

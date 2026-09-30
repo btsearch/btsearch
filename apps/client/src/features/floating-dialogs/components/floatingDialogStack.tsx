@@ -107,7 +107,6 @@ function renderDialogPanelContent(
           stationId={dialog.id}
           source={dialog.source}
           ukeStation={dialog.ukeStation}
-          initialTab={dialog.initialTab}
           switchedFrom={dialog.switchedFrom}
           showPhotoPanel={!isMobile}
           onContentLayoutChange={onContentLayoutChange}

@@ -10,7 +10,6 @@ import { groupCellsByRat } from "../utils";
 import { AddCommentForm } from "./addCommentForm";
 import { CellTable } from "./cellTable";
 import { CommentsList } from "./commentsList";
-import { PermitsList } from "./permitsList";
 import { PhotoGallery } from "./photoGallery";
 import { SectorMiniCompass } from "./sectorMiniCompass";
 import { StationInfoCard, StationInfoCardSkeleton } from "./stationInfoCard";
@@ -214,14 +213,6 @@ export function StationDetailsBody({
                   </span>
                 ))}
               </div>
-            </section>
-          </div>
-        )}
-
-        {displayedTab === "permits" && (
-          <div>
-            <section>
-              <PermitsList stationId={stationId} physicalStation={station.physicalStation} />
             </section>
           </div>
         )}

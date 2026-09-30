@@ -5,13 +5,14 @@ import React, { type ComponentProps, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { NavLists } from "./navLists";
-import { NavMain } from "./navMain";
+import { NavMain, PageSectionList } from "./navMain";
 import { NavUser } from "./navUser";
 import { AuthDialog } from "@/components/auth/authDialog";
 import { LanguageSwitcher } from "@/components/preferences/languageSwitcher";
 import { ThemeToggle } from "@/components/preferences/themeToggle";
 import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { usePageSectionsList } from "@/contexts/pageSections";
 import { useSettings } from "@/hooks/useSettings";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
@@ -33,7 +34,9 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const userRole = session?.user?.role as string | undefined;
   const adminNavItems = useMemo(() => translateAdminNav(adminNavConfig, t, userRole, settings), [userRole, t, settings]);
 
-  const location = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const pageSections = usePageSectionsList();
+  const isSettingsPage = pathname === "/settings";
 
   return (
     <Sidebar variant="inset" collapsible="icon" {...props}>
@@ -91,13 +94,15 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link to="/settings" search={{ tab: "preferences" }} />}
-              isActive={location.pathname === "/settings" && location.searchStr.includes("tab=preferences")}
-            >
+            <SidebarMenuButton render={<Link to="/settings" />} isActive={isSettingsPage} tooltip={t("items.settings")}>
               <HugeiconsIcon icon={Settings02Icon} />
-              <span>{t("items.preferences")}</span>
+              <span>{t("items.settings")}</span>
             </SidebarMenuButton>
+            {isSettingsPage && pageSections.length > 0 ? (
+              <div className="group-data-[collapsible=icon]:hidden">
+                <PageSectionList sections={pageSections} />
+              </div>
+            ) : null}
           </SidebarMenuItem>
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <div className="grid grid-cols-2 gap-1">
@@ -112,7 +117,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                   <HugeiconsIcon icon={Login01Icon} className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{t("auth.signIn", "Sign In")}</span>
+                  <span className="truncate font-semibold">{t("common:actions.signIn")}</span>
                   <span className="truncate text-xs text-muted-foreground">{t("auth.signInHint", "Access your account")}</span>
                 </div>
               </SidebarMenuButton>
@@ -120,7 +125,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           )}
           {session?.user && <NavUser data={session} />}
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-            <GoogleAd key={location.pathname} adSlot="4992722827" adFormat="rectangle" className="w-full h-62.5" />
+            <GoogleAd key={pathname} adSlot="4992722827" adFormat="rectangle" className="w-full h-62.5" />
           </SidebarMenuItem>
           <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
@@ -151,7 +156,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
                   </span>
                 </div>
               )}
-              <Link to="/changelog" className={cn("shrink-0 hover:underline p-2 -m-2", location.pathname === "/changelog" && "text-foreground")}>
+              <Link to="/changelog" className={cn("shrink-0 hover:underline p-2 -m-2", pathname === "/changelog" && "text-foreground")}>
                 {t("items.changelog")}
               </Link>
             </div>

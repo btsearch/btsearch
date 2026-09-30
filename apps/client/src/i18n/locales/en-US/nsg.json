@@ -1,7 +1,4 @@
 {
-  "page": {
-    "title": "NSG Explorer"
-  },
   "import": {
     "select": "Open NSG log",
     "drop": "Drop an NSG log here",
@@ -35,7 +32,6 @@
   "chart": {
     "title": "Signal history",
     "hint": "The chart includes serving cells and decoded other primary cells. Select a point to inspect the measurements recorded at that time",
-    "value": "Value",
     "select": "Select this point to inspect its measurements",
     "metric": "Signal metric",
     "signal": "Signal (dBm)",
@@ -53,10 +49,8 @@
     "speed": "Play at 5× speed"
   },
   "mobile": {
-    "detailsButton": "Details",
     "details": "Log details",
     "close": "Close log details",
-    "cells": "Cells",
     "history": "History"
   },
   "snapshot": {
@@ -75,8 +69,6 @@
     "scrub": "Browse measurement snapshots"
   },
   "history": {
-    "cells_one": "{{count, number}} cell",
-    "cells_other": "{{count, number}} cells",
     "title": "Measurement history",
     "empty": "No cell measurements match the current filters"
   },
@@ -89,13 +81,11 @@
   },
   "signaling": {
     "title": "Modem signaling",
-    "technology": "Technology",
     "layer": "Layer",
     "allLayers": "All layers",
     "empty": "No supported signaling messages match these filters",
     "truncated": "Showing {{shown, number}} of {{count, number}} decoded messages retained from this log",
     "channel": "Channel",
-    "pdu": "PDU",
     "bytes": "{{count, number}} B",
     "logCode": "Log code",
     "version": "Version",
@@ -103,8 +93,6 @@
     "transportMessage": "{{rat}} {{layer}} message",
     "transportFallback": "Full protocol decoding is unavailable for this message. Transport metadata and the raw PDU are shown below.",
     "direction": {
-      "UL": "Uplink",
-      "DL": "Downlink",
       "unknown": "Unknown direction"
     },
     "metadata": "Decoder metadata",
@@ -115,7 +103,6 @@
     "signalSim": "SIM slot {{slot}} / subscription {{subscription}}",
     "signalNoSim": "No SIM from this log is selected",
     "signalLegend": "Color scale",
-    "noSignalData": "No data",
     "fit": "Show entire route",
     "title": "Route from log",
     "empty": "This log contains no valid location data",

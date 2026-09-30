@@ -118,7 +118,7 @@ function SnapshotComparisonGrid({
   }
 
   if (bands.length === 0) {
-    return <div className="flex h-56 items-center justify-center border-t border-border text-muted-foreground text-sm">{t("charts.noData")}</div>;
+    return <div className="flex h-56 items-center justify-center border-t border-border text-muted-foreground text-sm">{t("common:empty.data")}</div>;
   }
 
   return (

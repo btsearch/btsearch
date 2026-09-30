@@ -42,9 +42,9 @@ function SI2PEMAntennaList({ antennas }: { antennas: SI2PEMAntenna[] }) {
       {antennas.map((item, antennaIndex) => {
         const antennaKey = `${item.pageNumber}:${item.rowNumber ?? "prose"}:${antennaIndex}`;
         const summary = [
-          [t("si2pemAntennaData.fields.azimuth"), formatNumber(item.antenna.azimuth, "°")],
-          [t("si2pemAntennaData.fields.height"), formatNumber(item.antenna.mountedHeight, " m")],
-          [t("si2pemAntennaData.fields.eirp"), formatNumber(item.totalEirp, " W")],
+          [t("common:labels.azimuth"), formatNumber(item.antenna.azimuth, "°")],
+          [t("common:labels.height"), formatNumber(item.antenna.mountedHeight, " m")],
+          ["EIRP", formatNumber(item.totalEirp, " W")],
         ];
 
         return (

@@ -97,8 +97,8 @@ function AdminUserDetailPage() {
       <PageErrorState
         tone="neutral"
         icon={UserRemove01Icon}
-        title={t("users.notFoundTitle")}
-        description={t("users.notFoundDescription")}
+        title={t("common:error.userNotFound")}
+        description={t("common:error.userNotFoundDescription")}
         action={backButton}
       />
     );
@@ -123,8 +123,8 @@ export const Route = createFileRoute("/_layout/admin/_layout/users/$id")({
     titleKey: "breadcrumbs.userDetail",
     i18nNamespace: "admin",
     breadcrumbs: [
-      { titleKey: "breadcrumbs.admin", path: "/admin/users", i18nNamespace: "admin" },
-      { titleKey: "breadcrumbs.users", path: "/admin/users", i18nNamespace: "admin" },
+      { titleKey: "sections.admin", path: "/admin/users", i18nNamespace: "nav" },
+      { titleKey: "items.users", path: "/admin/users", i18nNamespace: "nav" },
     ],
   },
 });

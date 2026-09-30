@@ -95,7 +95,7 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
           <CellTypeSelect
             value={change.type ?? null}
             onChange={onCellTypeChange}
-            ariaLabel={t("stations:cells.cellType")}
+            ariaLabel={t("common:labels.cellType")}
             className="relative h-8 w-20 shrink-0 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           />
           <CellTypeInfoPopover align="center" className="relative size-6 after:absolute after:-inset-x-1 after:-inset-y-2.5 after:content-['']" />
@@ -179,7 +179,7 @@ export function AnalyzerCellChangeRow({ change, selectedDuplex, onDuplexChange, 
                   !selectedDuplex && "border-amber-500/60 text-amber-700 dark:text-amber-400",
                 )}
               >
-                <SelectValue>{selectedDuplex ?? t("batch.selectDuplex")}</SelectValue>
+                <SelectValue>{selectedDuplex ?? "Duplex"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {change.duplexChoices.map(({ duplex }) => (

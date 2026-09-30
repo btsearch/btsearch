@@ -1,296 +1,105 @@
-import {
-  Calendar03Icon,
-  Facebook01Icon,
-  Image01Icon,
-  InstagramIcon,
-  LockKeyIcon,
-  Mail01Icon,
-  Message01Icon,
-  UserRemove01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { UserRemove01Icon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MapLinkButton } from "@/components/app/errorScreens";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { API_BASE, ApiResponseError, fetchJson } from "@/lib/api";
+import { regionsQueryOptions } from "@/features/shared/queries";
+import { ProfileComments } from "@/features/user-profile/components/profileComments";
+import { ProfileHero } from "@/features/user-profile/components/profileHero";
+import { PROFILE_GRID_CLASS, ProfileAbout, ProfileContact, ProfileHunter } from "@/features/user-profile/components/profileSections";
+import { EmptyProfile, PrivateProfileNotice, ProfileSkeleton } from "@/features/user-profile/components/profileStates";
+import { type UserProfile, userProfileQueryOptions } from "@/features/user-profile/queries";
+import { useNavMode } from "@/hooks/usePreferences";
+import { ApiResponseError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { getOperatorColor } from "@/lib/cellular/operators";
-import { resolveAvatarUrl } from "@/lib/format";
+import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
-type ProfilePrivate = {
-  isPrivate: true;
-  id: string;
-  username: string | null;
-  name: string;
-  image: string | null;
-  createdAt: string;
-};
+function ProfileShell({ children }: { children: ReactNode }) {
+  const navMode = useNavMode();
 
-type ProfilePublic = {
-  isPrivate: false;
-  id: string;
-  username: string | null;
-  name: string;
-  image: string | null;
-  bio: string | null;
-  contactInfo: { instagram?: string; facebook?: string; email?: string } | null;
-  profileVisibility: string;
-  createdAt: string;
-  comments: {
-    id: string;
-    content: string;
-    createdAt: string;
-    station: {
-      id: number;
-      station_id: string | null;
-      operator: { id: number; name: string; mnc: number | null } | null;
-    };
-  }[];
-};
-
-type ProfileData = ProfilePrivate | ProfilePublic;
-
-function ProfileSkeleton() {
   return (
-    <main className="flex-1 overflow-y-auto custom-scrollbar">
-      <div className="px-6">
-        <div className="flex items-center gap-4 py-6 lg:py-4 border-b">
-          <Skeleton className="size-16 rounded-full shrink-0" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-36 rounded" />
-            <Skeleton className="h-4 w-24 rounded" />
-            <Skeleton className="h-3.5 w-32 rounded" />
-          </div>
-        </div>
-        <div className="space-y-2 pt-5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </div>
-      </div>
-    </main>
+    <div className="@container custom-scrollbar flex-1 overflow-y-auto">
+      <div className={cn("w-full px-3 pt-5 sm:px-6 sm:pt-6 lg:px-8", navMode === "floating" ? "pb-32" : "pb-10")}>{children}</div>
+    </div>
+  );
+}
+
+function ProfileBody({ profile, isOwner }: { profile: UserProfile; isOwner: boolean }) {
+  const { user, contact, contactHidden, hunter, comments } = profile;
+  const hasContent = Boolean(user.bio) || contactHidden || contact !== null || hunter !== null || (comments?.totalCount ?? 0) > 0;
+  if (!hasContent && !isOwner) return <EmptyProfile />;
+
+  const sections = (
+    <>
+      <ProfileAbout bio={user.bio} isOwner={isOwner} />
+      <ProfileContact contact={contact} contactHidden={contactHidden} isOwner={isOwner} />
+      {hunter ? <ProfileHunter regionIds={hunter.regions} /> : null}
+    </>
+  );
+
+  if (comments === null) return <div className="grid items-start gap-8 @4xl:grid-cols-2 @4xl:gap-x-6">{sections}</div>;
+
+  return (
+    <div className={PROFILE_GRID_CLASS}>
+      <div className="flex min-w-0 flex-col gap-8">{sections}</div>
+      <ProfileComments comments={comments.items} totalCount={comments.totalCount} />
+    </div>
   );
 }
 
 function UserProfilePage() {
   const { username } = Route.useParams();
-  const { t, i18n } = useTranslation("main");
-  const { openStationDialog } = useFloatingDialogStack();
-  const handleStationClick = useCallback((stationId: number) => openStationDialog(stationId, "internal"), [openStationDialog]);
-  const { data: session } = authClient.useSession();
+  const { t } = useTranslation("main");
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const { data: profile, error, isPending, isFetching, isRefetchError, refetch } = useQuery(userProfileQueryOptions(username));
 
-  const {
-    data: profile,
-    error,
-    isLoading,
-    isFetching,
-    isRefetchError,
-    refetch,
-  } = useQuery({
-    queryKey: ["user-profile", username],
-    queryFn: () => fetchJson<{ data: ProfileData }>(`${API_BASE}/users/${username}`).then((r) => r.data),
-    retry: false,
-  });
+  if (isPending || isSessionPending)
+    return (
+      <ProfileShell>
+        <ProfileSkeleton />
+      </ProfileShell>
+    );
 
-  if (isLoading) return <ProfileSkeleton />;
-
-  if (!profile) {
+  if (profile === undefined) {
     if (error instanceof ApiResponseError && error.status === 404)
       return (
         <PageErrorState
           tone="neutral"
           icon={UserRemove01Icon}
-          title={t("userProfile.notFoundTitle")}
-          description={t("userProfile.notFoundSubtitle", { username })}
+          title={t("common:error.userNotFound")}
+          description={t("common:error.userNotFoundDescription")}
           action={<MapLinkButton />}
         />
       );
-    return <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} />;
+    return <PageErrorState onRetry={() => void refetch()} isRetrying={isFetching} />;
   }
 
-  const joinDate = new Date(profile.createdAt).toLocaleDateString(i18n.language, { year: "numeric", month: "long" });
+  const isOwner = session?.user.id === profile.user.id;
 
   return (
-    <main className="flex-1 overflow-y-auto custom-scrollbar">
-      <div className="px-6">
-        <div className="py-6 lg:py-4 border-b space-y-3">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex items-center gap-4 min-w-0">
-              <Avatar className="size-16 shrink-0">
-                <AvatarImage src={resolveAvatarUrl(profile.image)} />
-                <AvatarFallback className="text-xl">{profile.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-
-              <div className="min-w-0">
-                <h1 className="text-lg font-bold leading-tight truncate">{profile.name}</h1>
-                {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 whitespace-nowrap">
-                  <HugeiconsIcon icon={Calendar03Icon} className="size-3.5 shrink-0" />
-                  {t("userProfile.joinedDate", { date: joinDate })}
-                </p>
-              </div>
-            </div>
-
-            {!profile.isPrivate && profile.contactInfo && (
-              <div className="hidden sm:flex flex-wrap justify-end gap-2 shrink-0 pt-0.5">
-                {profile.contactInfo.instagram && (
-                  <a
-                    href={`https://instagram.com/${profile.contactInfo.instagram.replace(/^@/, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                  >
-                    <HugeiconsIcon icon={InstagramIcon} className="size-3.5" />@{profile.contactInfo.instagram.replace(/^@/, "")}
-                  </a>
-                )}
-                {profile.contactInfo.facebook && (
-                  <a
-                    href={profile.contactInfo.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                  >
-                    <HugeiconsIcon icon={Facebook01Icon} className="size-3.5" />
-                    Facebook
-                  </a>
-                )}
-                {profile.contactInfo.email && (
-                  <a
-                    href={`mailto:${profile.contactInfo.email}`}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                  >
-                    <HugeiconsIcon icon={Mail01Icon} className="size-3.5" />
-                    {profile.contactInfo.email}
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-
-          {!profile.isPrivate && profile.bio && <p className="text-sm text-foreground/75 leading-relaxed">{profile.bio}</p>}
-
-          {!profile.isPrivate && profile.contactInfo && (
-            <div className="flex sm:hidden flex-wrap gap-2">
-              {profile.contactInfo.instagram && (
-                <a
-                  href={`https://instagram.com/${profile.contactInfo.instagram.replace(/^@/, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                >
-                  <HugeiconsIcon icon={InstagramIcon} className="size-3.5" />@{profile.contactInfo.instagram.replace(/^@/, "")}
-                </a>
-              )}
-              {profile.contactInfo.facebook && (
-                <a
-                  href={profile.contactInfo.facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                >
-                  <HugeiconsIcon icon={Facebook01Icon} className="size-3.5" />
-                  Facebook
-                </a>
-              )}
-              {profile.contactInfo.email && (
-                <a
-                  href={`mailto:${profile.contactInfo.email}`}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-full border px-3 py-1.5 bg-background hover:bg-muted"
-                >
-                  <HugeiconsIcon icon={Mail01Icon} className="size-3.5" />
-                  {profile.contactInfo.email}
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-
-        {isRefetchError ? <StaleDataNotice className="mt-4" onRetry={() => refetch()} isRetrying={isFetching} /> : null}
-
-        {!profile.isPrivate && session?.user.id === profile.id && profile.profileVisibility === "private" && (
-          <div className="flex items-center gap-2 mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-xs text-yellow-700 dark:text-yellow-400">
-            <HugeiconsIcon icon={LockKeyIcon} className="size-3.5 shrink-0" />
-            {t("userProfile.privateOwnerNotice")}
-          </div>
-        )}
-
-        {profile.isPrivate ? (
-          <div className="flex flex-col items-center text-center gap-3 py-16">
-            <div className="size-12 rounded-full bg-muted flex items-center justify-center">
-              <HugeiconsIcon icon={LockKeyIcon} className="size-5 text-muted-foreground/50" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{t("userProfile.privateTitle")}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("userProfile.privateSubtitle")}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-5">
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground">{t("userProfile.comments")}</h2>
-                {profile.comments.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{profile.comments.length}</span>}
-              </div>
-
-              {profile.comments.length === 0 ? (
-                <div className="rounded-xl border border-dashed p-10 flex flex-col items-center text-center gap-2">
-                  <HugeiconsIcon icon={Message01Icon} className="size-7 text-muted-foreground/25" />
-                  <p className="text-sm text-muted-foreground">{t("userProfile.noComments")}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border bg-card divide-y divide-border overflow-hidden">
-                  {profile.comments.map((comment) => (
-                    <div key={comment.id} className="px-4 py-3.5 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center justify-between gap-4 mb-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className="size-3 rounded-[2px] shrink-0"
-                            style={{ backgroundColor: getOperatorColor(comment.station.operator?.mnc ?? -1) }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleStationClick(comment.station.id)}
-                            className="text-xs font-medium text-muted-foreground truncate hover:text-foreground hover:underline hover:cursor-pointer transition-colors"
-                          >
-                            {comment.station.station_id ?? t("userProfile.stationFallback", { id: comment.station.id })}
-                          </button>
-                        </div>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {new Date(comment.createdAt).toLocaleDateString(i18n.language)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground/75 leading-relaxed line-clamp-2">{comment.content}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2.5">
-              <h2 className="text-sm font-semibold text-foreground">{t("userProfile.photos")}</h2>
-              <div className="rounded-xl border border-dashed p-10 flex flex-col items-center text-center gap-2">
-                <HugeiconsIcon icon={Image01Icon} className="size-7 text-muted-foreground/25" />
-                <p className="text-sm text-muted-foreground">{t("userProfile.photosSoon")}</p>
-              </div>
-            </div>
-          </div>
-        )}
+    <ProfileShell>
+      {isRefetchError ? <StaleDataNotice className="mb-4" onRetry={() => void refetch()} isRetrying={isFetching} /> : null}
+      <div key={profile.user.id} className="flex flex-col gap-8">
+        <ProfileHero profile={profile} isOwner={isOwner} />
+        {profile.restricted ? <PrivateProfileNotice /> : <ProfileBody profile={profile} isOwner={isOwner} />}
       </div>
-    </main>
+    </ProfileShell>
   );
 }
 
 export const Route = createFileRoute("/_layout/users/$username")({
   component: UserProfilePage,
+  loader: ({ params }) => {
+    void queryClient.prefetchQuery(userProfileQueryOptions(params.username));
+    void queryClient.prefetchQuery(regionsQueryOptions());
+  },
   staticData: {
     titleKey: "userProfile.breadcrumb",
     i18nNamespace: "main",
+    mainClassName: "overflow-hidden max-md:pb-0",
   },
 });

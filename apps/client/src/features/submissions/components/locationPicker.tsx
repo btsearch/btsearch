@@ -192,14 +192,14 @@ export const LocationPicker = memo(function LocationPicker({
       <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={Location01Icon} className="size-4 text-muted-foreground" />
-          <span className="font-semibold text-sm">{t("locationPicker.title")}</span>
+          <span className="font-semibold text-sm">{t("common:labels.location")}</span>
           {showEditLocationLink && currentLocation?.id && (
             <Link
               to={`/admin/locations/${currentLocation.id}` as "/"}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <HugeiconsIcon icon={PencilEdit01Icon} className="size-3" />
-              {t("locationPicker.editLocation")}
+              {t("common:actions.edit")}
             </Link>
           )}
         </div>

@@ -5,10 +5,6 @@
   "file": {
     "dropHint": "Upuść plik tutaj lub kliknij, aby wybrać",
     "constraints": "Obsługiwane formaty: NetMonster (.ntm), NetMonitor (.csv, .clf) i NSG (.log, .gz) · do 20 000 komórek",
-    "rowCount_one": "{{count, number}} komórka",
-    "rowCount_few": "{{count, number}} komórki",
-    "rowCount_many": "{{count, number}} komórek",
-    "rowCount_other": "{{count, number}} komórki",
     "uniqueRowCount_one": "{{count, number}} unikalna komórka",
     "uniqueRowCount_few": "{{count, number}} unikalne komórki",
     "uniqueRowCount_many": "{{count, number}} unikalnych komórek",
@@ -21,9 +17,9 @@
     "changeFile": "Zmień plik"
   },
   "button": {
-    "analyze_one": "Analizuj {{count}} komórkę",
-    "analyze_few": "Analizuj {{count}} komórki",
-    "analyze_many": "Analizuj {{count}} komórek",
+    "analyze_one": "Analizuj {{count, number}} komórkę",
+    "analyze_few": "Analizuj {{count, number}} komórki",
+    "analyze_many": "Analizuj {{count, number}} komórek",
     "analyzing": "Analizowanie..."
   },
   "table": {
@@ -32,11 +28,7 @@
     "matchResult": "Wynik porównania",
     "noStation": "Brak przypisanej stacji",
     "openStation": "Otwórz",
-    "showOnMap": "Mapa",
     "sortByIdentity": "Sortuj według identyfikatorów komórki",
-    "visibleCount_one": "{{count, number}} wynik",
-    "visibleCount_few": "{{count, number}} wyniki",
-    "visibleCount_many": "{{count, number}} wyników",
     "noResults": "Brak wyników dla wybranych filtrów"
   },
   "status": {
@@ -51,26 +43,18 @@
     "probable": "prawdopodobne",
     "notFound": "nie znaleziono",
     "unsupported": "nieobsługiwane",
-    "summary": "Podsumowanie wyników",
-    "completedIn": "Ukończono w {{duration}}"
+    "summary": "Podsumowanie wyników"
   },
   "filter": {
     "anyWarning": "Dowolne ostrzeżenie",
-    "status": "Status",
     "warning": "Ostrzeżenia",
-    "band": "Pasmo",
-    "allBands": "Wszystkie pasma",
-    "bandsCount_one": "{{count, number}} pasmo",
-    "bandsCount_few": "{{count, number}} pasma",
-    "bandsCount_many": "{{count, number}} pasm",
-    "mismatchGroup": "Niezgodności",
-    "otherGroup": "Inne"
+    "mismatchGroup": "Niezgodności"
   },
   "warning": {
     "pciMissing": "Brak PCI",
     "pciMissingFromDb": "Ta wartość nie istnieje w bazie danych",
     "enbidOnly": "Znaleziono po eNBIDzie",
-    "ranSharing": "Dopasowano przez RAN Sharing",
+    "ranSharing": "Dopasowano przez RAN sharing",
     "ukeMatch": "Dopasowano w pozwoleniach UKE",
     "notConfirmed": "Niepotwierdzone komórki",
     "notFound": "Nie znaleziono w bazie",

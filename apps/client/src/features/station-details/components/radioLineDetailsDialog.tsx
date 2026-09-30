@@ -300,7 +300,7 @@ export function RadioLineDetailsDialogPanel({
                       </span>
                       <CopyButton text={`${radioLine.tx.latitude}, ${radioLine.tx.longitude}`} />
                     </StationInfoItem>
-                    <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.height")}>
+                    <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("common:labels.height")}>
                       <span className="min-w-0 wrap-break-word">{`${radioLine.tx.height} m`}</span>
                     </StationInfoItem>
                     {radioLine.tx.antenna?.type?.name && (
@@ -314,12 +314,12 @@ export function RadioLineDetailsDialogPanel({
                       </StationInfoItem>
                     )}
                     {radioLine.tx.antenna?.height && (
-                      <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.antennaHeight")}>
+                      <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("common:labels.antennaHeight")}>
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.tx.antenna.height} m`}</span>
                       </StationInfoItem>
                     )}
                     {radioLine.tx.eirp && (
-                      <StationInfoItem icon={<HugeiconsIcon icon={FlashIcon} className="size-4" />} label={t("radiolines.eirp")}>
+                      <StationInfoItem icon={<HugeiconsIcon icon={FlashIcon} className="size-4" />} label="EIRP">
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.tx.eirp} dBW`}</span>
                       </StationInfoItem>
                     )}
@@ -345,7 +345,7 @@ export function RadioLineDetailsDialogPanel({
                       </span>
                       <CopyButton text={`${radioLine.rx.latitude}, ${radioLine.rx.longitude}`} />
                     </StationInfoItem>
-                    <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.height")}>
+                    <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("common:labels.height")}>
                       <span className="min-w-0 wrap-break-word">{`${radioLine.rx.height} m`}</span>
                     </StationInfoItem>
                     {radioLine.rx.type?.name && (
@@ -359,7 +359,7 @@ export function RadioLineDetailsDialogPanel({
                       </StationInfoItem>
                     )}
                     {radioLine.rx.height_antenna !== undefined && (
-                      <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("radiolines.antennaHeight")}>
+                      <StationInfoItem icon={<HugeiconsIcon icon={RulerIcon} className="size-4" />} label={t("common:labels.antennaHeight")}>
                         <span className="min-w-0 wrap-break-word font-mono">{`${radioLine.rx.height_antenna} m`}</span>
                       </StationInfoItem>
                     )}

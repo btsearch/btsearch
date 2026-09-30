@@ -196,7 +196,7 @@ function DeletedEntriesPage() {
           },
         }),
         columnHelper.accessor("source_type", {
-          header: t("deletedEntries.columns.sourceType"),
+          header: t("common:labels.source"),
           size: 140,
           cell: ({ getValue }) => <UKESourceBadge source={getValue()} />,
         }),
@@ -322,7 +322,7 @@ function DeletedEntriesPage() {
   return (
     <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
       <header className="shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight">{t("deletedEntries.title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.deletedEntries")}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("deletedEntries.subtitle")}</p>
       </header>
 
@@ -330,7 +330,7 @@ function DeletedEntriesPage() {
         <div className="flex shrink-0 flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <span id="deleted-entries-source-label" className="text-xs font-medium text-muted-foreground">
-              {t("deletedEntries.columns.sourceType")}
+              {t("common:labels.source")}
             </span>
             <ButtonGroup aria-labelledby="deleted-entries-source-label">
               {DELETED_ENTRY_SOURCE_FILTERS.map((value) => (
@@ -349,16 +349,16 @@ function DeletedEntriesPage() {
 
           <div role="group" aria-labelledby="deleted-entries-date-from-label" className="flex flex-col gap-1">
             <span id="deleted-entries-date-from-label" className="text-xs font-medium text-muted-foreground">
-              {t("deletedEntries.filters.dateFrom")}
+              {t("common:labels.dateFrom")}
             </span>
-            <DatePickerButton value={dateFrom} onChange={handleDateFromChange} label={t("deletedEntries.filters.dateFrom")} />
+            <DatePickerButton value={dateFrom} onChange={handleDateFromChange} label={t("common:labels.dateFrom")} />
           </div>
 
           <div role="group" aria-labelledby="deleted-entries-date-to-label" className="flex flex-col gap-1">
             <span id="deleted-entries-date-to-label" className="text-xs font-medium text-muted-foreground">
-              {t("deletedEntries.filters.dateTo")}
+              {t("common:labels.dateTo")}
             </span>
-            <DatePickerButton value={dateTo} onChange={handleDateToChange} label={t("deletedEntries.filters.dateTo")} />
+            <DatePickerButton value={dateTo} onChange={handleDateToChange} label={t("common:labels.dateTo")} />
           </div>
 
           <div className="flex flex-col gap-1">

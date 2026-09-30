@@ -139,7 +139,7 @@ export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying
             value={rat.cells}
             visible={visible}
             locale={i18n.language}
-            description={`${Number(rat.share_pct).toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("stations:stationsCount", { count: rat.stations })}`}
+            description={`${Number(rat.share_pct).toLocaleString(i18n.language, { maximumFractionDigits: 1 })}% · ${t("common:labels.stations", { count: rat.stations })}`}
           />
         ))}
       </div>

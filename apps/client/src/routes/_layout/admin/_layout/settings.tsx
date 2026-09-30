@@ -400,7 +400,7 @@ function AdminSettingsPage() {
 
             <SettingsCard
               icon={<HugeiconsIcon icon={SentIcon} className="size-4" />}
-              title={t("settings.submissions")}
+              title={t("common:labels.submissions")}
               description={t("settings.submissionsDesc")}
             >
               <div className="flex items-center justify-between pt-1">
@@ -419,7 +419,7 @@ function AdminSettingsPage() {
 
             <SettingsCard
               icon={<HugeiconsIcon icon={Image01Icon} className="size-4" />}
-              title={t("settings.photos")}
+              title={t("common:photos.stationPhotos")}
               description={t("settings.photosDesc")}
             >
               <div className="flex items-center justify-between pt-1">
@@ -475,7 +475,7 @@ function AdminSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium">{t("settings.announcementType")}</p>
+                <p className="text-sm font-medium">{t("common:labels.type")}</p>
                 <div className="flex gap-2">
                   {(["info", "warning", "error"] as const).map((type) => (
                     <button
@@ -541,7 +541,7 @@ function AdminSettingsPage() {
             <div className="flex items-center justify-between pt-1">
               <Button size="sm" variant="destructive" onClick={() => cleanupPhotosMutation.mutate()} disabled={cleanupPhotosMutation.isPending}>
                 {cleanupPhotosMutation.isPending && <Spinner className="size-4 mr-2" />}
-                {t("settings.cleanupPhotosRun")}
+                {t("settings.cleanupRun")}
               </Button>
             </div>
           </SettingsCard>
@@ -554,8 +554,8 @@ function AdminSettingsPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/settings")({
   component: AdminSettingsPage,
   staticData: {
-    titleKey: "breadcrumbs.settings",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" }],
+    titleKey: "items.settings",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
   },
 });

@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "Eksport CLF",
     "description": "Eksportuj dane komórek do formatu CLF (Cell List File). Pliki te można wykorzystać w aplikacjach do monitorowania sieci komórkowych, aby zidentyfikować stacje bazowe obsługujące telefon"
   },
   "workflow": {
@@ -14,7 +13,6 @@
     }
   },
   "info": {
-    "appsTitle": "Popularne aplikacje monitorujące korzystające z plików CLF:",
     "iosNote": "Dla iOS/iPadOS/watchOS nie ma takiej aplikacji, ponieważ Apple nie pozwala na monitorowanie takich rzeczy z poziomu aplikacji"
   },
   "form": {
@@ -31,8 +29,7 @@
     "export": "Eksportuj",
     "exporting": "Eksportowanie...",
     "copyApiUrl": "Kopiuj adres API",
-    "elapsed": "Eksport trwa {{duration}}",
-    "completed": "Gotowe w {{duration}}"
+    "elapsed": "Eksport trwa {{duration}}"
   },
   "dataSources": {
     "operators": "operatorów",
@@ -48,8 +45,6 @@
     "defaultSummary": "Używane są domyślne szablony",
     "editedSummary": "Własne szablony: {{count}}",
     "autoSave": "Autozapis",
-    "saving": "Zapisywanie...",
-    "saved": "Zapisano",
     "insertPlaceholder": "Wstaw zmienną",
     "preview": "Podgląd",
     "toggleHint": "Kliknij, by zasymulować brak wartości",
@@ -63,11 +58,11 @@
       "location": "Lokalizacja",
       "city": "Miasto",
       "address": "Adres",
-      "cell_type": "Typ komórki",
+      "cell_type": "Rodzaj komórki",
       "uplink": "Typ uplinku",
       "notes": "Notatki",
       "region": "Region",
-      "station_id": "ID Stacji",
+      "station_id": "ID stacji",
       "gsm_band": "Pasmo GSM",
       "gsm_lac": "GSM LAC",
       "gsm_cid": "GSM CID",

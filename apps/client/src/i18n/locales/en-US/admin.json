@@ -1,26 +1,11 @@
 {
   "breadcrumbs": {
-    "admin": "Admin",
-    "dashboard": "Dashboard",
-    "stations": "Stations",
-    "editStation": "Edit Station",
-    "submissions": "Submissions",
-    "users": "Users",
-    "userDetail": "User Detail",
-    "locations": "Locations",
-    "editLocation": "Edit Location",
-    "settings": "Settings",
-    "ukeImport": "UKE Import",
-    "lists": "Lists",
-    "comments": "Comments"
+    "editStation": "Edit station",
+    "userDetail": "User detail",
+    "editLocation": "Edit location"
   },
   "dashboard": {
-    "stats": {
-      "cells": "Cells",
-      "ukePermits": "UKE Permits"
-    },
     "thisWeek": "this week",
-    "editorNotes": "Notes",
     "toReview_one": "submission to review",
     "toReview_other": "submissions to review",
     "toModerate_one": "comment to moderate",
@@ -28,22 +13,19 @@
     "queueClear": "Queue is clear",
     "allSubmissions": "All submissions",
     "allComments": "All comments",
-    "cells_one": "{{count}} cell",
-    "cells_other": "{{count}} cells",
     "databaseStats": "Database statistics",
     "dataFreshness": "Data freshness",
     "freshnessFresh": "Up to date",
     "freshnessStale": "Needs update",
-    "unknownAuthor": "Unknown",
     "noCommentsToModerate": "No comments to moderate",
     "openImportPage": "Open import page",
     "importSteps": {
       "permits": "Permits",
       "radiolines": "Microwave links",
-      "device_registry": "Device Registry",
+      "device_registry": "Device registry",
       "prune_deleted_entries": "Prune deleted",
       "prune_associations": "Prune associations",
-      "cleanup_orphaned_uke_locations": "Cleanup orphaned",
+      "cleanup_orphaned_uke_entities": "Cleanup orphaned",
       "associate": "Associate",
       "cleanup": "Cleanup",
       "snapshot": "Snapshot",
@@ -52,34 +34,27 @@
   },
   "comments": {
     "table": {
-      "author": "Author",
-      "station": "Station",
       "content": "Content",
       "attachments": "Attachments",
-      "empty": "No comments found",
       "emptyHint": "There are no comments yet"
     },
     "filters": {
-      "labelStatus": "Status",
-      "allStatuses": "All statuses",
       "pending": "Pending",
       "approved": "Approved"
     },
     "approveSuccess": "Comment approved",
     "approveError": "Failed to approve comment",
-    "deleteTitle": "Delete Comment",
+    "deleteTitle": "Delete comment",
     "deleteDesc": "Are you sure you want to delete this comment? This will also remove all attachments. This action cannot be undone",
     "deleteSuccess": "Comment deleted",
     "deleteError": "Failed to delete comment",
-    "editTitle": "Edit Comment",
+    "editTitle": "Edit comment",
     "editSuccess": "Comment updated",
-    "editError": "Failed to update comment",
-    "noAttachments": "No attachments"
+    "editError": "Failed to update comment"
   },
   "settings": {
-    "title": "System Settings",
+    "title": "System settings",
     "subtitle": "Manage system configuration",
-    "loading": "Loading settings...",
     "errorTitle": "Failed to load settings",
     "errorDescription": "There was a problem loading system settings",
     "authentication": "Authentication",
@@ -90,7 +65,7 @@
     "allowedRoutesDesc": "API endpoints that bypass authentication (press Enter to add)",
     "disabledRoutes": "Disabled API endpoints",
     "disabledRoutesDesc": "API endpoints that are completely disabled (press Enter to add)",
-    "comments": "Station Comments",
+    "comments": "Station comments",
     "commentsDesc": "Allow users to comment on stations",
     "enableComments": "Enable comments",
     "commentsEnabled": "Users can comment on stations",
@@ -98,99 +73,75 @@
     "commentQueue": "Comment queue",
     "commentQueueEnabled": "Comments require approval before being visible",
     "commentQueueDisabled": "Comments are published immediately",
-    "submissions": "Submissions",
     "submissionsDesc": "Allow users to submit new stations",
     "enableSubmissions": "Enable submissions",
     "submissionsEnabled": "Users can submit stations",
     "submissionsDisabled": "Submissions are disabled",
-    "photos": "Station Photos",
     "photosDesc": "Allow users to upload photos with their submissions",
     "enablePhotos": "Enable photos",
     "photosEnabled": "Users can upload station photos",
     "photosDisabled": "Photo uploads are disabled",
-    "cleanupTitle": "Submission Data Cleanup",
+    "cleanupTitle": "Submission data cleanup",
     "cleanupDesc": "Remove proposed data (cells, stations, locations) from submissions older than 1 month. The submission records themselves are kept",
     "cleanupRun": "Run cleanup",
     "cleanupSuccess": "Cleaned up proposed data from {{count}} submission(s)",
     "cleanupError": "Failed to run cleanup",
-    "cleanupPhotosTitle": "Rejected Submission Photo Cleanup",
+    "cleanupPhotosTitle": "Rejected submission photo cleanup",
     "cleanupPhotosDesc": "Delete attachment files and records for photos uploaded to rejected submissions that were never assigned to a station",
-    "cleanupPhotosRun": "Run cleanup",
     "cleanupPhotosSuccess": "Deleted {{count}} orphaned photo(s) from rejected submissions",
     "cleanupPhotosError": "Failed to run photo cleanup",
     "announcement": "Announcement",
     "announcementDesc": "Display a banner announcement to all users",
     "announcementMessage": "Message",
     "announcementMessagePlaceholder": "Enter announcement message...",
-    "announcementType": "Type",
     "announcementTypeInfo": "Info",
     "announcementTypeWarning": "Warning",
     "announcementTypeError": "Error",
     "enableAnnouncement": "Enable announcement",
     "announcementEnabled": "Announcement is visible to all users",
     "announcementDisabled": "Announcement is hidden",
-    "userLists": "User Lists",
+    "userLists": "User lists",
     "userListsDesc": "Allow users to create and share station lists",
     "enableUserLists": "Enable user lists",
     "userListsEnabled": "Users can create and share lists",
     "userListsDisabled": "User lists are disabled"
   },
   "users": {
-    "notFoundTitle": "User not found",
-    "notFoundDescription": "This account doesn't exist or has been deleted",
     "picker": {
       "searchPlaceholder": "Search users...",
       "noUsers": "No users found",
       "noMatch": "No users match \"{{search}}\"",
       "error": "Failed to load users",
-      "showing": "Showing {{shown}} of {{total}}",
-      "selected_one": "{{count}} user",
-      "selected_other": "{{count}} users",
+      "selected_one": "{{count, number}} user",
+      "selected_other": "{{count, number}} users",
       "allUsers": "All users"
     },
     "table": {
-      "name": "Name",
-      "email": "Email",
-      "role": "Role",
-      "status": "Status",
-      "created": "Created"
+      "role": "Role"
     },
     "filters": {
-      "labelRole": "Role",
-      "labelStatus": "Status",
       "allRoles": "All roles",
       "roleUser": "User",
-      "roleEditor": "Editor",
-      "roleAdmin": "Admin",
-      "allStatuses": "All statuses",
       "active": "Active",
       "banned": "Banned"
     }
   },
   "lists": {
     "table": {
-      "name": "Name",
-      "createdBy": "Created By",
+      "createdBy": "Created by",
       "visibility": "Visibility",
-      "public": "Public",
-      "private": "Private",
-      "stations": "Stations",
-      "radiolines": "Microwave links",
-      "created": "Created",
       "empty": "No lists found",
       "emptyHint": "No lists matching your search"
     },
-    "confirmDeleteTitle": "Delete List",
+    "confirmDeleteTitle": "Delete list",
     "confirmDeleteDesc": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone",
     "deleteSuccess": "List deleted successfully",
     "deleteError": "Failed to delete list"
   },
   "locations": {
-    "title": "Locations",
     "searchPlaceholder": "Search by city or address..."
   },
   "ukeImport": {
-    "title": "UKE Import",
     "subtitle": "Import data from UKE (Urząd Komunikacji Elektronicznej)",
     "hourlySchedule": "Automatic imports run every hour",
     "sources": {
@@ -199,7 +150,7 @@
       "importRadiolines": "Microwave links",
       "importDeviceRegistry": "Device registry"
     },
-    "startImport": "Start Import",
+    "startImport": "Start import",
     "startFailed": "Could not start the import. Try again",
     "alreadyRunning": "Import is already in progress",
     "status": {
@@ -262,9 +213,7 @@
       "actor": "Actor",
       "kind": "Operation",
       "target": "Target",
-      "changes": "Changes",
-      "entity": "Table",
-      "source": "Source"
+      "entity": "Table"
     },
     "actor": {
       "system": "System",
@@ -276,14 +225,7 @@
       "allKinds": "All operations",
       "kindsCount_one": "{{count, number}} operation",
       "kindsCount_other": "{{count, number}} operations",
-      "dateFrom": "From",
-      "dateRange": "Date range",
-      "dateTo": "To",
       "recordId": "Record ID"
-    },
-    "target": {
-      "stations_one": "{{count, number}} station",
-      "stations_other": "{{count, number}} stations"
     },
     "empty": {
       "title": "No logs found",
@@ -291,17 +233,11 @@
     },
     "detail": {
       "title": "Operation details",
-      "overview": "Overview",
-      "changes": "Changes",
-      "field": "Field",
       "oldValues": "Old value",
       "newValues": "New value",
-      "noChanges": "No changes recorded",
       "metadata": "Metadata",
       "ipAddress": "IP address",
       "userAgent": "User agent",
-      "links": "Links",
-      "station": "Station",
       "submission": "Submission",
       "performedBy": "Performed by",
       "reverts": "Reverts operation #{{id}}",
@@ -450,7 +386,6 @@
     },
     "revert": {
       "action": "Revert operation",
-      "entryAction": "Revert this change",
       "title": "Revert operation #{{id}}?",
       "entryTitle": "Revert this change from operation #{{id}}?",
       "description": "The changes will be undone in a new operation and values restored to their previous state",

@@ -149,7 +149,7 @@ export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...p
     },
     {
       id: "links",
-      header: () => <span className="sr-only">{t("table.links")}</span>,
+      header: () => <span className="sr-only">{t("common:labels.links")}</span>,
       size: 200,
       cell: ({ row }) => (
         <PEMLinksCell row={row.original} t={t} tCommon={tCommon} onOpenStation={onOpenStation}>

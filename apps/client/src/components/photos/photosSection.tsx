@@ -279,7 +279,7 @@ export function PhotosSection({
                             className="flex items-center justify-center py-2 text-xs text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors disabled:opacity-50"
                             onClick={() => setMainMutation.mutate(photo.id)}
                             disabled={setMainMutation.isPending}
-                            title={t("photos.setAsMain")}
+                            title={t("common:photos.setAsMain")}
                           >
                             <HugeiconsIcon icon={StarIcon} className="size-3.5" />
                           </button>
@@ -304,7 +304,7 @@ export function PhotosSection({
                           }
                           isSaving={editMutation.isPending}
                         />
-                        <PhotoDeleteButton onClick={() => setDeletePhotoId(photo.id)} label={t("photos.remove")} />
+                        <PhotoDeleteButton onClick={() => setDeletePhotoId(photo.id)} label={t("common:actions.remove")} />
                       </div>
                     ) : null}
                   </div>
@@ -337,7 +337,7 @@ export function PhotosSection({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? <Spinner /> : t("photos.remove")}
+              {deleteMutation.isPending ? <Spinner /> : t("common:actions.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

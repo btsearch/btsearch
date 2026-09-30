@@ -58,7 +58,7 @@ export function NavUser({ data: session }: { data: ReturnType<typeof authClient.
               }}
             >
               <HugeiconsIcon icon={Logout02Icon} className="size-4" />
-              {t("user.logout")}
+              {t("common:actions.signOut")}
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

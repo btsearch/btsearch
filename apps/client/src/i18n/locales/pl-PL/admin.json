@@ -1,26 +1,11 @@
 {
   "breadcrumbs": {
-    "admin": "Admin",
-    "dashboard": "Dashboard",
-    "stations": "Stacje",
     "editStation": "Edytuj stację",
-    "submissions": "Zgłoszenia",
-    "users": "Użytkownicy",
     "userDetail": "Szczegóły użytkownika",
-    "locations": "Lokalizacje",
-    "editLocation": "Edytuj lokalizację",
-    "settings": "Ustawienia",
-    "ukeImport": "Import UKE",
-    "lists": "Listy",
-    "comments": "Komentarze"
+    "editLocation": "Edytuj lokalizację"
   },
   "dashboard": {
-    "stats": {
-      "cells": "Komórki",
-      "ukePermits": "Pozwolenia UKE"
-    },
     "thisWeek": "w tym tygodniu",
-    "editorNotes": "Notatki",
     "toReview_one": "zgłoszenie do przejrzenia",
     "toReview_few": "zgłoszenia do przejrzenia",
     "toReview_many": "zgłoszeń do przejrzenia",
@@ -32,14 +17,10 @@
     "queueClear": "Kolejka jest pusta",
     "allSubmissions": "Wszystkie zgłoszenia",
     "allComments": "Wszystkie komentarze",
-    "cells_one": "{{count}} komórka",
-    "cells_few": "{{count}} komórki",
-    "cells_many": "{{count}} komórek",
     "databaseStats": "Statystyki bazy danych",
     "dataFreshness": "Aktualność danych",
     "freshnessFresh": "Aktualne",
     "freshnessStale": "Wymaga aktualizacji",
-    "unknownAuthor": "Nieznany",
     "noCommentsToModerate": "Brak komentarzy do moderacji",
     "openImportPage": "Otwórz stronę importu",
     "importSteps": {
@@ -48,7 +29,7 @@
       "device_registry": "Rejestr urządzeń",
       "prune_deleted_entries": "Czyszczenie usuniętych",
       "prune_associations": "Czyszczenie powiązań",
-      "cleanup_orphaned_uke_locations": "Czyszczenie osieroconych",
+      "cleanup_orphaned_uke_entities": "Czyszczenie osieroconych",
       "associate": "Powiązanie",
       "cleanup": "Czyszczenie",
       "snapshot": "Snapshot",
@@ -57,16 +38,11 @@
   },
   "comments": {
     "table": {
-      "author": "Autor",
-      "station": "Stacja",
       "content": "Treść",
       "attachments": "Załączniki",
-      "empty": "Brak komentarzy",
       "emptyHint": "Nie ma jeszcze żadnych komentarzy"
     },
     "filters": {
-      "labelStatus": "Status",
-      "allStatuses": "Wszystkie statusy",
       "pending": "Oczekujące",
       "approved": "Zatwierdzone"
     },
@@ -78,13 +54,11 @@
     "deleteError": "Nie udało się usunąć komentarza",
     "editTitle": "Edytuj komentarz",
     "editSuccess": "Komentarz zaktualizowany",
-    "editError": "Nie udało się zaktualizować komentarza",
-    "noAttachments": "Brak załączników"
+    "editError": "Nie udało się zaktualizować komentarza"
   },
   "settings": {
     "title": "Ustawienia systemowe",
     "subtitle": "Zarządzaj konfiguracją systemu",
-    "loading": "Ładowanie ustawień...",
     "errorTitle": "Nie udało się załadować ustawień",
     "errorDescription": "Wystąpił problem podczas ładowania ustawień systemowych",
     "authentication": "Uwierzytelnianie",
@@ -103,12 +77,10 @@
     "commentQueue": "Kolejka komentarzy",
     "commentQueueEnabled": "Komentarze wymagają zatwierdzenia przed wyświetleniem",
     "commentQueueDisabled": "Komentarze są publikowane natychmiast",
-    "submissions": "Zgłoszenia",
     "submissionsDesc": "Pozwól użytkownikom zgłaszać nowe stacje",
     "enableSubmissions": "Włącz zgłoszenia",
     "submissionsEnabled": "Użytkownicy mogą zgłaszać stacje",
     "submissionsDisabled": "Zgłoszenia są wyłączone",
-    "photos": "Zdjęcia stacji",
     "photosDesc": "Pozwól użytkownikom przesyłać zdjęcia wraz ze zgłoszeniami",
     "enablePhotos": "Włącz zdjęcia",
     "photosEnabled": "Użytkownicy mogą przesyłać zdjęcia stacji",
@@ -120,14 +92,12 @@
     "cleanupError": "Nie udało się uruchomić czyszczenia",
     "cleanupPhotosTitle": "Czyszczenie zdjęć odrzuconych zgłoszeń",
     "cleanupPhotosDesc": "Usuwa pliki i rekordy zdjęć przesłanych do odrzuconych zgłoszeń, które nie zostały przypisane do żadnej stacji",
-    "cleanupPhotosRun": "Uruchom czyszczenie",
     "cleanupPhotosSuccess": "Usunięto {{count}} osierocone(ych) zdjęcie(ć) z odrzuconych zgłoszeń",
     "cleanupPhotosError": "Nie udało się uruchomić czyszczenia zdjęć",
     "announcement": "Ogłoszenie",
     "announcementDesc": "Wyświetl baner z ogłoszeniem dla wszystkich użytkowników",
     "announcementMessage": "Wiadomość",
     "announcementMessagePlaceholder": "Wpisz treść ogłoszenia...",
-    "announcementType": "Typ",
     "announcementTypeInfo": "Informacja",
     "announcementTypeWarning": "Ostrzeżenie",
     "announcementTypeError": "Błąd",
@@ -141,49 +111,31 @@
     "userListsDisabled": "Listy użytkowników są wyłączone"
   },
   "users": {
-    "notFoundTitle": "Nie znaleziono użytkownika",
-    "notFoundDescription": "To konto nie istnieje lub zostało usunięte",
     "picker": {
       "searchPlaceholder": "Szukaj użytkowników...",
       "noUsers": "Nie znaleziono użytkowników",
       "noMatch": "Brak użytkowników pasujących do \"{{search}}\"",
       "error": "Nie udało się załadować użytkowników",
-      "showing": "Wyświetlanie {{shown}} z {{total}}",
-      "selected_one": "{{count}} użytkownik",
-      "selected_few": "{{count}} użytkownicy",
-      "selected_many": "{{count}} użytkowników",
-      "selected_other": "{{count}} użytkowników",
+      "selected_one": "{{count, number}} użytkownik",
+      "selected_few": "{{count, number}} użytkownicy",
+      "selected_many": "{{count, number}} użytkowników",
+      "selected_other": "{{count, number}} użytkowników",
       "allUsers": "Wszyscy użytkownicy"
     },
     "table": {
-      "name": "Nazwa",
-      "email": "Email",
-      "role": "Rola",
-      "status": "Status",
-      "created": "Utworzono"
+      "role": "Rola"
     },
     "filters": {
-      "labelRole": "Rola",
-      "labelStatus": "Status",
       "allRoles": "Wszystkie role",
       "roleUser": "Użytkownik",
-      "roleEditor": "Edytor",
-      "roleAdmin": "Admin",
-      "allStatuses": "Wszystkie statusy",
       "active": "Aktywny",
       "banned": "Zbanowany"
     }
   },
   "lists": {
     "table": {
-      "name": "Nazwa",
       "createdBy": "Utworzono przez",
       "visibility": "Widoczność",
-      "public": "Publiczna",
-      "private": "Prywatna",
-      "stations": "Stacje",
-      "radiolines": "Radiolinie",
-      "created": "Utworzono",
       "empty": "Nie znaleziono list",
       "emptyHint": "Brak list pasujących do wyszukiwania"
     },
@@ -193,11 +145,9 @@
     "deleteError": "Nie udało się usunąć listy"
   },
   "locations": {
-    "title": "Lokalizacje",
     "searchPlaceholder": "Szukaj po mieście lub adresie..."
   },
   "ukeImport": {
-    "title": "Import UKE",
     "subtitle": "Importuj dane z UKE (Urząd Komunikacji Elektronicznej)",
     "hourlySchedule": "Automatyczny import odbywa się co godzinę",
     "sources": {
@@ -269,9 +219,7 @@
       "actor": "Użytkownik",
       "kind": "Operacja",
       "target": "Cel",
-      "changes": "Zmiany",
-      "entity": "Tabela",
-      "source": "Źródło"
+      "entity": "Tabela"
     },
     "actor": {
       "system": "System",
@@ -285,16 +233,7 @@
       "kindsCount_few": "{{count, number}} operacje",
       "kindsCount_many": "{{count, number}} operacji",
       "kindsCount_other": "{{count, number}} operacji",
-      "dateFrom": "Od",
-      "dateRange": "Zakres dat",
-      "dateTo": "Do",
       "recordId": "ID rekordu"
-    },
-    "target": {
-      "stations_one": "{{count, number}} stacja",
-      "stations_few": "{{count, number}} stacje",
-      "stations_many": "{{count, number}} stacji",
-      "stations_other": "{{count, number}} stacji"
     },
     "empty": {
       "title": "Nie znaleziono logów",
@@ -302,17 +241,11 @@
     },
     "detail": {
       "title": "Szczegóły operacji",
-      "overview": "Informacje",
-      "changes": "Zmiany",
-      "field": "Pole",
       "oldValues": "Stara wartość",
       "newValues": "Nowa wartość",
-      "noChanges": "Brak zapisanych zmian",
       "metadata": "Metadane",
       "ipAddress": "Adres IP",
       "userAgent": "Przeglądarka",
-      "links": "Linki",
-      "station": "Stacja",
       "submission": "Zgłoszenie",
       "performedBy": "Wykonane przez",
       "reverts": "Cofa operację #{{id}}",
@@ -493,7 +426,6 @@
     },
     "revert": {
       "action": "Cofnij operację",
-      "entryAction": "Cofnij tę zmianę",
       "title": "Cofnąć operację #{{id}}?",
       "entryTitle": "Cofnąć tę zmianę z operacji #{{id}}?",
       "description": "Zmiany zostaną wycofane w nowej operacji, a wartości przywrócone do stanu sprzed zmiany",

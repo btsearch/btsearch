@@ -501,7 +501,7 @@ export function MySubmissions() {
     <>
       <div
         role="list"
-        aria-label={t("userPage.title")}
+        aria-label={t("nav:items.mySubmissions")}
         aria-busy={isRefetching || isFetchingNextPage}
         style={{
           height: virtualizer.getTotalSize(),

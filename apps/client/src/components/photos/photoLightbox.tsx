@@ -65,19 +65,19 @@ function PhotoCaption({ photo }: { photo: LightboxPhoto }) {
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/60 md:justify-center">
         <span className="flex items-center gap-1.5 font-medium text-white/80">
           <AuthorAvatar author={photo.author} />
-          {username ? `@${username}` : t("photos.unknownUser")}
+          {username ? `@${username}` : t("common:labels.unknown")}
         </span>
         <span aria-hidden="true">·</span>
         {photo.taken_at ? (
           <span className="flex items-center gap-1 tabular-nums">
             <HugeiconsIcon icon={Camera01Icon} className="size-3.5" aria-hidden="true" />
-            <span className="sr-only">{t("photos.takenAt")}: </span>
+            <span className="sr-only">{t("common:photos.taken")}: </span>
             <time dateTime={photo.taken_at}>{formatMonthYear(photo.taken_at, i18n.language, "short")}</time>
           </span>
         ) : (
           <span className="flex items-center gap-1 tabular-nums">
             <HugeiconsIcon icon={Upload04Icon} className="size-3.5" aria-hidden="true" />
-            <span className="sr-only">{t("photos.uploadedAt")}: </span>
+            <span className="sr-only">{t("common:photos.uploaded")}: </span>
             <time dateTime={photo.createdAt}>{formatShortDate(photo.createdAt, i18n.language)}</time>
           </span>
         )}
@@ -106,7 +106,7 @@ function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
   return (
     <>
       {note ? <p className="text-[15px] leading-snug text-white">{note}</p> : null}
-      <LightboxDetailRow label={t("photos.author")}>
+      <LightboxDetailRow label={t("common:labels.author")}>
         {username ? (
           <span className="flex items-center gap-2">
             <AuthorAvatar author={photo.author} large />
@@ -116,14 +116,14 @@ function PhotoDetails({ photo }: { photo: LightboxPhoto }) {
             </span>
           </span>
         ) : (
-          t("photos.unknownUser")
+          t("common:labels.unknown")
         )}
       </LightboxDetailRow>
-      <LightboxDetailRow label={t("photos.uploadedAt")}>
+      <LightboxDetailRow label={t("common:photos.uploaded")}>
         <time dateTime={photo.createdAt}>{formatFullDate(photo.createdAt, i18n.language)}</time>
       </LightboxDetailRow>
       {photo.taken_at ? (
-        <LightboxDetailRow label={t("photos.takenAt")}>
+        <LightboxDetailRow label={t("common:photos.taken")}>
           <time dateTime={photo.taken_at}>{formatMonthYear(photo.taken_at, i18n.language, "long")}</time>
         </LightboxDetailRow>
       ) : null}

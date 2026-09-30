@@ -1,9 +1,7 @@
 {
-  "title": "Statistics",
   "description": "Permit statistics, database coverage, contributions, and historical trends across operators and bands. Data is updated every 24 hours",
   "refresh": {
     "summary": "Summary",
-    "ukePermits": "UKE permits",
     "lastUpdated": "Last updated:",
     "next": "Next refresh in {{duration}}"
   },
@@ -18,24 +16,20 @@
     "bar": "Bar"
   },
   "kpi": {
-    "totalPermits": "Total Permits",
-    "totalStations": "Unique Stations",
-    "totalInternalStations": "Total Stations",
-    "totalCells": "Total Cells"
+    "totalPermits": "Total permits",
+    "totalStations": "Unique stations",
+    "totalInternalStations": "Total stations",
+    "totalCells": "Total cells"
   },
   "charts": {
-    "byRat": "Distribution by Technology",
-    "byOperator": "Distribution by Operator",
-    "byBand": "Unique Stations per Band",
-    "internalByRat": "Cells by Technology",
-    "internalByOperator": "Cells by Operator",
-    "internalByBand": "Cells per Band",
-    "internalStationsByBand": "Stations per Band",
-    "internalStationsPerOperator": "Stations per Operator",
-    "byVoivodeship": "Unique Stations per Voivodeship",
-    "internalByVoivodeship": "Stations per Voivodeship",
-    "history": "Historical Trends",
-    "noData": "No data available",
+    "byRat": "Distribution by technology",
+    "byOperator": "Distribution by operator",
+    "byBand": "Unique stations per band",
+    "internalStationsByBand": "Stations per band",
+    "internalStationsPerOperator": "Stations per operator",
+    "byVoivodeship": "Unique stations per voivodeship",
+    "internalByVoivodeship": "Stations per voivodeship",
+    "history": "Historical trends",
     "noHistoryData": "No historical data yet. Trends will appear once data has been collected"
   },
   "completeness": {
@@ -43,7 +37,6 @@
     "stationDescription": "Published stations with azimuth and external identifier data",
     "pciTitle": "PCI documentation coverage",
     "pciDescription": "LTE and NR cells split by documented and missing PCI",
-    "stations": "Stations",
     "withSectors": "With azimuths",
     "withoutSectors": "Without azimuths",
     "withExtraIds": "With extra IDs",
@@ -69,8 +62,6 @@
       "stations": "Stations",
       "permits": "Permits"
     },
-    "all": "All",
-    "new": "New",
     "noPreviousSnapshot": "no previous data",
     "export": {
       "button": "Download PNG",
@@ -80,12 +71,10 @@
     }
   },
   "filters": {
-    "allBands": "All Bands",
     "granularity": "Period",
     "monthly": "Monthly",
     "daily": "Daily",
-    "view": "View",
-    "byBand": "By Band",
-    "byOperator": "By Operator"
+    "byBand": "By band",
+    "byOperator": "By operator"
   }
 }

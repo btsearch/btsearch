@@ -235,7 +235,7 @@ function AddToListPopoverInner({
         disabled={isBusy}
         count={isStationTarget ? list.stationCount : list.radiolineCount}
         countLabel={
-          isStationTarget ? t("lists:stationCount", { count: list.stationCount }) : t("lists:radiolineCount", { count: list.radiolineCount })
+          isStationTarget ? t("common:labels.stations", { count: list.stationCount }) : t("lists:radiolineCount", { count: list.radiolineCount })
         }
         onToggle={() => handleToggle(list)}
       />

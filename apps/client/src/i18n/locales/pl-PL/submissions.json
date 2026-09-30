@@ -1,6 +1,5 @@
 {
   "userPage": {
-    "title": "Moje zgłoszenia",
     "description": "Stacje i komórki, które zgłosiłeś do weryfikacji"
   },
   "detail": {
@@ -22,7 +21,6 @@
     "notFoundDescription": "To zgłoszenie nie istnieje lub zostało usunięte"
   },
   "locationPicker": {
-    "title": "Lokalizacja",
     "fetchAddress": "Uzupełnij adres automatycznie",
     "regionPlaceholder": "Wybierz województwo",
     "cityPlaceholder": "Wpisz miasto...",
@@ -30,8 +28,7 @@
     "nearbyLocations": "Pobliskie stacje",
     "createNewLocation": "Utwórz tutaj nową lokalizację",
     "showUkeLocations": "Pokaż lokalizacje UKE",
-    "selectStation": "Wybierz stację do importu",
-    "editLocation": "Edytuj"
+    "selectStation": "Wybierz stację do importu"
   },
   "header": {
     "reject": "Odrzuć zgłoszenie",
@@ -52,16 +49,12 @@
     "stationIdHint": "Unikalny identyfikator stacji, np. E12345"
   },
   "submissionSelector": {
-    "title": "Wybierz stację",
     "new": "Nowa",
     "existing": "Istniejąca",
-    "existingStation": "Istniejąca stacja",
     "newStationHint": "Zacznij od zaznaczenia lokalizacji stacji na mapie poniżej"
   },
   "actionSelector": {
-    "title": "Typ zgłoszenia",
-    "update": "Aktualizacja",
-    "delete": "Usunięcie"
+    "title": "Typ zgłoszenia"
   },
   "ratSelector": {
     "title": "Technologie radiowe",
@@ -70,15 +63,11 @@
     "iotHint": "Komórki IoT można oznaczyć w tabelach LTE i NR odpowiednio jako IoT (NB-IoT/LTE-M) i RedCap"
   },
   "deleteStation": {
-    "title": "Usunięcie stacji",
     "warning": "Ta stacja zostanie oznaczona do usunięcia i zweryfikowana przez moderatora",
-    "reason": "Powód usunięcia",
     "reasonPlaceholder": "Dlaczego ta stacja powinna zostać usunięta?"
   },
   "validation": {
-    "selectStation": "Wybierz stację",
     "pendingStationPhotoRequired": "Dodaj co najmniej jedno zdjęcie, aby zgłosić nową stację bez komórek",
-    "stationIdRequired": "ID stacji jest wymagane",
     "stationIdTooShort": "ID stacji musi mieć co najmniej 2 znaki",
     "operatorRequired": "Wybierz operatora",
     "latitudeRequired": "Szerokość geograficzna jest wymagana",
@@ -86,7 +75,6 @@
     "longitudeRequired": "Długość geograficzna jest wymagana",
     "longitudeInvalid": "Długość musi być między -180 a 180",
     "regionRequired": "Wybierz województwo",
-    "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
     "bandRequired": "Pasmo jest wymagane",
     "lacRequired": "LAC jest wymagany",
     "rncRequired": "RNC jest wymagany",
@@ -114,7 +102,6 @@
     "cells": "Ilość komórek",
     "cellCountsLabel": "Komórki - dodane: {{added}}, zaktualizowane: {{updated}}, usunięte: {{deleted}}",
     "cellCountsLegend": "Dodane / zaktualizowane / usunięte komórki",
-    "changes": "Zmiany",
     "review": "Rozpatrzenie",
     "statusQueue": "Status zgłoszeń",
     "sortAscending": "rosnąco",
@@ -125,16 +112,8 @@
     "emptyHint": "Brak zgłoszeń pasujących do wybranych filtrów",
     "emptyHintUser": "Nie złożyłeś jeszcze żadnych zgłoszeń. Zacznij od utworzenia nowego zgłoszenia"
   },
-  "stationComments": {
-    "title": "Komentarze",
-    "noComments": "Brak komentarzy do tej stacji",
-    "deleteConfirm": "Czy na pewno chcesz usunąć ten komentarz?",
-    "deleted": "Komentarz usunięty",
-    "deleteFailed": "Nie udało się usunąć komentarza"
-  },
   "diff": {
-    "was": "Było",
-    "locationChanged": "Lokalizacja została zmieniona"
+    "was": "Było"
   },
   "toast": {
     "submitted": "Zgłoszenie wysłane",
@@ -153,11 +132,8 @@
     "add": "Dodaj zdjęcie",
     "empty": "Nie dodano jeszcze żadnych zdjęć",
     "uploadFirst": "Dodaj pierwsze zdjęcie",
-    "remove": "Usuń",
-    "setAsMain": "Ustaw jako główne",
     "removeFromStation": "Usuń ze stacji",
     "cancelRemoval": "Anuluj usunięcie",
-    "currentMain": "Aktualne główne zdjęcie",
     "hint": "Do {{max}} zdjęć, maks. {{size}} każde",
     "sending": "Wysyłanie zdjęcia {{current}} / {{total}}",
     "uploaded": "Zdjęcia przesłane",
@@ -170,8 +146,6 @@
     "confirmDeleteDesc": "Ta akcja jest nieodwracalna. Zdjęcie zostanie trwale usunięte",
     "deleteFailed": "Nie udało się usunąć zdjęcia",
     "setMainFailed": "Nie udało się zaktualizować głównego zdjęcia",
-    "addNote": "Dodaj notatkę...",
-    "addTakenAt": "Ustaw datę wykonania...",
     "note": "Notatka",
     "takenAt": "Data wykonania",
     "notePlaceholder": "Dodaj notatkę...",
@@ -186,10 +160,10 @@
     "uploadedPhotos": "Nowe zdjęcia do tego zgłoszenia",
     "selectedLocationPhotos": "Wybrane zdjęcia przez zgłaszającego",
     "removalSelections": "Zdjęcia do usunięcia",
-    "pendingCount_one": "{{count}} zdjęcie może być jeszcze przesyłane",
-    "pendingCount_few": "{{count}} zdjęcia mogą być jeszcze przesyłane",
-    "pendingCount_many": "{{count}} zdjęć może być jeszcze przesyłanych",
-    "pendingCount_other": "{{count}} zdjęć może być jeszcze przesyłanych",
+    "pendingCount_one": "{{count, number}} zdjęcie może być jeszcze przesyłane",
+    "pendingCount_few": "{{count, number}} zdjęcia mogą być jeszcze przesyłane",
+    "pendingCount_many": "{{count, number}} zdjęć może być jeszcze przesyłanych",
+    "pendingCount_other": "{{count, number}} zdjęć może być jeszcze przesyłanych",
     "pendingHint": "Pojawią się tu za kilka sekund lub minut"
   },
   "mySubmissions": {
@@ -216,14 +190,10 @@
     "loadError": "Nie udało się wczytać przesłanych zmian"
   },
   "batch": {
-    "stationCount_one": "{{count}} stacja",
-    "stationCount_few": "{{count}} stacje",
-    "stationCount_many": "{{count}} stacji",
-    "stationCount_other": "{{count}} stacji",
-    "cellCount_one": "{{count}} zmiana komórki",
-    "cellCount_few": "{{count}} zmiany komórek",
-    "cellCount_many": "{{count}} zmian komórek",
-    "cellCount_other": "{{count}} zmian komórek",
+    "cellCount_one": "{{count, number}} zmiana komórki",
+    "cellCount_few": "{{count, number}} zmiany komórek",
+    "cellCount_many": "{{count, number}} zmian komórek",
+    "cellCount_other": "{{count, number}} zmian komórek",
     "includedCellCount": "Uwzględniono {{included}} z {{total}} zmian komórek",
     "fromAnalyzerTitle": "Zgłoszenie z analizatora",
     "fromAnalyzerDescription": "Sprawdź wykryte zmiany stacji i komórek, rozwiąż problemy, a następnie prześlij je do weryfikacji",
@@ -241,7 +211,6 @@
     "submit": "Wyślij paczkę zgłoszeń",
     "submitSuccess": "Paczka zgłoszeń została wysłana do weryfikacji",
     "addOperation": "Dodanie",
-    "updateOperation": "Aktualizacja",
     "currentValue": "Obecna wartość:",
     "newValue": "Nowa wartość:",
     "includeField": "Uwzględnij pole {{field}} ({{rat}}) z wiersza analizatora {{row}}",
@@ -252,13 +221,10 @@
     "requiredField": "Wymagane",
     "requiredForNewCells": "Wymagane dla nowych komórek",
     "requiredFieldsHint": "Pola wymagane do utworzenia nowych komórek zawsze pozostają uwzględnione",
-    "selectDuplex": "Dupleks",
     "selectDuplexForCell": "Wybierz dupleks dla wiersza analizatora {{row}}",
     "bandNotMatched": "Nie dopasowano pasma",
     "removeCell": "Usuń wiersz analizatora {{row}} z tej paczki",
     "removeStation": "Usuń stację {{stationId}} z tej paczki",
-    "expandStation": "Pokaż zmiany stacji {{stationId}}",
-    "collapseStation": "Ukryj zmiany stacji {{stationId}}",
     "restoreRemoved": "Przywróć usunięte",
     "conflictBadge": "Konflikt",
     "noStations": "Brak zmian do wysłania",
@@ -272,12 +238,9 @@
     "nothingSelectedDescription": "Zaznacz pole w wierszu zmiany lub użyj opcji Pola do wysłania, aby kontynuować",
     "readyTitle": "Gotowe do wysłania",
     "readyDescription": "Wszystkie wybrane zmiany zawierają dane wymagane do utworzenia zgłoszeń",
-    "tooFewCellsWarning_one": "{{count, number}} stacja ma mniej niż 2 zmiany komórek",
-    "tooFewCellsWarning_few": "{{count, number}} stacje mają mniej niż 2 zmiany komórek",
-    "tooFewCellsWarning_many": "{{count, number}} stacji ma mniej niż 2 zmiany komórek",
     "batchRateLimit": "Limit: 4 paczki zgłoszeń na 32 godziny",
     "applyDirectly": "Zastosuj bezpośrednio",
-    "applyDirectlyHint": "Edytorzy mogą pominąć zgłoszenia i od razu zaktualizować bazę danych",
+    "applyDirectlyHint": "Redaktorzy mogą pominąć zgłoszenia i od razu zaktualizować bazę danych",
     "applySuccess": "Zmiany zostały wprowadzone",
     "applyDirectlyConfirmTitle": "Zastosować zmiany bezpośrednio?",
     "applyDirectlyConfirmDesc": "Spowoduje to natychmiastową aktualizację bazy z pominięciem procesu weryfikacji zgłoszeń. Tej operacji nie można cofnąć",
@@ -302,14 +265,12 @@
   },
   "azimuthFetch": {
     "fetch": "Pobierz azymuty",
-    "fetching": "Pobieranie...",
     "si2pem": {
       "notFound": "W najnowszym wygenerowanym raporcie laboratoryjnym SI2PEM nie znaleziono azymutów",
       "fetched": "Pobrano azymuty z najnowszego wygenerowanego raportu laboratoryjnego SI2PEM",
       "fetchFailed": "Nie udało się pobrać azymutów z najnowszego wygenerowanego raportu laboratoryjnego SI2PEM"
     },
     "uke": {
-      "notFound": "Nie znaleziono azymutów UKE dla tej stacji i operatora",
       "fetched": "Pobrano azymuty z UKE",
       "fetchFailed": "Nie udało się pobrać azymutów z UKE"
     }

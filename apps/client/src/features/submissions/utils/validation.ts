@@ -54,7 +54,7 @@ export function validateForm(ctx: ValidationContext): FormErrors {
   const errors: FormErrors = {};
 
   if (ctx.mode === "existing") {
-    if (!ctx.selectedStation) errors.general = "validation.selectStation";
+    if (!ctx.selectedStation) errors.general = "common:actions.selectStation";
   } else {
     const stationErrors = validateStation(ctx.newStation);
     if (Object.keys(stationErrors).length > 0) errors.station = stationErrors;
@@ -73,7 +73,7 @@ function validateStation(station: ProposedStationForm): StationErrors {
   const errors: StationErrors = {};
 
   const stationId = station.station_id ?? "";
-  if (!stationId.trim()) errors.station_id = "validation.stationIdRequired";
+  if (!stationId.trim()) errors.station_id = "common:validation.stationIdRequired";
   else if (stationId.length < 2) errors.station_id = "validation.stationIdTooShort";
 
   if (station.operator_id === null) errors.operator_id = "validation.operatorRequired";
@@ -91,7 +91,7 @@ function validateLocation(location: ProposedLocationForm): LocationErrors {
   else if (location.longitude < -180 || location.longitude > 180) errors.longitude = "validation.longitudeInvalid";
 
   if (location.region_id === null) errors.region_id = "validation.regionRequired";
-  if (hasGenericAddressMarker(location.address)) errors.address = "validation.addressOwnWordForbidden";
+  if (hasGenericAddressMarker(location.address)) errors.address = "common:validation.addressOwnWordForbidden";
 
   return errors;
 }

@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "KMZ Downloads",
     "subtitle": "Pre-generated Google Earth files from our UKE imports"
   },
   "type": {
@@ -9,17 +8,13 @@
     "radiolines": "Microwave links"
   },
   "source": {
-    "label": "Source",
     "all": "Combined",
     "permits": "Permits",
     "device_registry": "Device registry"
   },
   "region": {
-    "unknownRegion": "Unknown region",
-    "allRegions": "All regions"
+    "unknownRegion": "Unknown region"
   },
-  "sortLabel": "Sort",
-  "orderLabel": "Order",
   "sort": {
     "region": "Region",
     "size": "File size"
@@ -31,7 +26,6 @@
   "list": {
     "count_one": "{{ count, number }} file",
     "count_other": "{{ count, number }} files",
-    "download": "Download",
     "downloading": "Downloading...",
     "noDates": "No exports yet",
     "noDatesSubtitle": "Nothing has been generated for this type and source yet",
@@ -39,8 +33,7 @@
     "emptySubtitle": "Try a different date, source, or region",
     "filteredEmptyTitle": "No files match these filters",
     "filteredEmptySubtitle": "Clear filters to see every file for this date",
-    "errorTitle": "Could not load KMZ files",
-    "errorSubtitle": "Refresh the page or try again in a moment"
+    "errorTitle": "Could not load KMZ files"
   },
   "file": {
     "new_stations": "New stations",

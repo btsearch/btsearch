@@ -80,6 +80,8 @@ function FieldTree({ value }: { value: NsgJsonValue }) {
   return <div className="custom-scrollbar max-h-72 overflow-auto rounded-md bg-muted/30 p-2 font-mono text-[10px] leading-relaxed">{content}</div>;
 }
 
+const DIRECTION_LABELS = { UL: "Uplink", DL: "Downlink" } as const;
+
 function Direction({ direction, label }: { direction: NsgSignalingRecord["direction"]; label: string }) {
   let icon: IconSvgElement | null = null;
   if (direction === "UL") icon = ArrowUp02Icon;
@@ -190,7 +192,7 @@ export const Signaling = memo(function Signaling({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid shrink-0 grid-cols-2 gap-2 border-b px-4 py-2">
-        <Filter label={t("signaling.technology")} value={filter.rat} options={ratOptions} onChange={(value) => updateFilter("rat", value)} />
+        <Filter label={t("filters.technology")} value={filter.rat} options={ratOptions} onChange={(value) => updateFilter("rat", value)} />
         <Filter label={t("signaling.layer")} value={filter.layer} options={layerOptions} onChange={(value) => updateFilter("layer", value)} />
       </div>
       {truncated ? (
@@ -233,7 +235,10 @@ export const Signaling = memo(function Signaling({
                   >
                     <span className="flex min-w-0 items-center gap-2 text-xs">
                       <GenerationTag className="bg-foreground/15 text-foreground">{record.rat}</GenerationTag>
-                      <Direction direction={record.direction} label={t(`signaling.direction.${record.direction}`)} />
+                      <Direction
+                        direction={record.direction}
+                        label={record.direction === "unknown" ? t("signaling.direction.unknown") : DIRECTION_LABELS[record.direction]}
+                      />
                       <span className="min-w-0 flex-1 truncate font-semibold" title={title}>
                         {title}
                       </span>
@@ -246,9 +251,7 @@ export const Signaling = memo(function Signaling({
                       <span>
                         {t("signaling.channel")}: {formatValue(record.channel)}
                       </span>
-                      <span>
-                        {t("signaling.pdu")}: {formatValue(pduValue(record))}
-                      </span>
+                      <span>PDU: {formatValue(pduValue(record))}</span>
                       <span>PCI: {formatValue(record.pci)}</span>
                       <span>
                         {channelLabel(record)}: {formatValue(record.channelNumber)}

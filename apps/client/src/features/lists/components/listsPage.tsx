@@ -254,7 +254,7 @@ function ListCard({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <HugeiconsIcon icon={AirportTowerIcon} className="size-3.5" />
-          {t("lists:stationCount", { count: list.stationCount })}
+          {t("common:labels.stations", { count: list.stationCount })}
         </span>
         {list.radiolineCount > 0 ? (
           <span className="inline-flex items-center gap-1">
@@ -407,7 +407,7 @@ export function ListsPageContent() {
   function handleShare(list: UserListSummary) {
     const url = `${window.location.origin}/lists/${list.uuid}`;
     void navigator.clipboard.writeText(url).then(
-      () => toast.success(t("lists:copied")),
+      () => toast.success(t("common:actions.linkCopied")),
       () => toast.error(t("stationDetails:copyFailed")),
     );
   }
@@ -426,7 +426,7 @@ export function ListsPageContent() {
 
       <header className="flex flex-col gap-3 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.myLists")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("nav:sections.lists")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("lists:subtitle")}</p>
         </div>
         {maxLists === null ? null : <ListUsage count={listCount} max={maxLists} />}
@@ -486,7 +486,7 @@ export function ListsPageContent() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-list-name">{t("lists:name")}</Label>
+              <Label htmlFor="edit-list-name">{t("common:labels.name")}</Label>
               <Input
                 id="edit-list-name"
                 value={editState?.name ?? ""}

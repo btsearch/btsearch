@@ -1,6 +1,48 @@
 Changelog is only provided in English language.
 If you found some bugs or want us to add new feature, please do so via [our GitHub Tracker](https://github.com/btsearch/btsearch/issues/new)
 
+# 2026-09-30
+
+### 🚀 Enhancements
+
+- Settings are now one page with Account, Public profile, Security, Apps & API and Preferences sections, and the sidebar or the floating navigation lists the sections so you can jump between them
+- The top of the settings page summarizes your account: whether your profile is public, whether you are in the hunters directory, whether two-factor authentication is on and how many API keys you have
+- Theme and language can now also be changed in Preferences
+- You can now sign out of all your other devices at once from Active sessions, and each session shows its IP address
+- Signing in again to see your sessions, disconnect an account or add a passkey now opens the regular sign-in dialog, so it also works with passkeys, connected accounts and two-factor authentication
+- Username and password mistakes are now shown next to the field, including a username that is already taken
+- API keys now show how many keys you can have and, while you have to wait, when you can create the next one
+- Profiles have a new look: a header with the member date, role and quick links to comments and the hunters directory, followed by About, Contact and Comments sections
+- Comments on a profile can be filtered by operator, long comments can be expanded and more comments load on request
+- Your own profile has an Edit profile button, and shortcuts to add a description or contact details when they are missing
+- Editors and administrators have a role badge on their profile and at the top of the settings page
+- Notifications have a new look: each one shows the station with its operator logo, a short summary of what changed and who reviewed or sent the submission
+- Long reviewer notes in notifications can be expanded, and older notifications load on request
+- The station dialog no longer has a UKE Permits tab. Permits are still shown after switching the dialog to UKE and on the station page
+- API: `GET /account/api-keys` now includes `limits` with `maxKeys` and `nextCreateAt`
+
+### 🩹 Fixes
+
+- Confirming a new e-mail address, deleting your account and signing in again with two-factor authentication no longer lead to a page that doesn't exist
+- If creating an API key fails, you no longer have to wait 7 days before trying again
+- Disconnecting a linked account or adding a passkey after being signed in for more than a day now asks you to sign in again instead of doing nothing
+- Removing your profile photo or password, disconnecting an account and revoking a session now ask for confirmation
+- The hunters directory now explains that it needs a public profile and can't be turned on while your profile is private
+- You can no longer remove your password while two-factor authentication is on, or delete your last passkey when it's your only way to sign in
+- Already connected GitHub or Google accounts no longer also show a Connect row
+- Typing in the region search now only matches region names
+- The advertising cookies setting no longer claims that ads are only shown after you consent
+- Private profiles no longer show your name to other users, including next to your station comments; editors and administrators still see it
+- Contact details on profiles are now only visible to signed-in users
+- Profile links now work regardless of the letter case of the username
+- Changes to your profile, name or photo now show up on your profile page right away
+- Notifications about a rejected submission or one deleted because its photos never arrived now say which station it was about
+- A second approval or rejection for the same station is no longer lost while the first notification is still unread
+- Notifications are sorted by their latest activity, and the time shown is when it happened rather than when the push was sent
+- Grouped notifications about new photos or comments now count the events correctly
+- Notification titles now follow the app language
+- Reviewer notes in notifications now keep up to 500 characters instead of 200, and a shortened note ends with "..."
+
 # 2026-09-28
 
 ### 🚀 Enhancements

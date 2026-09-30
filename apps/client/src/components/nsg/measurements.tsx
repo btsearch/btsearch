@@ -122,7 +122,7 @@ export function MeasurementHistory({
                     <span>
                       {t("labels.slot")} {formatValue(cell.slotId)} / {formatValue(cell.subId)}
                     </span>
-                    <span className="ml-auto">{t("history.cells", { count: snapshot.cells.length })}</span>
+                    <span className="ml-auto">{t("common:labels.cells", { count: snapshot.cells.length })}</span>
                   </span>
                 </button>
               </div>

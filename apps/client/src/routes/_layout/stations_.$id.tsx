@@ -82,7 +82,7 @@ function StationNotFound() {
 }
 
 function StationRouteError() {
-  return <EntityRouteError titleKey="page.stationUnavailableTitle" descriptionKey="page.stationUnavailableDescription" />;
+  return <EntityRouteError titleKey="page.stationUnavailableTitle" descriptionKey="common:error.tryLater" />;
 }
 
 function StationPage() {
@@ -126,7 +126,7 @@ function StationPage() {
   const operatorColor = getOperatorColor(station.operator.mnc);
   const stationNotes = station.notes?.trim();
   const pageTitle = `${station.operator.name} ${station.station_id}`;
-  const city = station.location.city || t("page.unknownLocation");
+  const city = station.location.city || tCommon("labels.unknownLocation");
   const mapHash = `map=16/${station.location.latitude}/${station.location.longitude}~f~S${station.id}`;
 
   return (
@@ -274,7 +274,7 @@ function StationPage() {
         ) : null}
         {isPhotosError && photos === undefined ? (
           <div className="border-t px-4 py-3 sm:px-6">
-            <InlineError title={t("photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
+            <InlineError title={tCommon("photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
           </div>
         ) : null}
       </header>
@@ -294,7 +294,7 @@ function StationPage() {
               <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                 <Link to="/" hash={mapHash} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
-                  {t("dialog.showOnMap")}
+                  {tCommon("actions.showOnMap")}
                 </Link>
                 <Link to="/locations/$id" params={{ id: String(station.location.id) }} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={Location01Icon} className="size-3.5" />
@@ -355,6 +355,7 @@ function StationPage() {
 }
 
 export const Route = createFileRoute("/_layout/stations_/$id")({
+  codeSplitGroupings: [["loader"], ["component"], ["errorComponent"], ["notFoundComponent"]],
   component: StationPage,
   loader: async ({ params }) => {
     const id = parseSEOEntityId(params.id);

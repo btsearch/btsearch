@@ -72,7 +72,7 @@ function LocationNotFound() {
 }
 
 function LocationRouteError() {
-  return <EntityRouteError titleKey="page.locationUnavailableTitle" descriptionKey="page.locationUnavailableDescription" />;
+  return <EntityRouteError titleKey="page.locationUnavailableTitle" descriptionKey="common:error.tryLater" />;
 }
 
 function LocationPage() {
@@ -94,7 +94,7 @@ function LocationPage() {
     return locationError ? <LocationRouteError /> : null;
   }
 
-  const city = location.city || t("page.unknownLocation");
+  const city = location.city || t("common:labels.unknownLocation");
   const label = locationLabel(location, city);
   const mapHash = `map=16/${location.latitude}/${location.longitude}~f~L${location.id}`;
 
@@ -132,7 +132,7 @@ function LocationPage() {
         ) : null}
         {isPhotosError && photos === undefined ? (
           <div className="border-t px-4 py-3 sm:px-6">
-            <InlineError title={t("photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
+            <InlineError title={t("common:photos.loadError")} onRetry={() => refetchPhotos()} isRetrying={isFetchingPhotos} />
           </div>
         ) : null}
       </header>
@@ -154,7 +154,7 @@ function LocationPage() {
               <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                 <Link to="/" hash={mapHash} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
-                  {t("dialog.showOnMap")}
+                  {t("common:actions.showOnMap")}
                 </Link>
                 {preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0 && (
                   <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />
@@ -179,6 +179,7 @@ function LocationPage() {
 }
 
 export const Route = createFileRoute("/_layout/locations/$id")({
+  codeSplitGroupings: [["loader"], ["component"], ["errorComponent"], ["notFoundComponent"]],
   component: LocationPage,
   loader: async ({ params }) => {
     const id = parseSEOEntityId(params.id);

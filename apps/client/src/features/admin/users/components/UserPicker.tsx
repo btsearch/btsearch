@@ -153,7 +153,7 @@ export function UserPicker({ selectedUserIds, onSelectionChange, className }: Us
             </div>
             {data && data.total > users.length && (
               <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t bg-muted/20">
-                {t("users.picker.showing", { shown: users.length, total: data.total })}
+                {t("common:pagination.showing", { shown: users.length, total: data.total })}
               </div>
             )}
           </>

@@ -5,7 +5,6 @@
     "backHome": "Back to BTSearch",
     "wantsAccess": "{{app}} wants to access your BTSearch account",
     "unknownApp": "Unknown application",
-    "accountAccess": "Account",
     "readAccess": "Read access",
     "writeAccess": "Act on your behalf",
     "offlineAccess": "Keeps access until you revoke it",
@@ -13,7 +12,6 @@
     "revokeNotice": "You can revoke this access anytime <settingsLink>here</settingsLink>",
     "allow": "Allow access",
     "allowing": "Allowing...",
-    "deny": "Cancel",
     "denying": "Cancelling...",
     "error": "Authorization failed. Go back to the application and try again",
     "scopes": {
@@ -46,11 +44,8 @@
     "noAppsDescription": "Register an OAuth application to let your website or tool sign users in with their BTSearch account",
     "createApp": "New application",
     "columns": {
-      "name": "Application",
-      "clientId": "Client ID",
-      "created": "Created"
+      "clientId": "Client ID"
     },
-    "createdOn": "Created {{date}}",
     "dialog": {
       "title": "Register application",
       "description": "Users will see this information on the authorization screen",
@@ -74,11 +69,9 @@
     "success": {
       "title": "Application registered",
       "rotatedTitle": "New client secret",
-      "clientId": "Client ID",
       "clientSecret": "Client secret",
       "warning": "Store the client secret now - it will not be shown again",
-      "publicClientNote": "Native apps don't receive a client secret. Authorization requires PKCE",
-      "done": "Done"
+      "publicClientNote": "Native apps don't receive a client secret. Authorization requires PKCE"
     },
     "typeBadge": {
       "web": "Web",
@@ -87,18 +80,11 @@
     "rotateSecret": "Rotate secret",
     "rotateConfirmTitle": "Rotate client secret?",
     "rotateConfirmDescription": "The current secret for \"{{name}}\" stops working immediately",
-    "rotating": "Rotating...",
-    "deleteApp": "Delete",
     "deleteConfirmTitle": "Delete application?",
     "deleteConfirmDescription": "\"{{name}}\" immediately loses access for every user who authorized it. This cannot be undone",
-    "deleting": "Deleting...",
     "deleteSuccess": "Application deleted",
     "errors": {
-      "createFailed": "Failed to register application",
-      "invalidRedirect": "Enter at least one valid https:// redirect URI",
-      "loadFailed": "Couldn't load your applications",
-      "rotateFailed": "Failed to rotate the client secret",
-      "deleteFailed": "Failed to delete the application"
+      "loadFailed": "Couldn't load your applications"
     }
   },
   "authorized": {
@@ -108,10 +94,9 @@
     "noneDescription": "Applications you grant access to your account will appear here",
     "loadFailed": "Couldn't load authorized applications",
     "grantedOn": "Authorized {{date}}",
-    "permissionCount_one": "{{count}} permission",
-    "permissionCount_other": "{{count}} permissions",
+    "permissionCount_one": "{{count, number}} permission",
+    "permissionCount_other": "{{count, number}} permissions",
     "revoke": "Revoke access",
-    "revoking": "Revoking...",
     "revokeConfirmTitle": "Revoke access?",
     "revokeConfirmDescription": "\"{{name}}\" will immediately lose access to your account",
     "revokeSuccess": "Access revoked"

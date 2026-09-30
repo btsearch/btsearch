@@ -1,169 +1,26 @@
-import {
-  Add01Icon,
-  Cancel01Icon,
-  DatabaseIcon,
-  Image01Icon,
-  Message01Icon,
-  Notification01Icon,
-  Notification02Icon,
-  SignalFull02Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, Notification01Icon, Notification02Icon, TickDouble02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "@tanstack/react-router";
+import { useIsFetching } from "@tanstack/react-query";
+import { type RefObject, Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { Notification } from "../api";
-import { useNotifications } from "../useNotifications";
+import { NOTIFICATIONS_PAGE_SIZE, useNotifications } from "../useNotifications";
 import { usePushSubscription } from "../usePushSubscription";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/ui/error-state";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { fetchUkeStation } from "@/features/station-details/api";
-import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-type NotificationMetadata = {
-  added?: number;
-  count?: number;
-  permits_added?: number;
-  permits_deleted?: number;
-  reviewer_name?: string;
-  reviewer_note?: string;
-  station_id?: string;
-  station_operator_name?: string;
-  submitter_name?: string;
-  uke_stations_added?: number;
-  uke_station_deleted?: boolean;
-  removed?: number;
-  updated?: number;
-};
+const SKELETON_TITLE_WIDTHS = ["58%", "74%", "46%"];
 
-function formatStationLabel(stationId: string | undefined, operatorName: string | undefined): string | undefined {
-  if (stationId === undefined) return undefined;
-  return operatorName !== undefined ? `${stationId} (${operatorName})` : stationId;
-}
+const loadNotificationList = () => import("./NotificationList");
+const NotificationList = lazy(() => loadNotificationList().then((module) => ({ default: module.NotificationList })));
 
-function getMapStationTarget(actionUrl: string | null): { id: number; source: "internal" | "uke" } | null {
-  if (!actionUrl?.startsWith("/#map=")) return null;
-  const match = /~(f~S|fu~(?:S|U))([1-9]\d*)$/.exec(actionUrl);
-  if (!match) return null;
-  const id = Number(match[2]);
-  if (!Number.isSafeInteger(id)) return null;
-  return { id, source: match[1].startsWith("fu") ? "uke" : "internal" };
-}
-
-function getNotificationVisual(type: Notification["type"]) {
-  switch (type) {
-    case "submission_approved":
-      return { icon: Tick02Icon, iconClassName: "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" };
-    case "submission_rejected":
-      return { icon: Cancel01Icon, iconClassName: "bg-destructive/10 text-destructive dark:bg-destructive/20" };
-    case "submission_photo_upload_failed":
-      return { icon: Image01Icon, iconClassName: "bg-destructive/10 text-destructive dark:bg-destructive/20" };
-    case "new_submission":
-      return { icon: Add01Icon, iconClassName: "bg-primary/10 text-primary dark:bg-primary/15" };
-    case "station_cells_changed":
-      return { icon: SignalFull02Icon, iconClassName: "bg-sky-500/10 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" };
-    case "station_photos_added":
-      return { icon: Image01Icon, iconClassName: "bg-violet-500/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300" };
-    case "station_comment_approved":
-      return { icon: Message01Icon, iconClassName: "bg-amber-500/15 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" };
-    case "station_uke_permit_added":
-      return { icon: DatabaseIcon, iconClassName: "bg-orange-500/10 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" };
-  }
-}
-
-function NotificationItem({ notification, onRead }: { notification: Notification; onRead: (id: string) => void }) {
-  const { t } = useTranslation("notifications");
-  const { t: tCommon } = useTranslation("common");
-  const { pathname } = useLocation();
-  const queryClient = useQueryClient();
-  const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
-  const { icon, iconClassName } = getNotificationVisual(notification.type);
-  const mapStationTarget = pathname === "/" ? getMapStationTarget(notification.actionUrl) : null;
-  const metadata = notification.metadata as unknown as NotificationMetadata | null;
-  const stationId = metadata?.station_id;
-  const stationOperatorName = metadata?.station_operator_name;
-  const stationLabel = formatStationLabel(stationId, stationOperatorName);
-  const reviewerNote = metadata?.reviewer_note;
-  const reviewerName = metadata?.reviewer_name;
-  const submitterName = metadata?.submitter_name;
-  const cellsAdded = metadata?.added;
-  const cellsRemoved = metadata?.removed;
-  const cellsUpdated = metadata?.updated;
-  const permitsAdded = metadata?.permits_added;
-  const permitsDeleted = metadata?.permits_deleted;
-  const ukeStationsAdded = metadata?.uke_stations_added;
-  const ukeStationDeleted = metadata?.uke_station_deleted;
-  const count = metadata?.count;
-  const updatedAt = notification.updatedAt ?? notification.createdAt;
-
-  const handleClick = () => {
-    if (!notification.readAt) onRead(notification.id);
-    if (mapStationTarget?.source === "internal") openStationDialog(mapStationTarget.id, "internal");
-    else if (mapStationTarget?.source === "uke")
-      void queryClient
-        .fetchQuery({ queryKey: ["uke-station", mapStationTarget.id], queryFn: () => fetchUkeStation(mapStationTarget.id) })
-        .then(openUkePermitDialog)
-        .catch(showApiError);
-  };
-
-  const content = (
-    <>
-      <span
-        className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md", iconClassName, notification.readAt ? "opacity-70" : "")}
-      >
-        <HugeiconsIcon icon={icon} size={15} strokeWidth={2} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={cn("text-sm font-medium truncate", notification.readAt ? "text-muted-foreground" : "")}>{notification.title}</p>
-        {submitterName && <p className="text-xs text-muted-foreground truncate">{t("submittedBy", { name: submitterName })}</p>}
-        {stationLabel && <p className="text-xs text-muted-foreground truncate">{t("station", { stationId: stationLabel })}</p>}
-        {reviewerName && <p className="text-xs text-muted-foreground truncate">{t("reviewerName", { name: reviewerName })}</p>}
-        {reviewerNote && <p className="text-xs text-muted-foreground truncate italic">{reviewerNote}</p>}
-        {cellsAdded !== undefined && cellsAdded > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("cellsAdded", { count: cellsAdded })}</p>
-        ) : null}
-        {cellsRemoved !== undefined && cellsRemoved > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("cellsRemoved", { count: cellsRemoved })}</p>
-        ) : null}
-        {cellsUpdated !== undefined && cellsUpdated > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("cellsUpdated", { count: cellsUpdated })}</p>
-        ) : null}
-        {permitsAdded !== undefined && permitsAdded > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("permitsAdded", { count: permitsAdded })}</p>
-        ) : null}
-        {permitsDeleted !== undefined && permitsDeleted > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("permitsDeleted", { count: permitsDeleted })}</p>
-        ) : null}
-        {ukeStationsAdded !== undefined && ukeStationsAdded > 0 ? (
-          <p className="text-xs text-muted-foreground truncate">{t("ukeStationsAdded", { count: ukeStationsAdded })}</p>
-        ) : null}
-        {ukeStationDeleted === true ? <p className="text-xs text-muted-foreground truncate">{t("ukeStationDeleted")}</p> : null}
-        {count !== undefined && count > 1 ? <p className="text-xs text-muted-foreground truncate">{t("eventCount", { count })}</p> : null}
-        <p className="text-xs text-muted-foreground">{formatRelativeTime(updatedAt, tCommon)}</p>
-      </div>
-    </>
-  );
-
-  if (notification.actionUrl && mapStationTarget === null) {
-    return (
-      <DropdownMenuItem render={<Link to={notification.actionUrl as "/"} />} className="flex items-start gap-2 py-2" onClick={handleClick}>
-        {content}
-      </DropdownMenuItem>
-    );
-  }
-
-  return (
-    <DropdownMenuItem className="flex items-start gap-2 py-2" onClick={handleClick}>
-      {content}
-    </DropdownMenuItem>
-  );
+function preloadNotificationList() {
+  void loadNotificationList();
 }
 
 function NotificationsLoadError({ onRetry }: { onRetry: () => unknown }) {
@@ -172,91 +29,171 @@ function NotificationsLoadError({ onRetry }: { onRetry: () => unknown }) {
   return <InlineError size="sm" onRetry={onRetry} isRetrying={isFetching} />;
 }
 
-export function NotificationsBell({ className }: { className?: string } = {}) {
+function NotificationsSkeleton() {
+  const { t } = useTranslation("common");
+
+  return (
+    <div role="status" aria-label={t("actions.loading")} className="flex flex-col gap-0.5">
+      {SKELETON_TITLE_WIDTHS.map((width) => (
+        <div key={width} className="flex items-start gap-2.5 px-2 py-2.5">
+          <Skeleton className="mt-0.5 size-7 shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
+            <Skeleton className="h-3" style={{ width }} />
+            <Skeleton className="h-5.5 w-28 rounded-lg" />
+            <Skeleton className="h-2.5 w-18" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NotificationsEmpty() {
+  const { t } = useTranslation("notifications");
+
+  return (
+    <div className="flex flex-col items-center px-6 pt-7 pb-8 text-center">
+      <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <HugeiconsIcon icon={Notification01Icon} size={18} />
+      </span>
+      <p className="mt-3 text-sm font-semibold">{t("empty")}</p>
+      <p className="mt-1 max-w-70 text-xs leading-4.5 text-muted-foreground">{t("emptyDescription")}</p>
+    </div>
+  );
+}
+
+function PushPrompt({ isSubscribing, onEnable }: { isSubscribing: boolean; onEnable: () => void }) {
+  const { t } = useTranslation("notifications");
+
+  return (
+    <div className="mb-0.5 flex items-center gap-2.5 rounded-lg bg-primary/8 p-2.5">
+      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+        <HugeiconsIcon icon={Notification02Icon} size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[0.8125rem] leading-4.5 font-semibold">{t("pushTitle")}</p>
+        <p className="text-xs text-muted-foreground">{t("pushDescription")}</p>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="cursor-pointer bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary dark:hover:bg-primary/25"
+        disabled={isSubscribing}
+        onClick={onEnable}
+      >
+        {isSubscribing ? t("enabling") : t("pushEnable")}
+      </Button>
+    </div>
+  );
+}
+
+type NotificationsBellProps = {
+  className?: string;
+  side?: "top" | "bottom";
+  anchor?: RefObject<HTMLElement | null>;
+};
+
+export function NotificationsBell({ className, side = "bottom", anchor }: NotificationsBellProps) {
   const { t } = useTranslation("notifications");
   const { data: session } = authClient.useSession();
-  const { notifications, totalUnread, isLoading, isLoadingError, refetch, markAllRead, markRead } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState(NOTIFICATIONS_PAGE_SIZE);
+  const { notifications, totalUnread, hasMore, reachedEnd, nextLimit, isLoading, isLoadingMore, isLoadingError, refetch, markAllRead, markRead } =
+    useNotifications(limit);
   const { subscription, permission, isSubscribing, subscribe, isSupported } = usePushSubscription();
 
   if (!session?.user) return null;
 
-  const visibleNotifications = notifications.slice(0, 10);
   const hasUnread = totalUnread > 0;
   const showPushPrompt = isSupported && !subscription && permission !== "denied";
+  const showAllLoaded = limit > NOTIFICATIONS_PAGE_SIZE && reachedEnd;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) setLimit(NOTIFICATIONS_PAGE_SIZE);
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger
         render={
-          <button
-            type="button"
-            className={cn(
-              "relative inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              className,
-            )}
-            aria-label={t("title")}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("relative cursor-pointer", className)}
+            aria-label={hasUnread ? t("triggerUnread", { count: totalUnread }) : t("title")}
+            onPointerEnter={preloadNotificationList}
+            onFocus={preloadNotificationList}
           />
         }
       >
         <HugeiconsIcon icon={Notification01Icon} size={18} />
-        {hasUnread && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+        {hasUnread ? (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white"
+          >
             {totalUnread > 9 ? "9+" : totalUnread}
           </span>
-        )}
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between px-1.5 py-1.5">
-          <p className="text-sm font-semibold">{t("title")}</p>
-          {hasUnread && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                markAllRead();
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("markAllRead")}
-            </button>
+        ) : null}
+      </PopoverTrigger>
+      <PopoverContent
+        side={side}
+        align={anchor ? "center" : "end"}
+        sideOffset={anchor ? 8 : 4}
+        anchor={anchor}
+        collisionPadding={8}
+        className="max-h-[min(37.5rem,var(--available-height))] w-96 max-w-[calc(100vw-1rem)] gap-0 overflow-hidden p-0"
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-1.5 pl-3">
+          <PopoverTitle className="text-sm font-semibold">{t("title")}</PopoverTitle>
+          {hasUnread ? (
+            <>
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/15 px-1.5 text-[11px] font-bold text-primary tabular-nums">
+                {totalUnread}
+              </span>
+              <Button type="button" variant="ghost" size="sm" className="ml-auto cursor-pointer text-muted-foreground" onClick={markAllRead}>
+                <HugeiconsIcon icon={TickDouble02Icon} data-icon="inline-start" />
+                {t("markAllRead")}
+              </Button>
+            </>
+          ) : null}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 scrollbar-thin">
+          {showPushPrompt ? <PushPrompt isSubscribing={isSubscribing} onEnable={() => void subscribe()} /> : null}
+          {isLoadingError ? (
+            <NotificationsLoadError onRetry={() => refetch()} />
+          ) : isLoading ? (
+            <NotificationsSkeleton />
+          ) : notifications.length === 0 ? (
+            <NotificationsEmpty />
+          ) : (
+            <>
+              <Suspense fallback={<NotificationsSkeleton />}>
+                <NotificationList notifications={notifications} onRead={markRead} onNavigate={() => handleOpenChange(false)} />
+              </Suspense>
+              {hasMore ? (
+                <div className="-mx-1 mt-0.5 border-t px-1 pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full cursor-pointer text-muted-foreground"
+                    disabled={isLoadingMore}
+                    onClick={() => setLimit(nextLimit)}
+                  >
+                    {isLoadingMore ? <Spinner className="size-3.5" /> : null}
+                    {t("loadOlder")}
+                    {isLoadingMore ? null : <HugeiconsIcon icon={ArrowDown01Icon} data-icon="inline-end" />}
+                  </Button>
+                </div>
+              ) : showAllLoaded ? (
+                <p className="py-2.5 text-center text-xs text-muted-foreground">{t("allLoaded")}</p>
+              ) : null}
+            </>
           )}
         </div>
-
-        <DropdownMenuSeparator />
-
-        {showPushPrompt && (
-          <>
-            <button
-              type="button"
-              disabled={isSubscribing}
-              onClick={() => void subscribe()}
-              className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-2.5 text-left transition-colors hover:bg-accent disabled:opacity-60"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <HugeiconsIcon icon={Notification02Icon} size={16} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{isSubscribing ? t("enabling") : t("enablePush")}</p>
-                <p className="text-xs text-muted-foreground">{t("pushDescription")}</p>
-              </div>
-            </button>
-            {visibleNotifications.length > 0 && <DropdownMenuSeparator />}
-          </>
-        )}
-
-        {isLoadingError ? (
-          <NotificationsLoadError onRetry={() => refetch()} />
-        ) : isLoading ? (
-          <div className="flex justify-center py-8">
-            <Spinner className="size-4" />
-          </div>
-        ) : visibleNotifications.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">{t("empty")}</div>
-        ) : (
-          visibleNotifications.map((n) => <NotificationItem key={n.id} notification={n} onRead={markRead} />)
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }

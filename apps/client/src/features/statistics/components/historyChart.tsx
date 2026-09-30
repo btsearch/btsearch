@@ -253,7 +253,7 @@ export function HistoryChart({ operators }: { operators?: Operator[] }) {
       <div className="flex flex-col gap-3 border border-border p-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="w-20 shrink-0 text-sm text-muted-foreground sm:w-auto">{t("filters.view")}</span>
+            <span className="w-20 shrink-0 text-sm text-muted-foreground sm:w-auto">{t("permitsByMonth.view")}</span>
             <Select value={viewMode} onValueChange={(v) => startTransition(() => setViewMode(v as ViewMode))} items={viewItems}>
               <SelectTrigger className="h-8 min-w-0 flex-1 sm:w-36 sm:flex-none">
                 <SelectValue />

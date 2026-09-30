@@ -270,8 +270,8 @@ export const PermitSnapshotBandChart = memo(function PermitSnapshotBandChart({
       deltaBar: value.delta < 0 ? value.delta * axis.negativeScale : value.delta,
     }));
     const chartConfig = {
-      all: { label: t("permitsByMonth.all"), colors: { light: ["var(--chart-1)"], dark: ["var(--chart-1)"] } },
-      deltaBar: { label: t("permitsByMonth.new"), colors: { light: ["var(--chart-2)"], dark: ["var(--chart-2)"] } },
+      all: { label: t("common:status.all"), colors: { light: ["var(--chart-1)"], dark: ["var(--chart-1)"] } },
+      deltaBar: { label: t("common:labels.new"), colors: { light: ["var(--chart-2)"], dark: ["var(--chart-2)"] } },
     } satisfies Record<"all" | "deltaBar", ChartConfig[string]>;
     return { data: chartData, config: chartConfig, valueAxis: axis };
   }, [band.rows, i18n.language, isExport, metric, t]);

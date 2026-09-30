@@ -508,9 +508,9 @@ export const Route = createFileRoute("/_layout/admin/_layout/submissions/")({
   }),
   component: AdminSubmissionsListPage,
   staticData: {
-    titleKey: "breadcrumbs.submissions",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", path: "/admin/stations", i18nNamespace: "admin" }],
+    titleKey: "items.submissions",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
     allowedRoles: ["admin", "editor"],
   },
 });

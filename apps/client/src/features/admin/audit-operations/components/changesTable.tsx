@@ -223,7 +223,7 @@ function SnapshotPair({ oldValues, newValues }: { oldValues: AuditSnapshot; newV
 export function ChangesTable({ oldValues, newValues }: { oldValues: AuditSnapshot; newValues: AuditSnapshot }) {
   const { t } = useTranslation("admin");
 
-  if (oldValues === null && newValues === null) return <p className="text-muted-foreground text-xs italic">{t("auditLogs.detail.noChanges")}</p>;
+  if (oldValues === null && newValues === null) return <p className="text-muted-foreground text-xs italic">{t("common:empty.changes")}</p>;
 
   const oldRecord = isObject(oldValues) ? oldValues : null;
   const newRecord = isObject(newValues) ? newValues : null;
@@ -256,7 +256,7 @@ export function ChangesTable({ oldValues, newValues }: { oldValues: AuditSnapsho
       <table className="hidden sm:table w-full text-xs table-fixed">
         <thead>
           <tr className="bg-muted/50 border-b">
-            <th className="text-left px-3 py-2 font-medium text-muted-foreground w-1/4">{t("auditLogs.detail.field")}</th>
+            <th className="text-left px-3 py-2 font-medium text-muted-foreground w-1/4">{t("common:labels.field")}</th>
             {oldRecord !== null ? (
               <th className="text-left px-3 py-2 font-medium text-red-400 w-[37.5%]">{t("auditLogs.detail.oldValues")}</th>
             ) : null}

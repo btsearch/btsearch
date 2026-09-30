@@ -3,6 +3,7 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { STAFF_ROLES } from "../../../../../../constants.js";
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
@@ -10,10 +11,10 @@ import type { JSONBody, Route } from "../../../../../../interfaces/routes.interf
 import { getRuntimeSettings } from "../../../../../../lib/runtimeSettings.js";
 
 const stationCommentSelectSchema = createSelectSchema(stationComments);
-const userSelectSchema = createSelectSchema(users).pick({ id: true, username: true, name: true, image: true });
+const authorSchema = createSelectSchema(users).pick({ id: true, username: true, image: true }).extend({ name: z.string().nullable() });
 
 const commentWithAuthorSchema = stationCommentSelectSchema.extend({
-  author: userSelectSchema.nullable(),
+  author: authorSchema.nullable(),
 });
 
 const schemaRoute = {
@@ -53,14 +54,27 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       },
       with: {
         author: {
-          columns: { id: true, username: true, name: true, image: true },
+          columns: { id: true, username: true, name: true, image: true, profileVisibility: true },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
+    const canSeePrivateNames = STAFF_ROLES.has(req.userSession?.user.role ?? "");
+    const data = comments.map(({ author, ...comment }) => ({
+      ...comment,
+      author: author
+        ? {
+            id: author.id,
+            username: author.username,
+            image: author.image,
+            name: author.profileVisibility !== "public" && !canSeePrivateNames && author.id !== userId ? null : author.name,
+          }
+        : null,
+    }));
+
     res.header("Cache-Control", "private, no-store");
-    return res.send({ data: comments });
+    return res.send({ data });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });

@@ -4,7 +4,7 @@ import type { GenericEndpointContext } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { createHash } from "node:crypto";
 
-import { API_KEYS_LIMIT, API_KEY_COOLDOWN_SECONDS, ARGON2_OPTIONS } from "../../constants.js";
+import { API_KEYS_LIMIT, API_KEY_COOLDOWN_KEY_PREFIX, API_KEY_COOLDOWN_SECONDS, ARGON2_OPTIONS } from "../../constants.js";
 import { db } from "../../database/psql.js";
 import { redis } from "../../database/redis.js";
 import { generateFingerprintFromWebRequest } from "../../utils/fingerprint.js";
@@ -85,6 +85,11 @@ async function handleSetUserPassword(ctx: HookCtx) {
   }
 }
 
+const API_KEY_CREATE_LOCK_SECONDS = 60;
+const API_KEY_CREATE_PENDING = "pending";
+
+const apiKeyCooldownKey = (userId: string) => `${API_KEY_COOLDOWN_KEY_PREFIX}${userId}`;
+
 async function handleApiKeyCreate(ctx: HookCtx) {
   const session = await getSessionFromCtx(ctx);
   if (!session) throw new APIError("UNAUTHORIZED", { message: "Unauthorized access to this endpoint" });
@@ -92,34 +97,42 @@ async function handleApiKeyCreate(ctx: HookCtx) {
   const prefix = ctx.body?.prefix;
   if (typeof prefix === "string" && prefix.startsWith("pk_"))
     throw new APIError("BAD_REQUEST", { message: "Publishable API keys can no longer be created" });
+  if (ctx.body?.metadata) throw new APIError("BAD_REQUEST", { message: "Metadata is not allowed when creating API keys" });
+  if (session.user.role === "admin") return;
 
   const keys = await db.query.apikeys.findMany({
     where: { referenceId: session.user.id },
   });
   const secretKeyCount = keys.filter((key) => !key.start?.startsWith("pk_")).length;
 
-  if (secretKeyCount >= API_KEYS_LIMIT && session.user.role !== "admin") {
+  if (secretKeyCount >= API_KEYS_LIMIT) {
     throw new APIError("FORBIDDEN", {
       message: "You have reached the maximum number of API keys. Please delete an existing key before creating a new one",
     });
   }
 
-  if (session.user.role !== "admin") {
-    const cooldownKey = `auth:apikey-cooldown:${session.user.id}`;
-    const cooldown = await redis.get(cooldownKey);
+  const cooldownKey = apiKeyCooldownKey(session.user.id);
+  const locked = await redis.set(cooldownKey, API_KEY_CREATE_PENDING, {
+    expiration: { type: "EX", value: API_KEY_CREATE_LOCK_SECONDS },
+    condition: "NX",
+  });
+  if (locked) return;
 
-    if (cooldown) {
-      const ttl = await redis.ttl(cooldownKey);
-      const daysLeft = Math.ceil(ttl / 86400);
-      throw new APIError("TOO_MANY_REQUESTS", {
-        message: `You can only create one API key every 7 days. Try again in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
-      });
-    }
+  if ((await redis.get(cooldownKey)) === API_KEY_CREATE_PENDING) throw new APIError("CONFLICT", { message: "An API key is already being created" });
 
-    await redis.setEx(cooldownKey, API_KEY_COOLDOWN_SECONDS, "1");
-  }
+  const daysLeft = Math.max(1, Math.ceil((await redis.ttl(cooldownKey)) / 86400));
+  throw new APIError("TOO_MANY_REQUESTS", {
+    message: `You can only create one API key every 7 days. Try again in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`,
+  });
+}
 
-  if (ctx.body?.metadata) throw new APIError("BAD_REQUEST", { message: "Metadata is not allowed when creating API keys" });
+async function settleApiKeyCooldown(ctx: HookCtx, returned: unknown) {
+  const session = await getSessionFromCtx(ctx);
+  if (!session || session.user.role === "admin") return;
+
+  const cooldownKey = apiKeyCooldownKey(session.user.id);
+  if (returned instanceof Error) await redis.del(cooldownKey);
+  else await redis.setEx(cooldownKey, API_KEY_COOLDOWN_SECONDS, "1");
 }
 
 async function handleSignUp(ctx: HookCtx) {
@@ -199,6 +212,8 @@ export const afterAuthHook = createAuthMiddleware(async (ctx) => {
     const key = getRegistrationKey(ctx);
     if (key) await incrementAccountCount(key);
   }
+
+  if (ctx.path === "/api-key/create") await settleApiKeyCooldown(ctx, ctx.context.returned);
 
   if (ctx.path === "/callback/google" || ctx.path === "/callback/github") {
     const newSession = (ctx.context as { newSession?: { user?: { createdAt?: Date | string } } }).newSession;

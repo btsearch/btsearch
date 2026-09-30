@@ -152,9 +152,9 @@ export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCa
                   }
                 >
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
-                  {t("dialog.showOnMap")}
+                  {t("common:actions.showOnMap")}
                 </TooltipTrigger>
-                <TooltipContent>{t("dialog.showOnMap")}</TooltipContent>
+                <TooltipContent>{t("common:actions.showOnMap")}</TooltipContent>
               </Tooltip>
             )}
             {navigationApps.length > 0 && <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />}

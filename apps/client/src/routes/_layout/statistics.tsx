@@ -175,7 +175,7 @@ function StatisticsPage() {
   const { data: operators } = useQuery(operatorsQueryOptions());
 
   useRegisterPageSections([
-    { id: "uke-permits", title: t("stationDetails:tabs.permits") },
+    { id: "uke-permits", title: t("common:labels.ukePermits") },
     { id: "internal-db", title: t("main:stats.internalData") },
     { id: "quality", title: t("sections.quality") },
     { id: "permit-snapshot", title: t("sections.permitSnapshot") },
@@ -196,7 +196,7 @@ function StatisticsPage() {
     <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
       <div className="w-full space-y-12">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("nav:items.statistics")}</h1>
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{t("description")}</p>
           {summaryResponse || permitsResponse ? (
             <div className="mt-3 flex flex-col gap-1.5">
@@ -211,7 +211,7 @@ function StatisticsPage() {
               {permitsResponse ? (
                 <StatisticsRefreshStatus
                   key={`permits:${permitsResponse.lastUpdated}`}
-                  label={t("refresh.ukePermits")}
+                  label={t("common:labels.ukePermits")}
                   lastUpdated={permitsResponse.lastUpdated}
                   queryKey={PERMITS_QUERY_KEY}
                 />
@@ -228,7 +228,7 @@ function StatisticsPage() {
         </div>
 
         <section id="uke-permits" className="space-y-4">
-          <SectionHeader>{t("stationDetails:tabs.permits")}</SectionHeader>
+          <SectionHeader>{t("common:labels.ukePermits")}</SectionHeader>
           <UkeKpiCards data={summary} {...summaryState} />
           <div className="space-y-4 pt-1">
             <Suspense fallback={distributionSkeleton}>

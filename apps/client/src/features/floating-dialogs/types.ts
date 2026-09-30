@@ -3,7 +3,6 @@ import type { CSSProperties, HTMLAttributes, Ref } from "react";
 import type { FloatingDialogRect } from "./geometry";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { PemReport } from "@/features/station-details/api";
-import type { TabId } from "@/features/station-details/tabs";
 import type { StationSource, UkeStation } from "@/types/station";
 
 export function assertNever(value: never): never {
@@ -44,7 +43,6 @@ export type StationHistoryDialogPayload = {
 export type StationDialogTarget = {
   id: number;
   source: StationSource;
-  initialTab?: TabId;
   ukeStation?: UkeStation;
   switchedFrom?: StationDialogTarget;
 };

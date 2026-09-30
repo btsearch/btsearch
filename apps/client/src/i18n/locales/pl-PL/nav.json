@@ -2,7 +2,6 @@
   "sections": {
     "stations": "Stacje",
     "contribute": "Zgłoszenia",
-    "settings": "Ustawienia",
     "admin": "Admin",
     "info": "Informacje",
     "lists": "Moje listy"
@@ -14,7 +13,6 @@
     "clfExport": "Eksport CLF",
     "kmz": "Pliki KMZ",
     "submitStation": "Nowe zgłoszenie",
-    "preferences": "Preferencje",
     "changelog": "Historia zmian",
     "accountSettings": "Ustawienia konta",
     "myProfile": "Mój profil",
@@ -35,27 +33,16 @@
     "contact": "Kontakt",
     "privacy": "Polityka prywatności",
     "terms": "Regulamin",
-    "myLists": "Moje listy",
     "sharedList": "Udostępniona lista",
     "viewAllLists": "Pokaż wszystkie",
     "analyzer": "Analizator logów",
     "nsg": "Podgląd logów NSG",
     "apiDocs": "Dokumentacja API",
-    "releasenotes": "v3 - Co nowego?",
     "discord": "Discord",
     "fundraiser": "Zbiórka",
     "spectrum": "Pasma częstotliwości",
     "pem": "Pomiary PEM",
     "hunters": "Łowcy BTS"
-  },
-  "secondary": {
-    "settings": "Ustawienia",
-    "help": "Pomoc",
-    "about": "O aplikacji"
-  },
-  "user": {
-    "logout": "Wyloguj się",
-    "login": "Zaloguj się"
   },
   "floating": {
     "label": "Pływająca nawigacja",
@@ -63,11 +50,9 @@
     "hide": "Ukryj nawigację",
     "show": "Pokaż nawigację",
     "openSection": "Otwórz nawigację: {{section}}",
-    "mobileTitle": "Nawigacja",
     "account": "Menu konta"
   },
   "auth": {
-    "signIn": "Zaloguj się",
     "signInHint": "Zaloguj się, by zgłaszać i śledzić stacje"
   }
 }

@@ -74,11 +74,11 @@ export function AvatarCropDialog({ open, src, onConfirm, onClose }: Props) {
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-            {t("account.avatar.cropCancel")}
+            {t("common:actions.cancel")}
           </Button>
           <Button onClick={handleConfirm} disabled={!completedCrop || isProcessing}>
             {isProcessing ? <Spinner className="size-3.5" /> : null}
-            {t(isProcessing ? "account.avatar.cropApplying" : "account.avatar.cropConfirm")}
+            {t(isProcessing ? "account.avatar.uploading" : "account.avatar.cropConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

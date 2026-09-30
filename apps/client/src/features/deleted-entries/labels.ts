@@ -19,7 +19,7 @@ export function getDeletedEntrySourceLabel(t: TFunction, source: string): string
 }
 
 export function getDeletedEntrySourceFilterLabel(t: TFunction, source: DeletedEntrySourceFilter): string {
-  return source === "all" ? t("deletedEntries.filters.allSources", { ns: "deletedEntries" }) : getDeletedEntrySourceLabel(t, source);
+  return source === "all" ? t("status.all", { ns: "common" }) : getDeletedEntrySourceLabel(t, source);
 }
 
 export function getDeletedEntryIdentifier(entry: DeletedEntry): DeletedEntryIdentifierParts {

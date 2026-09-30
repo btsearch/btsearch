@@ -214,7 +214,9 @@ export function CellsEditor<T extends CellDraftBase>({
                     <RatGenerationLabel rat={rat} />
                     <span className="font-semibold text-sm">{rat}</span>
                     <span className="text-xs text-muted-foreground inline sm:hidden">({cellsForRat.length})</span>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">({t("cells.cellsCount", { count: cellsForRat.length })})</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">
+                      ({t("common:labels.cells", { count: cellsForRat.length })})
+                    </span>
                     {hasChanges && (
                       <span className="flex items-center gap-2 ml-1">
                         {(badges.added ?? 0) > 0 && (

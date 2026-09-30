@@ -248,7 +248,7 @@ function BandFilterButton({
     onChange(value.includes(key) ? value.filter((b) => b !== key) : [...value, key]);
   }
 
-  const label = value.length === 0 ? t("filter.allBands") : t("filter.bandsCount", { count: value.length });
+  const label = value.length === 0 ? t("common:labels.allBands") : t("common:labels.bands", { count: value.length });
   const groups = (["LTE", "UMTS"] as const).map((rat) => ({ rat, items: bands.filter((b) => b.rat === rat) })).filter((g) => g.items.length > 0);
 
   return (
@@ -268,7 +268,7 @@ function BandFilterButton({
       <PopoverContent align="start" className="w-56 p-0 max-h-80 overflow-y-auto">
         {value.length > 0 && (
           <div className="px-3 py-2 border-b flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{t("filter.bandsCount", { count: value.length })}</span>
+            <span className="text-xs text-muted-foreground">{t("common:labels.bands", { count: value.length })}</span>
             <button type="button" onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               {t("common:actions.clear")}
             </button>
@@ -659,7 +659,7 @@ function StationActionsCell({
           className={buttonVariants({ variant: "ghost", size: "xs" })}
         >
           <HugeiconsIcon icon={Location01Icon} className="size-3" data-icon="inline-start" />
-          {t("table.showOnMap")}
+          {t("common:labels.map")}
         </Link>
       </div>
     </div>
@@ -861,7 +861,7 @@ function AnalyzerPage() {
       not_confirmed: t("warning.notConfirmed"),
       not_found: t("warning.notFound"),
       mismatchGroup: t("filter.mismatchGroup"),
-      otherGroup: t("filter.otherGroup"),
+      otherGroup: t("common:labels.other"),
     }),
     [t],
   );
@@ -1123,9 +1123,9 @@ function AnalyzerPage() {
         active={statusFilter !== "all"}
         count={statusFilter !== "all" ? 1 : 0}
         icon={CheckmarkCircle02Icon}
-        label={t("filter.status")}
+        label={t("common:labels.status")}
       >
-        <MobileFilterPanelTitle>{t("filter.status")}</MobileFilterPanelTitle>
+        <MobileFilterPanelTitle>{t("common:labels.status")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {ANALYZER_STATUS_FILTERS.map((status) => (
             <button
@@ -1224,8 +1224,8 @@ function AnalyzerPage() {
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={bandFilter.length > 0} count={bandFilter.length} icon={Radar01Icon} label={t("filter.band")}>
-        <MobileFilterPanelTitle>{t("filter.band")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={bandFilter.length > 0} count={bandFilter.length} icon={Radar01Icon} label={t("common:labels.band")}>
+        <MobileFilterPanelTitle>{t("common:labels.band")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           <button
             type="button"
@@ -1235,7 +1235,7 @@ function AnalyzerPage() {
             }}
             className={cn("h-8 rounded-md px-2 text-left text-sm", bandFilter.length === 0 ? "bg-primary/10 text-primary" : "hover:bg-muted")}
           >
-            {t("filter.allBands")}
+            {t("common:labels.allBands")}
           </button>
           {availableBands.map(({ rat, band }) => {
             const key = `${rat}-${band}`;
@@ -1383,7 +1383,7 @@ function AnalyzerPage() {
                         </span>
                       ) : (
                         <>
-                          {t(fileFormat === "nsg" ? "file.uniqueRowCount" : "file.rowCount", { count: parsedRows?.length ?? 0 })} ·{" "}
+                          {t(fileFormat === "nsg" ? "file.uniqueRowCount" : "common:labels.cells", { count: parsedRows?.length ?? 0 })} ·{" "}
                           {formatFileSize(fileSize)} · {getAnalyzerFormatLabel(fileFormat)}
                         </>
                       )}
@@ -1456,7 +1456,7 @@ function AnalyzerPage() {
                   )}
                   {finalDuration !== null ? (
                     <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                      {t("stats.completedIn", { duration: formatDuration(finalDuration) })}
+                      {t("common:time.completedIn", { duration: formatDuration(finalDuration) })}
                     </span>
                   ) : null}
                 </div>
@@ -1508,7 +1508,7 @@ function AnalyzerPage() {
         {parsedRows && !isMobile ? (
           <div className="flex shrink-0 flex-wrap items-end gap-2 rounded-lg border bg-card p-2">
             <div className="flex min-w-36 flex-1 flex-col gap-1 sm:flex-none">
-              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("filter.status")}</span>
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("common:labels.status")}</span>
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -1627,7 +1627,7 @@ function AnalyzerPage() {
             </div>
 
             <div className="flex min-w-42.5 flex-1 flex-col gap-1 sm:flex-none">
-              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("filter.band")}</span>
+              <span className="px-0.5 text-xs font-medium text-muted-foreground">{t("common:labels.band")}</span>
               <BandFilterButton
                 value={bandFilter}
                 onChange={(value) => {
@@ -1702,7 +1702,9 @@ function AnalyzerPage() {
                       style={table.getColumn("identity")?.getIsSorted() === "asc" ? SORT_ASC_STYLE : undefined}
                     />
                   </button>
-                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">{t("table.visibleCount", { count: tableData.length })}</span>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {t("common:labels.results", { count: tableData.length })}
+                  </span>
                 </div>
                 {tableData.length === 0 ? (
                   <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-muted-foreground" role="status">

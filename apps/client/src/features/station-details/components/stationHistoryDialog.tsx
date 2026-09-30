@@ -264,14 +264,14 @@ const HistorySectionChanges = memo(function HistorySectionChanges({ section, pho
     if (CELL_DETAIL_FIELD_KEYS.has(field)) return CELL_DETAIL_LABEL_OVERRIDES[field] ?? getRatDetailFieldLabel(rat ?? "", field);
     if (field === "rat") return "RAT";
     if (field === "mno_name") return t("history.fields.mnoName");
-    if (field === "uplink_type") return t("history.fields.uplinkType");
-    if (field === "uplink_speed") return t("history.fields.uplinkSpeed");
+    if (field === "uplink_type") return t("common:labels.uplinkType");
+    if (field === "uplink_speed") return t("common:labels.uplinkSpeed");
     if (field === "uplink_model") return t("history.fields.uplinkModel");
-    if (field === "azimuth") return t("sectors.azimuth");
-    if (field === "azimuths") return t("sectors.title");
+    if (field === "azimuth") return t("common:labels.azimuth");
+    if (field === "azimuths") return t("common:labels.azimuths");
     if (field === "cell") return t("history.fields.cell");
     if (field === "photo") return t("history.fields.photo");
-    if (field === "main_photo") return t("history.fields.mainPhoto");
+    if (field === "main_photo") return t("photos.main");
     const commonKey = COMMON_LABEL_KEYS[field];
     if (commonKey !== undefined) return t(`common:labels.${commonKey}`);
     return field;
@@ -296,7 +296,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({ section, pho
     return String(value);
   };
 
-  const ratLabel = (rat: string) => rat || t("history.otherCells");
+  const ratLabel = (rat: string) => rat || t("common:labels.other");
 
   const renderValue = (change: StationHistoryChange, value: StationHistoryChangeValue, mainPhotoId: number | null) => {
     const photoId = isPhotoField(change.field) ? parsePhotoReferenceId(value) : null;
@@ -386,7 +386,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({ section, pho
       onToggle={(event) => setCellsExpanded(event.currentTarget.open)}
     >
       <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-md px-1 text-xs text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-        <span className="font-medium text-foreground">{t("history.cellCount", { count: cellCount })}</span>
+        <span className="font-medium text-foreground">{t("common:labels.cells", { count: cellCount })}</span>
         <span className="flex min-w-0 flex-1 flex-wrap gap-1">
           {cellChangeGroups.map((group) => (
             <span key={group.rat} className="rounded bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
@@ -402,7 +402,7 @@ const HistorySectionChanges = memo(function HistorySectionChanges({ section, pho
             <section key={ratGroup.rat} aria-label={ratLabel(ratGroup.rat)}>
               <div className="flex items-center justify-between bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
                 <span>{ratLabel(ratGroup.rat)}</span>
-                <span className="tabular-nums">{t("history.cellCount", { count: ratGroup.cells.length })}</span>
+                <span className="tabular-nums">{t("common:labels.cells", { count: ratGroup.cells.length })}</span>
               </div>
               <div className="divide-y divide-border/60">
                 {ratGroup.cells.map((cell, cellIndex) => (
@@ -484,7 +484,7 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
               {new Date(item.createdAt).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}
             </time>
             {canManageOperation && item.revertible ? (
-              <button type="button" onClick={() => onRevert(item)} className={ACTION_BUTTON_CLASS_NAME} aria-label={t("history.revert.action")}>
+              <button type="button" onClick={() => onRevert(item)} className={ACTION_BUTTON_CLASS_NAME} aria-label={t("common:actions.revertChange")}>
                 <HugeiconsIcon icon={Undo02Icon} className="size-3.5" aria-hidden="true" />
               </button>
             ) : null}
@@ -594,7 +594,7 @@ export function StationHistoryDialogPanel({
   }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
   const groups = useMemo(() => groupHistoryByDay(items, i18n.language), [items, i18n.language]);
-  const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("history.openSubmissions");
+  const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("common:labels.submissions");
 
   let historyContent: ReactNode;
   if (isPending)
@@ -620,7 +620,7 @@ export function StationHistoryDialogPanel({
     historyContent = (
       <div className="flex min-h-56 flex-1 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
         <HugeiconsIcon icon={Clock01Icon} className="size-7 text-muted-foreground" />
-        <h3 className="mt-3 text-sm font-semibold text-foreground">{t("history.empty")}</h3>
+        <h3 className="mt-3 text-sm font-semibold text-foreground">{t("common:empty.changes")}</h3>
         <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("history.emptyHint")}</p>
       </div>
     );

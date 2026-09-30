@@ -127,9 +127,9 @@ function AdminLocationsPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/locations/")({
   component: AdminLocationsPage,
   staticData: {
-    titleKey: "breadcrumbs.locations",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", i18nNamespace: "admin" }],
+    titleKey: "items.locations",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", i18nNamespace: "nav" }],
     allowedRoles: ["admin", "editor"],
   },
 });

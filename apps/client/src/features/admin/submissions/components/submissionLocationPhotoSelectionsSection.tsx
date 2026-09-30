@@ -40,7 +40,7 @@ export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos
                 photo={photo}
                 locale={i18n.language}
                 onOpen={() => lightbox.open(idx)}
-                mainTitle={t("photos.setAsMain")}
+                mainTitle={t("common:photos.setAsMain")}
               />
             ))}
           </div>

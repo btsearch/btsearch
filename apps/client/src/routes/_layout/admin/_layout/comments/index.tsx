@@ -66,7 +66,7 @@ function CommentsMobileFilterRail({
   const hasSearch = search.trim().length > 0;
   const hasActiveFilters = hasSearch || statusFilter !== "all" || selectedAuthorIds.length > 0;
   const statusOptions: { value: CommentsStatusFilter; label: string }[] = [
-    { value: "all", label: t("comments.filters.allStatuses") },
+    { value: "all", label: tCommon("labels.allStatuses") },
     { value: "pending", label: t("comments.filters.pending") },
     { value: "approved", label: t("comments.filters.approved") },
   ];
@@ -105,8 +105,8 @@ function CommentsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={statusFilter !== "all"} icon={FilterIcon} label={t("comments.filters.labelStatus")}>
-        <MobileFilterPanelTitle>{t("comments.filters.labelStatus")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={statusFilter !== "all"} icon={FilterIcon} label={tCommon("labels.status")}>
+        <MobileFilterPanelTitle>{tCommon("labels.status")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           {statusOptions.map((option) => (
             <button
@@ -124,8 +124,8 @@ function CommentsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={selectedAuthorIds.length > 0} count={selectedAuthorIds.length} icon={UserIcon} label={t("comments.table.author")}>
-        <MobileFilterPanelTitle>{t("comments.table.author")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={selectedAuthorIds.length > 0} count={selectedAuthorIds.length} icon={UserIcon} label={tCommon("labels.author")}>
+        <MobileFilterPanelTitle>{tCommon("labels.author")}</MobileFilterPanelTitle>
         <UserPicker selectedUserIds={selectedAuthorIds} onSelectionChange={onAuthorsChange} />
       </MobileFilterChip>
 
@@ -283,7 +283,7 @@ function AdminCommentsPage() {
       <div className="flex-1 flex flex-col pl-3 pt-3 pr-3 gap-3 min-h-0 overflow-hidden">
         <div className={cn("flex items-end gap-2", hasFloatingRail && "max-md:hidden")}>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">{t("comments.filters.labelStatus")}</label>
+            <label className="text-xs font-medium text-muted-foreground">{tCommon("labels.status")}</label>
             <Select
               value={statusFilter}
               onValueChange={(v) => {
@@ -292,17 +292,17 @@ function AdminCommentsPage() {
               }}
             >
               <SelectTrigger className="w-36">
-                <SelectValue>{statusFilter === "all" ? t("comments.filters.allStatuses") : t(`comments.filters.${statusFilter}`)}</SelectValue>
+                <SelectValue>{statusFilter === "all" ? tCommon("labels.allStatuses") : t(`comments.filters.${statusFilter}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent className="min-w-40">
-                <SelectItem value="all">{t("comments.filters.allStatuses")}</SelectItem>
+                <SelectItem value="all">{tCommon("labels.allStatuses")}</SelectItem>
                 <SelectItem value="pending">{t("comments.filters.pending")}</SelectItem>
                 <SelectItem value="approved">{t("comments.filters.approved")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted-foreground">{t("comments.table.author")}</label>
+            <label className="text-xs font-medium text-muted-foreground">{tCommon("labels.author")}</label>
             <UserPickerPopover
               selectedUserIds={selectedAuthorIds}
               onSelectionChange={(ids) => {
@@ -425,9 +425,9 @@ function AdminCommentsPage() {
 export const Route = createFileRoute("/_layout/admin/_layout/comments/")({
   component: AdminCommentsPage,
   staticData: {
-    titleKey: "breadcrumbs.comments",
-    i18nNamespace: "admin",
-    breadcrumbs: [{ titleKey: "breadcrumbs.admin", i18nNamespace: "admin" }],
+    titleKey: "items.comments",
+    i18nNamespace: "nav",
+    breadcrumbs: [{ titleKey: "sections.admin", i18nNamespace: "nav" }],
     allowedRoles: ["admin", "editor"],
   },
 });

@@ -12,7 +12,7 @@ const REVERT_REASON_LABEL_KEYS = {
   missing_old_values: "auditLogs.revert.reasons.missingOldValues",
   missing_new_values: "auditLogs.revert.reasons.missingNewValues",
   missing_details: "auditLogs.revert.reasons.missingDetails",
-  no_changes: "auditLogs.detail.noChanges",
+  no_changes: "common:empty.changes",
 } as const;
 
 type RevertReason = keyof typeof REVERT_REASON_LABEL_KEYS;

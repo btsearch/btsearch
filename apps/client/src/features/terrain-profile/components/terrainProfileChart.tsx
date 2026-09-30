@@ -59,7 +59,7 @@ function ProfileTooltip({ active, payload }: Partial<TooltipContentProps>) {
     <div className="grid min-w-44 gap-2 rounded-lg border border-border/70 bg-background px-2.5 py-2 text-xs shadow-xl">
       <div className="font-semibold tabular-nums">{t("chart.distance", { value: sample.distanceKm.toFixed(2) })}</div>
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
-        <dt className="text-muted-foreground">{t("chart.series.terrainElevationM")}</dt>
+        <dt className="text-muted-foreground">{t("chart.legend.terrain")}</dt>
         <dd className="font-mono font-medium tabular-nums">{formatMeters(sample.terrain_elevation_m)}</dd>
         <dt className="text-muted-foreground">{t("chart.series.surfaceElevationM")}</dt>
         <dd className="font-mono font-medium tabular-nums">{formatMeters(sample.surface_elevation_m)}</dd>

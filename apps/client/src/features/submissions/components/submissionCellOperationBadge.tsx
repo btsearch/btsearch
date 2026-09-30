@@ -5,8 +5,8 @@ import type { CellOperation } from "@/features/submissions/types";
 
 const OPERATION_LABEL_KEY = {
   add: "batch.addOperation",
-  update: "batch.updateOperation",
-  delete: "actionSelector.delete",
+  update: "common:submissionType.update",
+  delete: "common:submissionType.delete",
 } as const satisfies Record<CellOperation, string>;
 
 const OPERATION_CLASS = {

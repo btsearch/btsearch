@@ -94,7 +94,7 @@ export const StatChartCard = memo(function StatChartCard({
       </div>
     );
   } else if (data.length === 0 && !isLoading) {
-    body = <div className={cn("flex items-center justify-center p-4 text-muted-foreground text-xs", height)}>{t("charts.noData")}</div>;
+    body = <div className={cn("flex items-center justify-center p-4 text-muted-foreground text-xs", height)}>{t("common:empty.data")}</div>;
   } else if (standalone) {
     body = (
       <div className="overflow-x-auto px-3 pb-3 pt-4 sm:px-4">

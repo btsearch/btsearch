@@ -368,7 +368,7 @@ function PhotosMobileFilterRail({
               selectedRegion === null ? "bg-primary/10 text-primary" : "hover:bg-muted",
             )}
           >
-            <span className="min-w-0 flex-1 truncate">{t("photos.allRegions")}</span>
+            <span className="min-w-0 flex-1 truncate">{t("common:labels.allRegions")}</span>
           </button>
           {regions.map((region) => {
             const selected = selectedRegion?.code === region.code;
@@ -411,8 +411,8 @@ function PhotosMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={sortActive} count={sortActive ? 1 : 0} icon={ArrowDown01Icon} label={t("photos.sortLabel")}>
-        <MobileFilterPanelTitle>{t("photos.sortLabel")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={sortActive} count={sortActive ? 1 : 0} icon={ArrowDown01Icon} label={t("common:sorting.title")}>
+        <MobileFilterPanelTitle>{t("common:sorting.title")}</MobileFilterPanelTitle>
         <div className="grid gap-3">
           <div className="grid gap-1">
             {(["uploaded", "taken", "station"] as const).map((value) => {
@@ -445,7 +445,7 @@ function PhotosMobileFilterRail({
                     selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
                   )}
                 >
-                  {value === "asc" ? t("photos.order.asc") : t("photos.order.desc")}
+                  {value === "asc" ? t("common:sorting.ascending") : t("common:sorting.descending")}
                 </button>
               );
             })}
@@ -453,8 +453,8 @@ function PhotosMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={photoFilterCount > 0} count={photoFilterCount} icon={Camera01Icon} label={t("photos.title")}>
-        <MobileFilterPanelTitle>{t("photos.title")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={photoFilterCount > 0} count={photoFilterCount} icon={Camera01Icon} label={t("common:photos.stationPhotos")}>
+        <MobileFilterPanelTitle>{t("common:photos.stationPhotos")}</MobileFilterPanelTitle>
         <div className="grid gap-1">
           <button
             type="button"
@@ -474,7 +474,7 @@ function PhotosMobileFilterRail({
               filters.recentOnly ? "bg-primary/10 text-primary" : "hover:bg-muted",
             )}
           >
-            <span className="min-w-0 flex-1 truncate">{t("photos.recentOnly")}</span>
+            <span className="min-w-0 flex-1 truncate">{t("filters.newOnly")}</span>
           </button>
         </div>
       </MobileFilterChip>
@@ -567,9 +567,9 @@ export function PhotosGallery() {
   const selectedRegion = useMemo(() => (region === null ? null : (regions.find((item) => item.code === region) ?? null)), [region, regions]);
   const sortLabels = useMemo<Record<PhotosGallerySortBy, string>>(
     () => ({
-      station: t("photos.sort.station"),
-      uploaded: t("photos.sort.uploaded"),
-      taken: t("photos.sort.taken"),
+      station: t("common:labels.stationId"),
+      uploaded: t("common:photos.uploaded"),
+      taken: t("common:photos.taken"),
     }),
     [t],
   );
@@ -590,12 +590,12 @@ export function PhotosGallery() {
   const labels = useMemo(
     () => ({
       mainPhoto: t("photos.mainPhoto"),
-      openPhoto: t("photos.openPhoto"),
-      recent: t("photos.recent"),
-      taken: t("photos.taken"),
+      openPhoto: t("common:actions.openPhoto"),
+      recent: t("common:labels.new"),
+      taken: t("common:photos.taken"),
       unknownOperator: t("unknownOperator"),
       unknownUser: t("photos.unknownUser"),
-      uploaded: t("photos.uploaded"),
+      uploaded: t("common:photos.uploaded"),
       viewStation: t("photos.viewStation"),
     }),
     [t],
@@ -683,7 +683,7 @@ export function PhotosGallery() {
   const content = (() => {
     if (isLoading) return <GallerySkeleton layout={layout} />;
     if (isLoadingError)
-      return <ErrorState title={t("photos.errorTitle")} description={t("photos.errorSubtitle")} onRetry={retry} isRetrying={isFetching} />;
+      return <ErrorState title={t("common:photos.loadError")} description={t("photos.errorSubtitle")} onRetry={retry} isRetrying={isFetching} />;
     if (photos.length === 0)
       return (
         <div className="flex min-h-[45vh] flex-col items-center justify-center text-center">
@@ -791,7 +791,7 @@ export function PhotosGallery() {
         <div ref={galleryRef} className="w-full">
           <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">{t("photos.title")}</h1>
+              <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">{t("common:photos.stationPhotos")}</h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("photos.subtitle")}</p>
             </div>
             {data ? (
@@ -864,10 +864,10 @@ export function PhotosGallery() {
                 <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
                 <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
                   <SelectTrigger className="h-8 w-full">
-                    <SelectValue>{selectedRegion?.name ?? t("photos.allRegions")}</SelectValue>
+                    <SelectValue>{selectedRegion?.name ?? t("common:labels.allRegions")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL_FILTER_VALUE}>{t("photos.allRegions")}</SelectItem>
+                    <SelectItem value={ALL_FILTER_VALUE}>{t("common:labels.allRegions")}</SelectItem>
                     {regions.map((item) => (
                       <SelectItem key={item.id} value={item.code}>
                         {item.name}
@@ -886,7 +886,7 @@ export function PhotosGallery() {
                     render={<Button type="button" variant="outline" size="sm" className="h-8 w-full justify-between font-normal" />}
                   >
                     <span className="truncate">
-                      {statuses.length === 0 ? t("photos.allStatuses") : statuses.map((value) => statusLabels[value]).join(", ")}
+                      {statuses.length === 0 ? t("common:labels.allStatuses") : statuses.map((value) => statusLabels[value]).join(", ")}
                     </span>
                     <HugeiconsIcon icon={ArrowDown01Icon} className="size-4 shrink-0 opacity-50" />
                   </DropdownMenuTrigger>
@@ -906,7 +906,7 @@ export function PhotosGallery() {
               </div>
 
               <div className="flex w-40 flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">{t("photos.sortLabel")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("common:sorting.title")}</span>
                 <Select value={sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="h-8 w-full">
                     <SelectValue>{sortLabels[sortBy]}</SelectValue>
@@ -920,10 +920,10 @@ export function PhotosGallery() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">{t("photos.orderLabel")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("common:sorting.order")}</span>
                 <Button type="button" variant="outline" size="sm" className="h-8 w-full gap-2 sm:w-auto" onClick={toggleOrder}>
                   <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
-                  {order === "asc" ? t("photos.order.asc") : t("photos.order.desc")}
+                  {order === "asc" ? t("common:sorting.ascending") : t("common:sorting.descending")}
                 </Button>
               </div>
               <label className="inline-flex h-8 items-center gap-2 text-sm text-muted-foreground">
@@ -932,7 +932,7 @@ export function PhotosGallery() {
               </label>
               <label className="inline-flex h-8 items-center gap-2 text-sm text-muted-foreground">
                 <Switch size="sm" checked={recentOnly} onCheckedChange={setRecentOnly} />
-                {t("photos.recentOnly")}
+                {t("filters.newOnly")}
               </label>
               {activeFilters ? <ClearFiltersButton count={activeFilterCount} onClick={clearFilters} /> : null}
             </div>

@@ -44,7 +44,7 @@ function ResultGroupHeader({ id, icon, label, count }: { id: string; icon: IconS
         {label}
       </span>
       <span className="ml-auto rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border/60">
-        {t("searchResults.resultCount", { count })}
+        {t("common:labels.results", { count })}
       </span>
     </div>
   );
@@ -168,7 +168,7 @@ export function SearchResults({
       {state.kind === "error" ? (
         <ErrorState
           title={t("search.errorTitle")}
-          description={t("search.errorHint")}
+          description={t("common:error.loadDescription")}
           onRetry={onRetry}
           className="min-h-0 rounded-none border-0 py-7"
         />
@@ -359,7 +359,7 @@ export function SearchResults({
               case "radioline":
                 return (
                   <div key={group.kind} role="group" aria-labelledby={groupLabelId} className="border-b last:border-0">
-                    <ResultGroupHeader id={groupLabelId} icon={Route02Icon} label={t("searchResults.radiolines")} count={group.options.length} />
+                    <ResultGroupHeader id={groupLabelId} icon={Route02Icon} label={t("common:labels.radiolines")} count={group.options.length} />
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
                         const radioline = option.result;
@@ -384,7 +384,7 @@ export function SearchResults({
                                   labelClassName="text-sm font-semibold group-hover:underline"
                                 />
                               ) : (
-                                <span className="text-sm font-semibold text-muted-foreground">{t("searchResults.unknownOperator")}</span>
+                                <span className="text-sm font-semibold text-muted-foreground">{t("unknownOperator")}</span>
                               )}
                               <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
                                 {radioline.permit_number}

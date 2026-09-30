@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "CLF Export",
     "description": "Export cell data to CLF (Cell List File) format. These files can be used in cellular network monitoring applications to identify base stations serving the phone"
   },
   "workflow": {
@@ -14,14 +13,13 @@
     }
   },
   "info": {
-    "appsTitle": "Popular monitoring applications using CLF files:",
     "iosNote": "There is no such application for iOS/iPadOS/watchOS because Apple does not allow monitoring such things from the application level"
   },
   "form": {
     "operatorsHint": "Select one or more operators. If none selected, all operators will be exported",
     "standardHint": "Optional, all standards are exported by default",
     "bandsHint": "Optional, all bands are exported by default",
-    "outputFormat": "Output Format",
+    "outputFormat": "Output format",
     "compatibility": "compatible with {{app}}",
     "displayNRSeparately": {
       "title": "Display 5G NSA separately",
@@ -31,8 +29,7 @@
     "export": "Export",
     "exporting": "Exporting...",
     "copyApiUrl": "Copy API URL",
-    "elapsed": "Exporting for {{duration}}",
-    "completed": "Completed in {{duration}}"
+    "elapsed": "Exporting for {{duration}}"
   },
   "dataSources": {
     "operators": "operators",
@@ -48,8 +45,6 @@
     "defaultSummary": "Default templates are in use",
     "editedSummary": "Edited templates: {{count}}",
     "autoSave": "Autosave",
-    "saving": "Saving...",
-    "saved": "Saved",
     "insertPlaceholder": "Insert placeholder",
     "preview": "Preview",
     "toggleHint": "Click to simulate missing values",

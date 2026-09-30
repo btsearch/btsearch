@@ -20,6 +20,7 @@ import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/r
 import {
   type ComponentType,
   type PointerEvent,
+  type RefObject,
   type TouchEvent,
   memo,
   useEffect,
@@ -311,11 +312,11 @@ function DesktopSubnavRail({
   section: TranslatedNavSection | null;
   transition: FloatingTransition;
 }) {
-  const location = useLocation();
-  const activeItemUrl = section ? getActiveNavItemUrl([section], location.pathname) : null;
+  const pathname = useLocation({ select: (location) => location.pathname });
   const sectionKey = section && section.items.length > 0 ? section.key : null;
   const [shownKey, setShownKey] = useState(sectionKey);
   const [swapping, setSwapping] = useState(false);
+  const activeItemUrl = section ? getActiveNavItemUrl([section], pathname) : null;
 
   if (sectionKey !== shownKey) {
     setShownKey(sectionKey);
@@ -542,15 +543,15 @@ function FloatingActionSlot({ label, placement, transition }: { label: string; p
 }
 
 function MobileNavSheet({ onOpenChange, section }: { onOpenChange: (open: boolean) => void; section: TranslatedNavSection | null }) {
-  const location = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { t } = useTranslation("nav");
-  const activeItemUrl = section ? getActiveNavItemUrl([section], location.pathname) : null;
+  const activeItemUrl = section ? getActiveNavItemUrl([section], pathname) : null;
 
   return (
     <Sheet open={section !== null} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[80svh] gap-0 rounded-t-xl p-0" showCloseButton>
         <SheetHeader className="border-b">
-          <SheetTitle>{section?.title ?? t("floating.mobileTitle")}</SheetTitle>
+          <SheetTitle>{section?.title ?? t("common:labels.navigation")}</SheetTitle>
         </SheetHeader>
         <div className="grid gap-1 overflow-y-auto p-2">
           {section?.items.map((item) => {
@@ -693,7 +694,31 @@ function FloatingLanguageControl() {
   );
 }
 
-const FloatingAccountCluster = memo(function FloatingAccountCluster() {
+function FloatingSettingsLink() {
+  const { t } = useTranslation("nav");
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const active = pathname === "/settings";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Link
+            to="/settings"
+            aria-label={t("items.settings")}
+            aria-current={active ? "page" : undefined}
+            className={cn(FLOATING_ICON_CONTROL_CLASS, active && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+          />
+        }
+      >
+        <HugeiconsIcon icon={Settings02Icon} className="size-4" />
+      </TooltipTrigger>
+      <TooltipContent>{t("items.settings")}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+const FloatingAccountCluster = memo(function FloatingAccountCluster({ notificationsAnchor }: { notificationsAnchor: RefObject<HTMLElement | null> }) {
   const { t } = useTranslation("nav");
   const { data: session } = authClient.useSession();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -706,17 +731,8 @@ const FloatingAccountCluster = memo(function FloatingAccountCluster() {
     <div className="relative z-10 flex shrink-0 items-center gap-0.5">
       {user ? (
         <>
-          <NotificationsBell className={FLOATING_ICON_CONTROL_CLASS} />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link to="/settings" search={{ tab: "preferences" }} className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("items.preferences")} />
-              }
-            >
-              <HugeiconsIcon icon={Settings02Icon} className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>{t("items.preferences")}</TooltipContent>
-          </Tooltip>
+          <NotificationsBell className={FLOATING_ICON_CONTROL_CLASS} side="top" anchor={notificationsAnchor} />
+          <FloatingSettingsLink />
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="ghost" size="icon" className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("floating.account")} />}
@@ -766,7 +782,7 @@ const FloatingAccountCluster = memo(function FloatingAccountCluster() {
                   }}
                 >
                   <HugeiconsIcon icon={Logout02Icon} className="size-4" />
-                  {t("user.logout")}
+                  {t("common:actions.signOut")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               {buildMetadataTitle ? (
@@ -799,27 +815,18 @@ const FloatingAccountCluster = memo(function FloatingAccountCluster() {
         </>
       ) : (
         <>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link to="/settings" search={{ tab: "preferences" }} className={FLOATING_ICON_CONTROL_CLASS} aria-label={t("items.preferences")} />
-              }
-            >
-              <HugeiconsIcon icon={Settings02Icon} className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>{t("items.preferences")}</TooltipContent>
-          </Tooltip>
+          <FloatingSettingsLink />
           <FloatingThemeControl />
           <FloatingLanguageControl />
           <Button
             variant="outline"
             size="sm"
             className="h-8 rounded-full px-2.5"
-            aria-label={t("user.login")}
+            aria-label={t("common:actions.signIn")}
             onClick={() => setAuthDialogOpen(true)}
           >
             <HugeiconsIcon icon={Login01Icon} className="size-4" />
-            <span className="hidden sm:inline">{t("user.login")}</span>
+            <span className="hidden sm:inline">{t("common:actions.signIn")}</span>
           </Button>
           <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
         </>
@@ -892,7 +899,7 @@ function FloatingCategoryButton({
 
 export function FloatingNav() {
   const { t } = useTranslation("nav");
-  const location = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const pageSections = usePageSectionsList();
   const isMobile = useIsMobile();
   const reduceMotion = useReducedMotion() === true;
@@ -901,10 +908,11 @@ export function FloatingNav() {
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
   const { favoriteSet, lists: navLists } = useNavLists();
-  const [navState, dispatchNav] = useReducer(floatingNavReducer, location.pathname, createInitialFloatingNavState);
+  const [navState, dispatchNav] = useReducer(floatingNavReducer, pathname, createInitialFloatingNavState);
   const { hidden, showCount, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
   const hiddenNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
   const visibleNavSwipeStartRef = useRef<NavSwipeStart | null>(null);
+  const navRef = useRef<HTMLElement>(null);
   const userRole = session?.user?.role as string | undefined;
   const isLoggedIn = session?.user !== undefined && session.user !== null;
   const showAuth = isLoggedIn && settings?.submissionsEnabled === true;
@@ -925,7 +933,7 @@ export function FloatingNav() {
     return () => window.clearTimeout(timeoutId);
   }, [hidden, reduceMotion]);
 
-  if (navState.pathname !== location.pathname) dispatchNav({ type: "RESET_FOR_ROUTE", pathname: location.pathname });
+  if (navState.pathname !== pathname) dispatchNav({ type: "RESET_FOR_ROUTE", pathname });
 
   const sections = useMemo(() => {
     const infoSections: TranslatedNavSection[] = translateNav(infoNavConfig, t).map((section) =>
@@ -961,14 +969,15 @@ export function FloatingNav() {
       ...infoSections,
     ];
   }, [favoriteSet, navLists, settings, showAuth, showLists, t, userRole]);
-  const activeSection = useMemo(() => getActiveNavSection(sections, location.pathname), [sections, location.pathname]);
+  const activeSection = useMemo(() => getActiveNavSection(sections, pathname), [sections, pathname]);
   const expandedSection = sections.find((section) => section.key === expandedKey) ?? null;
   const displayedSection = expandedSection ?? (activeSection?.key === collapsedActiveKey ? null : activeSection);
   const displayedSubnavSection = subnavReady ? displayedSection : null;
   const showDesktopSubnav = !isMobile && displayedSubnavSection !== null && displayedSubnavSection.items.length > 0;
-  const displayedActiveItemUrl = displayedSubnavSection ? getActiveNavItemUrl([displayedSubnavSection], location.pathname) : null;
+  const displayedActiveItemUrl = displayedSubnavSection ? getActiveNavItemUrl([displayedSubnavSection], pathname) : null;
   const displayedActiveItem = displayedSubnavSection?.items.find((item) => !item.href && item.url === displayedActiveItemUrl) ?? null;
-  const showDesktopPageSections = !isMobile && displayedActiveItem !== null && pageSections.length > 0;
+  const showDesktopPageSections =
+    !isMobile && pageSections.length > 0 && (displayedActiveItem !== null || (activeSection === null && displayedSection === null));
   const showMobilePageSections = isMobile && pageSections.length > 0;
   const mobileSection = sections.find((section) => section.key === mobileSectionKey) ?? null;
 
@@ -1101,6 +1110,7 @@ export function FloatingNav() {
                 />
                 <DesktopSubnavRail reduceMotion={reduceMotion} section={showDesktopSubnav ? displayedSubnavSection : null} transition={transition} />
                 <motion.nav
+                  ref={navRef}
                   layout
                   initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1147,7 +1157,7 @@ export function FloatingNav() {
                   </LayoutGroup>
                   {!isMobile ? <FloatingActionSlot label={t("floating.actions")} placement="main" transition={transition} /> : null}
                   <div className="relative z-10 mx-0.5 h-5 w-px shrink-0 bg-border" />
-                  <FloatingAccountCluster />
+                  <FloatingAccountCluster notificationsAnchor={navRef} />
                   <button
                     type="button"
                     aria-label={t("floating.hide")}

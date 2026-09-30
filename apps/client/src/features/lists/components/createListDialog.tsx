@@ -68,7 +68,7 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="list-name">{t("lists:name")}</Label>
+            <Label htmlFor="list-name">{t("common:labels.name")}</Label>
             <Input id="list-name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
           </div>
           <div className="space-y-2">

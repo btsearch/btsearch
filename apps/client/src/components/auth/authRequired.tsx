@@ -28,7 +28,7 @@ export function AuthRequired({ showMapLink = true }: AuthRequiredProps) {
           <>
             <Button type="button" onClick={() => setIsDialogOpen(true)}>
               <HugeiconsIcon icon={Login01Icon} data-icon="inline-start" aria-hidden="true" />
-              {t("errorPage.signInRequired.signIn")}
+              {t("actions.signIn")}
             </Button>
             {showMapLink ? <MapLinkButton variant="outline" /> : null}
           </>

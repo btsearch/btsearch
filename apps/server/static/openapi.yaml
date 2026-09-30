@@ -3,8 +3,8 @@ info:
   title: BTSearch API
   description: |
     API documentation for BTSearch Backend
-    Last updated: 2026-09-29
-  version: 1.4.2
+    Last updated: 2026-09-30
+  version: 1.4.3
 
 servers:
   - url: https://btsearch.pl/api/v1
@@ -20,6 +20,7 @@ tags:
   - name: Bands
   - name: Regions
   - name: Hunters
+  - name: Users
   - name: Locations
   - name: Submissions
   - name: Notifications
@@ -1667,6 +1668,30 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /users/{username}:
+    get:
+      tags: [Users]
+      summary: Get a user's public profile
+      description: Returns a user's public profile. Private profiles only return the basics to anyone but the owner, and contact details require signing in
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/UserProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /locations:
     get:
       tags: [Locations]
@@ -2672,6 +2697,7 @@ paths:
     get:
       tags: [Notifications]
       summary: List notifications for the current user
+      description: Sorted by latest activity (`updatedAt`), newest first
       security:
         - CookieAuth: []
       parameters:
@@ -2688,11 +2714,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data, totalUnread, total]
+                required: [data, totalUnread, totalCount]
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/Notification" } }
                   totalUnread: { type: integer }
-                  total: { type: integer }
+                  totalCount: { type: integer }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -2741,7 +2767,12 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: "#/components/schemas/Notification" }
+                  data:
+                    type: object
+                    required: [id, readAt]
+                    properties:
+                      id: { type: string, format: uuid }
+                      readAt: { type: string, format: date-time }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
@@ -4752,10 +4783,9 @@ components:
             is_main: { type: boolean }
     Notification:
       type: object
-      required: [id, userId, type, title, submissionId, metadata, actionUrl, readAt, createdAt]
+      required: [id, type, title, readAt, createdAt, updatedAt, actionUrl, station, submission, actor, note, changes, count]
       properties:
         id: { type: string, format: uuid }
-        userId: { type: string, format: uuid }
         type:
           type: string
           enum:
@@ -4767,12 +4797,61 @@ components:
             - station_photos_added
             - station_comment_approved
             - station_uke_permit_added
-        title: { type: string }
-        submissionId: { type: string, format: uuid, nullable: true }
-        metadata: { type: object, nullable: true, additionalProperties: true }
-        actionUrl: { type: string, nullable: true }
+        title: { type: string, description: Title in the user's language }
         readAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, description: Time of the latest event merged into this notification. }
+        actionUrl: { type: string, nullable: true }
+        station:
+          type: object
+          nullable: true
+          required: [id, station_id, source, operator]
+          properties:
+            id: { type: integer, nullable: true, description: Internal or UKE station id, null for a proposed new station }
+            station_id: { type: string, nullable: true }
+            source: { type: string, enum: [internal, uke] }
+            operator:
+              type: object
+              nullable: true
+              required: [name, mnc]
+              properties:
+                name: { type: string }
+                mnc: { type: integer, nullable: true }
+        submission:
+          type: object
+          nullable: true
+          required: [id, type]
+          properties:
+            id: { type: string, format: uuid }
+            type: { type: string, enum: [new, update, delete], nullable: true }
+        actor:
+          type: object
+          nullable: true
+          description: The reviewer, or the submitter for new submissions
+          required: [name]
+          properties:
+            name: { type: string }
+        note: { type: string, nullable: true, description: Reviewer note }
+        changes:
+          type: object
+          nullable: true
+          properties:
+            cells:
+              type: object
+              required: [added, removed, updated]
+              properties:
+                added: { type: integer }
+                removed: { type: integer }
+                updated: { type: integer }
+            permits:
+              type: object
+              required: [added, deleted]
+              properties:
+                added: { type: integer }
+                deleted: { type: integer }
+            ukeStationsAdded: { type: integer }
+            removedFromUke: { type: boolean }
+        count: { type: integer, description: Number of events merged into this notification }
     SubmissionPhoto:
       type: object
       required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, note, taken_at, is_main, createdAt, author]
@@ -5262,7 +5341,10 @@ components:
               properties:
                 id: { type: string, format: uuid }
                 username: { type: string, nullable: true }
-                name: { type: string, nullable: true }
+                name:
+                  type: string
+                  nullable: true
+                  description: "Null when the author's profile is private, unless the viewer is the author, an editor or an admin"
                 image: { type: string, nullable: true }
 
     Submission:
@@ -5569,6 +5651,80 @@ components:
         email: { type: string }
         image: { type: string, nullable: true }
         name: { type: string }
+    UserProfile:
+      type: object
+      required: [user, visibility, restricted, contact, contactHidden, hunter, comments]
+      properties:
+        user:
+          type: object
+          required: [id, username, name, image, bio, role, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string, nullable: true }
+            name: { type: string, nullable: true, description: "Null for restricted profiles unless the viewer is an editor or admin" }
+            image: { type: string, nullable: true }
+            bio: { type: string, nullable: true, description: "Null for restricted profiles" }
+            role:
+              {
+                type: string,
+                nullable: true,
+                description: "user, editor or admin. Null for restricted profiles unless the viewer is an editor or admin",
+              }
+            createdAt: { type: string, format: date-time }
+        visibility: { type: string, enum: [public, private] }
+        restricted: { type: boolean, description: "True when the profile is private and the viewer is not its owner" }
+        contact:
+          type: object
+          nullable: true
+          description: "Contact details. Null when the user has none, for guests and for restricted profiles"
+          required: [instagram, facebook, email]
+          properties:
+            instagram: { type: string, nullable: true, description: "Handle without the leading @" }
+            facebook: { type: string, nullable: true, description: "Full https URL" }
+            email: { type: string, format: email, nullable: true }
+        contactHidden: { type: boolean, description: "True when the viewer is a guest and the user has contact details" }
+        hunter:
+          type: object
+          nullable: true
+          description: "Present when the user is listed in the BTS Hunters directory with a public profile"
+          required: [regions]
+          properties:
+            regions:
+              type: array
+              items: { type: integer }
+              description: Array of region IDs from the /regions endpoint
+        comments:
+          type: object
+          nullable: true
+          description: "Null when station comments are disabled or the profile is restricted"
+          required: [totalCount, items]
+          properties:
+            totalCount: { type: integer, description: "Number of the user's approved comments" }
+            items:
+              type: array
+              description: "Up to 50 most recent approved comments"
+              items:
+                type: object
+                required: [id, content, createdAt, station]
+                properties:
+                  id: { type: string, format: uuid }
+                  content: { type: string }
+                  createdAt: { type: string, format: date-time }
+                  station:
+                    type: object
+                    required: [id, station_id, city, operator]
+                    properties:
+                      id: { type: integer }
+                      station_id: { type: string, nullable: true }
+                      city: { type: string, nullable: true }
+                      operator:
+                        type: object
+                        nullable: true
+                        required: [id, name, mnc]
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                          mnc: { type: integer, nullable: true }
 
     AuditOperationKind:
       type: string

@@ -1,20 +1,14 @@
 {
   "deletedEntries": {
-    "title": "Deleted Entries",
     "subtitle": "View entries removed during UKE imports",
     "columns": {
-      "deletedAt": "Deleted At",
-      "createdAt": "Created At",
-      "sourceType": "Source",
+      "deletedAt": "Deleted at",
+      "createdAt": "Created at",
       "sourceId": "Original ID",
       "identifier": "Identifier",
       "importId": "Import"
     },
     "filters": {
-      "allSources": "All",
-      "dateFrom": "From",
-      "dateTo": "To",
-      "dateRange": "Date range",
       "searchPlaceholder": "Search by ID or permit..."
     },
     "empty": {
@@ -24,11 +18,8 @@
       "filteredDescription": "Try a different search, source or date range"
     },
     "detail": {
-      "title": "Deleted Entry",
-      "overview": "Overview",
-      "data": "Stored Data",
-      "field": "Field",
-      "value": "Value"
+      "title": "Deleted entry",
+      "data": "Stored data"
     }
   }
 }

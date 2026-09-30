@@ -124,7 +124,7 @@ export function MeasurementsDataTable({ status, t, tCommon, locale, onOpenStatio
       },
       {
         id: "links",
-        header: () => <span className="sr-only">{t("table.links")}</span>,
+        header: () => <span className="sr-only">{t("common:labels.links")}</span>,
         size: status === "COMPLETED" ? 170 : 140,
         cell: ({ row }) => (
           <PEMLinksCell row={row.original} t={t} tCommon={tCommon} onOpenStation={onOpenStation}>

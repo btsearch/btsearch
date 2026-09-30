@@ -170,7 +170,7 @@ function PermitHolderNote({ station }: { station: PhysicalStation }) {
       <span>{t("permits.permitHolder")}</span>
       <StationLink
         station={station}
-        onOpen={(id) => openStationDialog(id, "internal", "permits")}
+        onOpen={(id) => openStationDialog(id, "internal")}
         className="inline-flex"
         stationIdClassName="underline-offset-2 group-hover:underline group-focus-visible:underline"
       />
@@ -220,7 +220,9 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                   {t("permits.decisionNumber")}
                 </th>
                 {showAntennaData && (
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("permits.sectors")}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {t("common:labels.azimuths")}
+                  </th>
                 )}
                 <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("permits.expiryDate")}</th>
               </tr>
@@ -282,11 +284,11 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                               <div className="flex flex-col gap-1 mt-1">
                                 {permit.sectors.map((sector) => (
                                   <div key={sector.id} className="flex items-center gap-2 font-mono text-xs">
-                                    <SectorValueTooltip label={t("permits.sectorsAzimuth")}>
+                                    <SectorValueTooltip label={t("common:labels.azimuth")}>
                                       <span>{sector.azimuth !== null ? `${sector.azimuth}°` : "-"}</span>
                                     </SectorValueTooltip>
                                     <span className="text-muted-foreground">/</span>
-                                    <SectorValueTooltip label={t("permits.sectorsAntennaHeight")}>
+                                    <SectorValueTooltip label={t("common:labels.antennaHeight")}>
                                       <span>{sector.antenna_height !== null ? `${sector.antenna_height} m` : "-"}</span>
                                     </SectorValueTooltip>
                                     {sector.antenna_type && (
@@ -326,7 +328,7 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                                 variant="secondary"
                                 className="bg-green-500/10 text-green-600 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
                               >
-                                {t("common:submissionType.new")}
+                                {t("common:labels.new")}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>{t("permits.newPermitTooltip")}</TooltipContent>

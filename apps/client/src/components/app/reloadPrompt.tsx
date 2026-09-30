@@ -16,6 +16,7 @@ export function ReloadPrompt() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    immediate: false,
     onNeedRefresh: () => setNeedRefresh(true),
   });
 

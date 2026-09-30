@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "Pliki KMZ",
     "subtitle": "Gotowe pliki Google Earth wygenerowane z naszych importów UKE"
   },
   "type": {
@@ -9,17 +8,13 @@
     "radiolines": "Radiolinie"
   },
   "source": {
-    "label": "Źródło",
     "all": "Połączone",
     "permits": "Pozwolenia",
     "device_registry": "Rejestr urządzeń"
   },
   "region": {
-    "unknownRegion": "Nieznane województwo",
-    "allRegions": "Wszystkie województwa"
+    "unknownRegion": "Nieznane województwo"
   },
-  "sortLabel": "Sortuj",
-  "orderLabel": "Kolejność",
   "sort": {
     "region": "Województwo",
     "size": "Rozmiar pliku"
@@ -33,7 +28,6 @@
     "count_few": "{{ count, number }} pliki",
     "count_many": "{{ count, number }} plików",
     "count_other": "{{ count, number }} plików",
-    "download": "Pobierz",
     "downloading": "Pobieranie...",
     "noDates": "Brak eksportów",
     "noDatesSubtitle": "Nic nie zostało jeszcze wygenerowane dla tego typu i źródła",
@@ -41,8 +35,7 @@
     "emptySubtitle": "Spróbuj innej daty, źródła lub województwa",
     "filteredEmptyTitle": "Żaden plik nie pasuje do filtrów",
     "filteredEmptySubtitle": "Wyczyść filtry, aby zobaczyć wszystkie pliki dla tej daty",
-    "errorTitle": "Nie udało się wczytać plików KMZ",
-    "errorSubtitle": "Odśwież stronę lub spróbuj ponownie za chwilę"
+    "errorTitle": "Nie udało się wczytać plików KMZ"
   },
   "file": {
     "new_stations": "Nowe stacje",

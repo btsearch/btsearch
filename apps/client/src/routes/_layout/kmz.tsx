@@ -171,8 +171,8 @@ function KmzMobileFilterRail({
       <span aria-hidden="true" className="mx-0.5 h-5 w-px shrink-0 bg-border" />
 
       {type === "stations" ? (
-        <MobileFilterChip active={source !== "all"} count={source !== "all" ? 1 : 0} icon={FilterIcon} label={t("source.label")}>
-          <MobileFilterPanelTitle>{t("source.label")}</MobileFilterPanelTitle>
+        <MobileFilterChip active={source !== "all"} count={source !== "all" ? 1 : 0} icon={FilterIcon} label={t("common:labels.source")}>
+          <MobileFilterPanelTitle>{t("common:labels.source")}</MobileFilterPanelTitle>
           <div className="grid gap-1">
             {KMZ_SOURCES.map((value) => (
               <button
@@ -225,7 +225,7 @@ function KmzMobileFilterRail({
               region === null ? "bg-primary/10 text-primary" : "hover:bg-muted",
             )}
           >
-            <span className="min-w-0 flex-1 truncate">{t("region.allRegions")}</span>
+            <span className="min-w-0 flex-1 truncate">{t("common:labels.allRegions")}</span>
           </button>
           {regions.map((item) => (
             <button
@@ -243,8 +243,8 @@ function KmzMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={sortActive} count={sortActive ? 1 : 0} icon={ArrowDown01Icon} label={t("sortLabel")}>
-        <MobileFilterPanelTitle>{t("sortLabel")}</MobileFilterPanelTitle>
+      <MobileFilterChip active={sortActive} count={sortActive ? 1 : 0} icon={ArrowDown01Icon} label={t("common:sorting.title")}>
+        <MobileFilterPanelTitle>{t("common:sorting.title")}</MobileFilterPanelTitle>
         <div className="grid gap-3">
           <div className="grid gap-1">
             {KMZ_SORT_OPTIONS.map((value) => (
@@ -335,7 +335,7 @@ function KmzListPage() {
   const sortLabels = useMemo(() => ({ region: t("sort.region"), size: t("sort.size") }), [t]);
   const isDatesUnavailable = isDatesError && datesData === undefined;
   const showNoDatesState = !isDatesLoading && !isDatesUnavailable && availableDates.length === 0;
-  const noDatesLabel = isDatesUnavailable ? t("common:placeholder.errorFetching") : t("list.noDates");
+  const noDatesLabel = isDatesUnavailable ? t("common:error.loadTitle") : t("list.noDates");
   const activeFilterCount = [type === "stations" && source !== "all", region !== null, sortBy !== "region", order !== "asc"].filter(Boolean).length;
   const showFloatingMobileFilters = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
@@ -381,17 +381,22 @@ function KmzListPage() {
   function getRegionLabel(file: KmzFile) {
     if (isNewKmzFile(file)) return t(`file.new_${file.type}`);
     if (isUnknownRegionKmzFile(file)) return t("region.unknownRegion");
-    return file.region?.name ?? t("region.allRegions");
+    return file.region?.name ?? t("common:labels.allRegions");
   }
 
   const content = isDatesUnavailable ? (
-    <ErrorState title={t("list.errorTitle")} description={t("list.errorSubtitle")} onRetry={() => refetchDates()} isRetrying={isDatesFetching} />
+    <ErrorState
+      title={t("list.errorTitle")}
+      description={t("common:error.reloadOrTryLater")}
+      onRetry={() => refetchDates()}
+      isRetrying={isDatesFetching}
+    />
   ) : showNoDatesState ? (
     <KmzStateMessage icon={MapsIcon} title={t("list.noDates")} subtitle={t("list.noDatesSubtitle")} />
   ) : isLoading || isDatesLoading ? (
     <KmzListSkeleton />
   ) : isError && !data ? (
-    <ErrorState title={t("list.errorTitle")} description={t("list.errorSubtitle")} onRetry={() => refetch()} isRetrying={isFetching} />
+    <ErrorState title={t("list.errorTitle")} description={t("common:error.reloadOrTryLater")} onRetry={() => refetch()} isRetrying={isFetching} />
   ) : files.length === 0 ? (
     <KmzStateMessage
       icon={MapsIcon}
@@ -415,7 +420,7 @@ function KmzListPage() {
             disabled={downloadingFileName === file.filename}
           >
             {downloadingFileName === file.filename ? <Spinner /> : <HugeiconsIcon icon={Download01Icon} className="size-4.5" />}
-            {downloadingFileName === file.filename ? t("list.downloading") : t("list.download")}
+            {downloadingFileName === file.filename ? t("list.downloading") : t("common:actions.download")}
           </Button>
         </div>
       ))}
@@ -427,7 +432,7 @@ function KmzListPage() {
       <div className="w-full px-6 py-6">
         <header className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">{t("page.title")}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.kmz")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("page.subtitle")}</p>
           </div>
           <p className="shrink-0 text-sm font-medium text-muted-foreground">{t("list.count", { count: files.length })}</p>
@@ -448,7 +453,7 @@ function KmzListPage() {
             >
               {type === "stations" ? (
                 <div className="flex w-full flex-col gap-1 sm:w-44">
-                  <span className="text-xs font-medium text-muted-foreground">{t("source.label")}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{t("common:labels.source")}</span>
                   <Select value={source} onValueChange={(value) => value && handleSourceChange(value as KmzSource)}>
                     <SelectTrigger className="h-8 w-full">
                       <SelectValue>{t(`source.${source}`)}</SelectValue>
@@ -484,10 +489,10 @@ function KmzListPage() {
                 <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
                 <Select value={region ?? ALL_FILTER_VALUE} onValueChange={handleRegionChange}>
                   <SelectTrigger className="h-8 w-full">
-                    <SelectValue>{selectedRegion?.name ?? t("region.allRegions")}</SelectValue>
+                    <SelectValue>{selectedRegion?.name ?? t("common:labels.allRegions")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL_FILTER_VALUE}>{t("region.allRegions")}</SelectItem>
+                    <SelectItem value={ALL_FILTER_VALUE}>{t("common:labels.allRegions")}</SelectItem>
                     {regions.map((item) => (
                       <SelectItem key={item.id} value={item.code}>
                         {item.name}
@@ -498,7 +503,7 @@ function KmzListPage() {
               </div>
 
               <div className="flex w-full flex-col gap-1 sm:w-36">
-                <span className="text-xs font-medium text-muted-foreground">{t("sortLabel")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("common:sorting.title")}</span>
                 <Select value={sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="h-8 w-full">
                     <SelectValue>{sortLabels[sortBy]}</SelectValue>
@@ -514,7 +519,7 @@ function KmzListPage() {
               </div>
 
               <div className="flex w-full flex-col gap-1 sm:w-auto">
-                <span className="text-xs font-medium text-muted-foreground">{t("orderLabel")}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t("common:sorting.order")}</span>
                 <Button type="button" variant="outline" size="sm" className="h-8 w-full gap-2 sm:w-auto" onClick={toggleOrder}>
                   <HugeiconsIcon icon={order === "asc" ? ArrowUp01Icon : ArrowDown01Icon} className="size-4" />
                   {order === "asc" ? t("order.asc") : t("order.desc")}

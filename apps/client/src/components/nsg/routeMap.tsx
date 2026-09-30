@@ -82,7 +82,7 @@ function SignalLegend({ compact, dbm, color, operator, signalSim }: SignalLegend
         ))}
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-4 shrink-0 rounded-xs" style={{ backgroundColor: SIGNAL_UNKNOWN_COLOR }} />
-          {t("map.noSignalData")}
+          {t("common:empty.data")}
         </div>
       </div>
     </>

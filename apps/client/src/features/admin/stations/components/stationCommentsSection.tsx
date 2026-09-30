@@ -80,7 +80,7 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
                 className="size-3.5 text-muted-foreground transition-transform group-data-panel-open:rotate-0 -rotate-90"
               />
               <HugeiconsIcon icon={Message01Icon} className="size-4 text-muted-foreground" />
-              <span className="font-semibold text-sm">{t("stationComments.title")}</span>
+              <span className="font-semibold text-sm">{t("common:labels.comments")}</span>
               <span className="text-xs text-muted-foreground">({comments.length})</span>
             </CollapsibleTrigger>
           </div>
@@ -93,7 +93,7 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
             ) : isError && comments.length === 0 ? (
               <InlineError className="m-4" onRetry={() => refetch()} isRetrying={isFetching} />
             ) : comments.length === 0 ? (
-              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t("stationComments.noComments")}</div>
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t("common:empty.comments")}</div>
             ) : (
               <div className="divide-y max-h-105 overflow-y-auto">
                 {comments.map((comment) => (

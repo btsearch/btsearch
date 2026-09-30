@@ -89,7 +89,7 @@ export function ReplayControls({
             onClick={onOpenDetails}
           >
             <HugeiconsIcon icon={ListViewIcon} />
-            <span className="max-[359px]:hidden">{t("mobile.detailsButton")}</span>
+            <span className="max-[359px]:hidden">{t("common:labels.details")}</span>
           </Button>
         ) : null}
       </div>

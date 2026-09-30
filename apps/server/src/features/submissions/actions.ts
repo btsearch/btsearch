@@ -58,11 +58,20 @@ import {
   normalizeText,
   resolveSectorChanges,
 } from "./helpers.js";
+import { getSubmissionStationLabels, stationLabelMetadata } from "./stationLabels.js";
 
 type LocationRow = NonNullable<Awaited<ReturnType<DbTx["query"]["locations"]["findFirst"]>>>;
 type LocationChange = { op: "create"; old?: never; new: LocationRow } | { op: "update"; old: LocationRow; new: LocationRow };
 type UpsertLocationResult = { locationId: number; change: LocationChange | null };
 type LocationValues = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
+
+const REVIEWER_NOTE_MAX_LENGTH = 500;
+
+function reviewerNoteMetadata(note: string | null): { reviewer_note?: string } {
+  if (!note) return {};
+  if (note.length <= REVIEWER_NOTE_MAX_LENGTH) return { reviewer_note: note };
+  return { reviewer_note: `${note.slice(0, REVIEWER_NOTE_MAX_LENGTH - 3).trimEnd()}...` };
+}
 
 function toLocationValues(location: ProposedLocationChanges): LocationValues {
   const { region_id, longitude, latitude } = location;
@@ -1645,7 +1654,7 @@ export async function approveSubmissionAction({
       metadata: {
         ...(stationStringId ? { station_id: stationStringId } : {}),
         ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
-        ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
+        ...reviewerNoteMetadata(result.review_notes),
       },
       actionUrl: "/account/submissions",
     }).catch((e) => logger.error("Failed to send notification", { error: e }));
@@ -1723,13 +1732,10 @@ export async function rejectSubmissionAction({
     },
   );
 
-  const [reviewer, station] = await Promise.all([
+  const [reviewer, stationLabels] = await Promise.all([
     db.query.users.findFirst({ where: { id: reviewerId }, columns: { name: true } }),
-    submission.station_id
-      ? db.query.stations.findFirst({ where: { id: submission.station_id }, columns: { station_id: true } })
-      : Promise.resolve(null),
+    getSubmissionStationLabels([{ id: submissionId, station_id: submission.station_id }]),
   ]);
-  const stationStringId = station?.station_id ?? null;
 
   if (submission.submitter_id !== null) {
     void createAndDeliverNotification({
@@ -1738,9 +1744,9 @@ export async function rejectSubmissionAction({
       submissionId,
       stationId: submission.station_id ?? undefined,
       metadata: {
-        ...(stationStringId ? { station_id: stationStringId } : {}),
+        ...stationLabelMetadata(stationLabels.get(submissionId)),
         ...(reviewer?.name ? { reviewer_name: reviewer.name } : {}),
-        ...(result.review_notes ? { reviewer_note: result.review_notes.slice(0, 200) } : {}),
+        ...reviewerNoteMetadata(result.review_notes),
       },
       actionUrl: "/account/submissions",
     }).catch((e) => logger.error("Failed to send notification", { error: e }));

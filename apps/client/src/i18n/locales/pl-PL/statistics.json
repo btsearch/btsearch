@@ -1,9 +1,7 @@
 {
-  "title": "Statystyki",
   "description": "Statystyki pozwoleń, kompletności bazy, kontrybucji i trendów historycznych w podziale na operatorów i pasma. Dane są aktualizowane co 24 godziny",
   "refresh": {
     "summary": "Podsumowanie",
-    "ukePermits": "Pozwolenia UKE",
     "lastUpdated": "Ostatnia aktualizacja:",
     "next": "Następne odświeżenie za {{duration}}"
   },
@@ -27,15 +25,11 @@
     "byRat": "Rozkład wg technologii",
     "byOperator": "Rozkład wg operatora",
     "byBand": "Unikalne stacje wg pasma",
-    "internalByRat": "Komórki wg technologii",
-    "internalByOperator": "Komórki wg operatora",
-    "internalByBand": "Komórki wg pasma",
     "internalStationsByBand": "Stacje wg pasma",
     "internalStationsPerOperator": "Stacje wg operatora",
     "byVoivodeship": "Unikalne stacje wg województwa",
     "internalByVoivodeship": "Stacje wg województwa",
     "history": "Trendy historyczne",
-    "noData": "Brak danych",
     "noHistoryData": "Brak danych historycznych. Trendy pojawią się, gdy dane zostaną zebrane"
   },
   "completeness": {
@@ -43,7 +37,6 @@
     "stationDescription": "Opublikowane stacje z azymutami i dodatkowymi identyfikatorami",
     "pciTitle": "Kompletność PCI",
     "pciDescription": "Komórki LTE i NR z udokumentowanym lub brakującym PCI",
-    "stations": "Stacje",
     "withSectors": "Z azymutami",
     "withoutSectors": "Bez azymutów",
     "withExtraIds": "Z dodatkowymi ID",
@@ -69,8 +62,6 @@
       "stations": "Stacje",
       "permits": "Pozwolenia"
     },
-    "all": "Wszystkie",
-    "new": "Nowe",
     "noPreviousSnapshot": "brak poprzednich danych",
     "export": {
       "button": "Pobierz PNG",
@@ -80,11 +71,9 @@
     }
   },
   "filters": {
-    "allBands": "Wszystkie pasma",
     "granularity": "Okres",
     "monthly": "Miesięczne",
     "daily": "Dziennie",
-    "view": "Widok",
     "byBand": "Wg pasma",
     "byOperator": "Wg operatora"
   }

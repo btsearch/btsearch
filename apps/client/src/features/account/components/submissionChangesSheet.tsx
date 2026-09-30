@@ -244,7 +244,7 @@ function CellChangeItem({ cell, band, sectorLabel }: { cell: ProposedCell; band:
       ) : (
         <dl className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-2">
           {sectorLabel ? <CellDetailPair label={t("changesSheet.sector")} value={sectorLabel} /> : null}
-          {cell.type ? <CellDetailPair label={t("stations:cells.cellType")} value={CELL_TYPE_LABELS[cell.type]} /> : null}
+          {cell.type ? <CellDetailPair label={t("common:labels.cellType")} value={CELL_TYPE_LABELS[cell.type]} /> : null}
           {configuredFields.map((field) => (
             <CellDetailPair key={field.key} label={field.label} value={formatCellValue(details[field.key], t)} />
           ))}

@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Session } from "@/features/admin/users/types";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
+import { formatIpAddress } from "@/lib/format";
 
 export function SessionsCard({ userId, sessions }: { userId: string; sessions: Session[] }) {
   const queryClient = useQueryClient();
@@ -51,25 +52,28 @@ export function SessionsCard({ userId, sessions }: { userId: string; sessions: S
                 </Button>
               </div>
               <div className="divide-y">
-                {sessions.map((session) => (
-                  <div key={session.id} className="flex items-center justify-between py-3 gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-mono truncate">{session.token.slice(0, 20)}...</div>
-                      <div className="text-xs text-muted-foreground">
-                        Created {new Date(session.createdAt).toLocaleString()}
-                        {session.ipAddress && ` · ${session.ipAddress}`}
+                {sessions.map((session) => {
+                  const ipAddress = formatIpAddress(session.ipAddress);
+                  return (
+                    <div key={session.id} className="flex items-center justify-between py-3 gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-mono truncate">{session.token.slice(0, 20)}...</div>
+                        <div className="text-xs text-muted-foreground">
+                          Created {new Date(session.createdAt).toLocaleString()}
+                          {ipAddress && ` · ${ipAddress}`}
+                        </div>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => revokeSessionMutation.mutate(session.token)}
+                        disabled={revokeSessionMutation.isPending && revokeSessionMutation.variables === session.token}
+                      >
+                        {revokeSessionMutation.isPending && revokeSessionMutation.variables === session.token ? <Spinner /> : "Revoke"}
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => revokeSessionMutation.mutate(session.token)}
-                      disabled={revokeSessionMutation.isPending && revokeSessionMutation.variables === session.token}
-                    >
-                      {revokeSessionMutation.isPending && revokeSessionMutation.variables === session.token ? <Spinner /> : "Revoke"}
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
