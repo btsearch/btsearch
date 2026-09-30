@@ -34,10 +34,11 @@ import {
   SettingsSection,
   SettingsStack,
 } from "./settingsPrimitives";
-import { preloadEnglishCatalog, useLanguageChange } from "@/components/preferences/languageSwitcher";
+import { preloadEnglishCatalog, useLanguageChange, useLanguageOptions } from "@/components/preferences/languageSwitcher";
 import { useTheme } from "@/components/preferences/themeProvider";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/ui/error-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { type PushPreferences, fetchPushPreferences, updatePushPreferences } from "@/features/notifications/api";
@@ -45,7 +46,6 @@ import { usePushSubscription } from "@/features/notifications/usePushSubscriptio
 import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { type NavMode, type NavigationApp, type UserPreferences, usePreferences } from "@/hooks/usePreferences";
-import { type SupportedLanguage, supportedLanguages } from "@/i18n/config";
 import { isGloballyHandledError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { cn, toggleValue } from "@/lib/utils";
@@ -295,12 +295,12 @@ function SyncCard() {
 }
 
 function AppearanceCard() {
-  const { t, i18n } = useTranslation("settings");
+  const { t } = useTranslation("settings");
   const { theme, setTheme } = useTheme();
   const changeLanguage = useLanguageChange();
+  const { options: languageOptions, current: currentLanguage } = useLanguageOptions();
   const themeTitleId = useId();
   const languageTitleId = useId();
-  const currentLanguage: SupportedLanguage = supportedLanguages.find((language) => language.code === i18n.language)?.code ?? "pl-PL";
 
   const themeOptions: { value: ThemeValue; label: string; icon: IconSvgElement }[] = [
     { value: "light", label: t("common:theme.light"), icon: Sun03Icon },
@@ -327,14 +327,30 @@ function AppearanceCard() {
         description={t("preferences.languageHint")}
         wrap
       >
-        <div onPointerEnter={preloadEnglishCatalog} onFocus={preloadEnglishCatalog} className="max-sm:w-full">
-          <SegmentedControl
-            value={currentLanguage}
-            onValueChange={changeLanguage}
-            options={supportedLanguages.map((language) => ({ value: language.code, label: language.nativeName }))}
-            ariaLabelledBy={languageTitleId}
-          />
-        </div>
+        <Select
+          value={currentLanguage?.code ?? null}
+          items={languageOptions.map((option) => ({ value: option.code, label: option.nativeName }))}
+          onValueChange={(code) => {
+            if (code !== null) changeLanguage(code);
+          }}
+        >
+          <SelectTrigger
+            aria-labelledby={languageTitleId}
+            onPointerEnter={preloadEnglishCatalog}
+            onFocus={preloadEnglishCatalog}
+            className="min-w-44 cursor-pointer max-sm:w-full"
+          >
+            <SelectValue>{currentLanguage?.nativeName}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {languageOptions.map((option) => (
+              <SelectItem key={option.code} value={option.code} className="cursor-pointer">
+                <span lang={option.code}>{option.nativeName}</span>
+                {option.hint ? <span className="text-xs text-muted-foreground">{option.hint}</span> : null}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </SettingsRow>
     </SettingsCard>
   );

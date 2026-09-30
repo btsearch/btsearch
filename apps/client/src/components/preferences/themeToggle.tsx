@@ -12,7 +12,7 @@ export function ThemeToggle() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<SidebarMenuButton />}>
+      <DropdownMenuTrigger render={<SidebarMenuButton className="cursor-pointer" />}>
         <HugeiconsIcon icon={Sun03Icon} className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <HugeiconsIcon icon={Moon02Icon} className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         <span>{t("theme.title")}</span>

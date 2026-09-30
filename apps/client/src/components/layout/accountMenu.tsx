@@ -20,13 +20,12 @@ import { toast } from "sonner";
 import { RoleBadge } from "@/components/app/roleBadge";
 import { roleWashClassName } from "@/components/app/roleTone";
 import { UserAvatar } from "@/components/app/userAvatar";
-import { preloadEnglishCatalog, useLanguageChange } from "@/components/preferences/languageSwitcher";
+import { LanguageMenuItems, preloadEnglishCatalog, useLanguageOptions } from "@/components/preferences/languageSwitcher";
 import { useTheme } from "@/components/preferences/themeProvider";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useIsMobile } from "@/hooks/useMobile";
-import { supportedLanguages } from "@/i18n/config";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
@@ -115,8 +113,8 @@ function ThemeRow() {
 }
 
 function LanguageRowLabel() {
-  const { t, i18n } = useTranslation("settings");
-  const current = supportedLanguages.find((language) => language.code === i18n.language);
+  const { t } = useTranslation("settings");
+  const { current } = useLanguageOptions();
 
   return (
     <>
@@ -124,38 +122,6 @@ function LanguageRowLabel() {
       <span className="flex-1">{t("preferences.language")}</span>
       <span className="text-[0.8125rem] text-muted-foreground">{current?.nativeName}</span>
     </>
-  );
-}
-
-function LanguageOptions({ onSelect }: { onSelect?: () => void }) {
-  const { i18n } = useTranslation();
-  const changeLanguage = useLanguageChange();
-  const displayNames = new Intl.DisplayNames([i18n.language], { type: "language" });
-
-  return (
-    <DropdownMenuRadioGroup
-      value={i18n.language}
-      onValueChange={(code) => {
-        changeLanguage(code);
-        onSelect?.();
-      }}
-    >
-      {supportedLanguages.map((language) => {
-        const hint = displayNames.of(new Intl.Locale(language.code).language);
-        const showHint = hint !== undefined && hint.toLocaleLowerCase() !== language.nativeName.toLocaleLowerCase();
-        return (
-          <DropdownMenuRadioItem
-            key={language.code}
-            value={language.code}
-            closeOnClick={!onSelect}
-            className="h-8 cursor-pointer gap-2 pl-2 focus:bg-muted pointer-coarse:h-11 pointer-coarse:pl-3"
-          >
-            <span lang={language.code}>{language.nativeName}</span>
-            {showHint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
-          </DropdownMenuRadioItem>
-        );
-      })}
-    </DropdownMenuRadioGroup>
   );
 }
 
@@ -171,7 +137,7 @@ function LanguageItem({ onOpen }: { onOpen?: () => void }) {
           <LanguageRowLabel />
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-52 rounded-lg">
-          <LanguageOptions />
+          <LanguageMenuItems />
         </DropdownMenuSubContent>
       </DropdownMenuSub>
     );
@@ -203,7 +169,7 @@ function LanguageView({ onBack }: { onBack: () => void }) {
         {t("settings:preferences.language")}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <LanguageOptions onSelect={onBack} />
+      <LanguageMenuItems onSelect={onBack} />
     </>
   );
 }

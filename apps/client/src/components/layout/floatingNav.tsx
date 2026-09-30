@@ -2,6 +2,7 @@ import {
   ArrowDown01Icon,
   ArrowUp01Icon,
   ComputerIcon,
+  LanguageSquareIcon,
   Login01Icon,
   Moon02Icon,
   Note01Icon,
@@ -12,26 +13,14 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { PL, US } from "country-flag-icons/react/3x2";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import {
-  type ComponentType,
-  type PointerEvent,
-  type RefObject,
-  type TouchEvent,
-  memo,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { type PointerEvent, type RefObject, type TouchEvent, memo, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AccountMenuContent } from "./accountMenu";
 import { UserAvatar } from "@/components/app/userAvatar";
 import { AuthDialog } from "@/components/auth/authDialog";
+import { LanguageMenuItems, preloadEnglishCatalog } from "@/components/preferences/languageSwitcher";
 import { useTheme } from "@/components/preferences/themeProvider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -43,7 +32,6 @@ import { NotificationsBell } from "@/features/notifications/components/Notificat
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
-import { type SupportedLanguage, ensureLanguageResources, persistLanguage, supportedLanguages } from "@/i18n/config";
 import { authClient } from "@/lib/auth/client";
 import {
   type TranslatedNavItem,
@@ -77,7 +65,6 @@ const FLOATING_ICON_CONTROL_CLASS =
 const FLOATING_ACCOUNT_CLUSTER_CLASS = "relative z-10 flex shrink-0 items-center gap-0.5";
 const MOBILE_PAGE_SECTION_CHIP_CLASS =
   "inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
-const flagComponents: Record<string, ComponentType<{ className?: string }>> = { US, PL };
 type FloatingTransition = typeof FLUID_TRANSITION | { duration: number };
 type FloatingShellTransition = typeof FLOATING_NAV_SHELL_TRANSITION | { duration: number };
 type FloatingSurfaceTransition = FloatingTransition | FloatingShellTransition;
@@ -623,43 +610,8 @@ function FloatingThemeControl() {
   );
 }
 
-function normalizeLanguage(value: string): SupportedLanguage {
-  return supportedLanguages.find((lang) => lang.code === value)?.code ?? "pl-PL";
-}
-
-const preloadEnglishCatalog = () => void ensureLanguageResources("en-US");
-
-function FloatingLanguageMenuItems() {
-  const { i18n } = useTranslation();
-  const { data: session } = authClient.useSession();
-  const currentUserLang = normalizeLanguage(i18n.language);
-
-  const handleLanguageChange = (code: SupportedLanguage) => {
-    void ensureLanguageResources(code).then(() => i18n.changeLanguage(code));
-    persistLanguage(code);
-    if (session?.user) void authClient.updateUser({ locale: code });
-  };
-
-  return (
-    <DropdownMenuRadioGroup value={currentUserLang}>
-      {supportedLanguages.map((lang) => {
-        const Flag = flagComponents[lang.countryCode];
-        return (
-          <DropdownMenuRadioItem key={lang.code} value={lang.code} onClick={() => handleLanguageChange(lang.code)}>
-            {Flag ? <Flag className="h-4 w-5 rounded-sm" /> : null}
-            <span>{lang.nativeName}</span>
-          </DropdownMenuRadioItem>
-        );
-      })}
-    </DropdownMenuRadioGroup>
-  );
-}
-
 function FloatingLanguageControl() {
-  const { i18n } = useTranslation();
-  const currentUserLang = normalizeLanguage(i18n.language);
-  const currentLanguage = supportedLanguages.find((lang) => lang.code === currentUserLang);
-  const FlagComponent = currentLanguage ? flagComponents[currentLanguage.countryCode] : null;
+  const { t } = useTranslation("settings");
 
   return (
     <DropdownMenu>
@@ -669,16 +621,16 @@ function FloatingLanguageControl() {
             variant="ghost"
             size="icon"
             className={FLOATING_ICON_CONTROL_CLASS}
-            aria-label={currentLanguage?.nativeName}
+            aria-label={t("preferences.language")}
             onMouseEnter={preloadEnglishCatalog}
             onFocus={preloadEnglishCatalog}
           />
         }
       >
-        {FlagComponent ? <FlagComponent className="h-4 w-5 rounded-sm" /> : null}
+        <HugeiconsIcon icon={LanguageSquareIcon} className="size-4" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top">
-        <FloatingLanguageMenuItems />
+      <DropdownMenuContent align="end" side="top" className="w-44">
+        <LanguageMenuItems />
       </DropdownMenuContent>
     </DropdownMenu>
   );
