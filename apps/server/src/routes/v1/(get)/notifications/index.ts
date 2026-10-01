@@ -35,7 +35,7 @@ const notificationSchema = z.object({
   actionUrl: z.string().nullable(),
   station: stationSchema.nullable(),
   submission: z.object({ id: z.string(), type: z.enum(["new", "update", "delete"]).nullable() }).nullable(),
-  actor: z.object({ name: z.string() }).nullable(),
+  actor: z.object({ name: z.string(), username: z.string().nullable() }).nullable(),
   note: z.string().nullable(),
   changes: changesSchema.nullable(),
   count: z.number(),
@@ -60,6 +60,8 @@ type NotificationRow = typeof notifications.$inferSelect;
 type NotificationItem = z.infer<typeof notificationSchema>;
 type ResponseData = { data: NotificationItem[]; totalUnread: number; totalCount: number };
 type StationDetails = { stationId: string; operator: z.infer<typeof operatorSchema> };
+type ActorUser = { name: string; username: string | null };
+type SubmissionActors = { submitter: ActorUser | null; reviewer: ActorUser | null };
 type Metadata = Record<string, unknown>;
 
 const notificationsQuery = db.query.notifications
@@ -131,6 +133,22 @@ async function loadStationDetails(rows: NotificationRow[]): Promise<Map<string, 
   ]);
 }
 
+async function loadSubmissionActors(rows: NotificationRow[]): Promise<Map<string, SubmissionActors>> {
+  const submissionIds = [...new Set(rows.flatMap((row) => (row.submissionId === null ? [] : [row.submissionId])))];
+  if (submissionIds.length === 0) return new Map();
+
+  const submissionRows = await db.query.submissions.findMany({
+    where: { id: { in: submissionIds } },
+    columns: { id: true },
+    with: {
+      submitter: { columns: { name: true, username: true } },
+      reviewer: { columns: { name: true, username: true } },
+    },
+  });
+
+  return new Map(submissionRows.map(({ id, submitter, reviewer }) => [id, { submitter, reviewer }] as const));
+}
+
 function toStation(row: NotificationRow, metadata: Metadata, details: StationDetails | undefined): NotificationItem["station"] {
   const id = row.stationId ?? row.ukeStationId;
   const stationId = details?.stationId ?? metadataString(metadata, "station_id");
@@ -152,14 +170,13 @@ function toSubmission(row: NotificationRow, metadata: Metadata): NotificationIte
   return { id: row.submissionId, type: type === "new" || type === "update" || type === "delete" ? type : null };
 }
 
-function toActor(row: NotificationRow, metadata: Metadata): NotificationItem["actor"] {
-  const name =
-    row.type === "new_submission"
-      ? metadataString(metadata, "submitter_name")
-      : row.type === "submission_approved" || row.type === "submission_rejected"
-        ? metadataString(metadata, "reviewer_name")
-        : null;
-  return name === null ? null : { name };
+function toActor(row: NotificationRow, metadata: Metadata, actors: SubmissionActors | undefined): NotificationItem["actor"] {
+  const isNewSubmission = row.type === "new_submission";
+  if (!isNewSubmission && row.type !== "submission_approved" && row.type !== "submission_rejected") return null;
+
+  const user = isNewSubmission ? actors?.submitter : actors?.reviewer;
+  const name = user?.name || user?.username || metadataString(metadata, isNewSubmission ? "submitter_name" : "reviewer_name");
+  return name ? { name, username: user?.username ?? null } : null;
 }
 
 function toChanges(row: NotificationRow, metadata: Metadata): NotificationItem["changes"] {
@@ -176,7 +193,12 @@ function toChanges(row: NotificationRow, metadata: Metadata): NotificationItem["
   return null;
 }
 
-function toNotificationItem(row: NotificationRow, stationDetails: Map<string, StationDetails>, locale: string | undefined): NotificationItem {
+function toNotificationItem(
+  row: NotificationRow,
+  stationDetails: Map<string, StationDetails>,
+  submissionActors: Map<string, SubmissionActors>,
+  locale: string | undefined,
+): NotificationItem {
   const metadata = metadataRecord(row.metadata);
   const key = stationKey(row);
 
@@ -190,7 +212,7 @@ function toNotificationItem(row: NotificationRow, stationDetails: Map<string, St
     actionUrl: row.type === "new_submission" && row.submissionId !== null ? `/admin/submissions/${row.submissionId}` : row.actionUrl,
     station: toStation(row, metadata, key === null ? undefined : stationDetails.get(key)),
     submission: toSubmission(row, metadata),
-    actor: toActor(row, metadata),
+    actor: toActor(row, metadata, row.submissionId === null ? undefined : submissionActors.get(row.submissionId)),
     note: metadataString(metadata, "reviewer_note"),
     changes: toChanges(row, metadata),
     count: Math.max(1, metadataNumber(metadata, "count")),
@@ -210,10 +232,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     notificationsTotalQuery.execute({ userId }),
     notificationsUnreadQuery.execute({ userId }),
   ]);
-  const stationDetails = await loadStationDetails(rows);
+  const [stationDetails, submissionActors] = await Promise.all([loadStationDetails(rows), loadSubmissionActors(rows)]);
 
   return res.send({
-    data: rows.map((row) => toNotificationItem(row, stationDetails, typeof locale === "string" ? locale : undefined)),
+    data: rows.map((row) => toNotificationItem(row, stationDetails, submissionActors, typeof locale === "string" ? locale : undefined)),
     totalCount: totalRow?.total ?? 0,
     totalUnread: unreadRow?.total ?? 0,
   });

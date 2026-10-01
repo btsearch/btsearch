@@ -8,6 +8,7 @@ import { countCellOperations } from "@/features/admin/submissions/utils";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import type { CellOperation } from "@/features/submissions/types";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Operator } from "@/types/station";
@@ -66,7 +67,7 @@ export function SubmissionChangesSummary({ submission }: { submission: Pick<Subm
   );
 }
 
-export function SubmissionSubmitterSummary({ submission }: { submission: SubmissionListItem }) {
+export function SubmissionSubmitterSummary({ submission, linked = false }: { submission: SubmissionListItem; linked?: boolean }) {
   const { t } = useTranslation("submissions");
   const submitter = submission.submitter;
 
@@ -83,7 +84,9 @@ export function SubmissionSubmitterSummary({ submission }: { submission: Submiss
         )}
       </Avatar>
       <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{submitter?.name ?? t("detail.deletedUser")}</div>
+        <UserLink user={linked ? submitter : null} className="block w-fit max-w-full truncate text-sm font-medium">
+          {submitter?.name ?? t("detail.deletedUser")}
+        </UserLink>
         {submitter?.username ? <div className="truncate text-xs text-muted-foreground">@{submitter.username}</div> : null}
       </div>
     </div>

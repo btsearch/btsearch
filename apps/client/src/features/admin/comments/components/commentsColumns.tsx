@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 
@@ -78,7 +79,9 @@ export function createCommentsColumns({
               <AvatarFallback className="text-[9px]">{author?.name.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{author?.name ?? `#${row.original.user_id}`}</p>
+              <UserLink user={author} className="block w-fit max-w-full truncate text-sm font-medium">
+                {author?.name ?? `#${row.original.user_id}`}
+              </UserLink>
               {author?.username && <p className="text-xs text-muted-foreground truncate">@{author.username}</p>}
             </div>
           </div>

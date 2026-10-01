@@ -2,7 +2,7 @@ import { ArrowReloadHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -95,6 +95,7 @@ function OperationDetailFallback({ isError, isRetrying, onRetry }: { isError: bo
 export function OperationDetailSheet({ operationId, listRow, open, onOpenChange, onOpenOperation }: OperationDetailSheetProps) {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const [revertTarget, setRevertTarget] = useState<RevertTarget | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
   const detailQuery = useQuery({ ...auditOperationQueryOptions(operationId), enabled: open });
   const operation = detailQuery.data ?? listRow ?? null;
   const entries = detailQuery.data?.entries ?? EMPTY_ENTRIES;
@@ -164,7 +165,12 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
   return (
     <>
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent side="right" className="w-full! max-w-xl! sm:max-w-5xl! overflow-y-auto custom-scrollbar">
+        <SheetContent
+          ref={popupRef}
+          initialFocus={popupRef}
+          side="right"
+          className="w-full! max-w-xl! sm:max-w-5xl! overflow-y-auto custom-scrollbar outline-none"
+        >
           <SheetHeader>
             <SheetTitle>{t("auditLogs.detail.title")}</SheetTitle>
             <SheetDescription>
@@ -195,12 +201,12 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.columns.actor")}</span>
-                    <UserChip user={operation.actor} systemLabel={t("auditLogs.actor.system")} />
+                    <UserChip user={operation.actor} systemLabel={t("auditLogs.actor.system")} linked />
                   </div>
                   {operation.performer && operation.performer.id !== operation.actor?.id ? (
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.performedBy")}</span>
-                      <UserChip user={operation.performer} systemLabel={t("auditLogs.actor.system")} />
+                      <UserChip user={operation.performer} systemLabel={t("auditLogs.actor.system")} linked />
                     </div>
                   ) : null}
                   {operation.station_ids.length > 0 || submissionId !== null ? (

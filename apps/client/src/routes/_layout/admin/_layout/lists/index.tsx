@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { useNavActionTarget } from "@/contexts/navActions";
 import { type UserListSummary, deleteList, fetchUserLists } from "@/features/lists/api";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { resolveAvatarUrl } from "@/lib/format";
@@ -164,7 +165,9 @@ function AdminListsPage() {
                   <AvatarFallback className="text-[10px]">{by.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{by.name}</div>
+                  <UserLink user={by} className="block w-fit max-w-full truncate text-sm font-medium">
+                    {by.name}
+                  </UserLink>
                   {by.username && <div className="truncate text-xs text-muted-foreground">@{by.username}</div>}
                 </div>
               </div>

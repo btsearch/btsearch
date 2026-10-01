@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
 import { getRatDetailFieldLabel } from "@/features/shared/ratCellFields";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { authClient } from "@/lib/auth/client";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
@@ -466,17 +467,10 @@ const HistoryItem = memo(function HistoryItem({ item, revertItems, canManageOper
                   <AvatarImage src={resolveAvatarUrl(item.author.image)} />
                   <AvatarFallback className="text-[9px]">{(item.author.name ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                {item.author.username ? (
-                  <Link
-                    to="/users/$username"
-                    params={{ username: item.author.username }}
-                    className="max-w-48 cursor-pointer truncate underline-offset-2 hover:underline"
-                  >
-                    {item.author.name} (@{item.author.username})
-                  </Link>
-                ) : (
-                  <span className="max-w-48 truncate">{item.author.name}</span>
-                )}
+                <UserLink user={item.author} className="max-w-48 truncate">
+                  {item.author.name}
+                  {item.author.username ? ` (@${item.author.username})` : null}
+                </UserLink>
                 <span className="text-muted-foreground/50">·</span>
               </>
             ) : null}

@@ -204,6 +204,7 @@
     "changeVisibility": "Change visibility",
     "editProfile": "Edit profile",
     "copyLinkLabel": "Copy profile link",
+    "manageUser": "Manage user",
     "commentCount_one": "{{count, number}} comment",
     "commentCount_other": "{{count, number}} comments",
     "regionCount_one": "{{count, number}} region",

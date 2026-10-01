@@ -4828,9 +4828,10 @@ components:
           type: object
           nullable: true
           description: The reviewer, or the submitter for new submissions
-          required: [name]
+          required: [name, username]
           properties:
             name: { type: string }
+            username: { type: string, nullable: true, description: Null when the account no longer exists or has no username }
         note: { type: string, nullable: true, description: Reviewer note }
         changes:
           type: object

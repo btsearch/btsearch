@@ -60,6 +60,7 @@ import { deleteSubmission, fetchSubmissionPhotos } from "@/features/submissions/
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { submissionDetailQueryOptions } from "@/features/submissions/queries";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
@@ -648,7 +649,10 @@ export function MySubmissions() {
                         </h3>
                         {submission.reviewer && (
                           <p className="text-[11px] text-muted-foreground">
-                            {t("mySubmissions.reviewedBy")} <span className="font-medium text-foreground">{submission.reviewer.name}</span>
+                            {t("mySubmissions.reviewedBy")}{" "}
+                            <UserLink user={submission.reviewer} className="pointer-events-auto relative z-10 font-medium text-foreground">
+                              {submission.reviewer.name}
+                            </UserLink>
                             {submission.reviewer.username && <span> (@{submission.reviewer.username})</span>}
                           </p>
                         )}

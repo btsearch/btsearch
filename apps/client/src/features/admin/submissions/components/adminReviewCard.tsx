@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 
 type AdminReviewCardProps = {
@@ -35,7 +36,9 @@ export function AdminReviewCard({ submission, reviewNotes, onReviewNotesChange, 
               <AvatarFallback>{reviewer.name.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0 space-y-1">
-              <p className="text-sm font-medium leading-none truncate">{reviewer.name}</p>
+              <UserLink user={reviewer} className="block w-fit max-w-full truncate text-sm leading-4 font-medium">
+                {reviewer.name}
+              </UserLink>
               {reviewer.username && <p className="text-xs text-muted-foreground truncate">@{reviewer.username}</p>}
               {submission.reviewed_at && (
                 <p className="text-[11px] text-muted-foreground/70">

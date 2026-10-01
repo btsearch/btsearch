@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { API_BASE, fetchApiData } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
@@ -108,7 +109,9 @@ export const StationCommentsSection = memo(function StationCommentsSection({ sta
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{comment.author?.name ?? `User #${comment.user_id}`}</span>
+                          <UserLink user={comment.author} className="font-semibold text-sm">
+                            {comment.author?.name ?? `User #${comment.user_id}`}
+                          </UserLink>
                           {comment.author?.username && <span className="text-xs text-muted-foreground">@{comment.author.username}</span>}
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <HugeiconsIcon icon={Calendar03Icon} className="size-3" />

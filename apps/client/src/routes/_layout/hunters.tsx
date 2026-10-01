@@ -13,6 +13,7 @@ import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { regionsQueryOptions } from "@/features/shared/queries";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -140,22 +141,15 @@ function HunterCard({ hunter, regionMap }: { hunter: HunterUser; regionMap: Map<
 
       <div className="min-w-0 flex-1 space-y-1.5">
         {hunter.username ? (
-          <div className="group/profile min-w-0">
-            <Link
-              to="/users/$username"
-              params={{ username: hunter.username }}
-              className="-mx-1 inline-block max-w-full rounded-md px-1 transition-colors group-hover/profile:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="block truncate text-sm font-semibold leading-5">{hunter.name}</span>
-            </Link>
-            <Link
-              to="/users/$username"
-              params={{ username: hunter.username }}
-              className="-mx-1 block w-fit max-w-full rounded-md px-1 text-xs text-muted-foreground transition-colors group-hover/profile:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="block truncate">@{hunter.username}</span>
-            </Link>
-          </div>
+          <UserLink
+            user={hunter}
+            className="group/profile -mx-1 block w-fit max-w-full rounded-md px-1 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-popup-open:no-underline"
+          >
+            <span className="block truncate text-sm font-semibold leading-5 transition-colors group-hover/profile:text-primary">{hunter.name}</span>
+            <span className="block truncate text-xs text-muted-foreground transition-colors group-hover/profile:text-primary">
+              @{hunter.username}
+            </span>
+          </UserLink>
         ) : (
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold leading-5">{hunter.name}</h2>

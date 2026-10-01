@@ -34,7 +34,7 @@ export type Notification = {
   actionUrl: string | null;
   station: NotificationStation | null;
   submission: { id: string; type: "new" | "update" | "delete" | null } | null;
-  actor: { name: string } | null;
+  actor: { name: string; username: string | null } | null;
   note: string | null;
   changes: NotificationChanges | null;
   count: number;

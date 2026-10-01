@@ -1,7 +1,6 @@
 import { Delete02Icon, Image01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -26,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { API_BASE, fetchApiData, showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { resolveAvatarUrl } from "@/lib/format";
@@ -156,18 +156,9 @@ export function CommentsList({ stationId, isAdmin = false, showAddForm = false }
 
               <div className="relative min-w-0 flex-1">
                 <div className={cn("flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", (isAdmin || comment.user_id === currentUserId) && "pr-9")}>
-                  {comment.author?.username ? (
-                    <Link
-                      to="/users/$username"
-                      params={{ username: comment.author.username }}
-                      preload="intent"
-                      className="max-w-full truncate text-sm font-semibold text-foreground underline-offset-2 hover:underline"
-                    >
-                      {comment.author.name || `@${comment.author.username}`}
-                    </Link>
-                  ) : (
-                    <span className="truncate text-sm font-semibold text-foreground">{comment.author?.name ?? t("comments.unknownAuthor")}</span>
-                  )}
+                  <UserLink user={comment.author} className="max-w-full truncate text-sm font-semibold text-foreground">
+                    {comment.author?.name || (comment.author?.username ? `@${comment.author.username}` : t("comments.unknownAuthor"))}
+                  </UserLink>
                   {comment.author?.username && comment.author.name ? (
                     <span className="truncate text-xs text-muted-foreground">@{comment.author.username}</span>
                   ) : null}

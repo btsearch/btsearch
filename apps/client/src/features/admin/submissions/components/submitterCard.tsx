@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import i18n from "@/i18n/config";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 
@@ -31,7 +32,9 @@ export function SubmitterCard({ submission }: { submission: SubmissionDetail }) 
             )}
           </Avatar>
           <div className="flex-1 min-w-0 space-y-1">
-            <p className="text-sm font-medium leading-none truncate">{submission.submitter?.name ?? t("detail.deletedUser")}</p>
+            <UserLink user={submission.submitter} className="block w-fit max-w-full truncate text-sm leading-4 font-medium">
+              {submission.submitter?.name ?? t("detail.deletedUser")}
+            </UserLink>
             {submission.submitter?.username && <p className="text-xs text-muted-foreground truncate">@{submission.submitter.username}</p>}
             {submission.createdAt && (
               <p className="text-[11px] text-muted-foreground/70">

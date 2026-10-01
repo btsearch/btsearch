@@ -686,7 +686,7 @@ function AdminAuditLogsPage() {
             const performerAttribution = getPerformerAttribution(t, row.original);
             return (
               <div className="min-w-0">
-                <UserChip user={actor} systemLabel={t("auditLogs.actor.system")} />
+                <UserChip user={actor} systemLabel={t("auditLogs.actor.system")} linked />
                 {performerAttribution !== null ? (
                   <span className="mt-0.5 block max-w-36 truncate text-[10px] text-muted-foreground">{performerAttribution}</span>
                 ) : null}

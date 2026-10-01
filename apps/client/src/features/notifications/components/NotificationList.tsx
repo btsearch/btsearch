@@ -8,6 +8,7 @@ import type { Notification, NotificationStation, NotificationType } from "../api
 import { ClampedText } from "@/components/ui/clamped-text";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { OperatorMark } from "@/features/station-details/components/dialogOperatorName";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { showApiError } from "@/lib/api";
 import { formatFullDate, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -169,7 +170,9 @@ function NotificationItem({ notification, onRead, onNavigate, onOpenStation }: N
         <p className="mt-1.5 flex flex-wrap items-center text-xs text-muted-foreground">
           {actor ? (
             <>
-              <span className="font-medium text-foreground/80">{actor.name}</span>
+              <UserLink user={actor} onNavigate={onNavigate} className={cn("font-medium text-foreground/80", actor.username && "relative z-10")}>
+                {actor.name}
+              </UserLink>
               <span aria-hidden="true" className="mx-1.5">
                 ·
               </span>

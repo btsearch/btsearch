@@ -1,15 +1,17 @@
 import type { AuditUserSummary } from "../types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserLink } from "@/features/user-profile/components/userLink";
 import { resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type UserChipProps = {
   user: AuditUserSummary | null;
   systemLabel: string;
+  linked?: boolean;
   className?: string;
 };
 
-export function UserChip({ user, systemLabel, className }: UserChipProps) {
+export function UserChip({ user, systemLabel, linked = false, className }: UserChipProps) {
   if (!user) return <span className={cn("text-muted-foreground italic text-xs", className)}>{systemLabel}</span>;
 
   return (
@@ -19,7 +21,9 @@ export function UserChip({ user, systemLabel, className }: UserChipProps) {
         <AvatarFallback className="text-[9px]">{(user.name ?? user.username ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-col">
-        <span className="max-w-28 truncate text-xs font-medium">{user.name ?? user.username ?? systemLabel}</span>
+        <UserLink user={linked ? user : null} className="max-w-28 self-start truncate text-xs font-medium">
+          {user.name ?? user.username ?? systemLabel}
+        </UserLink>
         {user.username ? <span className="max-w-28 truncate text-[10px] text-muted-foreground">@{user.username}</span> : null}
       </div>
     </div>

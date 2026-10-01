@@ -212,6 +212,7 @@
     "changeVisibility": "Zmień widoczność",
     "editProfile": "Edytuj profil",
     "copyLinkLabel": "Kopiuj link do profilu",
+    "manageUser": "Zarządzaj użytkownikiem",
     "commentCount_one": "{{count, number}} komentarz",
     "commentCount_few": "{{count, number}} komentarze",
     "commentCount_many": "{{count, number}} komentarzy",

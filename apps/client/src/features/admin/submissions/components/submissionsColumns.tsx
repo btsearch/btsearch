@@ -47,7 +47,7 @@ export function useSubmissionsColumns({
           id: "submitter",
           header: t("detail.submitter"),
           size: 220,
-          cell: ({ row }) => <SubmissionSubmitterSummary submission={row.original} />,
+          cell: ({ row }) => <SubmissionSubmitterSummary submission={row.original} linked />,
         }),
         columnHelper.accessor("createdAt", {
           header: () => (
