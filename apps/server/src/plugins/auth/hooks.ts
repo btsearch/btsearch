@@ -1,10 +1,8 @@
-import { hash } from "@node-rs/argon2";
-import * as schema from "@openbts/drizzle";
 import type { GenericEndpointContext } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { createHash } from "node:crypto";
 
-import { API_KEYS_LIMIT, API_KEY_COOLDOWN_KEY_PREFIX, API_KEY_COOLDOWN_SECONDS, ARGON2_OPTIONS } from "../../constants.js";
+import { API_KEYS_LIMIT, API_KEY_COOLDOWN_KEY_PREFIX, API_KEY_COOLDOWN_SECONDS } from "../../constants.js";
 import { db } from "../../database/psql.js";
 import { redis } from "../../database/redis.js";
 import { generateFingerprintFromWebRequest } from "../../utils/fingerprint.js";
@@ -62,28 +60,6 @@ async function incrementAccountCount(key: string): Promise<void> {
 
 export const PASSKEY_VERIFIED_TTL = 5 * 60; // 5 minutes
 export const passkeyVerifiedKey = (userId: string) => `passkey-verified:${userId}`;
-
-async function handleSetUserPassword(ctx: HookCtx) {
-  const userId = ctx.body?.userId as string | undefined;
-  const newPassword = ctx.body?.newPassword as string | undefined;
-  if (!userId || !newPassword) throw new APIError("BAD_REQUEST", { message: "userId and newPassword are required" });
-
-  const existingAccount = await db.query.accounts.findFirst({
-    where: { AND: [{ userId }, { providerId: "credential" }] },
-  });
-
-  if (!existingAccount) {
-    const hashedPassword = await hash(newPassword, ARGON2_OPTIONS);
-    await db.insert(schema.accounts).values({
-      userId,
-      accountId: userId,
-      providerId: "credential",
-      password: hashedPassword,
-    });
-
-    return { context: ctx };
-  }
-}
 
 const API_KEY_CREATE_LOCK_SECONDS = 60;
 const API_KEY_CREATE_PENDING = "pending";
@@ -187,7 +163,6 @@ const beforeHandlers: { path: string; handler: (ctx: HookCtx) => Promise<unknown
   { path: "/sign-up/email", handler: handleSignUp },
   { path: "/sign-in/social", handler: handleSocialSignIn },
   { path: VERIFICATION_RESEND_PATH, handler: handleVerificationResend },
-  { path: "/admin/set-user-password", handler: handleSetUserPassword },
   { path: "/api-key/create", handler: handleApiKeyCreate },
   { path: "/oauth2/create-client", handler: handleOAuthClientWrite },
   { path: "/oauth2/update-client", handler: handleOAuthClientWrite },
