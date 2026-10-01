@@ -32,6 +32,7 @@ import { NotificationsBell } from "@/features/notifications/components/Notificat
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
 import { useSettings } from "@/hooks/useSettings";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { authClient } from "@/lib/auth/client";
 import {
   type TranslatedNavItem,
@@ -662,7 +663,7 @@ function FloatingSettingsLink() {
 
 const FloatingAccountCluster = memo(function FloatingAccountCluster({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
   const { t } = useTranslation("nav");
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const user = session?.user;
 

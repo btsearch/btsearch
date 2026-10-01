@@ -1,10 +1,9 @@
 import { Login01Icon, UserLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AuthDialog } from "@/components/auth/authDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRegisterPageSections } from "@/contexts/pageSections";
@@ -15,10 +14,10 @@ import { PreferencesSection } from "@/features/settings/components/preferencesSe
 import { ProfileSection } from "@/features/settings/components/profileSection";
 import { SecuritySection } from "@/features/settings/components/securitySection";
 import { SettingsIconTile } from "@/features/settings/components/settingsPrimitives";
-import { ReauthProvider } from "@/features/settings/reauth";
+import { ReauthProvider, useRequestReauth } from "@/features/settings/reauth";
 import { SETTINGS_SECTION_IDS, SETTINGS_SECTION_KEYS, type SettingsSectionKey, isSettingsSectionKey } from "@/features/settings/sections";
 import { useNavMode } from "@/hooks/usePreferences";
-import { authClient } from "@/lib/auth/client";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { cn } from "@/lib/utils";
 
 function SettingsPageSections() {
@@ -36,7 +35,7 @@ function SignedInSettings({ user, section }: { user: SettingsUser; section: Sett
   }, [section]);
 
   return (
-    <ReauthProvider>
+    <>
       <div className="flex flex-col gap-10 sm:gap-12">
         <IdentityBanner user={user} />
         <AccountSection user={user} />
@@ -46,13 +45,13 @@ function SignedInSettings({ user, section }: { user: SettingsUser; section: Sett
         <PreferencesSection />
       </div>
       <SettingsPageSections key={i18n.language} />
-    </ReauthProvider>
+    </>
   );
 }
 
 function SignedOutSettings() {
   const { t } = useTranslation("settings");
-  const [authOpen, setAuthOpen] = useState(false);
+  const requestSignIn = useRequestReauth();
 
   return (
     <div className="flex flex-col gap-10 sm:gap-12">
@@ -62,11 +61,10 @@ function SignedOutSettings() {
           <p className="text-base leading-6 font-semibold">{t("signedOut.title")}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">{t("signedOut.description")}</p>
         </div>
-        <Button onClick={() => setAuthOpen(true)}>
+        <Button onClick={requestSignIn}>
           <HugeiconsIcon icon={Login01Icon} data-icon="inline-start" aria-hidden="true" />
           {t("common:actions.signIn")}
         </Button>
-        <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
       </section>
       <PreferencesSection />
     </div>
@@ -92,7 +90,7 @@ function SettingsSkeleton() {
 function SettingsPage() {
   const { t } = useTranslation("settings");
   const { tab } = Route.useSearch();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
   const navMode = useNavMode();
 
   return (
@@ -102,7 +100,9 @@ function SettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("nav:items.settings")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("page.description")}</p>
         </header>
-        {isPending ? <SettingsSkeleton /> : session?.user ? <SignedInSettings user={session.user} section={tab} /> : <SignedOutSettings />}
+        <ReauthProvider>
+          {isPending ? <SettingsSkeleton /> : session?.user ? <SignedInSettings user={session.user} section={tab} /> : <SignedOutSettings />}
+        </ReauthProvider>
       </div>
     </div>
   );

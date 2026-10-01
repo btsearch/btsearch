@@ -8,7 +8,7 @@ import { RequireAuth } from "./requireAuth";
 import { MapLinkButton } from "@/components/app/errorScreens";
 import { Button } from "@/components/ui/button";
 import { PageErrorState } from "@/components/ui/error-state";
-import { authClient } from "@/lib/auth/client";
+import { useSettledSession } from "@/hooks/useSettledSession";
 
 interface RequireRoleProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ interface RequireRoleProps {
 }
 
 export function RequireRole({ children, allowedRoles = ["admin"] }: RequireRoleProps) {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
   const { t } = useTranslation("common");
   const router = useRouter();
 

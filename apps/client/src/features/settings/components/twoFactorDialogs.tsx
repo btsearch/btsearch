@@ -197,7 +197,7 @@ function PasswordField({
 
 type EnableStep = "password" | "verify" | "backupCodes";
 
-export function EnableTwoFactorDialog({ open, onOpenChange, userId }: DialogProps & { userId: string }) {
+export function EnableTwoFactorDialog({ open, onOpenChange }: DialogProps) {
   const { t } = useTranslation(["settings", "common"]);
   const queryClient = useQueryClient();
   const setupKeyId = useId();
@@ -250,7 +250,7 @@ export function EnableTwoFactorDialog({ open, onOpenChange, userId }: DialogProp
     mutationFn: (totpCode: string) => unwrapAuth(authClient.twoFactor.verifyTotp({ code: totpCode })),
     onSuccess: () => {
       toast.success(t("security.twoFactor.enabledToast"));
-      void queryClient.invalidateQueries({ queryKey: sessionsQueryOptions(userId).queryKey });
+      void queryClient.invalidateQueries();
       setStep("backupCodes");
     },
     onError: (error) => {

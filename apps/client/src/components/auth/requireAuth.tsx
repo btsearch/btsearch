@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 
 import { AuthRequired } from "@/components/auth/authRequired";
-import { authClient } from "@/lib/auth/client";
+import { useSettledSession } from "@/hooks/useSettledSession";
+import type { authClient } from "@/lib/auth/client";
 
 type AuthenticatedSession = NonNullable<ReturnType<typeof authClient.useSession>["data"]>;
 type RequireAuthProps = { children: ReactNode; render?: never } | { children?: never; render: (session: AuthenticatedSession) => ReactNode };
 
 export function RequireAuth(props: RequireAuthProps) {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
 
   if (isPending) {
     return (

@@ -59,9 +59,9 @@ type TwoFactorDialog = "enable" | "disable" | "regenerate";
 function TwoFactorCard({ user }: { user: SettingsUser }) {
   const { t } = useTranslation("settings");
   const { data: hasPassword } = useQuery(passwordStatusQueryOptions(user.id));
-  const [dialog, setDialog] = useState<TwoFactorDialog | null>(null);
-
   const isEnabled = user.twoFactorEnabled === true;
+  const [dialog, setDialog] = useState<TwoFactorDialog | null>(user.forceTotp === true && !isEnabled ? "enable" : null);
+
   const needsPassword = !isEnabled && hasPassword === false;
   const openChange = (target: TwoFactorDialog) => (open: boolean) => setDialog(open ? target : null);
 
@@ -91,13 +91,13 @@ function TwoFactorCard({ user }: { user: SettingsUser }) {
               </Button>
             </>
           ) : (
-            <Button type="button" size="sm" disabled={hasPassword !== true} onClick={() => setDialog("enable")}>
+            <Button type="button" size="sm" disabled={hasPassword === false} onClick={() => setDialog("enable")}>
               {t("security.twoFactor.enable")}
             </Button>
           )
         }
       />
-      <EnableTwoFactorDialog open={dialog === "enable"} onOpenChange={openChange("enable")} userId={user.id} />
+      <EnableTwoFactorDialog open={dialog === "enable"} onOpenChange={openChange("enable")} />
       <DisableTwoFactorDialog open={dialog === "disable"} onOpenChange={openChange("disable")} userId={user.id} />
       <RegenerateBackupCodesDialog open={dialog === "regenerate"} onOpenChange={openChange("regenerate")} />
     </SettingsCard>

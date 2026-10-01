@@ -13,8 +13,8 @@ import { PROFILE_GRID_CLASS, ProfileAbout, ProfileContact, ProfileHunter } from 
 import { EmptyProfile, PrivateProfileNotice, ProfileSkeleton } from "@/features/user-profile/components/profileStates";
 import { type UserProfile, userProfileQueryOptions } from "@/features/user-profile/queries";
 import { useNavMode } from "@/hooks/usePreferences";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +54,7 @@ function ProfileBody({ profile, isOwner }: { profile: UserProfile; isOwner: bool
 function UserProfilePage() {
   const { username } = Route.useParams();
   const { t } = useTranslation("main");
-  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSettledSession();
   const { data: profile, error, isPending, isFetching, isRefetchError, refetch } = useQuery(userProfileQueryOptions(username));
 
   if (isPending || isSessionPending)

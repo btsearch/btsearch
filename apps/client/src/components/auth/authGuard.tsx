@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { AuthRequired } from "@/components/auth/authRequired";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
+import { useSettledSession } from "@/hooks/useSettledSession";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -10,7 +10,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const { data: settings } = useSettings();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
 
   const enforced = settings?.enforceAuthForAllRoutes === true;
   const authenticated = !!session?.user;

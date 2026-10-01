@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { authClient } from "@/lib/auth/client";
 
 type PublicClient = {
@@ -279,7 +280,7 @@ function InvalidRequest() {
 
 export function OAuthConsentGate() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useSettledSession();
 
   const params = new URLSearchParams(searchStr);
   const clientId = params.get("client_id");
