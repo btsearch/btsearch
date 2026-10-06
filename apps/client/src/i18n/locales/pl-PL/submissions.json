@@ -114,6 +114,7 @@
     "cancelRemoval": "Anuluj usunięcie",
     "hint": "Do {{max}} zdjęć, maks. {{size}} każde",
     "sending": "Wysyłanie zdjęcia {{current}} / {{total}}",
+    "uploading": "Wysyłanie zdjęć",
     "uploaded": "Zdjęcia przesłane",
     "deleted": "Zdjęcie usunięte",
     "uploadFailed": "Nie udało się przesłać zdjęć",

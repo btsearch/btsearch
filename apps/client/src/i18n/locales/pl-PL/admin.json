@@ -1399,7 +1399,6 @@
       "list": {
         "description": "Pasma z katalogu 3GPP i etykiety z rejestru pozwoleń, wspólne dla wszystkich krajów",
         "searchPlaceholder": "Nazwa albo kod 3GPP",
-        "codeNote": "Technologia, duplex i zakresy wynikają z kodu 3GPP - nie wpisuje się ich ręcznie",
         "shownCount_one": "{{shown, number}} z {{count, number}} pasma",
         "shownCount_few": "{{shown, number}} z {{count, number}} pasm",
         "shownCount_many": "{{shown, number}} z {{count, number}} pasm",

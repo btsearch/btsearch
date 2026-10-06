@@ -8,6 +8,7 @@ import { BackendStatusProvider } from "@/components/app/backendStatus";
 import { CookieConsentBanner } from "@/components/app/cookieConsentBanner";
 import { ErrorBoundary } from "@/components/app/errorBoundary";
 import { ReloadPrompt } from "@/components/app/reloadPrompt";
+import { PhotoUploadProgressBar } from "@/components/photos/photoUploadProgressBar";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { FloatingDialogStackProvider } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
@@ -125,6 +126,7 @@ function AppProviders({ children }: AppProvidersProps) {
       <AppErrorBoundary>
         <FloatingDialogStackProvider>{children}</FloatingDialogStackProvider>
       </AppErrorBoundary>
+      <PhotoUploadProgressBar />
       <Toaster />
       <ReloadPrompt />
       <CookieConsentBanner />

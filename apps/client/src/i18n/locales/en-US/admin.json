@@ -1291,7 +1291,6 @@
       "list": {
         "description": "Bands from the 3GPP catalog and labels from the permit register, shared by all countries",
         "searchPlaceholder": "Name or 3GPP code",
-        "codeNote": "Technology, duplex and ranges aren't entered by hand - they follow from the 3GPP code",
         "shownCount_one": "{{shown, number}} of {{count, number}} band",
         "shownCount_other": "{{shown, number}} of {{count, number}} bands",
         "detailsFailed": "Couldn't load the band plans or the cell counts",

@@ -114,7 +114,6 @@ export function BandListPage({ criteria, onCriteriaChange }: BandListPageProps) 
         toolbar={<BandListToolbar {...filterProps} />}
         mobileToolbar={<BandListMobileFilters {...filterProps} />}
         footer={footer}
-        footerNote={t("admin:reference.bands.list.codeNote")}
         notice={notice}
         isBusy={list.isFetching}
       >

@@ -112,6 +112,7 @@
     "cancelRemoval": "Cancel removal",
     "hint": "Up to {{max}} photos, max {{size}} each",
     "sending": "Sending photo {{current}} / {{total}}",
+    "uploading": "Uploading photos",
     "uploaded": "Photos uploaded",
     "deleted": "Photo deleted",
     "uploadFailed": "Failed to upload photos",

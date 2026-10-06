@@ -129,7 +129,7 @@ export const infoNavConfig: NavConfigSection[] = [
       { titleKey: "items.contact", url: "/contact", icon: Mail01Icon },
       { titleKey: "items.terms", url: "/terms", icon: LegalDocument01Icon },
       { titleKey: "items.privacy", url: "/privacy", icon: LegalDocument02Icon },
-      { titleKey: "items.apiDocs", url: "#", href: "/api/v1/docs", icon: FileBracesIcon },
+      { titleKey: "items.apiDocs", url: "#", href: "/api/v2/docs", icon: FileBracesIcon },
       { titleKey: "items.discord", url: "#", href: "https://discord.gg/SZETJPeayg", icon: DiscordIcon },
     ],
   },
