@@ -33,7 +33,9 @@ const schemaRoute = {
     "Each change in the request counts as one, however many cells it changes. " +
     "`limits.analyzerChanges` on `GET /me` tells you how many you have left.\n\n" +
     "If the owner of a structure is not in the list of structure owners yet, send its name in `location.structure.ownerName` " +
-    "instead of an `ownerId`. The owner is only added to the list when the submission is accepted.\n\n" +
+    "instead of an `ownerId`, when `features.structureOwnerProposals` on `GET /settings` is enabled. " +
+    "A name that matches an existing owner is allowed even when proposals are disabled. " +
+    "A new owner is only added to the list when the submission is accepted.\n\n" +
     "Upload photos afterwards with `POST /submissions/{id}/photos`, and use `photos.uploadCount` to say how many are coming. " +
     "A new station without cells needs at least one photo. " +
     "If you announce photos and none is uploaded within 10 minutes, the submission is deleted when it is a new station without cells " +
@@ -55,7 +57,8 @@ const errorReasons = {
     "and nothing in the request is saved or counted towards the limit on analyzer changes.",
   403:
     "Submissions are disabled, or one of the changes is in a country that is closed to contributions. " +
-    "This response does not say which change it is about.",
+    "Those reasons do not identify a change. Also returned when a change proposes a new structure owner while proposals are disabled, " +
+    "with `details[0].field` pointing at its owner name, for example `0/location/structure/ownerName`.",
   404:
     "A station you referenced does not exist, is `inactive`, or is in a country you cannot access. " +
     "Also returned when a cell you referenced is not on that station.",

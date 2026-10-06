@@ -273,6 +273,21 @@ export function renderCLFDescriptionTemplate(template: string, getValue: (key: s
   return renderCLFTokens(tokenizeCLFTemplate(template, getValue));
 }
 
+export type CLFDescriptionTemplateRenderer = (getValue: (key: string) => string) => string;
+
+function resolveCLFTemplateTokens(tokens: CLFTemplateToken[], getValue: (key: string) => string): CLFTemplateToken[] {
+  return tokens.map((token) => {
+    if (token.type === "literal") return token;
+    if (token.type === "value") return { type: "value", text: getValue(token.text) };
+    return { type: "group", tokens: resolveCLFTemplateTokens(token.tokens, getValue) };
+  });
+}
+
+export function compileCLFDescriptionTemplate(template: string): CLFDescriptionTemplateRenderer {
+  const tokens = tokenizeCLFTemplate(template, (key) => key);
+  return (getValue) => renderCLFTokens(resolveCLFTemplateTokens(tokens, getValue));
+}
+
 export function normalizeCLFDescriptionTemplates(templates: CLFDescriptionTemplates): CLFDescriptionTemplates {
   const normalized: CLFDescriptionTemplates = {};
   for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {

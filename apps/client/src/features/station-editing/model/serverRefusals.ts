@@ -33,6 +33,7 @@ export const INDEX_PATTERN = /^\d+$/;
 const NSA_MESSAGE = /must not be set for an NR NSA cell$/;
 const OWN_ADDRESS_MESSAGE = /^Address must not contain variants of/;
 const OWN_ADDRESS_KEY = "common:validation.addressOwnWordForbidden";
+const OWNER_PROPOSAL_PATH = /^(?:\d+\/)?location\/structure\/ownerName$/;
 const RAT_BY_NAME: Partial<Record<string, Rat>> = { GSM: "gsm", UMTS: "umts", LTE: "lte", NR: "nr" };
 const NUMBER_FIELD_BY_LABEL: Partial<Record<string, CellNumberField>> = {
   LAC: "lac",
@@ -573,6 +574,15 @@ function toInvalidFieldError(invalid: InvalidField, built: BuiltKeys | null, ses
 }
 
 function toRefusalErrors(refusal: Refusal, built: BuiltKeys | null, session: EditSession): EditError[] {
+  if (refusal.code === "FEATURE_DISABLED") {
+    const ownerFields = refusal.details.flatMap(toInvalidField).filter((invalid) => OWNER_PROPOSAL_PATH.test(invalid.path));
+    if (ownerFields.length > 0)
+      return toErrors(
+        ownerFields.map((invalid) => toPathTarget(invalid.path, built, session)),
+        "stations:edit.refusals.featureDisabled",
+      );
+  }
+
   const invalidFields = refusal.code === VALIDATION_CODE ? refusal.details.flatMap(toInvalidField) : [];
   if (invalidFields.length === 0) return toMessageErrors(refusal, session);
   return invalidFields.map((invalid) => toInvalidFieldError(invalid, built, session));

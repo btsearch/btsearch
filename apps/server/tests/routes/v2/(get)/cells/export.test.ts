@@ -97,18 +97,53 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
     metadata: [first, second],
     rows: {
       gsmRows: [{ ...first, ...cell, band_value: 900, band_name: "GSM 900", gsm_lac: 45, gsm_cid: 123, gsm_e_gsm: false }],
-      umtsRows: [{
-        ...second, ...cell, sector_id: null, notes: null, band_value: 2100, band_name: "UMTS 2100",
-        umts_lac: 56, umts_rnc: null, umts_cid: 234, umts_cid_long: null, umts_arfcn: null,
-      }],
-      lteRows: [{
-        ...first, ...cell, band_value: 1800, band_name: "LTE 1800", lte_tac: 67, lte_enbid: 1,
-        lte_clid: 89, lte_ecid: 345, lte_pci: 0, lte_earfcn: null,
-      }],
-      nrRows: [{
-        ...second, ...cell, sector_id: null, is_confirmed: false, band_value: 3500, band_name: "NR 3500", band_duplex: "TDD",
-        nr_nrtac: 78, nr_gnbid: 1, nr_clid: 23, nr_nci: 456n, nr_pci: null, nr_arfcn: null, nr_type: "sa",
-      }],
+      umtsRows: [
+        {
+          ...second,
+          ...cell,
+          sector_id: null,
+          notes: null,
+          band_value: 2100,
+          band_name: "UMTS 2100",
+          umts_lac: 56,
+          umts_rnc: null,
+          umts_cid: 234,
+          umts_cid_long: null,
+          umts_arfcn: null,
+        },
+      ],
+      lteRows: [
+        {
+          ...first,
+          ...cell,
+          band_value: 1800,
+          band_name: "LTE 1800",
+          lte_tac: 67,
+          lte_enbid: 1,
+          lte_clid: 89,
+          lte_ecid: 345,
+          lte_pci: 0,
+          lte_earfcn: null,
+        },
+      ],
+      nrRows: [
+        {
+          ...second,
+          ...cell,
+          sector_id: null,
+          is_confirmed: false,
+          band_value: 3500,
+          band_name: "NR 3500",
+          band_duplex: "TDD",
+          nr_nrtac: 78,
+          nr_gnbid: 1,
+          nr_clid: 23,
+          nr_nci: 456n,
+          nr_pci: null,
+          nr_arfcn: null,
+          nr_type: "sa",
+        },
+      ],
       nrBandRows: [{ station_id: 2, nr_type: "sa", band_value: 3500, band_duplex: "TDD", nr_pci: null, is_confirmed: false }],
       stationSectorRows: [{ id: 101, station_id: 1, azimuth: 0 }],
     },
@@ -118,7 +153,11 @@ function mixedExportRows(): { metadata: StationExportMetadata[]; rows: ExportRow
 function enqueueExportRows(rows: ExportRows, metadata?: StationExportMetadata[]): void {
   if (metadata) dbMock.enqueueFor("select", getTableName(stations), metadata);
   dbMock.enqueueFor("select", "cells", rows.gsmRows, rows.umtsRows, rows.lteRows, rows.nrRows, rows.nrBandRows);
-  dbMock.enqueueFor("select", "station_sectors", rows.stationSectorRows.map((row) => ({ ...row })));
+  dbMock.enqueueFor(
+    "select",
+    "station_sectors",
+    rows.stationSectorRows.map((row) => ({ ...row })),
+  );
 }
 
 function nativeSelection(): ExportSelection {
@@ -489,9 +528,7 @@ describe("readCellExportChunks", () => {
     expect(await chunks.next()).toEqual({ value: undefined, done: true });
 
     const dialect = new PgDialect();
-    const payloadIds = dbMock.calls
-      .filter((call) => call.table === "cells")
-      .map((call) => dialect.sqlToQuery(call.clauses.where?.[0] as SQL).params);
+    const payloadIds = dbMock.calls.filter((call) => call.table === "cells").map((call) => dialect.sqlToQuery(call.clauses.where?.[0] as SQL).params);
     expect(payloadIds.map((ids) => ids.length)).toEqual([500, 500, 500, 500, 37]);
     expect(payloadIds.flat()).toEqual([...firstPage, ...finalPage].map((row) => row.id));
     const pickerCalls = stationPickerCalls();
@@ -534,9 +571,17 @@ describe("readCellExportChunks", () => {
   });
 
   it("stops remaining chunks and payload groups when cancelled while the consumer is paused", async () => {
-    dbMock.enqueueFor("select", getTableName(stations), Array.from({ length: 600 }, (_, index) => ({ id: index + 1 })));
+    dbMock.enqueueFor(
+      "select",
+      getTableName(stations),
+      Array.from({ length: 600 }, (_, index) => ({ id: index + 1 })),
+    );
     dbMock.enqueueFor("select", getTableName(stations), [stationMetadataRow]);
-    dbMock.enqueueFor("select", "cells", Array.from({ length: 201 }, (_, index) => ({ ...gsmExportRow, gsm_cid: index + 1 })));
+    dbMock.enqueueFor(
+      "select",
+      "cells",
+      Array.from({ length: 201 }, (_, index) => ({ ...gsmExportRow, gsm_cid: index + 1 })),
+    );
     dbMock.enqueueFor("select", "station_sectors", []);
     const reader = new AbortController();
     const cellExport = buildCellExport({ format: "2.0", rats: ["gsm"] }, []);
@@ -572,9 +617,7 @@ describe("loadNativeExportLines", () => {
       expect(nativeCalls.filter((call) => call.table === getTableName(stations))).toHaveLength(1);
       expect(nativeCalls.find((call) => call.table === "cells")?.selection).not.toHaveProperty("station_sid");
       if (format === "2.0")
-        expect(native).toEqual([
-          "007B002D310260\tFIRST", "00EA0038310260\tSECOND", "01590043310260\tFIRST", "01C8004E310260\tSECOND",
-        ]);
+        expect(native).toEqual(["007B002D310260\tFIRST", "00EA0038310260\tSECOND", "01590043310260\tFIRST", "01C8004E310260\tSECOND"]);
       expect(dbMock.pendingResults()).toBe(0);
     },
   );
@@ -591,9 +634,7 @@ describe("loadNativeExportLines", () => {
     const template = "{address}|{structure_type}|{structure_note}|{sector_number}|{sector_azimuth}|{cell_type}|{notes}";
     const lines = await loadNativeExportLines(selection, [1, 2], "4.0", { templates: { GSM: template } });
     const address = extraAddress === null ? "Fallback address" : "";
-    expect(lines).toEqual([
-      `310260;00123;00045;0;0;0;-1;${address}|rooftop|property detail|1|0°|pico|cell notes;1;FIRST_123;0;0;0;0;0;FIRST`,
-    ]);
+    expect(lines).toEqual([`310260;00123;00045;0;0;0;-1;${address}|rooftop|property detail|1|0°|pico|cell notes;1;FIRST_123;0;0;0;0;0;FIRST`]);
     expect(dbMock.pendingResults()).toBe(0);
   });
 
@@ -614,7 +655,10 @@ describe("loadNativeExportLines", () => {
     const nr = rows.nrRows[0];
     const first = mixedExportRows().metadata[0];
     if (!lte || !nr || !first) throw new Error("Missing cell fixture");
-    rows.lteRows = [{ ...lte, lte_tac: 200 }, { ...lte, lte_tac: 100 }];
+    rows.lteRows = [
+      { ...lte, lte_tac: 200 },
+      { ...lte, lte_tac: 100 },
+    ];
     rows.nrRows = [{ ...nr, ...first, nr_type: "nsa", nr_pci: 31 }];
     enqueueExportRows(rows);
     const lines = await loadNativeExportLines(nativeSelection(), [1, 2], "ntm", { ...options, displayNRSeparately: true });

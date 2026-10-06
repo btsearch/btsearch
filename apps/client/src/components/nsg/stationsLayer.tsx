@@ -71,7 +71,7 @@ export const StationsLayer = memo(function StationsLayer({ operatorMncs, correla
     [queriedPoints, stationSourceMatches, lookups],
   );
 
-  const { openLocations, popupActions, stationActions } = useStationPopupActions({
+  const { openLocations, popupContents, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
@@ -80,14 +80,17 @@ export const StationsLayer = memo(function StationsLayer({ operatorMncs, correla
   });
 
   return (
-    <MapStationsLayer
-      filters={filters}
-      points={points}
-      wantAzimuths={wantAzimuths}
-      stationActions={stationActions}
-      popupActions={popupActions}
-      activePopupLocations={openLocations}
-      urlSyncEnabled={false}
-    />
+    <>
+      {popupContents}
+      <MapStationsLayer
+        filters={filters}
+        points={points}
+        wantAzimuths={wantAzimuths}
+        stationActions={stationActions}
+        popupActions={popupActions}
+        activePopupLocations={openLocations}
+        urlSyncEnabled={false}
+      />
+    </>
   );
 });

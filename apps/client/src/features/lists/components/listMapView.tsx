@@ -152,7 +152,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     [listStationIdSet],
   );
 
-  const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
+  const { showPopup, openLocations, popupContents, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
@@ -223,6 +223,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   return (
     <>
+      {popupContents}
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}

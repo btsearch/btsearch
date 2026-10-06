@@ -67,9 +67,7 @@ describe("PATCH /settings", () => {
     });
     const audits = dbMock.calls.filter((call) => call.operation === "insert" && call.table === "audit_logs");
     expect(audits).toHaveLength(1);
-    expect(audits[0].values).toEqual(
-      expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: getRuntimeSettings() })]),
-    );
+    expect(audits[0].values).toEqual(expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: getRuntimeSettings() })]));
     expect(redisMock.multi).toHaveBeenCalledOnce();
   });
 

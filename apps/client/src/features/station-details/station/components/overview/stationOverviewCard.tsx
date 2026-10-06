@@ -62,7 +62,7 @@ export function StationOverviewGrid({ station }: StationOverviewGridProps): Reac
       {location !== null ? <RegionItem countryCode={location.countryCode} regionName={location.region.name} /> : null}
       <SiteIdItem siteId={siteId} />
       {structure.type !== null ? <StructureTypeItem type={structure.type} /> : null}
-      {structure.type !== null || structure.owner !== null ? <StructureOwnerItem owner={structure.owner} /> : null}
+      {structure.owner !== null ? <StructureOwnerItem owner={structure.owner} /> : null}
       <EmfReportsItem station={station} />
       <IdentifierItems identifiers={identifiers} operator={operator} />
       {structure.note ? <StructureNoteItem note={structure.note} /> : null}

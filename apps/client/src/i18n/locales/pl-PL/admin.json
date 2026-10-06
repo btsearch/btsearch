@@ -159,6 +159,10 @@
           "action": "Wyłącz zgłoszenia"
         }
       },
+      "structureOwnerProposals": {
+        "title": "Propozycje nowych właścicieli obiektów",
+        "description": "Zgłaszający mogą proponować właścicieli, których nie ma na liście. Nadal można wybierać istniejących właścicieli"
+      },
       "photoUploads": {
         "title": "Zdjęcia w zgłoszeniach",
         "description": "Do zgłoszenia można dołączyć zdjęcia",

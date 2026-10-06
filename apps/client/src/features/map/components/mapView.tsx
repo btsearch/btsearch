@@ -81,7 +81,7 @@ function MapViewInner() {
   useMapMaxBounds(map);
 
   const shownFilters = getEffectiveMapFilters(savedFilters, registerOnScreen);
-  const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
+  const { showPopup, openLocations, popupContents, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
@@ -248,6 +248,7 @@ function MapViewInner() {
 
   return (
     <>
+      {popupContents}
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}

@@ -36,6 +36,7 @@ import db from "../../database/psql.js";
 import { ErrorResponse, ValidationError } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { toFieldPath } from "../../lib/fieldPath.js";
+import { itemRefusal } from "../../lib/itemRefusals.js";
 import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { RADIO_FIELD_NAMES } from "../cells/radioFields.js";
 import { isNormalRat } from "../cells/ratCellPersistence.js";
@@ -59,6 +60,7 @@ type SectorInput = NonNullable<SingleSubmission["sectors"]>[number];
 type StationInput = NonNullable<SingleSubmission["station"]>;
 type LocationInput = NonNullable<SingleSubmission["location"]>;
 type ProposedOwner = Pick<LocationInput, "structure_owner_id" | "structure_owner_name">;
+type StoredOwnerProposal = Pick<typeof proposedLocations.$inferSelect, "structure_owner_name" | "region_id">;
 type TargetCell = { cell: CellRow; details: Record<string, unknown> | null };
 
 type ChangeContent = {
@@ -85,6 +87,7 @@ type InvalidField = { field: string; validationMessage: string };
 type IdentifierPair = { fields: readonly [node: string, cell: string]; unknownTogetherMessage: string };
 type PhotoPickLocation = Pick<LocationChangeInput, "latitude" | "longitude">;
 export type BodyPath = (path: PropertyKey[]) => PropertyKey[];
+type TranslationContext = { bodyPath?: BodyPath; submissionId?: string };
 
 const OMNIDIRECTIONAL_AZIMUTH = 360;
 
@@ -318,16 +321,58 @@ async function assertSentOwnerFits(stationId: number | null, location: LocationC
   await assertOwnerFitsRegion(db, ownerId, location?.regionId ?? (await loadCurrentRegionId(stationId)));
 }
 
-async function findProposedOwner(stationId: number | null, location: SubmittedLocationInput | undefined): Promise<ProposedOwner> {
-  const ownerName = location?.structure?.ownerName;
-  if (ownerName === undefined) return {};
+async function keepsStoredOwnerProposal(
+  stored: StoredOwnerProposal | undefined,
+  ownerName: string,
+  regionId: number | null,
+  storedRegionId: number | null,
+): Promise<boolean> {
+  if (stored?.structure_owner_name !== ownerName) return false;
+  if (regionId === null || storedRegionId === null) return false;
+  if (regionId === storedRegionId) return true;
 
-  const existing = await findNamedOwner(db, ownerName, location?.regionId ?? (await loadCurrentRegionId(stationId)));
-  if (existing) return { structure_owner_id: existing.id };
-  return { structure_owner_id: null, structure_owner_name: ownerName };
+  const countries = await db
+    .select({ id: regions.id, countryCode: regions.countryCode })
+    .from(regions)
+    .where(inArray(regions.id, [regionId, storedRegionId]));
+  const nextCountry = countries.find((region) => region.id === regionId)?.countryCode;
+  const storedCountry = countries.find((region) => region.id === storedRegionId)?.countryCode;
+  return nextCountry !== undefined && nextCountry === storedCountry;
 }
 
-async function translateContent(stationId: number | null, content: ChangeContent): Promise<TranslatedContent> {
+async function findProposedOwner(
+  stationId: number | null,
+  location: SubmittedLocationInput | undefined,
+  { bodyPath, submissionId }: TranslationContext,
+): Promise<ProposedOwner> {
+  if (location === undefined) return {};
+  const submittedName = location.structure?.ownerName;
+  const proposalsEnabled = getRuntimeSettings().structureOwnerProposalsEnabled;
+  if (submittedName === undefined && (location.structure?.ownerId !== undefined || proposalsEnabled || submissionId === undefined)) return {};
+
+  const stored =
+    !proposalsEnabled && submissionId !== undefined
+      ? await db.query.proposedLocations.findFirst({
+          where: { submission_id: submissionId },
+          columns: { structure_owner_name: true, region_id: true },
+        })
+      : undefined;
+  const ownerName = submittedName ?? stored?.structure_owner_name;
+  if (ownerName === undefined || ownerName === null) return {};
+
+  const currentRegionId = location.regionId === undefined || stored?.region_id === null ? await loadCurrentRegionId(stationId) : null;
+  const regionId = location.regionId ?? currentRegionId;
+  const storedRegionId = stored?.region_id ?? currentRegionId;
+  const existing = await findNamedOwner(db, ownerName, regionId);
+  if (existing) return submittedName === undefined ? {} : { structure_owner_id: existing.id };
+  if (!proposalsEnabled && !(await keepsStoredOwnerProposal(stored, ownerName, regionId, storedRegionId))) {
+    const path = ["location", "structure", "ownerName"];
+    throw itemRefusal("FEATURE_DISABLED", "Structure owner proposals are disabled", bodyPath ? bodyPath(path) : path);
+  }
+  return submittedName === undefined ? {} : { structure_owner_id: null, structure_owner_name: ownerName };
+}
+
+async function translateContent(stationId: number | null, content: ChangeContent, context: TranslationContext = {}): Promise<TranslatedContent> {
   const [azimuths, targets, location] = await Promise.all([
     loadSectorAzimuths(stationId, content.sectors),
     loadTargetCells(stationId, content.cells),
@@ -335,7 +380,7 @@ async function translateContent(stationId: number | null, content: ChangeContent
     assertReferencesExist(content),
   ]);
   await assertSentOwnerFits(stationId, location);
-  const proposedOwner = await findProposedOwner(stationId, location);
+  const proposedOwner = await findProposedOwner(stationId, location, context);
 
   return {
     station: content.station && toStationInput(content.station),
@@ -469,7 +514,10 @@ export async function toPhotoPickUpdate(
 
 export async function toSingleSubmission(body: SubmissionCreate, bodyPath?: BodyPath): Promise<SingleSubmission> {
   const stationId = body.stationId ?? null;
-  const [translated, picks] = await Promise.all([translateContent(stationId, body), translatePhotoPicks(stationId, body.photos, body.location)]);
+  const [translated, picks] = await Promise.all([
+    translateContent(stationId, body, { bodyPath }),
+    translatePhotoPicks(stationId, body.photos, body.location),
+  ]);
   assertValid(translated, bodyPath);
 
   return {
@@ -500,8 +548,12 @@ export async function toDirectChange(edit: StationEdit, bodyPath?: BodyPath): Pr
   };
 }
 
-export async function toSubmissionUpdateInput(stationId: number | null, body: SubmissionUpdate): Promise<SubmissionUpdateBody> {
-  const translated = await translateContent(stationId, body);
+export async function toSubmissionUpdateInput(
+  stationId: number | null,
+  body: SubmissionUpdate,
+  context?: { submissionId: string },
+): Promise<SubmissionUpdateBody> {
+  const translated = await translateContent(stationId, body, context);
   assertValid(translated);
 
   return { submitter_note: body.note, review_notes: body.reviewNote, ...translated };

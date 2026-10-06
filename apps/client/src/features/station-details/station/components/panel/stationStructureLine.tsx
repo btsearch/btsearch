@@ -6,8 +6,9 @@ import { StructureTypeIcon } from "../structureTypeIcon";
 import { BrandMark } from "@/components/cellular/brandMark";
 
 type StationStructureLineProps = {
-  location: StationLocationRecord | null;
+  location: Pick<StationLocationRecord, "address" | "structure"> | null;
   ownerBrand: Brand | null;
+  showNote?: boolean;
 };
 
 function MiddleDot() {
@@ -18,13 +19,14 @@ function MiddleDot() {
   );
 }
 
-export function StationStructureLine({ location, ownerBrand }: StationStructureLineProps) {
+export function StationStructureLine({ location, ownerBrand, showNote = false }: StationStructureLineProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const address = location?.address || null;
   const structureType = location?.structure.type ?? null;
   const owner = location?.structure.owner ?? null;
+  const note = showNote ? location?.structure.note || null : null;
 
-  if (address === null && structureType === null && owner === null) return <>{t("dialog.btsStation")}</>;
+  if (address === null && structureType === null && owner === null && note === null) return <>{t("dialog.btsStation")}</>;
 
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -45,6 +47,12 @@ export function StationStructureLine({ location, ownerBrand }: StationStructureL
             {ownerBrand !== null ? <BrandMark brand={ownerBrand} size={12} /> : null}
             {owner.name}
           </span>
+        </>
+      ) : null}
+      {note !== null ? (
+        <>
+          {address !== null || structureType !== null || owner !== null ? <MiddleDot /> : null}
+          <span className="min-w-0 max-w-full wrap-break-word">{note}</span>
         </>
       ) : null}
     </span>

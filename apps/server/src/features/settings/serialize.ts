@@ -14,6 +14,7 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
     isSignInRequired: stored.enforceAuthForAllRoutes,
     features: {
       submissions: stored.submissionsEnabled,
+      structureOwnerProposals: stored.structureOwnerProposalsEnabled,
       photoUploads: stored.photosEnabled,
       comments: stored.enableStationComments,
       commentReview: stored.commentQueueEnabled,
@@ -37,6 +38,7 @@ export function toRuntimeSettingsPatch({ isSignInRequired, features, announcemen
   const patch: RuntimeSettingsPatch = {
     enforceAuthForAllRoutes: isSignInRequired,
     submissionsEnabled: features?.submissions,
+    structureOwnerProposalsEnabled: features?.structureOwnerProposals,
     photosEnabled: features?.photoUploads,
     enableStationComments: features?.comments,
     commentQueueEnabled: features?.commentReview,

@@ -1,5 +1,5 @@
 // oxlint-disable no-await-in-loop
-import { bands, cells, lteCells, nrCells, operators, stations } from "@openbts/drizzle";
+import { bands, cells, locations, lteCells, nrCells, operators, regions, stations } from "@openbts/drizzle";
 import { type CLFDescriptionTemplates, CLF_DESCRIPTION_TEMPLATE_RATS } from "@openbts/shared/clfExportTemplates";
 import { CELL_EXPORT_TEMPLATE_PARAMS, CELL_RATS, type CellExportQuery, type CellRat } from "@openbts/shared/contract";
 import { type SQL, and, asc, eq, gt, gte, inArray, isNotNull, max, or, sql } from "drizzle-orm";
@@ -8,9 +8,10 @@ import db from "../../database/psql.js";
 import { flagCondition } from "../../lib/conditions.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { operatedBy } from "../operators/sharing.js";
-import { stationAreaConditions } from "../stations/read.js";
+import { stationPlacementConditions } from "../stations/read.js";
 import type { ClfFormat, ConvertOptions } from "./converter.js";
-import { type ExportSelection, loadExportLines } from "./lines.js";
+import type { ExportSelection } from "./lines.js";
+import { loadNativeExportLines } from "./nativeLines.js";
 
 export type CellExport = {
   stationConditions: SQL[];
@@ -18,6 +19,7 @@ export type CellExport = {
   convertOptions: ConvertOptions;
 };
 
+const STATION_PAGE_SIZE = 2000;
 const STATION_BATCH_SIZE = 500;
 const LINES_PER_CHUNK = 200;
 
@@ -39,7 +41,7 @@ export function buildCellExport(query: CellExportQuery, hiddenCountryCodes: read
   const stationConditions: SQL[] = [
     eq(stations.status, "published"),
     isNotNull(operators.mnc),
-    ...stationAreaConditions({ countryCodes: query.countryCodes, regionIds: query.regionIds }, hiddenCountryCodes),
+    ...stationPlacementConditions({ countryCodes: query.countryCodes, regionIds: query.regionIds }, hiddenCountryCodes),
   ];
   if (query.operatorIds) stationConditions.push(operatedBy(stations.operator_id, query.operatorIds));
 
@@ -92,6 +94,8 @@ export async function loadCellExportLastModified({ stationConditions, cells: sel
     .innerJoin(stations, eq(cells.station_id, stations.id))
     .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
     .leftJoin(operators, eq(stations.operator_id, operators.id))
+    .leftJoin(locations, eq(stations.location_id, locations.id))
+    .leftJoin(regions, eq(locations.region_id, regions.id))
     .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
     .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
     .where(and(...stationConditions, ...selection.cellConditions, inExportedRat(selection)));
@@ -112,26 +116,34 @@ async function nextStationIds(stationFilter: SQL | undefined, afterId: number): 
     .select({ id: stations.id })
     .from(stations)
     .leftJoin(operators, eq(stations.operator_id, operators.id))
+    .leftJoin(locations, eq(stations.location_id, locations.id))
+    .leftJoin(regions, eq(locations.region_id, regions.id))
     .where(and(stationFilter, gt(stations.id, afterId)))
     .orderBy(asc(stations.id))
-    .limit(STATION_BATCH_SIZE);
+    .limit(STATION_PAGE_SIZE);
   return rows.map((row) => row.id);
 }
 
 export async function* readCellExportChunks(cellExport: CellExport, format: ClfFormat, stopped: AbortSignal): AsyncGenerator<string> {
-  if (exportsNoRat(cellExport.cells)) return;
+  if (stopped.aborted || exportsNoRat(cellExport.cells)) return;
 
   const stationFilter = and(...cellExport.stationConditions, hasExportedCells(cellExport.cells));
   let lastStationId = 0;
   let stationIds = await nextStationIds(stationFilter, lastStationId);
 
   while (stationIds.length > 0 && !stopped.aborted) {
-    const selection = { ...cellExport.cells, stationConditions: [inArray(stations.id, stationIds)] };
-    const lines = (await loadExportLines(selection, format, cellExport.convertOptions)).sort();
-    for (let start = 0; start < lines.length; start += LINES_PER_CHUNK) {
-      yield `${lines.slice(start, start + LINES_PER_CHUNK).join("\n")}\n`;
+    for (let stationStart = 0; stationStart < stationIds.length; stationStart += STATION_BATCH_SIZE) {
+      if (stopped.aborted) return;
+      const batchIds = stationIds.slice(stationStart, stationStart + STATION_BATCH_SIZE);
+      const selection = { ...cellExport.cells, stationConditions: [inArray(stations.id, batchIds)] };
+      const lines = (await loadNativeExportLines(selection, batchIds, format, cellExport.convertOptions)).sort();
+      for (let start = 0; start < lines.length; start += LINES_PER_CHUNK) {
+        if (stopped.aborted) return;
+        yield `${lines.slice(start, start + LINES_PER_CHUNK).join("\n")}\n`;
+      }
     }
 
+    if (stopped.aborted) return;
     lastStationId = stationIds.at(-1) ?? lastStationId;
     stationIds = await nextStationIds(stationFilter, lastStationId);
   }

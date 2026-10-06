@@ -28,13 +28,12 @@ describe("parseAddress", () => {
     });
   });
 
-  it.each([
-    "maszt - na budynku kotłowni",
-    "maszt na budynku dawnej kotłowni",
-    "maszt na budynku kotłowni - komin",
-  ])("keeps a boiler-house alternative or historical description conservative: %s", (description) => {
-    expect(parseAddress(description).note).toBe(description);
-  });
+  it.each(["maszt - na budynku kotłowni", "maszt na budynku dawnej kotłowni", "maszt na budynku kotłowni - komin"])(
+    "keeps a boiler-house alternative or historical description conservative: %s",
+    (description) => {
+      expect(parseAddress(description).note).toBe(description);
+    },
+  );
 
   it("does not normalize a boiler-house identity outside its attached building context", () => {
     expect(parseAddress("ul. Dworcowa 35 - kotłownia").note).toBe("kotłownia");
@@ -58,7 +57,7 @@ describe("parseAddress", () => {
     ["maszt na budynku serwisu AutoAdamski", "mast", "budynek serwisu AutoAdamski"],
     ["maszt na budynku klubu sportowego", "mast", "budynek klubu sportowego"],
     ["maszt na budynku prywatnym", "mast", "budynek prywatnym"],
-    ["wieża kratowa na dachu budynku \"Wieża Babel\"", "lattice_tower", "budynek \"Wieża Babel\""],
+    ['wieża kratowa na dachu budynku "Wieża Babel"', "lattice_tower", 'budynek "Wieża Babel"'],
     ["wieża kratowa na dachu budynku Fitness / Platinium", "lattice_tower", "budynek Fitness / Platinium"],
     ["wieża kratowa na dachu budynku Fitness: Platinium", "lattice_tower", "budynek Fitness: Platinium"],
     ["maszt na budynku mieszkalnym Altus-Nowy", "mast", "budynek Altus-Nowy"],

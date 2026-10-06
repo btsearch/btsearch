@@ -15,6 +15,7 @@ export interface RuntimeSettings {
   enableStationComments: boolean;
   commentQueueEnabled: boolean;
   submissionsEnabled: boolean;
+  structureOwnerProposalsEnabled: boolean;
   enableUserLists: boolean;
   photosEnabled: boolean;
   pscEnabled: boolean;
@@ -39,6 +40,7 @@ const defaultSettings: RuntimeSettings = {
   enableStationComments: false,
   commentQueueEnabled: false,
   submissionsEnabled: true,
+  structureOwnerProposalsEnabled: true,
   enableUserLists: false,
   photosEnabled: true,
   pscEnabled: false,
@@ -65,6 +67,7 @@ function isSettings(obj: unknown): obj is RuntimeSettings {
     typeof candidate.enableStationComments === "boolean" &&
     typeof candidate.commentQueueEnabled === "boolean" &&
     typeof candidate.submissionsEnabled === "boolean" &&
+    typeof candidate.structureOwnerProposalsEnabled === "boolean" &&
     typeof candidate.enableUserLists === "boolean" &&
     typeof candidate.photosEnabled === "boolean" &&
     typeof candidate.pscEnabled === "boolean" &&
@@ -77,10 +80,16 @@ function isSettings(obj: unknown): obj is RuntimeSettings {
   );
 }
 
+function withOwnerProposalDefault(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
+  if ("structureOwnerProposalsEnabled" in value) return value;
+  return { ...value, structureOwnerProposalsEnabled: defaultSettings.structureOwnerProposalsEnabled };
+}
+
 function parseSettings(json: string | null): RuntimeSettings | null {
   if (!json) return null;
   try {
-    const parsed: unknown = JSON.parse(json);
+    const parsed = withOwnerProposalDefault(JSON.parse(json));
     return isSettings(parsed) ? parsed : null;
   } catch {
     return null;
@@ -101,6 +110,7 @@ export function mergeRuntimeSettings(base: RuntimeSettings, patch: RuntimeSettin
   if (typeof patch.enableStationComments === "boolean") next.enableStationComments = patch.enableStationComments;
   if (typeof patch.commentQueueEnabled === "boolean") next.commentQueueEnabled = patch.commentQueueEnabled;
   if (typeof patch.submissionsEnabled === "boolean") next.submissionsEnabled = patch.submissionsEnabled;
+  if (typeof patch.structureOwnerProposalsEnabled === "boolean") next.structureOwnerProposalsEnabled = patch.structureOwnerProposalsEnabled;
   if (typeof patch.photosEnabled === "boolean") next.photosEnabled = patch.photosEnabled;
   if (typeof patch.enableUserLists === "boolean") next.enableUserLists = patch.enableUserLists;
   if (typeof patch.pscEnabled === "boolean") next.pscEnabled = patch.pscEnabled;
@@ -122,11 +132,16 @@ export async function initRuntimeSettings(): Promise<void> {
   try {
     const existing = await redis.get(SETTINGS_KEY);
     if (existing) {
-      const parsed = JSON.parse(existing);
+      const parsed = withOwnerProposalDefault(JSON.parse(existing));
       if (isSettings(parsed)) {
         inMemorySettings = parsed;
-      } else if (parsed && typeof parsed === "object") {
-        inMemorySettings = mergeRuntimeSettings(defaultSettings, parsed);
+      } else if (
+        parsed &&
+        typeof parsed === "object" &&
+        "structureOwnerProposalsEnabled" in parsed &&
+        typeof parsed.structureOwnerProposalsEnabled === "boolean"
+      ) {
+        inMemorySettings = mergeRuntimeSettings(defaultSettings, parsed as RuntimeSettingsPatch);
         await redis.set(SETTINGS_KEY, JSON.stringify(inMemorySettings));
       } else {
         inMemorySettings = { ...defaultSettings };

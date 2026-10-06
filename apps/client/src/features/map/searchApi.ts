@@ -142,6 +142,7 @@ export function toSearchHitPlace(location: StationLocationRecord): MapPlace {
     id: location.id,
     city: location.city,
     address: location.address,
+    structure: location.structure,
     regionName: location.region.name,
     latitude: location.latitude,
     longitude: location.longitude,

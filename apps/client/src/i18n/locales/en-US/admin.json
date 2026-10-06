@@ -157,6 +157,10 @@
           "action": "Disable submissions"
         }
       },
+      "structureOwnerProposals": {
+        "title": "New structure owner proposals",
+        "description": "Submitters can propose owners that are missing from the list. Existing owners can still be selected"
+      },
       "photoUploads": {
         "title": "Photos in submissions",
         "description": "Photos can be attached to a submission",

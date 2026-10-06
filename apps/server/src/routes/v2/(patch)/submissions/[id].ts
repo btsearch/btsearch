@@ -30,7 +30,9 @@ const schemaRoute = {
     "Only those administrators and editors can set `reviewNote`, and it is the only field that can still change after the review. " +
     "`isConfirmed` on a new cell is also only kept when one of them sends it.\n\n" +
     "In `location.structure`, `ownerId` and `ownerName` replace each other. Send `ownerName` to propose a new owner or to correct its name, " +
-    "`ownerId` to use an existing owner in its place, or `ownerId: null` to drop both.\n\n" +
+    "`ownerId` to use an existing owner in its place, or `ownerId: null` to drop both. " +
+    "New owner names require `features.structureOwnerProposals` on `GET /settings` to be enabled. " +
+    "A name that resolves to an existing owner, or the unchanged pending name in the same country, is allowed while proposals are disabled.\n\n" +
     "A submission that removes a station has no changes to edit, only its notes.",
   params: submissionParamsSchema,
   body: submissionUpdateSchema,
@@ -48,7 +50,8 @@ const errorReasons = {
     "which can be a field set to `null`. That error points at the cell, for example `cells/1`.",
   403:
     "You are not allowed to change this submission or to set `reviewNote`. " +
-    "Also returned when submissions are disabled or the change is in a country that is closed to contributions.",
+    "Also returned when submissions are disabled or the change is in a country that is closed to contributions. " +
+    "A new structure owner proposal while proposals are disabled points `details[0].field` at `location/structure/ownerName`.",
   404: "The submission does not exist. Also returned when its station is `inactive` or a cell you referenced is not on that station.",
   409:
     "The operator already has a GSM cell with the same `lac` and `cid`, a UMTS cell with the same `rnc` and `cid`, " +
@@ -85,7 +88,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   }
 
   const [input, picks] = await Promise.all([
-    toSubmissionUpdateInput(getTargetStationId(submission), changes),
+    toSubmissionUpdateInput(getTargetStationId(submission), changes, { submissionId: id }),
     photos === undefined ? undefined : toPhotoPickUpdate(submission, photos, changes.location),
   ]);
   await updateSubmission(req, editable, input, picks);

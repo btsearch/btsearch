@@ -30,7 +30,9 @@ import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigg
 import { Skeleton } from "@/components/ui/skeleton";
 import { RanSharingLink } from "@/features/station-details/components/ranSharingLink";
 import { locationPhotoRecordsQueryOptions } from "@/features/station-details/station/api";
+import { StationStructureLine } from "@/features/station-details/station/components/panel/stationStructureLine";
 import { NETWORKS_ID_KIND, findHostStation, findStationIdentifier } from "@/features/station-details/station/utils/stations";
+import { getStructureOwnerBrand } from "@/features/station-details/station/utils/structure";
 import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import { hasModifierKey } from "@/lib/dom/keyboard";
 import { cn } from "@/lib/utils";
@@ -431,6 +433,8 @@ export function PopupContent({
   const shareUrl = `${window.location.origin}/#map=16/${location.latitude}/${location.longitude}~L${location.id}${isUkeSource ? "~fu" : "~f"}`;
   const city = location.city || t("common:labels.unknownLocation");
   const shareTitle = location.address ? `${city} - ${location.address}` : city;
+  const structure = location.structure;
+  const showStructure = !isUkeSource && structure !== undefined && (structure.type !== null || structure.owner !== null || Boolean(structure.note));
 
   return (
     <div className="w-72 text-sm">
@@ -438,6 +442,15 @@ export function PopupContent({
         city={location.city}
         region={location.regionName}
         address={location.address}
+        description={
+          showStructure ? (
+            <StationStructureLine
+              location={{ address: location.address, structure }}
+              ownerBrand={getStructureOwnerBrand(structure.owner, lookups?.brands, lookups?.operators)}
+              showNote
+            />
+          ) : undefined
+        }
         actions={
           <>
             {isUkeSource ? null : <PopupPhotosButton locationId={location.id} />}

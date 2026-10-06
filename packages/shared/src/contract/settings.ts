@@ -20,6 +20,7 @@ const routeRulesSchema = z.array(routeRuleSchema).max(ROUTE_RULE_LIMIT);
 
 export const settingsFeaturesSchema = z.object({
   submissions: z.boolean().describe("Submissions can be sent, read and reviewed"),
+  structureOwnerProposals: z.boolean().describe("Submitters can propose new structure owners while choosing existing owners remains available"),
   photoUploads: z.boolean().describe("Photos can be added to a submission"),
   comments: z.boolean().describe("Station comments can be read and written"),
   commentReview: z.boolean().describe("New comments need a moderator's approval before they are shown, unless a moderator wrote them"),

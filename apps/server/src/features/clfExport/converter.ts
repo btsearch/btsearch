@@ -1,10 +1,14 @@
 import { CELL_TYPE_SHORT_LABELS } from "@openbts/shared/cellTypes";
 import {
   type CLFDescriptionTemplatePlaceholder,
+  type CLFDescriptionTemplateRat,
+  type CLFDescriptionTemplateRenderer,
   type CLFDescriptionTemplateValues,
   type CLFDescriptionTemplates,
   CLF_DESCRIPTION_TEMPLATE_DEFAULTS,
+  CLF_DESCRIPTION_TEMPLATE_RATS,
   type ClfExportFormat,
+  compileCLFDescriptionTemplate,
   renderCLFDescriptionTemplate,
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
@@ -19,7 +23,15 @@ export type BandDuplex = "FDD" | "TDD" | "SDL" | null;
 export type ConvertOptions = {
   templates?: DescriptionTemplates;
   displayNRSeparately?: boolean;
+  compiledTemplates?: Partial<Record<CLFDescriptionTemplateRat, CLFDescriptionTemplateRenderer>>;
 };
+
+export function prepareConvertOptions(options: ConvertOptions): ConvertOptions {
+  const compiledTemplates: ConvertOptions["compiledTemplates"] = {};
+  for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS)
+    compiledTemplates[rat] = compileCLFDescriptionTemplate(options.templates?.[rat] || CLF_DESCRIPTION_TEMPLATE_DEFAULTS[rat]);
+  return { ...options, compiledTemplates };
+}
 
 const NTM_UNKNOWN = 2147483647; // 2^31-1, used in netmonitor format
 const LEGACY_MCC = "260";
@@ -559,7 +571,9 @@ function renderDescription(cell: CellExportData, options?: ConvertOptions): stri
   const templateKey = isNrNonStandalone(cell) ? "NR_NSA" : cell.rat;
   const template = options?.templates?.[templateKey] || CLF_DESCRIPTION_TEMPLATE_DEFAULTS[templateKey];
   const vars = buildTemplateVars(cell);
-  return sanitizeDescription(renderCLFDescriptionTemplate(template, (key) => formatTemplateValue(vars[key as CLFDescriptionTemplatePlaceholder])));
+  const getValue = (key: string) => formatTemplateValue(vars[key as CLFDescriptionTemplatePlaceholder]);
+  const render = options?.compiledTemplates?.[templateKey];
+  return sanitizeDescription(render ? render(getValue) : renderCLFDescriptionTemplate(template, getValue));
 }
 
 export function convertToCLF(cell: CellExportData, format: ClfFormat, options?: ConvertOptions): string | null {

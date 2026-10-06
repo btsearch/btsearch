@@ -18,16 +18,13 @@ describe("planAddressStrip", () => {
     },
   );
 
-  it.each([null, "budynek kotłowni", "maszt na budynku kotłowni"])(
-    "requires the boiler-house note to be stored before stripping: %s",
-    (note) => {
-      const address = "ul. Dworcowa 35 - maszt na budynku kotłowni";
-      expect(planAddressStrip({ id: 1, address }, { hasType: true, hasOwner: false, note })).toMatchObject({
-        addressAfter: note === null ? address : "ul. Dworcowa 35",
-        keptBecause: note === null ? "note_not_stored" : null,
-      });
-    },
-  );
+  it.each([null, "budynek kotłowni", "maszt na budynku kotłowni"])("requires the boiler-house note to be stored before stripping: %s", (note) => {
+    const address = "ul. Dworcowa 35 - maszt na budynku kotłowni";
+    expect(planAddressStrip({ id: 1, address }, { hasType: true, hasOwner: false, note })).toMatchObject({
+      addressAfter: note === null ? address : "ul. Dworcowa 35",
+      keptBecause: note === null ? "note_not_stored" : null,
+    });
+  });
 
   it("strips a plain description only after its type is stored", () => {
     expect(planAddressStrip({ id: 1, address: plainAddress }, { hasType: true, hasOwner: false, note: null })).toMatchObject({

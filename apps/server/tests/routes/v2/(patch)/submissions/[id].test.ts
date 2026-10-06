@@ -453,7 +453,13 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     const body = {
       location: { regionId: 2, latitude: 52, longitude: 21, city: "Warsaw", address: "Example 1", structure: { ownerName: "Original Owner" } },
     } satisfies SubmissionUpdate;
-    scriptDraftUpdate(fixture, body, { old: previous, retainedOwnerRegions: [{ id: 1, countryCode: "PL" }, { id: 2, countryCode: "PL" }] });
+    scriptDraftUpdate(fixture, body, {
+      old: previous,
+      retainedOwnerRegions: [
+        { id: 1, countryCode: "PL" },
+        { id: 2, countryCode: "PL" },
+      ],
+    });
     const { app, errors } = await createRouteHarnessWithErrors(route, options);
     const response = await app.inject({ ...request, payload: body });
     expect(errors).toEqual([]);
@@ -493,7 +499,10 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     scriptDraftUpdate(draftFixture([draftRadios[0]]), body, {
       old: previous,
       lookupRetainedOwner: true,
-      retainedOwnerRegions: [{ id: 1, countryCode: "PL" }, { id: 2, countryCode: "DE" }],
+      retainedOwnerRegions: [
+        { id: 1, countryCode: "PL" },
+        { id: 2, countryCode: "DE" },
+      ],
     });
     const response = await injectMutation(route, { ...request, payload: body }, options);
     expectError(response, 403, "FEATURE_DISABLED");
@@ -512,7 +521,10 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     scriptDraftUpdate(fixture, body, {
       old: previous,
       lookupRetainedOwner: true,
-      retainedOwnerRegions: [{ id: 1, countryCode: "PL" }, { id: 2, countryCode: "PL" }],
+      retainedOwnerRegions: [
+        { id: 1, countryCode: "PL" },
+        { id: 2, countryCode: "PL" },
+      ],
     });
     const { app, errors } = await createRouteHarnessWithErrors(route, options);
     const response = await app.inject({ ...request, payload: body });
@@ -556,7 +568,10 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     } satisfies SubmissionUpdate;
     scriptDraftUpdate(draftFixture([draftRadios[0]]), body, {
       old: previous,
-      retainedOwnerRegions: [{ id: 1, countryCode: "PL" }, { id: 2, countryCode: "DE" }],
+      retainedOwnerRegions: [
+        { id: 1, countryCode: "PL" },
+        { id: 2, countryCode: "DE" },
+      ],
     });
     const response = await injectMutation(route, { ...request, payload: body }, options);
     expectError(response, 403, "FEATURE_DISABLED");

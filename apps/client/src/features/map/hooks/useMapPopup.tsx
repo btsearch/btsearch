@@ -1,7 +1,7 @@
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { type MapMouseEvent, type Map as MaplibreMap, Popup } from "maplibre-gl";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { type Root, createRoot } from "react-dom/client";
+import { type ReactPortal, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { PopupContent, type PopupStationEntry } from "../components/popupContent";
 import { POINT_LAYER_ID } from "../constants";
@@ -39,7 +39,6 @@ export type FollowMapPoints = (pointsById: ReadonlyMap<number, MapPoint>) => voi
 
 type PopupEntry = {
   popup: Popup;
-  root: Root;
   container: HTMLElement;
   focusOrigin: HTMLElement | null;
   location: MapPlace;
@@ -48,24 +47,16 @@ type PopupEntry = {
   source: StationSource;
 };
 
-type PopupRenderInputs = {
-  statusFilter: MapFilters["status"];
-  lookups: MapLookups | undefined;
-  hasLookupFailed: boolean;
-  isRetryingLookups: boolean;
-  retryLookups: () => void;
-  filterStations: UseMapPopupArgs["filterStations"];
-  showAddToList: UseMapPopupArgs["showAddToList"];
-  onOpenStationDetails: UseMapPopupArgs["onOpenStationDetails"];
-  onOpenUkeStationDetails: UseMapPopupArgs["onOpenUkeStationDetails"];
+type PopupView = Pick<PopupEntry, "location" | "stations" | "ukeStations" | "source"> & {
+  entry: PopupEntry;
 };
+
+function toPopupView(entry: PopupEntry): PopupView {
+  return { entry, location: entry.location, stations: entry.stations, ukeStations: entry.ukeStations, source: entry.source };
+}
 
 function getMapPopupKey({ locationId, source }: MapPopupLocation): string {
   return `${source}:${locationId}`;
-}
-
-function followsStatusFilter(entry: PopupEntry): boolean {
-  return entry.source === "internal" && entry.stations === null;
 }
 
 function rememberFocusOrigin(entry: PopupEntry, event: FocusEvent): void {
@@ -182,6 +173,7 @@ type UseMapPopupReturn = {
   showPopup: ShowMapPopup;
   followPoints: FollowMapPoints;
   openLocations: MapPopupLocation[];
+  popupContents: ReactPortal[];
   closePopups: (shouldClose: (location: MapPopupLocation) => boolean) => void;
   cleanup: () => void;
 };
@@ -198,67 +190,11 @@ export function useMapPopup({
   onClose,
 }: UseMapPopupArgs): UseMapPopupReturn {
   const popupEntriesRef = useRef(new Map<string, PopupEntry>());
-  const [openLocations, setOpenLocations] = useState<MapPopupLocation[]>([]);
+  const [popupViews, setPopupViews] = useState<PopupView[]>([]);
   const { lookups, isError: hasLookupFailed, isRetrying: isRetryingLookups, retry: retryLookups } = useMapLookups();
-  const renderInputs: PopupRenderInputs = {
-    statusFilter,
-    lookups,
-    hasLookupFailed,
-    isRetryingLookups,
-    retryLookups,
-    filterStations,
-    showAddToList,
-    onOpenStationDetails,
-    onOpenUkeStationDetails,
-  };
-  const renderInputsRef = useRef(renderInputs);
-
-  useLayoutEffect(() => {
-    renderInputsRef.current = renderInputs;
-  });
-
-  const renderEntry = useCallback((entry: PopupEntry) => {
-    const inputs = renderInputsRef.current;
-
-    entry.root.render(
-      <QueryClientProvider client={queryClient}>
-        <PopupLocationContent
-          location={entry.location}
-          markerStations={entry.stations}
-          ukeStations={entry.ukeStations}
-          source={entry.source}
-          statusFilter={inputs.statusFilter}
-          lookups={inputs.lookups}
-          hasLookupFailed={inputs.hasLookupFailed}
-          isRetryingLookups={inputs.isRetryingLookups}
-          filterStations={inputs.filterStations}
-          showAddToList={inputs.showAddToList}
-          onRetryLookups={() => renderInputsRef.current.retryLookups()}
-          onClose={() => closePopupFromInside(entry, hasKeyboardFocusInside(entry.container))}
-          onOpenStationDetails={(id) => {
-            const locationId = entry.source === "internal" ? entry.location.id : undefined;
-            if (locationId !== undefined) seedStationRecord(queryClient, locationId, id);
-            const didOpen = renderInputsRef.current.onOpenStationDetails(id, entry.source, locationId);
-            if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
-          }}
-          onOpenUkeStationDetails={(station) => {
-            const didOpen = renderInputsRef.current.onOpenUkeStationDetails(station);
-            if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
-          }}
-        />
-      </QueryClientProvider>,
-    );
+  const publishPopupViews = useCallback(() => {
+    setPopupViews([...popupEntriesRef.current.values()].map(toPopupView));
   }, []);
-
-  useEffect(() => {
-    for (const entry of popupEntriesRef.current.values()) renderEntry(entry);
-  }, [renderEntry, lookups, hasLookupFailed, isRetryingLookups, filterStations, showAddToList]);
-
-  useEffect(() => {
-    for (const entry of popupEntriesRef.current.values()) {
-      if (followsStatusFilter(entry)) renderEntry(entry);
-    }
-  }, [renderEntry, statusFilter]);
 
   const showPopup: ShowMapPopup = useCallback(
     (coordinates, location, stations, ukeStations, source) => {
@@ -277,7 +213,7 @@ export function useMapPopup({
       if (existingEntry) {
         Object.assign(existingEntry, { location, stations, ukeStations, source });
         existingEntry.popup.setLngLat(coordinates);
-        renderEntry(existingEntry);
+        publishPopupViews();
         return;
       }
 
@@ -294,7 +230,7 @@ export function useMapPopup({
       })
         .setLngLat(coordinates)
         .setDOMContent(container);
-      const entry: PopupEntry = { popup, root: createRoot(container), container, focusOrigin: null, location, stations, ukeStations, source };
+      const entry: PopupEntry = { popup, container, focusOrigin: null, location, stations, ukeStations, source };
       container.addEventListener("focusin", (event) => rememberFocusOrigin(entry, event));
       container.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") return;
@@ -303,24 +239,23 @@ export function useMapPopup({
       });
 
       popupEntriesRef.current.set(popupKey, entry);
-      renderEntry(entry);
-      setOpenLocations((locations) => [...locations, popupLocation]);
+      publishPopupViews();
 
       void popup.once("close", () => {
         if (popupEntriesRef.current.get(popupKey) !== entry) return;
         popupEntriesRef.current.delete(popupKey);
-        setOpenLocations((locations) => locations.filter((location) => getMapPopupKey(location) !== popupKey));
+        publishPopupViews();
         onClose?.(popupLocation);
-        queueMicrotask(() => entry.root.unmount());
       });
 
       popup.addTo(map);
     },
-    [map, allowMultipleMapPopups, renderEntry, onClose],
+    [map, allowMultipleMapPopups, publishPopupViews, onClose],
   );
 
   const followPoints: FollowMapPoints = useCallback(
     (pointsById) => {
+      let hasChanged = false;
       for (const entry of popupEntriesRef.current.values()) {
         if (entry.source !== "internal" || entry.stations === null) continue;
 
@@ -329,10 +264,11 @@ export function useMapPopup({
         if (hasSameStationIds(entry.stations, point.stations)) continue;
 
         entry.stations = point.stations;
-        renderEntry(entry);
+        hasChanged = true;
       }
+      if (hasChanged) publishPopupViews();
     },
-    [renderEntry],
+    [publishPopupViews],
   );
 
   const closePopups = useCallback((shouldClose: (location: MapPopupLocation) => boolean) => {
@@ -346,6 +282,13 @@ export function useMapPopup({
 
     const handleMapClick = (event: MapMouseEvent) => {
       if (popupEntriesRef.current.size === 0) return;
+      const target = event.originalEvent.target;
+      if (target instanceof Node) {
+        for (const entry of popupEntriesRef.current.values()) {
+          if (entry.container.contains(target)) return;
+        }
+      }
+
       const layers = [POINT_LAYER_ID, `${POINT_LAYER_ID}-symbol`].filter((id) => map.getLayer(id));
       if (layers.length > 0 && map.queryRenderedFeatures(event.point, { layers }).length > 0) return;
       closePopups(() => true);
@@ -360,12 +303,41 @@ export function useMapPopup({
   const cleanup = useCallback(() => {
     const entries = [...popupEntriesRef.current.values()];
     popupEntriesRef.current.clear();
-    setOpenLocations([]);
-    for (const entry of entries) {
-      entry.popup.remove();
-      queueMicrotask(() => entry.root.unmount());
-    }
+    setPopupViews([]);
+    for (const entry of entries) entry.popup.remove();
   }, []);
 
-  return { showPopup, followPoints, openLocations, closePopups, cleanup };
+  const openLocations = popupViews.map(({ location, source }) => ({ locationId: location.id, source }));
+  const popupContents = popupViews.map(({ entry, location, stations, ukeStations, source }) =>
+    createPortal(
+      <PopupLocationContent
+        location={location}
+        markerStations={stations}
+        ukeStations={ukeStations}
+        source={source}
+        statusFilter={statusFilter}
+        lookups={lookups}
+        hasLookupFailed={hasLookupFailed}
+        isRetryingLookups={isRetryingLookups}
+        filterStations={filterStations}
+        showAddToList={showAddToList}
+        onRetryLookups={retryLookups}
+        onClose={() => closePopupFromInside(entry, hasKeyboardFocusInside(entry.container))}
+        onOpenStationDetails={(id) => {
+          const locationId = source === "internal" ? location.id : undefined;
+          if (locationId !== undefined) seedStationRecord(queryClient, locationId, id);
+          const didOpen = onOpenStationDetails(id, source, locationId);
+          if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
+        }}
+        onOpenUkeStationDetails={(station) => {
+          const didOpen = onOpenUkeStationDetails(station);
+          if (didOpen !== false) closePopupFromInside(entry, hasKeyboardFocusInside(entry.container));
+        }}
+      />,
+      entry.container,
+      getMapPopupKey({ locationId: location.id, source }),
+    ),
+  );
+
+  return { showPopup, followPoints, openLocations, popupContents, closePopups, cleanup };
 }

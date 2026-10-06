@@ -184,7 +184,7 @@ function bboxCondition([west, south, east, north]: Bbox): SQL {
   return west < east ? between(west, east) : sql`(${between(west, 180)} OR ${between(-180, east)})`;
 }
 
-export function stationAreaConditions(query: AreaFilterQuery, hiddenCountryCodes: readonly string[]): SQL[] {
+export function stationPlacementConditions(query: AreaFilterQuery, hiddenCountryCodes: readonly string[]): SQL[] {
   const conditions: SQL[] = [];
 
   if (query.bbox) conditions.push(bboxCondition(query.bbox));
@@ -193,6 +193,11 @@ export function stationAreaConditions(query: AreaFilterQuery, hiddenCountryCodes
   if (hiddenCountryCodes.length > 0) {
     conditions.push(sql`(${stationCountryCode} IS NULL OR ${notInArray(stationCountryCode, [...hiddenCountryCodes])})`);
   }
+  return conditions;
+}
+
+export function stationAreaConditions(query: AreaFilterQuery, hiddenCountryCodes: readonly string[]): SQL[] {
+  const conditions = stationPlacementConditions(query, hiddenCountryCodes);
   return conditions.length === 0 ? [] : [stationPlacementMatches(sql.join(conditions, sql` AND `))];
 }
 

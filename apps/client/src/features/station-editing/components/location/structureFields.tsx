@@ -44,6 +44,7 @@ export function StructureFields({ edit }: StructureFieldsProps) {
     countryCode: lookups.countryCode,
     area,
     proposesOwner: session.kind === "form",
+    allowsOwnerProposals: lookups.features?.structureOwnerProposals === true,
     submittedName: submittedOwner?.kind === "proposed" ? submittedOwner.name : null,
   });
 

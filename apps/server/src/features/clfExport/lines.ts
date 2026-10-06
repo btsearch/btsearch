@@ -17,7 +17,7 @@ import { type SQL, and, eq, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import type { StoredStructureType } from "../structures/serialize.js";
-import { type BandDuplex, type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF } from "./converter.js";
+import { type BandDuplex, type ClfFormat, type ConvertOptions, type NRBandPCIs, convertToCLF, prepareConvertOptions } from "./converter.js";
 
 export type ExportSelection = {
   stationConditions: SQL[];
@@ -27,13 +27,11 @@ export type ExportSelection = {
   rats: { gsm: boolean; umts: boolean; lte: boolean; nr: boolean };
 };
 
-type CommonCellRow = {
-  cell_type: string | null;
-  notes: string | null;
+export type StationExportMetadata = {
+  station_pk: number;
   station_sid: string;
   extra_address: string | null;
   uplink_type: string | null;
-  sector_id: number | null;
   operator_mnc: number | null;
   latitude: number | null;
   longitude: number | null;
@@ -44,10 +42,51 @@ type CommonCellRow = {
   structure_type: StoredStructureType | null;
   structure_owner: string | null;
   structure_note: string | null;
+};
+type CommonCellRow = StationExportMetadata & {
+  cell_type: string | null;
+  notes: string | null;
+  sector_id: number | null;
   band_value: number | null;
   band_name: string | null;
   band_duplex: BandDuplex;
   is_confirmed: boolean | null;
+};
+export type ExportRows = {
+  gsmRows: (CommonCellRow & { gsm_lac: number | null; gsm_cid: number | null; gsm_e_gsm: boolean | null })[];
+  umtsRows: (CommonCellRow & {
+    umts_lac: number | null;
+    umts_rnc: number | null;
+    umts_cid: number | null;
+    umts_cid_long: number | null;
+    umts_arfcn: number | null;
+  })[];
+  lteRows: (CommonCellRow & {
+    lte_tac: number | null;
+    lte_enbid: number | null;
+    lte_clid: number | null;
+    lte_ecid: number | null;
+    lte_pci: number | null;
+    lte_earfcn: number | null;
+  })[];
+  nrRows: (CommonCellRow & {
+    nr_nrtac: number | null;
+    nr_gnbid: number | null;
+    nr_clid: number | null;
+    nr_nci: bigint | null;
+    nr_pci: number | null;
+    nr_arfcn: number | null;
+    nr_type: "nsa" | "sa" | null;
+  })[];
+  nrBandRows: {
+    station_id: number;
+    nr_type: "nsa" | "sa" | null;
+    band_value: number | null;
+    band_duplex: BandDuplex;
+    nr_pci: number | null;
+    is_confirmed: boolean | null;
+  }[];
+  stationSectorRows: { id: number; station_id: number; azimuth: number }[];
 };
 type SectorMeta = { index: number; azimuth: number };
 
@@ -78,7 +117,6 @@ function buildCommonCellFields(row: CommonCellRow, sectorMeta: SectorMeta | unde
 
 export async function loadExportLines(selection: ExportSelection, format: ClfFormat, convertOptions: ConvertOptions): Promise<string[]> {
   const { stationConditions, rats } = selection;
-  const displayNRSeparately = convertOptions.displayNRSeparately === true;
   const baseConditions = [...stationConditions, ...selection.cellConditions];
   const lteConditions = [...baseConditions, ...selection.lteConditions];
   const nrConditions = [...baseConditions, ...selection.nrConditions];
@@ -228,6 +266,16 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
     stationSectorsQuery,
   ]);
 
+  return renderExportLines({ gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows }, format, convertOptions);
+}
+
+export async function renderExportLines(
+  { gsmRows, umtsRows, lteRows, nrRows, nrBandRows, stationSectorRows }: ExportRows,
+  format: ClfFormat,
+  convertOptions: ConvertOptions,
+): Promise<string[]> {
+  const preparedOptions = prepareConvertOptions(convertOptions);
+  const displayNRSeparately = convertOptions.displayNRSeparately === true;
   const stationLteTacMap = new Map<number, number>();
   if (displayNRSeparately) {
     for (const row of lteRows) {
@@ -317,7 +365,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         e_gsm: row.gsm_e_gsm ?? null,
       },
       format,
-      convertOptions,
+      preparedOptions,
     );
     if (line) clfLines.push(line);
   }
@@ -335,7 +383,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         rat: "UMTS",
       },
       format,
-      convertOptions,
+      preparedOptions,
     );
     if (line) clfLines.push(line);
   }
@@ -356,7 +404,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         nr_band_pcis: row.station_pk ? [...(stationNrNonStandaloneBandPciMap.get(row.station_pk)?.values() ?? [])] : undefined,
       },
       format,
-      convertOptions,
+      preparedOptions,
     );
     if (line) clfLines.push(line);
   }
@@ -382,7 +430,7 @@ export async function loadExportLines(selection: ExportSelection, format: ClfFor
         nr_band_pcis,
       },
       format,
-      convertOptions,
+      preparedOptions,
     );
     if (line) clfLines.push(line);
   }

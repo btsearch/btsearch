@@ -34,11 +34,12 @@ export type MapPoint = {
   city: string | null;
   address: string | null;
   regionName: string | null;
+  structure?: Location["structure"];
   stations: MapPointStation[];
   isUnlisted?: boolean;
 };
 
-export type MapPlace = Pick<MapPoint, "id" | "city" | "address" | "regionName" | "latitude" | "longitude">;
+export type MapPlace = Pick<MapPoint, "id" | "city" | "address" | "regionName" | "latitude" | "longitude" | "structure">;
 
 export type MapPopupStation = MapPointStation & { cells: readonly Cell[] };
 
@@ -59,7 +60,7 @@ type ListedStationRecord = Pick<LocationStation, "id" | "siteId" | "operatorId" 
   sectors?: Sector[];
 };
 
-type PlacedLocationRecord = Pick<Location, "id" | "city" | "address" | "regionId" | "latitude" | "longitude">;
+type PlacedLocationRecord = Pick<Location, "id" | "city" | "address" | "regionId" | "latitude" | "longitude" | "structure">;
 
 const V1_OMNIDIRECTIONAL_AZIMUTH = 360;
 const NO_IDENTIFIERS: readonly StationIdentifier[] = [];
@@ -95,6 +96,7 @@ export function toMapPlace(location: PlacedLocationRecord, lookups: MapLookups):
     id: location.id,
     city: location.city,
     address: location.address,
+    structure: location.structure,
     regionName: lookups.regionsById.get(location.regionId)?.name ?? null,
     latitude: location.latitude,
     longitude: location.longitude,

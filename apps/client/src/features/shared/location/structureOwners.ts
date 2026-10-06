@@ -17,11 +17,17 @@ type StructureOwnerOptionsInput = {
   countryCode: string | null;
   area: EditorArea | undefined;
   proposesOwner?: boolean;
+  allowsOwnerProposals?: boolean;
   submittedName?: string | null;
 };
 
-function getOwnerCreation(proposesOwner: boolean, area: EditorArea | undefined, countryCode: string | null): OwnerCreation {
-  if (proposesOwner) return "propose";
+function getOwnerCreation(
+  proposesOwner: boolean,
+  allowsOwnerProposals: boolean,
+  area: EditorArea | undefined,
+  countryCode: string | null,
+): OwnerCreation {
+  if (proposesOwner) return allowsOwnerProposals ? "propose" : "none";
   if (area === undefined) return "none";
   if (area.coversEverything) return "create";
   return countryCode !== null && isCountryInEditorArea(area, countryCode) ? "create" : "none";
@@ -39,6 +45,7 @@ export function buildStructureOwnerOptions({
   countryCode,
   area,
   proposesOwner = false,
+  allowsOwnerProposals = true,
   submittedName = null,
 }: StructureOwnerOptionsInput): StructureOwnerOptions {
   return {
@@ -46,7 +53,7 @@ export function buildStructureOwnerOptions({
     selectedOwner: value.kind === "listed" ? (owners.find((owner) => owner.id === value.ownerId) ?? null) : null,
     brands,
     operators,
-    creation: getOwnerCreation(proposesOwner, area, countryCode),
+    creation: getOwnerCreation(proposesOwner, allowsOwnerProposals, area, countryCode),
     countryCode,
     isAdmin: !proposesOwner && area?.coversEverything === true,
     submittedName,

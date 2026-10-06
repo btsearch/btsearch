@@ -120,11 +120,13 @@ type PopupLocationHeaderProps = {
   city?: string | null;
   region?: string | null;
   address?: string | null;
+  description?: ReactNode;
   actions?: ReactNode;
 };
 
-export function PopupLocationHeader({ city, region, address, actions }: PopupLocationHeaderProps) {
+export function PopupLocationHeader({ city, region, address, description, actions }: PopupLocationHeaderProps) {
   const { t } = useTranslation("main");
+  const details = description ?? address;
 
   return (
     <div className={cn("flow-root border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
@@ -141,7 +143,7 @@ export function PopupLocationHeader({ city, region, address, actions }: PopupLoc
           </>
         ) : null}
       </h3>
-      {address ? <p className="text-[11px] text-muted-foreground">{address}</p> : null}
+      {details ? <p className="text-[11px] text-muted-foreground">{details}</p> : null}
     </div>
   );
 }
