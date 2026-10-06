@@ -5,7 +5,7 @@ import type { PlannedStructure } from "./plan.js";
 
 export const KEPT_ADDRESS_REASONS = {
   no_description: "no description in the address",
-  unrecognised: "a description that names neither a type nor an owner",
+  unrecognised: "a description without a recognised type, owner or separable note-only suffix",
   only_place_known: "a description that is the whole address and holds a street or a number",
   type_not_stored: "a type in the description that is not on the location",
   owner_not_stored: "an owner in the description that is not on the location",
@@ -37,7 +37,7 @@ function reasonToKeep(parsed: ParsedAddress, structure: StructureState): KeptAdd
   const hasStreet = street !== null && street !== "";
 
   if (description === null) return "no_description";
-  if (type === null && owner === null) return "unrecognised";
+  if (type === null && owner === null && (!hasStreet || note === null)) return "unrecognised";
   if (!hasStreet && note !== null && namesStreetOrNumber(withoutFormerRemarks(description))) return "only_place_known";
   if (type !== null && !structure.hasType) return "type_not_stored";
   if (owner !== null && !structure.hasOwner) return "owner_not_stored";

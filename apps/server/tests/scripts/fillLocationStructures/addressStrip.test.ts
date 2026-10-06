@@ -86,11 +86,50 @@ describe("planAddressStrip", () => {
     });
   });
 
-  it("keeps a radio-station name that does not identify a structure type or owner", () => {
-    const address = "ul. Dworcowa 35 - SLR - Stacja Linii Radiowych";
-    expect(planAddressStrip({ id: 1, address }, { hasType: false, hasOwner: false, note: "SLR - Stacja Linii Radiowych" })).toMatchObject({
+  it.each(["Sanktuarium Matki Bożej Leśniewskiej", "SLR - Stacja Linii Radiowych"])(
+    "strips a note-only suffix after its complete note is stored: %s",
+    (note) => {
+      const address = `ul. Dworcowa 35 - ${note}`;
+      expect(planAddressStrip({ id: 1, address }, { hasType: false, hasOwner: false, note })).toMatchObject({
+        addressAfter: "ul. Dworcowa 35",
+        keptBecause: null,
+      });
+    },
+  );
+
+  it.each([null, "", "different note", "Sanktuarium Matki Bożej"])("keeps a note-only suffix when its complete note is not stored: %s", (note) => {
+    const address = "ul. Dworcowa 35 - Sanktuarium Matki Bożej Leśniewskiej";
+    expect(planAddressStrip({ id: 1, address }, { hasType: false, hasOwner: false, note })).toMatchObject({
       addressAfter: address,
-      keptBecause: "unrecognised",
+      keptBecause: "note_not_stored",
+    });
+  });
+
+  it("preserves the place hint after a stored note-only suffix is removed", () => {
+    const address = "ul. Dworcowa 35 - Sanktuarium Matki Bożej Leśniewskiej przy lesie";
+    expect(planAddressStrip({ id: 1, address }, { hasType: false, hasOwner: false, note: "Sanktuarium Matki Bożej Leśniewskiej" })).toMatchObject({
+      addressAfter: "ul. Dworcowa 35, przy lesie",
+      keptBecause: null,
+    });
+  });
+
+  it.each([
+    { hasType: false, hasOwner: true, keptBecause: "type_not_stored" },
+    { hasType: true, hasOwner: false, keptBecause: "owner_not_stored" },
+  ])("keeps a recognised structure with a matching note until its fields are stored: $keptBecause", ({ hasType, hasOwner, keptBecause }) => {
+    const note = "Sanktuarium Matki Bożej Leśniewskiej";
+    const address = `ul. Dworcowa 35 - maszt Orange - ${note}`;
+    expect(planAddressStrip({ id: 1, address }, { hasType, hasOwner, note })).toMatchObject({ addressAfter: address, keptBecause });
+  });
+
+  it.each([
+    ["Sanktuarium Matki Bożej Leśniewskiej", "no_description"],
+    ["ul. Dworcowa 35", "no_description"],
+    ["SLR - Stacja Linii Radiowych", "unrecognised"],
+  ])("keeps a standalone address even when it is copied into the note: %s", (address, keptBecause) => {
+    expect(planAddressStrip({ id: 1, address }, { hasType: false, hasOwner: false, note: address })).toMatchObject({
+      addressAfter: address,
+      keptBecause,
     });
   });
 });
