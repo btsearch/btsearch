@@ -1,6 +1,18 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
-import { type FocusEvent, type KeyboardEvent, type ReactElement, type ReactNode, memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+  memo,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { FILTER_KEYWORDS } from "../../constants";
@@ -23,7 +35,7 @@ import {
 import { MapCursorInfo } from "../mapCursorInfo";
 import { AutocompleteDropdown } from "./autocompleteDropdown";
 import { FilterButton } from "./filterButton";
-import { useCalmTransition } from "./mapFilterMotion";
+import { SmoothHeight, useCalmTransition } from "./mapFilterMotion";
 import { FilterPanel } from "./mapFilterPanel";
 import { findKeybindCountryCode } from "./mapFilterPanelRules";
 import { MapStyleSwitcher } from "./mapStyleSwitcher";
@@ -44,10 +56,8 @@ const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includ
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";
 const UKE_SEARCH_STALE_TIME = 1000 * 60 * 5;
 const EMPTY_RESULTS: never[] = [];
-const DROPDOWN_SHOWN = { opacity: 1, y: 0 } as const;
-const DROPDOWN_HIDDEN = { opacity: 0, y: -8 } as const;
-const DROPDOWN_OPEN_CLASS = "max-md:absolute max-md:inset-x-0 max-md:top-full max-md:z-10";
-const DROPDOWN_CLOSING_CLASS = "absolute inset-x-0 top-full z-10 group-data-[compact]/search:hidden";
+const PANEL_EXPANDED = { height: "auto", opacity: 1 } as const;
+const PANEL_COLLAPSED = { height: 0, opacity: 0 } as const;
 type MapSearchMode = "results" | "map";
 
 function loadMapSearchMode(): MapSearchMode {
@@ -87,20 +97,24 @@ type MapSearchOverlayProps = {
   mapContext?: ReactElement;
 };
 
-function SearchDropdownFrame({ children }: { children: ReactNode }) {
+function SearchPanelFrame({ children }: { children: ReactNode }) {
   const isPresent = useIsPresent();
   const transition = useCalmTransition();
 
   return (
     <motion.div
       inert={!isPresent}
-      initial={false}
-      animate={DROPDOWN_SHOWN}
-      exit={DROPDOWN_HIDDEN}
+      initial={PANEL_COLLAPSED}
+      animate={PANEL_EXPANDED}
+      exit={PANEL_COLLAPSED}
       transition={transition}
-      className={isPresent ? DROPDOWN_OPEN_CLASS : DROPDOWN_CLOSING_CLASS}
+      className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-[compact]/search:hidden")}
     >
-      {children}
+      <SmoothHeight className="m-0" contentClassName="p-0">
+        <div className="flex max-h-[min(70dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
+          {children}
+        </div>
+      </SmoothHeight>
     </motion.div>
   );
 }
@@ -156,9 +170,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     inputRef,
     focusedChipIndex,
     handleContainerBlur,
-    handleInputChange,
-    handleInputFocus,
-    handleInputClick,
+    handleInputChange: changeSearchInput,
+    handleInputFocus: focusSearchInput,
+    handleInputClick: clickSearchInput,
     openOverlay,
     handleKeyDown: handleChipKeyDown,
     applyAutocomplete,
@@ -179,6 +193,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       closeOverlay();
       return;
     }
+    if (!isMobile) setShowFilters(false);
     onFilterQueryChange?.(undefined);
     if (isFocused) openOverlay(true);
   }
@@ -186,11 +201,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   function handleFiltersChange(update: MapFiltersChange) {
     const nextFilters = typeof update === "function" ? update(filters) : update;
     if (supportsMapMode && nextFilters.source === "uke" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
-    if (nextFilters.source === "uke" && isFocused && query.trim() !== "") openOverlay(true, false);
+    if (nextFilters.source === "uke" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true, false);
     onFiltersChange(update);
   }
-
-  const showMobileMapContext = isMobile && mapContext !== undefined && !mobileExpanded && !isFocused;
 
   const maxBounds = useMemo(() => (lookups === undefined ? undefined : getMapMaxBounds(lookups.countries)), [lookups]);
   const gpsCoords = useMemo(() => parseGpsCoordinates(debouncedQuery, maxBounds), [debouncedQuery, maxBounds]);
@@ -276,8 +289,12 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const showsStationGroup = builtSearchResults.groups.some((group) => group.kind === "station");
   const stationTotalCount = showsStationGroup ? (stationQuery.data?.total ?? 0) : 0;
   const autocompleteSearchOptions = useMemo(() => buildAutocompleteOptions(autocompleteOptions), [autocompleteOptions]);
-  const showAutocomplete = !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
-  const showResults = searchMode === "results" && activeOverlay === "results";
+  const showDesktopFilters = showFilters && !isMobile;
+  const canShowSearch = !showDesktopFilters;
+  const showAutocomplete = canShowSearch && !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
+  const showResults = canShowSearch && searchMode === "results" && activeOverlay === "results";
+  const isMobileSearchExpanded = mobileExpanded || showAutocomplete || showResults;
+  const showMobileMapContext = isMobile && mapContext !== undefined && !isMobileSearchExpanded && !isFocused;
   let candidateNavigationOptions: SearchOption[] = EMPTY_RESULTS;
   if (!isUkeSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
   else if (searchMode === "results") candidateNavigationOptions = searchResultOptions;
@@ -376,11 +393,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (navigationOptions.length === 0) return;
       e.preventDefault();
-      if (!activeOverlay) handleInputClick();
+      if (!activeOverlay || (!isMobile && showFilters)) handleInputClick();
       navigation.move(e.key === "ArrowDown" ? 1 : -1);
       return;
     }
-    if (e.key === "Enter" && activeOverlay && navigationOptions.length > 0) {
+    if (e.key === "Enter" && (showAutocomplete || showResults) && navigationOptions.length > 0) {
       e.preventDefault();
       selectSearchOption(navigation.activeOption ?? navigationOptions[0]);
       return;
@@ -407,21 +424,42 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   }
 
   function handleSearchBlur(event: FocusEvent<HTMLElement>) {
-    handleContainerBlur(event);
     const nextTarget = event.relatedTarget as Node | null;
-    if (containerRef.current?.contains(nextTarget)) return;
+    const filterPanel = filterPanelRef.current;
+    if (filterPanel?.contains(event.target) && filterPanel.contains(nextTarget)) return;
+    handleContainerBlur(event, filterPanel);
+    if (containerRef.current?.contains(nextTarget) && !filterPanel?.contains(nextTarget)) return;
     navigation.reset();
     handleMobileCollapse();
   }
 
   function handleToggleFilters() {
+    if (!showFilters && !isMobile) {
+      closeOverlay();
+      navigation.reset();
+    }
     setShowFilters((prev) => !prev);
+  }
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (!isMobile) setShowFilters(false);
+    changeSearchInput(event);
+  }
+
+  function handleInputFocus() {
+    if (!isMobile) setShowFilters(false);
+    focusSearchInput();
+  }
+
+  function handleInputClick() {
+    if (!isMobile) setShowFilters(false);
+    clickSearchInput();
   }
 
   useMapKeybinds(({ key, shiftKey }) => {
     if (key === "f" && !shiftKey) {
       (document.activeElement as HTMLElement)?.blur();
-      setShowFilters((prev) => !prev);
+      handleToggleFilters();
       return true;
     }
 
@@ -461,15 +499,16 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   useEffect(() => {
     if (!preferences.hideFiltersOnMapClick || !showFilters) return;
+    const searchContainer = containerRef.current;
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Node | null;
-      if (filterPanelRef.current?.contains(target)) return;
+      if (searchContainer?.contains(target) || filterPanelRef.current?.contains(target)) return;
       if ((target as Element)?.closest("[data-filter-toggle]")) return;
       setShowFilters(false);
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [preferences.hideFiltersOnMapClick, showFilters]);
+  }, [containerRef, preferences.hideFiltersOnMapClick, showFilters]);
 
   function handleSourceChange(source: StationSource) {
     handleFiltersChange((current) => changeMapFilterSource(current, source));
@@ -518,7 +557,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             ref={containerRef}
             onBlurCapture={handleSearchBlur}
             data-compact={showMobileMapContext ? "" : undefined}
-            className={cn("group/search relative", showMobileMapContext ? "shrink-0" : "min-w-0 flex-1")}
+            className={cn(
+              "group/search relative rounded-2xl border bg-background/95 shadow-xl backdrop-blur-md transition-[border-color,box-shadow] duration-200",
+              isFocused && "border-primary/30 ring-2 ring-primary/20",
+              showMobileMapContext ? "shrink-0" : "min-w-0 flex-1",
+            )}
           >
             <SearchInput
               inputRef={inputRef}
@@ -530,7 +573,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               query={query}
               isFocused={isFocused}
               isMobile={isMobile}
-              mobileExpanded={mobileExpanded}
+              mobileExpanded={isMobileSearchExpanded}
               listboxId={hasActiveListbox ? listboxId : undefined}
               activeOptionId={hasActiveListbox ? navigation.activeOptionId : undefined}
               isExpanded={hasActiveListbox}
@@ -550,25 +593,36 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                   <FilterButton
                     showFilters={showFilters}
                     activeFilterCount={activeFilterCount}
-                    panelId={showFilters && !isMobile ? filterPanelId : undefined}
+                    panelId={showDesktopFilters ? filterPanelId : undefined}
                     onClick={handleToggleFilters}
                   />
                 </>
               }
+              mobileControls={
+                isMobile ? (
+                  <div className={cn("flex justify-end md:hidden", (showAutocomplete || showResults) && "invisible")}>
+                    <div className="pointer-events-auto relative shrink-0">
+                      <MapStyleSwitcher position="search" />
+                    </div>
+                  </div>
+                ) : undefined
+              }
             />
 
             <AnimatePresence>
-              {showAutocomplete || showResults ? (
-                <SearchDropdownFrame key="dropdown">
+              {showAutocomplete || showResults || showDesktopFilters ? (
+                <SearchPanelFrame key="panels">
                   {showAutocomplete ? (
                     <AutocompleteDropdown
+                      embedded
                       options={autocompleteOptions}
                       listboxId={listboxId}
                       activeKey={navigation.activeKey}
                       onActiveKeyChange={navigation.setActiveKey}
                       onSelect={applyAutocomplete}
                     />
-                  ) : (
+                  ) : null}
+                  {showResults ? (
                     <SearchResults
                       state={searchSurfaceState}
                       listboxId={listboxId}
@@ -581,28 +635,17 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                       onRetry={retryFailedSearches}
                       onSelect={selectSearchOption}
                     />
-                  )}
-                </SearchDropdownFrame>
+                  ) : null}
+                  {showDesktopFilters ? (
+                    <fieldset id={filterPanelId} ref={filterPanelRef} tabIndex={-1} className="flex min-h-0 min-w-0 flex-col">
+                      {filterPanel}
+                    </fieldset>
+                  ) : null}
+                </SearchPanelFrame>
               ) : null}
             </AnimatePresence>
           </search>
         </div>
-
-        {isMobile ? (
-          <div className="mt-2 flex justify-end md:hidden">
-            <div className="pointer-events-auto relative shrink-0">
-              <MapStyleSwitcher position="search" />
-            </div>
-          </div>
-        ) : null}
-
-        <AnimatePresence initial={false}>
-          {showFilters && !isMobile ? (
-            <fieldset key="filter-panel" id={filterPanelId} ref={filterPanelRef} tabIndex={-1}>
-              {filterPanel}
-            </fieldset>
-          ) : null}
-        </AnimatePresence>
       </div>
 
       {isMobile ? (

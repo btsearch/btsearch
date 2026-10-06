@@ -9,13 +9,14 @@ const FILTER_GROUP_ORDER: FilterKeyword["group"][] = ["common", "location", "cel
 
 type AutocompleteDropdownProps = {
   options: FilterKeyword[];
+  embedded?: boolean;
   listboxId?: string;
   activeKey?: string | null;
   onActiveKeyChange?: (key: string) => void;
   onSelect: (keyword: string) => void;
 };
 
-export function AutocompleteDropdown({ options, listboxId, activeKey, onActiveKeyChange, onSelect }: AutocompleteDropdownProps) {
+export function AutocompleteDropdown({ options, embedded = false, listboxId, activeKey, onActiveKeyChange, onSelect }: AutocompleteDropdownProps) {
   const { t } = useTranslation("main");
   const generatedListboxId = useId();
   const resolvedListboxId = listboxId ?? generatedListboxId;
@@ -31,7 +32,14 @@ export function AutocompleteDropdown({ options, listboxId, activeKey, onActiveKe
   if (options.length === 0) return null;
 
   return (
-    <div className="custom-scrollbar mt-2 max-h-[min(24rem,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] overflow-y-auto overscroll-contain rounded-xl bg-background/95 shadow-lg ring-1 ring-foreground/10 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-150">
+    <div
+      className={cn(
+        "custom-scrollbar overflow-y-auto overscroll-contain",
+        embedded
+          ? "min-h-0 border-t border-border/60"
+          : "mt-2 max-h-[min(24rem,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] rounded-xl bg-background/95 shadow-lg ring-1 ring-foreground/10 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-150",
+      )}
+    >
       <div className="p-1.5">
         <div
           id={usesActiveDescendantNavigation ? resolvedListboxId : undefined}

@@ -1,7 +1,7 @@
 import { FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -11,7 +11,7 @@ import { useMapLookups } from "../../data/mapLookups";
 import { useFilterHandlers } from "../../hooks/useFilterHandlers";
 import { countryStatisticsQueryOptions, readMapDataDates } from "../../statsApi";
 import { FilterLayerStrip } from "./mapFilterLayerStrip";
-import { FadeItem, Reveal, SmoothHeight, useCalmTransition } from "./mapFilterMotion";
+import { FadeItem, Reveal, SmoothHeight } from "./mapFilterMotion";
 import { FilterNote } from "./mapFilterNote";
 import { OperatorRowsSection } from "./mapFilterOperatorRows";
 import {
@@ -82,11 +82,7 @@ type CountryPillProps = {
   onToggleCountry: (countryCode: string) => void;
 };
 
-const PANEL_HIDDEN = { opacity: 0, y: -8 } as const;
-const PANEL_SHOWN = { opacity: 1, y: 0 } as const;
 const DATA_DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" };
-const PANEL_FRAME_CLASS =
-  "relative z-15 mt-2 flex max-h-[calc(100dvh-9rem)] flex-col overflow-hidden rounded-xl bg-background/95 shadow-md ring-1 ring-foreground/10 backdrop-blur-md";
 const FILTER_SECTIONS_CLASS = "min-h-0 overflow-y-auto overscroll-contain px-4 pt-3.5 pb-4 [&_button]:cursor-pointer";
 const SECTION_SLOT_CLASS = "pt-0.5 pb-2.5";
 
@@ -133,16 +129,15 @@ function PanelHeading({ isSheet, activeFilterCount, hasSourceSwitch, source, cou
           <span>{t("labels.filters")}</span>
         </SheetTitle>
       ) : (
-        <>
-          <HugeiconsIcon icon={FilterIcon} className="size-4 shrink-0" aria-hidden="true" />
-          <h3 className="text-sm font-medium">{t("labels.filters")}</h3>
-        </>
+        <h3 className="text-xs font-medium text-muted-foreground">{t("labels.filters")}</h3>
       )}
       {activeFilterCount > 0 ? (
         <>
-          <span className={FILTER_COUNT_BADGE_CLASS} aria-label={t("labels.filtersActive", { count: activeFilterCount })}>
-            {activeFilterCount}
-          </span>
+          {isSheet ? (
+            <span className={FILTER_COUNT_BADGE_CLASS} aria-label={t("labels.filtersActive", { count: activeFilterCount })}>
+              {activeFilterCount}
+            </span>
+          ) : null}
           <button type="button" onClick={onClearFilters} className={FILTER_CLEAR_ALL_CLASS}>
             {t("actions.clearAll")}
           </button>
@@ -224,8 +219,6 @@ export function FilterPanel({
 }: FilterPanelProps) {
   const { t, i18n } = useTranslation(["main", "common"]);
   const [isCountryListExpanded, setIsCountryListExpanded] = useState(false);
-  const isPresent = useIsPresent();
-  const panelTransition = useCalmTransition();
   const { lookups, isError: hasLookupsError, isRetrying: isRetryingLookups, retry: retryLookups } = useMapLookups();
   const {
     handleToggleOperator,
@@ -361,17 +354,10 @@ export function FilterPanel({
   }
 
   return (
-    <motion.div
-      inert={!isPresent}
-      initial={PANEL_HIDDEN}
-      animate={PANEL_SHOWN}
-      exit={PANEL_HIDDEN}
-      transition={panelTransition}
-      className={PANEL_FRAME_CLASS}
-    >
-      <div className="flex min-h-11.25 shrink-0 items-center gap-2 border-b bg-muted/30 px-4 py-2.5">{heading}</div>
-      <div className={cn("custom-scrollbar", FILTER_SECTIONS_CLASS)}>{sections}</div>
+    <div className="flex min-h-0 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 border-t border-border/60 px-4 py-2">{heading}</div>
+      <div className={cn("custom-scrollbar flex-1", FILTER_SECTIONS_CLASS, "pt-2")}>{sections}</div>
       {layerStrip}
-    </motion.div>
+    </div>
   );
 }

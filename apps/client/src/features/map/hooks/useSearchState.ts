@@ -109,12 +109,11 @@ export function useSearchState({
     if (nextQuery !== externalQuery) onQueryChange?.(nextQuery);
   }
 
-  function handleContainerBlur(e: FocusEvent) {
+  function handleContainerBlur(e: FocusEvent, excludedFocusRegion: Node | null = null) {
     const relatedTarget = e.relatedTarget as Node | null;
-    if (!containerRef.current?.contains(relatedTarget)) {
-      setIsFocused(false);
-      setSearchState((current) => ({ ...current, activeOverlay: null }));
-    }
+    if (containerRef.current?.contains(relatedTarget) && !excludedFocusRegion?.contains(relatedTarget)) return;
+    setIsFocused(false);
+    setSearchState((current) => ({ ...current, activeOverlay: null }));
   }
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement>) {

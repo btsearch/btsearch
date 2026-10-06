@@ -25,6 +25,7 @@ type SearchInputProps = {
   activeOptionId?: string;
   isExpanded: boolean;
   filterSlot?: ReactNode;
+  mobileControls?: ReactNode;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onInputFocus: () => void;
@@ -100,6 +101,7 @@ export function SearchInput({
   activeOptionId,
   isExpanded,
   filterSlot,
+  mobileControls,
   onInputChange,
   onKeyDown,
   onInputFocus,
@@ -120,13 +122,7 @@ export function SearchInput({
   }
 
   return (
-    <div
-      className={cn(
-        "bg-background/95 backdrop-blur-md border rounded-2xl shadow-xl transition-all duration-200",
-        isFocused && "ring-2 ring-primary/20 border-primary/30",
-        !mobileExpanded && !isFocused && "md:w-auto w-fit ml-auto",
-      )}
-    >
+    <div className={cn("relative", !mobileExpanded && !isFocused && "md:w-auto w-fit ml-auto")}>
       <div className="flex flex-nowrap items-center gap-1.5 px-2.5 py-2 md:gap-2 md:px-3">
         <button
           type="button"
@@ -220,6 +216,7 @@ export function SearchInput({
           </p>
         </Reveal>
       </div>
+      {mobileControls ? <div className="absolute top-full right-0 mt-2">{mobileControls}</div> : null}
     </div>
   );
 }
