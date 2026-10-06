@@ -1,3 +1,4 @@
+import { daySchema, instantSchema } from "@openbts/shared/contract";
 import { SI2PEM_ENDPOINTS, si2pemDateToISO } from "si2pem-reader";
 
 const SI2PEM_HOSTNAME = new URL(SI2PEM_ENDPOINTS.origin).hostname;
@@ -31,6 +32,20 @@ export function warsawDateTimeToISO(value: string | null | undefined): string | 
 
 export function si2pemDateToCalendarDate(value: string | null | undefined): string | null {
   return si2pemDateToISO(value)?.slice(0, 10) ?? null;
+}
+
+export function si2pemDateToInstant(value: string | null | undefined): string | null {
+  const iso = warsawDateTimeToISO(value);
+  return iso !== null && instantSchema.safeParse(iso).success ? iso : null;
+}
+
+export function si2pemDateToWarsawDay(value: string | null | undefined): string | null {
+  const iso = si2pemDateToInstant(value);
+  if (iso === null) return null;
+
+  const instant = Date.parse(iso);
+  const day = new Date(instant + getWarsawOffsetMs(instant)).toISOString().slice(0, 10);
+  return daySchema.safeParse(day).success ? day : null;
 }
 
 export function toSI2PEMFileUrl(value: string | null | undefined): string | null {

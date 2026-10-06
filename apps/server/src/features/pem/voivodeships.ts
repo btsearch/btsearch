@@ -1,6 +1,6 @@
 import { regions } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 export const VOIVODESHIP_TO_TERYT_PREFIX: Record<string, string> = {
   Dolnośląskie: "02",
@@ -36,6 +36,11 @@ export async function fetchRegion(regionId: number) {
 
 export async function fetchRegionsMap(names: (string | null)[]) {
   const uniqueNames = [...new Set(names.filter((name): name is string => Boolean(name)))];
-  const rows = uniqueNames.length ? await db.select().from(regions).where(inArray(regions.name, uniqueNames)) : [];
+  const rows = uniqueNames.length
+    ? await db
+        .select()
+        .from(regions)
+        .where(and(inArray(regions.name, uniqueNames), eq(regions.countryCode, "PL")))
+    : [];
   return new Map(rows.map((region) => [region.name, region]));
 }

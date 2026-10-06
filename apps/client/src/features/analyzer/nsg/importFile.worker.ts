@@ -21,6 +21,7 @@ scope.addEventListener("message", async (event: MessageEvent<NsgAnalyzerWorkerRe
       type: "error",
       code: isAnalyzerImportError(error) ? error.code : "readFailed",
       message: error instanceof Error ? error.message : "Unable to read this NSG log.",
+      cellCount: isAnalyzerImportError(error) ? error.cellCount : null,
     });
   }
 });

@@ -5,6 +5,7 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../constants.js";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
@@ -96,7 +97,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     regionNames?.length
       ? db.query.regions.findMany({
           columns: { id: true },
-          where: { code: { in: regionNames } },
+          where: { code: { in: regionNames }, countryCode: LEGACY_COUNTRY_CODE },
         })
       : [],
   ]);
@@ -154,7 +155,11 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               'name',      ${operators.name},
               'full_name', ${operators.full_name},
               'parent_id', ${operators.parent_id},
-              'mnc',       ${operators.mnc}
+              'mnc',       ${operators.mnc},
+              'countryCode', ${operators.countryCode},
+              'brandId', ${operators.brandId},
+              'shortCode', ${operators.shortCode},
+              'sortPriority', ${operators.sortPriority}
             ) ORDER BY ${ukePermits.id}
           ) FILTER (WHERE ${operators.id} IS NOT NULL)
         )[1]`,
@@ -171,7 +176,9 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               'region', json_build_object(
                 'id',   ${regions.id},
                 'name', ${regions.name},
-                'code', ${regions.code}
+                'code', ${regions.code},
+                'countryCode', ${regions.countryCode},
+                'isoCode', ${regions.isoCode}
               )
             ) ORDER BY ${ukePermits.id}
           ) FILTER (WHERE ${ukeLocations.id} IS NOT NULL)
@@ -192,7 +199,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
                 'rat',     ${bands.rat},
                 'name',    ${bands.name},
                 'duplex',  ${bands.duplex},
-                'variant', ${bands.variant}
+                'variant', ${bands.variant},
+                'code',    ${bands.code}
               )
             ) ORDER BY ${ukePermits.id}
           ) FILTER (WHERE ${ukePermits.id} IS NOT NULL)`,
@@ -223,10 +231,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return res.send({ data, totalCount });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      cause: error,
-    });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 

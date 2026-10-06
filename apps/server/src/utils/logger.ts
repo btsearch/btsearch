@@ -139,6 +139,15 @@ export const logger = {
   },
 };
 
+const FLUSH_TIMEOUT_MS = 3000;
+
+export async function flushLogs(): Promise<void> {
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(resolve, FLUSH_TIMEOUT_MS);
+  });
+  await Promise.race([transportLogger.flush().catch(() => undefined), timeout]);
+}
+
 export function installProcessErrorHandlers(): void {
   process.on("uncaughtException", (error: Error) => {
     logger.error("uncaught_exception", {

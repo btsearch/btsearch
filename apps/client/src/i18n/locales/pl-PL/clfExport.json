@@ -17,6 +17,7 @@
   },
   "form": {
     "operatorsHint": "Wybierz jednego lub więcej operatorów. Jeśli nie wybrano żadnego, wyeksportowani zostaną wszyscy operatorzy",
+    "singleCountryHint": "Wybierz operatorów z jednego kraju. Brak wyboru oznacza wszystkich operatorów tego kraju.",
     "standardHint": "Opcjonalnie, domyślnie eksportowane są wszystkie standardy",
     "bandsHint": "Opcjonalnie, domyślnie eksportowane są wszystkie pasma",
     "outputFormat": "Format wyjściowy",
@@ -29,9 +30,11 @@
     "export": "Eksportuj",
     "exporting": "Eksportowanie...",
     "copyApiUrl": "Kopiuj adres API",
-    "elapsed": "Eksport trwa {{duration}}"
+    "elapsed": "Eksport trwa {{duration}}",
+    "receivedBytes": "Pobrano {{size}}"
   },
   "dataSources": {
+    "countries": "krajów",
     "operators": "operatorów",
     "regions": "regionów",
     "bands": "pasm",
@@ -87,7 +90,11 @@
       "nr_arfcn": "NR ARFCN",
       "nr_tac": "NR TAC",
       "nr_band": "Pasmo NR",
-      "nr_band_value": "Wartość pasma NR"
+      "nr_band_value": "Wartość pasma NR",
+      "structure": "Obiekt i właściciel",
+      "structure_type": "Rodzaj obiektu",
+      "structure_owner": "Właściciel obiektu",
+      "structure_note": "Opis obiektu"
     }
   },
   "exportSuccess": "Plik CLF wyeksportowany pomyślnie!",

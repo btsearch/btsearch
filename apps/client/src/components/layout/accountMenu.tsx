@@ -32,6 +32,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { removePushRegistrationOnSignOut } from "@/features/notifications/usePushSubscription";
 import { useIsMobile } from "@/hooks/useMobile";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
@@ -181,6 +182,7 @@ function SignOutItem() {
   const signOut = () => {
     if (isPending) return;
     startTransition(async () => {
+      await removePushRegistrationOnSignOut();
       const { error } = await authClient.signOut();
       if (error) {
         toast.error(t("error.actionFailed"), { description: t("error.tryLater") });

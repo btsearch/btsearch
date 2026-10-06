@@ -1,7 +1,7 @@
 import type { Feature } from "geojson";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { getMapPointStrokeColor, readPieColors } from "./geojson";
 
 const PIE_IMAGE_SIZE = 34;
 const PIE_FILL_RADIUS = 13;
@@ -40,18 +40,8 @@ export function createPieChartImage(segments: { value: number; color: string }[]
   return ctx.getImageData(0, 0, PIE_IMAGE_SIZE, PIE_IMAGE_SIZE);
 }
 
-function parseOperators(operatorsJson: string | undefined): number[] {
-  try {
-    return JSON.parse(operatorsJson || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function createOperatorSegments(operators: number[], hasNullOperator?: boolean) {
-  const segments = operators.map((mnc) => ({ value: 1, color: getOperatorColor(mnc) }));
-  if (hasNullOperator) segments.push({ value: 1, color: getOperatorColor(-1) });
-  return segments;
+function createPieSegments(feature: Feature) {
+  return readPieColors(feature.properties).map((color) => ({ value: 1, color }));
 }
 
 const PIN_W = 22;
@@ -126,8 +116,7 @@ export function syncMarkerImages(map: MaplibreMap, features: Feature[], addedIma
         addedImages.add(imageId);
         continue;
       }
-      const segments = createOperatorSegments(parseOperators(props.operators), props.hasNullOperator);
-      const imageData = createPinImage(segments);
+      const imageData = createPinImage(createPieSegments(feature));
       if (imageData) {
         map.addImage(imageId, imageData);
         addedImages.add(imageId);
@@ -155,17 +144,12 @@ export function syncPieImages(map: MaplibreMap, features: Feature[], addedImages
     const pieImageId = feature.properties?.pieImageId;
     if (!pieImageId || addedImages.has(pieImageId)) continue;
 
-    const operators = parseOperators(feature.properties?.operators);
-
     if (map.hasImage(pieImageId)) {
       addedImages.add(pieImageId);
       continue;
     }
 
-    const status = feature.properties?.status;
-    const strokeColor = status === "pending" ? "#eab308" : status === "inactive" ? "#ef4444" : "#fff";
-    const segments = createOperatorSegments(operators, feature.properties?.hasNullOperator);
-    const imageData = createPieChartImage(segments, strokeColor);
+    const imageData = createPieChartImage(createPieSegments(feature), getMapPointStrokeColor(feature.properties?.status));
 
     if (imageData) {
       map.addImage(pieImageId, imageData);

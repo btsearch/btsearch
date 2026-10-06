@@ -1,64 +1,57 @@
-import { Database02Icon, File02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
 import { DialogOperatorName } from "./dialogOperatorName";
-import { StationDialogActionBar } from "./stationDialogActionBar";
+import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
+import { WatchButton } from "./watchButton";
+import { SOURCE_SWITCH_SLIDE_MS, SourceSwitch } from "@/components/cellular/sourceSwitch";
 import { CloseButton } from "@/components/ui/close-button";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
+import { AddToListPopover } from "@/features/lists/components/addToListPopover";
+import { isTerrainProfileAvailable } from "@/features/terrain-profile/availability";
+import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
+import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
-import { formatFullDate, formatRelativeTime } from "@/lib/format";
+import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StationSource } from "@/types/station";
-
-const SOURCE_SWITCH_DURATION_MS = 200;
 
 const ENTER_FROM_CLASS_NAMES = {
   left: "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-3 motion-safe:duration-200",
   right: "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-200",
 } as const;
 
-const STATION_SOURCE_OPTIONS = [
-  {
-    source: "internal",
-    labelKey: "dialog.sourceDatabase",
-    icon: Database02Icon,
-    indicatorClassName: "translate-x-0 bg-emerald-700",
-    hoverClassName: "hover:text-emerald-700 dark:hover:text-emerald-400",
-  },
-  {
-    source: "uke",
-    labelKey: "dialog.sourceUke",
-    icon: File02Icon,
-    indicatorClassName: "translate-x-full bg-violet-600",
-    hoverClassName: "hover:text-violet-600 dark:hover:text-violet-400",
-  },
-] as const;
-
 type StationDialogShellProps = FloatingDialogPanelFrameProps & {
   operatorMnc?: number | null;
+  tintColor?: string;
   heading: ReactNode;
   actions?: ReactNode;
   toolbar?: ReactNode;
   sourceSwitch?: ReactNode;
   banners?: ReactNode;
+  strip?: ReactNode;
   aside?: ReactNode;
+  bodyKey?: number;
   enterFrom?: keyof typeof ENTER_FROM_CLASS_NAMES;
   children: ReactNode;
 };
 
 export function StationDialogShell({
   operatorMnc,
+  tintColor,
   heading,
   actions,
   toolbar,
   sourceSwitch,
   banners,
+  strip,
   aside,
+  bodyKey,
   enterFrom,
   children,
   onClose,
@@ -70,7 +63,7 @@ export function StationDialogShell({
   style,
   headerDragProps,
 }: StationDialogShellProps) {
-  const operatorColor = typeof operatorMnc === "number" ? getOperatorColor(operatorMnc) : "#3b82f6";
+  const operatorColor = tintColor ?? (typeof operatorMnc === "number" ? getOperatorColor(operatorMnc) : FALLBACK_BRAND_COLOR);
   const enterClassName = enterFrom ? ENTER_FROM_CLASS_NAMES[enterFrom] : undefined;
 
   return (
@@ -100,7 +93,8 @@ export function StationDialogShell({
           </div>
           {banners}
         </div>
-        <div ref={bodyRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
+        {strip}
+        <div key={bodyKey} ref={bodyRef} className="relative flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
           <div ref={bodyContentRef} className={enterClassName}>
             {children}
           </div>
@@ -114,9 +108,11 @@ export function StationDialogShell({
 type StationDialogHeadingProps = {
   operatorName: string;
   operatorMnc?: number | null;
+  operatorMark?: ReactNode;
   stationCode: string;
   badges?: ReactNode;
   location?: { city: string | null; address: string | null } | null;
+  addressLine?: ReactNode;
   status?: ReactNode;
   createdAt?: string;
   updatedAt?: string;
@@ -125,9 +121,11 @@ type StationDialogHeadingProps = {
 export function StationDialogHeading({
   operatorName,
   operatorMnc,
+  operatorMark,
   stationCode,
   badges,
   location,
+  addressLine,
   status,
   createdAt,
   updatedAt,
@@ -138,7 +136,14 @@ export function StationDialogHeading({
   return (
     <div className="min-w-0 space-y-1.5">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
-        <DialogOperatorName name={operatorName} mnc={operatorMnc} />
+        {operatorMark === undefined ? (
+          <DialogOperatorName name={operatorName} mnc={operatorMnc} />
+        ) : (
+          <div className="flex min-w-0 items-center gap-2">
+            {operatorMark}
+            <DialogOperatorName name={operatorName} />
+          </div>
+        )}
         <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{stationCode}</span>
         {badges}
       </div>
@@ -148,14 +153,14 @@ export function StationDialogHeading({
             <p className="min-w-0 truncate text-sm font-semibold text-foreground">{location.city}</p>
             {status}
           </div>
-          <p className="text-xs leading-4 text-muted-foreground">{location.address || t("dialog.btsStation")}</p>
+          <p className="text-xs leading-4 text-muted-foreground">{addressLine ?? (location.address || t("dialog.btsStation"))}</p>
         </>
       ) : null}
       {createdAt && updatedAt ? (
         <div className="flex flex-col items-start pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
           <Tooltip>
             <TooltipTrigger className="cursor-default whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80">
-              {tCommon("labels.created")}: {formatRelativeTime(createdAt, tCommon)}
+              {tCommon("labels.created")}: <RelativeTime date={createdAt} />
             </TooltipTrigger>
             <TooltipContent>{formatFullDate(createdAt, i18n.language)}</TooltipContent>
           </Tooltip>
@@ -165,7 +170,7 @@ export function StationDialogHeading({
             title={formatFullDate(updatedAt, i18n.language)}
             className="whitespace-nowrap text-[11px] leading-4 text-muted-foreground/80"
           >
-            {tCommon("labels.updated")}: {formatRelativeTime(updatedAt, tCommon)}
+            {tCommon("labels.updated")}: <RelativeTime date={updatedAt} />
           </time>
         </div>
       ) : null}
@@ -180,55 +185,17 @@ type StationSourceSwitchProps = {
 };
 
 export function StationSourceSwitch({ source, onSwitch, onPrefetch }: StationSourceSwitchProps) {
-  const { t } = useTranslation("stationDetails");
   const reduceMotion = useReducedMotion() === true;
   const [selected, setSelected] = useState(source);
   const switchSource = useEffectEvent(onSwitch);
 
   useEffect(() => {
     if (selected === source) return;
-    const timeoutId = window.setTimeout(() => switchSource(), reduceMotion ? 0 : SOURCE_SWITCH_DURATION_MS);
+    const timeoutId = window.setTimeout(() => switchSource(), reduceMotion ? 0 : SOURCE_SWITCH_SLIDE_MS);
     return () => window.clearTimeout(timeoutId);
   }, [reduceMotion, selected, source]);
 
-  const selectedOption = STATION_SOURCE_OPTIONS.find((option) => option.source === selected) ?? STATION_SOURCE_OPTIONS[0];
-
-  return (
-    <div
-      role="group"
-      aria-label={t("main:filters.dataSource")}
-      className="relative grid shrink-0 grid-cols-2 rounded-lg bg-background/60 p-0.5 ring-1 ring-inset ring-border/70"
-    >
-      <span
-        aria-hidden="true"
-        style={{ transitionDuration: `${SOURCE_SWITCH_DURATION_MS}ms` }}
-        className={cn(
-          "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-md shadow-sm transition-[translate,background-color] ease-out motion-reduce:transition-none",
-          selectedOption.indicatorClassName,
-        )}
-      />
-      {STATION_SOURCE_OPTIONS.map((option) => {
-        const isSelected = option.source === selected;
-        return (
-          <button
-            key={option.source}
-            type="button"
-            aria-pressed={isSelected}
-            onPointerEnter={isSelected ? undefined : onPrefetch}
-            onFocus={isSelected ? undefined : onPrefetch}
-            onClick={isSelected ? undefined : () => setSelected(option.source)}
-            className={cn(
-              "relative flex h-5 items-center justify-center gap-1 px-2 text-[11px] font-semibold leading-none transition-colors duration-200 after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-              isSelected ? "cursor-default text-white" : cn("cursor-pointer text-muted-foreground", option.hoverClassName),
-            )}
-          >
-            <HugeiconsIcon icon={option.icon} className="size-3" aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">{t(option.labelKey)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <SourceSwitch source={selected} onSourceChange={setSelected} onSwitchIntent={onPrefetch} />;
 }
 
 export function StationDialogHeadingSkeleton() {
@@ -263,6 +230,71 @@ export function StationDialogToolbarSkeleton() {
       <Skeleton className="h-6 w-16" />
       <Skeleton className="size-6 md:w-24" />
       <Skeleton className="size-6 md:w-24" />
+    </>
+  );
+}
+
+type StationDialogActionsProps = {
+  source: StationSource;
+  id: number;
+  stationCode: string;
+  operatorId: number | null;
+  operatorName: string;
+  countryCode: string | null;
+  location: { latitude: number; longitude: number; city?: string | null; address?: string | null } | null;
+  onStartTerrainProfile?: (station: TerrainProfileStationTarget) => void;
+  onClose: () => void;
+};
+
+export function StationDialogActions({
+  source,
+  id,
+  stationCode,
+  operatorId,
+  operatorName,
+  countryCode,
+  location,
+  onStartTerrainProfile,
+  onClose,
+}: StationDialogActionsProps) {
+  return (
+    <>
+      <AddToListPopover
+        stationId={source === "internal" ? id : undefined}
+        ukeStationId={source === "uke" ? id : undefined}
+        size="md"
+        className={stationDialogInlineActionClassName}
+        showLabel
+        labelClassName={stationDialogInlineActionLabelClassName}
+        showTooltip={false}
+      />
+      <WatchButton
+        stationId={id}
+        source={source}
+        className={stationDialogInlineActionClassName}
+        labelClassName={stationDialogInlineActionLabelClassName}
+      />
+      {onStartTerrainProfile && location && isTerrainProfileAvailable(source, countryCode) ? (
+        <TerrainProfileAnalyzeButton
+          target={{
+            source,
+            id,
+            operatorId,
+            siteId: stationCode,
+            operatorName,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            city: location.city ?? null,
+            address: location.address ?? null,
+          }}
+          onStart={(target) => {
+            onStartTerrainProfile(target);
+            onClose();
+          }}
+          className={stationDialogInlineActionClassName}
+          labelClassName={stationDialogInlineActionLabelClassName}
+        />
+      ) : null}
     </>
   );
 }

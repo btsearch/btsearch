@@ -4,6 +4,7 @@ import type { SQL } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -91,7 +92,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const requestedStatuses = (status?.split(",") ?? []).filter((value): value is PhotoStationStatus =>
     (ALLOWED_PHOTO_STATUSES as readonly string[]).includes(value),
   );
-  const filters: SQL[] = [inArray(stations.status, requestedStatuses.length > 0 ? requestedStatuses : [...ALLOWED_PHOTO_STATUSES])];
+  const filters: SQL[] = [
+    inArray(stations.status, requestedStatuses.length > 0 ? requestedStatuses : [...ALLOWED_PHOTO_STATUSES]),
+    eq(regions.countryCode, LEGACY_COUNTRY_CODE),
+  ];
 
   if (q) {
     const query = `%${q}%`;
@@ -107,7 +111,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   }
 
   if (operator !== undefined) filters.push(eq(stations.operator_id, operator));
-  if (region !== undefined) filters.push(eq(regions.code, region.toUpperCase()));
+  if (region !== undefined) filters.push(eq(sql`upper(${regions.code})`, region.toUpperCase()));
   if (mainOnly) filters.push(eq(stationPhotoSelections.is_main, true));
   if (recentDays !== undefined)
     filters.push(gte(sql`coalesce(${locationPhotos.taken_at}, ${locationPhotos.createdAt})`, getRecentDateIso(recentDays)));

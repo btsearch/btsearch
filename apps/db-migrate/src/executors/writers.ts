@@ -3,6 +3,7 @@ import {
   type DuplexType,
   bands,
   cells,
+  countryBands,
   gsmCells,
   locations,
   lteCells,
@@ -20,6 +21,8 @@ import { eq, sql } from "drizzle-orm";
 
 import { logger } from "../logger.js";
 import type { PreparedBandKey, PreparedCell, PreparedLocation, PreparedOperator, PreparedRegion, PreparedStation } from "./transformers.js";
+
+const LEGACY_COUNTRY_CODE = "PL";
 
 export interface RegionIdMap extends Map<string, number> {}
 export interface OperatorIdMap extends Map<number, number> {}
@@ -71,7 +74,7 @@ export async function writeRegions(items: PreparedRegion[], options: WriteOption
       const inserted = await db
         .insert(regions)
         .values(values)
-        .onConflictDoNothing({ target: [regions.name] })
+        .onConflictDoNothing({ target: [regions.countryCode, regions.name] })
         .returning({ name: regions.name });
       const insertedNames = new Set(inserted.map((r) => r.name));
       const skipped = group.filter((r) => !insertedNames.has(r.name));
@@ -279,7 +282,8 @@ export async function writeBands(keys: PreparedBandKey[], options: WriteOptions 
         .insert(bands)
         .values(values)
         .onConflictDoNothing()
-        .returning({ rat: bands.rat, value: bands.value, duplex: bands.duplex });
+        .returning({ id: bands.id, rat: bands.rat, value: bands.value, duplex: bands.duplex });
+      if (inserted.length > 0) await db.insert(countryBands).values(inserted.map((band) => ({ countryCode: LEGACY_COUNTRY_CODE, bandId: band.id })));
       if (inserted.length < group.length) {
         const insertedKeys = new Set(inserted.map((r) => bandKeyId({ rat: r.rat, value: r.value ?? 0, duplex: r.duplex })));
         const skipped = group.filter((b) => !insertedKeys.has(bandKeyId(b)));

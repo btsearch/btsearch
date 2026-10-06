@@ -4,6 +4,7 @@ import type { RouteGenericInterface } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -18,7 +19,7 @@ const schemaRoute = {
 };
 type ResponseData = z.infer<typeof operatorsSchema>;
 
-const operatorsQuery = db.query.operators.findMany().prepare("operators_all");
+const operatorsQuery = db.query.operators.findMany({ where: { countryCode: LEGACY_COUNTRY_CODE } }).prepare("operators_all");
 
 async function handler(_req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseData[]>>) {
   const operators = await operatorsQuery.execute();

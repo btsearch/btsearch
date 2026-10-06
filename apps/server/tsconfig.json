@@ -1,6 +1,8 @@
 {
   "extends": "@openbts/typescript-configs/base.json",
   "compilerOptions": {
+    "target": "esnext",
+    "lib": ["ESNext"],
     "rootDir": "./src",
     "outDir": "./dist",
     "allowImportingTsExtensions": true,

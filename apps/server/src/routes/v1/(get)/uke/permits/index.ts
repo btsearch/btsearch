@@ -1,5 +1,4 @@
 import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { ukePermitsResponseType } from "@openbts/proto/server";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -228,10 +227,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return res.send({ data: ukePermitsRes });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      cause: error,
-    });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 
@@ -239,7 +235,7 @@ const getUkePermits: Route<ReqQuery, Permit[]> = {
   url: "/uke/permits",
   method: "GET",
   schema: schemaRoute,
-  config: { permissions: ["read:uke_permits"], allowGuestAccess: true, proto: ukePermitsResponseType },
+  config: { permissions: ["read:uke_permits"], allowGuestAccess: true },
   handler,
 };
 

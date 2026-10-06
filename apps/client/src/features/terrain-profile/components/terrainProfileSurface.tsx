@@ -1,128 +1,121 @@
-import { type ComponentProps, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useEffectEvent, useRef } from "react";
 
-import TerrainProfilePanel from "./terrainProfilePanel";
+import type { TerrainProfilePanelModel } from "../hooks/useTerrainProfileController";
+import { type TerrainPanelStore, createTerrainPanelStore } from "../panelStore";
+import { preloadTerrainProfileChart } from "./terrainProfileFigure";
+import { TerrainProfileReceiverMarker } from "./terrainProfileReceiverMarker";
+import { TerrainProfileSheet } from "./terrainProfileSheet";
+import { TerrainProfileWindow } from "./terrainProfileWindow";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { FLOATING_DIALOG_DESKTOP_MIN_WIDTH } from "@/features/floating-dialogs/geometry";
+import type { TerrainProfileDialogPayload } from "@/features/floating-dialogs/types";
 import { useIsMobile } from "@/hooks/useMobile";
+import { useNavMode } from "@/hooks/usePreferences";
+import { cn } from "@/lib/utils";
 
-type TerrainProfileSurfaceProps = Omit<ComponentProps<typeof TerrainProfilePanel>, "headerDragProps">;
+type TerrainProfileSurfaceProps = {
+  panel: TerrainProfilePanelModel | null;
+};
 
-type Position = { x: number; y: number };
-type DragState = { pointerId: number; startX: number; startY: number; origin: Position; next: Position; frameId: number | null };
+type OpenedWindow = {
+  store: TerrainPanelStore;
+  payload: TerrainProfileDialogPayload;
+};
 
-const PANEL_MAX_WIDTH = 1152;
-const PANEL_MARGIN = 16;
-const PANEL_ESTIMATED_HEIGHT = 420;
+const WINDOW_OPENING_HEIGHT = 360;
+const WINDOW_OPENING_PLACE_CLASS = "pointer-events-none invisible absolute inset-x-14 mx-auto h-0 max-w-6xl";
+const WINDOW_OPENING_BOTTOM_CLASS = "bottom-11";
+const FLOATING_NAV_CLEARANCE_CLASS = "bottom-[calc(2.5rem+var(--floating-nav-map-offset,0rem))]";
 
-function panelWidth() {
-  return Math.min(PANEL_MAX_WIDTH, window.innerWidth - PANEL_MARGIN * 2);
-}
-
-function initialPosition(): Position {
-  return {
-    x: Math.max(PANEL_MARGIN, Math.round((window.innerWidth - panelWidth()) / 2)),
-    y: Math.max(PANEL_MARGIN, window.innerHeight - PANEL_ESTIMATED_HEIGHT - PANEL_MARGIN),
-  };
-}
-
-function clampPosition(position: Position, panel: HTMLDivElement | null): Position {
-  const width = panel?.offsetWidth ?? panelWidth();
-  const height = panel?.offsetHeight ?? PANEL_ESTIMATED_HEIGHT;
-  return {
-    x: Math.min(Math.max(position.x, PANEL_MARGIN), Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN)),
-    y: Math.min(Math.max(position.y, PANEL_MARGIN), Math.max(PANEL_MARGIN, window.innerHeight - height - PANEL_MARGIN)),
-  };
-}
-
-export default function TerrainProfileSurface(props: TerrainProfileSurfaceProps) {
+export default function TerrainProfileSurface({ panel }: TerrainProfileSurfaceProps) {
   const isMobile = useIsMobile();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<DragState | null>(null);
-  const positionRef = useRef(initialPosition());
+  const navMode = useNavMode();
+  const { openTerrainProfileDialog, closeTerrainProfileDialog } = useFloatingDialogStack();
+  const openingPlaceRef = useRef<HTMLDivElement>(null);
+  const openedWindowRef = useRef<OpenedWindow | null>(null);
+  const station = panel?.station ?? null;
+  const isCollapsed = panel?.isCollapsed ?? false;
+  const isPickingPoint = panel?.isPickingPoint ?? false;
+  const hasReceiver = panel !== null && panel.receiverPoint !== null;
+  const cancelPointPick = panel?.cancelPointPick;
 
-  const applyPosition = useCallback((next: Position) => {
-    const panel = panelRef.current;
-    if (panel === null) return;
-    positionRef.current = next;
-    panel.style.left = `${Math.round(next.x)}px`;
-    panel.style.top = `${Math.round(next.y)}px`;
-  }, []);
+  const openWindow = useEffectEvent((): OpenedWindow | null => {
+    const openingPlace = openingPlaceRef.current?.getBoundingClientRect();
+    if (panel === null || openingPlace === undefined) return null;
 
-  useLayoutEffect(() => {
-    if (isMobile) return;
-    applyPosition(clampPosition(positionRef.current, panelRef.current));
-  }, [applyPosition, isMobile]);
+    const store = createTerrainPanelStore(panel);
+    const width = Math.max(openingPlace.width, FLOATING_DIALOG_DESKTOP_MIN_WIDTH);
+    const payload: TerrainProfileDialogPayload = {
+      placement: {
+        x: openingPlace.left - (width - openingPlace.width) / 2,
+        y: openingPlace.bottom - WINDOW_OPENING_HEIGHT,
+        width,
+        height: WINDOW_OPENING_HEIGHT,
+      },
+      isCollapsed: panel.isCollapsed,
+      renderPanel: (frame) => <TerrainProfileWindow store={store} frame={frame} />,
+      onRequestClose: () => store.get().close(),
+    };
+    openTerrainProfileDialog(payload);
+    return { store, payload };
+  });
 
   useEffect(() => {
-    const handleResize = () => applyPosition(clampPosition(positionRef.current, panelRef.current));
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [applyPosition]);
+    if (station === null || isMobile) return;
 
-  useEffect(
-    () => () => {
-      const drag = dragRef.current;
-      if (typeof drag?.frameId === "number") cancelAnimationFrame(drag.frameId);
-      document.body.style.userSelect = "";
-    },
-    [],
+    openedWindowRef.current = openWindow();
+    return () => {
+      openedWindowRef.current = null;
+      closeTerrainProfileDialog();
+    };
+  }, [closeTerrainProfileDialog, isMobile, station]);
+
+  useEffect(() => {
+    if (panel !== null) openedWindowRef.current?.store.set(panel);
+  }, [panel]);
+
+  useEffect(() => {
+    const openedWindow = openedWindowRef.current;
+    if (openedWindow !== null) openTerrainProfileDialog({ ...openedWindow.payload, isCollapsed });
+  }, [isCollapsed, openTerrainProfileDialog]);
+
+  useEffect(() => {
+    if (hasReceiver) preloadTerrainProfileChart();
+  }, [hasReceiver]);
+
+  useEffect(() => {
+    if (!isPickingPoint || cancelPointPick === undefined) return;
+    const cancel = cancelPointPick;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      cancel();
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [cancelPointPick, isPickingPoint]);
+
+  return (
+    <>
+      {panel !== null && panel.receiverPoint !== null ? (
+        <TerrainProfileReceiverMarker
+          point={panel.receiverPoint}
+          heightMeters={panel.receiverHeightMeters}
+          onDrag={panel.previewReceiver}
+          onDragEnd={panel.placeReceiver}
+        />
+      ) : null}
+      {isMobile ? (
+        <TerrainProfileSheet panel={panel} />
+      ) : (
+        <div
+          ref={openingPlaceRef}
+          aria-hidden="true"
+          className={cn(WINDOW_OPENING_PLACE_CLASS, navMode === "floating" ? FLOATING_NAV_CLEARANCE_CLASS : WINDOW_OPENING_BOTTOM_CLASS)}
+        />
+      )}
+    </>
   );
-
-  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!(event.target instanceof Element)) return;
-    if (event.target.closest("button,a,input,label,select,[role='combobox'],[role='listbox'],[role='option']") !== null) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    document.body.style.userSelect = "none";
-    const origin = clampPosition(positionRef.current, panelRef.current);
-    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin, next: origin, frameId: null };
-  }, []);
-
-  const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (drag === null || drag.pointerId !== event.pointerId) return;
-      drag.next = clampPosition({ x: drag.origin.x + event.clientX - drag.startX, y: drag.origin.y + event.clientY - drag.startY }, panelRef.current);
-      if (drag.frameId !== null) return;
-      drag.frameId = requestAnimationFrame(() => {
-        drag.frameId = null;
-        applyPosition(drag.next);
-      });
-    },
-    [applyPosition],
-  );
-
-  const handlePointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (drag === null || drag.pointerId !== event.pointerId) return;
-      if (drag.frameId !== null) cancelAnimationFrame(drag.frameId);
-      dragRef.current = null;
-      document.body.style.userSelect = "";
-      applyPosition(drag.next);
-    },
-    [applyPosition],
-  );
-
-  const headerDragProps = useMemo(
-    () => ({
-      className: "cursor-grab touch-none select-none active:cursor-grabbing",
-      onPointerDown: handlePointerDown,
-      onPointerMove: handlePointerMove,
-      onPointerUp: handlePointerUp,
-      onPointerCancel: handlePointerUp,
-    }),
-    [handlePointerDown, handlePointerMove, handlePointerUp],
-  );
-
-  const content = isMobile ? (
-    <div className="pointer-events-auto fixed inset-x-2 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 max-h-[min(85dvh,calc(100dvh-4rem-env(safe-area-inset-bottom)-var(--top-viewport-obstruction,0px)))]">
-      <TerrainProfilePanel {...props} />
-    </div>
-  ) : (
-    <div ref={panelRef} className="pointer-events-auto fixed z-40 max-h-[min(60dvh,30rem)] w-[min(72rem,calc(100vw-2rem))]">
-      <TerrainProfilePanel {...props} headerDragProps={headerDragProps} />
-    </div>
-  );
-
-  return createPortal(content, document.body);
 }

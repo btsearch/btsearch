@@ -1,9 +1,10 @@
 import { cells, stations, submissions } from "@openbts/drizzle";
-import { count, gte } from "drizzle-orm";
+import { and, count, gte } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
+import { stationIdInLegacyCountry, submissionInLegacyCountry } from "../../../../features/countries/legacy.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -37,9 +38,18 @@ async function handler(_: FastifyRequest, res: ReplyPayload<JSONBody<Response>>)
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const [stationsWeekly, cellsWeekly, submissionsWeekly] = await Promise.all([
-    db.select({ value: count() }).from(stations).where(gte(stations.createdAt, since)),
-    db.select({ value: count() }).from(cells).where(gte(cells.createdAt, since)),
-    db.select({ value: count() }).from(submissions).where(gte(submissions.createdAt, since)),
+    db
+      .select({ value: count() })
+      .from(stations)
+      .where(and(gte(stations.createdAt, since), stationIdInLegacyCountry(stations.id))),
+    db
+      .select({ value: count() })
+      .from(cells)
+      .where(and(gte(cells.createdAt, since), stationIdInLegacyCountry(cells.station_id))),
+    db
+      .select({ value: count() })
+      .from(submissions)
+      .where(and(gte(submissions.createdAt, since), submissionInLegacyCountry({ id: submissions.id, stationId: submissions.station_id }))),
   ]);
 
   return res.send({

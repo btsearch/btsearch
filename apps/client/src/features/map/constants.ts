@@ -1,3 +1,5 @@
+import type { SearchKeyword } from "@openbts/shared/contract";
+
 import type { FilterKeyword } from "./types";
 import { RAT_ORDER } from "@/features/shared/rat";
 
@@ -5,6 +7,8 @@ export { RAT_ORDER };
 
 export const SOURCE_ID = "stations-source";
 export const POINT_LAYER_ID = "stations-layer";
+
+export const REGISTER_COUNTRY_CODE = "PL";
 
 export const POLAND_CENTER: [number, number] = [19.9, 52.0];
 export const POLAND_BOUNDS: [[number, number], [number, number]] = [
@@ -64,9 +68,12 @@ export const UKE_RAT_OPTIONS = [
   { value: "iot", label: "IoT", gen: "NB" },
 ] as const;
 
-export const FILTER_KEYWORDS: FilterKeyword[] = [
+type KnownFilterKeyword = FilterKeyword & { key: `${SearchKeyword}:` };
+
+export const FILTER_KEYWORDS: KnownFilterKeyword[] = [
   { key: "bts_id:", descriptionKey: "btsId", group: "common", availableOn: ["map", "stations"] },
   { key: "mnc:", descriptionKey: "mnc", group: "common", availableOn: ["map"] },
+  { key: "plmn:", descriptionKey: "plmn", group: "common", availableOn: ["map"] },
   { key: "city:", descriptionKey: "city", group: "common", availableOn: ["map", "stations"] },
   { key: "address:", descriptionKey: "address", group: "common", availableOn: ["map", "stations"] },
   { key: "rat:", descriptionKey: "rat", group: "common", availableOn: ["map"] },
@@ -76,6 +83,7 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "has_azimuth:", descriptionKey: "hasAzimuth", group: "common", availableOn: ["map", "stations"] },
   { key: "uplink:", descriptionKey: "uplink", group: "common", availableOn: ["map", "stations"] },
   { key: "gps:", descriptionKey: "gps", group: "location", availableOn: ["map", "stations"] },
+  { key: "country:", descriptionKey: "country", group: "location", availableOn: ["map"] },
   { key: "region:", descriptionKey: "region", group: "location", availableOn: ["map"] },
   { key: "duplex:", descriptionKey: "duplex", group: "cell", availableOn: ["map", "stations"] },
   { key: "is_confirmed:", descriptionKey: "isConfirmed", group: "cell", availableOn: ["map", "stations"] },
@@ -111,4 +119,5 @@ export const FILTER_KEYWORDS: FilterKeyword[] = [
   { key: "updated_before:", descriptionKey: "updatedBefore", group: "date", availableOn: ["map", "stations"] },
 ];
 
-export const FILTER_REGEX = /(\w+):\s*(?:'([^']*)'|"([^"]*)"|([^\s]+))(?=\s|$)/gi;
+export const FILTER_REGEX =
+  /(^|[\s,])(([a-z][a-z0-9_]*):\s*(?:'([^']*)'|"([^"]*)"|([^\s,'"][^\s,]*(?:,\s*(?![a-z][a-z0-9_]*:)[^\s,'"][^\s,]*)*)))(?:,(?=\s|$))?/gi;

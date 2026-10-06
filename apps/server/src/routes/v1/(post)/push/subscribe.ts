@@ -1,4 +1,5 @@
 import { pushSubscriptions } from "@openbts/drizzle";
+import { pushEndpointSchema } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -10,7 +11,7 @@ import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js
 
 const schemaRoute = {
   body: z.object({
-    endpoint: z.string().url(),
+    endpoint: pushEndpointSchema,
     keys: z.object({
       p256dh: z.string(),
       auth: z.string(),

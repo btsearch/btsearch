@@ -4,17 +4,22 @@ import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../features/audit/index.js";
+import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../features/cells/duplicateCheck.js";
+import { NORMAL_RATS, type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../features/cells/ratCellPersistence.js";
 import {
-  checkCellDuplicate,
-  checkLTEClidConsistency,
-  checkPciDuplicate,
-  getOperatorIdForStation,
-} from "../../../../features/cells/duplicateCheck.js";
-import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../features/cells/ratCellPersistence.js";
-import { lteUpdateSchema, normalRatUpdateSchemaMap, nrUpdateSchema } from "../../../../features/cells/ratCellSchemas.js";
+  assertCellUpdateFitsStoredRat,
+  assertCellUpdateSetsNoNsaFields,
+  lteUpdateSchema,
+  normalRatUpdateSchemaMap,
+  nrUpdateSchema,
+  withNsaFieldsCleared,
+} from "../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
 import { assertCanMutateStationCells } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../features/submissions/helpers.js";
@@ -26,7 +31,7 @@ const cellsUpdateSchema = createUpdateSchema(cells)
     createdAt: true,
     updatedAt: true,
   })
-  .extend({ rat: z.enum(["GSM", "CDMA", "UMTS", "LTE", "NR"]).optional() })
+  .extend({ rat: z.enum(NORMAL_RATS).optional() })
   .strict();
 const cellsSelectSchema = createSelectSchema(cells);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true }).strict();
@@ -64,6 +69,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: cell.station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
   assertCanMutateStationCells(station);
+  assertCellUpdateFitsStoredRat(cell, req.body);
 
   if (req.body.details || req.body.band_id !== undefined) {
     if (req.body.details) {
@@ -75,18 +81,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       // await checkLTEClidConsistency(cell.station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: id }]);
     }
 
-    if (req.body.details && cell.rat === "NR") {
-      const nrDetails = req.body.details as z.infer<typeof nrUpdateSchema>;
-      const effectiveType = nrDetails.type ?? cell.nr?.type;
-      if (effectiveType === "nsa") {
-        for (const field of ["nrtac", "clid", "gnbid"] as const) {
-          if (nrDetails[field] !== null && nrDetails[field] !== undefined)
-            throw new ErrorResponse("BAD_REQUEST", { message: `${field} must not be set for NSA NR cells` });
-        }
-        if (nrDetails.supports_nr_redcap === true)
-          throw new ErrorResponse("BAD_REQUEST", { message: "supports_nr_redcap must not be set for NSA NR cells" });
-      }
-    }
+    assertCellUpdateSetsNoNsaFields(cell, req.body);
 
     const effectiveBandId = req.body.band_id ?? cell.band_id;
     const lteDetails = req.body.details as z.infer<typeof lteUpdateSchema> | undefined;
@@ -107,6 +102,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     await checkPciDuplicate(cell.station_id, { rat: cell.rat, bandId: effectiveBandId, details: effectiveDetails, excludeCellId: id });
   }
 
+  if (req.body.band_id !== undefined || req.body.rat !== undefined || req.body.details !== undefined) {
+    const candidate = {
+      rat: req.body.rat ?? cell.rat,
+      band_id: req.body.band_id ?? cell.band_id,
+      details: { ...(cell.gsm ?? cell.umts ?? cell.lte ?? cell.nr), ...(req.body.details as object | undefined) },
+    };
+    await validateCellBandsInCountry([candidate], LEGACY_COUNTRY_CODE);
+  }
+
   try {
     const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.update" }, async (tx, audit) => {
       const oldSnapshot = await loadCellSnapshot(tx, id);
@@ -124,7 +128,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
       if (details && isNormalRat(cell.rat)) {
-        const updatedDetails = await updateRATCellDetailsReturning(tx, cell.rat, id, details as RATUpdateDetails);
+        const updatedDetails = await updateRATCellDetailsReturning(tx, cell.rat, id, withNsaFieldsCleared(cell, details as RATUpdateDetails));
         if (!updatedDetails)
           throw new ErrorResponse("FAILED_TO_UPDATE", {
             message: `This cell has no ${cell.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,
@@ -158,7 +162,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateCell: Route<RequestData, ResponseData> = {
   url: "/cells/:id",
   method: "PATCH",
-  config: { permissions: ["update:cells"] },
+  config: {
+    permissions: ["update:cells"],
+    scope: defineScope<RequestData>((req) => ({
+      cellIds: [req.params.id],
+      stationIds: req.body.station_id === undefined ? [] : [req.body.station_id],
+    })),
+  },
   schema: schemaRoute,
   handler,
 };

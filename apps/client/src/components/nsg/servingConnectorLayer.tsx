@@ -1,3 +1,5 @@
+import type { Operator } from "@openbts/shared/contract";
+import { useQuery } from "@tanstack/react-query";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { memo, useCallback, useEffect, useRef } from "react";
 
@@ -6,6 +8,7 @@ import { useMap } from "@/components/ui/map";
 import type { ServingCellSnapshot } from "@/features/nsg-explorer/cells/servingTimeline";
 import { getReplayPosition } from "@/features/nsg-explorer/map/replayPosition";
 import { type AnalyzerResultsByKey, type MatchedStation, resolveReplayServingStation } from "@/features/nsg-explorer/stations/correlation";
+import { operatorsQueryOptions } from "@/features/shared/lookups";
 import { getOperatorColor } from "@/lib/cellular/operators";
 import { isValidLatLng } from "@/lib/nsg-parser";
 import type { NsgLocation } from "@/lib/nsg-parser/model";
@@ -33,11 +36,16 @@ type ServingConnectorLayerProps = {
   visible: boolean;
 };
 
+function indexOperatorPlmns(operators: readonly Operator[]): ReadonlyMap<number, string | null> {
+  return new Map(operators.map((operator): [number, string | null] => [operator.id, operator.primaryPlmn]));
+}
+
 function isSameConnector(previous: Connector | null, next: Connector | null): boolean {
   if (previous === null || next === null) return previous === next;
   return (
     previous.stationId === next.stationId &&
     previous.confidence === next.confidence &&
+    previous.color === next.color &&
     previous.station[0] === next.station[0] &&
     previous.station[1] === next.station[1] &&
     previous.device[0] === next.device[0] &&
@@ -45,15 +53,21 @@ function isSameConnector(previous: Connector | null, next: Connector | null): bo
   );
 }
 
-function resolveConnector(activeStation: MatchedStation | null, position: Pick<NsgLocation, "latitude" | "longitude"> | null): Connector | null {
+function resolveConnector(
+  activeStation: MatchedStation | null,
+  position: Pick<NsgLocation, "latitude" | "longitude"> | null,
+  operatorPlmns: ReadonlyMap<number, string | null> | undefined,
+): Connector | null {
   if (!activeStation || !position) return null;
   if (!isValidLatLng(position.latitude, position.longitude)) return null;
   const { longitude, latitude } = activeStation.station.location;
   if (!isValidLatLng(latitude, longitude)) return null;
+  const operatorId = activeStation.station.operatorId;
+  const plmn = operatorId === null ? undefined : operatorPlmns?.get(operatorId);
   return {
     stationId: activeStation.station.id,
     confidence: activeStation.confidence,
-    color: getOperatorColor(activeStation.station.operator.mnc),
+    color: getOperatorColor(Number(plmn)),
     station: [longitude, latitude],
     device: [position.longitude, position.latitude],
   };
@@ -116,6 +130,7 @@ export const ServingConnectorLayer = memo(function ServingConnectorLayer({
   visible,
 }: ServingConnectorLayerProps) {
   const { map } = useMap();
+  const { data: operatorPlmns } = useQuery({ ...operatorsQueryOptions(), refetchOnMount: false, select: indexOperatorPlmns });
   const overlayRef = useRef<ConnectorOverlay | null>(null);
   const connectorRef = useRef<Connector | null>(null);
 
@@ -125,12 +140,12 @@ export const ServingConnectorLayer = memo(function ServingConnectorLayer({
       const activeStation = timestampMs === null ? null : resolveReplayServingStation(servingTimeline, timestampMs, resultsByKey);
       activeStationRef.current = activeStation;
       const position = time === null ? selected : getReplayPosition(points, time);
-      const connector = visible ? resolveConnector(activeStation, position) : null;
+      const connector = visible ? resolveConnector(activeStation, position, operatorPlmns) : null;
       if (isSameConnector(connectorRef.current, connector)) return;
       connectorRef.current = connector;
       if (map && overlayRef.current) paintConnector(map, overlayRef.current, connector);
     },
-    [activeStationRef, fallbackTimestampMs, map, points, resultsByKey, selected, servingTimeline, visible],
+    [activeStationRef, fallbackTimestampMs, map, operatorPlmns, points, resultsByKey, selected, servingTimeline, visible],
   );
 
   useEffect(() => {

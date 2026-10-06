@@ -1,11 +1,111 @@
+import type { Brand, Operator } from "@openbts/shared/contract";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import { selectTerrainProfileAntenna } from "../antennaSelection";
-import { DEFAULT_RECEIVER_HEIGHT_AGL_M, INITIAL_TERRAIN_PROFILE_STATE, terrainProfileReducer } from "../state";
-import type { TerrainProfileGpsError, TerrainProfileReceiver, TerrainProfileStationTarget } from "../types";
-import { useTerrainProfileAnalysis } from "./useTerrainProfileAnalysis";
+import { findSelectedAntenna, getDirectionalAzimuth } from "../antennaSelection";
+import { type TerrainFailureKind, isRetryableFailure, toFailureKind } from "../failures";
+import { moveFocusFromProfileToMap } from "../focus";
+import { type HoveredDistanceStore, createHoveredDistanceStore } from "../hoveredDistance";
+import { type ProfileSummary, summarizeProfile } from "../profileSummary";
+import {
+  DEFAULT_RECEIVER_HEIGHT_METERS,
+  type ReceiverRangeIssue,
+  findReceiverRangeIssue,
+  roundReceiverHeight,
+  roundReceiverPoint,
+} from "../receiverRange";
+import { type TerrainProfileChoice, isSameChoice, terrainProfileReducer, toTerrainProfileRequest } from "../state";
+import {
+  type GeoPoint,
+  type ReadyTerrainProfile,
+  type TerrainProfileGpsError,
+  type TerrainProfileRecord,
+  type TerrainProfileRequest,
+  type TerrainProfileStationTarget,
+  isReadyTerrainProfile,
+} from "../types";
+import { type TerrainProfileAnalysis, getTerrainProfileQueryKey, useTerrainProfileAnalysis } from "./useTerrainProfileAnalysis";
 import { useTerrainProfileLayer } from "./useTerrainProfileLayer";
+import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { getBrandColor, getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { useIsMobile } from "@/hooks/useMobile";
+
+export type TerrainProfileMode = "placing" | "firstRun" | "calculating" | "ready" | "failed";
+
+export type TerrainProfilePanelModel = {
+  station: TerrainProfileStationTarget;
+  brand: Brand | null;
+  brandColor: string;
+  mode: TerrainProfileMode;
+  failure: TerrainFailureKind | null;
+  canRetry: boolean;
+  profile: ReadyTerrainProfile | null;
+  summary: ProfileSummary | null;
+  selectedAntennaKey: string | null;
+  isAntennaAutomatic: boolean;
+  receiverPoint: GeoPoint | null;
+  receiverHeightMeters: number;
+  isPickingPoint: boolean;
+  isCollapsed: boolean;
+  isLocating: boolean;
+  gpsError: TerrainProfileGpsError | null;
+  hover: HoveredDistanceStore;
+  close: () => void;
+  retry: () => void;
+  locateReceiver: () => void;
+  placeReceiver: (point: GeoPoint) => void;
+  previewReceiver: (point: GeoPoint) => void;
+  setReceiverHeight: (heightMeters: number) => void;
+  selectAntenna: (antennaKey: string) => void;
+  togglePointPick: () => void;
+  cancelPointPick: () => void;
+  setCollapsed: (isCollapsed: boolean) => void;
+};
+
+type TerrainProfileController = {
+  start: (station: TerrainProfileStationTarget) => void;
+  hasOpened: boolean;
+  isPickingReceiver: boolean;
+  panel: TerrainProfilePanelModel | null;
+};
+
+type UseTerrainProfileControllerArgs = {
+  map: MapLibreMap | null;
+  isLoaded: boolean;
+};
+
+type CalculationPlan = {
+  choice: TerrainProfileChoice | null;
+  rangeIssue: ReceiverRangeIssue | null;
+  request: TerrainProfileRequest | null;
+};
+
+type SettledAnalysis = Omit<TerrainProfileAnalysis, "retry"> & { isRestoringChoice: boolean };
+
+type ShownProfile = {
+  station: TerrainProfileStationTarget;
+  choice: TerrainProfileChoice;
+  profile: ReadyTerrainProfile;
+};
+
+type PanelDisplay = {
+  mode: TerrainProfileMode;
+  failure: TerrainFailureKind | null;
+  currentProfile: ReadyTerrainProfile | null;
+  shownProfile: ReadyTerrainProfile | null;
+  summary: ProfileSummary | null;
+};
+
+type StationBrand = {
+  brand: Brand | null;
+  color: string;
+};
+
+const GPS_OPTIONS: PositionOptions = { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 };
+const GPS_MIN_ZOOM = 14;
+const GPS_FLIGHT_MS = 900;
 
 function getTerrainProfileGpsError(error: GeolocationPositionError): TerrainProfileGpsError {
   if (error.code === error.PERMISSION_DENIED) return "permissionDenied";
@@ -14,67 +114,157 @@ function getTerrainProfileGpsError(error: GeolocationPositionError): TerrainProf
   return "unknown";
 }
 
-type UseTerrainProfileControllerArgs = {
-  map: MapLibreMap | null;
-  isLoaded: boolean;
-};
+function planCalculation(
+  station: TerrainProfileStationTarget | null,
+  receiverPoint: GeoPoint | null,
+  receiverHeightMeters: number,
+  antennaKey: string | null,
+): CalculationPlan {
+  if (station === null || receiverPoint === null) return { choice: null, rangeIssue: null, request: null };
 
-export function useTerrainProfileController({ map, isLoaded }: UseTerrainProfileControllerArgs) {
-  const [state, dispatch] = useReducer(terrainProfileReducer, INITIAL_TERRAIN_PROFILE_STATE);
+  const choice: TerrainProfileChoice = { receiverPoint, receiverHeightMeters, antennaKey };
+  const rangeIssue = findReceiverRangeIssue(station, receiverPoint);
+  return { choice, rangeIssue, request: rangeIssue === null ? toTerrainProfileRequest(station, choice) : null };
+}
+
+function canRestoreChoice(choice: TerrainProfileChoice | null, previousChoice: TerrainProfileChoice | null): boolean {
+  return choice === null || previousChoice === null || !isSameChoice(choice, previousChoice);
+}
+
+function getPanelFailure(plan: CalculationPlan, analysis: SettledAnalysis): TerrainFailureKind | null {
+  if (plan.rangeIssue !== null) return plan.rangeIssue;
+  if (analysis.isCalculating || analysis.isRestoringChoice) return null;
+  if (analysis.isCancelled) return "unknown";
+  if (analysis.requestFailure !== null) return analysis.requestFailure;
+  if (analysis.profile === null || isReadyTerrainProfile(analysis.profile)) return null;
+
+  const reason = analysis.profile.failure?.reason;
+  return reason === undefined ? "unknown" : toFailureKind(reason);
+}
+
+function derivePanelDisplay(plan: CalculationPlan, analysis: SettledAnalysis, previousProfile: ReadyTerrainProfile | null): PanelDisplay {
+  if (plan.choice === null) return { mode: "placing", failure: null, currentProfile: null, shownProfile: null, summary: null };
+
+  const failure = getPanelFailure(plan, analysis);
+  if (failure !== null) return { mode: "failed", failure, currentProfile: null, shownProfile: null, summary: null };
+
+  const { profile } = analysis;
+  if (profile !== null && isReadyTerrainProfile(profile) && !analysis.isCalculating) {
+    return { mode: "ready", failure: null, currentProfile: profile, shownProfile: profile, summary: summarizeProfile(profile.result) };
+  }
+  if (previousProfile === null) return { mode: "firstRun", failure: null, currentProfile: null, shownProfile: null, summary: null };
+
+  const summary = summarizeProfile(previousProfile.result);
+  return { mode: "calculating", failure: null, currentProfile: null, shownProfile: previousProfile, summary };
+}
+
+function findStationBrand(operators: readonly Operator[] | undefined, brands: readonly Brand[] | undefined, operatorId: number | null): StationBrand {
+  const operator = operatorId === null ? undefined : operators?.find((entry) => entry.id === operatorId);
+  const brand = getOperatorBrand(operator, brands);
+  return { brand, color: getBrandColor(brand) };
+}
+
+function getWedgeAzimuth(profile: ReadyTerrainProfile | null, selectedAntennaKey: string | null): number | null {
+  if (profile === null) return null;
+  return getDirectionalAzimuth(findSelectedAntenna(profile, selectedAntennaKey));
+}
+
+export function useTerrainProfileController({ map, isLoaded }: UseTerrainProfileControllerArgs): TerrainProfileController {
+  const [session, dispatch] = useReducer(terrainProfileReducer, null);
+  const [hasOpened, setHasOpened] = useState(false);
+  const [shown, setShown] = useState<ShownProfile | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [gpsError, setGpsError] = useState<TerrainProfileGpsError | null>(null);
-  const openRef = useRef(state.isOpen);
-  const receiverHeightRef = useRef(state.receiver?.mountedHeight ?? DEFAULT_RECEIVER_HEIGHT_AGL_M);
+  const [hover] = useState(createHoveredDistanceStore);
   const gpsRequestRef = useRef(0);
+  const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  const queryClient = useQueryClient();
+  const { focusTerrainProfileDialog } = useFloatingDialogStack();
+  const { data: operators } = useQuery(operatorsQueryOptions());
+  const { data: brands } = useQuery(brandsQueryOptions());
+
+  const station = session?.station ?? null;
+  const receiverPoint = session?.receiverPoint ?? null;
+  const receiverHeightMeters = session?.receiverHeightMeters ?? DEFAULT_RECEIVER_HEIGHT_METERS;
+  const antennaKey = session?.antennaKey ?? null;
+  const operatorId = station?.operatorId ?? null;
+  const previousProfile = shown !== null && shown.station === station ? shown.profile : null;
+  const previousChoice = shown !== null && shown.station === station ? shown.choice : null;
+
+  const plan = useMemo(
+    () => planCalculation(station, receiverPoint, receiverHeightMeters, antennaKey),
+    [station, receiverPoint, receiverHeightMeters, antennaKey],
+  );
+  const { profile: settledProfile, requestFailure, isCalculating, isCancelled, retry: retryRequest } = useTerrainProfileAnalysis(plan.request);
+  const isRestoringChoice = isCancelled && canRestoreChoice(plan.choice, previousChoice);
+  const display = useMemo(
+    () => derivePanelDisplay(plan, { profile: settledProfile, requestFailure, isCalculating, isCancelled, isRestoringChoice }, previousProfile),
+    [plan, settledProfile, requestFailure, isCalculating, isCancelled, isRestoringChoice, previousProfile],
+  );
+  const stationBrand = useMemo(() => findStationBrand(operators, brands, operatorId), [operators, brands, operatorId]);
+
+  const { choice } = plan;
+  const { failure, currentProfile, shownProfile } = display;
+  const selectedAntennaKey = antennaKey ?? shownProfile?.antenna.key ?? null;
+  const isPickingReceiver = session !== null && (session.receiverPoint === null || session.isPickingPoint);
+
+  if (station !== null && choice !== null && currentProfile !== null && shown?.profile !== currentProfile) {
+    setShown({ station, choice, profile: currentProfile });
+  }
 
   useEffect(() => {
-    openRef.current = state.isOpen;
-    receiverHeightRef.current = state.receiver?.mountedHeight ?? DEFAULT_RECEIVER_HEIGHT_AGL_M;
-  }, [state.isOpen, state.receiver?.mountedHeight]);
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
-  const seedReceiverFromMapCenter = useCallback(() => {
-    if (state.receiver !== null || !map) return;
-    const center = map.getCenter();
-    dispatch({
-      type: "set_receiver",
-      receiver: { latitude: center.lat, longitude: center.lng, mountedHeight: DEFAULT_RECEIVER_HEIGHT_AGL_M },
-    });
-  }, [map, state.receiver]);
+  useEffect(() => {
+    if (isRestoringChoice) dispatch({ type: "restore_choice", choice: previousChoice });
+  }, [isRestoringChoice, previousChoice]);
 
-  const close = useCallback(() => {
-    openRef.current = false;
+  const placeReceiver = useCallback((point: GeoPoint) => {
     gpsRequestRef.current += 1;
     setIsLocating(false);
     setGpsError(null);
-    dispatch({ type: "close" });
+    dispatch({ type: "place_receiver", point: roundReceiverPoint(point) });
   }, []);
+
+  const { previewReceiver } = useTerrainProfileLayer({
+    map,
+    isLoaded,
+    station,
+    receiverPoint,
+    profile: currentProfile,
+    summary: currentProfile === null ? null : display.summary,
+    wedgeAzimuth: getWedgeAzimuth(shownProfile, selectedAntennaKey),
+    brandColor: stationBrand.color,
+    isPickingReceiver,
+    hover,
+    onPlaceReceiver: placeReceiver,
+  });
 
   const start = useCallback(
-    (station: TerrainProfileStationTarget) => {
-      openRef.current = true;
+    (nextStation: TerrainProfileStationTarget) => {
+      gpsRequestRef.current += 1;
+      setIsLocating(false);
       setGpsError(null);
-      seedReceiverFromMapCenter();
-      dispatch({ type: "set_station", station });
+      setHasOpened(true);
+      hover.clear();
+      focusTerrainProfileDialog();
+      dispatch({ type: "start", station: nextStation, startsCollapsed: isMobileRef.current });
     },
-    [seedReceiverFromMapCenter],
+    [hover, focusTerrainProfileDialog],
   );
 
-  const setReceiverCoordinates = useCallback((coordinates: Pick<TerrainProfileReceiver, "latitude" | "longitude">) => {
-    if (!openRef.current) return;
+  const close = useCallback(() => {
     gpsRequestRef.current += 1;
     setIsLocating(false);
     setGpsError(null);
-    dispatch({
-      type: "set_receiver",
-      receiver: {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        mountedHeight: receiverHeightRef.current,
-      },
-    });
-  }, []);
+    hover.clear();
+    moveFocusFromProfileToMap(map);
+    dispatch({ type: "close" });
+  }, [hover, map]);
 
-  const useCurrentLocation = useCallback(() => {
+  const locateReceiver = useCallback(() => {
     const requestId = gpsRequestRef.current + 1;
     gpsRequestRef.current = requestId;
     if (!("geolocation" in navigator)) {
@@ -82,92 +272,98 @@ export function useTerrainProfileController({ map, isLoaded }: UseTerrainProfile
       setGpsError("unsupported");
       return;
     }
+
     setIsLocating(true);
     setGpsError(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        if (requestId !== gpsRequestRef.current || !openRef.current) return;
-        setIsLocating(false);
-        const coords = { longitude: position.coords.longitude, latitude: position.coords.latitude };
-        map?.flyTo({ center: [coords.longitude, coords.latitude], zoom: Math.max(map.getZoom(), 14), duration: 900 });
-        setReceiverCoordinates(coords);
+        if (requestId !== gpsRequestRef.current) return;
+        const point = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+        map?.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), GPS_MIN_ZOOM), duration: GPS_FLIGHT_MS });
+        placeReceiver(point);
       },
       (error) => {
-        if (requestId !== gpsRequestRef.current || !openRef.current) return;
+        if (requestId !== gpsRequestRef.current) return;
         setIsLocating(false);
         setGpsError(getTerrainProfileGpsError(error));
       },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+      GPS_OPTIONS,
     );
-  }, [map, setReceiverCoordinates]);
+  }, [map, placeReceiver]);
 
-  const handleReceiverDragEnd = useCallback(
-    ({ lng, lat }: { lng: number; lat: number }) => setReceiverCoordinates({ longitude: lng, latitude: lat }),
-    [setReceiverCoordinates],
-  );
-
-  const setReceiverHeight = useCallback(
-    (mountedHeight: number) => {
-      if (state.receiver === null) return;
-      receiverHeightRef.current = mountedHeight;
-      dispatch({ type: "set_receiver", receiver: { ...state.receiver, mountedHeight } });
+  const selectAntenna = useCallback(
+    (nextAntennaKey: string) => {
+      if (station === null || choice === null) return;
+      const automaticRequest = toTerrainProfileRequest(station, { ...choice, antennaKey: null });
+      const automaticProfile = queryClient.getQueryData<TerrainProfileRecord>(getTerrainProfileQueryKey(automaticRequest));
+      const isAutomaticChoice = automaticProfile?.antenna?.key === nextAntennaKey;
+      dispatch({ type: "select_antenna", antennaKey: isAutomaticChoice ? null : nextAntennaKey });
     },
-    [state.receiver],
+    [station, choice, queryClient],
   );
 
-  const setAntenna = useCallback((antennaKey: string) => dispatch({ type: "set_antenna", antennaKey, origin: "manual" }), []);
-  const retry = useCallback(() => dispatch({ type: "retry" }), []);
+  const retry = useCallback(() => {
+    if (failure === "antennaNotFound") dispatch({ type: "select_antenna", antennaKey: null });
+    else retryRequest();
+  }, [failure, retryRequest]);
 
-  const { analysis, isStarting, isPolling, error } = useTerrainProfileAnalysis({
-    enabled: state.isOpen,
-    station: state.station,
-    receiver: state.receiver,
-    antennaKey: state.antennaKey,
-    revision: state.analysisRevision,
-  });
+  const setReceiverHeight = useCallback((heightMeters: number) => {
+    dispatch({ type: "set_receiver_height", heightMeters: roundReceiverHeight(heightMeters) });
+  }, []);
+  const togglePointPick = useCallback(() => dispatch({ type: "toggle_point_pick" }), []);
+  const cancelPointPick = useCallback(() => dispatch({ type: "cancel_point_pick" }), []);
+  const setCollapsed = useCallback((isCollapsed: boolean) => dispatch({ type: "set_collapsed", isCollapsed }), []);
 
-  const [autoSelectedId, setAutoSelectedId] = useState<string | undefined>();
-  if (
-    state.isOpen &&
-    analysis?.status === "selection_required" &&
-    state.receiver !== null &&
-    state.antennaKey === undefined &&
-    analysis.analysis_id !== autoSelectedId
-  ) {
-    const candidate = selectTerrainProfileAntenna(analysis.candidates, analysis.station, state.receiver);
-    if (candidate !== undefined) {
-      setAutoSelectedId(analysis.analysis_id);
-      dispatch({ type: "set_antenna", antennaKey: candidate.key, origin: "auto" });
-    }
-  }
-
-  const setHoveredSample = useTerrainProfileLayer({
-    map,
-    isLoaded,
-    enabled: state.isOpen,
-    station: state.station,
-    receiver: state.receiver,
-    analysis,
-  });
-
-  return {
-    isOpen: state.isOpen,
-    station: state.station,
-    receiver: state.receiver,
-    antennaKey: state.antennaKey,
-    analysis,
-    isWorking: isStarting || isPolling,
-    error,
+  const panel = useMemo<TerrainProfilePanelModel | null>(() => {
+    if (session === null) return null;
+    return {
+      station: session.station,
+      brand: stationBrand.brand,
+      brandColor: stationBrand.color,
+      mode: display.mode,
+      failure: display.failure,
+      canRetry: display.failure !== null && isRetryableFailure(display.failure),
+      profile: display.shownProfile,
+      summary: display.summary,
+      selectedAntennaKey,
+      isAntennaAutomatic: session.antennaKey === null,
+      receiverPoint: session.receiverPoint,
+      receiverHeightMeters: session.receiverHeightMeters,
+      isPickingPoint: session.isPickingPoint,
+      isCollapsed: session.isCollapsed,
+      isLocating,
+      gpsError,
+      hover,
+      close,
+      retry,
+      locateReceiver,
+      placeReceiver,
+      previewReceiver,
+      setReceiverHeight,
+      selectAntenna,
+      togglePointPick,
+      cancelPointPick,
+      setCollapsed,
+    };
+  }, [
+    session,
+    stationBrand,
+    display,
+    selectedAntennaKey,
     isLocating,
     gpsError,
+    hover,
     close,
-    start,
     retry,
-    setAntenna,
-    setReceiverCoordinates,
+    locateReceiver,
+    placeReceiver,
+    previewReceiver,
     setReceiverHeight,
-    handleReceiverDragEnd,
-    useCurrentLocation,
-    setHoveredSample,
-  };
+    selectAntenna,
+    togglePointPick,
+    cancelPointPick,
+    setCollapsed,
+  ]);
+
+  return { start, hasOpened, isPickingReceiver, panel };
 }

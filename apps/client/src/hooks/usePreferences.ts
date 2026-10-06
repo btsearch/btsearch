@@ -20,6 +20,8 @@ export type NavMode = "sidebar" | "floating";
 export type CLFExportFormat = ClfExportFormat;
 export type clfExportFilters = {
   operators: number[];
+  countryCode?: string;
+  operatorIds?: number[];
   regions: string[];
   bands: number[];
   format: CLFExportFormat;
@@ -364,7 +366,8 @@ export async function patchCloudPreferences(patch: CloudPreferencesPatch): Promi
 export function usePreferences() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
-  const userId = session?.user?.id;
+  const isActingAsAnotherUser = Boolean(session?.session.impersonatedBy);
+  const userId = isActingAsAnotherUser ? undefined : session?.user?.id;
   const preferences = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_PREFERENCES);
   const activeProfile = useSyncExternalStore<PreferenceProfile>(subscribe, getProfileSnapshot, () => DEFAULT_PROFILE);
 

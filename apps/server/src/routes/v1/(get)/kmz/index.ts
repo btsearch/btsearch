@@ -7,6 +7,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -24,7 +25,7 @@ type KmzSourceDirectory = Exclude<KmzSource, "all">;
 
 const regionsSchema = createSelectSchema(regions);
 type RegionRow = z.infer<typeof regionsSchema>;
-const regionsQuery = db.query.regions.findMany().prepare("kmz_regions_all");
+const regionsQuery = db.query.regions.findMany({ where: { countryCode: LEGACY_COUNTRY_CODE } }).prepare("kmz_regions_all");
 
 interface KmzFile {
   date: string;

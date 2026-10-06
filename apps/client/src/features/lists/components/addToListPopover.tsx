@@ -1,7 +1,8 @@
 import { Add01Icon, Search01Icon, SecurityLockIcon, StarIcon, TaskAdd01Icon, TaskDaily01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Suspense, lazy, useMemo, useState } from "react";
+import type { ListItemsInput } from "@openbts/shared/contract";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -12,14 +13,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { UserListSummary } from "@/features/lists/api";
-import { updateList } from "@/features/lists/api";
-import { useUserLists } from "@/features/lists/hooks/useUserLists";
-import { sortLists } from "@/features/lists/sortLists";
+import { type ListWithItems, listKeys, listLimitQueryOptions, ownListsQueryOptions, prefetchOwnLists, updateList } from "@/features/lists/api";
+import { sortFavoriteListsFirst } from "@/features/lists/sortLists";
 import { useFavoriteLists } from "@/hooks/useFavoriteLists";
 import { useSettings } from "@/hooks/useSettings";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { isGloballyHandledError } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
 
 const CreateListDialog = lazy(() => import("./createListDialog").then((m) => ({ default: m.CreateListDialog })));
@@ -29,10 +29,14 @@ const SKELETON_ROW_COUNT = 3;
 const MENU_ROW_CLASS_NAME =
   "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:outline-none motion-reduce:transition-none";
 
-type ListMembershipUpdate = { stations?: { internal: number[]; uke: number[] }; radiolines?: number[] };
+type ListMembershipChange = { list: ListWithItems; items: ListItemsInput; isAdding: boolean };
+
+function changeListMembership({ list, items, isAdding }: ListMembershipChange) {
+  return updateList(list.id, isAdding ? { addItems: items } : { removeItems: items });
+}
 
 type ListRowProps = {
-  list: UserListSummary;
+  list: ListWithItems;
   checked: boolean;
   isFavorite: boolean;
   isToggling: boolean;
@@ -100,15 +104,19 @@ type AddToListPopoverProps = {
 };
 
 export function AddToListPopover(props: AddToListPopoverProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSettledSession();
   const { data: settings } = useSettings();
+  const userId = session?.user?.id;
 
-  if (!session?.user || !settings?.enableUserLists) return null;
+  if (userId === undefined || !settings?.features.lists) return null;
 
-  return <AddToListPopoverInner {...props} />;
+  return <AddToListPopoverInner {...props} userId={userId} />;
 }
 
+type AddToListPopoverInnerProps = AddToListPopoverProps & { userId: string };
+
 function AddToListPopoverInner({
+  userId,
   stationId,
   radiolineIds,
   ukeStationId,
@@ -117,20 +125,19 @@ function AddToListPopoverInner({
   showLabel = false,
   labelClassName,
   showTooltip = true,
-}: AddToListPopoverProps) {
+}: AddToListPopoverInnerProps) {
   const { t } = useTranslation(["lists", "common"]);
   const queryClient = useQueryClient();
-  const { data, isLoading, isLoadingError, isFetching, refetch } = useUserLists();
-  const { favoriteUuids, isFavorite } = useFavoriteLists();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createOpenCount, setCreateOpenCount] = useState(0);
   const [search, setSearch] = useState("");
 
   const toggleMutation = useMutation({
-    mutationFn: ({ list, data }: { list: UserListSummary; data: ListMembershipUpdate; isAdding: boolean }) => updateList(list.uuid, data),
+    mutationFn: changeListMembership,
     onSuccess: (_result, { list, isAdding }) => {
-      void queryClient.invalidateQueries({ queryKey: ["user-lists"] });
-      void queryClient.invalidateQueries({ queryKey: ["list"] });
+      void queryClient.invalidateQueries({ queryKey: listKeys.ownLists() });
+      void queryClient.invalidateQueries({ queryKey: listKeys.everyList() });
       void queryClient.invalidateQueries({ queryKey: ["list-locations"] });
       void queryClient.invalidateQueries({ queryKey: ["list-radiolines"] });
       toast.success(isAdding ? t("lists:addedTo", { name: list.name }) : t("lists:removedFrom", { name: list.name }));
@@ -141,42 +148,44 @@ function AddToListPopoverInner({
     },
   });
 
-  const lists = useMemo(() => sortLists(data?.data ?? [], favoriteUuids), [data, favoriteUuids]);
-  const maxLists = data?.maxLists ?? null;
-  const listCount = data?.totalCount ?? lists.length;
-  const isAtLimit = maxLists !== null && listCount >= maxLists;
+  const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery({
+    ...ownListsQueryOptions(),
+    enabled: popoverOpen || createOpen || toggleMutation.isPending,
+  });
+  const { data: listLimit } = useQuery({ ...listLimitQueryOptions(userId), enabled: popoverOpen });
+  const { favoriteUuids, isFavorite } = useFavoriteLists();
+
+  const lists = sortFavoriteListsFirst(data?.lists ?? [], favoriteUuids, (list) => list.id);
+  const listCount = data?.total ?? lists.length;
+  const isAtLimit = listLimit !== undefined && listCount >= listLimit;
   const searchQuery = search.trim().toLowerCase();
   const visibleLists = searchQuery ? lists.filter((list) => list.name.toLowerCase().includes(searchQuery)) : lists;
-  const pendingUuid = toggleMutation.isPending ? toggleMutation.variables?.list.uuid : undefined;
+  const pendingListId = toggleMutation.isPending ? toggleMutation.variables?.list.id : undefined;
   const isBusy = toggleMutation.isPending || (isFetching && !isLoading);
   const isStationTarget = Boolean(stationId || ukeStationId);
 
+  function warmLists() {
+    prefetchOwnLists(queryClient, userId);
+  }
+
   function openCreateDialog() {
     setPopoverOpen(false);
-    setSearch("");
+    setCreateOpenCount((count) => count + 1);
     setCreateOpen(true);
   }
 
-  function isChecked(list: UserListSummary) {
-    if (stationId) return list.stations.internal.includes(stationId);
-    if (ukeStationId) return list.stations.uke.includes(ukeStationId);
-    if (radiolineIds) return radiolineIds.every((id) => list.radiolines.includes(id));
+  function isChecked(list: ListWithItems) {
+    if (stationId) return list.items.stationIds.includes(stationId);
+    if (ukeStationId) return list.items.officialSiteIds.includes(ukeStationId);
+    if (radiolineIds) return radiolineIds.every((id) => list.items.microwaveLinkIds.includes(id));
     return false;
   }
 
-  function handleToggle(list: UserListSummary) {
+  function handleToggle(list: ListWithItems) {
     const isAdding = !isChecked(list);
-    if (stationId) {
-      const internal = isAdding ? [...list.stations.internal, stationId] : list.stations.internal.filter((id) => id !== stationId);
-      toggleMutation.mutate({ list, isAdding, data: { stations: { internal, uke: list.stations.uke } } });
-    } else if (ukeStationId) {
-      const uke = isAdding ? [...list.stations.uke, ukeStationId] : list.stations.uke.filter((id) => id !== ukeStationId);
-      toggleMutation.mutate({ list, isAdding, data: { stations: { internal: list.stations.internal, uke } } });
-    } else if (radiolineIds) {
-      const radiolineSet = new Set(radiolineIds);
-      const radiolines = isAdding ? [...new Set([...list.radiolines, ...radiolineIds])] : list.radiolines.filter((id) => !radiolineSet.has(id));
-      toggleMutation.mutate({ list, isAdding, data: { radiolines } });
-    }
+    if (stationId) toggleMutation.mutate({ list, isAdding, items: { stationIds: [stationId] } });
+    else if (ukeStationId) toggleMutation.mutate({ list, isAdding, items: { officialSiteIds: [ukeStationId] } });
+    else if (radiolineIds) toggleMutation.mutate({ list, isAdding, items: { microwaveLinkIds: radiolineIds } });
   }
 
   const label = t("lists:addToList");
@@ -190,6 +199,8 @@ function AddToListPopoverInner({
         className,
       )}
       aria-label={label}
+      onPointerEnter={warmLists}
+      onFocus={warmLists}
     />
   );
   const triggerContent = (
@@ -200,8 +211,9 @@ function AddToListPopoverInner({
   );
 
   let body: React.ReactNode;
-  if (isLoading) body = <ListRowsSkeleton />;
-  else if (isLoadingError)
+  if (isLoading) {
+    body = <ListRowsSkeleton />;
+  } else if (isLoadingError) {
     body = (
       <ErrorState
         title={t("lists:loadFailed")}
@@ -211,7 +223,7 @@ function AddToListPopoverInner({
         className="min-h-0 rounded-md border-0 px-2 py-3"
       />
     );
-  else if (lists.length === 0)
+  } else if (lists.length === 0) {
     body = (
       <div className="flex flex-col items-center gap-0.5 px-2 py-3 text-center">
         <HugeiconsIcon icon={TaskAdd01Icon} className="mb-1 size-5 text-muted-foreground" />
@@ -223,23 +235,28 @@ function AddToListPopoverInner({
         </Button>
       </div>
     );
-  else if (visibleLists.length === 0) body = <p className="px-1.5 py-2 text-center text-xs text-muted-foreground">{t("lists:noSearchResults")}</p>;
-  else
-    body = visibleLists.map((list) => (
-      <ListRow
-        key={list.uuid}
-        list={list}
-        checked={isChecked(list)}
-        isFavorite={isFavorite(list.uuid)}
-        isToggling={pendingUuid === list.uuid}
-        disabled={isBusy}
-        count={isStationTarget ? list.stationCount : list.radiolineCount}
-        countLabel={
-          isStationTarget ? t("common:labels.stations", { count: list.stationCount }) : t("lists:radiolineCount", { count: list.radiolineCount })
-        }
-        onToggle={() => handleToggle(list)}
-      />
-    ));
+  } else if (visibleLists.length === 0) {
+    body = <p className="px-1.5 py-2 text-center text-xs text-muted-foreground">{t("lists:noSearchResults")}</p>;
+  } else {
+    body = visibleLists.map((list) => {
+      const stationCount = list.itemCounts.stations + list.itemCounts.officialSites;
+      const radiolineCount = list.itemCounts.microwaveLinks;
+
+      return (
+        <ListRow
+          key={list.id}
+          list={list}
+          checked={isChecked(list)}
+          isFavorite={isFavorite(list.id)}
+          isToggling={pendingListId === list.id}
+          disabled={isBusy}
+          count={isStationTarget ? stationCount : radiolineCount}
+          countLabel={isStationTarget ? t("common:labels.stations", { count: stationCount }) : t("lists:radiolineCount", { count: radiolineCount })}
+          onToggle={() => handleToggle(list)}
+        />
+      );
+    });
+  }
 
   return (
     <>
@@ -247,7 +264,7 @@ function AddToListPopoverInner({
         open={popoverOpen}
         onOpenChange={(open) => {
           setPopoverOpen(open);
-          if (!open) setSearch("");
+          if (open) setSearch("");
         }}
       >
         {showTooltip ? (
@@ -266,8 +283,8 @@ function AddToListPopoverInner({
         <PopoverContent align="end" className="w-64 gap-0 p-1">
           <div className="flex items-center justify-between gap-3 px-1.5 py-1 text-xs font-medium text-muted-foreground">
             <span className="truncate">{label}</span>
-            {maxLists === null || lists.length === 0 ? null : (
-              <span className="shrink-0 tabular-nums">{t("lists:usage", { count: listCount, max: maxLists })}</span>
+            {listLimit === undefined || lists.length === 0 ? null : (
+              <span className="shrink-0 tabular-nums">{t("lists:usage", { count: listCount, max: listLimit })}</span>
             )}
           </div>
 
@@ -278,6 +295,7 @@ function AddToListPopoverInner({
                 className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
               />
               <Input
+                {...NO_AUTOFILL_PROPS}
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
                 placeholder={t("common:placeholder.search")}
@@ -306,9 +324,10 @@ function AddToListPopoverInner({
         </PopoverContent>
       </Popover>
 
-      {createOpen ? (
+      {createOpenCount > 0 ? (
         <Suspense>
           <CreateListDialog
+            key={createOpenCount}
             open={createOpen}
             onOpenChange={setCreateOpen}
             initialStationId={stationId}

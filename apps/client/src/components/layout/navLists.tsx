@@ -1,7 +1,7 @@
 import { Add01Icon, ArrowRight01Icon, StarIcon, TaskDaily01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Suspense, lazy, memo, useEffect, useState } from "react";
+import { Suspense, lazy, memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,7 +15,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import type { UserListSummary } from "@/features/lists/api";
 import { useNavLists } from "@/hooks/useNavLists";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +35,6 @@ function saveNavState(open: boolean) {
     const stored = localStorage.getItem(NAV_STORAGE_KEY);
     const parsed = stored ? (JSON.parse(stored) as Record<string, boolean>) : {};
     localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify({ ...parsed, lists: open }));
-    localStorage.removeItem(LEGACY_NAV_STORAGE_KEY);
   } catch {}
 }
 
@@ -44,21 +42,27 @@ const CreateListDialog = lazy(() => import("@/features/lists/components/createLi
 
 export const NavLists = memo(function NavLists() {
   const { t } = useTranslation(["nav", "lists"]);
-  const location = useLocation();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const [open, setOpen] = useState(readNavState);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    saveNavState(open);
-  }, [open]);
-
+  const [dialogOpenCount, setDialogOpenCount] = useState(0);
   const { canFavorite, isFavorite, lists, toggleFavorite } = useNavLists();
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    saveNavState(nextOpen);
+  }
+
+  function openCreateDialog() {
+    setDialogOpenCount((count) => count + 1);
+    setDialogOpen(true);
+  }
 
   return (
     <SidebarGroup>
       <SidebarMenu>
         <SidebarMenuItem>
-          <Collapsible open={open} onOpenChange={setOpen}>
+          <Collapsible open={open} onOpenChange={handleOpenChange}>
             <CollapsibleTrigger render={<SidebarMenuButton tooltip={t("nav:sections.lists")} className="pr-7" />}>
               <HugeiconsIcon icon={TaskDaily01Icon} />
               <span>{t("nav:sections.lists")}</span>
@@ -69,14 +73,14 @@ export const NavLists = memo(function NavLists() {
               aria-label={t("lists:create")}
               onClick={(e) => {
                 e.stopPropagation();
-                setDialogOpen(true);
+                openCreateDialog();
               }}
             >
               <HugeiconsIcon icon={Add01Icon} />
             </SidebarMenuAction>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {lists.map((list: UserListSummary) => {
+                {lists.map((list) => {
                   const favorite = isFavorite(list.uuid);
                   const favoriteLabel = favorite ? t("lists:removeFavorite") : t("lists:addFavorite");
 
@@ -84,7 +88,7 @@ export const NavLists = memo(function NavLists() {
                     <SidebarMenuSubItem key={list.uuid}>
                       <SidebarMenuSubButton
                         render={<Link to="/lists/$uuid" params={{ uuid: list.uuid }} />}
-                        isActive={location.pathname === `/lists/${list.uuid}`}
+                        isActive={pathname === `/lists/${list.uuid}`}
                         className={canFavorite ? "pr-7" : undefined}
                       >
                         <span className="truncate">{list.name}</span>
@@ -112,7 +116,7 @@ export const NavLists = memo(function NavLists() {
                   );
                 })}
                 <SidebarMenuSubItem>
-                  <SidebarMenuSubButton render={<Link to="/lists" />} isActive={location.pathname === "/lists"}>
+                  <SidebarMenuSubButton render={<Link to="/lists" />} isActive={pathname === "/lists"}>
                     <span>{t("nav:items.viewAllLists")}</span>
                     <HugeiconsIcon icon={ArrowRight01Icon} className="ml-auto size-3.5" />
                   </SidebarMenuSubButton>
@@ -123,11 +127,11 @@ export const NavLists = memo(function NavLists() {
         </SidebarMenuItem>
       </SidebarMenu>
 
-      {dialogOpen && (
+      {dialogOpenCount > 0 ? (
         <Suspense>
-          <CreateListDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+          <CreateListDialog key={dialogOpenCount} open={dialogOpen} onOpenChange={setDialogOpen} />
         </Suspense>
-      )}
+      ) : null}
     </SidebarGroup>
   );
 });

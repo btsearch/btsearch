@@ -1,5 +1,10 @@
-import type { auditLogs } from "@openbts/drizzle";
-import type { AuditOperationKind } from "@openbts/shared/audit";
+import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
+import type { StationHistoryRevertStatus } from "@openbts/shared/contract";
+
+import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
+import type { ActiveRevertCoverage } from "../audit/revert/revertibility.js";
+import type { AuditOperationRow } from "../audit/types.js";
+import type { AuditRow } from "./historyRows.js";
 
 export type StationHistoryValue = string | number | boolean | null;
 export type StationHistoryChangeValue = StationHistoryValue | StationHistoryValue[] | Record<string, StationHistoryValue>;
@@ -35,21 +40,34 @@ export type StationHistoryLookups = {
   sectorAzimuths?: SectorAzimuthsAsOf;
 };
 
-type AuditRow = typeof auditLogs.$inferSelect;
-type HistoryObject = Record<string, unknown>;
+export const NAMED_ENTITIES = ["operators", "bands", "regions", "locations"] as const;
+export type NamedEntity = (typeof NAMED_ENTITIES)[number];
+export type NameChange = { operationId: number; before: string | null; after: string | null };
+export type NameSource = { current: ReadonlyMap<number, string>; changes: ReadonlyMap<number, readonly NameChange[]> };
+
+export type HistoryObject = Record<string, unknown>;
 type SectorSide = keyof SectorAzimuthsAsOf;
+
+const NAME_REFERENCES: Record<NamedEntity, { entity: AuditEntity; column: string }> = {
+  operators: { entity: "stations", column: "operator_id" },
+  locations: { entity: "stations", column: "location_id" },
+  regions: { entity: "locations", column: "region_id" },
+  bands: { entity: "cells", column: "band_id" },
+};
 
 const STATION_FIELDS = ["station_id", "status", "notes", "extra_address", "operator_id", "location_id", "is_confirmed"] as const;
 const LOCATION_FIELDS = ["region_id", "city", "address", "longitude", "latitude"] as const;
 const EXTRA_IDENTIFIER_FIELDS = ["networks_id", "networks_name", "mno_name"] as const;
 const UPLINK_FIELDS = ["type", "speed", "model"] as const;
-const CELL_FIELDS = ["rat", "band_id", "sector_id", "notes", "is_confirmed"] as const;
-const CELL_DETAIL_FIELDS = [
+export const CELL_FIELDS = ["rat", "band_id", "sector_id", "notes", "is_confirmed"] as const;
+export const CELL_DETAIL_FIELDS = [
   "lac",
   "cid",
   "e_gsm",
+  "bsic",
   "rnc",
   "arfcn",
+  "psc",
   "tac",
   "enbid",
   "clid",
@@ -63,11 +81,11 @@ const CELL_DETAIL_FIELDS = [
   "supports_nr_redcap",
 ] as const;
 
-function isPlainObject(value: unknown): value is HistoryObject {
+export function isPlainObject(value: unknown): value is HistoryObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalize(value: unknown): StationHistoryValue {
+export function normalize(value: unknown): StationHistoryValue {
   if (value === undefined || value === null) return null;
   if (typeof value === "string") return value.trim() === "" ? null : value;
   if (typeof value === "number" || typeof value === "boolean") return value;
@@ -138,13 +156,18 @@ function diffFields(
   return changes;
 }
 
-function flattenCell(value: unknown): HistoryObject | null {
+function isSwitchedOff(key: string): boolean {
+  const settings = getRuntimeSettings();
+  return (key === "psc" && !settings.pscEnabled) || (key === "bsic" && !settings.bsicEnabled);
+}
+
+export function flattenCell(value: unknown): HistoryObject | null {
   if (!isPlainObject(value)) return null;
   const flat: HistoryObject = {};
   for (const key of CELL_FIELDS) if (key in value) flat[key] = value[key];
   if ("type" in value) flat.cell_type = value.type ?? null;
   const details = [value.details, value.gsm, value.umts, value.lte, value.nr].find(isPlainObject) ?? null;
-  if (details) for (const key of CELL_DETAIL_FIELDS) if (key in details) flat[key] = details[key];
+  if (details) for (const key of CELL_DETAIL_FIELDS) if (key in details && !isSwitchedOff(key)) flat[key] = details[key];
   return flat;
 }
 
@@ -211,11 +234,11 @@ function sectorAzimuthMap(value: unknown): Map<number, number> {
   return azimuths;
 }
 
-function azimuthList(value: unknown): number[] {
+export function azimuthList(value: unknown): number[] {
   return [...sectorAzimuthMap(value)].sort(([leftId], [rightId]) => leftId - rightId).map(([, azimuth]) => azimuth);
 }
 
-function photoSelections(value: unknown): Map<number, boolean> {
+export function photoSelections(value: unknown): Map<number, boolean> {
   const selections = new Map<number, boolean>();
   if (!Array.isArray(value)) return selections;
 
@@ -229,7 +252,7 @@ function photoSelections(value: unknown): Map<number, boolean> {
   return selections;
 }
 
-function mainPhotoId(selections: ReadonlyMap<number, boolean>): number | null {
+export function mainPhotoId(selections: ReadonlyMap<number, boolean>): number | null {
   let result: number | null = null;
   for (const [photoId, isMain] of selections) {
     if (isMain && (result === null || photoId < result)) result = photoId;
@@ -252,8 +275,7 @@ function transformPhotos(row: AuditRow): { action: StationHistorySection["action
     ...deletedIds.map((photoId) => ({ field: "photo", from: `#${photoId}`, to: null })),
     ...addedIds.map((photoId) => ({ field: "photo", from: null, to: `#${photoId}` })),
   ];
-  if (changes.length > 0 && previousMainId !== nextMainId)
-    changes.push({ field: "main_photo", from: photoReference(previousMainId), to: photoReference(nextMainId) });
+  if (previousMainId !== nextMainId) changes.push({ field: "main_photo", from: photoReference(previousMainId), to: photoReference(nextMainId) });
 
   let action: StationHistorySection["action"] = "update";
   if (addedIds.length > 0 && deletedIds.length === 0) action = "create";
@@ -300,23 +322,57 @@ export function movesCellSector(row: AuditRow): boolean {
   return normalize(row.old_values.sector_id) !== normalize(row.new_values.sector_id);
 }
 
-export function collectLocationSnapshotNames(map: Map<number, string>, rows: AuditRow[]): void {
+export function referencedIds(rows: readonly AuditRow[], named: NamedEntity): number[] {
+  const { entity, column } = NAME_REFERENCES[named];
+  const ids = new Set<number>();
   for (const row of rows) {
-    if (row.entity !== "locations" || row.record_id === null) continue;
-    const locationId = Number(row.record_id);
-    if (!Number.isInteger(locationId) || map.has(locationId)) continue;
+    if (row.entity !== entity) continue;
     for (const values of [row.old_values, row.new_values]) {
-      if (!isPlainObject(values)) continue;
-      const name = [values.city, values.address].filter((part): part is string => typeof part === "string" && part !== "").join(", ");
-      if (name !== "") {
-        map.set(locationId, name);
-        break;
-      }
+      const id = isPlainObject(values) ? values[column] : null;
+      if (typeof id === "number") ids.add(id);
     }
   }
+  return [...ids];
 }
 
-function baseAction(row: AuditRow, operationKind: AuditOperationKind): StationHistorySection["action"] {
+export function locationName(id: number, city: unknown, address: unknown): string {
+  return [city, address].filter((part): part is string => typeof part === "string" && part !== "").join(", ") || `#${id}`;
+}
+
+function snapshotName(named: NamedEntity, id: number, values: unknown): string | null {
+  if (!isPlainObject(values)) return null;
+  if (named === "locations") return locationName(id, values.city, values.address);
+  return typeof values.name === "string" ? values.name : null;
+}
+
+export function collectNameChanges(rows: readonly AuditRow[], named: NamedEntity): Map<number, NameChange[]> {
+  const nameChangesById = new Map<number, NameChange[]>();
+  for (const row of rows) {
+    if (row.entity !== named) continue;
+    const id = Number(row.record_id);
+    const nameChanges = nameChangesById.get(id) ?? [];
+    nameChanges.push({
+      operationId: row.operation_id,
+      before: snapshotName(named, id, row.old_values),
+      after: snapshotName(named, id, row.new_values),
+    });
+    nameChangesById.set(id, nameChanges);
+  }
+  return nameChangesById;
+}
+
+export function namesAsOf({ current, changes: nameChangesById }: NameSource, operationId: number): Map<number, string> {
+  const names = new Map(current);
+  for (const [id, nameChanges] of nameChangesById) {
+    const nextChange = nameChanges.find((nameChange) => nameChange.operationId > operationId);
+    const lastChange = nameChanges.at(-1);
+    const name = nextChange === undefined ? (current.get(id) ?? lastChange?.after ?? lastChange?.before) : (nextChange.before ?? nextChange.after);
+    if (typeof name === "string") names.set(id, name);
+  }
+  return names;
+}
+
+export function baseAction(row: AuditRow, operationKind: AuditOperationKind): StationHistorySection["action"] {
   if (row.entity === "stations" && operationKind === "station.delete") return "delete";
   return row.op;
 }
@@ -371,4 +427,15 @@ export function transformEntry(row: AuditRow, operationKind: AuditOperationKind,
 
   if (changes.length === 0) return null;
   return { kind, action, changes };
+}
+
+export function revertStatus(
+  entryIds: readonly number[],
+  operation: AuditOperationRow,
+  coverage: ActiveRevertCoverage | undefined,
+): StationHistoryRevertStatus {
+  if (operation.reverted_by_operation_id !== null) return "complete";
+  if (entryIds.every((id) => coverage?.revertedEntryIds.has(id) && !coverage.incompleteEntryIds.has(id))) return "complete";
+  if (entryIds.some((id) => coverage?.revertedEntryIds.has(id))) return "partial";
+  return "none";
 }

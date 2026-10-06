@@ -1,37 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
-import { StationsListLayout } from "@/features/stations/components/stationsFilterLayout";
-import { useStationsData } from "@/features/stations/hooks/useStationsData";
+import { StationsListPage } from "@/features/stations/list/components/stationsListPage";
+import { type StationsListSearch, parsePublicStationsListSearch } from "@/features/stations/list/data/stationsListSearch";
 import { buildStaticPageHead } from "@/lib/seo";
-import type { Station } from "@/types/station";
 
-function StationsListPage() {
-  const { t } = useTranslation("stations");
-  const { openStationDialog } = useFloatingDialogStack();
-  const data = useStationsData();
-  const handleRowClick = useCallback((station: Station) => openStationDialog(station.id, "internal"), [openStationDialog]);
-  const getRowHref = useCallback((station: Station) => `/stations/${station.id}`, []);
+function PublicStationsListPage() {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
 
-  return (
-    <StationsListLayout
-      data={data}
-      onRowClick={handleRowClick}
-      getRowHref={getRowHref}
-      resultsHeader={
-        <header className="mb-3 shrink-0">
-          <h1 className="text-lg font-semibold tracking-tight">{t("database.title")}</h1>
-          <p className="mt-1 text-sm leading-5 text-muted-foreground">{t("database.description")}</p>
-        </header>
-      }
-    />
-  );
+  function replaceSearch(nextSearch: StationsListSearch) {
+    void navigate({ from: Route.fullPath, search: nextSearch, replace: true });
+  }
+
+  return <StationsListPage variant="public" search={search} onSearchChange={replaceSearch} />;
 }
 
 export const Route = createFileRoute("/_layout/stations")({
-  component: StationsListPage,
+  validateSearch: parsePublicStationsListSearch,
+  component: PublicStationsListPage,
   head: () => buildStaticPageHead("/stations"),
   staticData: {
     titleKey: "items.database",

@@ -1,7 +1,7 @@
 import { Globe02Icon, Location01Icon, LocationRemove01Icon, MapsLocation01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { createLocationSEOMetadata, parseSEOEntityId } from "@openbts/shared/seo";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
@@ -9,43 +9,29 @@ import { CollapsibleSection } from "@/components/content/collapsibleSection";
 import { EntityNotFound, EntityRouteError, entityPageChipClassName } from "@/components/content/entityPage";
 import { PhotoStrip } from "@/components/photos/photoStrip";
 import { InlineError } from "@/components/ui/error-state";
-import { fetchLocationWithStations, locationQueryKey } from "@/features/map/api";
-import { fetchLocationPhotos } from "@/features/station-details/api";
+import { getLocationMapHash } from "@/features/map/mapLinks";
 import { CopyButton } from "@/features/station-details/components/copyButton";
 import { NavigationLinks } from "@/features/station-details/components/navLinks";
 import { ShareButton } from "@/features/station-details/components/shareButton";
 import { stationDialogHeaderIconActionClassName } from "@/features/station-details/components/stationDialogHeaderStyles";
 import { StationInfoItem } from "@/features/station-details/components/stationInfoItem";
+import { locationPhotoRecordsQueryOptions, locationRecordQueryOptions } from "@/features/station-details/station/api";
+import { StructureNoteItem, StructureOwnerItem, StructureTypeItem } from "@/features/station-details/station/components/overview/structureItems";
+import type { LocationRecord } from "@/features/station-details/station/types";
+import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { LocationStationList } from "@/features/stations/components/LocationStationList";
 import { usePreferences } from "@/hooks/usePreferences";
 import { APP_NAME, ApiResponseError } from "@/lib/api";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { queryClient } from "@/lib/queryClient";
 import { buildPageHead, getBrowserOrigin } from "@/lib/seo";
-import type { LocationWithStations } from "@/types/station";
 
-const ignorePrefetchError = () => undefined;
-
-const locationPageQueryOptions = (id: number) =>
-  queryOptions({
-    queryKey: locationQueryKey(id),
-    queryFn: () => fetchLocationWithStations(id),
-    staleTime: 1000 * 60 * 2,
-  });
-
-const locationPhotosQueryOptions = (id: number) =>
-  queryOptions({
-    queryKey: ["location-photos", id] as const,
-    queryFn: () => fetchLocationPhotos(id),
-    staleTime: 1000 * 60 * 5,
-  });
-
-function locationLabel(location: LocationWithStations, fallbackCity: string): string {
+function locationLabel(location: LocationRecord, fallbackCity: string): string {
   const city = location.city || fallbackCity;
   return location.address ? `${city}, ${location.address}` : city;
 }
 
-function locationHead(location: LocationWithStations) {
+function locationHead(location: LocationRecord) {
   return buildPageHead(
     createLocationSEOMetadata(
       { name: APP_NAME, url: getBrowserOrigin() },
@@ -58,9 +44,9 @@ function locationHead(location: LocationWithStations) {
         longitude: location.longitude,
         stations: location.stations.map((station) => ({
           id: station.id,
-          stationCode: station.station_id,
+          stationCode: station.siteId,
           operatorName: station.operator?.name,
-          status: station.status,
+          status: toV1StationStatus(station.status),
         })),
       },
     ),
@@ -81,13 +67,13 @@ function LocationPage() {
   const { t } = useTranslation(["stationDetails", "main", "nav", "common"]);
   const { preferences } = usePreferences();
 
-  const { data: location, error: locationError } = useQuery(locationPageQueryOptions(locationId));
+  const { data: location, error: locationError } = useQuery(locationRecordQueryOptions(locationId));
   const {
     data: photos,
     isError: isPhotosError,
     isFetching: isFetchingPhotos,
     refetch: refetchPhotos,
-  } = useQuery(locationPhotosQueryOptions(locationId));
+  } = useQuery(locationPhotoRecordsQueryOptions(locationId));
 
   if (!location) {
     if (locationError instanceof ApiResponseError && locationError.status === 404) return <LocationNotFound />;
@@ -96,7 +82,7 @@ function LocationPage() {
 
   const city = location.city || t("common:labels.unknownLocation");
   const label = locationLabel(location, city);
-  const mapHash = `map=16/${location.latitude}/${location.longitude}~f~L${location.id}`;
+  const mapHash = getLocationMapHash(location);
 
   return (
     <main className="w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
@@ -143,22 +129,25 @@ function LocationPage() {
             <div className="space-y-4">
               <StationInfoItem icon={<HugeiconsIcon icon={Location01Icon} className="size-4" />} label={t("common:labels.coordinates")}>
                 <span className="font-mono break-all">{formatCoordinates(location.latitude, location.longitude, preferences.gpsFormat)}</span>
-                {preferences.navLinksDisplay === "inline" && (
+                {preferences.navLinksDisplay === "inline" ? (
                   <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" />
-                )}
+                ) : null}
                 <CopyButton text={`${location.latitude}, ${location.longitude}`} />
               </StationInfoItem>
               <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
                 <span>{location.region?.name || "-"}</span>
               </StationInfoItem>
+              {location.structure.type !== null ? <StructureTypeItem type={location.structure.type} /> : null}
+              {location.structure.type !== null || location.structure.owner !== null ? <StructureOwnerItem owner={location.structure.owner} /> : null}
+              {location.structure.note ? <StructureNoteItem note={location.structure.note} /> : null}
               <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
                 <Link to="/" hash={mapHash} className={entityPageChipClassName}>
                   <HugeiconsIcon icon={MapsLocation01Icon} className="size-3.5" />
                   {t("common:actions.showOnMap")}
                 </Link>
-                {preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0 && (
+                {preferences.navLinksDisplay === "buttons" && preferences.navigationApps.length > 0 ? (
                   <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />
-                )}
+                ) : null}
               </div>
             </div>
           </CollapsibleSection>
@@ -184,9 +173,9 @@ export const Route = createFileRoute("/_layout/locations/$id")({
   loader: async ({ params }) => {
     const id = parseSEOEntityId(params.id);
     if (id === null) throw notFound();
-    void queryClient.query(locationPhotosQueryOptions(id)).catch(ignorePrefetchError);
+    void queryClient.query(locationPhotoRecordsQueryOptions(id)).catch(() => undefined);
     try {
-      return await queryClient.query({ ...locationPageQueryOptions(id), staleTime: "static" });
+      return await queryClient.query({ ...locationRecordQueryOptions(id), staleTime: "static" });
     } catch (error) {
       if (error instanceof ApiResponseError && error.status === 404) throw notFound();
       throw error;

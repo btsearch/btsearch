@@ -9,7 +9,7 @@ import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const regionsSelectSchema = createSelectSchema(regions);
-const regionsInsertSchema = createInsertSchema(regions).strict();
+const regionsInsertSchema = createInsertSchema(regions).omit({ countryCode: true, isoCode: true }).strict();
 type ReqBody = { Body: z.infer<typeof regionsInsertSchema> };
 type ResponseData = z.infer<typeof regionsSelectSchema>;
 const schemaRoute = {

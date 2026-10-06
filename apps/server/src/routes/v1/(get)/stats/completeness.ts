@@ -1,11 +1,12 @@
 import { extraIdentificators, lteCells, nrCells, stationSectors, stations } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
-import { count, countDistinct, isNotNull } from "drizzle-orm";
+import { and, count, countDistinct, isNotNull } from "drizzle-orm";
 import type { RouteGenericInterface } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 import z from "zod";
 
 import redis from "../../../../database/redis.ts";
+import { cellIdInLegacyCountry, stationIdInLegacyCountry } from "../../../../features/countries/legacy.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
 
@@ -41,14 +42,29 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResBody>>
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached));
 
+  const legacyLteCell = cellIdInLegacyCountry(lteCells.cell_id);
+  const legacyNrCell = cellIdInLegacyCountry(nrCells.cell_id);
+
   const [totalRows, sectorRows, extraRows, ltePCI, lteAll, nrPCI, nrAll] = await Promise.all([
-    db.select({ count: count() }).from(stations),
-    db.select({ count: countDistinct(stationSectors.station_id) }).from(stationSectors),
-    db.select({ count: countDistinct(extraIdentificators.station_id) }).from(extraIdentificators),
-    db.select({ count: count() }).from(lteCells).where(isNotNull(lteCells.pci)),
-    db.select({ count: count() }).from(lteCells),
-    db.select({ count: count() }).from(nrCells).where(isNotNull(nrCells.pci)),
-    db.select({ count: count() }).from(nrCells),
+    db.select({ count: count() }).from(stations).where(stationIdInLegacyCountry(stations.id)),
+    db
+      .select({ count: countDistinct(stationSectors.station_id) })
+      .from(stationSectors)
+      .where(stationIdInLegacyCountry(stationSectors.station_id)),
+    db
+      .select({ count: countDistinct(extraIdentificators.station_id) })
+      .from(extraIdentificators)
+      .where(stationIdInLegacyCountry(extraIdentificators.station_id)),
+    db
+      .select({ count: count() })
+      .from(lteCells)
+      .where(and(isNotNull(lteCells.pci), legacyLteCell)),
+    db.select({ count: count() }).from(lteCells).where(legacyLteCell),
+    db
+      .select({ count: count() })
+      .from(nrCells)
+      .where(and(isNotNull(nrCells.pci), legacyNrCell)),
+    db.select({ count: count() }).from(nrCells).where(legacyNrCell),
   ]);
 
   const ltePCIExisting = ltePCI[0]?.count ?? 0;

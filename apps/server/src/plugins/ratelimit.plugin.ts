@@ -3,6 +3,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { redis } from "../database/redis.js";
 import { ErrorResponse } from "../errors.js";
 import type { FastifyZodInstance } from "../interfaces/fastify.interface.js";
+import { isHealthProbe } from "../utils/healthProbe.js";
+import { isNetMonsterExport } from "../utils/netMonster.js";
 import { QuotaService } from "./ratelimit/quota.js";
 import { type RateLimitReservation, RateLimitService } from "./ratelimit/rateLimiter.js";
 
@@ -20,22 +22,17 @@ declare module "fastify" {
 export const registerRateLimit = (fastify: FastifyZodInstance) => {
   const rateLimitService = new RateLimitService(redis, {
     routes: [
-      {
-        url: "/api/v1/submissions/batch",
-        max: 4,
-        window: 115200,
-        countSuccessfulOnly: true,
-        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 86400 }, editor: { max: 500, window: 60 } },
-      },
-      { url: "/api/v1/auth/sign-in", max: 10, window: 300 },
       { url: "/api/v1/auth/sign-in/email", max: 10, window: 300 },
-      { url: "/api/v1/auth/sign-in/passkey", max: 10, window: 300 },
+      { url: "/api/v1/auth/sign-in/username", max: 10, window: 300 },
       { url: "/api/v1/auth/sign-in/social", max: 10, window: 300 },
-      { url: "/api/v1/auth/sign-up", max: 3, window: 3600 },
+      { url: "/api/v1/auth/passkey/verify-authentication", max: 10, window: 300 },
+      { url: "/api/v1/auth/two-factor/verify-totp", max: 10, window: 300 },
+      { url: "/api/v1/auth/two-factor/verify-otp", max: 10, window: 300 },
+      { url: "/api/v1/auth/two-factor/verify-backup-code", max: 10, window: 300 },
       { url: "/api/v1/auth/sign-up/email", max: 3, window: 3600 },
       { url: "/api/v1/auth/callback/google", max: 10, window: 300 },
       { url: "/api/v1/auth/callback/github", max: 10, window: 300 },
-      { url: "/api/v1/auth/forget-password", max: 5, window: 300 },
+      { url: "/api/v1/auth/request-password-reset", max: 5, window: 300 },
       { url: "/api/v1/auth/reset-password", max: 5, window: 300 },
       { url: "/api/v1/admin/users/:userId/resend-verification", max: 5, window: 300, keyParam: "userId" },
       { url: "/api/v1/auth/oauth2/token", max: 20, window: 60 },
@@ -44,12 +41,25 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
       { url: "/api/v1/auth/oauth2/create-client", max: 10, window: 3600 },
       { url: "/public/og/:resource/:file", max: 12, window: 60 },
       {
+        url: "/api/v2/cells/export",
+        max: 10,
+        window: 300,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
+      },
+      {
+        url: "/api/v2/cells/match",
+        max: 30,
+        window: 60,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 60 }, editor: { max: 120, window: 60 } },
+      },
+      {
         url: "/api/v1/terrain-profile/analyses",
         max: 15,
         window: 300,
         roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
       },
       { url: "/api/v1/terrain-profile/analyses/:analysis_id", max: 120, window: 60 },
+      { url: "/api/v2/terrain-profiles/:id", max: 120, window: 60 },
       {
         url: "/api/v1/geocoding/search",
         max: 20,
@@ -62,6 +72,18 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
         window: 60,
         roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
       },
+      {
+        url: "/api/v2/geocoding/search",
+        max: 20,
+        window: 60,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
+      },
+      {
+        url: "/api/v2/geocoding/reverse",
+        max: 5,
+        window: 60,
+        roles: { admin: { max: Number.POSITIVE_INFINITY, window: 300 }, editor: { max: Number.POSITIVE_INFINITY, window: 300 } },
+      },
     ],
   });
 
@@ -70,15 +92,15 @@ export const registerRateLimit = (fastify: FastifyZodInstance) => {
   fastify.decorate("rateLimitService", rateLimitService);
   fastify.decorate("quotaService", quotaService);
   fastify.addHook("preHandler", async (req: FastifyRequest, res: FastifyReply) => {
-    const netMonsterUserAgent = process.env.NTM_USERAGENT || null;
-    const isNetMonsterExport = netMonsterUserAgent && req.headers["user-agent"]?.startsWith(netMonsterUserAgent) && req.url.includes("/cells/export");
-    if (isNetMonsterExport) return;
+    if (isNetMonsterExport(req)) return;
     if (req.url.startsWith("/uploads/")) return;
-    if (req.url === "/api/v1/health") return;
+    if (isHealthProbe(req)) return;
 
     const result = await rateLimitService.processRequest(req);
-    if (!result) {
-      throw new ErrorResponse("TOO_MANY_REQUESTS");
+    if (!result) throw new ErrorResponse("TOO_MANY_REQUESTS");
+    if ("isUnavailable" in result) {
+      if (result.hasRouteLimit) throw new ErrorResponse("SERVICE_UNAVAILABLE");
+      return;
     }
 
     if (!result.allowed) {

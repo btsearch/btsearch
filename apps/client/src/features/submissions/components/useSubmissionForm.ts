@@ -1,703 +1,283 @@
-import { useForm, useSelector } from "@tanstack/react-form";
+import type { Submission, SubmissionCreate, SubmissionUpdate } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import {
-  type SearchStation,
-  createSubmission,
-  deleteSubmission,
-  fetchStationForSubmission,
-  fetchSubmissionForEdit,
-  updateSubmission,
-  uploadSubmissionPhotos,
-} from "../api";
-import { submissionDetailQueryOptions } from "../queries";
-import type {
-  ProposedCellForm,
-  ProposedLocationForm,
-  ProposedStationForm,
-  RatType,
-  StationAction,
-  SubmissionFormData,
-  SubmissionMode,
-} from "../types";
-import {
-  cellsToPayloads,
-  computeCellPayloads,
-  computeSectorPayloads,
-  generateCellId,
-  orderSectorsById,
-  remapSectorAssignment,
-  ukePermitsToCells,
-} from "../utils/cells";
-import { type OriginalState, hasFormChanges, isEqualStation } from "../utils/equality";
-import {
-  type StationValues,
-  applyProposedLocation,
-  applyProposedSectors,
-  applyProposedStation,
-  diffLocationValues,
-  diffStationValues,
-  hasPayloadChanges,
-  toLocationValues,
-  toSectorDrafts,
-  toStationValues,
-} from "../utils/proposalChanges";
-import { type FormErrors, hasErrors, validateCells, validateForm } from "../utils/validation";
-import { type PhotoDraft, usePhotoDraft } from "./hooks/usePhotoDraft";
+import { NO_PHOTO_PICKS, type PhotoDraft, toPhotoPicks, usePhotoDraft } from "./hooks/usePhotoDraft";
 import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
-import type { SubmissionDetail } from "@/features/admin/submissions/types";
-import { fetchUkePermitsByStationId } from "@/features/map/api";
-import { groupPermitsByStation } from "@/features/map/utils";
-import { bandsQueryOptions } from "@/features/shared/queries";
-import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
-import { showApiError } from "@/lib/api";
+import type { StationRecord } from "@/features/station-details/station/types";
+import { getStationCountryCode } from "@/features/station-details/station/utils/stations";
+import { submissionPhotosQueryOptions, uploadSubmissionPhotos } from "@/features/station-editing/data/submissionPhotos";
+import {
+  createSubmissions,
+  invalidateSubmissionQueries,
+  storeSubmission,
+  updateSubmission,
+  withdrawSubmission,
+} from "@/features/station-editing/data/submissions";
+import { useBlockedSaves, useStationDraft } from "@/features/station-editing/hooks/useStationDraft";
+import { type PhotoPicks, buildSubmissionCreate, buildSubmissionUpdate, isSamePicks } from "@/features/station-editing/model/bodies";
+import { buildPhotoChanges, normalizeText } from "@/features/station-editing/model/changes";
+import type { SessionInput } from "@/features/station-editing/model/draftReducer";
+import { isServerRefusal, toEditErrors } from "@/features/station-editing/model/serverRefusals";
+import { toProposedSnapshot, toStationSnapshot } from "@/features/station-editing/model/snapshots";
+import type { BuiltBody, EditError, StationSnapshot } from "@/features/station-editing/model/types";
+import { NO_EDIT_ERRORS, listShownErrors, validateSubmissionExtras } from "@/features/station-editing/model/validate";
+import { type AuditOperationHandle, createAuditOperationHandle, showApiError } from "@/lib/api";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
-import { shallowEqual } from "@/lib/shallowEqual";
-import type { SectorDraft, UkeStation, UplinkType } from "@/types/station";
 
-export type FormValues = {
-  mode: SubmissionMode;
-  action: StationAction;
-  selectedStation: SearchStation | null;
-  newStation: ProposedStationForm;
-  location: ProposedLocationForm;
-  selectedRats: RatType[];
-  cells: ProposedCellForm[];
-  originalCells: ProposedCellForm[];
-  sectors: SectorDraft[];
-  originalSectors: SectorDraft[];
-  submitterNote: string;
-  networksId: number | null;
-  networksName: string;
-  mnoName: string;
-  uplinkType: UplinkType | null;
-  uplinkSpeed: number | null;
-  uplinkModel: string;
+export type SubmissionSeed = {
+  station: StationRecord | null;
+  submission: Submission | null;
+  prefill: StationSnapshot | null;
+  note: string;
 };
 
-const INITIAL_VALUES: FormValues = {
-  mode: "new",
-  action: "update",
-  selectedStation: null,
-  newStation: { station_id: "", operator_id: null, notes: "" },
-  location: { region_id: null, city: "", address: "", longitude: null, latitude: null },
-  selectedRats: [],
-  cells: [],
-  originalCells: [],
-  sectors: [],
-  originalSectors: [],
-  submitterNote: "",
-  networksId: null,
-  networksName: "",
-  mnoName: "",
-  uplinkType: null,
-  uplinkSpeed: null,
-  uplinkModel: "",
+type PhotoUploads = {
+  files: readonly File[];
+  notes: readonly string[];
+  takenAts: readonly (Date | null)[];
+  mainIndex: number | null;
 };
 
-type UplinkValues = Pick<FormValues, "uplinkType" | "uplinkSpeed" | "uplinkModel">;
-type StationFields = Pick<FormValues, "newStation" | "networksId" | "networksName" | "mnoName" | "uplinkType" | "uplinkSpeed" | "uplinkModel">;
-type ValidationValues = Pick<FormValues, "mode" | "selectedStation" | "newStation" | "location" | "cells" | "originalCells">;
-
-function buildOriginalState(values: FormValues): OriginalState {
-  const isExisting = values.mode === "existing";
-  return {
-    action: values.action,
-    station: structuredClone(values.newStation),
-    location: structuredClone(values.location),
-    sectors: structuredClone(values.sectors),
-    cells: structuredClone(values.cells),
-    networksId: isExisting ? values.networksId : null,
-    networksName: isExisting ? values.networksName : "",
-    mnoName: isExisting ? values.mnoName : "",
-    uplinkType: values.uplinkType,
-    uplinkSpeed: values.uplinkSpeed,
-    uplinkModel: values.uplinkModel,
-    submitterNote: values.submitterNote,
-  };
-}
-
-function formStationValues(values: FormValues): StationValues {
-  return {
-    station_id: values.newStation.station_id ?? "",
-    operator_id: values.newStation.operator_id,
-    notes: values.newStation.notes ?? "",
-    networks_id: values.networksId,
-    networks_name: values.networksName,
-    mno_name: values.mnoName,
-    uplink_type: values.uplinkType,
-    uplink_speed: values.uplinkSpeed,
-    uplink_model: values.uplinkModel,
-  };
-}
-
-function stationFields(values: StationValues): StationFields {
-  return {
-    newStation: { station_id: values.station_id, operator_id: values.operator_id, notes: values.notes },
-    networksId: values.networks_id,
-    networksName: values.networks_name,
-    mnoName: values.mno_name,
-    uplinkType: values.uplink_type,
-    uplinkSpeed: values.uplink_speed,
-    uplinkModel: values.uplink_model,
-  };
-}
-
-function uplinkDiffers(values: UplinkValues, originalState: OriginalState): boolean {
-  return (
-    values.uplinkType !== (originalState.uplinkType ?? null) ||
-    values.uplinkSpeed !== (originalState.uplinkSpeed ?? null) ||
-    values.uplinkModel !== (originalState.uplinkModel ?? "")
-  );
-}
-
-function pickValidationValues(values: FormValues): ValidationValues {
-  return {
-    mode: values.mode,
-    selectedStation: values.selectedStation,
-    newStation: values.newStation,
-    location: values.location,
-    cells: values.cells,
-    originalCells: values.originalCells,
-  };
-}
-
-function isSameValidationValues(a: ValidationValues | null, b: ValidationValues | null): boolean {
-  return a === b || (a !== null && b !== null && shallowEqual(a, b));
-}
-
-function selectedRatsOf(cells: ProposedCellForm[]): RatType[] {
-  return [...new Set(cells.map((cell) => cell.rat))];
-}
-
-function requiresUploadedPhoto(data: SubmissionFormData): boolean {
-  if (data.type === "new") return data.cells.length === 0;
-  if (data.type === "delete") return false;
-  return (
-    !data.station &&
-    !data.location &&
-    !data.sectors?.length &&
-    data.cells.length === 0 &&
-    !data.location_photo_ids?.length &&
-    !data.location_photo_ids_to_remove?.length
-  );
-}
-
-function stationCellsToForm(station: SearchStation): ProposedCellForm[] {
-  return station.cells.map((cell) => ({
-    id: generateCellId(),
-    existingCellId: cell.id,
-    _sectorLocalId: cell.sector_id ? `sector-${cell.sector_id}` : null,
-    rat: cell.rat as RatType,
-    band_id: cell.band_id,
-    type: cell.type ?? null,
-    notes: cell.notes ?? undefined,
-    is_confirmed: cell.is_confirmed,
-    details: cell.details ?? {},
-  }));
-}
-
-function proposedCellSectorLocalId(cell: SubmissionDetail["cells"][number]): string | null | undefined {
-  if (cell.sector_local_id) return cell.sector_local_id;
-  if (cell.target_sector_id) return `sector-${cell.target_sector_id}`;
-  if (cell.sector_unassigned) return null;
-  return undefined;
-}
-
-function proposedCellsToForm(submission: SubmissionDetail): ProposedCellForm[] {
-  return submission.cells.map((cell) => ({
-    id: generateCellId(),
-    existingCellId: cell.target_cell_id ?? undefined,
-    rat: cell.rat as RatType,
-    _sectorLocalId: proposedCellSectorLocalId(cell),
-    band_id: cell.band_id,
-    type: cell.type ?? null,
-    notes: cell.notes ?? undefined,
-    is_confirmed: cell.is_confirmed,
-    details: cell.details ?? {},
-  }));
-}
-
-function existingStationValues(station: SearchStation): Omit<FormValues, "mode" | "submitterNote"> {
-  const cells = stationCellsToForm(station);
-  const sectors = toSectorDrafts(station.sectors);
-  return {
-    action: "update",
-    selectedStation: station,
-    location: toLocationValues(station.location),
-    selectedRats: selectedRatsOf(cells),
-    cells,
-    originalCells: structuredClone(cells),
-    sectors,
-    originalSectors: structuredClone(sectors),
-    ...stationFields(toStationValues(station)),
-  };
-}
-
-function editValuesForStation(submission: SubmissionDetail, station: SearchStation): FormValues {
-  const originalCells = stationCellsToForm(station);
-  const originalSectors = toSectorDrafts(station.sectors);
-  const updatedIds = new Set<number>();
-  const deletedIds = new Set<number>();
-  for (const cell of submission.cells) {
-    if (cell.target_cell_id === null) continue;
-    if (cell.operation === "delete") deletedIds.add(cell.target_cell_id);
-    else if (cell.operation === "update") updatedIds.add(cell.target_cell_id);
-  }
-  const cells = [
-    ...originalCells.filter(
-      (cell) => cell.existingCellId !== undefined && !updatedIds.has(cell.existingCellId) && !deletedIds.has(cell.existingCellId),
-    ),
-    ...proposedCellsToForm(submission).filter((cell) => cell.existingCellId === undefined || updatedIds.has(cell.existingCellId)),
-  ];
-
-  return {
-    mode: "existing",
-    action: submission.type === "delete" ? "delete" : "update",
-    selectedStation: station,
-    location: applyProposedLocation(toLocationValues(station.location), submission.proposedLocation),
-    selectedRats: selectedRatsOf(cells),
-    cells,
-    originalCells,
-    sectors: applyProposedSectors(originalSectors, submission.sectors),
-    originalSectors,
-    submitterNote: submission.submitter_note ?? "",
-    ...stationFields(applyProposedStation(toStationValues(station), submission.proposedStation)),
-  };
-}
-
-function editValuesForNewStation(submission: SubmissionDetail): FormValues {
-  const proposed = submission.proposedStation;
-  const cells = proposedCellsToForm(submission);
-
-  return {
-    ...INITIAL_VALUES,
-    mode: submission.type === "new" ? "new" : "existing",
-    action: submission.type === "delete" ? "delete" : "update",
-    newStation: proposed
-      ? {
-          station_id: proposed.station_id ?? "",
-          operator_id: proposed.operator_id,
-          notes: proposed.notes ?? "",
-          networks_id: proposed.networks_id ?? undefined,
-          networks_name: proposed.networks_name ?? undefined,
-          mno_name: proposed.mno_name ?? undefined,
-        }
-      : INITIAL_VALUES.newStation,
-    uplinkType: proposed?.uplink_type ?? null,
-    uplinkSpeed: proposed?.uplink_speed ?? null,
-    uplinkModel: proposed?.uplink_model ?? "",
-    location: applyProposedLocation(toLocationValues(null), submission.proposedLocation),
-    selectedRats: selectedRatsOf(cells),
-    cells,
-    sectors: applyProposedSectors([], submission.sectors),
-    originalSectors: [],
-    submitterNote: submission.submitter_note ?? "",
-  };
-}
-
-function buildSubmissionData(value: FormValues, activeCells: ProposedCellForm[], photoDraft: PhotoDraft, isEditMode: boolean): SubmissionFormData {
-  const isNewStation = value.mode === "new";
-  const isDeleteMode = value.action === "delete";
-  const hasLocation = value.location.latitude !== null && value.location.longitude !== null;
-  const liveStation = isNewStation || isDeleteMode ? null : value.selectedStation;
-  const station = isNewStation
-    ? { ...value.newStation, uplink_type: value.uplinkType, uplink_speed: value.uplinkSpeed, uplink_model: value.uplinkModel || null }
-    : liveStation
-      ? diffStationValues(formStationValues(value), toStationValues(liveStation))
-      : undefined;
-  const location = !hasLocation
-    ? undefined
-    : isNewStation
-      ? value.location
-      : liveStation
-        ? diffLocationValues(value.location, toLocationValues(liveStation.location))
-        : undefined;
-  const selectsLocationPhotos = !isNewStation && !isDeleteMode;
-  const { photos, locationPhotoIds, locationPhotoIdsToRemove, mainLocationPhotoId } = photoDraft;
-  const { sectors, localIdMap } = orderSectorsById(value.sectors);
-  const cells = activeCells.map((cell) => ({ ...cell, _sectorLocalId: remapSectorAssignment(cell._sectorLocalId, localIdMap) }));
-
-  return {
-    station_id: isNewStation ? null : (value.selectedStation?.id ?? null),
-    type: isDeleteMode ? "delete" : isNewStation ? "new" : "update",
-    submitter_note: value.submitterNote || undefined,
-    station: station && (isEditMode || hasPayloadChanges(station)) ? station : undefined,
-    location: location && (isEditMode || hasPayloadChanges(location)) ? location : undefined,
-    sectors: isDeleteMode ? undefined : computeSectorPayloads(value.originalSectors, sectors),
-    cells: isDeleteMode ? [] : isNewStation ? cellsToPayloads(cells) : computeCellPayloads(value.originalCells, cells),
-    pending_photos: photos.length > 0 ? photos.length : undefined,
-    location_photo_ids: selectsLocationPhotos && locationPhotoIds.length > 0 ? locationPhotoIds : undefined,
-    location_photo_ids_to_remove: selectsLocationPhotos && locationPhotoIdsToRemove.length > 0 ? locationPhotoIdsToRemove : undefined,
-    main_location_photo_id:
-      selectsLocationPhotos && mainLocationPhotoId !== null && locationPhotoIds.includes(mainLocationPhotoId) ? mainLocationPhotoId : undefined,
-  };
-}
-
-type UseSubmissionFormProps = {
-  preloadStationId?: number;
-  editSubmissionId?: string;
-  preloadUkeStationId?: string;
+type UploadMessages = {
+  success: string;
+  error: (error: unknown) => string;
 };
 
-export function useSubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId }: UseSubmissionFormProps) {
-  const { t } = useTranslation(["submissions", "common"]);
-  const queryClient = useQueryClient();
-  const { data: allBands = [] } = useQuery(bandsQueryOptions());
-  const [showErrors, setShowErrors] = useState(false);
-  const [originalState, setOriginalState] = useState<OriginalState>({});
-  const {
-    clear: clearPhotoDraft,
-    clearSelections: clearPhotoSelections,
-    clearUploads: clearPhotoUploads,
-    loadSelections: loadPhotoSelections,
-    ...photoDraft
-  } = usePhotoDraft();
-  const submittedValuesRef = useRef<FormValues | null>(null);
+type NewSubmissionRequest = {
+  kind: "create";
+  built: BuiltBody<SubmissionCreate[]>;
+  items: readonly SubmissionCreate[];
+  uploads: PhotoUploads;
+  messages: UploadMessages;
+};
 
-  const isEditMode = !!editSubmissionId;
+type StoredSubmissionRequest = {
+  kind: "update";
+  submissionId: string;
+  built: BuiltBody<SubmissionUpdate>;
+  uploads: PhotoUploads;
+  messages: UploadMessages;
+};
 
-  const { data: preloadedStation } = useQuery({
-    queryKey: ["station-for-submission", preloadStationId],
-    queryFn: () => fetchStationForSubmission(preloadStationId ?? 0),
-    enabled: !!preloadStationId,
-    staleTime: 1000 * 60 * 5,
+type SendRequest = NewSubmissionRequest | StoredSubmissionRequest;
+
+type SendResult = {
+  submission: Submission | null;
+  isWithdrawn: boolean;
+  areUploadsSent: boolean;
+};
+
+const NO_UPLOADS: PhotoUploads = { files: [], notes: [], takenAts: [], mainIndex: null };
+const NOTHING_TO_SEND: EditError = { target: { scope: "general", field: "changes" }, messageKey: "submissions:form.nothingChanged" };
+
+function createSessionInput({ station, submission, prefill }: SubmissionSeed): SessionInput {
+  const live = station === null ? null : toStationSnapshot(station);
+  const countryCode = station === null ? null : getStationCountryCode(station);
+
+  if (submission !== null) return { kind: "form", action: submission.action, countryCode, live, proposed: toProposedSnapshot(live, submission) };
+  if (live !== null) return { kind: "form", action: "update", countryCode, live, proposed: null };
+
+  const input: SessionInput = { kind: "form", action: "create", countryCode, live, proposed: null };
+  if (prefill !== null) input.initialDraft = prefill;
+  return input;
+}
+
+function toStoredPicks(submission: Submission): PhotoPicks {
+  const { selected, removed } = submission.changes.photos;
+
+  return {
+    selectIds: selected.map((photo) => photo.id),
+    removeIds: removed.map((photo) => photo.id),
+    mainPhotoId: selected.find((photo) => photo.isMain)?.id ?? null,
+  };
+}
+
+function countPhotoChanges(draft: PhotoDraft): number {
+  const photoChanges = buildPhotoChanges({
+    addedCount: draft.photos.length,
+    shownCount: draft.locationPhotoIds.length,
+    hiddenCount: draft.locationPhotoIdsToRemove.length,
+    hasNewMainPhoto: draft.mainLocationPhotoId !== null || draft.mainUploadPhotoIndex !== null,
   });
+  return photoChanges.length;
+}
 
-  const { data: editSubmission } = useQuery({
-    queryKey: ["submission-edit", editSubmissionId],
-    queryFn: () => {
-      if (!editSubmissionId) throw new Error("editSubmissionId is required");
-      return fetchSubmissionForEdit(editSubmissionId);
-    },
-    enabled: isEditMode,
-    staleTime: 1000 * 60 * 5,
-  });
+function standsWithoutPhotos(item: SubmissionCreate | undefined): boolean {
+  if (item === undefined || item.action === "delete") return true;
 
-  const { data: preloadUkePermits } = useQuery({
-    queryKey: ["uke-permits-preload", preloadUkeStationId],
-    queryFn: () => fetchUkePermitsByStationId(preloadUkeStationId!),
-    enabled: !!preloadUkeStationId && !isEditMode,
-    staleTime: 1000 * 60 * 5,
-  });
+  const hasCells = (item.cells?.length ?? 0) > 0;
+  if (item.action === "create") return hasCells;
 
-  const form = useForm({
-    defaultValues: INITIAL_VALUES,
-    onSubmit: async ({ value }) => {
-      submittedValuesRef.current = structuredClone(value);
-      const activeCells = value.cells.filter((c) => value.selectedRats.includes(c.rat));
+  const hasSectors = (item.sectors?.length ?? 0) > 0;
+  const hasPicks = (item.photos?.selectIds?.length ?? 0) > 0 || (item.photos?.removeIds?.length ?? 0) > 0;
+  return item.station !== undefined || item.location !== undefined || hasSectors || hasCells || hasPicks;
+}
 
-      if (!isEditMode && value.mode === "new" && activeCells.length === 0 && photoDraft.photos.length === 0) {
-        toast.error(t("validation.pendingStationPhotoRequired"));
-        return;
-      }
+async function uploadDraftPhotos(
+  submissionId: string,
+  uploads: PhotoUploads,
+  messages: UploadMessages,
+  auditOperation: AuditOperationHandle,
+): Promise<boolean> {
+  if (uploads.files.length === 0) return true;
 
-      const errors = validateForm({
-        mode: value.mode,
-        selectedStation: value.selectedStation,
-        newStation: value.newStation,
-        location: value.location,
-        cells: activeCells,
-        bands: allBands,
-        originalCells: value.originalCells,
-      });
-
-      if (hasErrors(errors)) {
-        setShowErrors(true);
-        for (const msg of collectErrorMessages(errors)) toast.error(t(msg));
-        return;
-      }
-
-      await mutation.mutateAsync(buildSubmissionData(value, activeCells, photoDraft, isEditMode));
-    },
-  });
-
-  const mutation = useMutation({
-    mutationFn: isEditMode
-      ? (data: SubmissionFormData) => {
-          if (!editSubmissionId) throw new Error("editSubmissionId is required for updateSubmission");
-          return updateSubmission(editSubmissionId, data);
-        }
-      : createSubmission,
-    onSuccess: (data, submittedPayload) => {
-      const submittedValues = submittedValuesRef.current;
-      if (photoDraft.photos.length > 0) {
-        const submissionId = isEditMode && editSubmissionId ? editSubmissionId : data.id;
-        const shouldRemoveFailedSubmission = !isEditMode && requiresUploadedPhoto(submittedPayload);
-        const { photos, notes, mainUploadPhotoIndex } = photoDraft;
-        const takenAts = photoDraft.takenAts.map((d) => d?.toISOString() ?? null);
-        void trackPhotoUpload((onProgress) => uploadSubmissionPhotos(submissionId, photos, notes, takenAts, mainUploadPhotoIndex, onProgress), {
-          success: t("photos.uploaded"),
-          error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed"),
-        }).catch(() => {
-          if (shouldRemoveFailedSubmission) void deleteSubmission(submissionId).catch(() => undefined);
-        });
-        clearPhotoUploads();
-      }
-      toast.success(t(isEditMode ? "toast.updated" : "toast.submitted"));
-      clearPhotoSelections();
-      if (isEditMode && editSubmissionId && submittedValues) {
-        setOriginalState(buildOriginalState(submittedValues));
-        void queryClient.invalidateQueries({ queryKey: ["submission-edit", editSubmissionId] });
-        void queryClient.invalidateQueries({ queryKey: submissionDetailQueryOptions(editSubmissionId).queryKey });
-      } else {
-        form.reset();
-        setOriginalState({});
-      }
-      setShowErrors(false);
-      submittedValuesRef.current = null;
-    },
-    onError: (error) => {
-      submittedValuesRef.current = null;
-      showApiError(error);
-    },
-  });
-
-  const loadFormValues = useCallback(
-    (values: FormValues) => {
-      form.reset(values, { keepDefaultValues: true });
-      setOriginalState(buildOriginalState(values));
-    },
-    [form],
-  );
-
-  const handleModeChange = useCallback(
-    (mode: SubmissionMode) => {
-      form.reset({ ...INITIAL_VALUES, mode }, { keepDefaultValues: true });
-      if (!isEditMode) setOriginalState({});
-      clearPhotoDraft();
-    },
-    [clearPhotoDraft, form, isEditMode],
-  );
-
-  const handleActionChange = useCallback(
-    (action: StationAction) => {
-      form.setFieldValue("action", action);
-      if (action === "delete") {
-        form.setFieldValue("submitterNote", "");
-        clearPhotoSelections();
-      }
-    },
-    [clearPhotoSelections, form],
-  );
-
-  const loadStation = useCallback(
-    (station: SearchStation | null) => {
-      clearPhotoDraft();
-      const { mode, submitterNote } = form.state.values;
-      if (station) {
-        loadFormValues({ mode, submitterNote, ...existingStationValues(station) });
-        return;
-      }
-      form.reset({ ...INITIAL_VALUES, mode, submitterNote }, { keepDefaultValues: true });
-      setOriginalState({});
-    },
-    [clearPhotoDraft, form, loadFormValues],
-  );
-
-  const handleUkeStationSelect = useCallback(
-    (station: UkeStation) => {
-      const cells = ukePermitsToCells(station.permits);
-      form.setFieldValue("mode", "new");
-      form.setFieldValue("selectedStation", null);
-      form.setFieldValue("newStation", { station_id: station.station_id, operator_id: station.operator?.id ?? null, notes: "" });
-      if (station.location) {
-        form.setFieldValue("location", {
-          latitude: station.location.latitude,
-          longitude: station.location.longitude,
-          city: station.location.city ?? "",
-          address: station.location.address ?? "",
-          region_id: station.location.region?.id ?? null,
-        });
-      }
-      form.setFieldValue("cells", cells);
-      form.setFieldValue("originalCells", []);
-      form.setFieldValue("sectors", []);
-      form.setFieldValue("originalSectors", []);
-      form.setFieldValue("selectedRats", selectedRatsOf(cells));
-    },
-    [form],
-  );
-
-  const handleCellsChange = useCallback(
-    (rat: RatType, update: (cells: ProposedCellForm[]) => ProposedCellForm[]) => {
-      form.setFieldValue("cells", (cells) => [...cells.filter((cell) => cell.rat !== rat), ...update(cells.filter((cell) => cell.rat === rat))]);
-    },
-    [form],
-  );
-
-  const handleRatsChange = useCallback(
-    (rats: RatType[]) => {
-      form.setFieldValue("selectedRats", rats);
-      if (form.state.values.mode === "new") form.setFieldValue("cells", (cells) => cells.filter((cell) => rats.includes(cell.rat)));
-    },
-    [form],
-  );
-
-  const handleLocationChange = useCallback(
-    (patch: Partial<ProposedLocationForm>) => {
-      form.setFieldValue("location", (location) => ({ ...location, ...patch }));
-    },
-    [form],
-  );
-
-  const handleUplinkTypeChange = useCallback(
-    (value: UplinkType | null) => {
-      form.setFieldValue("uplinkType", value);
-      if (!value) {
-        form.setFieldValue("uplinkSpeed", null);
-        form.setFieldValue("uplinkModel", "");
-      }
-    },
-    [form],
-  );
-
-  const hasAppliedUkePreload = useRef(false);
-
-  useEffect(() => {
-    if (!preloadUkePermits?.length || hasAppliedUkePreload.current) return;
-    const station = groupPermitsByStation(preloadUkePermits)[0];
-    if (station) {
-      hasAppliedUkePreload.current = true;
-      handleUkeStationSelect(station);
-    }
-  }, [preloadUkePermits, preloadUkeStationId, handleUkeStationSelect]);
-
-  const lastAppliedStationId = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (preloadedStation) {
-      if (preloadedStation.id !== lastAppliedStationId.current) {
-        lastAppliedStationId.current = preloadedStation.id;
-        const station = preloadedStation;
-        queueMicrotask(() => {
-          form.setFieldValue("mode", "existing");
-          loadStation(station);
-        });
-      }
-    } else if (!preloadStationId) {
-      lastAppliedStationId.current = null;
-    }
-  }, [preloadedStation, preloadStationId, form, loadStation]);
-
-  const lastAppliedEditKey = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!editSubmission) return;
-    const editKey = `${editSubmission.id}:${editSubmission.updatedAt}`;
-    if (editKey === lastAppliedEditKey.current) return;
-    lastAppliedEditKey.current = editKey;
-
-    const submission = editSubmission;
-    loadPhotoSelections(
-      submission.locationPhotoSelections.map((photo) => photo.id),
-      submission.locationPhotoRemovalSelections.map((photo) => photo.id),
-      submission.locationPhotoSelections.find((photo) => photo.is_main)?.id ?? null,
+  const { files, notes, takenAts, mainIndex } = uploads;
+  try {
+    await trackPhotoUpload(
+      (onProgress) => uploadSubmissionPhotos(submissionId, files, { notes, takenAts, mainIndex, onProgress, auditOperation }),
+      messages,
     );
-
-    queueMicrotask(() => {
-      const station = submission.station;
-      if (submission.type === "new" || !station) {
-        loadFormValues(editValuesForNewStation(submission));
-        return;
-      }
-
-      form.setFieldValue("mode", "existing");
-      form.setFieldValue("action", submission.type === "delete" ? "delete" : "update");
-      form.setFieldValue("submitterNote", submission.submitter_note ?? "");
-      void fetchStationForSubmission(station.id).then((liveStation) => {
-        if (lastAppliedEditKey.current === editKey) loadFormValues(editValuesForStation(submission, liveStation));
-      });
-    });
-  }, [editSubmission, form, loadFormValues, loadPhotoSelections]);
-
-  const errorValues = useSelector(form.store, (s) => (showErrors ? pickValidationValues(s.values) : null), { compare: isSameValidationValues });
-
-  const cellErrors = useMemo(() => {
-    if (!errorValues) return undefined;
-    const errors = validateCells(errorValues.cells, allBands, errorValues.originalCells);
-    return Object.keys(errors).length > 0 ? errors : undefined;
-  }, [errorValues, allBands]);
-
-  const formErrors = useMemo((): FormErrors => {
-    if (!errorValues) return {};
-    return validateForm({
-      mode: errorValues.mode,
-      selectedStation: errorValues.selectedStation,
-      newStation: errorValues.newStation,
-      location: errorValues.location,
-      cells: [],
-    });
-  }, [errorValues]);
-
-  const hasPhotoChanges = photoDraft.photos.length > 0 || photoDraft.locationPhotoIds.length > 0 || photoDraft.locationPhotoIdsToRemove.length > 0;
-
-  const computeHasChanges = useCallback(
-    (values: FormValues): boolean => {
-      if (hasPhotoChanges) return true;
-      if (hasFormChanges(values, originalState) || uplinkDiffers(values, originalState)) return true;
-      if (values.mode !== "existing") return false;
-      if (originalState.station && !isEqualStation(values.newStation, originalState.station)) return true;
-      return (
-        values.networksId !== (originalState.networksId ?? null) ||
-        values.networksName !== (originalState.networksName ?? "") ||
-        values.mnoName !== (originalState.mnoName ?? "")
-      );
-    },
-    [hasPhotoChanges, originalState],
-  );
-
-  const hasChanges = useSelector(form.store, (s) => computeHasChanges(s.values));
-  useBeforeUnloadGuard(hasChanges);
-
-  return {
-    form,
-    mutation,
-    isEditMode,
-    cellErrors,
-    formErrors,
-    hasChanges,
-    photoDraft,
-    handlers: {
-      handleModeChange,
-      handleActionChange,
-      loadStation,
-      handleUkeStationSelect,
-      handleCellsChange,
-      handleRatsChange,
-      handleLocationChange,
-      handleUplinkTypeChange,
-    },
-  };
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function collectErrorMessages(errors: FormErrors): string[] {
-  const messages: string[] = [];
+async function sendNewSubmission({ items, uploads, messages }: NewSubmissionRequest): Promise<SendResult> {
+  const auditOperation = createAuditOperationHandle();
+  const [submission] = await createSubmissions(items, auditOperation);
+  if (submission === undefined) throw new Error("The server created no submission");
 
-  if (errors.general) messages.push(errors.general);
-  if (errors.station) for (const msg of Object.values(errors.station)) if (msg) messages.push(msg);
-  if (errors.location) for (const msg of Object.values(errors.location)) if (msg) messages.push(msg);
+  const areUploadsSent = await uploadDraftPhotos(submission.id, uploads, messages, auditOperation);
+  if (areUploadsSent || standsWithoutPhotos(items.at(0))) return { submission, isWithdrawn: false, areUploadsSent };
 
-  if (errors.cells) {
-    const seen = new Set<string>();
-    for (const cellError of Object.values(errors.cells)) {
-      if (cellError.band_id && !seen.has(cellError.band_id)) {
-        seen.add(cellError.band_id);
-        messages.push(cellError.band_id);
-      }
-      if (cellError.details) {
-        for (const msg of Object.values(cellError.details)) {
-          if (msg && !seen.has(msg)) {
-            seen.add(msg);
-            messages.push(msg);
-          }
-        }
-      }
+  await withdrawSubmission(submission.id, auditOperation).catch(() => undefined);
+  return { submission, isWithdrawn: true, areUploadsSent };
+}
+
+async function sendStoredSubmission({ submissionId, built, uploads, messages }: StoredSubmissionRequest): Promise<SendResult> {
+  const auditOperation = createAuditOperationHandle();
+  const submission = built.body === null ? null : await updateSubmission(submissionId, built.body, auditOperation);
+  const areUploadsSent = await uploadDraftPhotos(submissionId, uploads, messages, auditOperation);
+  return { submission, isWithdrawn: false, areUploadsSent };
+}
+
+function sendSubmission(request: SendRequest): Promise<SendResult> {
+  return request.kind === "create" ? sendNewSubmission(request) : sendStoredSubmission(request);
+}
+
+export function useSubmissionForm(seed: SubmissionSeed) {
+  const { t } = useTranslation("submissions");
+  const queryClient = useQueryClient();
+  const [input] = useState(() => createSessionInput(seed));
+  const [stored, setStored] = useState(seed.submission);
+  const [note, setNote] = useState(seed.submission === null ? seed.note : (seed.submission.note ?? ""));
+  const [isSent, setIsSent] = useState(false);
+  const isSendStarted = useRef(false);
+  const photoDraft = usePhotoDraft(seed.submission === null ? NO_PHOTO_PICKS : toStoredPicks(seed.submission));
+  const sendMutation = useMutation({
+    mutationFn: sendSubmission,
+    onSettled: () => {
+      isSendStarted.current = false;
+      void invalidateSubmissionQueries(queryClient, stored?.id);
+    },
+  });
+  const storedPhotosQuery = useQuery({ ...submissionPhotosQueryOptions(stored?.id ?? ""), enabled: stored !== null });
+  const edit = useStationDraft({ ...input, canEdit: !sendMutation.isPending && !isSent && (stored === null || stored.status === "pending") });
+  const { blockedSaves, countBlockedSave, reportBlockedSave } = useBlockedSaves(edit.dispatch);
+
+  const { session } = edit;
+  const isSending = sendMutation.isPending;
+  const isReadOnly = stored !== null && stored.status !== "pending";
+  const isDelete = session.action === "delete";
+  const picks = toPhotoPicks(photoDraft);
+  const storedPicks = stored === null ? NO_PHOTO_PICKS : toStoredPicks(stored);
+  const storedUploadCount = storedPhotosQuery.data?.length ?? stored?.changes.photos.uploadedCount ?? 0;
+  const extraErrors = validateSubmissionExtras({
+    session,
+    note,
+    uploads: photoDraft.photos,
+    storedUploadCount,
+    selectIds: picks.selectIds,
+    removeIds: picks.removeIds,
+    mainPhotoId: picks.mainPhotoId,
+  });
+  const errors = [...edit.errors, ...listShownErrors(extraErrors, session.isSaveAttempted)];
+  const isNoteChanged = normalizeText(note) !== normalizeText(stored?.note ?? "");
+  const storedChangeCount =
+    edit.corrections.length + (photoDraft.photos.length > 0 ? 1 : 0) + (isSamePicks(picks, storedPicks) ? 0 : 1) + (isNoteChanged ? 1 : 0);
+  const pendingCount = stored === null ? edit.changes.length + countPhotoChanges(photoDraft) : storedChangeCount;
+  const canSend = edit.canEdit && (pendingCount > 0 || (stored === null && isDelete));
+  const isDirty = !isSent && (isSending || pendingCount > 0 || isNoteChanged || (stored === null && isDelete));
+
+  function buildRequest(): SendRequest | null {
+    const messages: UploadMessages = { success: t("photos.uploaded"), error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed") };
+    const uploads: PhotoUploads = isDelete
+      ? NO_UPLOADS
+      : { files: photoDraft.photos, notes: photoDraft.notes, takenAts: photoDraft.takenAts, mainIndex: photoDraft.mainUploadPhotoIndex };
+
+    if (stored !== null) {
+      const built = buildSubmissionUpdate(session, { note: { value: note, stored: stored.note }, picks: { value: picks, stored: storedPicks } });
+      if (built.body === null && uploads.files.length === 0) return null;
+      return { kind: "update", submissionId: stored.id, built, uploads, messages };
     }
+
+    const built = buildSubmissionCreate(session, { stationId: seed.station?.id ?? null, note, uploadCount: uploads.files.length, picks });
+    return built.body === null ? null : { kind: "create", built, items: built.body, uploads, messages };
   }
 
-  return messages;
+  function finishSend(result: SendResult, request: SendRequest) {
+    if (request.kind === "create") {
+      if (result.isWithdrawn) return;
+      setIsSent(true);
+      toast.success(t("toast.submitted"));
+      return;
+    }
+
+    if (result.submission !== null) {
+      const { live } = session;
+      storeSubmission(queryClient, result.submission);
+      setStored(result.submission);
+      edit.dispatch({ type: "rebase", live, proposed: toProposedSnapshot(live, result.submission) });
+    }
+    if (result.areUploadsSent) photoDraft.clearUploads();
+    if (result.submission !== null || result.areUploadsSent) toast.success(t("toast.updated"));
+  }
+
+  function failSend(error: unknown, request: SendRequest) {
+    if (!isServerRefusal(error)) {
+      showApiError(error);
+      return;
+    }
+    edit.setServerErrors(toEditErrors(error, request.built, session));
+    countBlockedSave();
+  }
+
+  function send() {
+    if (!canSend || isSendStarted.current) return;
+    if (edit.hasErrors || extraErrors.length > 0) {
+      reportBlockedSave();
+      return;
+    }
+
+    const request = buildRequest();
+    if (request === null) {
+      edit.setServerErrors([NOTHING_TO_SEND]);
+      countBlockedSave();
+      return;
+    }
+    if (session.serverErrors.length > 0) edit.setServerErrors(NO_EDIT_ERRORS);
+    isSendStarted.current = true;
+    sendMutation.mutate(request, { onSuccess: finishSend, onError: failSend });
+  }
+
+  return {
+    edit,
+    photoDraft,
+    stored,
+    note,
+    setNote,
+    errors,
+    blockedSends: blockedSaves,
+    pendingCount,
+    isSent,
+    isSending,
+    isReadOnly,
+    isDirty,
+    canSend,
+    send,
+  };
 }

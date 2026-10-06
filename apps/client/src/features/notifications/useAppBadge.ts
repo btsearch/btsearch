@@ -1,53 +1,43 @@
+import type { SubmissionList } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { fetchNotifications } from "./api";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { unreadNotificationCountQueryOptions } from "./api";
+import { API_V2_BASE, fetchJson } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
-const PRIVILEGED_ROLES = new Set(["admin"]);
+const PENDING_SUBMISSIONS_PATH = "submissions?submitters=all&statuses=pending&limit=1&includeTotal=true";
 
-async function fetchPendingSubmissionsCount(): Promise<number> {
-  const result = await fetchJson<{ totalCount: number }>(`${API_BASE}/submissions?status=pending&limit=1&offset=0`);
-  return result.totalCount ?? 0;
+async function fetchPendingSubmissionCount(signal?: AbortSignal): Promise<number> {
+  const page = await fetchJson<Pick<SubmissionList, "paging">>(`${API_V2_BASE}/${PENDING_SUBMISSIONS_PATH}`, { signal });
+  return page.paging.total ?? 0;
 }
 
 export function useAppBadge() {
   const { data: session } = authClient.useSession();
-  const role = (session?.user?.role as string | undefined) ?? "user";
-  const isPrivileged = PRIVILEGED_ROLES.has(role);
+  const isSignedIn = !!session?.user;
+  const isAdmin = session?.user?.role === "admin";
 
   const pendingQuery = useQuery({
-    queryKey: ["pending-submissions-count"],
-    queryFn: fetchPendingSubmissionsCount,
+    queryKey: ["pending-submissions-count", "v2"],
+    queryFn: ({ signal }) => fetchPendingSubmissionCount(signal),
     refetchInterval: 60_000,
     staleTime: 30_000,
-    enabled: !!session?.user && isPrivileged,
+    enabled: isAdmin,
   });
 
-  const notificationsQuery = useQuery({
-    queryKey: ["notifications-badge"],
-    queryFn: () => fetchNotifications({ limit: 1, offset: 0 }),
-    refetchInterval: 30_000,
-    staleTime: 10_000,
-    enabled: !!session?.user && !isPrivileged,
-  });
+  const unreadCountQuery = useQuery({ ...unreadNotificationCountQueryOptions(), enabled: isSignedIn && !isAdmin });
 
-  const badgeCount = isPrivileged ? (pendingQuery.data ?? 0) : (notificationsQuery.data?.totalUnread ?? 0);
-  const dataUpdatedAt = isPrivileged ? pendingQuery.dataUpdatedAt : notificationsQuery.dataUpdatedAt;
+  const badgeCount = isAdmin ? (pendingQuery.data ?? 0) : (unreadCountQuery.data ?? 0);
+  const dataUpdatedAt = isAdmin ? pendingQuery.dataUpdatedAt : unreadCountQuery.dataUpdatedAt;
 
   useEffect(() => {
     if (!("setAppBadge" in navigator)) return;
-    if (badgeCount > 0) {
-      void navigator.setAppBadge(badgeCount);
-    } else {
-      void navigator.clearAppBadge();
-    }
+    if (badgeCount > 0) void navigator.setAppBadge(badgeCount);
+    else void navigator.clearAppBadge();
   }, [badgeCount, dataUpdatedAt]);
 
   useEffect(() => {
-    if (!session?.user && "clearAppBadge" in navigator) {
-      void navigator.clearAppBadge();
-    }
-  }, [session?.user]);
+    if (!isSignedIn && "clearAppBadge" in navigator) void navigator.clearAppBadge();
+  }, [isSignedIn]);
 }

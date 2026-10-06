@@ -1,16 +1,15 @@
-import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "./constants.js";
-import { toggleValue } from "@/lib/utils.js";
-import type { StationFilters, StationSource } from "@/types/station.js";
+import { DEFAULT_RECENT_DAYS, type MapFiltersUpdater, changeMapFilterSource, clearMapFilters } from "./data/mapFilters";
+import { toggleValue } from "@/lib/utils";
 
-const OPERATOR_KEYBINDS: Record<string, number> = { "1": 26001, "2": 26002, "3": 26003, "4": 26006 };
+const OPERATOR_KEYS = ["1", "2", "3", "4"];
 const RAT_KEYBINDS: Record<string, string> = { g: "GSM", u: "UMTS", l: "LTE", n: "NR", i: "iot" };
-const VALID_RATS_BY_SOURCE: Record<StationSource, ReadonlySet<string>> = {
-  internal: new Set<string>(RAT_OPTIONS.map((rat) => rat.value)),
-  uke: new Set<string>(UKE_RAT_OPTIONS.map((rat) => rat.value)),
-};
 
-export type StationFiltersUpdater = (filters: StationFilters) => StationFilters;
 export type MapVisibilityKeybind = "azimuths" | "stations";
+
+export type MapFilterKeybindContext = {
+  operatorIds: readonly number[];
+  isRegisterOnScreen: boolean;
+};
 
 const MAP_VISIBILITY_KEYBINDS: ReadonlyMap<string, MapVisibilityKeybind> = new Map([
   ["a", "azimuths"],
@@ -22,34 +21,11 @@ export function getMapVisibilityKeybind(key: string, shiftKey: boolean): MapVisi
   return MAP_VISIBILITY_KEYBINDS.get(key.toLowerCase());
 }
 
-export function changeFilterSource(filters: StationFilters, source: StationSource): StationFilters {
-  const validRats = VALID_RATS_BY_SOURCE[source];
-  return { ...filters, source, rat: filters.rat.filter((rat) => validRats.has(rat)) };
-}
-
-function clearFilters(filters: StationFilters): StationFilters {
-  return {
-    operators: [],
-    bands: [],
-    rat: [],
-    status: ["published"],
-    source: filters.source,
-    recentDays: null,
-    recentDateFields: ["createdAt"],
-    showStations: filters.showStations,
-    showRadiolines: filters.showRadiolines,
-    radiolineOperators: [],
-    showHeatmap: filters.showHeatmap,
-    showPlannedMeasurements: filters.showPlannedMeasurements,
-    uplinkTypes: [],
-  };
-}
-
-export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean): StationFiltersUpdater | undefined {
+export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean, context: MapFilterKeybindContext): MapFiltersUpdater | undefined {
   const normalizedKey = key.toLowerCase();
 
   if (shiftKey) {
-    if (normalizedKey === "f") return clearFilters;
+    if (normalizedKey === "f") return clearMapFilters;
     const rat = RAT_KEYBINDS[normalizedKey];
     if (rat === undefined) return undefined;
     return (filters) => ({ ...filters, rat: toggleValue(filters.rat, rat) });
@@ -57,15 +33,18 @@ export function getMapFilterKeybindUpdater(key: string, shiftKey: boolean): Stat
 
   switch (normalizedKey) {
     case "r":
+      if (!context.isRegisterOnScreen) return undefined;
       return (filters) => ({ ...filters, showRadiolines: !filters.showRadiolines });
     case "z":
-      return (filters) => changeFilterSource(filters, filters.source === "uke" ? "internal" : "uke");
+      if (!context.isRegisterOnScreen) return undefined;
+      return (filters) => changeMapFilterSource(filters, filters.source === "uke" ? "internal" : "uke");
     case "n":
-      return (filters) => ({ ...filters, recentDays: filters.recentDays === null ? 30 : null });
+      return (filters) => ({ ...filters, recentDays: filters.recentDays === null ? DEFAULT_RECENT_DAYS : null });
     default: {
-      const operator = OPERATOR_KEYBINDS[normalizedKey];
-      if (operator === undefined) return undefined;
-      return (filters) => ({ ...filters, operators: toggleValue(filters.operators, operator) });
+      const keyIndex = OPERATOR_KEYS.indexOf(normalizedKey);
+      const operatorId = keyIndex === -1 ? undefined : context.operatorIds.at(keyIndex);
+      if (operatorId === undefined) return undefined;
+      return (filters) => ({ ...filters, operatorIds: toggleValue(filters.operatorIds, operatorId) });
     }
   }
 }

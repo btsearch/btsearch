@@ -43,5 +43,6 @@
   "removeFavorite": "Remove from favorites",
   "togglePublic": "Make public",
   "togglePrivate": "Make private",
-  "editList": "Edit list"
+  "editList": "Edit list",
+  "nameTaken": "You already have a list with this name"
 }

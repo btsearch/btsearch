@@ -2,51 +2,56 @@ import { SignalFull02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import type { RatType } from "../types";
-import { RAT_OPTIONS } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
+import type { StationDraftApi } from "@/features/station-editing/hooks/useStationDraft";
+import { RAT_FIELDS, RAT_ORDER } from "@/features/station-editing/model/ratFields";
+import type { Rat } from "@/features/station-editing/model/types";
 import { cn } from "@/lib/utils";
 
 type RatSelectorProps = {
-  selectedRats: RatType[];
-  onRatsChange: (rats: RatType[]) => void;
+  edit: StationDraftApi;
 };
 
-export function RatSelector({ selectedRats, onRatsChange }: RatSelectorProps) {
-  const { t } = useTranslation("submissions");
+const CHIP_CLASS = cn(
+  "flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+  "transition-colors disabled:cursor-default",
+);
+const SELECTED_CHIP_CLASS = "border-primary bg-primary text-primary-foreground shadow-sm";
+const IDLE_CHIP_CLASS = "border-border bg-background text-foreground enabled:hover:bg-muted dark:border-input dark:bg-input/30";
 
-  const handleToggleRat = (rat: RatType) => {
-    if (selectedRats.includes(rat)) {
-      onRatsChange(selectedRats.filter((r) => r !== rat));
-    } else {
-      onRatsChange([...selectedRats, rat]);
-    }
-  };
+export function RatSelector({ edit }: RatSelectorProps) {
+  const { t } = useTranslation("submissions");
+  const { session, dispatch, canEdit } = edit;
+  const { enabledRats } = session;
+
+  function toggleRat(rat: Rat) {
+    const rats = enabledRats.includes(rat) ? enabledRats.filter((enabledRat) => enabledRat !== rat) : [...enabledRats, rat];
+    dispatch({ type: "setEnabledRats", rats });
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <HugeiconsIcon icon={SignalFull02Icon} className="size-4 text-muted-foreground" />
-        <span className="font-semibold text-sm">{t("ratSelector.title")}</span>
+        <HugeiconsIcon icon={SignalFull02Icon} aria-hidden="true" className="size-4 text-muted-foreground" />
+        <span className="text-sm font-semibold">{t("ratSelector.title")}</span>
       </div>
-      <p className="text-xs text-muted-foreground">{t("ratSelector.description")}</p>
+      <p className="text-xs text-muted-foreground">{t("ratSelector.intro")}</p>
       <div className="flex flex-wrap gap-1.5">
-        {RAT_OPTIONS.map((rat) => {
-          const isSelected = selectedRats.includes(rat.value);
+        {RAT_ORDER.map((rat) => {
+          const isSelected = enabledRats.includes(rat);
+          const hasCells = session.draft.cells.some((cell) => cell.rat === rat);
+
           return (
             <button
-              key={rat.value}
+              key={rat}
               type="button"
-              onClick={() => handleToggleRat(rat.value)}
-              className={cn(
-                "flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all border",
-                isSelected
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "border-border bg-background hover:bg-muted text-foreground dark:bg-input/30 dark:border-input",
-              )}
+              aria-pressed={isSelected}
+              disabled={!canEdit || hasCells}
+              onClick={() => toggleRat(rat)}
+              className={cn(CHIP_CLASS, isSelected ? SELECTED_CHIP_CLASS : IDLE_CHIP_CLASS, canEdit ? null : "opacity-50")}
             >
-              <GenerationTag active={isSelected}>{rat.gen}</GenerationTag>
-              <span>{rat.label}</span>
+              <GenerationTag active={isSelected}>{RAT_FIELDS[rat].generation}</GenerationTag>
+              <span>{RAT_FIELDS[rat].name}</span>
             </button>
           );
         })}

@@ -1,4 +1,4 @@
-import { operators, stations, stationsPermits } from "@openbts/drizzle";
+import { operatorLinks, operators, stations, stationsPermits } from "@openbts/drizzle";
 import { NETWORKS_PARTNER_MNCS, getNetworksSiblingMnc, isNetworksPartnerMnc } from "@openbts/shared/operatorUtils";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -36,6 +36,38 @@ export async function findPhysicalStations(locationId: number): Promise<Map<numb
     physicalStations.set(station.id, { id, station_id, status, operator });
   }
   return physicalStations;
+}
+
+export async function findHostStationIds(locationIds: readonly number[]): Promise<Map<number, number>> {
+  const hostStationIds = new Map<number, number>();
+  if (locationIds.length === 0) return hostStationIds;
+
+  const rows = await db
+    .select({
+      id: stations.id,
+      locationId: stations.location_id,
+      operatorId: operatorLinks.operatorId,
+      sharedNetworkId: operatorLinks.relatedOperatorId,
+      hasPermits: sql<boolean>`EXISTS (SELECT 1 FROM ${stationsPermits} WHERE ${stationsPermits.station_id} = ${stations.id})`,
+    })
+    .from(stations)
+    .innerJoin(operatorLinks, and(eq(operatorLinks.operatorId, stations.operator_id), eq(operatorLinks.kind, "jv_member")))
+    .where(inArray(stations.location_id, [...locationIds]))
+    .orderBy(sql`${stations.status} = 'inactive'`, asc(stations.id));
+
+  for (const station of rows) {
+    if (station.hasPermits || hostStationIds.has(station.id)) continue;
+
+    const host = rows.find(
+      (candidate) =>
+        candidate.hasPermits &&
+        candidate.locationId === station.locationId &&
+        candidate.sharedNetworkId === station.sharedNetworkId &&
+        candidate.operatorId !== station.operatorId,
+    );
+    if (host) hostStationIds.set(station.id, host.id);
+  }
+  return hostStationIds;
 }
 
 export async function findPermitHolderStation(permitIds: number[]): Promise<PhysicalStation | null> {

@@ -6,23 +6,24 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useLightbox } from "@/components/lightbox";
-import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { AddPhotoTile, PhotoEditPopover, PhotoImage, isRecentPhoto } from "@/components/photos/photoGridPrimitives";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
 import { trackPhotoUpload } from "@/components/photos/photoUploadToast";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
-import type { LocationPhoto } from "@/features/station-details/api";
 import {
-  fetchLocationPhotos,
-  fetchStationPhotos,
-  setStationPhotoSelection,
-  updateLocationPhotoNote,
-  updateLocationPhotoTakenAt,
-  uploadAndAssignStationPhotos,
-} from "@/features/station-details/api";
-import { createAuditOperationHandle, isGloballyHandledError } from "@/lib/api";
+  invalidatePhotoLists,
+  invalidateStationPhotoLists,
+  locationPhotoRecordsQueryOptions,
+  replaceStationPhotos,
+  stationPhotoRecordsQueryOptions,
+  updateLocationPhotoRecord,
+  uploadAndAssignStationPhotoRecords,
+} from "@/features/station-details/station/api";
+import { isMainPhoto } from "@/features/station-details/station/components/photos/stationPhotos";
+import type { PhotoRecord, PhotoUpdate } from "@/features/station-details/station/types";
+import { isGloballyHandledError } from "@/lib/api";
 import { photoQualityErrorKey } from "@/lib/photoUploadError";
 import { cn } from "@/lib/utils";
 
@@ -41,11 +42,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     isLoadingError: locationLoadError,
     isFetching: fetchingLocation,
     refetch: refetchLocation,
-  } = useQuery({
-    queryKey: ["location-photos", locationId],
-    queryFn: () => fetchLocationPhotos(locationId),
-    staleTime: 1000 * 60 * 5,
-  });
+  } = useQuery(locationPhotoRecordsQueryOptions(locationId));
 
   const {
     data: stationPhotos = [],
@@ -53,43 +50,28 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     isLoadingError: stationLoadError,
     isFetching: fetchingStation,
     refetch: refetchStation,
-  } = useQuery({
-    queryKey: ["station-photos", stationId],
-    queryFn: () => fetchStationPhotos(stationId),
-    staleTime: 1000 * 60 * 5,
-  });
+  } = useQuery(stationPhotoRecordsQueryOptions(stationId));
 
-  const [selectedOverride, setSelectedOverride] = useState<Set<number> | null>(null);
-  const [mainIdOverride, setMainIdOverride] = useState<number | null | "unset">("unset");
+  const [selectedOverride, setSelectedOverride] = useState<Set<string> | null>(null);
+  const [mainIdOverride, setMainIdOverride] = useState<string | null>();
 
+  const serverMainId = stationPhotos.find((p) => isMainPhoto(p, stationId))?.id ?? null;
   const selected = useMemo(() => selectedOverride ?? new Set(stationPhotos.map((p) => p.id)), [selectedOverride, stationPhotos]);
-  const mainId = mainIdOverride === "unset" ? (stationPhotos.find((p) => p.is_main)?.id ?? null) : mainIdOverride;
+  const mainId = mainIdOverride === undefined ? serverMainId : mainIdOverride;
 
-  const [editState, setEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
+  const [editState, setEditState] = useState<{ id: string; note: string; takenAt: Date | null } | null>(null);
   const lightbox = useLightbox();
 
   const editMutation = useMutation({
-    mutationFn: async ({
-      id,
-      note,
-      takenAt,
-      originalNote,
-      originalTakenAt,
-    }: {
-      id: number;
-      note: string;
-      takenAt: string | null;
-      originalNote: string;
-      originalTakenAt: string | null;
-    }) => {
-      const auditOperation = createAuditOperationHandle("station.photos");
-      const ops: Promise<void>[] = [];
-      if (note !== originalNote) ops.push(updateLocationPhotoNote(locationId, id, note, auditOperation));
-      if (takenAt !== originalTakenAt) ops.push(updateLocationPhotoTakenAt(locationId, id, takenAt, auditOperation));
-      if (ops.length > 0) await Promise.all(ops);
+    mutationFn: async ({ photo, note, takenAt }: { photo: PhotoRecord; note: string; takenAt: string | null }) => {
+      const changes: PhotoUpdate = {};
+      if (note !== (photo.note ?? "")) changes.note = note;
+      if (takenAt !== photo.takenAt) changes.takenAt = takenAt;
+      if (Object.keys(changes).length > 0) await updateLocationPhotoRecord(locationId, photo.id, changes);
     },
-    onSuccess: () => {
+    onSuccess: (_updated, { photo }) => {
       void queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] });
+      void invalidateStationPhotoLists(queryClient, photo);
       setEditState(null);
     },
     onError: (error) => {
@@ -100,18 +82,18 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
 
   const isDirty = useMemo(() => {
     const serverIds = new Set(stationPhotos.map((p) => p.id));
-    const serverMain = stationPhotos.find((p) => p.is_main)?.id ?? null;
-    if (selected.size !== serverIds.size || mainId !== serverMain) return true;
+    if (selected.size !== serverIds.size || mainId !== serverMainId) return true;
     for (const id of selected) if (!serverIds.has(id)) return true;
     return false;
-  }, [selected, mainId, stationPhotos]);
+  }, [selected, mainId, stationPhotos, serverMainId]);
 
   const saveMutation = useMutation({
-    mutationFn: () => setStationPhotoSelection(stationId, Array.from(selected), mainId),
-    onSuccess: () => {
+    mutationFn: () => replaceStationPhotos(stationId, Array.from(selected), mainId),
+    onSuccess: (shownPhotos) => {
+      queryClient.setQueryData(stationPhotoRecordsQueryOptions(stationId).queryKey, shownPhotos);
       setSelectedOverride(null);
-      setMainIdOverride("unset");
-      void queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] });
+      setMainIdOverride(undefined);
+      void invalidatePhotoLists(queryClient, locationId, stationId);
       toast.success(t("photos.selectionSaved"));
     },
     onError: (error) => {
@@ -124,30 +106,25 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     mutationFn: (files: File[]) =>
       trackPhotoUpload(
         (onProgress) =>
-          uploadAndAssignStationPhotos({
+          uploadAndAssignStationPhotoRecords({
             locationId,
             stationId,
             files,
-            selected: Array.from(selected),
-            mainId,
+            photoIds: Array.from(selected),
+            mainPhotoId: mainId,
             useFirstUploadedAsMain: locationPhotos.length === 0,
             onProgress,
           }),
         { success: t("photos.uploaded"), error: (error) => t(photoQualityErrorKey(error) ?? "photos.uploadFailed") },
       ),
-    onSuccess: async () => {
+    onSuccess: async (shownPhotos) => {
+      queryClient.setQueryData(stationPhotoRecordsQueryOptions(stationId).queryKey, shownPhotos);
       setSelectedOverride(null);
-      setMainIdOverride("unset");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }),
-        queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
-      ]);
+      setMainIdOverride(undefined);
+      await invalidatePhotoLists(queryClient, locationId, stationId);
     },
     onError: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }),
-        queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }),
-      ]);
+      await invalidatePhotoLists(queryClient, locationId, stationId);
     },
   });
 
@@ -176,13 +153,15 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     e.preventDefault();
     dragCounter.current = 0;
     setIsDragging(false);
+    if (uploadMutation.isPending) return;
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
     if (files.length > 0) uploadMutation.mutate(files);
   }
 
   const isLoading = loadingLocation || loadingStation;
+  const isDropTarget = isDragging && !uploadMutation.isPending;
 
-  function toggleSelect(photo: LocationPhoto) {
+  function toggleSelect(photo: PhotoRecord) {
     const next = new Set(selected);
     if (next.has(photo.id)) {
       next.delete(photo.id);
@@ -193,7 +172,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
     setSelectedOverride(next);
   }
 
-  function setMain(photoId: number) {
+  function setMain(photoId: string) {
     setMainIdOverride(photoId);
     if (!selected.has(photoId)) {
       const next = new Set(selected);
@@ -227,7 +206,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
   if (locationPhotos.length === 0) {
     return (
       <div
-        className={cn("border rounded-xl overflow-hidden transition-colors", isDragging ? "ring-2 ring-primary border-primary bg-primary/5" : "")}
+        className={cn("border rounded-xl overflow-hidden transition-colors", isDropTarget ? "ring-2 ring-primary border-primary bg-primary/5" : "")}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -240,8 +219,23 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
         <div className="flex flex-col items-center justify-center py-10 text-sm text-muted-foreground gap-2">
           <HugeiconsIcon icon={Image01Icon} className="size-8 opacity-20" />
           <p>{t("photos.emptyLocation")}</p>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFileChange} />
-          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending} className="gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadMutation.isPending}
+            className="cursor-pointer gap-1.5"
+          >
             {uploadMutation.isPending ? <Spinner className="size-3.5" /> : <HugeiconsIcon icon={Upload04Icon} className="size-3.5" />}
             {t("photos.uploadFirst")}
           </Button>
@@ -253,7 +247,7 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
   return (
     <>
       <div
-        className={cn("border rounded-xl overflow-hidden transition-colors", isDragging ? "ring-2 ring-primary border-primary bg-primary/5" : "")}
+        className={cn("border rounded-xl overflow-hidden transition-colors", isDropTarget ? "ring-2 ring-primary border-primary bg-primary/5" : "")}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -267,15 +261,24 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
               {t("photos.selectionCount", { selected: selected.size, total: locationPhotos.length })}
             </span>
           </div>
-          {isDirty && (
+          {isDirty ? (
             <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-7 text-xs gap-1.5">
               {saveMutation.isPending ? <Spinner className="size-3" /> : <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />}
               {t("photos.saveSelection")}
             </Button>
-          )}
+          ) : null}
         </div>
 
-        <input ref={fileInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFileChange} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+          onChange={handleFileChange}
+        />
         <div className="p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 max-h-96 overflow-y-auto">
           {locationPhotos.map((photo, index) => {
             const isSelected = selected.has(photo.id);
@@ -284,78 +287,71 @@ export const StationPhotoSelector = memo(function StationPhotoSelector({ station
             return (
               <div
                 key={photo.id}
-                role="button"
-                tabIndex={0}
                 className={cn(
-                  "rounded-lg overflow-hidden border-2 transition-colors bg-muted cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  "rounded-lg overflow-hidden border-2 transition-colors bg-muted cursor-pointer select-none",
+                  "has-[[data-photo-select]:focus-visible]:ring-2 has-[[data-photo-select]:focus-visible]:ring-ring/50",
                   isSelected ? "border-primary" : "border-transparent",
                 )}
                 onClick={(e) => {
                   if (e.target instanceof Node && e.currentTarget.contains(e.target)) toggleSelect(photo);
                 }}
-                onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
-                  e.preventDefault();
-                  toggleSelect(photo);
-                }}
               >
-                <PhotoImage
-                  ref={lightbox.triggerRef(index)}
-                  src={photoThumbUrl(photo)}
-                  alt={photo.note ?? ""}
-                  imageClassName={cn("transition-opacity", isSelected ? "" : "opacity-40")}
-                  onOpen={() => lightbox.open(index)}
-                >
-                  {isMain && (
-                    <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
-                      <HugeiconsIcon icon={StarIcon} className="size-3" />
-                    </span>
-                  )}
-                  {isRecentPhoto(photo.createdAt) ? (
-                    <span className="absolute bottom-1.5 left-1.5 bg-amber-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
-                      NEW
-                    </span>
-                  ) : null}
-                  <span
+                <div className="relative">
+                  <PhotoImage
+                    ref={lightbox.triggerRef(index)}
+                    src={photo.urls.thumb}
+                    alt={photo.note ?? ""}
+                    imageClassName={cn("transition-opacity", isSelected ? "" : "opacity-40")}
+                    onOpen={() => lightbox.open(index)}
+                  >
+                    {isMain ? (
+                      <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5">
+                        <HugeiconsIcon icon={StarIcon} className="size-3" />
+                      </span>
+                    ) : null}
+                    {isRecentPhoto(photo.createdAt) ? (
+                      <span className="absolute bottom-1.5 left-1.5 bg-amber-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
+                        NEW
+                      </span>
+                    ) : null}
+                  </PhotoImage>
+                  <button
+                    type="button"
+                    data-photo-select
+                    aria-pressed={isSelected}
+                    aria-label={t("stationDetails:photos.photoAlt", { number: index + 1 })}
                     className={cn(
-                      "absolute bottom-1 right-1 size-4 rounded-full border-2 flex items-center justify-center pointer-events-none transition-colors",
+                      "absolute bottom-1 right-1 size-4 rounded-full border-2 flex items-center justify-center pointer-events-none transition-colors outline-none",
                       isSelected ? "bg-primary border-primary" : "bg-black/30 border-white/70",
                     )}
                   >
-                    {isSelected && <HugeiconsIcon icon={Tick02Icon} className="size-2.5 text-primary-foreground" />}
-                  </span>
-                </PhotoImage>
+                    {isSelected ? <HugeiconsIcon icon={Tick02Icon} className="size-2.5 text-primary-foreground" aria-hidden="true" /> : null}
+                  </button>
+                </div>
                 <div className={cn("border-t", isSelected && !isMain ? "grid grid-cols-2 divide-x" : "")}>
-                  {isSelected && !isMain && (
+                  {isSelected && !isMain ? (
                     <button
                       type="button"
-                      className="flex items-center justify-center py-2 text-xs text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors"
+                      className="flex cursor-pointer items-center justify-center py-2 text-xs text-muted-foreground hover:text-amber-500 hover:bg-accent transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         setMain(photo.id);
                       }}
                       title={t("common:photos.setAsMain")}
+                      aria-label={t("common:photos.setAsMain")}
                     >
-                      <HugeiconsIcon icon={StarIcon} className="size-3.5" />
+                      <HugeiconsIcon icon={StarIcon} className="size-3.5" aria-hidden="true" />
                     </button>
-                  )}
+                  ) : null}
                   <PhotoEditPopover
                     isOpen={editState?.id === photo.id}
                     note={editState?.note ?? ""}
                     takenAt={editState?.takenAt ?? null}
-                    onOpen={() => setEditState({ id: photo.id, note: photo.note ?? "", takenAt: photo.taken_at ? new Date(photo.taken_at) : null })}
+                    onOpen={() => setEditState({ id: photo.id, note: photo.note ?? "", takenAt: photo.takenAt ? new Date(photo.takenAt) : null })}
                     onOpenChange={(open) => !open && setEditState(null)}
                     onNoteChange={(note) => setEditState(editState ? { ...editState, note } : editState)}
                     onTakenAtChange={(takenAt) => setEditState(editState ? { ...editState, takenAt } : editState)}
-                    onSave={() =>
-                      editMutation.mutate({
-                        id: photo.id,
-                        note: editState?.note ?? "",
-                        takenAt: editState?.takenAt?.toISOString() ?? null,
-                        originalNote: photo.note ?? "",
-                        originalTakenAt: photo.taken_at ?? null,
-                      })
-                    }
+                    onSave={() => editMutation.mutate({ photo, note: editState?.note ?? "", takenAt: editState?.takenAt?.toISOString() ?? null })}
                     isSaving={editMutation.isPending}
                   />
                 </div>

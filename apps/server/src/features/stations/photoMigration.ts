@@ -1,7 +1,20 @@
-import { locationPhotos, stationPhotoSelections } from "@openbts/drizzle";
+import { locationPhotos, stationPhotoSelections, submissionLocationPhotoSelections } from "@openbts/drizzle";
 import { and, eq, inArray, ne } from "drizzle-orm";
 
+import type { DbTx } from "../../types/global.js";
 import type { AuditEntryInput, AuditRecorder } from "../audit/index.js";
+
+async function repointSubmissionPicks(tx: DbTx, photoIds: number[], keptPhotoIds: ReadonlyMap<number, number>): Promise<void> {
+  const picks = await tx
+    .select()
+    .from(submissionLocationPhotoSelections)
+    .where(inArray(submissionLocationPhotoSelections.location_photo_id, photoIds));
+  const repointed = picks.flatMap((pick) => {
+    const keptPhotoId = keptPhotoIds.get(pick.location_photo_id);
+    return keptPhotoId === undefined ? [] : [{ ...pick, location_photo_id: keptPhotoId }];
+  });
+  if (repointed.length > 0) await tx.insert(submissionLocationPhotoSelections).values(repointed).onConflictDoNothing();
+}
 
 export async function migrateStationPhotosToLocation(
   audit: AuditRecorder,
@@ -117,6 +130,7 @@ export async function migrateStationPhotosToLocation(
   }
 
   if (photoIdsToDelete.length > 0) {
+    await repointSubmissionPicks(audit.tx, photoIdsToDelete, migratedPhotoIds);
     const deletedPhotos = await audit.tx.delete(locationPhotos).where(inArray(locationPhotos.id, photoIdsToDelete)).returning();
     auditEntries.push(
       ...deletedPhotos.map((photo) => ({

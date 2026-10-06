@@ -6,7 +6,7 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function SharedListPage() {
   const { uuid } = Route.useParams();
-  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("enableUserLists");
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("lists");
 
   if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
   if (isDisabled) return <Navigate to="/" replace />;

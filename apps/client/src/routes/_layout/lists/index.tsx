@@ -6,17 +6,19 @@ import { ListsPageContent } from "@/features/lists/components/listsPage";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function ListsPage() {
-  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("enableUserLists");
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("lists");
 
   if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
   if (isDisabled) return <Navigate to="/" replace />;
 
   return (
-    <RequireAuth>
-      <main className="flex-1 overflow-y-auto custom-scrollbar">
-        <ListsPageContent />
-      </main>
-    </RequireAuth>
+    <RequireAuth
+      render={(session) => (
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <ListsPageContent userId={session.user.id} />
+        </main>
+      )}
+    />
   );
 }
 

@@ -1,11 +1,12 @@
-import { locations, operators, stations } from "@openbts/drizzle";
-import { getOperatorColor } from "@openbts/shared/operatorUtils";
+import { brands, locations, operators, stations } from "@openbts/drizzle";
+import { DEFAULT_OPERATOR_COLOR } from "@openbts/shared/operatorUtils";
 import { parseSEOEntityId } from "@openbts/shared/seo";
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
+import { locationInPublicCountry } from "../../features/countries/visibility.js";
 import { requestOGImage } from "../../features/ogImages/client.js";
 import type { OGRenderRequest, OGRenderResult } from "../../features/ogImages/contract.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
@@ -25,11 +26,12 @@ type OGImagesControllerDependencies = {
 
 async function loadStationRequest(id: number): Promise<OGRenderRequest | null> {
   const [station] = await db
-    .select({ latitude: locations.latitude, longitude: locations.longitude, mnc: operators.mnc })
+    .select({ latitude: locations.latitude, longitude: locations.longitude, color: brands.color })
     .from(stations)
     .innerJoin(operators, eq(stations.operator_id, operators.id))
     .innerJoin(locations, eq(stations.location_id, locations.id))
-    .where(eq(stations.id, id))
+    .leftJoin(brands, eq(brands.id, operators.brandId))
+    .where(and(eq(stations.id, id), locationInPublicCountry(stations.location_id)))
     .limit(1);
 
   if (!station) return null;
@@ -40,17 +42,22 @@ async function loadStationRequest(id: number): Promise<OGRenderRequest | null> {
     id,
     latitude: station.latitude,
     longitude: station.longitude,
-    colors: [getOperatorColor(station.mnc ?? -1)],
+    colors: [station.color ?? DEFAULT_OPERATOR_COLOR],
   };
 }
 
 async function loadLocationRequest(id: number): Promise<OGRenderRequest | null> {
   const [[location], operatorRows] = await Promise.all([
-    db.select({ latitude: locations.latitude, longitude: locations.longitude }).from(locations).where(eq(locations.id, id)).limit(1),
     db
-      .selectDistinct({ mnc: operators.mnc })
+      .select({ latitude: locations.latitude, longitude: locations.longitude })
+      .from(locations)
+      .where(and(eq(locations.id, id), locationInPublicCountry(locations.id)))
+      .limit(1),
+    db
+      .selectDistinct({ mnc: operators.mnc, color: brands.color })
       .from(stations)
       .innerJoin(operators, eq(stations.operator_id, operators.id))
+      .leftJoin(brands, eq(brands.id, operators.brandId))
       .where(and(eq(stations.location_id, id), eq(stations.status, "published")))
       .orderBy(asc(operators.mnc))
       .limit(MAX_LOCATION_COLORS),
@@ -64,7 +71,7 @@ async function loadLocationRequest(id: number): Promise<OGRenderRequest | null> 
     id,
     latitude: location.latitude,
     longitude: location.longitude,
-    colors: operatorRows.map((row) => getOperatorColor(row.mnc ?? -1)),
+    colors: operatorRows.map((row) => row.color ?? DEFAULT_OPERATOR_COLOR),
   };
 }
 

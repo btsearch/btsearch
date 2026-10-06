@@ -1,5 +1,4 @@
 import { ukeOperators, ukeRadiolines } from "@openbts/drizzle";
-import { ukeRadiolinesResponseType } from "@openbts/proto/server";
 import { type SQL, and, count, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -120,7 +119,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   let listRadiolineIds: number[] | undefined;
   if (listUuid) {
-    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    const list = await getVisibleUserList(req, listUuid);
     listRadiolineIds = getUserListMembership(list).radiolines;
     if (!listRadiolineIds.length) return res.send({ data: [], totalCount: 0 });
   }
@@ -244,7 +243,7 @@ const getukeRadiolines: Route<ReqQuery, ResponseBody> = {
   url: "/uke/radiolines",
   method: "GET",
   schema: schemaRoute,
-  config: { permissions: ["read:uke_radiolines"], allowGuestAccess: true, proto: ukeRadiolinesResponseType },
+  config: { permissions: ["read:uke_radiolines"], allowGuestAccess: true },
   handler,
 };
 

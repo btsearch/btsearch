@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { stationParamScope } from "../../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
 import { uplinkSpeedSchema } from "../../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
@@ -106,7 +107,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateStationUplink: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/uplink",
   method: "PATCH",
-  config: { permissions: ["update:stations"] },
+  config: { permissions: ["update:stations"], scope: stationParamScope },
   schema: schemaRoute,
   handler,
 };

@@ -39,6 +39,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseD
   const staleSubmissions = await db.query.submissions.findMany({
     where: {
       createdAt: { lt: oneMonthAgo },
+      status: { ne: "pending" },
     },
     columns: { id: true },
   });

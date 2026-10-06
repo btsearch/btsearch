@@ -43,7 +43,6 @@
     "saveChanges": "Zapisz zmiany",
     "submit": "Wyślij",
     "submitting": "Wysyłanie...",
-    "submitted": "Wysłano!",
     "saving": "Zapisywanie...",
     "saved": "Zapisano",
     "approve": "Zatwierdź",
@@ -70,7 +69,9 @@
     "signOut": "Wyloguj się",
     "signingOut": "Wylogowywanie...",
     "createStation": "Utwórz stację",
-    "selectStation": "Wybierz stację"
+    "selectStation": "Wybierz stację",
+    "add": "Dodaj",
+    "hideFilters": "Ukryj filtry"
   },
   "labels": {
     "pemSourceGenerated": "Wygenerowany",
@@ -98,7 +99,6 @@
     "standard": "Standard",
     "notes": "Notatki",
     "address": "Adres",
-    "extraAddress": "Dodatkowy adres",
     "city": "Miasto",
     "status": "Status",
     "type": "Typ",
@@ -122,9 +122,6 @@
     "otherOperators_one": "{{count, number}} inny operator",
     "otherOperators_few": "{{count, number}} innych operatorów",
     "otherOperators_many": "{{count, number}} innych operatorów",
-    "selected_one": "{{count, number}} wybrany",
-    "selected_few": "{{count, number}} wybranych",
-    "selected_many": "{{count, number}} wybranych",
     "search": "Wyszukiwanie",
     "confirmed": "Potwierdzona",
     "yes": "Tak",
@@ -181,7 +178,8 @@
     "account": "Konto",
     "aboutMe": "O mnie",
     "navigation": "Nawigacja",
-    "twoFactor": "Weryfikacja dwuetapowa"
+    "twoFactor": "Weryfikacja dwuetapowa",
+    "added": "Dodano"
   },
   "placeholder": {
     "search": "Szukaj...",
@@ -256,7 +254,6 @@
     "required": "To pole jest wymagane",
     "invalid": "Nieprawidłowa wartość",
     "addressOwnWordForbidden": "Wpisz rzeczywisty adres zamiast wariantów słowa \"własna\", np. \"wieża T-Mobile\"",
-    "stationIdRequired": "ID stacji jest wymagane",
     "invalidCode": "Nieprawidłowy kod. Spróbuj ponownie"
   },
   "duplicateStation": {
@@ -328,5 +325,43 @@
   "roles": {
     "editor": "Redaktor",
     "admin": "Administrator"
+  },
+  "impersonation": {
+    "start": "Zaloguj jako",
+    "confirm": {
+      "title": "Zalogować się jako {{name}}?",
+      "description": "Zobaczysz serwis tak, jak widzi go to konto. Wszystko, co zrobisz, zostanie zapisane jako działanie tego konta. Sesja trwa godzinę"
+    },
+    "unavailable": {
+      "admin": "Na konto administratora nie można się zalogować",
+      "banned": "Zablokowane konto nie może mieć sesji"
+    },
+    "actingAs": "Działasz jako",
+    "sessionUntil": "sesja do {{time}}",
+    "stop": "Zakończ",
+    "stopHint": "Zakończ i wróć na swoje konto"
+  },
+  "structure": {
+    "type": "Obiekt",
+    "owner": "Właściciel obiektu",
+    "note": "Opis obiektu",
+    "types": {
+      "latticeTower": "Wieża kratowa",
+      "tubularTower": "Wieża rurowa",
+      "concreteTower": "Wieża strunobetonowa",
+      "tower": "Wieża",
+      "mast": "Maszt",
+      "rooftopMast": "Maszt na dachu",
+      "rooftop": "Dach budynku",
+      "chimney": "Komin",
+      "church": "Kościół",
+      "waterTower": "Wieża ciśnień",
+      "silo": "Silos",
+      "pole": "Słup",
+      "mobileMast": "Maszt mobilny",
+      "tunnel": "Tunel",
+      "indoor": "Wewnątrz budynku",
+      "other": "Inny obiekt"
+    }
   }
 }

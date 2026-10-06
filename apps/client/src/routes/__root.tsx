@@ -15,6 +15,7 @@ import { loadAdsenseScript } from "@/hooks/useCookieConsent";
 import i18n from "@/i18n/config";
 import { APP_NAME } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { queryClient } from "@/lib/queryClient";
 import { buildDefaultMeta } from "@/lib/seo";
 import "@/index.css";
@@ -34,11 +35,9 @@ declare global {
 type AppProvidersProps = { children: ReactNode };
 type AppErrorBoundaryProps = { children: ReactNode };
 
-const ADS_PRIVILEGED_ROLES = new Set(["admin", "editor"]);
-
 function AdsLoader() {
   const { data: session, isPending } = authClient.useSession();
-  const isPrivileged = ADS_PRIVILEGED_ROLES.has(session?.user?.role as string);
+  const isPrivileged = STAFF_ROLES.has(session?.user?.role as string);
 
   useEffect(() => {
     if (isPending || isPrivileged) return;

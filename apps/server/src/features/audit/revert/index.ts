@@ -4,29 +4,29 @@ import { DrizzleQueryError } from "drizzle-orm/errors";
 import postgres from "postgres";
 
 import db from "../../../database/psql.js";
-import { DetailedErrorResponse, ErrorResponse } from "../../../errors.js";
+import type { Database } from "../../../database/psql.js";
+import { DEADLOCK_DETECTED, DetailedErrorResponse, ErrorResponse, SERIALIZATION_FAILURE } from "../../../errors.js";
 import type { DbTx } from "../../../types/global.js";
 import { logger } from "../../../utils/logger.js";
 import { queueStationCellsChangedNotification } from "../../notifications/stationCellChanges.js";
 import { syncStationsPermitsAssociations } from "../../stations/permitsAssociation.js";
+import { loadOperationCountries, stampOperationCountry } from "../country.js";
+import { toAuditMetadata } from "../metadata.js";
 import { runAuditedOperation } from "../operation.js";
 import { fetchAuditOperationSummary } from "../read.js";
 import type { AuditEntry, AuditMetadata, AuditOperationRow, AuditOperationSummary } from "../types.js";
 import { type AppliedRevertPlan, applyRevertPlan } from "./apply.js";
 import { buildRevertPlan } from "./plan.js";
 import { getEntryRevertibility, loadActiveRevertCoverage, loadRevertedEntryIds } from "./revertibility.js";
+import { findRestoringBandEntries } from "./strategies/reference.js";
 import type { RevertConflict, RevertOperationInput, RevertOperationResult, RevertSkipped } from "./types.js";
 
-function metadata(value: unknown): AuditMetadata {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as AuditMetadata) : {};
-}
-
 function operationRow(row: typeof auditOperations.$inferSelect): AuditOperationRow {
-  return { ...row, metadata: metadata(row.metadata) };
+  return { ...row, metadata: toAuditMetadata(row.metadata) ?? {} };
 }
 
 function auditEntry(row: typeof auditLogs.$inferSelect): AuditEntry {
-  return { ...row, metadata: row.metadata === null ? null : metadata(row.metadata) };
+  return { ...row, metadata: row.metadata === null ? null : (toAuditMetadata(row.metadata) ?? {}) };
 }
 
 function markerMetadata(current: AuditMetadata, partialRevertIds: readonly number[]): AuditMetadata {
@@ -60,13 +60,31 @@ async function loadOperationAndEntries(operationId: number): Promise<{ operation
   return { operation: operationRow(row), entries: rows.map(auditEntry) };
 }
 
-function selectedEntries(entries: readonly AuditEntry[], entryIds?: readonly number[]): AuditEntry[] {
+async function findSelectedEntries(handle: Database | DbTx, entries: readonly AuditEntry[], entryIds?: readonly number[]): Promise<AuditEntry[]> {
   if (entryIds === undefined) return [...entries];
   const requested = new Set(entryIds);
   const available = new Set(entries.map((entry) => entry.id));
   const missing = [...requested].filter((id) => !available.has(id));
   if (missing.length > 0) throw new ErrorResponse("BAD_REQUEST", { message: `Audit entries do not belong to this operation: ${missing.join(", ")}` });
+  const restoringBandEntries = await findRestoringBandEntries(handle, entries);
+  for (const entryId of entryIds) {
+    const restoringBandEntry = restoringBandEntries.get(entryId);
+    if (restoringBandEntry !== undefined) requested.add(restoringBandEntry.id);
+  }
   return entries.filter((entry) => requested.has(entry.id));
+}
+
+const MOVED_OUT_MESSAGE = "This operation touches data that is no longer inside your country";
+
+function isOutsideCountries(countryCode: string | null, countryCodes: readonly string[] | undefined): boolean {
+  return countryCodes !== undefined && (countryCode === null || !countryCodes.includes(countryCode));
+}
+
+async function assertStaysWithin(tx: DbTx, operationId: number, countryCodes: readonly string[] | undefined): Promise<void> {
+  if (countryCodes === undefined) return;
+
+  const countryCode = (await loadOperationCountries(tx, [operationId])).get(operationId) ?? null;
+  if (isOutsideCountries(countryCode, countryCodes)) throw new ErrorResponse("FORBIDDEN", { message: MOVED_OUT_MESSAGE });
 }
 
 async function recomputeMarkerChain(tx: DbTx, operationId: number): Promise<boolean> {
@@ -92,7 +110,7 @@ async function recomputeMarkerChain(tx: DbTx, operationId: number): Promise<bool
       .update(auditOperations)
       .set({
         reverted_by_operation_id: fullyReverted ? (contributingOperationIds.at(-1) ?? null) : null,
-        metadata: markerMetadata(metadata(operation.metadata), fullyReverted ? [] : contributingOperationIds),
+        metadata: markerMetadata(operation.metadata ?? {}, fullyReverted ? [] : contributingOperationIds),
       })
       .where(eq(auditOperations.id, targetId));
     if (operation.reverts_operation_id !== null) await recompute(operation.reverts_operation_id);
@@ -103,9 +121,10 @@ async function recomputeMarkerChain(tx: DbTx, operationId: number): Promise<bool
 
 export async function revertOperation(input: RevertOperationInput): Promise<RevertOperationResult> {
   const initial = await loadOperationAndEntries(input.operationId);
+  if (isOutsideCountries(initial.operation.country_code, input.countryCodes)) throw new ErrorResponse("NOT_FOUND");
   if (initial.operation.reverted_by_operation_id !== null)
     throw new ErrorResponse("BAD_REQUEST", { message: "This operation has already been reverted" });
-  const requestedEntries = selectedEntries(initial.entries, input.entryIds);
+  const requestedEntries = await findSelectedEntries(db, initial.entries, input.entryIds);
   if (requestedEntries.length === 0) throw new ErrorResponse("BAD_REQUEST", { message: "No audit entries were selected" });
   const firstEntry = requestedEntries[0]!;
   const context = { ...input.ctx, clientKey: null, clientKind: null };
@@ -130,10 +149,12 @@ export async function revertOperation(input: RevertOperationInput): Promise<Reve
         const operation = operationRow(lockedRow);
         if (operation.reverted_by_operation_id !== null)
           throw new ErrorResponse("BAD_REQUEST", { message: "This operation has already been reverted" });
+        if (isOutsideCountries(operation.country_code, input.countryCodes)) throw new ErrorResponse("NOT_FOUND");
+        await assertStaysWithin(tx, operation.id, input.countryCodes);
 
         const entryRows = await tx.select().from(auditLogs).where(eq(auditLogs.operation_id, operation.id)).orderBy(asc(auditLogs.id));
         const entries = entryRows.map(auditEntry);
-        const selected = selectedEntries(entries, input.entryIds);
+        const selected = await findSelectedEntries(tx, entries, input.entryIds);
         const revertedEntryIds = await loadRevertedEntryIds(tx, operation.id);
         const skipped: RevertSkipped[] = [];
         const available = selected.filter((entry) => {
@@ -147,12 +168,13 @@ export async function revertOperation(input: RevertOperationInput): Promise<Reve
             message: skipped.map((item) => item.reason).join(", "),
           });
 
-        const plans = await buildRevertPlan(tx, available);
+        const plans = await buildRevertPlan(tx, available, entries);
         const applied = await applyRevertPlan(tx, audit, plans, input.force);
         if (applied.reverted.length === 0)
           throw new DetailedErrorResponse("BAD_REQUEST", [...skipped, ...applied.skipped], {
             message: "No selected changes could be reverted",
           });
+        await assertStaysWithin(tx, audit.operationId, input.countryCodes);
         const operationMetadata: AuditMetadata = {
           forced: input.force,
           ...(requestedEntryIds === undefined ? {} : { entry_ids: requestedEntryIds }),
@@ -166,18 +188,22 @@ export async function revertOperation(input: RevertOperationInput): Promise<Reve
           .update(auditOperations)
           .set({ metadata: { ...operationMetadata, partial: !fullyReverted } })
           .where(eq(auditOperations.id, audit.operationId));
+        await stampOperationCountry(tx, audit.operationId);
         const revertSummary = await fetchAuditOperationSummary(tx, audit.operationId);
         if (revertSummary === null) throw new ErrorResponse("INTERNAL_SERVER_ERROR", { message: "The revert operation could not be loaded" });
+        const { indirectlyRevertedEntryIds } = applied;
+        const revertedIndirectly = [...indirectlyRevertedEntryIds].filter((entryId) => !applied.reverted.includes(entryId));
         return {
           ...applied,
-          skipped: [...skipped, ...applied.skipped],
+          reverted: [...applied.reverted, ...revertedIndirectly],
+          skipped: [...skipped.filter((item) => !indirectlyRevertedEntryIds.has(item.entry_id)), ...applied.skipped],
           operation: revertSummary,
         };
       },
     );
   } catch (error) {
     const cause = postgresError(error);
-    if (cause?.code === "40001" || cause?.code === "40P01")
+    if (cause?.code === SERIALIZATION_FAILURE || cause?.code === DEADLOCK_DETECTED)
       throw new DetailedErrorResponse("CONFLICT", [concurrentConflict(firstEntry)], {
         message: "The data changed while the revert was being applied",
         cause: error,

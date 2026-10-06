@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 
 import type { EncodedPhoto } from "./image.js";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
+export const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 export const photoFileColumns = {
   width: attachments.width,

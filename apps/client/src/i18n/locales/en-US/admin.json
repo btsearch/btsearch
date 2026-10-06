@@ -5,17 +5,9 @@
     "editLocation": "Edit location"
   },
   "dashboard": {
-    "thisWeek": "this week",
-    "toReview_one": "submission to review",
-    "toReview_other": "submissions to review",
-    "toModerate_one": "comment to moderate",
-    "toModerate_other": "comments to moderate",
     "queueClear": "Queue is clear",
     "allSubmissions": "All submissions",
     "allComments": "All comments",
-    "databaseStats": "Database statistics",
-    "dataFreshness": "Data freshness",
-    "freshnessFresh": "Up to date",
     "freshnessStale": "Needs update",
     "noCommentsToModerate": "No comments to moderate",
     "openImportPage": "Open import page",
@@ -30,6 +22,22 @@
       "cleanup": "Cleanup",
       "snapshot": "Snapshot",
       "refresh_statistics": "Refresh statistics"
+    },
+    "area": "Your area: {{area}}",
+    "noArea": "You have no area assigned",
+    "commentQueueOff": "The comment queue is disabled",
+    "openSubmission": "Open submission: {{label}}",
+    "openOperation": "Open operation: {{label}}",
+    "changes_one": "{{count, number}} change",
+    "changes_other": "{{count, number}} changes",
+    "stats": {
+      "activeStations": "Active stations",
+      "awaitingCellsStations": "Stations awaiting cells",
+      "inactiveStations": "Inactive stations",
+      "registerPermits": "Permits in the register",
+      "registerMicrowaveLinks": "Microwave links in the register",
+      "permitsImported": "Permits imported",
+      "microwaveLinksImported": "Microwave links imported"
     }
   },
   "comments": {
@@ -43,103 +51,540 @@
       "approved": "Approved"
     },
     "approveSuccess": "Comment approved",
-    "approveError": "Failed to approve comment",
     "deleteTitle": "Delete comment",
     "deleteDesc": "Are you sure you want to delete this comment? This will also remove all attachments. This action cannot be undone",
     "deleteSuccess": "Comment deleted",
-    "deleteError": "Failed to delete comment",
-    "editTitle": "Edit comment",
     "editSuccess": "Comment updated",
-    "editError": "Failed to update comment"
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved"
+    },
+    "edited": "edited {{date}}",
+    "showFullText": "Show full text",
+    "morePhotos": "{{number}} more",
+    "sendBackSuccess": "Comment sent back to pending",
+    "description": "Moderate comments on stations",
+    "searchPlaceholder": "Comment text or station ID",
+    "queueLabel": "Comment queue",
+    "reviewOff": "The comment queue is turned off - new comments are visible right away",
+    "sendBack": "Send back to pending",
+    "options": "Comment options",
+    "openStation": "Open station",
+    "sheet": {
+      "title": "Comment",
+      "textLabel": "Comment text"
+    },
+    "empty": {
+      "queueDescription": "There are no comments to approve",
+      "noMatchTitle": "No matching comments"
+    }
   },
   "settings": {
     "title": "System settings",
-    "subtitle": "Manage system configuration",
     "errorTitle": "Failed to load settings",
     "errorDescription": "There was a problem loading system settings",
-    "authentication": "Authentication",
-    "authenticationDesc": "Control access and authentication requirements",
-    "enforceAuth": "Enforce authentication for all routes",
-    "enforceAuthDesc": "Require authentication for all API endpoints",
-    "allowedRoutes": "Allowed API endpoints without authentication",
-    "allowedRoutesDesc": "API endpoints that bypass authentication (press Enter to add)",
-    "disabledRoutes": "Disabled API endpoints",
-    "disabledRoutesDesc": "API endpoints that are completely disabled (press Enter to add)",
     "comments": "Station comments",
-    "commentsDesc": "Allow users to comment on stations",
-    "enableComments": "Enable comments",
-    "commentsEnabled": "Users can comment on stations",
     "commentsDisabled": "Comments are disabled",
     "commentQueue": "Comment queue",
-    "commentQueueEnabled": "Comments require approval before being visible",
-    "commentQueueDisabled": "Comments are published immediately",
-    "submissionsDesc": "Allow users to submit new stations",
-    "enableSubmissions": "Enable submissions",
-    "submissionsEnabled": "Users can submit stations",
     "submissionsDisabled": "Submissions are disabled",
-    "photosDesc": "Allow users to upload photos with their submissions",
-    "enablePhotos": "Enable photos",
-    "photosEnabled": "Users can upload station photos",
-    "photosDisabled": "Photo uploads are disabled",
-    "cleanupTitle": "Submission data cleanup",
-    "cleanupDesc": "Remove proposed data (cells, stations, locations) from submissions older than 1 month. The submission records themselves are kept",
-    "cleanupRun": "Run cleanup",
-    "cleanupSuccess": "Cleaned up proposed data from {{count}} submission(s)",
-    "cleanupError": "Failed to run cleanup",
-    "cleanupPhotosTitle": "Rejected submission photo cleanup",
-    "cleanupPhotosDesc": "Delete attachment files and records for photos uploaded to rejected submissions that were never assigned to a station",
-    "cleanupPhotosSuccess": "Deleted {{count}} orphaned photo(s) from rejected submissions",
-    "cleanupPhotosError": "Failed to run photo cleanup",
     "announcement": "Announcement",
-    "announcementDesc": "Display a banner announcement to all users",
     "announcementMessage": "Message",
     "announcementMessagePlaceholder": "Enter announcement message...",
     "announcementTypeInfo": "Info",
     "announcementTypeWarning": "Warning",
     "announcementTypeError": "Error",
-    "enableAnnouncement": "Enable announcement",
-    "announcementEnabled": "Announcement is visible to all users",
-    "announcementDisabled": "Announcement is hidden",
     "userLists": "User lists",
-    "userListsDesc": "Allow users to create and share station lists",
-    "enableUserLists": "Enable user lists",
-    "userListsEnabled": "Users can create and share lists",
-    "userListsDisabled": "User lists are disabled"
+    "lead": "Switches and route lists are saved right away. Every change goes to the <auditLog>audit log</auditLog>",
+    "sections": {
+      "access": "Access",
+      "features": "Features",
+      "cleanup": "Cleanup"
+    },
+    "errors": {
+      "conflict": "Another change to the settings is being saved right now. Try again in a moment"
+    },
+    "signIn": {
+      "title": "Sign-in required",
+      "description": "Without signing in, neither the site nor the API works. Publishable keys (pk_...) stop working too",
+      "note": "The <mono>/api/v1/auth</mono> entry keeps sign-up and password reset working. Sign-in and reading these settings are always open",
+      "confirm": {
+        "title": "Require sign-in?",
+        "description": "Guests will lose access to the site and the API, except for the routes open to guests. Signed-in users will not notice a change",
+        "action": "Require sign-in"
+      }
+    },
+    "routes": {
+      "remove": "Remove {{route}}",
+      "open": {
+        "title": "Routes open to guests",
+        "description": "They stay available without an account. A route's own rules still apply",
+        "inactive": "This list only applies while sign-in is required",
+        "empty": "No route is open",
+        "fieldLabel": "New route open to guests",
+        "help": "The start of a route, e.g. <mono>/api/v2/stations</mono>"
+      },
+      "disabled": {
+        "title": "Disabled API routes",
+        "description": "Every request gets a 403 response - from administrators too",
+        "empty": "No route is disabled",
+        "fieldLabel": "New disabled route",
+        "help": "The start of a route as the server registers it, e.g. <mono>/api/v2/stations/:id/comments</mono>",
+        "note": "Sign-in, the settings and the server health check cannot be disabled",
+        "confirm": {
+          "title": "Disable this route?",
+          "description": "Requests to routes starting with <mono>{{route}}</mono> will get a 403 response, from administrators too",
+          "action": "Disable route"
+        }
+      },
+      "errors": {
+        "empty": "Enter the start of a route",
+        "format": "A route must start with /api/v1/ or /api/v2/",
+        "tooLong": "An entry can have at most {{max, number}} characters",
+        "duplicate": "This entry is already on the list",
+        "limit": "The list can have at most {{max, number}} entries",
+        "unknownRoute": "No route starts with {{value}}",
+        "lockout": "This entry would disable sign-in, the settings or the server health check",
+        "lockoutNamed": "The entry {{value}} would disable sign-in, the settings or the server health check",
+        "refused": "The server refused this change"
+      }
+    },
+    "features": {
+      "submissions": {
+        "description": "Sending, browsing and reviewing submissions. Each country opens them separately on its own page",
+        "confirm": {
+          "title": "Disable submissions?",
+          "description": "Nobody will be able to send or review a submission, editors included. Pending submissions stay in the database",
+          "action": "Disable submissions"
+        }
+      },
+      "photoUploads": {
+        "title": "Photos in submissions",
+        "description": "Photos can be attached to a submission",
+        "waiting": "Starts working once submissions are enabled"
+      },
+      "lists": {
+        "description": "Creating and sharing station lists"
+      },
+      "comments": {
+        "description": "Reading and writing comments",
+        "note": "Moderating and deleting comments works even while comments are disabled"
+      },
+      "commentReview": {
+        "description": "New comments wait for approval, unless a moderator writes them",
+        "waiting": "Starts working once comments are enabled"
+      }
+    },
+    "announcementForm": {
+      "description": "A bar above every page of the site. A visitor can close it; after the text changes, they will see it again",
+      "visible": "Visible",
+      "hidden": "Hidden",
+      "preview": "Preview",
+      "previewEmpty": "Without a message, the bar will not show",
+      "linksHint": "Web addresses become links",
+      "show": "Show the announcement",
+      "showHint": "Every visitor will see the bar",
+      "unsaved": "Unsaved changes",
+      "messageRequired": "Enter a message to show the announcement",
+      "revert": "Revert"
+    },
+    "photoCleanup": {
+      "title": "Photos of rejected submissions",
+      "description": "The server deletes them on its own 30 days after a rejection. Here you can delete them right away. Photos used by a location are kept",
+      "run": "Delete now",
+      "runMore": "Delete more",
+      "confirm": {
+        "title": "Delete the photos of rejected submissions?",
+        "description": "The files will be gone for good. Photos used by a location are kept",
+        "action": "Delete photos"
+      },
+      "photoCount_one": "{{count, number}} photo",
+      "photoCount_other": "{{count, number}} photos",
+      "submissionCount_one": "{{count, number}} submission",
+      "submissionCount_other": "{{count, number}} submissions",
+      "resultDone": "Deleted {{photos}} from {{submissions}}. Nothing else is left",
+      "resultMore": "Deleted {{photos}} from {{submissions}}. More are left to delete",
+      "nothing": "There was nothing to delete"
+    }
   },
   "users": {
     "picker": {
       "searchPlaceholder": "Search users...",
       "noUsers": "No users found",
-      "noMatch": "No users match \"{{search}}\"",
       "error": "Failed to load users",
       "selected_one": "{{count, number}} user",
       "selected_other": "{{count, number}} users",
-      "allUsers": "All users"
+      "allUsers": "All users",
+      "searchLabel": "Search users",
+      "clearSearch": "Clear search",
+      "clearSelection": "Clear selection",
+      "groups": {
+        "selected": "Selected",
+        "suggestions": "Suggestions",
+        "results": "Results"
+      },
+      "typeHint": "Type at least 2 characters of a name or username",
+      "noUsersHint": "Check the spelling or type fewer characters",
+      "selectedCount": "Selected: {{count, number}}",
+      "unknownUser": "Unknown user"
     },
     "table": {
       "role": "Role"
     },
     "filters": {
-      "allRoles": "All roles",
       "roleUser": "User",
-      "active": "Active",
-      "banned": "Banned"
+      "active": "Active"
+    },
+    "shared": {
+      "you": "(you)",
+      "grantRoles": {
+        "maintainer": "Country maintainer"
+      },
+      "grantScope": {
+        "wholeCountry": "Whole country"
+      },
+      "inline": {
+        "maintainer": "country maintainer",
+        "wholeCountry": "whole country",
+        "allCountries": "all countries"
+      },
+      "status": {
+        "banned": "Banned"
+      },
+      "ban": {
+        "durations": {
+          "day": "1 day",
+          "week": "7 days",
+          "month": "30 days",
+          "permanent": "Permanent"
+        },
+        "until": "until {{date}}",
+        "untilSentence": "Until {{date}}",
+        "permanent": "permanently",
+        "reason": "Reason: {{reason}}",
+        "noReason": "not given",
+        "summary": "{{reason}}. {{until}}"
+      },
+      "errors": {
+        "cannotBanYourself": "You can't ban your own account",
+        "cannotRemoveYourself": "You can't delete your own account",
+        "emailInUse": "This email address is already used by another account",
+        "invalidEmail": "Invalid email address",
+        "passwordTooLong": "Password must be at most 128 characters"
+      }
+    },
+    "detail": {
+      "hero": {
+        "allCountries": "Access in all countries",
+        "grantCountries_one": "Access in {{count, number}} country",
+        "grantCountries_other": "Access in {{count, number}} countries",
+        "sessions_one": "{{count, number}} active session",
+        "sessions_other": "{{count, number}} active sessions",
+        "emailUnverified": "Email not verified",
+        "banned": "Banned {{until}}"
+      },
+      "account": {
+        "data": {
+          "description": "Name, username and bio shown on the profile",
+          "avatar": {
+            "uploaded": "Uploaded by the user",
+            "external": "From a connected account",
+            "none": "No photo - initials are shown",
+            "remove": "Remove photo",
+            "removeConfirmDescription": "The account {{name}} will show initials instead of the photo"
+          },
+          "changedOnly": "Only the changed fields are sent"
+        },
+        "email": {
+          "description": "Address for sign-in and notifications",
+          "changeHint": "A new address has to be verified again",
+          "sameAddress": "This is the account's current address",
+          "changeSuccess": "Email address changed",
+          "resendIn": "Resend in {{seconds}} s",
+          "markVerified": "Mark as verified",
+          "markVerifiedSuccess": "Email address marked as verified"
+        },
+        "details": {
+          "copyId": "Copy ID",
+          "profile": "Profile",
+          "visibility": {
+            "public": "Public",
+            "private": "Private"
+          }
+        }
+      },
+      "moderation": {
+        "title": "Moderation",
+        "ban": {
+          "title": "Ban account",
+          "description": "Signs the account out of all devices and blocks sign-in for the chosen time",
+          "action": "Ban",
+          "banned": "Account banned",
+          "change": "Change",
+          "unban": "Unban",
+          "unbanSuccess": "Account unbanned"
+        },
+        "banDialog": {
+          "description": "The account {{name}} will be signed out of all devices and won't be able to sign in until the ban ends",
+          "changeTitle": "Change ban",
+          "changeDescription": "The new reason and duration replace the current ban of the account {{name}}. The duration counts from now",
+          "reason": "Reason",
+          "reasonHint": "Visible to administrators in the account history",
+          "duration": "Duration",
+          "expiresAt": "The ban ends on {{date}}",
+          "noExpiry": "The ban stays until the account is unbanned",
+          "changeSuccess": "Ban changed"
+        },
+        "notice": {
+          "title": "Account banned {{until}}",
+          "bannedBy": "Banned by <user>{{name}}</user> on {{date}}",
+          "bannedOn": "Banned on {{date}}"
+        },
+        "delete": {
+          "description": "Deletes the account with its comments and lists. Submissions and photos stay without an author",
+          "confirmTitle": "Delete the account {{name}}?",
+          "confirmDescription": "The account, its comments, lists and watched stations will be permanently deleted. Submissions and photos will stay without an author. This can't be undone",
+          "success": "Account deleted"
+        }
+      },
+      "states": {
+        "ownAccount": {
+          "title": "This is your account",
+          "description": "Another administrator changes the role, the ban and the deletion of your own account. Change your details and password in settings"
+        }
+      },
+      "roles": {
+        "title": "Role and access",
+        "roleCard": {
+          "description": "Decides what the account can do on the site",
+          "note": "The first country access makes the account an editor, and removing the last one takes the role away",
+          "lockedNote": "You can't change your own role"
+        },
+        "options": {
+          "user": "Submits changes, comments and adds photos",
+          "editor": "Edits data and reviews submissions in the granted countries",
+          "admin": "Has full access in all countries and manages users"
+        },
+        "confirm": {
+          "grantLabel": "Grant role",
+          "revokeLabel": "Take away role",
+          "promoteAdmin": {
+            "title": "Grant the administrator role?",
+            "description": "The account {{name}} will get full access in all countries",
+            "descriptionWithGrants_one": "The account {{name}} will get full access in all countries. Its access in {{count, number}} country will be removed, because an administrator doesn't need it",
+            "descriptionWithGrants_other": "The account {{name}} will get full access in all countries. Its access in {{count, number}} countries will be removed, because an administrator doesn't need it"
+          },
+          "demoteAdmin": {
+            "title": "Take away the administrator role?",
+            "toEditor": "The account {{name}} will lose full access and become an editor with the default access. You can change its scope in the Country access card",
+            "toUser": "The account {{name}} will lose full access and go back to the user role"
+          },
+          "demoteEditor": {
+            "title": "Take away the editor role?",
+            "description": "The account {{name}} will lose all country access and go back to the user role",
+            "descriptionWithGrants_one": "Access in {{count, number}} country will be removed: {{countries}}. The account will go back to the user role",
+            "descriptionWithGrants_other": "Access in {{count, number}} countries will be removed: {{countries}}. The account will go back to the user role"
+          }
+        },
+        "changeSuccess": "Role changed"
+      },
+      "grants": {
+        "title": "Country access",
+        "description": "Countries and regions where the account edits data",
+        "add": "Add",
+        "addGrant": "Add access",
+        "maintainerNote": "A country maintainer manages the editors of their country and can read its audit log",
+        "loadFailed": "Couldn't load country access",
+        "empty": {
+          "title": "No country access",
+          "userDescription": "Add access in a country and the account becomes an editor",
+          "editorDescription": "The account has the editor role but can't edit data in any country"
+        },
+        "admin": {
+          "title": "An administrator edits data in all countries",
+          "description": "Country access isn't needed"
+        },
+        "grantedBy": "Granted by <user>{{name}}</user>",
+        "grantedOn": "Granted {{date}}",
+        "changeScope": "Change scope",
+        "removeGrant": "Remove access",
+        "remove": {
+          "title": "Remove access?",
+          "description": "The account {{name}} will lose this access: {{country}}, {{role}}",
+          "lastDescription": "This is the account's last access. After it is removed, the account {{name}} will go back to the user role",
+          "success": "Access removed"
+        },
+        "dialog": {
+          "addDescription": "The account {{name}} will be able to edit data in the chosen country",
+          "addSuccess": "Access added",
+          "country": "Country",
+          "countryPlaceholder": "Choose a country",
+          "countriesLoadFailed": "Couldn't load countries",
+          "noCountries": "The account already has this access in all countries",
+          "role": "Role in the country",
+          "roleHints": {
+            "editor": "Edits data and reviews submissions within the chosen scope",
+            "maintainer": "Edits data in the whole country, manages its editors and can read its audit log"
+          },
+          "scope": "Scope",
+          "scopeRegions": "Selected regions",
+          "maintainerScopeHint": "A country maintainer always covers the whole country",
+          "regions": "Regions",
+          "regionsPlaceholder": "Add a region...",
+          "regionsHint": "Choose at least one region",
+          "regionsNeedCountry": "Choose a country first",
+          "regionsLoadFailed": "Couldn't load regions",
+          "fixedNote": "The country and role can't be changed. Remove the access and add a new one",
+          "editSuccess": "Scope changed"
+        }
+      },
+      "security": {
+        "signIn": {
+          "title": "Sign-in",
+          "description": "Password and two-factor authentication"
+        },
+        "password": {
+          "set": "The account has a password",
+          "missing": "The account has no password - it signs in with a passkey or an external account",
+          "setNew": "Set new",
+          "loadFailed": "Couldn't check whether the account has a password",
+          "dialogDescription": "A new password for the account {{name}}",
+          "sessionsNote": "Devices the account is signed in on will stay signed in"
+        },
+        "twoFactor": {
+          "enabled": "Turned on for this account",
+          "disabled": "Not turned on for this account"
+        },
+        "requireTwoFactor": {
+          "title": "Require two-factor authentication",
+          "description": "Without it the account can't use the site until it turns it on",
+          "needsPassword": "Set a password first - without one the account can't turn on two-factor authentication",
+          "enabledToast": "Two-factor authentication is now required",
+          "disabledToast": "Two-factor authentication is no longer required"
+        },
+        "sessions": {
+          "description": "Devices the account is signed in on",
+          "revokeAll": "Revoke all",
+          "revoke": "Revoke session",
+          "count_one": "{{count, number}} session",
+          "count_other": "{{count, number}} sessions",
+          "expires": "Expires {{time}}",
+          "expiresAt": "Expires at {{time}}",
+          "openedBy": "Opened by <user>{{name}}</user> at {{time}}",
+          "openedAt": "Opened at {{time}}",
+          "adminSession": "Administrator's session",
+          "empty": {
+            "title": "No active sessions",
+            "description": "The account isn't signed in on any device",
+            "bannedDescription": "The ban signed the account out of all devices"
+          },
+          "revokeAllConfirm": {
+            "title": "Revoke all sessions?",
+            "description": "The account {{name}} will be signed out of all devices"
+          },
+          "revokeAllSuccess": "All sessions revoked"
+        }
+      },
+      "activity": {
+        "title": "Activity",
+        "contribution": {
+          "title": "Contribution",
+          "description": "Opens the list filtered to this account",
+          "loadFailed": "Couldn't load the account's activity",
+          "submissions": {
+            "pending_one": "{{count, number}} pending",
+            "pending_other": "{{count, number}} pending",
+            "accepted_one": "{{count, number}} approved",
+            "accepted_other": "{{count, number}} approved",
+            "rejected_one": "{{count, number}} rejected",
+            "rejected_other": "{{count, number}} rejected"
+          },
+          "comments": {
+            "pending_one": "{{count, number}} pending",
+            "pending_other": "{{count, number}} pending",
+            "approved_one": "{{count, number}} approved",
+            "approved_other": "{{count, number}} approved"
+          },
+          "auditOperations": {
+            "title": "Audit log operations",
+            "description": "Changes this account authored or performed"
+          }
+        },
+        "history": {
+          "title": "Account history",
+          "description": "Role, ban and sign-in changes",
+          "loadFailed": "Couldn't load the account history",
+          "emptyDescription": "Role, ban, email and password changes will show up here",
+          "banExpired": "The ban expired",
+          "banDetails": "{{reason}}, {{until}}"
+        }
+      }
+    },
+    "list": {
+      "description": "Accounts, roles and editors' country access",
+      "searchPlaceholder": "Name, username or email",
+      "status": {
+        "all": "All",
+        "active": "Active",
+        "banned": "Banned"
+      },
+      "columns": {
+        "user": "User"
+      },
+      "empty": {
+        "title": "No matching accounts",
+        "description": "Change the search term or the filters"
+      }
     }
   },
   "lists": {
     "table": {
       "createdBy": "Created by",
-      "visibility": "Visibility",
-      "empty": "No lists found",
-      "emptyHint": "No lists matching your search"
+      "visibility": "Visibility"
     },
     "confirmDeleteTitle": "Delete list",
     "confirmDeleteDesc": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone",
     "deleteSuccess": "List deleted successfully",
-    "deleteError": "Failed to delete list"
+    "description": "Lists of stations and microwave links created by users",
+    "searchPlaceholder": "List name",
+    "owner": "Owner",
+    "visibilityFilter": {
+      "public": "Public",
+      "private": "Private"
+    },
+    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} UKE",
+    "stationsTip": {
+      "database_one": "{{count, number}} station from the database",
+      "database_other": "{{count, number}} stations from the database",
+      "official_one": "{{count, number}} station from the UKE register",
+      "official_other": "{{count, number}} stations from the UKE register",
+      "both": "{{database}} and {{official}}"
+    },
+    "contents": {
+      "officialSites_one": "{{count, number}} UKE station",
+      "officialSites_other": "{{count, number}} UKE stations"
+    },
+    "menu": {
+      "openOnMap": "Open on the map",
+      "rename": "Change name and description",
+      "ownerAdminProfile": "Owner's profile in the admin panel"
+    },
+    "edit": {
+      "ownerLine": "List owned by {{name}}",
+      "nameTaken": "The owner already has a list with this name"
+    },
+    "empty": {
+      "title": "There are no lists yet",
+      "description": "Lists created by users will show up here"
+    },
+    "off": {
+      "title": "Lists are turned off",
+      "description": "While lists are turned off, they can't be viewed, changed or deleted"
+    }
   },
   "locations": {
-    "searchPlaceholder": "Search by city or address..."
+    "list": {
+      "searchPlaceholder": "Search by city, address or station ID..."
+    }
   },
   "ukeImport": {
     "subtitle": "Import data from UKE (Urząd Komunikacji Elektronicznej)",
@@ -225,7 +670,8 @@
       "allKinds": "All operations",
       "kindsCount_one": "{{count, number}} operation",
       "kindsCount_other": "{{count, number}} operations",
-      "recordId": "Record ID"
+      "recordId": "Record ID",
+      "allCountries": "All countries"
     },
     "empty": {
       "title": "No logs found",
@@ -250,14 +696,19 @@
       "submission": "Submissions",
       "comment": "Comments",
       "operator": "Operators",
+      "brand": "Brands",
       "band": "Bands",
       "region": "Regions",
+      "country": "Countries",
+      "grant": "Editor access",
+      "user": "Users",
       "list": "User lists",
       "settings": "Settings",
       "uke": "UKE import",
       "analyzer": "Analyzer",
       "system": "System",
-      "revert": "Reverts"
+      "revert": "Reverts",
+      "structure_owner": "Structure owners"
     },
     "kinds": {
       "station": {
@@ -299,6 +750,11 @@
         "update": "Operator updated",
         "delete": "Operator deleted"
       },
+      "brand": {
+        "create": "Brand created",
+        "update": "Brand updated",
+        "delete": "Brand deleted"
+      },
       "band": {
         "create": "Band created",
         "update": "Band updated",
@@ -308,6 +764,25 @@
         "create": "Region created",
         "update": "Region updated",
         "delete": "Region deleted"
+      },
+      "country": {
+        "create": "Country created",
+        "update": "Country updated",
+        "delete": "Country deleted",
+        "bands": "Country band plan"
+      },
+      "grant": {
+        "create": "Editor access granted",
+        "update": "Editor access changed",
+        "delete": "Editor access revoked"
+      },
+      "user": {
+        "role": "User role changed",
+        "ban": "User banned",
+        "unban": "User unbanned",
+        "delete": "User deleted",
+        "email": "User email changed",
+        "password": "User password changed"
       },
       "list": {
         "create": "List created",
@@ -324,7 +799,12 @@
         "inactive_cleanup": "Inactive stations cleanup",
         "submission_cleanup": "Submission cleanup"
       },
-      "revert": "Revert"
+      "revert": "Revert",
+      "structure_owner": {
+        "create": "Structure owner created",
+        "update": "Structure owner updated",
+        "delete": "Structure owner deleted"
+      }
     },
     "entities": {
       "stations": "Stations",
@@ -339,10 +819,16 @@
       "submissions": "Submissions",
       "submission_photos": "Submission photos",
       "operators": "Operators",
+      "brands": "Brands",
       "bands": "Bands",
       "regions": "Regions",
+      "countries": "Countries",
+      "country_bands": "Band plan",
+      "role_grants": "Editor access",
+      "users": "Users",
       "user_lists": "User lists",
-      "settings": "Settings"
+      "settings": "Settings",
+      "structure_owners": "Structure owners"
     },
     "ops": {
       "create": "Create",
@@ -374,15 +860,27 @@
       "submission_photos_other": "{{count, number}} submission photos",
       "operators_one": "{{count, number}} operator",
       "operators_other": "{{count, number}} operators",
+      "brands_one": "{{count, number}} brand",
+      "brands_other": "{{count, number}} brands",
       "bands_one": "{{count, number}} band",
       "bands_other": "{{count, number}} bands",
       "regions_one": "{{count, number}} region",
       "regions_other": "{{count, number}} regions",
+      "countries_one": "{{count, number}} country",
+      "countries_other": "{{count, number}} countries",
+      "country_bands_one": "{{count, number}} band plan change",
+      "country_bands_other": "{{count, number}} band plan changes",
+      "role_grants_one": "{{count, number}} editor access change",
+      "role_grants_other": "{{count, number}} editor access changes",
+      "users_one": "{{count, number}} user",
+      "users_other": "{{count, number}} users",
       "user_lists_one": "{{count, number}} user list",
       "user_lists_other": "{{count, number}} user lists",
       "settings_one": "{{count, number}} setting",
       "settings_other": "{{count, number}} settings",
-      "other": "{{count, number}} × {{entity}}"
+      "other": "{{count, number}} × {{entity}}",
+      "structure_owners_one": "{{count, number}} structure owner",
+      "structure_owners_other": "{{count, number}} structure owners"
     },
     "revert": {
       "action": "Revert operation",
@@ -413,6 +911,772 @@
         "missingOldValues": "The previous values were not recorded",
         "missingNewValues": "The new values were not recorded",
         "missingDetails": "Required record details were not recorded"
+      }
+    }
+  },
+  "reference": {
+    "errors": {
+      "country": {
+        "exists": "This country already exists",
+        "inUse": "The country still has regions, operators, structure owners or editor access",
+        "notFound": "This country doesn't exist",
+        "codeFormat": "A country code is two uppercase letters",
+        "viewNorthBelowSouth": "North must be greater than south"
+      },
+      "bandPlan": {
+        "bandInUse": "Cells or permits in this country still use this band"
+      },
+      "region": {
+        "taken": "This country already has a region with this code or name",
+        "isoCodeTaken": "Another region already has this ISO code",
+        "isoCodePrefix": "The ISO code must start with {{value}}",
+        "isoCodeFormat": "An ISO code is the country code, a hyphen and 1 to 3 letters or digits, for example US-CA",
+        "hasLocations": "Locations still belong to this region, including those from the permit register or from submissions",
+        "hasGrants": "An editor's access is limited to this region"
+      },
+      "band": {
+        "codeUnknown": "This code isn't in the 3GPP catalog",
+        "uplinkOnly": "An uplink-only band can't hold cells",
+        "otherTechnology": "A band can't move to another technology. Choose a code of the same technology",
+        "exists": "This band already exists as {{value}}",
+        "nameTaken": "This band name is already in use",
+        "inUse": "Cells, permits, submissions or stored statistics still use this band"
+      },
+      "brand": {
+        "slugTaken": "A brand with this slug already exists",
+        "inUse": "Operators, microwave link operators or structure owners still use this brand",
+        "notFound": "This brand no longer exists",
+        "slugFormat": "A slug is lowercase letters and digits, with single hyphens between words",
+        "colorFormat": "A color is written as #RRGGBB"
+      },
+      "logo": {
+        "notSent": "The server didn't receive a logo file",
+        "tooLarge": "The logo file is too large",
+        "type": "The logo must be an SVG, PNG or WebP file",
+        "svgSize": "An SVG logo needs a viewBox, or a width and a height in pixels",
+        "tooLow": "The logo must be at least {{value}} px high"
+      },
+      "operator": {
+        "nameTaken": "This country already has an operator with this name",
+        "notFound": "This operator no longer exists",
+        "hasStations": "The operator still has stations",
+        "hasOfficialSites": "The operator still has entries in the permit register",
+        "hasMembers": "This shared network still has members",
+        "inPendingSubmission": "A pending submission still names this operator"
+      },
+      "plmn": {
+        "taken": "One of these PLMN codes already belongs to another operator",
+        "format": "A PLMN code is a three-digit MCC followed by a two- or three-digit MNC",
+        "repeated": "Each PLMN code can appear only once",
+        "severalPrimary": "An operator has at most one primary code"
+      },
+      "link": {
+        "notFound": "The chosen shared network no longer exists",
+        "otherCountry": "A shared network must be an operator in the same country",
+        "self": "An operator can't be a member of itself",
+        "isMember": "The chosen network is already a member of this operator",
+        "repeated": "Each shared network can appear only once"
+      },
+      "owner": {
+        "operatorOtherCountry": "The operator is in a different country than the structure owner",
+        "nameTaken": "This country already has a structure owner with this name",
+        "nameTakenWithoutCountry": "A structure owner with this name and no country already exists",
+        "operatorTaken": "This operator already has a structure owner entry",
+        "usedInOtherCountries": "Locations in other countries still use this owner, so it can't be tied to one country",
+        "hasLocations": "Locations still use this owner",
+        "inPendingSubmission": "A pending submission still names this owner"
+      },
+      "team": {
+        "maintainerAdminOnly": "Only an administrator can appoint or remove a country maintainer",
+        "otherCountry": "Only this country's maintainer or an administrator can manage its editors",
+        "grantExists": "The account already has this access in this country",
+        "grantForAdministrator": "An administrator already has access in all countries",
+        "regionsOtherCountry": "Every region must be in the country the access is for"
+      },
+      "general": {
+        "recordInUse": "A record that other records still use can't be deleted",
+        "duplicate": "This entry already exists",
+        "notFound": "This record no longer exists",
+        "forbidden": "You don't have permission to do this",
+        "invalid": "The server rejected this data as invalid"
+      }
+    },
+    "country": {
+      "regions": {
+        "title": "Regions",
+        "description": "The country's subdivisions. Every location belongs to one region",
+        "add": "Add region",
+        "loadFailed": "Couldn't load regions",
+        "outlineNote": "A location goes to the region whose outline it lies in. Outlines are loaded by the import script based on the ISO code, not in this panel",
+        "columns": {
+          "code": "Code",
+          "isoCode": "ISO code",
+          "activeStations": "Active stations",
+          "locations": "Locations"
+        },
+        "editRegion": "Edit region {{name}}",
+        "deleteRegion": "Delete region {{name}}",
+        "rowActions": "Actions: {{name}}",
+        "stations_one": "station",
+        "stations_other": "stations",
+        "showRest_one": "Show the remaining region",
+        "showRest_other": "Show the remaining {{count, number}}",
+        "empty": {
+          "title": "This country has no regions yet",
+          "description": "Add the first region so that locations can be created",
+          "readOnlyDescription": "Regions are added by an administrator"
+        },
+        "dialog": {
+          "addDescription": "A new region in {{country}}",
+          "editTitle": "Edit region",
+          "editDescription": "A region in {{country}}",
+          "codeHint": "1 to 3 characters",
+          "isoCodeHint": "Optional",
+          "isoCodeInvalid": "1 to 3 letters (A-Z) or digits",
+          "isoCodeNote": "The outline import uses the ISO code to tell which region an outline belongs to",
+          "addSuccess": "Region added",
+          "saveSuccess": "Region saved",
+          "saveFailed": "Couldn't save the region"
+        },
+        "remove": {
+          "title": "Delete region?",
+          "description": "The region {{name}} will be removed together with its outline. You can undo the change in the audit log, but the outline will have to be loaded again",
+          "confirm": "Delete region",
+          "success": "Region deleted",
+          "failed": "Couldn't delete the region",
+          "refusedTitle": "The region can't be deleted"
+        }
+      },
+      "bandPlan": {
+        "title": "Band plan",
+        "description": "The bands that stations in this country can have cells on. A click adds a band to the plan or removes it right away",
+        "descriptionTouch": "The bands that stations in this country can have cells on. A tap adds a band or removes it right away",
+        "descriptionReadOnly": "The bands that stations in this country can have cells on",
+        "planCount": "{{inPlan}} of {{total}}",
+        "note": "A band that has cells or permits in this country stays in the plan. Bands without a 3GPP code are labels from the permit register",
+        "noteTouch": "A band that has cells or permits in this country stays in the plan",
+        "noteReadOnly": "Bands without a 3GPP code are labels from the permit register",
+        "add": "Add to the plan",
+        "remove": "Remove from the plan",
+        "locked_one": "{{count, number}} cell in this country - the band stays in the plan",
+        "locked_other": "{{count, number}} cells in this country - the band stays in the plan",
+        "loadFailed": "Couldn't load the band plan",
+        "addFailed": "Couldn't add the band to the plan",
+        "removeFailed": "Couldn't remove the band from the plan",
+        "empty": {
+          "title": "The band plan is empty",
+          "description": "While the band plan is empty, stations in this country won't accept any cells"
+        },
+        "noBands": {
+          "title": "There are no bands yet",
+          "description": "Add bands on the Bands page, then include them in this country's plan",
+          "readOnlyDescription": "Bands are added by an administrator"
+        }
+      },
+      "networks": {
+        "title": "Operators and structures",
+        "operators": {
+          "description": "Networks operating in this country",
+          "add": "Add operator",
+          "loadFailed": "Couldn't load operators",
+          "primaryPlmn": "Primary PLMN code: {{plmn}}",
+          "empty": {
+            "title": "This country has no operators yet",
+            "description": "Add the first operator so that stations can be created",
+            "readOnlyDescription": "Stations can be created once an administrator adds an operator"
+          }
+        },
+        "owners": {
+          "description": "Companies that own the towers and masts",
+          "add": "Add owner",
+          "loadFailed": "Couldn't load structure owners",
+          "all": "All owners ({{total, number}})",
+          "empty": {
+            "title": "This country has no structure owners yet",
+            "description": "Add the first owner so that it can be chosen on locations",
+            "readOnlyDescription": "An administrator adds structure owners"
+          }
+        }
+      },
+      "team": {
+        "title": "Team",
+        "loadFailed": "Couldn't load the team",
+        "maintainers": {
+          "title": "Country maintainers",
+          "description": "They add and remove editor access in this country and read its audit log",
+          "add": "Add maintainer",
+          "note": "Only an administrator can appoint or remove a maintainer. Administrators have access to every country and aren't on these lists",
+          "grantedBy": "Granted by <user>{{name}}</user>, {{date}}",
+          "remove": "Remove maintainer: {{name}}",
+          "empty": {
+            "title": "This country has no maintainer",
+            "description": "Administrators manage its editors"
+          }
+        },
+        "editors": {
+          "title": "Editors",
+          "description": "They edit stations and review submissions in the whole country or in selected regions",
+          "add": "Add editor",
+          "changeScope": "Change scope: {{name}}",
+          "remove": "Remove access: {{name}}",
+          "empty": {
+            "title": "This country has no editors yet",
+            "description": "Only its maintainers and administrators edit data in this country"
+          }
+        },
+        "dialog": {
+          "editorDescription": "A new editor in {{country}}",
+          "maintainerDescription": "A new maintainer of {{country}}",
+          "person": "Person",
+          "chosenPerson": "Chosen: {{name}}",
+          "alreadyHolds": "Already has this access",
+          "noRegions": "This country has no regions yet",
+          "addFailed": "Couldn't add the access"
+        },
+        "scope": {
+          "saveFailed": "Couldn't change the scope"
+        },
+        "remove": {
+          "editorTitle": "Remove editor access?",
+          "editorConfirm": "Remove access",
+          "maintainerTitle": "Remove the country maintainer?",
+          "maintainerConfirm": "Remove maintainer",
+          "description": "The account {{name}} will lose this access: {{country}}, {{role}}. If it is the account's last access, the account will go back to the user role",
+          "failed": "Couldn't remove the access"
+        }
+      },
+      "hero": {
+        "countryCode": "Country code {{code}}",
+        "stats": {
+          "activeStations_one": "active station",
+          "activeStations_other": "active stations",
+          "cells_one": "cell",
+          "cells_other": "cells",
+          "locations_one": "location",
+          "locations_other": "locations",
+          "regions_one": "region",
+          "regions_other": "regions",
+          "operators_one": "operator",
+          "operators_other": "operators",
+          "bandPlan_one": "band in the plan",
+          "bandPlan_other": "bands in the plan"
+        }
+      },
+      "general": {
+        "title": "General",
+        "readOnlyNote": "Only an administrator can change these settings",
+        "availability": {
+          "title": "Availability",
+          "description": "Who sees the country and whether submissions can be sent for it",
+          "visible": {
+            "title": "Country visible",
+            "description": "A hidden country and its stations are seen only by administrators and by editors with access in this country"
+          },
+          "contributions": {
+            "description": "While closed, nobody can send a submission for this country. Editors edit data as usual"
+          },
+          "note": "The two settings are independent and are saved right away. A new country starts hidden, with submissions closed",
+          "hideConfirm": {
+            "title": "Hide the country?",
+            "description": "The country {{name}} and its stations, locations and statistics will disappear from the site for everyone except administrators and editors with access in this country. Editing keeps working",
+            "confirm": "Hide country"
+          },
+          "shownToast": "The country is now visible",
+          "hiddenToast": "The country is now hidden",
+          "openedToast": "Submissions are now open",
+          "closedToast": "Submissions are now closed",
+          "saveFailed": "Couldn't save the country's availability"
+        },
+        "defaultView": {
+          "title": "Default map view",
+          "description": "The area the map shows after this country is chosen",
+          "setFromMap": "Set from the map",
+          "edges": {
+            "west": "West",
+            "east": "East",
+            "south": "South",
+            "north": "North"
+          },
+          "longitudeRange": "Enter a number from -180 to 180",
+          "latitudeRange": "Enter a number from -90 to 90",
+          "remove": "Remove view",
+          "save": "Save view",
+          "notSet": "Not set",
+          "notSetDescription": "No map area is stored for this country",
+          "saveSuccess": "Default view saved",
+          "removeSuccess": "Default view removed",
+          "saveFailed": "Couldn't save the default view",
+          "preview": {
+            "label": "Preview of the default map view",
+            "empty": "Enter the four coordinates or set the view from the map",
+            "unavailable": "This area can't be shown in the preview",
+            "failed": "Couldn't load the map"
+          },
+          "mapDialog": {
+            "title": "Set the view from the map",
+            "description": "Move and zoom the map until the whole country is in view. The visible area goes into the view fields",
+            "confirm": "Use this view"
+          }
+        },
+        "preparation": {
+          "title": "The country is hidden",
+          "description": "Only administrators and editors with access in this country see it",
+          "show": "Show country",
+          "loadFailed": "Couldn't load this data",
+          "planEmpty": "Empty - stations won't accept cells",
+          "addBands": "Add bands",
+          "viewSet": "Set",
+          "setView": "Set",
+          "noMaintainer": "None - administrators manage the editors"
+        }
+      },
+      "closing": {
+        "title": "History and deletion",
+        "audit": {
+          "title": "Audit log",
+          "description": "Changes to regions, operators, the band plan and access are recorded in the audit log",
+          "open": "Open"
+        },
+        "delete": {
+          "title": "Delete country",
+          "description": "Possible only once the country has no regions, operators, structure owners or editor access",
+          "confirmTitle": "Delete the country?",
+          "confirmDescription": "The country {{name}} will be removed together with its band plan and statistics history. This can't be undone",
+          "success": "Country deleted",
+          "failed": "Couldn't delete the country",
+          "refusedTitle": "The country can't be deleted",
+          "refusedDescription": "The country {{name}} still has data. Delete or move it, then try again"
+        }
+      },
+      "states": {
+        "notFound": {
+          "title": "Country not found",
+          "description": "This country doesn't exist or has been deleted"
+        }
+      }
+    },
+    "bands": {
+      "actions": {
+        "add": "Add band",
+        "edit": "Edit band",
+        "delete": "Delete band",
+        "menu": "Actions: {{name}}"
+      },
+      "variants": {
+        "commercial": "Commercial",
+        "railway": "Railway"
+      },
+      "code": {
+        "with": "With a code",
+        "without": "No code",
+        "none": "No 3GPP code"
+      },
+      "fields": {
+        "code": "3GPP code",
+        "technology": "Technology",
+        "duplex": "Duplex",
+        "range": "Range",
+        "labelMhz": "Label in MHz",
+        "variant": "Variant"
+      },
+      "columns": {
+        "plans": "In plans"
+      },
+      "cellsNoun_one": "cell",
+      "cellsNoun_other": "cells",
+      "list": {
+        "description": "Bands from the 3GPP catalog and labels from the permit register, shared by all countries",
+        "searchPlaceholder": "Name or 3GPP code",
+        "codeNote": "Technology, duplex and ranges aren't entered by hand - they follow from the 3GPP code",
+        "shownCount_one": "{{shown, number}} of {{count, number}} band",
+        "shownCount_other": "{{shown, number}} of {{count, number}} bands",
+        "detailsFailed": "Couldn't load the band plans or the cell counts",
+        "noMatches": "No matching bands",
+        "noBands": "There are no bands yet",
+        "noBandsHint": "Add the first band from the 3GPP catalog"
+      },
+      "picker": {
+        "placeholder": "Choose a code from the catalog",
+        "placeholderOfRat": "Choose from {{rat}} band codes",
+        "catalog": "3GPP catalog",
+        "search": "Search the 3GPP catalog",
+        "searchPlaceholder": "For example B3, LTE or 1800",
+        "noMatches": "No matching codes",
+        "exists": "Already exists as {{name}}",
+        "cannotHoldCells": "Can't hold cells",
+        "downlinkOnly": "{{band}}, downlink only",
+        "uplinkOnly": "{{band}}, uplink only",
+        "uplinkNote": "Uplink-only bands can't be added - they can't hold cells",
+        "loading": "Loading the 3GPP catalog...",
+        "loadFailed": "Couldn't load the 3GPP catalog"
+      },
+      "dialog": {
+        "addDescription": "A band is created from a code in the 3GPP catalog. Technology, duplex and ranges follow from the code",
+        "codelessNotice": "This band has no 3GPP code, so it doesn't know its ranges. Once a code is set, it can't be removed",
+        "technologyFixed": "A band's technology can't be changed",
+        "noCatalogForRat": "The 3GPP catalog has no bands of this technology, so this band can't get a code",
+        "nameLength": "{{length}} of {{max}} characters",
+        "labelFromCatalog": "From the catalog, can be changed",
+        "labelInvalid": "A whole number from 1 to {{max}}",
+        "plans": "Add to band plans",
+        "plansHint": "A new band isn't in any plan until you add it",
+        "created": "Band added",
+        "createdOutsidePlans": "Band added, but not to every plan",
+        "plansFailed": "It couldn't be added to the band plan in: {{countries}}",
+        "createFailed": "Couldn't add the band",
+        "saved": "Band saved",
+        "saveFailed": "Couldn't save the band"
+      },
+      "removal": {
+        "title": "Delete band?",
+        "description": "The band {{name}} will be removed from the database and from every country's band plan. The change can be reverted in the audit log",
+        "success": "Band deleted",
+        "failed": "Couldn't delete the band",
+        "refusedTitle": "This band can't be deleted",
+        "refusedDescription": "{{reason}}. The band {{name}} stays in the database"
+      }
+    },
+    "operators": {
+      "description": "Mobile networks, their brands, PLMN codes and shared networks",
+      "add": "Add operator",
+      "searchPlaceholder": "Name, short code or PLMN code",
+      "columns": {
+        "plmn": "PLMN code",
+        "sharedNetwork": "Shared network",
+        "position": "Order",
+        "activeStations": "Active stations"
+      },
+      "count_one": "{{count, number}} operator",
+      "count_other": "{{count, number}} operators",
+      "countFiltered_one": "{{shown, number}} of {{count, number}} operator",
+      "countFiltered_other": "{{shown, number}} of {{count, number}} operators",
+      "mobile": {
+        "noPlmn": "No PLMN code",
+        "stations_one": "station",
+        "stations_other": "stations"
+      },
+      "empty": {
+        "noMatch": "No matching operators",
+        "none": "No operators yet",
+        "country": "This country has no operators yet",
+        "addFirst": "Add the first operator so that stations can be created"
+      },
+      "brandsLoadFailed": "Couldn't load brands",
+      "stationsLoadFailed": "Couldn't load station counts"
+    },
+    "operator": {
+      "notFound": {
+        "title": "Operator not found",
+        "description": "This operator doesn't exist or has been deleted"
+      },
+      "actions": {
+        "open": "Open"
+      },
+      "fields": {
+        "legalName": "Company name",
+        "shortCode": "Short code",
+        "brand": "Brand",
+        "listPosition": "List position"
+      },
+      "noBrand": "No brand",
+      "hero": {
+        "stations": "Operator's stations",
+        "stats": {
+          "activeStations_one": "active station",
+          "activeStations_other": "active stations",
+          "listPosition": "list position",
+          "listPositionValue": "#{{position}}",
+          "plmns_one": "PLMN code",
+          "plmns_other": "PLMN codes",
+          "sharedNetworks_one": "shared network",
+          "sharedNetworks_other": "shared networks",
+          "members_one": "member",
+          "members_other": "members"
+        }
+      },
+      "sections": {
+        "details": "Details",
+        "network": "Network",
+        "usage": "Usage and deletion"
+      },
+      "details": {
+        "title": "Operator details",
+        "description": "Names shown on the site, the brand and the list position",
+        "nameHint": "One name per country",
+        "shortCodeHint": "Up to 16 characters, for tight places",
+        "brandHint": "The operator's logo and color come from the brand",
+        "countryHint": "The country can't be changed after creation",
+        "listPositionHint": "From 1, a lower number means a higher position. Empty: the operator is outside the main list",
+        "listPositionInvalid": "Enter a whole number from 1 to 1000",
+        "saved": "Operator details saved",
+        "saveFailed": "Couldn't save the operator details"
+      },
+      "plmn": {
+        "title": "PLMN codes",
+        "description": "The MCC and MNC codes the network broadcasts",
+        "add": "Add code",
+        "edit": "Edit code {{plmn}}",
+        "remove": "Remove code {{plmn}}",
+        "note": "An operator has at most one primary code. Each code belongs to one operator, across all countries",
+        "roles": {
+          "primary": "Primary",
+          "secondary": "Secondary"
+        },
+        "empty": {
+          "title": "No PLMN codes",
+          "description": "Add the MCC and MNC code the network broadcasts"
+        },
+        "dialog": {
+          "addTitle": "Add PLMN code",
+          "editTitle": "Edit PLMN code",
+          "description": "Operator {{name}}",
+          "mccHint": "3 digits",
+          "mncHint": "2 or 3 digits",
+          "roleHint": "An operator has at most one primary code",
+          "primaryMoves": "The current primary code {{plmn}} will become secondary",
+          "takenBy": "Code {{plmn}} already belongs to operator {{name}}",
+          "alreadyAdded": "The operator already has code {{plmn}}",
+          "incomplete": "Enter the MCC and the MNC",
+          "mccFormat": "An MCC is three digits, the first not 0",
+          "mncFormat": "An MNC is two or three digits",
+          "added": "PLMN code added",
+          "saved": "PLMN code saved",
+          "saveFailed": "Couldn't save the PLMN code"
+        },
+        "removeDialog": {
+          "title": "Remove the PLMN code?",
+          "description": "Code {{plmn}} will no longer belong to operator {{name}}",
+          "primaryDescription": "Code {{plmn}} is the primary code of operator {{name}}. After removal the operator will have no primary code",
+          "confirm": "Remove code",
+          "success": "PLMN code removed",
+          "failed": "Couldn't remove the PLMN code"
+        }
+      },
+      "networks": {
+        "title": "Shared networks",
+        "description": "Networks built together with other operators of this country",
+        "add": "Add network",
+        "note": "Filtering stations by a shared network also shows its members' stations",
+        "members": "Members: {{names}}",
+        "remove": "Remove shared network: {{name}}",
+        "loadFailed": "Couldn't load operators",
+        "empty": {
+          "title": "No shared networks",
+          "description": "The operator isn't a member of any shared network"
+        },
+        "removeDialog": {
+          "title": "Remove from the shared network?",
+          "description": "Operator {{member}} will no longer be a member of {{network}}",
+          "success": "Removed from the shared network",
+          "failed": "Couldn't remove from the shared network"
+        }
+      },
+      "members": {
+        "title": "Members",
+        "description": "Operators that build this network together",
+        "add": "Add member",
+        "note": "A network with members can't be deleted",
+        "remove": "Remove member: {{name}}"
+      },
+      "linkDialog": {
+        "networkTitle": "Add shared network",
+        "networkDescription": "{{name}} will become a member of the chosen network",
+        "networkField": "Shared network",
+        "networkPlaceholder": "Choose a network",
+        "memberDescription": "The chosen operator will become a member of {{name}}",
+        "hint": "You can choose from operators in the same country",
+        "noChoices": "This country has no operators that can be added",
+        "success": "Added to the shared network",
+        "failed": "Couldn't add to the shared network"
+      },
+      "usage": {
+        "title": "Where it's used",
+        "description": "Data that points to this operator",
+        "stationsLink": "List of this operator's stations",
+        "owner": {
+          "title": "Structure owner",
+          "none": "The operator has no structure owner entry",
+          "loadFailed": "Couldn't load structure owners"
+        }
+      },
+      "audit": {
+        "description": "Changes to this operator, which can be reverted"
+      },
+      "delete": {
+        "title": "Delete operator",
+        "description": "Possible only when the operator has no stations, permits or pending submissions",
+        "hasStations_one": "An operator with {{count, number}} active station can't be deleted",
+        "hasStations_other": "An operator with {{count, number}} active stations can't be deleted",
+        "hasMembers_one": "A shared network with {{count, number}} member can't be deleted",
+        "hasMembers_other": "A shared network with {{count, number}} members can't be deleted",
+        "confirmTitle": "Delete the operator?",
+        "confirmDescription": "Operator {{name}} will be removed together with its PLMN codes and its shared network memberships. The change can be reverted in the audit log",
+        "refusedTitle": "The operator can't be deleted",
+        "success": "Operator deleted",
+        "failed": "Couldn't delete the operator"
+      },
+      "create": {
+        "description": "After adding, the operator's page opens with its PLMN codes and shared networks",
+        "countryHint": "It can't be changed later",
+        "shortCodeHint": "Optional, up to 16 characters",
+        "plmnIncomplete": "Enter the MCC and the MNC, or leave both empty",
+        "success": "Operator added",
+        "failed": "Couldn't add the operator"
+      }
+    },
+    "brands": {
+      "brand": "Brand",
+      "description": "The logo and color the site uses to mark operators and structure owners",
+      "add": "Add brand",
+      "edit": "Edit brand",
+      "delete": "Delete brand",
+      "fields": {
+        "slug": "Slug",
+        "color": "Color",
+        "logo": "Logo"
+      },
+      "list": {
+        "noLogo": "No logo",
+        "usageLoadFailed": "Couldn't load operators and structure owners",
+        "empty": {
+          "title": "There are no brands yet",
+          "description": "Add the first brand to give operators a logo and a color"
+        }
+      },
+      "dialog": {
+        "addDescription": "You can then assign the brand to operators and structure owners",
+        "editDescription": "The change applies at once to the operators and structure owners of this brand",
+        "newBrand": "New brand",
+        "slugPreview": "slug",
+        "slugPlaceholder": "e.g. t-mobile",
+        "slugHint": "Lowercase letters and digits, words separated by a hyphen",
+        "pickColor": "Pick a color",
+        "colorValue": "Color written as #RRGGBB",
+        "presetColors": "Preset colors",
+        "colorHint": "The operator's color on the map, in charts and in headers"
+      },
+      "logo": {
+        "drop": "Drag a logo file here or choose it from your device",
+        "dropNow": "Drop the file to upload the logo",
+        "choose": "Choose file",
+        "chooseAnother": "Choose another file",
+        "uploadNew": "Upload new",
+        "remove": "Remove logo",
+        "previewHint": "Preview on a dark and a light background",
+        "rules": "SVG, PNG or WebP, up to 512 KB. PNG and WebP at least 48 px high",
+        "uploading": "Uploading logo...",
+        "uploaded": "Logo uploaded",
+        "removed": "Logo removed",
+        "uploadFailed": "Couldn't upload the logo",
+        "removeFailed": "Couldn't remove the logo",
+        "createdWithoutLogo": "The brand was added, but without the logo"
+      },
+      "toasts": {
+        "created": "Brand added",
+        "saved": "Brand saved",
+        "deleted": "Brand deleted"
+      },
+      "errors": {
+        "createFailed": "Couldn't add the brand",
+        "saveFailed": "Couldn't save the brand",
+        "deleteFailed": "Couldn't delete the brand"
+      },
+      "deleteConfirm": {
+        "title": "Delete the brand?",
+        "description": "The brand {{name}} will be removed together with its logo. This can't be undone"
+      },
+      "deleteRefused": {
+        "title": "The brand can't be deleted"
+      }
+    },
+    "owners": {
+      "owner": "Owner",
+      "description": "Companies that own the towers, masts and other structures that stations stand on",
+      "add": "Add owner",
+      "noCountry": "No country",
+      "notAnOperator": "Not an operator",
+      "list": {
+        "searchPlaceholder": "Owner name",
+        "edit": "Edit: {{name}}",
+        "delete": "Delete: {{name}}",
+        "count_one": "{{count, number}} owner",
+        "count_other": "{{count, number}} owners",
+        "countFiltered_one": "{{shown, number}} of {{count, number}} owner",
+        "countFiltered_other": "{{shown, number}} of {{count, number}} owners",
+        "lookupsLoadFailed": "Couldn't load brands and operators",
+        "noMatches": "No matching owners",
+        "empty": {
+          "title": "There are no structure owners yet",
+          "description": "Add the first owner so it can be chosen on a location"
+        }
+      },
+      "dialog": {
+        "addTitle": "Add structure owner",
+        "editTitle": "Edit structure owner",
+        "addDescription": "The owner is then chosen on a location, next to the structure type",
+        "editDescription": "The change applies at once to this owner's locations",
+        "countryHint": "Without a country the owner fits locations in every country",
+        "operatorHint": "One entry per operator",
+        "operatorTaken": "already has an entry",
+        "choicesLoadFailed": "Couldn't load the list",
+        "addForCountryDescription": "It will be added for {{country}} and chosen for this location right away",
+        "adminFieldsHint": "Brand and operator are set by an administrator"
+      },
+      "toasts": {
+        "created": "Owner added",
+        "saved": "Owner saved",
+        "deleted": "Owner deleted"
+      },
+      "errors": {
+        "createFailed": "Couldn't add the structure owner",
+        "saveFailed": "Couldn't save the structure owner",
+        "deleteFailed": "Couldn't delete the structure owner"
+      },
+      "deleteConfirm": {
+        "title": "Delete the structure owner?",
+        "description": "The owner {{name}} will be removed from the list. This can't be undone",
+        "confirm": "Delete owner"
+      },
+      "deleteRefused": {
+        "title": "The structure owner can't be deleted"
+      }
+    },
+    "countries": {
+      "description": "Country visibility, accepting submissions, regions, band plans and teams",
+      "add": "Add country",
+      "detailTitle": "Country details",
+      "detailsLoadFailed": "Couldn't load some of the data",
+      "none": "None",
+      "emptyPlan": "Empty",
+      "visibility": {
+        "visible": "Visible",
+        "hidden": "Hidden"
+      },
+      "contributions": {
+        "open": "Open",
+        "closed": "Closed",
+        "openLong": "Submissions open",
+        "closedLong": "Submissions closed"
+      },
+      "team": {
+        "maintainers_one": "{{count, number}} maintainer",
+        "maintainers_other": "{{count, number}} maintainers",
+        "editors_one": "{{count, number}} editor",
+        "editors_other": "{{count, number}} editors"
+      },
+      "empty": {
+        "title": "No countries",
+        "description": "Add the first country, then its regions, operators and band plan"
+      },
+      "addDialog": {
+        "description": "A country starts empty: no regions, no operators and no band plan",
+        "codeHint": "The country code can't be changed later",
+        "startsHidden": "It starts hidden, with submissions closed",
+        "emptyPlanNote": "While the band plan is empty, stations in this country won't accept any cells",
+        "searchLabel": "Search countries",
+        "noMatches": "No countries found",
+        "success": "Country added",
+        "failed": "Couldn't add the country"
       }
     }
   }

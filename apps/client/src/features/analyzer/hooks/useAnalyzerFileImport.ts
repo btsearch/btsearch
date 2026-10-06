@@ -41,9 +41,13 @@ export function useAnalyzerFileImport(): {
     controllerRef.current = controller;
     setImportProgress({ bytesRead: 0, totalBytes: file.size });
 
+    function isSuperseded(): boolean {
+      return controller.signal.aborted || controllerRef.current !== controller;
+    }
+
     let lastProgressUpdate = 0;
     function updateProgress(bytesRead: number): void {
-      if (controller.signal.aborted || controllerRef.current !== controller) return;
+      if (isSuperseded()) return;
       const now = performance.now();
       if (bytesRead < file.size && now - lastProgressUpdate < 100) return;
       lastProgressUpdate = now;
@@ -52,16 +56,16 @@ export function useAnalyzerFileImport(): {
 
     try {
       const header = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-      if (controller.signal.aborted || controllerRef.current !== controller) return null;
+      if (isSuperseded()) return null;
 
       if (isNsgFileHeader(header)) {
         const { importNsgAnalyzerFile } = await import("@/features/analyzer/nsg/importFile");
-        if (controller.signal.aborted || controllerRef.current !== controller) return null;
+        if (isSuperseded()) return null;
         const imported = await importNsgAnalyzerFile(file, {
           signal: controller.signal,
           onProgress: (progress) => updateProgress(progress.bytesRead),
         });
-        if (controller.signal.aborted || controllerRef.current !== controller) return null;
+        if (isSuperseded()) return null;
         return {
           rows: imported.rows,
           format: "nsg",
@@ -70,12 +74,12 @@ export function useAnalyzerFileImport(): {
       }
 
       const { importAnalyzerTextFile } = await import("@/lib/analyzer/analyzerTextImport");
-      if (controller.signal.aborted || controllerRef.current !== controller) return null;
+      if (isSuperseded()) return null;
       const imported = await importAnalyzerTextFile(file, { signal: controller.signal, onProgress: updateProgress });
-      if (controller.signal.aborted || controllerRef.current !== controller) return null;
-      return { ...imported, skippedObservations: 0 };
+      if (isSuperseded()) return null;
+      return { rows: imported.rows, format: imported.format, skippedObservations: imported.skippedLines };
     } catch (error) {
-      if (controller.signal.aborted || controllerRef.current !== controller) return null;
+      if (isSuperseded()) return null;
       throw error;
     } finally {
       if (controllerRef.current === controller) {

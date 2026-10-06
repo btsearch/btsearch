@@ -31,9 +31,7 @@ export function importNsgAnalyzerFile(file: File, { signal, onProgress }: Import
       }
       cleanup();
       if (data.type === "complete") resolve(data.result);
-      else {
-        reject(new AnalyzerImportError(data.code, data.message));
-      }
+      else reject(new AnalyzerImportError(data.code, data.message, data.cellCount));
     });
     worker.addEventListener("error", () => {
       cleanup();

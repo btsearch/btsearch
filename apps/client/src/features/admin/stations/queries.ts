@@ -1,7 +1,8 @@
-import { type QueryClient, queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions, skipToken } from "@tanstack/react-query";
 
-import { fetchApiData } from "@/lib/api";
-import type { Station } from "@/types/station";
+import { auditOperationKeys } from "@/features/admin/audit-operations/queries";
+import { fetchUkePermitsByStationId, hasMapLocationsSource } from "@/features/map/api";
+import { editingKeys } from "@/features/station-editing/data/keys";
 
 export type StationUpdateImpact = {
   stationId: number | null;
@@ -16,6 +17,14 @@ export type StationUpdateImpact = {
   extraIdsChanged: boolean;
   uplinkChanged: boolean;
 };
+
+type InvalidateStationUpdateQueriesOptions = {
+  conservative?: boolean;
+  refetchAdminDetail?: boolean;
+  invalidateAllStationHistories?: boolean;
+};
+
+const REGISTER_PERMITS_STALE_TIME = 1000 * 60 * 5;
 
 export function createConservativeStationImpact(stationId: number | null): StationUpdateImpact {
   return {
@@ -33,16 +42,12 @@ export function createConservativeStationImpact(stationId: number | null): Stati
   };
 }
 
-export function adminStationQueryOptions(stationId: number | string) {
-  const id = String(stationId);
+export function registerStationPermitsQueryOptions(registerStationId: string | undefined) {
   return queryOptions({
-    queryKey: ["admin", "station", id] as const,
-    queryFn: () => fetchApiData<Station>(`stations/${id}`),
+    queryKey: ["uke-permits-preload", registerStationId] as const,
+    queryFn: registerStationId === undefined ? skipToken : () => fetchUkePermitsByStationId(registerStationId),
+    staleTime: REGISTER_PERMITS_STALE_TIME,
   });
-}
-
-function hasInternalSource(value: unknown): boolean {
-  return typeof value === "object" && value !== null && "source" in value && value.source === "internal";
 }
 
 function uniqueLocationIds(impact: StationUpdateImpact): number[] {
@@ -57,30 +62,25 @@ export function invalidateStationUpdateQueries(
   invalidateStationUpdateQueriesBatch(queryClient, [impact], options);
 }
 
-type InvalidateStationUpdateQueriesOptions = {
-  conservative?: boolean;
-  refetchAdminDetail?: boolean;
-  invalidateAllStationHistories?: boolean;
-};
-
 export function invalidateStationUpdateQueriesBatch(
   queryClient: QueryClient,
   impacts: readonly StationUpdateImpact[],
-  { conservative = false, refetchAdminDetail = false, invalidateAllStationHistories = false }: InvalidateStationUpdateQueriesOptions = {},
+  { conservative = false, invalidateAllStationHistories = false }: InvalidateStationUpdateQueriesOptions = {},
 ): void {
   const stationDetailIds = new Set<number>();
   const locationMetadataStationIds = new Set<number>();
   const locationIds = new Set<number>();
+  const changedStationLocationIds = new Set<number>();
   const stationPhotoIds = new Set<number>();
   const locationPhotoIds = new Set<number>();
   let stationMetadataChanged = false;
   let locationMetadataChanged = false;
   let locationMoved = false;
   let cellsChanged = false;
-  let cellCountChanged = false;
   let sectorsChanged = false;
   let extraIdsChanged = false;
   let uplinkChanged = false;
+  let hasChangedStationWithoutLocationId = false;
 
   for (const impact of impacts) {
     const impactLocationIds = uniqueLocationIds(impact);
@@ -101,19 +101,21 @@ export function invalidateStationUpdateQueriesBatch(
       if (conservative || impact.locationMoved) stationPhotoIds.add(impact.stationId);
     }
     if (stationListingChanged) for (const locationId of impactLocationIds) locationIds.add(locationId);
+    if (stationDetailChanged) {
+      for (const locationId of impactLocationIds) changedStationLocationIds.add(locationId);
+      hasChangedStationWithoutLocationId ||= impactLocationIds.length === 0;
+    }
     if (impact.locationMoved) for (const locationId of impactLocationIds) locationPhotoIds.add(locationId);
     stationMetadataChanged ||= impact.stationMetadataChanged;
     locationMetadataChanged ||= impact.locationMetadataChanged;
     locationMoved ||= impact.locationMoved;
     cellsChanged ||= impact.cellsChanged;
-    cellCountChanged ||= impact.cellCountChanged;
     sectorsChanged ||= impact.sectorsChanged;
     extraIdsChanged ||= impact.extraIdsChanged;
     uplinkChanged ||= impact.uplinkChanged;
   }
 
   const stationListingChanged = stationMetadataChanged || locationMetadataChanged || locationMoved || cellsChanged || uplinkChanged;
-  const stationSearchChanged = stationListingChanged || extraIdsChanged;
   const locationChanged = locationMetadataChanged || locationMoved;
   const stationDataChanged = stationListingChanged || extraIdsChanged;
   const stationOrLocationChanged = stationMetadataChanged || locationMetadataChanged || locationMoved;
@@ -121,73 +123,51 @@ export function invalidateStationUpdateQueriesBatch(
   const invalidateEveryStationHistory = invalidateAllStationHistories || locationMetadataChanged;
   const invalidations: Promise<void>[] = [];
 
-  for (const stationId of stationDetailIds)
-    invalidations.push(
-      queryClient.invalidateQueries({
-        queryKey: adminStationQueryOptions(stationId).queryKey,
-        exact: true,
-        refetchType: refetchAdminDetail ? "active" : "none",
-      }),
-      queryClient.invalidateQueries({ queryKey: ["station", stationId] }),
-    );
+  for (const stationId of stationDetailIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station", stationId] }));
 
-  if (!invalidateEveryStationHistory)
+  if (!invalidateEveryStationHistory) {
     for (const stationId of stationDetailIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station-history", stationId] }));
+  }
 
-  if (!locationMetadataChanged)
-    for (const stationId of stationDetailIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station-for-submission", stationId] }));
-
-  if (stationDataChanged || sectorsChanged)
-    invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ["admin", "audit-operations"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "audit-operations"] }),
-    );
+  if (stationDataChanged || sectorsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: auditOperationKeys.all() }));
 
   if (invalidateEveryStationHistory) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station-history"] }));
 
-  if (stationListingChanged)
+  if (stationListingChanged) {
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: ["stations-list"] }),
       queryClient.invalidateQueries({ queryKey: ["station-search-table"] }),
       queryClient.invalidateQueries({
         queryKey: ["locations"],
-        predicate: (query) => hasInternalSource(query.queryKey[2]),
+        predicate: (query) => hasMapLocationsSource(query.queryKey, "internal"),
       }),
       queryClient.invalidateQueries({
         queryKey: ["list-locations"],
-        predicate: (query) => query.queryKey[3] === "internal",
+        predicate: (query) => hasMapLocationsSource(query.queryKey, "internal"),
       }),
     );
+  }
 
-  if (stationSearchChanged)
+  if (stationDataChanged) {
     invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ["stations-search"] }),
       queryClient.invalidateQueries({
         queryKey: ["station-search"],
         predicate: (query) => query.queryKey[2] === "internal",
       }),
     );
+  }
 
-  if (stationMetadataChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["duplicate-station-check"] }));
+  if (stationMetadataChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: editingKeys.duplicateSiteIdRoot }));
 
-  if (stationMetadataChanged || cellsChanged)
-    invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ["stats"], exact: true }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "stats"], exact: true }),
-    );
+  if (stationMetadataChanged || cellsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats"], exact: true }));
 
-  if (locationChanged || conservative)
-    invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ["picker-locations"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin-locations-list"] }),
-    );
+  if (stationListingChanged || conservative) invalidations.push(queryClient.invalidateQueries({ queryKey: ["admin-locations-list"] }));
 
-  if (stationListingChanged && !conservative)
-    for (const locationId of locationIds)
-      invalidations.push(
-        queryClient.invalidateQueries({ queryKey: ["location", locationId] }),
-        queryClient.invalidateQueries({ queryKey: ["admin", "location", String(locationId)] }),
-      );
+  if (locationChanged || conservative) invalidations.push(queryClient.invalidateQueries({ queryKey: editingKeys.pickerLocationsRoot }));
+
+  if (stationListingChanged && !conservative) {
+    for (const locationId of locationIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["admin", "location", String(locationId)] }));
+  }
 
   if (conservative) {
     invalidations.push(
@@ -195,17 +175,15 @@ export function invalidateStationUpdateQueriesBatch(
       queryClient.invalidateQueries({ queryKey: ["admin", "location"] }),
       queryClient.invalidateQueries({ queryKey: ["location-photos"] }),
     );
+  } else {
+    for (const locationId of changedStationLocationIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["location", locationId] }));
+    if (hasChangedStationWithoutLocationId) invalidations.push(queryClient.invalidateQueries({ queryKey: ["location"] }));
   }
 
   for (const stationId of stationPhotoIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["station-photos", stationId] }));
 
   if (locationMetadataChanged) {
-    const locationMetadataStationIdStrings = new Set([...locationMetadataStationIds].map(String));
     invalidations.push(
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "station"],
-        predicate: (query) => !locationMetadataStationIdStrings.has(String(query.queryKey[2])),
-      }),
       queryClient.invalidateQueries({
         queryKey: ["station"],
         predicate: (query) => {
@@ -216,27 +194,26 @@ export function invalidateStationUpdateQueriesBatch(
           );
         },
       }),
-      queryClient.invalidateQueries({ queryKey: ["station-for-submission"] }),
     );
   }
 
-  if (!conservative)
+  if (!conservative) {
     for (const locationId of locationPhotoIds) invalidations.push(queryClient.invalidateQueries({ queryKey: ["location-photos", locationId] }));
+  }
 
   if (stationOrLocationChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["photos-gallery"] }));
 
   if (stationLocationOrCellsChanged) queryClient.removeQueries({ queryKey: ["nsg", "station-correlation"] });
 
-  if (stationDataChanged)
+  if (stationDataChanged) {
     invalidations.push(
-      queryClient.invalidateQueries({ queryKey: ["admin", "submission"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "submissions"] }),
-      queryClient.invalidateQueries({ queryKey: ["my-submission", "detail"] }),
-      queryClient.invalidateQueries({ queryKey: ["my-submissions"] }),
-      queryClient.invalidateQueries({ queryKey: ["submission-edit"] }),
-      queryClient.invalidateQueries({ queryKey: ["submissionBatches", "details"] }),
-      queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "pending-submissions"] }),
+      queryClient.invalidateQueries({ queryKey: editingKeys.adminSubmissionsRoot }),
+      queryClient.invalidateQueries({ queryKey: editingKeys.mySubmissionsRoot }),
+      queryClient.invalidateQueries({ queryKey: editingKeys.submissionRoot }),
+      queryClient.invalidateQueries({ queryKey: editingKeys.dashboardPendingSubmissions }),
+      queryClient.invalidateQueries({ queryKey: editingKeys.pendingSubmissionsCount }),
     );
+  }
 
   if (stationMetadataChanged || cellsChanged) {
     invalidations.push(
@@ -248,8 +225,6 @@ export function invalidateStationUpdateQueriesBatch(
   if (stationLocationOrCellsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats", "voivodeships"] }));
 
   if (cellsChanged || sectorsChanged || extraIdsChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["stats", "completeness"] }));
-
-  if (cellCountChanged) invalidations.push(queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "delta"] }));
 
   void Promise.all(invalidations);
 }

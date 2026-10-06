@@ -1,15 +1,10 @@
-import { attachments, locationPhotos, stationPhotoSelections } from "@openbts/drizzle";
-import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../../../../errors.js";
-import {
-  auditContextFromRequest,
-  loadPhotoSelectionSnapshots,
-  logPhotoSelectionChanges,
-  runAuditedOperation,
-} from "../../../../../../../features/audit/index.js";
+import { defineScope } from "../../../../../../../features/access/scope.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../../../features/audit/index.js";
+import { removeLocationPhoto } from "../../../../../../../features/photos/write.js";
 import type { ReplyPayload } from "../../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
 import { deletePhotoFiles } from "../../../../../../../utils/photoFiles.js";
@@ -25,37 +20,9 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   const { location_id, photo_id } = req.params;
   if (!req.userSession?.user) throw new ErrorResponse("UNAUTHORIZED");
 
-  const attachmentUuid = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.photos" }, async (tx, audit) => {
-    const photo = await tx.query.locationPhotos.findFirst({ where: { id: photo_id, location_id } });
-    if (!photo) throw new ErrorResponse("NOT_FOUND");
-
-    const [attachment, affectedSelections, affectedPhotos] = await Promise.all([
-      tx.query.attachments.findFirst({ where: { id: photo.attachment_id } }),
-      tx
-        .select({ station_id: stationPhotoSelections.station_id })
-        .from(stationPhotoSelections)
-        .innerJoin(locationPhotos, eq(stationPhotoSelections.location_photo_id, locationPhotos.id))
-        .where(eq(locationPhotos.attachment_id, photo.attachment_id)),
-      tx.query.locationPhotos.findMany({ where: { attachment_id: photo.attachment_id } }),
-    ]);
-    const affectedStationIds = [...new Set(affectedSelections.map((selection) => selection.station_id))];
-    const previousSelections = await loadPhotoSelectionSnapshots(tx, affectedStationIds);
-
-    await tx.delete(locationPhotos).where(and(eq(locationPhotos.id, photo_id), eq(locationPhotos.location_id, location_id)));
-    if (attachment) await tx.delete(attachments).where(eq(attachments.id, attachment.id));
-
-    await audit.logMany(
-      affectedPhotos.map((deletedPhoto) => ({
-        entity: "location_photos",
-        op: "delete",
-        recordId: deletedPhoto.id,
-        old: deletedPhoto,
-        metadata: { location_id: deletedPhoto.location_id },
-      })),
-    );
-    await logPhotoSelectionChanges(audit, previousSelections);
-    return attachment?.uuid ?? null;
-  });
+  const attachmentUuid = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.photos" }, (tx, audit) =>
+    removeLocationPhoto(tx, audit, location_id, photo_id),
+  );
 
   if (attachmentUuid !== null) await deletePhotoFiles([attachmentUuid]);
 
@@ -66,7 +33,10 @@ const deleteLocationPhoto: Route<ReqParams, Record<never, never>> = {
   url: "/locations/:location_id/photos/:photo_id",
   method: "DELETE",
   schema: schemaRoute,
-  config: { permissions: ["update:stations"] },
+  config: {
+    permissions: ["update:stations"],
+    scope: defineScope<ReqParams>((req) => ({ locationIds: [req.params.location_id], locationPhotoIds: [req.params.photo_id] })),
+  },
   handler,
 };
 

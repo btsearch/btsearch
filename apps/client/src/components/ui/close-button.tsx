@@ -9,19 +9,20 @@ import { cn } from "@/lib/utils";
 
 type CloseButtonProps = Omit<ComponentProps<typeof TooltipTrigger>, "render" | "className" | "children"> & {
   size?: "xs" | "sm";
+  label?: string;
   className?: string;
   render?: ReactElement;
 };
 
-export function CloseButton({ size = "sm", className, render, ...props }: CloseButtonProps) {
+export function CloseButton({ size = "sm", label, className, render, ...props }: CloseButtonProps) {
   const { t } = useTranslation("common");
-  const label = t("actions.close");
+  const shownLabel = label ?? t("actions.close");
 
   return (
     <Tooltip>
       <TooltipTrigger
         {...props}
-        aria-label={label}
+        aria-label={shownLabel}
         render={
           <Button
             type="button"
@@ -34,7 +35,7 @@ export function CloseButton({ size = "sm", className, render, ...props }: CloseB
       >
         <HugeiconsIcon icon={Cancel01Icon} />
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>{shownLabel}</TooltipContent>
     </Tooltip>
   );
 }

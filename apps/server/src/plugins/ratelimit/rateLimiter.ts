@@ -4,6 +4,8 @@ import type { redis } from "../../database/redis.js";
 import type { TokenTier, UserRole } from "../../interfaces/auth.interface.js";
 import { generateFingerprint } from "../../utils/fingerprint.js";
 import { logger } from "../../utils/logger.js";
+import { matchedRoutePath } from "../../utils/matchedRoutePath.js";
+import { CounterPausedError, hitCounter } from "./counter.js";
 
 export type RateLimitTier = {
   max: number;
@@ -39,6 +41,8 @@ export interface RateLimitResult {
 export interface RateLimitReservation {
   key: string;
 }
+
+export type RateLimitOutage = { isUnavailable: true; hasRouteLimit: boolean };
 
 type RateLimitCheckOptions = {
   countSuccessfulOnly?: boolean;
@@ -101,18 +105,18 @@ export class RateLimitService {
   /**
    * Generate a rate limit key based on the request
    * @param req FastifyRequest object
-   * @param useRouteKey Whether to include the route in the key
-   * @param keyParam Route parameter whose value scopes a route-specific key
+   * @param routeLimit Route-specific limit the request falls under, which scopes the key to that route
    * @returns Rate limit key or null if fingerprint generation fails
    */
-  generateKey(req: FastifyRequest, useRouteKey = false, keyParam?: string): string | null {
-    let route = useRouteKey ? (req.routeOptions.url ?? req.url ?? "unknown").split("?")[0] : "";
+  generateKey(req: FastifyRequest, routeLimit: RouteRateLimit | null = null): string | null {
+    let route = routeLimit?.url ?? "";
 
-    if (useRouteKey && keyParam && typeof req.params === "object" && req.params !== null) {
+    const keyParam = routeLimit?.keyParam;
+    if (keyParam && typeof req.params === "object" && req.params !== null) {
       const paramValue = Reflect.get(req.params, keyParam);
       if (typeof paramValue === "string") route = `${route}:${encodeURIComponent(paramValue)}`;
     }
-    const routeSuffix = useRouteKey ? `:${route}` : "";
+    const routeSuffix = routeLimit ? `:${route}` : "";
 
     if (req.apiToken) {
       const tokenId = req.apiToken.id;
@@ -167,7 +171,7 @@ export class RateLimitService {
    * @returns Rate limit configuration for the route or null if not found
    */
   private getRouteRateLimit(req: FastifyRequest): RouteRateLimit | null {
-    const url = (req.url ?? req.routeOptions?.url ?? "").split("?")[0];
+    const url = matchedRoutePath(req);
     if (!url || !this.options.routes.length) return null;
 
     return (
@@ -190,10 +194,10 @@ export class RateLimitService {
   /**
    * Determine the appropriate rate limit tier for a request
    * @param req FastifyRequest object
+   * @param routeConfig Route-specific limit the request falls under
    * @returns Rate limit configuration for the request
    */
-  async getRateLimitTier(req: FastifyRequest): Promise<RateLimitTier> {
-    const routeConfig = this.getRouteRateLimit(req);
+  async getRateLimitTier(req: FastifyRequest, routeConfig = this.getRouteRateLimit(req)): Promise<RateLimitTier> {
     if (routeConfig) {
       if (routeConfig.roles && req.userSession?.user?.role) {
         const role = req.userSession.user.role as UserRole;
@@ -242,10 +246,9 @@ export class RateLimitService {
       };
     }
 
-    const [newCount, ttlResult] = (await this.redis.multi().incr(key).ttl(key).exec()) as unknown as [number, number];
-    if (newCount === 1) await this.redis.expire(key, rateLimit.window);
-
-    const ttl = newCount === 1 ? rateLimit.window : ttlResult > 0 ? ttlResult : rateLimit.window;
+    const hit = await hitCounter(this.redis, key, rateLimit.window);
+    const newCount = hit.count;
+    const ttl = Math.max(hit.ttl, 1);
     const resetTime = Math.floor(Date.now() / 1000) + ttl;
 
     if (newCount > rateLimit.max) {
@@ -283,22 +286,20 @@ export class RateLimitService {
   /**
    * Process rate limiting for a request
    * @param req FastifyRequest object
-   * @returns Rate limit check result or null if rate limiting should be skipped
+   * @returns Rate limit check result, null if the client cannot be identified, or an outage when the limiter itself failed
    */
-  async processRequest(req: FastifyRequest): Promise<RateLimitResult | null> {
+  async processRequest(req: FastifyRequest): Promise<RateLimitResult | RateLimitOutage | null> {
+    const routeLimit = this.getRouteRateLimit(req);
+
     try {
-      const rateLimit = await this.getRateLimitTier(req);
-
-      const routeLimit = this.getRouteRateLimit(req);
-      const useRouteKey = routeLimit !== null;
-
-      const key = this.generateKey(req, useRouteKey, routeLimit?.keyParam);
+      const rateLimit = await this.getRateLimitTier(req, routeLimit);
+      const key = this.generateKey(req, routeLimit);
       if (!key) return null;
 
       return await this.check(key, rateLimit, { countSuccessfulOnly: routeLimit?.countSuccessfulOnly === true });
     } catch (err) {
-      logger.error("ratelimit.service.processRequest", { err });
-      return null;
+      if (!(err instanceof CounterPausedError)) logger.error("ratelimit.service.processRequest", { err });
+      return { isUnavailable: true, hasRouteLimit: routeLimit !== null };
     }
   }
 

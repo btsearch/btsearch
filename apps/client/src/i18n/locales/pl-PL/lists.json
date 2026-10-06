@@ -46,5 +46,6 @@
   "removeFavorite": "Usuń z ulubionych",
   "togglePublic": "Ustaw jako publiczną",
   "togglePrivate": "Ustaw jako prywatną",
-  "editList": "Edytuj listę"
+  "editList": "Edytuj listę",
+  "nameTaken": "Masz już listę o tej nazwie"
 }

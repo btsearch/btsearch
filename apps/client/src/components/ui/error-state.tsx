@@ -294,6 +294,8 @@ export function InlineError({ title, description, onRetry, isRetrying = false, r
   );
 }
 
+export const STALE_NOTICE_CORNER_CLASS = "absolute top-2 right-2 z-40";
+
 export function StaleDataNotice({ message, onRetry, isRetrying = false, className }: StaleDataNoticeProps) {
   const { t } = useTranslation("common");
 

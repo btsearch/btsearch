@@ -1,5 +1,4 @@
 import { bands, cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
-import { CellResponseType } from "@openbts/proto/server";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -69,7 +68,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getCellFromStation: Route<ReqParams, Cell> = {
   url: "/stations/:station_id/cells/:cell_id",
   method: "GET",
-  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true, proto: CellResponseType },
+  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

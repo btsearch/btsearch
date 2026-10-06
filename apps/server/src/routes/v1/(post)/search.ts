@@ -19,6 +19,8 @@ import { z } from "zod/v4";
 
 import db from "../../../database/psql.js";
 import { ErrorResponse } from "../../../errors.js";
+import { stationIdInLegacyCountry } from "../../../features/countries/legacy.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../features/locations/structure.js";
 import { type GroupedFilters, groupFiltersByTable, hasFilters, parseFilterQuery } from "../../../features/search/filters.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
@@ -31,7 +33,7 @@ const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
 const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
-const locationSelectSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationSelectSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const regionSelectSchema = createSelectSchema(regions);
 const operatorsSelectSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
@@ -95,7 +97,7 @@ const schemaRoute = {
 const stationQueryConfig = {
   with: {
     cells: { with: { band: true, gsm: true, umts: true, lte: true, nr: true } },
-    location: { with: { region: true }, columns: { point: false, region_id: false } },
+    location: { with: { region: true }, columns: { point: false, region_id: false, ...HIDDEN_STRUCTURE_COLUMNS } },
     operator: true,
     extra_identificators: { columns: { station_id: false } },
     uplink: { columns: { station_id: false } },
@@ -136,6 +138,8 @@ const sortStations = (
   });
 };
 
+const legacyStation = stationIdInLegacyCountry(stations.id);
+
 function combineConditions(conditions: SQL[]): SQL | undefined {
   if (conditions.length === 0) return undefined;
   if (conditions.length === 1) return conditions[0];
@@ -169,7 +173,7 @@ const searchNumericInRatTables = async (numericQuery: number, likeQuery: string)
         .select({ stationId: cells.station_id })
         .from(table)
         .innerJoin(cells, eq(joinCol, cells.id))
-        .where(buildNumericSearchCondition(searchCols, numericQuery, likeQuery)),
+        .where(and(buildNumericSearchCondition(searchCols, numericQuery, likeQuery), stationIdInLegacyCountry(cells.station_id))),
     ),
   );
   return results.flatMap((r) => (r.status === "fulfilled" ? r.value : [])).map((r) => r.stationId);
@@ -190,7 +194,7 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
   const fuzzyPromise = db
     .select({ id: stations.id })
     .from(stations)
-    .where(sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`)
+    .where(and(sql`(${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"})`, legacyStation))
     .orderBy(sql`similarity(${stations.station_id}, ${searchQuery}) DESC`)
     .limit(limit)
     .then((rows) => rows.map((r) => r.id))
@@ -202,7 +206,7 @@ const resolveQueryStationIds = async (searchQuery: string, limit: number): Promi
         .select({ id: stations.id })
         .from(stations)
         .innerJoin(locations, eq(stations.location_id, locations.id))
-        .where(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`))
+        .where(and(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`), legacyStation))
         .limit(limit)
         .then((rows) => rows.map((r) => r.id));
 
@@ -214,6 +218,7 @@ const fetchStations = async (where?: SQL, limit?: number, exactStationId?: strin
   if (!where) {
     return db.query.stations.findMany({
       ...stationQueryConfig,
+      where: { RAW: (fields) => stationIdInLegacyCountry(fields.id) },
       ...(limit && { limit }),
     });
   }
@@ -221,7 +226,7 @@ const fetchStations = async (where?: SQL, limit?: number, exactStationId?: strin
   const exactMatchOrder = exactStationId
     ? sql<number>`CASE WHEN ${stations.station_id} = ${exactStationId.toUpperCase()} THEN 0 ELSE 1 END`
     : undefined;
-  const matchingIdsQuery = db.select({ id: stations.id }).from(stations).where(where);
+  const matchingIdsQuery = db.select({ id: stations.id }).from(stations).where(and(where, legacyStation));
   const matchingIds = exactMatchOrder
     ? await matchingIdsQuery.orderBy(exactMatchOrder).limit(limit || 100)
     : await matchingIdsQuery.limit(limit || 100);
@@ -242,7 +247,7 @@ const fetchStations = async (where?: SQL, limit?: number, exactStationId?: strin
 };
 
 const addMissingToMap = async (candidateIds: number[], map: Map<number, StationWithCells>, remaining: number) => {
-  const missing = candidateIds.filter((id) => !map.has(id)).slice(0, remaining);
+  const missing = [...new Set(candidateIds)].filter((id) => !map.has(id)).slice(0, remaining);
   if (missing.length === 0) return;
   const fetched = await fetchStations(inArray(stations.id, missing), remaining);
   const byId = new Map(fetched.map((s) => [s.id, s]));
@@ -330,7 +335,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   const fuzzyIds = await db
     .select({ id: stations.id })
     .from(stations)
-    .where(sql`${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"}`)
+    .where(and(sql`(${stations.station_id} % ${searchQuery} OR ${stations.station_id} ILIKE ${"%" + searchQuery + "%"})`, legacyStation))
     .orderBy(sql`similarity(${stations.station_id}, ${searchQuery}) DESC`)
     .limit(limit)
     .catch(() => []);
@@ -350,7 +355,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       .select({ id: stations.id })
       .from(stations)
       .innerJoin(locations, eq(stations.location_id, locations.id))
-      .where(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`))
+      .where(and(or(sql`${searchQuery} <% ${locations.city}`, sql`${searchQuery} <% ${locations.address}`), legacyStation))
       .orderBy(
         sql`(CASE WHEN ${locations.address} ILIKE ${searchQuery} THEN 3 WHEN ${locations.address} ILIKE ${`${searchQuery}%`} THEN 2 WHEN ${locations.address} ILIKE ${`%${searchQuery}%`} THEN 1 ELSE 0 END) DESC`,
         sql`GREATEST(word_similarity(${searchQuery}, ${locations.city}), word_similarity(${searchQuery}, ${locations.address})) DESC`,
@@ -368,10 +373,13 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       .selectDistinct({ stationId: extraIdentificators.station_id })
       .from(extraIdentificators)
       .where(
-        or(
-          sql`CAST(${extraIdentificators.networks_id} AS TEXT) ILIKE ${`%${searchQuery}%`}`,
-          sql`${extraIdentificators.networks_name} ILIKE ${`%${searchQuery}%`}`,
-          sql`${extraIdentificators.mno_name} ILIKE ${`%${searchQuery}%`}`,
+        and(
+          or(
+            sql`CAST(${extraIdentificators.networks_id} AS TEXT) ILIKE ${`%${searchQuery}%`}`,
+            sql`${extraIdentificators.networks_name} ILIKE ${`%${searchQuery}%`}`,
+            sql`${extraIdentificators.mno_name} ILIKE ${`%${searchQuery}%`}`,
+          ),
+          stationIdInLegacyCountry(extraIdentificators.station_id),
         ),
       );
     await addMissingToMap(

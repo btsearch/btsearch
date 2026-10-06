@@ -13,13 +13,13 @@ import {
   stations,
   umtsCells,
 } from "@openbts/drizzle";
-import { StationResponseType } from "@openbts/proto/server";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
 import { findPhysicalStation, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -35,7 +35,7 @@ const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
 const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
-const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const operatorSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
 const sectorsSchema = createSelectSchema(stationSectors).omit({ station_id: true });
@@ -83,7 +83,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
     where: { id },
     with: {
       cells: { with: { band: true, gsm: true, umts: true, lte: true, nr: true }, columns: { band_id: false, station_id: false } },
-      location: { columns: { point: false, region_id: false }, with: { region: true } },
+      location: { columns: { point: false, region_id: false, ...HIDDEN_STRUCTURE_COLUMNS }, with: { region: true } },
       operator: true,
       extra_identificators: { columns: { station_id: false } },
       sectors: {
@@ -116,7 +116,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 const getStation: Route<IdParams, StationResponse> = {
   url: "/stations/:id",
   method: "GET",
-  config: { permissions: ["read:stations"], allowGuestAccess: true, proto: StationResponseType },
+  config: { permissions: ["read:stations"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

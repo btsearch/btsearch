@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { GEOCODING_COUNTRY, GEOCODING_LANGUAGE, GEOCODING_SEARCH_LIMIT } from "./config.js";
+import { GEOCODING_SEARCH_LIMIT } from "./config.js";
 import {
   GeocodingProviderError,
   createResultId,
@@ -145,16 +145,17 @@ async function requestLocationIq(url: URL): Promise<{ body: unknown } | null> {
 export function createLocationIqProvider(apiKey: string): GeocodingProvider {
   return {
     source: "locationiq",
-    async search(query) {
+    async search(query, { language, countryCodes }) {
       const url = new URL(LOCATIONIQ_AUTOCOMPLETE_URL);
-      url.search = new URLSearchParams({
+      const params = new URLSearchParams({
         key: apiKey,
         q: query,
-        countrycodes: GEOCODING_COUNTRY,
-        "accept-language": GEOCODING_LANGUAGE,
+        "accept-language": language,
         limit: String(GEOCODING_SEARCH_LIMIT),
         dedupe: "1",
-      }).toString();
+      });
+      if (countryCodes.length > 0) params.set("countrycodes", countryCodes.join(","));
+      url.search = params.toString();
 
       const response = await requestLocationIq(url);
       if (!response) return [];
@@ -162,14 +163,14 @@ export function createLocationIqProvider(apiKey: string): GeocodingProvider {
       if (!parsed.success) throw new GeocodingProviderError("Invalid response", { cause: parsed.error });
       return parsed.data.map(parsePlace).filter((result): result is GeocodingResult => result !== null);
     },
-    async reverse(latitude, longitude) {
+    async reverse(latitude, longitude, language) {
       const url = new URL(LOCATIONIQ_REVERSE_URL);
       url.search = new URLSearchParams({
         key: apiKey,
         lat: String(latitude),
         lon: String(longitude),
         format: "json",
-        "accept-language": GEOCODING_LANGUAGE,
+        "accept-language": language,
         source: "nom",
       }).toString();
 

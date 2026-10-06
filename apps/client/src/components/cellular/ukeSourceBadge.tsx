@@ -6,16 +6,14 @@ import { cn } from "@/lib/utils";
 const SOURCE_LABELS: Record<string, string> = {
   permits: "permits.sourcePermits",
   device_registry: "permits.sourceDeviceRegistry",
-  radiolines: "permits.sourceRadiolines",
 };
 
 const SOURCE_STYLES: Record<string, string> = {
   device_registry: "ring-1 ring-blue-500/30",
-  radiolines: "ring-1 ring-purple-500/30",
 };
 
 type UKESourceBadgeProps = {
-  source: "permits" | "device_registry" | "radiolines";
+  source: "permits" | "device_registry";
   className?: string;
 };
 

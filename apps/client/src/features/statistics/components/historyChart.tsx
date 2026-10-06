@@ -1,3 +1,4 @@
+import type { Operator } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +14,6 @@ import { StatChartCard } from "./statChartCard";
 import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Operator } from "@/types/station";
 
 type ViewMode = "by-band" | "by-operator";
 
@@ -133,7 +133,7 @@ function OperatorHistoryCard({
   );
 }
 
-export function HistoryChart({ operators }: { operators?: Operator[] }) {
+export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | "name">[] }) {
   const { t } = useTranslation("statistics");
   const { t: tCommon } = useTranslation("common");
   const [operatorId, setOperatorId] = useState<number | undefined>();

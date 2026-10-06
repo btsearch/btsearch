@@ -37,6 +37,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     },
   });
   if (!band) throw new ErrorResponse("NOT_FOUND");
+  if (req.body.rat !== undefined && req.body.rat !== band.rat) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "A band cannot move to another technology" });
+  }
 
   try {
     const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "band.update" }, async (tx, audit) => {

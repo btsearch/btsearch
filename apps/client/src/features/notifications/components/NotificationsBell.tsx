@@ -4,6 +4,7 @@ import { useIsFetching } from "@tanstack/react-query";
 import { type RefObject, Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { notificationKeys } from "../api";
 import { NOTIFICATIONS_PAGE_SIZE, useNotifications } from "../useNotifications";
 import { usePushSubscription } from "../usePushSubscription";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,10 @@ import { cn } from "@/lib/utils";
 
 const SKELETON_TITLE_WIDTHS = ["58%", "74%", "46%"];
 
-const loadNotificationList = () => import("./NotificationList");
+function loadNotificationList() {
+  return import("./NotificationList");
+}
+
 const NotificationList = lazy(() => loadNotificationList().then((module) => ({ default: module.NotificationList })));
 
 function preloadNotificationList() {
@@ -24,7 +28,7 @@ function preloadNotificationList() {
 }
 
 function NotificationsLoadError({ onRetry }: { onRetry: () => unknown }) {
-  const isFetching = useIsFetching({ queryKey: ["notifications"] }) > 0;
+  const isFetching = useIsFetching({ queryKey: notificationKeys.lists }) > 0;
 
   return <InlineError size="sm" onRetry={onRetry} isRetrying={isFetching} />;
 }
@@ -99,30 +103,29 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
   const { data: session } = authClient.useSession();
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(NOTIFICATIONS_PAGE_SIZE);
-  const { notifications, totalUnread, hasMore, reachedEnd, nextLimit, isLoading, isLoadingMore, isLoadingError, refetch, markAllRead, markRead } =
+  const { notifications, unreadCount, hasMore, reachedEnd, nextLimit, isLoading, isLoadingMore, isLoadingError, refetch, markAllRead, markRead } =
     useNotifications(limit);
-  const { subscription, permission, isSubscribing, subscribe, isSupported } = usePushSubscription();
+  const { subscription, permission, isSubscribing, subscribe, isAvailable: isPushAvailable } = usePushSubscription();
 
   if (!session?.user) return null;
 
-  const hasUnread = totalUnread > 0;
-  const showPushPrompt = isSupported && !subscription && permission !== "denied";
+  const hasUnread = unreadCount > 0;
+  const showPushPrompt = isPushAvailable && !subscription && permission !== "denied";
   const showAllLoaded = limit > NOTIFICATIONS_PAGE_SIZE && reachedEnd;
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (!nextOpen) setLimit(NOTIFICATIONS_PAGE_SIZE);
+  const resetLimitWhenClosed = (isOpen: boolean) => {
+    if (!isOpen) setLimit(NOTIFICATIONS_PAGE_SIZE);
   };
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={setOpen} onOpenChangeComplete={resetLimitWhenClosed}>
       <PopoverTrigger
         render={
           <Button
             variant="ghost"
             size="icon"
             className={cn("relative cursor-pointer", className)}
-            aria-label={hasUnread ? t("triggerUnread", { count: totalUnread }) : t("title")}
+            aria-label={hasUnread ? t("triggerUnread", { count: unreadCount }) : t("title")}
             onPointerEnter={preloadNotificationList}
             onFocus={preloadNotificationList}
           />
@@ -134,7 +137,7 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
             aria-hidden="true"
             className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white"
           >
-            {totalUnread > 9 ? "9+" : totalUnread}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}
       </PopoverTrigger>
@@ -151,7 +154,7 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
           {hasUnread ? (
             <>
               <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-primary/15 px-1.5 text-[11px] font-bold text-primary tabular-nums">
-                {totalUnread}
+                {unreadCount}
               </span>
               <Button type="button" variant="ghost" size="sm" className="ml-auto cursor-pointer text-muted-foreground" onClick={markAllRead}>
                 <HugeiconsIcon icon={TickDouble02Icon} data-icon="inline-start" />
@@ -171,15 +174,16 @@ export function NotificationsBell({ className, side = "bottom", anchor }: Notifi
           ) : (
             <>
               <Suspense fallback={<NotificationsSkeleton />}>
-                <NotificationList notifications={notifications} onRead={markRead} onNavigate={() => handleOpenChange(false)} />
+                <NotificationList notifications={notifications} onRead={markRead} onNavigate={() => setOpen(false)} />
               </Suspense>
               {hasMore ? (
                 <div className="-mx-1 mt-0.5 border-t px-1 pt-1">
                   <Button
                     type="button"
                     variant="ghost"
-                    className="w-full cursor-pointer text-muted-foreground"
+                    className="w-full cursor-pointer text-muted-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
                     disabled={isLoadingMore}
+                    focusableWhenDisabled
                     onClick={() => setLimit(nextLimit)}
                   >
                     {isLoadingMore ? <Spinner className="size-3.5" /> : null}

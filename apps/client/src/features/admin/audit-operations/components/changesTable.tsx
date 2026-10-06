@@ -228,12 +228,13 @@ export function ChangesTable({ oldValues, newValues }: { oldValues: AuditSnapsho
   const oldRecord = isObject(oldValues) ? oldValues : null;
   const newRecord = isObject(newValues) ? newValues : null;
 
-  if ((oldValues !== null && oldRecord === null) || (newValues !== null && newRecord === null))
+  if ((oldValues !== null && oldRecord === null) || (newValues !== null && newRecord === null)) {
     return (
       <div className="rounded-lg border p-3 overflow-hidden">
         <SnapshotPair oldValues={oldValues} newValues={newValues} />
       </div>
     );
+  }
 
   const allKeys = [...new Set([...Object.keys(oldRecord ?? {}), ...Object.keys(newRecord ?? {})])];
   const fieldRows = allKeys.map((key) => {

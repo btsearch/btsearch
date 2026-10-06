@@ -1,10 +1,10 @@
 import { FileChartLineIcon } from "@hugeicons/core-free-icons";
+import type { EmfMeasurement } from "@openbts/shared/contract";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 
-import type { PlannedPEMStation } from "../api";
-import { MeasurementSummary, getMeasurementDate } from "./measurementSummary";
+import { type MeasurementTab, type MeasurementTabRow, isInactiveSite } from "../api";
+import { MeasurementSummary, getLaboratoryName, getMeasurementDate } from "./measurementSummary";
 import {
   type PEMDataTableProps,
   PEMDataTableShell,
@@ -17,34 +17,29 @@ import {
 } from "./pemDataTable";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 
-type Props = PEMDataTableProps<PlannedPEMStation> & {
-  status: PlannedPEMStation["status"];
+type Props = PEMDataTableProps<MeasurementTabRow> & {
+  tab: MeasurementTab;
 };
 
-function getMeasurementKey(measurement: PlannedPEMStation) {
-  if (measurement.id !== null) return String(measurement.id);
-  return [
-    measurement.station_id,
-    measurement.operator?.mnc,
-    measurement.location.latitude,
-    measurement.location.longitude,
-    measurement.status,
-    measurement.disabled_date,
-    measurement.date?.from,
-    measurement.date?.to,
-    measurement.lab?.PCA,
-  ].join(":");
+function getMeasurementKey(measurement: MeasurementTabRow) {
+  if (!isInactiveSite(measurement) && measurement.id !== null) return String(measurement.id);
+
+  const { siteId, operatorId, location } = measurement;
+  const dates = isInactiveSite(measurement)
+    ? [measurement.disabledOn]
+    : [measurement.status, measurement.startsOn, measurement.endsOn, measurement.laboratory?.accreditationNumber];
+  return [siteId, operatorId, location.latitude, location.longitude, ...dates].join(":");
 }
 
 type MeasurementReportLinkProps = {
-  measurement: PlannedPEMStation;
+  measurement: EmfMeasurement;
   t: TFunction;
 };
 
 function MeasurementReportLink({ measurement, t }: MeasurementReportLinkProps) {
   return (
     <PEMDocumentLink
-      href={measurement.report_url}
+      href={measurement.reportUrl}
       label={t("table.measurementReport")}
       context={getPEMRowContext(measurement, t)}
       icon={FileChartLineIcon}
@@ -53,7 +48,7 @@ function MeasurementReportLink({ measurement, t }: MeasurementReportLinkProps) {
 }
 
 type MobileRowProps = {
-  measurement: PlannedPEMStation;
+  measurement: MeasurementTabRow;
   locale: string;
   t: TFunction;
   tCommon: TFunction;
@@ -68,72 +63,75 @@ function MeasurementMobileRow({ measurement, locale, t, tCommon, onOpenStation }
       unknownCityLabel={t("table.unknownCity")}
       noAddressLabel={tCommon("notFound.address")}
       action={<PEMMobileRowActions row={measurement} t={t} tCommon={tCommon} onOpenStation={onOpenStation} />}
-      footerAction={measurement.status === "COMPLETED" && measurement.report_url ? <MeasurementReportLink measurement={measurement} t={t} /> : null}
+      footerAction={
+        !isInactiveSite(measurement) && measurement.status === "completed" && measurement.reportUrl ? (
+          <MeasurementReportLink measurement={measurement} t={t} />
+        ) : null
+      }
     />
   );
 }
 
-export function MeasurementsDataTable({ status, t, tCommon, locale, onOpenStation, ...props }: Props) {
-  const columns = useMemo<ColumnDef<AppTableFeatures, PlannedPEMStation>[]>(() => {
-    const measurementColumns: ColumnDef<AppTableFeatures, PlannedPEMStation>[] = [
-      {
-        id: "measurementDate",
-        header: status === "INACTIVE" ? t("table.disabledDate") : t("table.measurementDate"),
-        size: 180,
-        cell: ({ row }) => <span className="text-sm text-muted-foreground tabular-nums">{getMeasurementDate(row.original, locale)}</span>,
-      },
-    ];
+export function MeasurementsDataTable({ tab, t, tCommon, locale, onOpenStation, ...props }: Props) {
+  const measurementColumns: ColumnDef<AppTableFeatures, MeasurementTabRow>[] = [
+    {
+      id: "measurementDate",
+      header: tab === "inactive" ? t("table.disabledDate") : t("table.measurementDate"),
+      size: 180,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground tabular-nums">{getMeasurementDate(row.original, locale)}</span>,
+    },
+  ];
 
-    if (status !== "INACTIVE")
-      measurementColumns.push({
-        accessorKey: "lab.name",
-        header: t("table.lab"),
-        size: 200,
-        cell: ({ getValue }) => <span className="block truncate text-sm text-muted-foreground">{getValue<string | null>() ?? "-"}</span>,
-      });
+  if (tab !== "inactive") {
+    measurementColumns.push({
+      id: "laboratory",
+      header: t("table.lab"),
+      size: 200,
+      cell: ({ row }) => <span className="block truncate text-sm text-muted-foreground">{getLaboratoryName(row.original) ?? "-"}</span>,
+    });
+  }
 
-    return [
-      {
-        id: "station",
-        header: tCommon("labels.station"),
-        size: 250,
-        cell: ({ row }) => {
-          const operator = row.original.operator;
-          return (
-            <PEMStationCell
-              stationId={row.original.station_id}
-              operator={operator}
-              subtitle={operator && operator.full_name !== operator.name ? operator.full_name : null}
-            />
-          );
-        },
-      },
-      ...measurementColumns,
-      {
-        accessorKey: "location",
-        header: tCommon("labels.location"),
-        size: 300,
-        cell: ({ row }) => (
-          <PEMLocationCell
-            city={row.original.location.city || t("table.unknownCity")}
-            regionName={row.original.region?.name}
-            address={row.original.location.address}
-            noAddressLabel={tCommon("notFound.address")}
+  const columns: ColumnDef<AppTableFeatures, MeasurementTabRow>[] = [
+    {
+      id: "station",
+      header: tCommon("labels.station"),
+      size: 250,
+      cell: ({ row }) => {
+        const operator = row.original.operator;
+        return (
+          <PEMStationCell
+            siteId={row.original.siteId}
+            operator={operator}
+            subtitle={operator && operator.legalName !== operator.name ? operator.legalName : null}
           />
-        ),
+        );
       },
-      {
-        id: "links",
-        header: () => <span className="sr-only">{t("common:labels.links")}</span>,
-        size: status === "COMPLETED" ? 170 : 140,
-        cell: ({ row }) => (
-          <PEMLinksCell row={row.original} t={t} tCommon={tCommon} onOpenStation={onOpenStation}>
-            {status === "COMPLETED" ? <MeasurementReportLink measurement={row.original} t={t} /> : null}
-          </PEMLinksCell>
-        ),
-      },
-    ];
-  }, [t, tCommon, locale, status, onOpenStation]);
+    },
+    ...measurementColumns,
+    {
+      accessorKey: "location",
+      header: tCommon("labels.location"),
+      size: 300,
+      cell: ({ row }) => (
+        <PEMLocationCell
+          city={row.original.location.city || t("table.unknownCity")}
+          regionName={row.original.region?.name}
+          address={row.original.location.address}
+          noAddressLabel={tCommon("notFound.address")}
+        />
+      ),
+    },
+    {
+      id: "links",
+      header: () => <span className="sr-only">{t("common:labels.links")}</span>,
+      size: tab === "completed" ? 170 : 140,
+      cell: ({ row }) => (
+        <PEMLinksCell row={row.original} t={t} tCommon={tCommon} onOpenStation={onOpenStation}>
+          {tab === "completed" && !isInactiveSite(row.original) ? <MeasurementReportLink measurement={row.original} t={t} /> : null}
+        </PEMLinksCell>
+      ),
+    },
+  ];
 
   return (
     <PEMDataTableShell

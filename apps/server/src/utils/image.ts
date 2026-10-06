@@ -1,8 +1,9 @@
 import { fileTypeFromBuffer } from "file-type";
 import libheif from "libheif-js";
+import type { Readable } from "node:stream";
 import sharp, { type Sharp, type SharpInput, type SharpOptions } from "sharp";
 
-import { ErrorResponse } from "../errors.js";
+import { ErrorResponse, MALFORMED_MULTIPART_MESSAGE } from "../errors.js";
 
 const HEIC_MIMES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
 const MIN_PHOTO_SHORT_SIDE = 480;
@@ -33,6 +34,20 @@ export function isHeic(mimetype: string): boolean {
   return HEIC_MIMES.has(mimetype.toLowerCase());
 }
 
+export async function readUploadedFile(file: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  try {
+    for await (const chunk of file) chunks.push(chunk as Buffer);
+  } catch (cause) {
+    throw new ErrorResponse("BAD_REQUEST", { message: MALFORMED_MULTIPART_MESSAGE, cause });
+  }
+  return Buffer.concat(chunks);
+}
+
+export function isUntouchedFileInput(filename: string, content: Buffer): boolean {
+  return filename === "" && content.length === 0;
+}
+
 export async function decodeHeicToRaw(buffer: Buffer): Promise<{ data: Buffer; width: number; height: number }> {
   const decoder = new libheif.HeifDecoder();
   const images = decoder.decode(buffer);
@@ -52,12 +67,20 @@ export async function decodeHeicToRaw(buffer: Buffer): Promise<{ data: Buffer; w
   return { data: Buffer.from(rgba.buffer), width, height };
 }
 
+export async function refusingUnreadableImage<Decoded>(decode: () => Promise<Decoded>): Promise<Decoded> {
+  try {
+    return await decode();
+  } catch (cause) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "The file is not a readable image", cause });
+  }
+}
+
 export async function decodePhotoInput(buffer: Buffer): Promise<PhotoInput> {
   const detected = await fileTypeFromBuffer(buffer);
   if (!detected || !detected.mime.startsWith("image/")) throw new ErrorResponse("BAD_REQUEST", { message: "Only image files are allowed" });
   if (!isHeic(detected.mime)) return { input: buffer };
 
-  const { data, width, height } = await decodeHeicToRaw(buffer);
+  const { data, width, height } = await refusingUnreadableImage(() => decodeHeicToRaw(buffer));
   return { input: data, options: { raw: { width, height, channels: 4 } } };
 }
 
@@ -71,12 +94,14 @@ function encodeThumb(image: Sharp, width: number, height: number) {
 
 export async function encodeStationPhoto({ input, options }: PhotoInput): Promise<EncodedPhoto> {
   // Every tier is encoded from raw pixels, which carry no EXIF/GPS/XMP, so no output can leak metadata
-  const { data, info } = await sharp(input, options)
-    .rotate()
-    .flatten({ background: "#ffffff" })
-    .resize({ width: FULL_MAX_SIDE, height: FULL_MAX_SIDE, fit: "inside", withoutEnlargement: true })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+  const { data, info } = await refusingUnreadableImage(() =>
+    sharp(input, options)
+      .rotate()
+      .flatten({ background: "#ffffff" })
+      .resize({ width: FULL_MAX_SIDE, height: FULL_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .raw()
+      .toBuffer({ resolveWithObject: true }),
+  );
   const pixels = () => sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } });
 
   const display = await pixels()

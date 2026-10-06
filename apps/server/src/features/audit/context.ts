@@ -4,6 +4,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../errors.js";
+import { isLegacyRequest } from "../countries/legacy.js";
 
 export type AuditContext = {
   actorId: string | null;
@@ -48,9 +49,22 @@ function parseClientCorrelation(req: FastifyRequest): Pick<AuditContext, "client
   return { clientKey: key.data.toLowerCase(), clientKind: kind.data };
 }
 
+function readJoinKey(req: FastifyRequest): string | null {
+  const rawKey = req.headers[AUDIT_OPERATION_ID_HEADER];
+  if (typeof rawKey !== "string" || isLegacyRequest(req) || !req.userSession?.user?.id) return null;
+
+  const key = clientKeySchema.safeParse(rawKey);
+  return key.success ? key.data.toLowerCase() : null;
+}
+
 export function auditContextFromRequest(req: FastifyRequest, source: AuditSource = "api"): AuditContext {
-  const actorId = req.userSession?.user?.id ?? null;
-  const correlation = parseClientCorrelation(req);
+  if (!isLegacyRequest(req)) return standaloneAuditContext(req, source);
+
+  return { ...standaloneAuditContext(req, source), ...parseClientCorrelation(req) };
+}
+
+export function standaloneAuditContext(req: FastifyRequest, source: AuditSource = "api"): AuditContext {
+  const actorId = req.userSession?.user?.id ?? req.apiToken?.referenceId ?? null;
   const rawUserAgent = req.headers["user-agent"];
   return {
     actorId,
@@ -58,7 +72,8 @@ export function auditContextFromRequest(req: FastifyRequest, source: AuditSource
     source,
     ipAddress: req.ip ?? null,
     userAgent: Array.isArray(rawUserAgent) ? (rawUserAgent[0] ?? null) : (rawUserAgent ?? null),
-    ...correlation,
+    clientKey: readJoinKey(req),
+    clientKind: null,
   };
 }
 

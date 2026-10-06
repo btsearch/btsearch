@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../../errors.js";
+import { locationParamScope } from "../../../../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../../interfaces/routes.interface.js";
@@ -70,7 +71,7 @@ const updateLocationPhoto: Route<RequestData, { id: number; note: string | null;
   url: "/locations/:location_id/photos/:photo_id",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["update:stations"] },
+  config: { permissions: ["update:stations"], scope: locationParamScope },
   handler,
 };
 

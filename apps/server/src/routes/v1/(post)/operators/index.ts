@@ -5,11 +5,12 @@ import { z } from "zod/v4";
 
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { assertPlmnsFree } from "../../../../features/operators/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const operatorsSelectSchema = createSelectSchema(operators);
-const operatorsInsertSchema = createInsertSchema(operators).strict();
+const operatorsInsertSchema = createInsertSchema(operators).omit({ countryCode: true, brandId: true, shortCode: true, sortPriority: true }).strict();
 type ReqBody = { Body: z.infer<typeof operatorsInsertSchema> };
 type ResponseData = z.infer<typeof operatorsSelectSchema>;
 const schemaRoute = {
@@ -22,8 +23,12 @@ const schemaRoute = {
 };
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
+  const { mnc } = req.body;
+
   try {
     const operator = await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.create" }, async (tx, audit) => {
+      if (typeof mnc === "number") await assertPlmnsFree(tx, [{ plmn: String(mnc), role: "primary" }]);
+
       const [created] = await tx.insert(operators).values(req.body).returning();
       if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
 

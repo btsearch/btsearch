@@ -3,9 +3,9 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { hasStaffPermission } from "../../../../features/access/staff.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 
 const schemaRoute = {
   querystring: z.object({
@@ -29,7 +29,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const { userId } = req.query;
   if (userId) {
-    const hasPermission = await verifyPermissions(session.user.id, { user: ["set-password"] });
+    const hasPermission = await hasStaffPermission(req, { user: ["set-password"] });
     if (!hasPermission) throw new ErrorResponse("FORBIDDEN");
     targetUserId = userId;
   }

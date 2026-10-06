@@ -1,8 +1,9 @@
-import { bands } from "@openbts/drizzle";
+import { bands, countryBands } from "@openbts/drizzle";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -26,8 +27,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     const band = await runAuditedOperation(auditContextFromRequest(req), { kind: "band.create" }, async (tx, audit) => {
       const [created] = await tx.insert(bands).values(req.body).returning();
       if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
+      const [planned] = await tx.insert(countryBands).values({ countryCode: LEGACY_COUNTRY_CODE, bandId: created.id }).returning();
 
-      await audit.log({ entity: "bands", op: "create", recordId: created.id, new: created });
+      await audit.logMany([
+        { entity: "bands", op: "create", recordId: created.id, new: created },
+        { entity: "country_bands", op: "create", recordId: `${LEGACY_COUNTRY_CODE}:${created.id}`, new: planned },
+      ]);
       return created;
     });
 

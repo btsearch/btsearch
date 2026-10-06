@@ -1,4 +1,4 @@
-import { bands, cells, locations, regions, stations } from "@openbts/drizzle";
+import { bands, cells, locations, lteCells, nrCells, regions, stations } from "@openbts/drizzle";
 import {
   type CLFDescriptionTemplateParam,
   type CLFDescriptionTemplates,
@@ -9,7 +9,7 @@ import {
   DISPLAY_NR_SEPARATELY_PARAM,
 } from "@openbts/shared/clfExportTemplates";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
-import { and, eq, gte, inArray, max } from "drizzle-orm";
+import { type SQL, and, eq, gte, inArray, max, or } from "drizzle-orm";
 import type { FastifyReply } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 // oxlint-disable no-await-in-loop
@@ -21,8 +21,10 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import redis from "../../../../database/redis.js";
+import { stationIdInLegacyCountry } from "../../../../features/countries/legacy.js";
 import type { Route } from "../../../../interfaces/routes.interface.js";
 import { type SerializedWorkerError, deserializeWorkerError } from "../../../../workers/clfExportProtocol.js";
 
@@ -147,19 +149,23 @@ async function getLastModified({
   bandIds?: number[];
   since?: string;
 }): Promise<Date | null> {
-  const conditions = [eq(stations.status, "published")];
+  const conditions: (SQL | undefined)[] = [eq(stations.status, "published"), stationIdInLegacyCountry(stations.id)];
   if (operatorIds && operatorIds.length > 0) conditions.push(inArray(stations.operator_id, operatorIds));
-  if (regionCodes && regionCodes.length > 0) conditions.push(inArray(regions.code, regionCodes));
+  if (regionCodes && regionCodes.length > 0) conditions.push(inArray(regions.code, regionCodes), eq(regions.countryCode, LEGACY_COUNTRY_CODE));
   if (bandIds && bandIds.length > 0) conditions.push(inArray(bands.value, bandIds));
   if (since) conditions.push(gte(cells.updatedAt, new Date(since)));
   if (rat && rat.length > 0) {
     const ratSet = new Set(rat);
-    const dbRats: ("GSM" | "UMTS" | "LTE" | "NR" | "IOT")[] = [];
-    if (ratSet.has("GSM")) dbRats.push("GSM");
-    if (ratSet.has("UMTS")) dbRats.push("UMTS");
-    if (ratSet.has("LTE") || ratSet.has("IOT")) dbRats.push("LTE");
-    if (ratSet.has("NR") || ratSet.has("IOT")) dbRats.push("NR");
-    conditions.push(inArray(cells.rat, dbRats));
+    conditions.push(
+      or(
+        ratSet.has("GSM") ? eq(cells.rat, "GSM") : undefined,
+        ratSet.has("UMTS") ? eq(cells.rat, "UMTS") : undefined,
+        ratSet.has("LTE") ? eq(cells.rat, "LTE") : undefined,
+        ratSet.has("NR") ? eq(cells.rat, "NR") : undefined,
+        ratSet.has("IOT") ? and(eq(cells.rat, "LTE"), eq(lteCells.supports_iot, true)) : undefined,
+        ratSet.has("IOT") ? and(eq(cells.rat, "NR"), eq(nrCells.supports_nr_redcap, true)) : undefined,
+      ),
+    );
   }
 
   const [result] = await db
@@ -169,6 +175,8 @@ async function getLastModified({
     .innerJoin(bands, and(eq(cells.band_id, bands.id), eq(bands.variant, "commercial")))
     .leftJoin(locations, eq(stations.location_id, locations.id))
     .leftJoin(regions, eq(locations.region_id, regions.id))
+    .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
+    .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
     .where(and(...conditions));
 
   return result?.lastModified ? new Date(result.lastModified) : null;

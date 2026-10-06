@@ -4,6 +4,7 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../database/psql.js";
+import { regionInLegacyCountry, stationIdInLegacyCountry } from "../../../features/countries/legacy.js";
 import type { ReplyPayload } from "../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../interfaces/routes.interface.js";
 
@@ -48,6 +49,7 @@ const schemaRoute = {
 const stationsLastUpdatedQuery = db
   .select({ value: max(stations.updatedAt) })
   .from(stations)
+  .where(stationIdInLegacyCountry(stations.id))
   .prepare("stats_stations_last_updated");
 const permitsImportQuery = db
   .select({ value: max(ukeImportMetadata.last_import_date) })
@@ -59,9 +61,13 @@ const radiolinesImportQuery = db
   .from(ukeImportMetadata)
   .where(and(eq(ukeImportMetadata.status, "success"), eq(ukeImportMetadata.import_type, "radiolines")))
   .prepare("stats_radiolines_last_import");
-const locationsCountQuery = db.select({ value: count() }).from(locations).prepare("stats_locations_count");
-const stationsCountQuery = db.select({ value: count() }).from(stations).prepare("stats_stations_count");
-const cellsCountQuery = db.select({ value: count() }).from(cells).prepare("stats_cells_count");
+const locationsCountQuery = db
+  .select({ value: count() })
+  .from(locations)
+  .where(regionInLegacyCountry(locations.region_id))
+  .prepare("stats_locations_count");
+const stationsCountQuery = db.select({ value: count() }).from(stations).where(stationIdInLegacyCountry(stations.id)).prepare("stats_stations_count");
+const cellsCountQuery = db.select({ value: count() }).from(cells).where(stationIdInLegacyCountry(cells.station_id)).prepare("stats_cells_count");
 const ukeLocationsCountQuery = db.select({ value: count() }).from(ukeLocations).prepare("stats_uke_locations_count");
 const ukePermitsCountQuery = db.select({ value: count() }).from(ukePermits).prepare("stats_uke_permits_count");
 const ukeRadiolinesCountQuery = db.select({ value: count() }).from(ukeRadiolines).prepare("stats_uke_radiolines_count");

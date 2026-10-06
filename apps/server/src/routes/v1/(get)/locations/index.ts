@@ -11,29 +11,37 @@ import {
   stations,
   umtsCells,
 } from "@openbts/drizzle";
-import { LocationsResponseType } from "@openbts/proto/server";
 import { and, count, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { regionInLegacyCountry } from "../../../../features/countries/legacy.js";
 import { getUserListMembership, getVisibleUserList } from "../../../../features/lists/visibility.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
 import {
   FILTER_DEFINITIONS,
   type GroupedFilters,
+  buildRatAndBandKeywordMatch,
   defaultFilterRefs,
   groupFiltersByTable,
   parseFilterQuery,
 } from "../../../../features/search/filters.js";
-import { buildStationFilterConditions, hasStationFilterCriteria, resolveStationFilter } from "../../../../features/stations/filter.js";
+import {
+  buildSectorFilterCondition,
+  buildStationFilterConditions,
+  hasStationFilterCriteria,
+  resolveStationFilter,
+} from "../../../../features/stations/filter.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../features/stations/status.js";
 import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const regionsSchema = createSelectSchema(regions);
 const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const operatorSchema = createSelectSchema(operators);
@@ -207,7 +215,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   let listStationIds: number[] | undefined;
   if (listUuid) {
-    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    const list = await getVisibleUserList(req, listUuid);
     listStationIds = getUserListMembership(list).internal;
     if (!listStationIds.length) return res.send({ data: [], totalCount: 0 });
   }
@@ -235,6 +243,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
             code: {
               in: regionNames,
             },
+            countryCode: LEGACY_COUNTRY_CODE,
           },
         })
       : [],
@@ -244,7 +253,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   if (!stationFilter) return res.send({ data: [], totalCount: 0 });
 
-  const { filters, remainingQuery: remainingSearch } = query ? parseFilterQuery(query) : { filters: {}, remainingQuery: "" };
+  const { filters, remainingQuery: remainingSearch } = parseFilterQuery(query ?? "");
   const hasStationQueryFilters = Object.keys(filters).some((key) => FILTER_DEFINITIONS[key]?.table !== "locations");
   const hasStationFilters = hasStationFilterCriteria(stationFilter) || listIdsArray !== undefined || hasStationQueryFilters;
 
@@ -262,8 +271,11 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return sql`(${sql.join(conditions, sql` AND `)})`;
   };
 
+  const buildSectorFilter = (sectorFields: typeof stationSectors) =>
+    buildSectorFilterCondition(sectorFields, stationFilter, [buildRatAndBandKeywordMatch(filters.rat, filters.band)]) ?? sql`true`;
+
   const buildLocationConditions = (locFields: typeof locations) => {
-    const conditions: ReturnType<typeof sql>[] = [];
+    const conditions: ReturnType<typeof sql>[] = [regionInLegacyCountry(locFields.region_id)];
     const locationGroupedFilters = groupFiltersByTable(filters, {
       ...defaultFilterRefs,
       locations: locFields,
@@ -319,13 +331,22 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
             where: { RAW: (fields) => buildStationFilter(fields) },
             with: {
               operator: true,
-              ...(azimuths ? { sectors: { columns: { station_id: false }, orderBy: { id: "asc" } } } : {}),
+              ...(azimuths
+                ? {
+                    sectors: {
+                      columns: { station_id: false },
+                      where: { RAW: (fields) => buildSectorFilter(fields) },
+                      orderBy: { id: "asc" },
+                    },
+                  }
+                : {}),
             },
           },
         },
         columns: {
           point: false,
           region_id: false,
+          ...HIDDEN_STRUCTURE_COLUMNS,
         },
         where: {
           RAW: (fields) => {
@@ -351,7 +372,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 const getLocations: Route<ReqQuery, ResponseBody> = {
   url: "/locations",
   method: "GET",
-  config: { permissions: ["read:locations"], allowGuestAccess: true, proto: LocationsResponseType },
+  config: { permissions: ["read:locations"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

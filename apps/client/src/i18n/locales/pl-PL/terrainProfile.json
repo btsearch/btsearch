@@ -4,55 +4,51 @@
     "analyze": "Analizuj profil terenu",
     "retry": "Uruchom ponownie"
   },
-  "station": {
-    "selected": "Wybrana stacja"
-  },
   "receiver": {
     "height": "Wysokość odbiornika",
     "useGps": "Użyj GPS",
     "locating": "Ustalanie pozycji...",
-    "hint": "Przeciągnij niebieski znacznik na mapie, aby zmienić punkt odbioru",
     "gpsErrors": {
       "unsupported": "Ta przeglądarka nie może odczytać Twojej lokalizacji. Przeciągnij znacznik na mapie",
       "permissionDenied": "Odmówiono dostępu do lokalizacji. Zezwól na niego w ustawieniach przeglądarki lub przeciągnij znacznik na mapie",
       "unavailable": "Twoja lokalizacja jest obecnie niedostępna. Spróbuj ponownie lub przeciągnij znacznik na mapie",
       "timeout": "Przekroczono czas oczekiwania na pozycję GPS. Spróbuj ponownie lub przeciągnij znacznik na mapie",
       "unknown": "Nie udało się odczytać Twojej lokalizacji. Spróbuj ponownie lub przeciągnij znacznik na mapie"
-    }
-  },
-  "empty": {
-    "stationDescription": "Otwórz szczegóły stacji i wybierz Analizuj profil terenu w sekcji Akcje"
+    },
+    "title": "Odbiornik",
+    "changePoint": "Zmień punkt"
   },
   "states": {
     "processing": "Odczytywanie terenu LiDAR i analizowanie danych...",
     "failed": "Nie udało się obliczyć profilu",
-    "failedDescription": "Sprawdź wybrane końce trasy i spróbuj ponownie",
     "failureCodes": {
       "PATH_DISTANCE_OUT_OF_RANGE": "Odbiornik jest zbyt blisko stacji lub zbyt daleko od niej. Przesuń znacznik i spróbuj ponownie",
       "ANTENNA_DATA_UNAVAILABLE": "Brak użytecznych danych o wysokości i częstotliwości anten tej stacji",
       "TERRAIN_DATA_UNAVAILABLE": "GUGiK nie zwrócił wystarczających danych terenu dla tej trasy"
     },
-    "outOfAzimuth": "Odbiornik znajduje się poza głównym azymutem wybranej anteny. Wybierz inny sektor, aby zobaczyć profil"
+    "calculating": "Obliczanie profilu",
+    "recalculating": "Obliczanie nowego profilu..."
   },
   "selection": {
-    "title": "Sektor antenowy",
-    "placeholder": "Pasmo · azymut · pochylenie · wysokość",
-    "tilt": "pochylenie {{value}}°",
-    "required": "Wybierz sektor antenowy, aby uruchomić analizę"
+    "tilt": "pochylenie {{value}}°"
   },
   "verdict": {
     "clear": "Modelowana trasa jest wolna od przeszkód",
-    "constrained": "Modelowana trasa ma ograniczony prześwit",
     "blocked": "Modelowana trasa jest przesłonięta",
     "unavailable": "Ocena trasy jest niejednoznaczna",
     "summary": "{{distance}} km · azymut {{bearing}}°",
     "surfaceOnly": "Sam teren nie przesłania trasy. Ograniczeniem są budynki lub roślinność",
     "description": {
-      "clear": "Teren, budynki ani roślinność nie przesłaniają modelowanej trasy. Sprzyja to odbiorowi, ale rzeczywisty poziom sygnału i prędkość mogą się różnić",
-      "constrained": "Modelowana trasa przebiega blisko terenu, budynków lub roślinności. Odbiór może być mniej stabilny",
       "blocked": "Teren, budynki lub roślinność przesłaniają modelowaną trasę. Odbiór może być słabszy lub mniej stabilny",
       "unavailable": "Dane o budynkach i roślinności są niepełne, dlatego nie można wiarygodnie ocenić warunków odbioru"
-    }
+    },
+    "short": {
+      "clear": "Trasa wolna od przeszkód",
+      "blocked": "Trasa przesłonięta",
+      "unavailable": "Ocena niejednoznaczna"
+    },
+    "minimumClearance": "Najmniejszy prześwit",
+    "obstructionDepth": "Przesłonięcie do"
   },
   "metrics": {
     "pathLoss": "Tłumienie trasy",
@@ -61,16 +57,17 @@
     "beamOffsetDescription": "Pionowa różnica między kierunkiem do odbiornika a szacowaną osią wiązki. Im bliżej 0°, tym odbiornik znajduje się bliżej osi, \"+\" oznacza położenie powyżej osi, a \"-\" poniżej",
     "beamOffsetUnavailableDescription": "Nie można obliczyć odchylenia, ponieważ to źródło nie podaje wiarygodnego kąta pochylenia anteny",
     "fieldStrength": "Referencyjne natężenie pola (1 kW ERP)",
-    "fieldStrengthDescription": "Natężenie pola opisuje siłę pola elektromagnetycznego w punkcie odbioru i jest podawane w dBµV/m. Tutaj obliczono je według ITU-R P.1812 dla mocy 1 kW ERP. Wyższa wartość oznacza silniejsze pole referencyjne. Nie jest to rzeczywisty poziom sygnału odbierany przez telefon i nie pozwala przewidzieć prędkości transmisji"
+    "fieldStrengthDescription": "Natężenie pola opisuje siłę pola elektromagnetycznego w punkcie odbioru i jest podawane w dBµV/m. Tutaj obliczono je według ITU-R P.1812 dla mocy 1 kW ERP. Wyższa wartość oznacza silniejsze pole referencyjne. Nie jest to rzeczywisty poziom sygnału odbierany przez telefon i nie pozwala przewidzieć prędkości transmisji",
+    "beamOffsetVertical": "pion {{value}}",
+    "beamOffsetHorizontal": "poziom {{value}}",
+    "explain": "Wyjaśnienie: {{label}}"
   },
   "chart": {
     "label": "Profil terenu i widoczności optycznej",
-    "description": "Przekrój od odbiornika po lewej do wybranej stacji po prawej. Wykres pokazuje teren, obiekty powierzchniowe i promień z predykcją ITU-R P.1812-8",
-    "distance": "{{value}} km od odbiornika",
     "clearance": "Prześwit",
     "endpoints": {
       "receiver": "Odbiornik · {{height}} m n.p.t.",
-      "station": "Stacja · {{height}} m n.p.t."
+      "site": "{{siteId}} · {{height}} m n.p.t."
     },
     "legend": {
       "label": "Warstwy profilu",
@@ -79,30 +76,73 @@
       "lineOfSight": "Promień",
       "obstruction": "Przeszkoda"
     },
-    "series": {
-      "surfaceElevationM": "Pokrycie / roślinność",
-      "lineOfSightElevationM": "Linia widoczności"
-    }
+    "exaggeration": "pionowo ×{{value}}",
+    "obstacleAt": "Przeszkoda · {{distance}} km"
   },
   "evidence": {
-    "lidar": "Teren: {{source}}",
     "si2pem": "Raport SI2PEM · {{date}}",
     "latest": "najnowszy",
-    "noReport": "Brak pasującego raportu SI2PEM"
+    "noReport": "Brak pasującego raportu SI2PEM",
+    "elevation": "Teren: LiDAR {{source}}, próbki co {{spacing}} m"
   },
   "warnings": {
     "codes": {
-      "ANTENNA_SELECTION_REQUIRED": "Wybierz sektor antenowy, aby kontynuować",
       "ANTENNA_SELECTION_INVALID": "Wybrana antena nie jest już dostępna",
       "SI2PEM_REPORT_UNAVAILABLE": "Nie znaleziono pasującego raportu SI2PEM",
       "SI2PEM_REPORT_PARSE_FAILED": "Nie udało się wiarygodnie odczytać najnowszego raportu SI2PEM",
       "UKE_ANTENNA_FALLBACK": "Użyto wysokości z pozwolenia UKE, ponieważ dane SI2PEM były niedostępne",
       "NETWORKS_SHARING_DATA": "Dane antenowe pochodzą ze stacji partnerskiej w tej samej lokalizacji (współdzielenie stacji T-Mobile/Orange)",
-      "ANTENNA_AZIMUTH_MISMATCH": "Odbiornik znajduje się poza głównym azymutem wybranej anteny",
       "SURFACE_MODEL_UNAVAILABLE": "Brak danych o pokryciu i roślinności",
       "SURFACE_MODEL_PARTIAL": "Dane o pokryciu i roślinności są niepełne na tej trasie",
       "TERRAIN_MODEL_PARTIAL": "Dane o terenie są niepełne na tej trasie",
       "TERRAIN_CACHE_STALE": "Dane terenu z pamięci podręcznej mogą być starsze niż bieżący model GUGiK"
+    },
+    "outsideMainBeam": "Odbiornik jest {{degrees}}° poza osią tej anteny. Wynik dotyczy trasy, nie kierunku anteny."
+  },
+  "distanceFromStation": "{{value}} km od stacji",
+  "header": {
+    "openStation": "Otwórz okno stacji",
+    "collapse": "Zwiń panel",
+    "expand": "Rozwiń panel"
+  },
+  "placing": {
+    "title": "Wskaż punkt odbioru",
+    "description": "Kliknij na mapie w miejscu, dla którego chcesz sprawdzić widoczność stacji. Analiza obejmuje punkty od {{minMeters}} m do {{maxKilometers}} km od stacji.",
+    "gpsErrors": {
+      "unsupported": "Ta przeglądarka nie może odczytać Twojej lokalizacji. Kliknij na mapie, aby wskazać punkt odbioru",
+      "permissionDenied": "Odmówiono dostępu do lokalizacji. Zezwól na niego w ustawieniach przeglądarki lub kliknij na mapie, aby wskazać punkt odbioru",
+      "unavailable": "Twoja lokalizacja jest obecnie niedostępna. Spróbuj ponownie lub kliknij na mapie, aby wskazać punkt odbioru",
+      "timeout": "Przekroczono czas oczekiwania na pozycję GPS. Spróbuj ponownie lub kliknij na mapie, aby wskazać punkt odbioru",
+      "unknown": "Nie udało się odczytać Twojej lokalizacji. Spróbuj ponownie lub kliknij na mapie, aby wskazać punkt odbioru"
     }
+  },
+  "placeholder": {
+    "placing": "Profil pojawi się po wskazaniu punktu odbioru",
+    "calculating": "Trwa obliczanie profilu",
+    "failed": "Brak profilu do pokazania",
+    "range": "Zasięg analizy: od {{minMeters}} m do {{maxKilometers}} km od stacji, tylko w Polsce"
+  },
+  "failures": {
+    "tooFar": "Odbiornik jest dalej niż {{maxKilometers}} km od stacji. Przesuń punkt bliżej.",
+    "tooClose": "Odbiornik jest bliżej niż {{minMeters}} m od stacji. Wybierz dalszy punkt.",
+    "outsideCoverage": "Punkt odbioru leży poza obszarem danych o terenie. Analiza obejmuje tylko Polskę.",
+    "rateLimited": "Wykorzystano limit 15 analiz na 5 minut. Spróbuj ponownie za chwilę.",
+    "sourceUnavailable": "Źródło danych jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
+    "unknown": "Nie udało się obliczyć profilu. Spróbuj ponownie."
+  },
+  "antenna": {
+    "title": "Antena",
+    "autoSelected": "wybrana automatycznie",
+    "height": "{{value}} m n.p.t.",
+    "showOthers": "Pokaż pozostałe anteny: {{total}}",
+    "collapseList": "Zwiń listę anten",
+    "source": {
+      "emfReport": "raport PEM",
+      "emfReportDated": "raport PEM z {{date}}",
+      "permit": "pozwolenie UKE"
+    }
+  },
+  "marker": {
+    "label": "Punkt odbioru, przeciągnij, aby przesunąć"
   }
 }

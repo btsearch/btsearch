@@ -1,11 +1,27 @@
-import { cells, gsmCells, lteCells, nrCells, stations, umtsCells } from "@openbts/drizzle";
-import { inArray } from "drizzle-orm";
+import {
+  attachments,
+  cells,
+  gsmCells,
+  lteCells,
+  nrCells,
+  stationComments,
+  stations,
+  submissionPhotos,
+  submissions,
+  umtsCells,
+} from "@openbts/drizzle";
+import { type SQL, and, eq, inArray, lte } from "drizzle-orm";
 
 import db from "../../database/psql.js";
+import { unique } from "../../lib/collections.js";
+import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
 import { deletePhotoFiles } from "../../utils/photoFiles.js";
 import { loadCellSnapshots, runAuditedOperation, systemAuditContext } from "../audit/index.js";
 import { deleteLocationWithPhotos } from "../locations/deleteWithPhotos.js";
+import { isAttachmentUsedByNoLocation } from "../submissions/cleanup.js";
+
+type CleanedStations = { stationCount: number; attachmentUuids: string[] };
 
 const INACTIVE_GRACE_MONTHS = 6;
 const CLEANUP_LIMIT = 100;
@@ -16,23 +32,63 @@ function getInactiveCutoff(date = new Date()): Date {
   return cutoff;
 }
 
+function isExpiredInactive(cutoff: Date): SQL | undefined {
+  return and(eq(stations.status, "inactive"), lte(stations.statusChangedAt, cutoff), lte(stations.updatedAt, cutoff));
+}
+
+async function deleteUnpublishedUploads(tx: DbTx, stationIds: number[]): Promise<string[]> {
+  const submissionPhotoAttachmentIds = tx
+    .select({ id: submissionPhotos.attachment_id })
+    .from(submissionPhotos)
+    .innerJoin(submissions, eq(submissions.id, submissionPhotos.submission_id))
+    .where(inArray(submissions.station_id, stationIds));
+  const comments = await tx
+    .select({ images: stationComments.attachments })
+    .from(stationComments)
+    .where(inArray(stationComments.station_id, stationIds));
+  const commentImageUuids = unique(comments.flatMap((comment) => comment.images ?? []).map((image) => image.uuid));
+
+  const submissionPhotoAttachments = await tx
+    .delete(attachments)
+    .where(and(inArray(attachments.id, submissionPhotoAttachmentIds), isAttachmentUsedByNoLocation(tx)))
+    .returning({ uuid: attachments.uuid });
+  const commentImageAttachments =
+    commentImageUuids.length === 0
+      ? []
+      : await tx
+          .delete(attachments)
+          .where(and(inArray(attachments.uuid, commentImageUuids), isAttachmentUsedByNoLocation(tx)))
+          .returning({ uuid: attachments.uuid });
+  return [...submissionPhotoAttachments, ...commentImageAttachments].map(({ uuid }) => uuid);
+}
+
 export async function cleanupExpiredInactiveStations(): Promise<void> {
   const cutoff = getInactiveCutoff();
-  const candidates = await db.query.stations.findMany({
-    where: {
-      AND: [{ status: "inactive" }, { statusChangedAt: { lte: cutoff } }, { updatedAt: { lte: cutoff } }],
-    },
-    limit: CLEANUP_LIMIT,
-  });
+  const candidates = await db.select({ id: stations.id }).from(stations).where(isExpiredInactive(cutoff)).limit(CLEANUP_LIMIT);
 
   if (candidates.length === 0) return;
 
-  const stationIds = candidates.map((station) => station.id);
-  const attachmentUuids = await runAuditedOperation(
+  const candidateIds = candidates.map((station) => station.id);
+  const cleaned = await runAuditedOperation(
     systemAuditContext(),
-    { kind: "system.inactive_cleanup", metadata: { cutoff: cutoff.toISOString(), station_ids: stationIds } },
-    async (tx, audit) => {
-      const stationRows = await tx.query.stations.findMany({ where: { id: { in: stationIds } } });
+    { kind: "system.inactive_cleanup", metadata: { cutoff: cutoff.toISOString(), station_ids: candidateIds } },
+    async (tx, audit): Promise<CleanedStations> => {
+      await tx
+        .select({ id: submissions.id })
+        .from(submissions)
+        .where(inArray(submissions.station_id, candidateIds))
+        .orderBy(submissions.id)
+        .for("update");
+      const stationRows = await tx
+        .select()
+        .from(stations)
+        .where(and(inArray(stations.id, candidateIds), isExpiredInactive(cutoff)))
+        .orderBy(stations.id)
+        .for("update");
+      const stationIds = stationRows.map((station) => station.id);
+      if (stationIds.length === 0) return { stationCount: 0, attachmentUuids: [] };
+
+      const deletedAttachmentUuids = await deleteUnpublishedUploads(tx, stationIds);
       const locationIds = [...new Set(stationRows.map((station) => station.location_id).filter((id): id is number => id !== null))];
       const stationCellIds = await tx.query.cells.findMany({
         where: { station_id: { in: stationIds } },
@@ -83,15 +139,14 @@ export async function cleanupExpiredInactiveStations(): Promise<void> {
       });
       const remainingLocationIds = new Set(remainingLocations.map((station) => station.location_id).filter((id): id is number => id !== null));
       const emptyLocationIds = locationIds.filter((locationId) => !remainingLocationIds.has(locationId));
-      const deletedAttachmentUuids: string[] = [];
       /* eslint-disable no-await-in-loop */
       for (const locationId of emptyLocationIds) deletedAttachmentUuids.push(...(await deleteLocationWithPhotos(audit, locationId)));
       /* eslint-enable no-await-in-loop */
-      return deletedAttachmentUuids;
+      return { stationCount: stationIds.length, attachmentUuids: deletedAttachmentUuids };
     },
   );
 
-  await deletePhotoFiles(attachmentUuids);
+  await deletePhotoFiles(cleaned.attachmentUuids);
 
-  logger.info("inactive_stations_cleanup_finished", { deleted: stationIds.length, cutoff: cutoff.toISOString() });
+  logger.info("inactive_stations_cleanup_finished", { deleted: cleaned.stationCount, cutoff: cutoff.toISOString() });
 }

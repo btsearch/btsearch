@@ -3,6 +3,9 @@ import { count, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
+import { DetailedErrorResponse, ErrorResponse } from "../../../../errors.js";
+import type { DbTx } from "../../../../types/global.js";
+import { type StoredCellScope, assertStoredCellBandsFit } from "../../../cells/arfcnValidation.js";
 import {
   type NormalRat,
   type RATInsertDetails,
@@ -15,7 +18,7 @@ import { loadCellSnapshots } from "../../snapshots.js";
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow, writableColumnNames } from "../columns.js";
 import { changedFields, staleFields, staleNestedFields } from "../compare.js";
-import { type ApplyState, type PlannedEntry, type StrategyContext, addCellChange, conflictFor } from "../types.js";
+import { type ApplyState, type PlannedEntry, type RevertConflict, type StrategyContext, addCellChange, conflictFor } from "../types.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, stringField } from "./common.js";
 
 const cellInsertSchema = createInsertSchema(cells);
@@ -117,6 +120,48 @@ function cellEffects(oldValues: SnapshotRecord | null, newValues: SnapshotRecord
   ];
 }
 
+async function findBandMisfit(tx: DbTx, scope: StoredCellScope): Promise<ErrorResponse | null> {
+  try {
+    await assertStoredCellBandsFit(tx, scope);
+    return null;
+  } catch (error) {
+    if (error instanceof ErrorResponse) return error;
+    throw error;
+  }
+}
+
+async function loadScopeCellIds(tx: DbTx, { cellIds, stationId }: StoredCellScope): Promise<number[]> {
+  if (stationId === null) return [...cellIds];
+
+  const rows = await tx.select({ id: cells.id }).from(cells).where(eq(cells.station_id, stationId));
+  return [...new Set([...cellIds, ...rows.map((row) => row.id)])];
+}
+
+export async function assertRestoredCellsFitBands(tx: DbTx, entry: AuditEntry, scope: StoredCellScope): Promise<void> {
+  const firstMisfit = await findBandMisfit(tx, scope);
+  if (firstMisfit === null) return;
+
+  const cellIds = await loadScopeCellIds(tx, scope);
+  const checkedCells = await Promise.all(
+    cellIds.map(async (cellId) => ({ cellId, misfit: await findBandMisfit(tx, { cellIds: [cellId], stationId: null }) })),
+  );
+  const conflicts = checkedCells.flatMap(({ cellId, misfit }): RevertConflict[] => {
+    if (misfit === null) return [];
+    return [
+      {
+        entry_id: entry.id,
+        entity: entry.entity,
+        op: entry.op,
+        record_id: entry.record_id,
+        station_id: entry.station_id,
+        kind: "fk_missing",
+        message: `Cell ${cellId}: ${misfit.message}`,
+      },
+    ];
+  });
+  throw new DetailedErrorResponse("CONFLICT", conflicts, { cause: firstMisfit });
+}
+
 export async function planCellRevert(context: StrategyContext, entry: AuditEntry): Promise<PlannedEntry> {
   const plan = createEmptyPlan(entry);
   const id = recordIdNumber(entry.record_id);
@@ -213,6 +258,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
       },
     });
     plan.finalize = async (tx, audit) => {
+      await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
       const restored = (await loadCellSnapshots(tx, [id])).get(id);
       if (restored === undefined) throw new Error(`Restored cell ${id} disappeared`);
       await audit.log({
@@ -285,6 +331,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
     },
   });
   plan.finalize = async (tx, audit) => {
+    await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
     const restored = (await loadCellSnapshots(tx, [id])).get(id);
     if (restored === undefined) throw new Error(`Updated cell ${id} disappeared`);
     await audit.log({

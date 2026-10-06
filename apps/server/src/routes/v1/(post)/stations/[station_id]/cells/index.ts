@@ -5,12 +5,14 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../../constants.js";
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { stationParamScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../features/audit/index.js";
-import { validateCellARFCNsForBands } from "../../../../../../features/cells/arfcnValidation.js";
+import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
 import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
-import { type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../../../features/cells/ratCellPersistence.js";
+import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../../../features/cells/ratCellPersistence.js";
 import {
   INSERT_OMIT,
   gsmInsertSchema,
@@ -29,7 +31,7 @@ const cellsInsertSchema = createInsertSchema(cells)
     createdAt: true,
     updatedAt: true,
   })
-  .extend({ rat: z.enum(["GSM", "CDMA", "UMTS", "LTE", "NR"]) })
+  .extend({ rat: z.enum(NORMAL_RATS) })
   .strict();
 const cellsSelectSchema = createSelectSchema(cells);
 const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });
@@ -101,7 +103,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     //   station_id,
     //   cellsData.map((cell) => ({ rat: cell.rat, details: cell.details as Record<string, unknown> | undefined })),
     // ),
-    validateCellARFCNsForBands(cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details }))),
+    validateCellBandsInCountry(
+      cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details })),
+      LEGACY_COUNTRY_CODE,
+    ),
     checkPciDuplicates(
       station_id,
       cellsData.map((cell) => ({
@@ -168,7 +173,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const addCells: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/cells",
   method: "POST",
-  config: { permissions: ["create:cells"] },
+  config: { permissions: ["create:cells"], scope: stationParamScope },
   schema: schemaRoute,
   handler,
 };

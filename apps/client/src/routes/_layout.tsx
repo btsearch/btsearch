@@ -14,6 +14,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/com
 import { NavActionsProvider } from "@/contexts/navActions";
 import { PageContentContext } from "@/contexts/pageContent";
 import { PageSectionsProvider } from "@/contexts/pageSections";
+import { ImpersonationBar } from "@/features/impersonation/impersonationBar";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useAppBadge } from "@/features/notifications/useAppBadge";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -134,6 +135,7 @@ function AppLayout() {
                   }
                 />
               ) : null}
+              <ImpersonationBar />
               <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto scroll-pb-32 max-md:pb-12", mainClassNameRoute?.mainClassName)}>
                 {pageContent}
               </div>
@@ -144,6 +146,7 @@ function AppLayout() {
               <MobileSidebarAutoClose />
               <AppSidebar />
               <SidebarInset className="max-h-[calc(100dvh-var(--top-viewport-obstruction,0px))] min-h-0 overflow-hidden">
+                {isWCO ? null : <ImpersonationBar />}
                 <header
                   className={cn("flex shrink-0 items-center gap-2 border-b bg-background", !isWCO && "h-12")}
                   style={
@@ -228,6 +231,7 @@ function AppLayout() {
                     </div>
                   </div>
                 </header>
+                {isWCO ? <ImpersonationBar /> : null}
                 <div className={cn("flex min-h-0 flex-1 flex-col overflow-auto", mainClassNameRoute?.mainClassName)}>{pageContent}</div>
               </SidebarInset>
             </SidebarProvider>

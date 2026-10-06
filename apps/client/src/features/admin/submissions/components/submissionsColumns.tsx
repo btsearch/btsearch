@@ -5,17 +5,17 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  type GetOperatorById,
   SubmissionChangesSummary,
   SubmissionStationSummary,
   SubmissionStatusSummary,
   SubmissionSubmitterSummary,
   SubmissionTimestamp,
 } from "./submissionListParts";
-import type { SubmissionListItem } from "@/features/admin/submissions/types";
+import type { SubmissionListRow } from "@/features/admin/submissions/types";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
-import type { Operator } from "@/types/station";
 
-const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListItem>();
+const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListRow>();
 
 export function useSubmissionsColumns({
   sortOrder,
@@ -24,7 +24,7 @@ export function useSubmissionsColumns({
 }: {
   sortOrder: "asc" | "desc";
   onSortToggle: () => void;
-  getOperatorById: (operatorId: number | null | undefined) => Operator | undefined;
+  getOperatorById: GetOperatorById;
 }) {
   const { t } = useTranslation(["submissions", "common"]);
 

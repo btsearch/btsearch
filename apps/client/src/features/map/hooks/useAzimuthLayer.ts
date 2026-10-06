@@ -1,4 +1,3 @@
-import { getOperatorColor } from "@openbts/shared/operatorUtils";
 import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -17,9 +16,11 @@ import {
   UKE_AZIMUTHS_OUTLINE_SOURCE_ID,
   UKE_AZIMUTHS_SOURCE_ID,
 } from "../constants";
-import { DEFAULT_COLOR } from "../geojson";
+import type { MapPoint } from "../data/mapPoints";
+import { type AzimuthPoint, toAzimuthPoints } from "../geojson";
 import { destinationPoint } from "../utils";
-import type { LocationWithStations, UkeLocationWithPermits } from "@/types/station";
+import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
+import type { StationSource } from "@/types/station";
 
 type GeoJsonGeometry =
   | { type: "Point"; coordinates: [number, number] }
@@ -30,7 +31,7 @@ type GeoJsonFeatureCollection = { type: "FeatureCollection"; features: GeoJsonFe
 
 const EMPTY_GEOJSON: GeoJsonFeatureCollection = { type: "FeatureCollection", features: [] };
 
-type AzimuthPoint = { latitude: number; longitude: number; entries: { azimuth: number; color: string }[] };
+type SectorAzimuth = AzimuthPoint["entries"][number]["azimuth"];
 
 type AzimuthFeatures = {
   fills: GeoJsonFeature[];
@@ -43,13 +44,9 @@ type LineLayerSpecification = Extract<LayerSpecification, { type: "line" }>;
 type LineLayerPaint = NonNullable<LineLayerSpecification["paint"]>;
 
 const AZIMUTH_ARC_SEGMENT_DEGREES = 4;
-const OMNIDIRECTIONAL_AZIMUTH = 360;
+const OMNIDIRECTIONAL_SHOWN_AZIMUTH = 360;
 const FULL_CIRCLE_DEGREES = 360;
 const OMNIDIRECTIONAL_RADIUS_METERS = 25;
-
-function hasAzimuth<T extends { azimuth: number | null | undefined }>(sector: T): sector is T & { azimuth: number } {
-  return sector.azimuth !== null && sector.azimuth !== undefined;
-}
 
 function buildAzimuthArcCoordinates(lat: number, lng: number, startAngle: number, endAngle: number, lineLength: number): [number, number][] {
   const angleSpan = endAngle - startAngle;
@@ -72,8 +69,8 @@ function buildOmnidirectionalCircleCoordinates(lat: number, lng: number, lineLen
   return [...coordinates, first];
 }
 
-function groupColorsByAzimuth(entries: AzimuthPoint["entries"], dedupeColors: boolean): Map<number, string[]> {
-  const azimuthColors = new Map<number, string[]>();
+function groupColorsByAzimuth(entries: AzimuthPoint["entries"], dedupeColors: boolean): Map<SectorAzimuth, string[]> {
+  const azimuthColors = new Map<SectorAzimuth, string[]>();
 
   for (const { azimuth, color } of entries) {
     const existing = azimuthColors.get(azimuth);
@@ -128,11 +125,11 @@ function appendOmnidirectionalFeatures(
   colors: string[],
 ): void {
   const outlineCoordinates = buildOmnidirectionalCircleCoordinates(lat, lng, OMNIDIRECTIONAL_RADIUS_METERS);
-  outlines.push(createLineFeature(outlineCoordinates, OMNIDIRECTIONAL_AZIMUTH, colors[0] ?? DEFAULT_COLOR, "omnidirectional"));
+  outlines.push(createLineFeature(outlineCoordinates, OMNIDIRECTIONAL_SHOWN_AZIMUTH, colors[0] ?? FALLBACK_BRAND_COLOR, "omnidirectional"));
 
   if (colors.length === 1) {
     fills.push(createPolygonFeature(outlineCoordinates, colors[0], "omnidirectional"));
-    labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
+    labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_SHOWN_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
     return;
   }
 
@@ -144,7 +141,7 @@ function appendOmnidirectionalFeatures(
     fills.push(createPolygonFeature([[lng, lat], ...fillArcCoordinates, [lng, lat]], colors[i], "omnidirectional"));
   }
 
-  labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
+  labels.push(createLabelFeature(lat, lng, OMNIDIRECTIONAL_SHOWN_AZIMUTH, OMNIDIRECTIONAL_RADIUS_METERS));
 }
 
 function buildOmnidirectionalFeatures(points: AzimuthPoint[]): AzimuthFeatures {
@@ -156,7 +153,7 @@ function buildOmnidirectionalFeatures(points: AzimuthPoint[]): AzimuthFeatures {
     if (entries.length === 0) continue;
 
     const azimuthColors = groupColorsByAzimuth(entries, true);
-    const colors = azimuthColors.get(OMNIDIRECTIONAL_AZIMUTH);
+    const colors = azimuthColors.get(null);
     if (colors === undefined) continue;
     appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors);
   }
@@ -174,7 +171,7 @@ function buildAzimuthFeatures(points: AzimuthPoint[], lineLength: number, triang
 
     const azimuthColors = groupColorsByAzimuth(entries, true);
     for (const [azimuth, colors] of azimuthColors) {
-      if (azimuth === OMNIDIRECTIONAL_AZIMUTH) {
+      if (azimuth === null) {
         appendOmnidirectionalFeatures(fills, outlines, labels, lat, lng, colors);
         continue;
       }
@@ -208,7 +205,7 @@ function buildAzimuthLineFeatures(points: AzimuthPoint[], lineLength: number): G
 
     const azimuthColors = groupColorsByAzimuth(entries, false);
     for (const [azimuth, colorList] of azimuthColors) {
-      if (azimuth === OMNIDIRECTIONAL_AZIMUTH) continue;
+      if (azimuth === null) continue;
 
       const uniqueColors = [...new Set(colorList)];
 
@@ -248,30 +245,6 @@ function buildAzimuthLineFeatures(points: AzimuthPoint[], lineLength: number): G
   return features;
 }
 
-function ukeLocationsToAzimuthPoints(locations: UkeLocationWithPermits[]): AzimuthPoint[] {
-  return locations.map((loc) => ({
-    latitude: loc.latitude,
-    longitude: loc.longitude,
-    entries: (loc.stations ?? []).flatMap((station) => {
-      const color = station.operator?.mnc ? getOperatorColor(station.operator.mnc) : DEFAULT_COLOR;
-      return (station.permits ?? []).flatMap((permit) =>
-        (permit.sectors ?? []).filter(hasAzimuth).map((sector) => ({ azimuth: sector.azimuth, color })),
-      );
-    }),
-  }));
-}
-
-function internalLocationsToAzimuthPoints(locations: LocationWithStations[]): AzimuthPoint[] {
-  return locations.map((loc) => ({
-    latitude: loc.latitude,
-    longitude: loc.longitude,
-    entries: (loc.stations ?? []).flatMap((station) => {
-      const color = station.operator?.mnc ? getOperatorColor(station.operator.mnc) : DEFAULT_COLOR;
-      return (station.sectors ?? []).map((sector) => ({ azimuth: sector.azimuth, color }));
-    }),
-  }));
-}
-
 type GeoJSONTriple = {
   fill: GeoJsonFeatureCollection;
   outline: GeoJsonFeatureCollection;
@@ -298,6 +271,12 @@ function makeGeoJSONTriple(points: AzimuthPoint[], lineLength: number, triangleH
 
 const EMPTY_TRIPLE: GeoJSONTriple = { fill: EMPTY_GEOJSON, outline: EMPTY_GEOJSON, label: EMPTY_GEOJSON };
 
+function makeSourceGeoJSONTriple(points: readonly MapPoint[], source: StationSource, lineLength: number, triangleHalfAngle: number): GeoJSONTriple {
+  const sourcePoints = points.filter((point) => point.source === source);
+  if (sourcePoints.length === 0) return EMPTY_TRIPLE;
+  return makeGeoJSONTriple(toAzimuthPoints(sourcePoints), lineLength, triangleHalfAngle);
+}
+
 function createFillLayerConfig(id: string, sourceId: string, minzoom: number): LayerSpecification {
   return {
     id,
@@ -312,9 +291,7 @@ function createFillLayerConfig(id: string, sourceId: string, minzoom: number): L
 }
 
 function createOutlineLayerPaint(lineMode: boolean): LineLayerPaint {
-  if (lineMode) {
-    return createLineModeOutlineLayerPaint();
-  }
+  if (lineMode) return createLineModeOutlineLayerPaint();
 
   return {
     "line-color": ["get", "color"],
@@ -482,24 +459,23 @@ function syncAzimuthLayerPartsData(map: MapLibreMap, parts: AzimuthLayerPart[], 
 type UseAzimuthLayerArgs = {
   map: MapLibreMap | null;
   isLoaded: boolean;
-  locations: LocationWithStations[];
-  ukeLocations: UkeLocationWithPermits[];
+  points: readonly MapPoint[];
   enabled: boolean;
   minZoom: number;
   lineLength: number;
   spread: number;
 };
 
-export function useAzimuthLayer({ map, isLoaded, locations, ukeLocations, enabled, minZoom, lineLength, spread }: UseAzimuthLayerArgs) {
+export function useAzimuthLayer({ map, isLoaded, points, enabled, minZoom, lineLength, spread }: UseAzimuthLayerArgs) {
   const halfAngle = spread / 2;
   const lineMode = halfAngle === 0;
   const ukeTriple = useMemo(
-    () => (enabled ? makeGeoJSONTriple(ukeLocationsToAzimuthPoints(ukeLocations), lineLength, halfAngle) : EMPTY_TRIPLE),
-    [enabled, lineLength, ukeLocations, halfAngle],
+    () => (enabled ? makeSourceGeoJSONTriple(points, "uke", lineLength, halfAngle) : EMPTY_TRIPLE),
+    [enabled, lineLength, points, halfAngle],
   );
   const internalTriple = useMemo(
-    () => (enabled ? makeGeoJSONTriple(internalLocationsToAzimuthPoints(locations), lineLength, halfAngle) : EMPTY_TRIPLE),
-    [locations, enabled, lineLength, halfAngle],
+    () => (enabled ? makeSourceGeoJSONTriple(points, "internal", lineLength, halfAngle) : EMPTY_TRIPLE),
+    [points, enabled, lineLength, halfAngle],
   );
 
   const ukeTripleRef = useRef(ukeTriple);

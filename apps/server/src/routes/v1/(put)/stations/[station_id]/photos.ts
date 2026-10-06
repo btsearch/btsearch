@@ -1,16 +1,13 @@
-import { locationPhotos, stationPhotoSelections } from "@openbts/drizzle";
+import { locationPhotos } from "@openbts/drizzle";
 import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
-import {
-  auditContextFromRequest,
-  loadPhotoSelectionSnapshots,
-  logPhotoSelectionChanges,
-  runAuditedOperation,
-} from "../../../../../features/audit/index.js";
+import { stationParamScope } from "../../../../../features/access/scope.js";
+import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
+import { replaceStationPhotoSelections } from "../../../../../features/photos/write.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -46,24 +43,9 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       throw new ErrorResponse("BAD_REQUEST", { message: "Some photos do not belong to this station's location" });
   }
 
-  await runAuditedOperation(auditContextFromRequest(req), { kind: "station.photos" }, async (tx, audit) => {
-    const previousSelections = await loadPhotoSelectionSnapshots(tx, [station_id]);
-    await tx.delete(stationPhotoSelections).where(eq(stationPhotoSelections.station_id, station_id));
-
-    if (selected.length > 0) {
-      const mainId = main_id !== null && main_id !== undefined && selected.includes(main_id) ? main_id : null;
-
-      await tx.insert(stationPhotoSelections).values(
-        selected.map((location_photo_id) => ({
-          station_id,
-          location_photo_id,
-          is_main: location_photo_id === mainId,
-        })),
-      );
-    }
-
-    await logPhotoSelectionChanges(audit, previousSelections);
-  });
+  await runAuditedOperation(auditContextFromRequest(req), { kind: "station.photos" }, (tx, audit) =>
+    replaceStationPhotoSelections(tx, audit, station_id, selected, main_id ?? null),
+  );
 
   return res.send({ data: { updated: selected.length } });
 }
@@ -72,7 +54,7 @@ const putStationPhotos: Route<RequestData, { updated: number }> = {
   url: "/stations/:station_id/photos",
   method: "PUT",
   schema: schemaRoute,
-  config: { permissions: ["update:stations"] },
+  config: { permissions: ["update:stations"], scope: stationParamScope },
   handler,
 };
 

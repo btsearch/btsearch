@@ -1,19 +1,19 @@
 import { Delete02Icon, Image01Icon, StarIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { SubmissionChanges } from "@openbts/shared/contract";
 import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 
 import { preloadLightbox, useLightbox } from "@/components/lightbox";
-import { photoThumbUrl } from "@/components/photos/photoFiles";
 import { PhotoMeta, PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
-import { PhotoLightbox } from "@/components/photos/photoLightbox";
-import type { SubmissionLocationPhoto } from "@/features/admin/submissions/types";
-import type { LocationPhoto } from "@/features/station-details/api";
+import { type LightboxPhoto, PhotoLightbox } from "@/components/photos/photoLightbox";
 import { cn } from "@/lib/utils";
 
+type PhotoPicks = SubmissionChanges["photos"];
+
 type Props = {
-  photos: SubmissionLocationPhoto[];
-  removalPhotos: LocationPhoto[];
+  photos: PhotoPicks["selected"];
+  removalPhotos: PhotoPicks["removed"];
 };
 
 export function SubmissionLocationPhotoSelectionsSection({ photos, removalPhotos }: Props) {
@@ -87,7 +87,7 @@ function PhotoSelectionTile({
   locale: string;
   mainTitle?: string;
   onOpen: () => void;
-  photo: LocationPhoto & { is_main?: boolean };
+  photo: LightboxPhoto;
   ref?: Ref<HTMLDivElement>;
 }) {
   return (
@@ -99,14 +99,17 @@ function PhotoSelectionTile({
         className="relative h-36 cursor-zoom-in"
         onClick={onOpen}
         onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") onOpen();
+          if (event.key !== "Enter" && event.key !== " ") return;
+
+          event.preventDefault();
+          onOpen();
         }}
         onPointerEnter={preloadLightbox}
         onFocus={preloadLightbox}
         aria-haspopup="dialog"
       >
-        <PhotoWithFallback src={photoThumbUrl(photo)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
-        {photo.is_main ? (
+        <PhotoWithFallback src={photo.urls.thumb} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
+        {photo.isMain ? (
           <span className="absolute top-1 left-1 bg-amber-500 text-white rounded-full p-0.5" title={mainTitle}>
             <HugeiconsIcon icon={StarIcon} className="size-3" />
           </span>

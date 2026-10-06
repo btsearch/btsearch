@@ -17,6 +17,7 @@
   },
   "form": {
     "operatorsHint": "Select one or more operators. If none selected, all operators will be exported",
+    "singleCountryHint": "Choose operators from one country. An empty selection includes all operators in that country.",
     "standardHint": "Optional, all standards are exported by default",
     "bandsHint": "Optional, all bands are exported by default",
     "outputFormat": "Output format",
@@ -29,9 +30,11 @@
     "export": "Export",
     "exporting": "Exporting...",
     "copyApiUrl": "Copy API URL",
-    "elapsed": "Exporting for {{duration}}"
+    "elapsed": "Exporting for {{duration}}",
+    "receivedBytes": "Received {{size}}"
   },
   "dataSources": {
+    "countries": "countries",
     "operators": "operators",
     "regions": "regions",
     "bands": "bands",
@@ -87,7 +90,11 @@
       "nr_arfcn": "NR ARFCN",
       "nr_tac": "NR TAC",
       "nr_band": "NR band",
-      "nr_band_value": "NR band value"
+      "nr_band_value": "NR band value",
+      "structure": "Structure and owner",
+      "structure_type": "Structure type",
+      "structure_owner": "Structure owner",
+      "structure_note": "Structure note"
     }
   },
   "exportSuccess": "CLF file exported successfully!",

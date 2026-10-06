@@ -87,7 +87,7 @@ self.addEventListener("notificationclick", (event) => {
   evt.waitUntil(
     Promise.all([
       notificationId
-        ? fetch(`/api/v1/notifications/${notificationId}/read`, { method: "PATCH", credentials: "include" }).catch(() => {})
+        ? fetch(`/api/v2/notifications/${notificationId}/read`, { method: "PUT", credentials: "include" }).catch(() => {})
         : Promise.resolve(),
       self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
         const existing = clients.find((c) => c.url.includes(self.location.origin));

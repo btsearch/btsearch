@@ -1,10 +1,11 @@
 import { bands, cells, operators, stations, ukePermits, ukeStations } from "@openbts/drizzle";
-import { count, countDistinct, eq } from "drizzle-orm";
+import { and, count, countDistinct, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
+import { stationIdInLegacyCountry } from "../../../../../features/countries/legacy.js";
 import {
   type StatsOperator,
   type StatsResponse,
@@ -79,7 +80,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   if (cached) return res.send(JSON.parse(cached));
 
   const ukeWhere = operator_id ? eq(ukeStations.operator_id, operator_id) : undefined;
-  const stationWhere = operator_id ? eq(stations.operator_id, operator_id) : undefined;
+  const stationWhere = and(operator_id ? eq(stations.operator_id, operator_id) : undefined, stationIdInLegacyCountry(stations.id));
 
   const [ukeRows, internalRows] = await Promise.all([
     db

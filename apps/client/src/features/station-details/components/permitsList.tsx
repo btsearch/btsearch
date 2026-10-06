@@ -54,9 +54,10 @@ type PermitsListProps = {
   permits?: UkeStationPermit[];
   isExternalLoading?: boolean;
   physicalStation?: PhysicalStation;
+  permitHolderNote?: ReactNode;
 };
 
-export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
+export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation, permitHolderNote }: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const {
     data: fetchedPermits = [],
@@ -120,7 +121,7 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
           <p className="text-sm">{t("permits.noPermits")}</p>
-          {physicalStation ? <PermitHolderNote station={physicalStation} /> : null}
+          {physicalStation ? <PermitHolderNote station={physicalStation} /> : permitHolderNote}
         </div>
       </>
     );

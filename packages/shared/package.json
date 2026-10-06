@@ -9,6 +9,10 @@
       "types": "./src/frequency.ts",
       "default": "./dist/src/frequency.js"
     },
+    "./bandCatalog": {
+      "types": "./src/bandCatalog.ts",
+      "default": "./dist/src/bandCatalog.js"
+    },
     "./operatorUtils": {
       "types": "./src/operatorUtils.ts",
       "default": "./dist/src/operatorUtils.js"
@@ -44,11 +48,18 @@
     "./stationId": {
       "types": "./src/stationId.ts",
       "default": "./dist/src/stationId.js"
+    },
+    "./contract": {
+      "types": "./src/contract/index.ts",
+      "default": "./dist/src/contract/index.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@openbts/typescript-configs": "workspace:*"

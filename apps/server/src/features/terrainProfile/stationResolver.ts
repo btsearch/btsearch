@@ -3,6 +3,7 @@ import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { createHash } from "node:crypto";
 
 import { ErrorResponse } from "../../errors.js";
+import { stationIdInLegacyCountry } from "../countries/legacy.js";
 import type { AntennaCandidate, ResolvedTerrainStation, TerrainProfileRequest } from "./types.js";
 
 export type ResolvedStationWithFallbacks = {
@@ -26,7 +27,7 @@ type UkePermitWithDetails = {
     name: string;
     value: number | null;
     rat: string;
-    duplex: "FDD" | "TDD" | null;
+    duplex: "FDD" | "TDD" | "SDL" | null;
     variant: "commercial" | "railway";
   } | null;
   sectors: {
@@ -88,7 +89,7 @@ function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[]
 
 async function resolveInternalStation(id: number): Promise<ResolvedStationWithFallbacks> {
   const station = await db.query.stations.findFirst({
-    where: { id },
+    where: { id, RAW: (fields) => stationIdInLegacyCountry(fields.id) },
     with: { location: true, operator: true },
   });
   if (!station?.location) throw new ErrorResponse("NOT_FOUND");

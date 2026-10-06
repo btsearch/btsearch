@@ -2,6 +2,7 @@ import {
   ProposedLocationFieldEnum,
   ProposedStationFieldEnum,
   SectorOperationEnum,
+  gsmCells,
   proposedCells,
   proposedGSMCells,
   proposedLTECells,
@@ -9,7 +10,11 @@ import {
   proposedNRCells,
   proposedStations,
   proposedUMTSCells,
+  submissions,
+  umtsCells,
 } from "@openbts/drizzle";
+import { BSIC_MAX, PSC_MAX } from "@openbts/shared/contract";
+import { eq } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
@@ -17,10 +22,17 @@ import { ErrorResponse } from "../../errors.js";
 import type { DbTx } from "../../types/global.js";
 import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateKey } from "../cells/identityDuplicateSpecs.js";
 import { type PciDuplicateDetails, getPciDuplicateKey } from "../cells/pciDuplicateSpecs.js";
+import { gnbidLengthSchema } from "../cells/ratCellSchemas.js";
+import type { StructureChange } from "../locations/structure.js";
+import { findPlacementCountryCode } from "../stations/country.js";
 
 export const gsmInsertSchema = createInsertSchema(proposedGSMCells)
   .omit({ proposed_cell_id: true })
-  .extend({ lac: z.number().int().min(0).max(65535), cid: z.number().int().min(0).max(65535) })
+  .extend({
+    lac: z.number().int().min(0).max(65535),
+    cid: z.number().int().min(0).max(65535),
+    bsic: z.number().int().min(0).max(BSIC_MAX).nullable().optional(),
+  })
   .strict();
 export const umtsInsertSchema = createInsertSchema(proposedUMTSCells)
   .omit({ proposed_cell_id: true })
@@ -29,6 +41,7 @@ export const umtsInsertSchema = createInsertSchema(proposedUMTSCells)
     rnc: z.number().int().min(0).max(65535),
     cid: z.number().int().min(0).max(65535),
     arfcn: z.number().int().min(0).max(16383).nullable().optional(),
+    psc: z.number().int().min(0).max(PSC_MAX).nullable().optional(),
   })
   .strict();
 export const lteInsertSchema = createInsertSchema(proposedLTECells)
@@ -45,7 +58,8 @@ export const nrInsertSchemaBase = createInsertSchema(proposedNRCells)
   .omit({ proposed_cell_id: true })
   .extend({
     nrtac: z.number().int().min(0).max(16777215).nullable().optional(),
-    gnbid: z.number().int().min(0).max(4294967295).nullable().optional(),
+    gnbid: z.number().int().min(0).max(2147483647).nullable().optional(),
+    gnbid_length: gnbidLengthSchema,
     clid: z.number().int().min(0).max(16383).nullable().optional(),
     pci: z.number().int().min(0).max(1007).nullable().optional(),
     arfcn: z.number().int().min(0).max(3279165).nullable().optional(),
@@ -56,7 +70,6 @@ export const gsmSelectSchema = createSelectSchema(proposedGSMCells).omit({ propo
 export const umtsSelectSchema = createSelectSchema(proposedUMTSCells).omit({ proposed_cell_id: true });
 export const lteSelectSchema = createSelectSchema(proposedLTECells).omit({ proposed_cell_id: true });
 export const nrSelectSchema = createSelectSchema(proposedNRCells).omit({ proposed_cell_id: true });
-export const detailsSelectSchema = z.union([gsmSelectSchema, umtsSelectSchema, lteSelectSchema, nrSelectSchema]).nullable();
 
 export const proposedCellsSelectSchema = createSelectSchema(proposedCells);
 export const proposedStationsSelectSchema = createSelectSchema(proposedStations);
@@ -75,20 +88,22 @@ export function makeDetailsRatRefine(schemaMap: Record<string, z.ZodType>) {
   };
 }
 
-export function computeGnbidLength(gnbid: number | null | undefined): number | undefined {
-  if (gnbid === null || gnbid === undefined) return undefined;
-  return Number(gnbid).toString(2).length;
-}
-
 export type ProposedStationField = (typeof ProposedStationFieldEnum.enumValues)[number];
 export type ProposedLocationField = (typeof ProposedLocationFieldEnum.enumValues)[number];
 export type ProposedStationChanges = Partial<Pick<ProposedStationRow, ProposedStationField>>;
-export type ProposedLocationChanges = Partial<Pick<ProposedLocationRow, ProposedLocationField>>;
+export type ProposedLocationChanges = Partial<Pick<ProposedLocationRow, ProposedLocationField | "structure_owner_name">>;
+export type ProposedStructureChange = StructureChange & Pick<ProposedLocationChanges, "structure_owner_name">;
 
 type CurrentStationForDiff = { station_id: string | null; operator_id: number | null; notes: string | null };
 type CurrentExtraIdentifierForDiff = { networks_id: number | null; networks_name: string | null; mno_name: string | null } | null;
 type CurrentUplinkForDiff = { type: string; speed: number | null; model: string | null } | null;
-type CurrentLocationForDiff = { region_id: number; city: string | null; address: string | null; longitude: number; latitude: number };
+type CurrentLocationForDiff = StructureChange & {
+  region_id: number;
+  city: string | null;
+  address: string | null;
+  longitude: number;
+  latitude: number;
+};
 
 export function normalizeText(value: string | null | undefined): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
@@ -109,7 +124,7 @@ export function changedStationFields(changes: ProposedStationChanges): ProposedS
 }
 
 export function changedLocationFields(changes: ProposedLocationChanges): ProposedLocationField[] {
-  return listChangedFields(changes, ProposedLocationFieldEnum.enumValues);
+  return listChangedFields<ProposedLocationField>(changes, ProposedLocationFieldEnum.enumValues);
 }
 
 export function isCompleteLocation(location: ProposedLocationChanges): boolean {
@@ -121,7 +136,11 @@ export function getProposedStationChanges(row: ProposedStationRow): ProposedStat
 }
 
 export function getProposedLocationChanges(row: ProposedLocationRow): ProposedLocationChanges {
-  return pickFields(row, row.changed_fields ?? ProposedLocationFieldEnum.enumValues.filter((field) => row[field] !== null));
+  const fields = row.changed_fields ?? ProposedLocationFieldEnum.enumValues.filter((field) => row[field] !== null);
+  const changes: ProposedLocationChanges = pickFields(row, fields);
+  if (!row.structure_owner_name) return changes;
+
+  return { ...changes, structure_owner_id: null, structure_owner_name: row.structure_owner_name };
 }
 
 export function diffProposedStation(
@@ -136,7 +155,7 @@ export function diffProposedStation(
   if (stationData.operator_id !== undefined && stationData.operator_id !== null && stationData.operator_id !== currentStation.operator_id)
     changes.operator_id = stationData.operator_id;
   const proposedNotes = normalizeText(stationData.notes);
-  if (proposedNotes !== null && proposedNotes !== normalizeText(currentStation.notes)) changes.notes = proposedNotes;
+  if (stationData.notes !== undefined && proposedNotes !== normalizeText(currentStation.notes)) changes.notes = proposedNotes;
   if (stationData.networks_id !== undefined && stationData.networks_id !== (currentExtraIdentifier?.networks_id ?? null))
     changes.networks_id = stationData.networks_id;
   if (stationData.networks_name !== undefined && normalizeText(stationData.networks_name) !== normalizeText(currentExtraIdentifier?.networks_name))
@@ -156,7 +175,8 @@ export function diffProposedLocation(locationData: ProposedLocationChanges, curr
   const changes: ProposedLocationChanges = {};
   const latitude = locationData.latitude ?? currentLocation?.latitude ?? null;
   const longitude = locationData.longitude ?? currentLocation?.longitude ?? null;
-  if (latitude !== (currentLocation?.latitude ?? null) || longitude !== (currentLocation?.longitude ?? null)) {
+  const changesCoordinates = latitude !== (currentLocation?.latitude ?? null) || longitude !== (currentLocation?.longitude ?? null);
+  if (changesCoordinates) {
     changes.latitude = latitude;
     changes.longitude = longitude;
   }
@@ -166,6 +186,17 @@ export function diffProposedLocation(locationData: ProposedLocationChanges, curr
     changes.city = normalizeText(locationData.city);
   if (locationData.address !== undefined && normalizeText(locationData.address) !== normalizeText(currentLocation?.address))
     changes.address = normalizeText(locationData.address);
+
+  const { structure_type: type, structure_owner_id: ownerId, structure_owner_name: ownerName } = locationData;
+  const note = locationData.structure_note === undefined ? undefined : normalizeText(locationData.structure_note);
+  if (type !== undefined && (changesCoordinates || type !== (currentLocation?.structure_type ?? null))) changes.structure_type = type;
+  if (ownerName) {
+    changes.structure_owner_id = null;
+    changes.structure_owner_name = ownerName;
+  } else if (ownerId !== undefined && (changesCoordinates || ownerId !== (currentLocation?.structure_owner_id ?? null))) {
+    changes.structure_owner_id = ownerId;
+  }
+  if (note !== undefined && (changesCoordinates || note !== normalizeText(currentLocation?.structure_note))) changes.structure_note = note;
   return changes;
 }
 
@@ -204,6 +235,21 @@ export async function stripUnchangedProposalData(
     stationData: stationChanges && changedStationFields(stationChanges).length > 0 ? stationChanges : undefined,
     locationData: locationChanges && changedLocationFields(locationChanges).length > 0 ? locationChanges : undefined,
   };
+}
+
+export async function stampSubmissionCountry(tx: DbTx, submissionId: string): Promise<string | null> {
+  const [placement] = await tx
+    .select({ stationId: submissions.station_id, regionId: proposedLocations.region_id, operatorId: proposedStations.operator_id })
+    .from(submissions)
+    .leftJoin(proposedLocations, eq(proposedLocations.submission_id, submissions.id))
+    .leftJoin(proposedStations, eq(proposedStations.submission_id, submissions.id))
+    .where(eq(submissions.id, submissionId))
+    .limit(1);
+  if (!placement) return null;
+
+  const countryCode = await findPlacementCountryCode(placement, tx);
+  await tx.update(submissions).set({ country_code: countryCode }).where(eq(submissions.id, submissionId));
+  return countryCode;
 }
 
 const MAX_SECTORS = 15;
@@ -269,13 +315,13 @@ export function validateSectorChanges(
   const currentIds = new Set(currentSectors.map((sector) => sector.id));
   const localIds = new Set<string>();
   for (const sector of input) {
-    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth local_id values must be unique" });
+    if (localIds.has(sector.local_id)) throw new ErrorResponse("BAD_REQUEST", { message: "A sector can be listed only once" });
     localIds.add(sector.local_id);
     if (typeof sector.target_sector_id === "number" && !currentIds.has(sector.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more target azimuths do not belong to the target station" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more sectors do not belong to this station" });
   }
   if (isLegacySectorList(input) && input.some((sector) => sector.operation))
-    throw new ErrorResponse("BAD_REQUEST", { message: "Every azimuth change must have an operation" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "Every sector change must say whether it adds, updates or deletes" });
 
   const { changes } = resolveSectorChanges(input, currentSectors);
   const azimuthById = new Map(currentSectors.map((sector) => [sector.id, sector.azimuth]));
@@ -283,13 +329,13 @@ export function validateSectorChanges(
   const changedIds = new Set<number>();
   for (const change of changes) {
     if (change.operation === "add") {
-      if (change.target_sector_id !== null) throw new ErrorResponse("BAD_REQUEST", { message: "Added azimuths must not target an existing azimuth" });
+      if (change.target_sector_id !== null) throw new ErrorResponse("BAD_REQUEST", { message: "A new sector cannot point at an existing sector" });
       addedAzimuths.push(change.azimuth);
       continue;
     }
     if (change.target_sector_id === null)
-      throw new ErrorResponse("BAD_REQUEST", { message: "Updated and deleted azimuths must target an existing azimuth" });
-    if (changedIds.has(change.target_sector_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Each azimuth can only be changed once" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "An updated or deleted sector must be an existing sector" });
+    if (changedIds.has(change.target_sector_id)) throw new ErrorResponse("BAD_REQUEST", { message: "Each sector can only be changed once" });
     changedIds.add(change.target_sector_id);
     if (change.operation === "delete") azimuthById.delete(change.target_sector_id);
     else azimuthById.set(change.target_sector_id, change.azimuth);
@@ -297,14 +343,13 @@ export function validateSectorChanges(
 
   const finalAzimuths = [...azimuthById.values(), ...addedAzimuths];
   if (new Set(finalAzimuths).size !== finalAzimuths.length) throw new ErrorResponse("BAD_REQUEST", { message: "Azimuth values must be unique" });
-  if (finalAzimuths.length > MAX_SECTORS)
-    throw new ErrorResponse("BAD_REQUEST", { message: `Too many azimuths for the submission. Maximum allowed is ${MAX_SECTORS}` });
+  if (finalAzimuths.length > MAX_SECTORS) throw new ErrorResponse("BAD_REQUEST", { message: `A station can have at most ${MAX_SECTORS} sectors` });
 
   for (const cell of cells) {
     if (typeof cell.target_sector_id === "number" && !currentIds.has(cell.target_sector_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments do not belong to the target station" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cells are assigned to a sector that does not belong to this station" });
     if (cell.sector_local_id && !localIds.has(cell.sector_local_id))
-      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cell azimuth assignments reference a missing proposed azimuth" });
+      throw new ErrorResponse("BAD_REQUEST", { message: "One or more cells are assigned to a new sector that is missing from this change" });
   }
 
   return changes;
@@ -361,30 +406,48 @@ export function validateCellDuplicates(cells: CellWithDetails[]): void {
   }
 }
 
+async function resolveProposedCode(
+  tx: DbTx,
+  rat: "GSM" | "UMTS",
+  sent: number | null | undefined,
+  targetCellId: number | null,
+): Promise<number | null | undefined> {
+  if (sent !== undefined || targetCellId === null) return sent;
+
+  const [live] =
+    rat === "GSM"
+      ? await tx.select({ code: gsmCells.bsic }).from(gsmCells).where(eq(gsmCells.cell_id, targetCellId))
+      : await tx.select({ code: umtsCells.psc }).from(umtsCells).where(eq(umtsCells.cell_id, targetCellId));
+  return live?.code;
+}
+
 export async function insertProposedCellDetails(
-  tx: { insert: (table: any) => any },
+  tx: DbTx,
   rat: string | null | undefined,
   details: Record<string, unknown> | null | undefined,
   proposedCellId: number,
+  targetCellId: number | null = null,
 ): Promise<void> {
   if (!details) return;
   switch (rat) {
-    case "GSM":
-      await tx.insert(proposedGSMCells).values({ ...(details as z.infer<typeof gsmInsertSchema>), proposed_cell_id: proposedCellId });
+    case "GSM": {
+      const gsm = details as z.infer<typeof gsmInsertSchema>;
+      const bsic = await resolveProposedCode(tx, "GSM", gsm.bsic, targetCellId);
+      await tx.insert(proposedGSMCells).values({ ...gsm, bsic, proposed_cell_id: proposedCellId });
       break;
-    case "UMTS":
-      await tx.insert(proposedUMTSCells).values({ ...(details as z.infer<typeof umtsInsertSchema>), proposed_cell_id: proposedCellId });
+    }
+    case "UMTS": {
+      const umts = details as z.infer<typeof umtsInsertSchema>;
+      const psc = await resolveProposedCode(tx, "UMTS", umts.psc, targetCellId);
+      await tx.insert(proposedUMTSCells).values({ ...umts, psc, proposed_cell_id: proposedCellId });
       break;
+    }
     case "LTE":
       await tx.insert(proposedLTECells).values({ ...(details as z.infer<typeof lteInsertSchema>), proposed_cell_id: proposedCellId });
       break;
     case "NR": {
       const nrDetails = details as z.infer<typeof nrInsertSchemaBase>;
-      await tx.insert(proposedNRCells).values({
-        ...nrDetails,
-        proposed_cell_id: proposedCellId,
-        gnbid_length: computeGnbidLength(nrDetails.gnbid),
-      });
+      await tx.insert(proposedNRCells).values({ ...nrDetails, proposed_cell_id: proposedCellId });
       break;
     }
   }

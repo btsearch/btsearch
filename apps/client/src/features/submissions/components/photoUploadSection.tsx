@@ -1,26 +1,21 @@
 import {
   ArrowDown01Icon,
   Cancel01Icon,
-  Delete02Icon,
   Image01Icon,
   InformationCircleIcon,
   PencilEdit02Icon,
   Tick02Icon,
   Upload04Icon,
-  ZoomInAreaIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { type SubmissionPhoto, deleteSubmissionPhoto, fetchSubmissionPhotos, updateSubmissionPhotoNote, updateSubmissionPhotoTakenAt } from "../api";
 import { MAX_PHOTO_SIZE_BYTES, MAX_PHOTO_SIZE_LABEL, MAX_SUBMISSION_PHOTOS } from "../photoLimits";
 import { UploadPhotosLightbox } from "./submissionPhotosPanel";
-import { preloadLightbox, useLightbox } from "@/components/lightbox";
-import { photoThumbUrl } from "@/components/photos/photoFiles";
-import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
+import { useLightbox } from "@/components/lightbox";
+import { AddPhotoTile, PhotoDeleteButton, PhotoImage } from "@/components/photos/photoGridPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,123 +29,136 @@ import {
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { InlineError } from "@/components/ui/error-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Spinner } from "@/components/ui/spinner";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
 
-type Props = {
+type PhotoUploadSectionProps = {
   photos: File[];
   onPhotosChange: (files: File[]) => void;
   notes: string[];
   onNotesChange: (notes: string[]) => void;
   takenAts: (Date | null)[];
   onTakenAtsChange: (takenAts: (Date | null)[]) => void;
-  editSubmissionId?: string;
+  isLocked: boolean;
 };
 
-export const PhotoUploadSection = memo(function PhotoUploadSection({
-  photos,
-  onPhotosChange,
-  notes,
-  onNotesChange,
-  takenAts,
-  onTakenAtsChange,
-  editSubmissionId,
-}: Props) {
+type PhotoDetails = {
+  note: string;
+  takenAt: Date | null;
+};
+
+type PhotoDetailsPopoverProps = PhotoDetails & {
+  onSave: (details: PhotoDetails) => void;
+};
+
+const NO_STORED_PHOTOS: never[] = [];
+const EDIT_TRIGGER_CLASS = cn(
+  "flex cursor-pointer items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground",
+  "hover:text-foreground hover:bg-accent transition-colors",
+);
+
+function PhotoDetailsPopover({ note, takenAt, onSave }: PhotoDetailsPopoverProps) {
   const { t } = useTranslation("submissions");
-  const queryClient = useQueryClient();
+  const noteInputId = useId();
+  const takenAtLabelId = useId();
+  const [isOpen, setIsOpen] = useState(false);
+  const [details, setDetails] = useState<PhotoDetails>({ note, takenAt });
+
+  function changeOpen(nextOpen: boolean) {
+    if (nextOpen) setDetails({ note, takenAt });
+    setIsOpen(nextOpen);
+  }
+
+  function saveDetails() {
+    onSave(details);
+    setIsOpen(false);
+  }
+
+  return (
+    <Popover open={isOpen} onOpenChange={changeOpen}>
+      <PopoverTrigger type="button" className={EDIT_TRIGGER_CLASS}>
+        <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+        {t("common:actions.edit")}
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="w-64 flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={noteInputId} className="text-xs font-medium text-foreground">
+            {t("photos.note")}
+          </label>
+          <input
+            {...NO_AUTOFILL_PROPS}
+            id={noteInputId}
+            value={details.note}
+            onChange={(event) => {
+              const typedNote = event.target.value;
+              setDetails((known) => ({ ...known, note: typedNote }));
+            }}
+            maxLength={100}
+            placeholder={t("photos.notePlaceholder")}
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm w-full"
+          />
+        </div>
+        <div role="group" aria-labelledby={takenAtLabelId} className="flex flex-col gap-1.5">
+          <span id={takenAtLabelId} className="text-xs font-medium text-foreground">
+            {t("photos.takenAt")}
+          </span>
+          <DatePickerInput value={details.takenAt} onChange={(pickedDate) => setDetails((known) => ({ ...known, takenAt: pickedDate }))} />
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button type="button" size="sm" variant="ghost" className="cursor-pointer" onClick={() => setIsOpen(false)}>
+            <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+            {t("common:actions.cancel")}
+          </Button>
+          <Button type="button" size="sm" onClick={saveDetails}>
+            <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
+            {t("common:actions.save")}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function PhotoUploadSection({ photos, onPhotosChange, notes, onNotesChange, takenAts, onTakenAtsChange, isLocked }: PhotoUploadSectionProps) {
+  const { t } = useTranslation("submissions");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
-  const previewUrls = useMemo(() => photos.map((f) => URL.createObjectURL(f)), [photos]);
+  const previewUrls = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
 
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "existing"; id: number } | { type: "local"; index: number } | null>(null);
-  const [localEditState, setLocalEditState] = useState<{ index: number; note: string; takenAt: Date | null } | null>(null);
-  const [existingEditState, setExistingEditState] = useState<{ id: number; note: string; takenAt: Date | null } | null>(null);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const lightbox = useLightbox();
-
-  const {
-    data: existingPhotos = [],
-    isLoading: isLoadingExisting,
-    isLoadingError: existingPhotosLoadError,
-    isFetching: isFetchingExisting,
-    refetch: refetchExisting,
-  } = useQuery({
-    queryKey: ["submission-photos", editSubmissionId],
-    queryFn: () => fetchSubmissionPhotos(editSubmissionId!),
-    enabled: !!editSubmissionId,
-    staleTime: 1000 * 60 * 2,
-  });
-
-  const invalidate = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["submission-photos", editSubmissionId] }),
-    [queryClient, editSubmissionId],
-  );
-
-  const deleteMutation = useMutation({
-    mutationFn: (photoId: number) => deleteSubmissionPhoto(editSubmissionId!, photoId),
-    onSuccess: () => {
-      void invalidate();
-      toast.success(t("photos.deleted"));
-    },
-    onError: () => toast.error(t("photos.deleteFailed")),
-  });
-
-  const editExistingMutation = useMutation({
-    mutationFn: async ({
-      id,
-      note,
-      takenAt,
-      originalNote,
-      originalTakenAt,
-    }: {
-      id: number;
-      note: string;
-      takenAt: string | null;
-      originalNote: string;
-      originalTakenAt: string | null;
-    }) => {
-      const ops: Promise<void>[] = [];
-      if (note !== originalNote) ops.push(updateSubmissionPhotoNote(editSubmissionId!, id, note));
-      if (takenAt !== originalTakenAt) ops.push(updateSubmissionPhotoTakenAt(editSubmissionId!, id, takenAt));
-      if (ops.length > 0) await Promise.all(ops);
-    },
-    onSuccess: () => {
-      void invalidate();
-      setExistingEditState(null);
-    },
-    onError: () => toast.error(t("photos.noteFailed")),
-  });
 
   useEffect(() => {
     return () => previewUrls.forEach((url) => URL.revokeObjectURL(url));
   }, [previewUrls]);
 
-  const totalCount = existingPhotos.length + photos.length;
-  const remainingSlots = MAX_SUBMISSION_PHOTOS - totalCount;
+  const hasFreeSlot = photos.length < MAX_SUBMISSION_PHOTOS;
 
-  function processFiles(files: File[]) {
-    const valid: File[] = [];
-    for (const f of files) {
-      if (f.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: f.name, size: MAX_PHOTO_SIZE_LABEL }));
-      else valid.push(f);
+  function addFiles(files: File[]) {
+    const fittingFiles: File[] = [];
+    for (const file of files) {
+      if (file.size > MAX_PHOTO_SIZE_BYTES) toast.error(t("photos.fileTooLarge", { name: file.name, size: MAX_PHOTO_SIZE_LABEL }));
+      else fittingFiles.push(file);
     }
-    const combined = [...photos, ...valid].slice(0, remainingSlots > 0 ? remainingSlots + photos.length : photos.length);
-    const combinedNotes = [...notes, ...valid.map(() => "")].slice(0, combined.length);
-    const combinedTakenAts = [...takenAts, ...valid.map(() => null)].slice(0, combined.length);
-    onPhotosChange(combined);
-    onNotesChange(combinedNotes);
-    onTakenAtsChange(combinedTakenAts);
+    const nextPhotos = [...photos, ...fittingFiles].slice(0, Math.max(MAX_SUBMISSION_PHOTOS, photos.length));
+    onPhotosChange(nextPhotos);
+    onNotesChange([...notes, ...fittingFiles.map(() => "")].slice(0, nextPhotos.length));
+    onTakenAtsChange([...takenAts, ...fittingFiles.map(() => null)].slice(0, nextPhotos.length));
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    processFiles(Array.from(e.target.files ?? []));
-    e.target.value = "";
+  function openFilePicker() {
+    fileInputRef.current?.click();
   }
 
-  function handleDragEnter(e: React.DragEvent) {
-    e.preventDefault();
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    addFiles(Array.from(event.target.files ?? []));
+    event.target.value = "";
+  }
+
+  function handleDragEnter(event: React.DragEvent) {
+    event.preventDefault();
     dragCounter.current++;
     if (dragCounter.current === 1) setIsDragging(true);
   }
@@ -160,55 +168,35 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
     if (dragCounter.current === 0) setIsDragging(false);
   }
 
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
+  function handleDragOver(event: React.DragEvent) {
+    event.preventDefault();
   }
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault();
     dragCounter.current = 0;
     setIsDragging(false);
-    if (remainingSlots <= 0) return;
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
-    if (files.length > 0) processFiles(files);
-  }
-
-  function removeLocalPhoto(idx: number) {
-    onPhotosChange(photos.filter((_, i) => i !== idx));
-    onNotesChange(notes.filter((_, i) => i !== idx));
-    onTakenAtsChange(takenAts.filter((_, i) => i !== idx));
+    if (isLocked || !hasFreeSlot) return;
+    const files = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith("image/"));
+    if (files.length > 0) addFiles(files);
   }
 
   function confirmDelete() {
-    if (deleteTarget === null) return;
-    if (deleteTarget.type === "local") {
-      removeLocalPhoto(deleteTarget.index);
-    } else {
-      deleteMutation.mutate(deleteTarget.id);
-    }
-    setDeleteTarget(null);
+    if (deleteIndex === null) return;
+    onPhotosChange(photos.filter((_, index) => index !== deleteIndex));
+    onNotesChange(notes.filter((_, index) => index !== deleteIndex));
+    onTakenAtsChange(takenAts.filter((_, index) => index !== deleteIndex));
+    setDeleteIndex(null);
   }
 
-  function openLocalEdit(idx: number) {
-    setLocalEditState({ index: idx, note: notes[idx] ?? "", takenAt: takenAts[idx] ?? null });
-  }
-
-  function saveLocalEdit() {
-    if (localEditState === null) return;
+  function changeDetails(index: number, details: PhotoDetails) {
     const updatedNotes = [...notes];
-    updatedNotes[localEditState.index] = localEditState.note;
+    updatedNotes[index] = details.note;
     onNotesChange(updatedNotes);
     const updatedTakenAts = [...takenAts];
-    updatedTakenAts[localEditState.index] = localEditState.takenAt;
+    updatedTakenAts[index] = details.takenAt;
     onTakenAtsChange(updatedTakenAts);
-    setLocalEditState(null);
   }
-
-  function openExistingEdit(photo: SubmissionPhoto) {
-    setExistingEditState({ id: photo.id, note: photo.note ?? "", takenAt: photo.taken_at ? new Date(photo.taken_at) : null });
-  }
-
-  const isEmpty = totalCount === 0 && !isLoadingExisting;
 
   return (
     <>
@@ -228,217 +216,59 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
               />
               <HugeiconsIcon icon={Image01Icon} className="size-4 text-muted-foreground" />
               <span className="font-semibold text-sm">{t("photos.label")}</span>
-              {!isLoadingExisting && !existingPhotosLoadError ? (
-                <span className="text-xs text-muted-foreground">
-                  ({totalCount}/{MAX_SUBMISSION_PHOTOS})
-                </span>
-              ) : null}
+              <span className="text-xs text-muted-foreground">
+                ({photos.length}/{MAX_SUBMISSION_PHOTOS})
+              </span>
             </CollapsibleTrigger>
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={handleFileChange} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            tabIndex={-1}
+            aria-hidden="true"
+            className="sr-only"
+            onChange={handleFileChange}
+          />
 
-          <CollapsibleContent>
-            {isLoadingExisting ? (
-              <div className="flex items-center justify-center py-8">
-                <Spinner />
-              </div>
-            ) : existingPhotosLoadError ? (
-              <InlineError className="m-3" onRetry={() => refetchExisting()} isRetrying={isFetchingExisting} />
-            ) : isEmpty ? (
+          <CollapsibleContent inert={isLocked}>
+            {photos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-sm text-muted-foreground gap-2">
                 <HugeiconsIcon icon={Image01Icon} className="size-8 opacity-20" />
                 <p>{t("photos.empty")}</p>
-                <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
+                <Button type="button" size="sm" variant="outline" onClick={openFilePicker} className="cursor-pointer gap-1.5">
                   <HugeiconsIcon icon={Upload04Icon} className="size-3.5" />
                   {t("photos.uploadFirst")}
                 </Button>
               </div>
             ) : (
               <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
-                {existingPhotos.map((photo, idx) => (
-                  <div key={`existing-${photo.id}`} className="rounded-lg overflow-hidden border bg-muted">
-                    <div ref={lightbox.triggerRef(idx)} className="relative aspect-square">
-                      <PhotoWithFallback src={photoThumbUrl(photo)} alt={photo.note ?? ""} className="w-full h-full object-cover" loading="lazy" />
-                      <button
-                        type="button"
-                        className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
-                        onClick={() => lightbox.open(idx)}
-                        onPointerEnter={preloadLightbox}
-                        onFocus={preloadLightbox}
-                        aria-haspopup="dialog"
-                        aria-label="View full size"
-                      >
-                        <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />
-                      </button>
-                    </div>
+                {photos.map((file, index) => (
+                  <div key={`${file.name}-${index}`} className="rounded-lg overflow-hidden border bg-muted">
+                    <PhotoImage
+                      ref={lightbox.triggerRef(index)}
+                      src={previewUrls[index] ?? ""}
+                      alt={file.name}
+                      frameClassName="aspect-square h-auto"
+                      onOpen={() => lightbox.open(index)}
+                    />
 
                     <div className="grid grid-cols-2 divide-x border-t">
-                      <Popover
-                        open={existingEditState?.id === photo.id}
-                        onOpenChange={(open) => {
-                          if (!open) setExistingEditState(null);
-                        }}
-                      >
-                        <PopoverTrigger
-                          type="button"
-                          onClick={() => openExistingEdit(photo)}
-                          className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                        >
-                          <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                          {t("common:actions.edit")}
-                        </PopoverTrigger>
-                        <PopoverContent side="bottom" align="end" className="w-64 flex flex-col gap-3">
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-foreground">{t("photos.note")}</label>
-                            <input
-                              value={existingEditState?.note ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setExistingEditState((prev) => (prev ? { ...prev, note: v } : prev));
-                              }}
-                              maxLength={100}
-                              placeholder={t("photos.notePlaceholder")}
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm w-full"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-foreground">{t("photos.takenAt")}</label>
-                            <DatePickerInput
-                              value={existingEditState?.takenAt ?? null}
-                              onChange={(v) => setExistingEditState((prev) => (prev ? { ...prev, takenAt: v } : prev))}
-                            />
-                          </div>
-                          <div className="flex items-center justify-end gap-2">
-                            <Button type="button" size="sm" variant="ghost" onClick={() => setExistingEditState(null)}>
-                              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-                              {t("common:actions.cancel")}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() =>
-                                editExistingMutation.mutate({
-                                  id: photo.id,
-                                  note: existingEditState?.note ?? "",
-                                  takenAt: existingEditState?.takenAt?.toISOString() ?? null,
-                                  originalNote: photo.note ?? "",
-                                  originalTakenAt: photo.taken_at ?? null,
-                                })
-                              }
-                              disabled={editExistingMutation.isPending}
-                            >
-                              {editExistingMutation.isPending ? (
-                                <Spinner className="size-3" />
-                              ) : (
-                                <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
-                              )}
-                              {t("common:actions.save")}
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ type: "existing", id: photo.id })}
-                        className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
-                      >
-                        <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                        {t("common:actions.remove")}
-                      </button>
+                      <PhotoDetailsPopover
+                        note={notes[index] ?? ""}
+                        takenAt={takenAts[index] ?? null}
+                        onSave={(details) => changeDetails(index, details)}
+                      />
+                      <PhotoDeleteButton onClick={() => setDeleteIndex(index)} label={t("common:actions.remove")} />
                     </div>
                   </div>
                 ))}
 
-                {photos.map((file, idx) => (
-                  <div key={`local-${file.name}-${idx}`} className="rounded-lg overflow-hidden border bg-muted">
-                    <div ref={lightbox.triggerRef(existingPhotos.length + idx)} className="relative aspect-square">
-                      <PhotoWithFallback src={previewUrls[idx]} alt={file.name} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        className="absolute top-1 right-1 size-8 sm:size-6 rounded-full bg-black/50 ring-1 ring-white/30 shadow-sm flex items-center justify-center cursor-pointer"
-                        onClick={() => lightbox.open(existingPhotos.length + idx)}
-                        onPointerEnter={preloadLightbox}
-                        onFocus={preloadLightbox}
-                        aria-haspopup="dialog"
-                        aria-label="View full size"
-                      >
-                        <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 divide-x border-t">
-                      <Popover
-                        open={localEditState?.index === idx}
-                        onOpenChange={(open) => {
-                          if (!open) setLocalEditState(null);
-                        }}
-                      >
-                        <PopoverTrigger
-                          type="button"
-                          onClick={() => openLocalEdit(idx)}
-                          className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                        >
-                          <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                          {t("common:actions.edit")}
-                        </PopoverTrigger>
-                        <PopoverContent side="bottom" align="end" className="w-64 flex flex-col gap-3">
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-foreground">{t("photos.note")}</label>
-                            <input
-                              value={localEditState?.note ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setLocalEditState((prev) => (prev ? { ...prev, note: v } : prev));
-                              }}
-                              maxLength={100}
-                              placeholder={t("photos.notePlaceholder")}
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm w-full"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-foreground">{t("photos.takenAt")}</label>
-                            <DatePickerInput
-                              value={localEditState?.takenAt ?? null}
-                              onChange={(v) => setLocalEditState((prev) => (prev ? { ...prev, takenAt: v } : prev))}
-                            />
-                          </div>
-                          <div className="flex items-center justify-end gap-2">
-                            <Button type="button" size="sm" variant="ghost" onClick={() => setLocalEditState(null)}>
-                              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
-                              {t("common:actions.cancel")}
-                            </Button>
-                            <Button type="button" size="sm" onClick={saveLocalEdit}>
-                              <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
-                              {t("common:actions.save")}
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ type: "local", index: idx })}
-                        className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
-                      >
-                        <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                        {t("common:actions.remove")}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {totalCount < MAX_SUBMISSION_PHOTOS && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                  >
-                    <HugeiconsIcon icon={Upload04Icon} className="size-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{t("photos.add")}</span>
-                  </button>
-                )}
+                {hasFreeSlot ? <AddPhotoTile className="aspect-square h-auto" onClick={openFilePicker} /> : null}
               </div>
             )}
-            {totalCount > 0 && (
+            {photos.length > 0 ? (
               <div className="mx-3 mb-2 rounded-lg border border-blue-500/30 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 flex items-start gap-2">
                 <HugeiconsIcon icon={InformationCircleIcon} className="size-3.5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5 min-w-0">
@@ -446,16 +276,16 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
                   <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">{t("warnings.photosDesc")}</p>
                 </div>
               </div>
-            )}
+            ) : null}
             <p className="px-3 pb-2 text-xs text-muted-foreground">{t("photos.hint", { max: MAX_SUBMISSION_PHOTOS, size: MAX_PHOTO_SIZE_LABEL })}</p>
           </CollapsibleContent>
         </div>
       </Collapsible>
 
       <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+        open={deleteIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setDeleteIndex(null);
         }}
       >
         <AlertDialogContent>
@@ -464,9 +294,9 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
             <AlertDialogDescription>{t("photos.confirmDeleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
-              {deleteMutation.isPending ? <Spinner /> : t("common:actions.remove")}
+            <AlertDialogCancel className="cursor-pointer">{t("common:actions.cancel")}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" className="cursor-pointer" onClick={confirmDelete}>
+              {t("common:actions.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -476,10 +306,10 @@ export const PhotoUploadSection = memo(function PhotoUploadSection({
         files={photos}
         notes={notes}
         previewUrls={previewUrls}
-        submissionPhotos={existingPhotos}
+        submissionPhotos={NO_STORED_PHOTOS}
         takenAts={takenAts}
         {...lightbox.lightboxProps}
       />
     </>
   );
-});
+}

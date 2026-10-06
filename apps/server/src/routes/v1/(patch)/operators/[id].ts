@@ -4,13 +4,15 @@ import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { assertPlmnsFree } from "../../../../features/operators/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const operatorsUpdateSchema = createUpdateSchema(operators).strict();
+const operatorsUpdateSchema = createUpdateSchema(operators).omit({ countryCode: true, brandId: true, shortCode: true, sortPriority: true }).strict();
 const operatorsSelectSchema = createSelectSchema(operators);
 const schemaRoute = {
   params: z.object({
@@ -30,16 +32,20 @@ type ResponseData = z.infer<typeof operatorsSelectSchema>;
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { id } = req.params;
+  const { mnc } = req.body;
 
   const operator = await db.query.operators.findFirst({
     where: {
       id,
+      countryCode: LEGACY_COUNTRY_CODE,
     },
   });
   if (!operator) throw new ErrorResponse("NOT_FOUND");
 
   try {
     const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.update" }, async (tx, audit) => {
+      if (typeof mnc === "number") await assertPlmnsFree(tx, [{ plmn: String(mnc), role: "primary" }], id);
+
       const [result] = await tx.update(operators).set(req.body).where(eq(operators.id, id)).returning();
       if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
 

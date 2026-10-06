@@ -32,7 +32,7 @@ const STATIC_PAGE_METADATA = {
   },
   "/photos": {
     title: "Zdjęcia stacji bazowych",
-    description: "Galeria aktualnych zdjęć opublikowanych stacji bazowych w Polsce wraz z informacjami o operatorach i lokalizacjach",
+    description: "Galeria zdjęć stacji bazowych wraz z informacjami o operatorach i lokalizacjach",
   },
   "/spectrum": {
     title: "Pasma częstotliwości w Polsce",
@@ -49,10 +49,6 @@ const STATIC_PAGE_METADATA = {
   "/kmz": {
     title: "Pliki KMZ dla Google Earth",
     description: "Pobierz pliki KMZ dla Google Earth wygenerowane na podstawie importów pozwoleń radiowych UKE",
-  },
-  "/deleted-entries": {
-    title: "Usunięte wpisy UKE",
-    description: "Przeglądaj wpisy usunięte podczas importów danych z wykazu pozwoleń radiowych UKE",
   },
   "/changelog": {
     title: "Historia zmian",

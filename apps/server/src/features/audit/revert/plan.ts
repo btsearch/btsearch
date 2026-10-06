@@ -97,8 +97,12 @@ async function addStationCellInvariantConflicts(context: StrategyContext, plans:
   }
 }
 
-export async function buildRevertPlan(tx: StrategyContext["tx"], entries: readonly AuditEntry[]): Promise<PlannedEntry[]> {
-  const context: StrategyContext = { tx, pendingInserts: pendingInserts(entries), selectedEntries: entries };
+export async function buildRevertPlan(
+  tx: StrategyContext["tx"],
+  entries: readonly AuditEntry[],
+  operationEntries: readonly AuditEntry[],
+): Promise<PlannedEntry[]> {
+  const context: StrategyContext = { tx, pendingInserts: pendingInserts(entries), selectedEntries: entries, operationEntries };
   const plans = await Promise.all(
     entries.map(async (entry) => {
       const strategy = strategyFor(entry.entity);
@@ -112,7 +116,7 @@ export async function buildRevertPlan(tx: StrategyContext["tx"], entries: readon
       return {
         ...plan,
         skip: { entry_id: entry.id, reason: "unsupported_op", message: "This audit entry cannot be safely reverted" },
-      };
+      } satisfies PlannedEntry;
     }),
   );
   propagateDependencies(plans);

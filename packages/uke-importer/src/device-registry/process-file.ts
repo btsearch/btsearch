@@ -54,6 +54,7 @@ export async function processOperatorFile(
 
   let rowCount = 0;
   let insertedCount = 0;
+  let unplacedCount = 0;
   let columns: ReturnType<typeof findColumnIndices> = null;
   let chunkRows: ParsedDeviceRegistryRow[] = [];
   const fileBandKeys = new Set<string>();
@@ -106,6 +107,7 @@ export async function processOperatorFile(
 
     const terytCode = findVoivodeshipCached(lon, lat);
     if (!terytCode) {
+      unplacedCount++;
       logger.warn(`Could not determine region from GPS coordinates (${lon}, ${lat}) for station ${stationId}`);
       continue;
     }
@@ -168,6 +170,6 @@ export async function processOperatorFile(
 
   if (stationMnoNames.size > 0) await syncStationMnoNames(stationMnoNames, operatorId);
 
-  logger.log(`Done: ${rowCount - 1} data rows, ${insertedCount} permits inserted`);
+  logger.log(`Done: ${rowCount - 1} data rows, ${insertedCount} permits inserted, ${unplacedCount} rows outside every region`);
   return { rowCount: rowCount - 1, insertedCount };
 }

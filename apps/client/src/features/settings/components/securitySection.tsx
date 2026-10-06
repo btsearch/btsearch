@@ -48,10 +48,11 @@ import {
 import { SignInMethodsCard } from "./signInMethodsCard";
 import { DisableTwoFactorDialog, EnableTwoFactorDialog, RegenerateBackupCodesDialog } from "./twoFactorDialogs";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useRelativeTime } from "@/components/ui/relative-time";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth/client";
 import { getDateFormatter } from "@/lib/dateFormat";
-import { formatIpAddress, formatRelativeTime } from "@/lib/format";
+import { formatIpAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type TwoFactorDialog = "enable" | "disable" | "regenerate";
@@ -245,13 +246,18 @@ function deviceLabel(device: SessionDevice, fallback: string) {
   return [device.browser, device.os].filter(Boolean).join(", ") || fallback;
 }
 
+function SessionSignedIn({ createdAt }: { createdAt: SessionWithDevice["createdAt"] }) {
+  const { t } = useTranslation("settings");
+  const time = useRelativeTime(new Date(createdAt).toISOString());
+
+  return t("sessions.signedIn", { time });
+}
+
 function SessionRow({ item, isCurrent, onRevoke }: { item: SessionWithDevice; isCurrent: boolean; onRevoke: (device: string) => void }) {
   const { t } = useTranslation("settings");
   const { t: tCommon } = useTranslation("common");
   const label = deviceLabel(item.device, t("sessions.unknownDevice"));
-  const activity = isCurrent
-    ? t("sessions.activeNow")
-    : t("sessions.signedIn", { time: formatRelativeTime(new Date(item.createdAt).toISOString(), tCommon) });
+  const activity = isCurrent ? t("sessions.activeNow") : <SessionSignedIn createdAt={item.createdAt} />;
   const ipAddress = formatIpAddress(item.ipAddress);
 
   return (

@@ -1,5 +1,5 @@
 import { ukePermits } from "@openbts/drizzle";
-import { getOperatorColor, resolveOperatorMnc } from "@openbts/shared/operatorUtils";
+import { DEFAULT_OPERATOR_COLOR } from "@openbts/shared/operatorUtils";
 import { destinationPoint } from "@openbts/shared/radiolinesUtils";
 import { count, max } from "drizzle-orm";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -23,7 +23,7 @@ type PermitRow = {
   station: {
     id: number;
     station_id: string;
-    operator: { name: string; full_name: string; mnc: number | null } | null;
+    operator: { name: string; full_name: string; brand: { color: string } | null } | null;
     location: {
       longitude: number;
       latitude: number;
@@ -48,7 +48,7 @@ async function fetchLatestDayPermits(): Promise<{ rows: PermitRow[]; day: Date |
     with: {
       station: {
         with: {
-          operator: true,
+          operator: { with: { brand: true } },
           location: { with: { region: true } },
         },
       },
@@ -72,7 +72,7 @@ async function fetchAllPermits(): Promise<PermitRow[]> {
         with: {
           station: {
             with: {
-              operator: true,
+              operator: { with: { brand: true } },
               location: { with: { region: true } },
             },
           },
@@ -117,7 +117,7 @@ function buildStationDescription(station: StationGroup): string {
 interface StationGroup {
   station_id: string;
   operator_name: string;
-  operator_mnc: number | null;
+  color: string;
   longitude: number;
   latitude: number;
   region_code: string;
@@ -144,7 +144,7 @@ function groupByStation(permits: PermitRow[]): StationGroup[] {
       group = {
         station_id: station.station_id,
         operator_name: station.operator?.name ?? "Unknown",
-        operator_mnc: resolveOperatorMnc(station.operator?.mnc ?? null, station.operator?.name ?? null),
+        color: station.operator?.brand?.color ?? DEFAULT_OPERATOR_COLOR,
         longitude: location.longitude,
         latitude: location.latitude,
         region_code: location.region?.code ?? "UNKNOWN",
@@ -183,21 +183,21 @@ function groupStationsByRegion(stations: StationGroup[]): Map<string, StationGro
   return byRegion;
 }
 
-function azimuthStyleId(mnc: number | null): string {
-  return `azimuth-${mnc ?? "default"}`;
+function azimuthStyleId(color: string): string {
+  return `azimuth-${color.slice(1)}`;
 }
 
-function stationIconStyleId(mnc: number | null): string {
-  return `station-icon-${mnc ?? "default"}`;
+function stationIconStyleId(color: string): string {
+  return `station-icon-${color.slice(1)}`;
 }
 
 function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
   const byOperator = new Map<string, OperatorKmzBuckets>();
-  const operatorMncs = new Map<string, number | null>();
+  const colors = new Set<string>();
 
   for (const station of stations) {
     const op = getOperatorBuckets(byOperator, station.operator_name);
-    operatorMncs.set(station.operator_name, station.operator_mnc);
+    colors.add(station.color);
 
     const bandsSummary = [...new Set(station.permits.map((p) => p.band?.name).filter(Boolean))].join(", ");
     const stationName = station.station_id;
@@ -207,7 +207,7 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
         stationName,
         `<b>Bands:</b> ${escapeXml(bandsSummary)}<br/>${buildStationDescription(station)}`,
         `<Point><coordinates>${station.longitude},${station.latitude},0</coordinates></Point>`,
-        `#${stationIconStyleId(station.operator_mnc)}`,
+        `#${stationIconStyleId(station.color)}`,
         undefined,
         false,
       ),
@@ -220,7 +220,7 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
           `${stationName}`,
           `<b>Azimuth:</b> ${az}°`,
           `<LineString><coordinates>${station.longitude},${station.latitude},0 ${endLon},${endLat},0</coordinates></LineString>`,
-          `#${azimuthStyleId(station.operator_mnc)}`,
+          `#${azimuthStyleId(station.color)}`,
           undefined,
           false,
         ),
@@ -233,23 +233,10 @@ function buildStationsKmz(stations: StationGroup[], title: string): Uint8Array {
   const stationFolders = sortedOperators.map(([op, { stationPlacemarks }]) => folder(op, stationPlacemarks.join("\n"), false, false));
   const azimuthFolders = sortedOperators.map(([op, { azimuthPlacemarks }]) => folder(op, azimuthPlacemarks.join("\n"), false, false));
 
-  const seenMncs = new Set<string>();
-  const uniqueMncs = [...operatorMncs.values()].filter((mnc) => {
-    const key = String(mnc);
-    if (seenMncs.has(key)) return false;
-    seenMncs.add(key);
-    return true;
-  });
+  const azimuthStyles = [...colors].map((color) => lineStyle(azimuthStyleId(color), hexToKmlColor(color), 3));
 
-  const azimuthStyles = uniqueMncs.map((mnc) => lineStyle(azimuthStyleId(mnc), hexToKmlColor(getOperatorColor(mnc ?? -1)), 3));
-
-  const stationIconStyles = uniqueMncs.map((mnc) =>
-    iconStyle(
-      stationIconStyleId(mnc),
-      "http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png",
-      0.9,
-      hexToKmlColor(getOperatorColor(mnc ?? -1)),
-    ),
+  const stationIconStyles = [...colors].map((color) =>
+    iconStyle(stationIconStyleId(color), "http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png", 0.9, hexToKmlColor(color)),
   );
 
   const styles = [...stationIconStyles, ...azimuthStyles].join("\n");

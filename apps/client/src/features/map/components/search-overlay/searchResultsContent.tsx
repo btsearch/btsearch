@@ -17,16 +17,19 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { getStationBands } from "../../utils";
+import { type MapLookups, useMapLookups } from "../../data/mapLookups";
+import type { StationSearchHit, UkeSearchPermitStation } from "../../searchApi";
+import { getCellTechnologyBands } from "../../utils";
 import { type SearchResultGroup, type SearchResultOption, getSearchOptionId } from "./searchOptions";
+import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { ErrorState, InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
 import { GeocodingAttribution } from "@/features/shared/GeocodingAttribution";
 import { HighlightedText } from "@/features/shared/HighlightedText";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { StationTitle } from "@/features/station-details/components/stationTitle";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { NETWORKS_ID_KIND, findStationIdentifier } from "@/features/station-details/station/utils/stations";
 import { useGpsFormat } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { GeocodingKind } from "@/lib/geo/geocoding";
@@ -53,6 +56,19 @@ type SearchResultsProps = {
   onSelect: (option: SearchResultOption) => void;
 };
 
+type OperatorNameProps = {
+  name: string;
+  brand?: BrandLook | null;
+  labelClassName?: string;
+};
+
+type StationResultTitleProps = {
+  siteId: string;
+  operatorName?: string;
+  brand?: BrandLook | null;
+  query: string;
+};
+
 const LOCATION_KIND_ICONS: Record<GeocodingKind, IconSvgElement> = {
   country: Globe02Icon,
   region: MapsIcon,
@@ -67,6 +83,7 @@ const LOCATION_KIND_ICONS: Record<GeocodingKind, IconSvgElement> = {
 
 const RESULT_ICON_CLASS_NAME =
   "size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-aria-selected:text-foreground";
+const BRAND_MARK_SIZE = 16;
 
 function ResultGroupHeader({ id, icon, label, count }: { id: string; icon: IconSvgElement; label: string; count: number }) {
   const { t } = useTranslation("main");
@@ -92,11 +109,40 @@ function joinPresent(values: (string | null | undefined)[]): string {
   return values.filter((value): value is string => Boolean(value)).join(" · ");
 }
 
+function getHitBrand(hit: StationSearchHit, lookups: MapLookups | undefined): BrandLook | null | undefined {
+  return lookups === undefined ? undefined : getOperatorBrand(hit.operator, lookups.brands);
+}
+
+function getPermitStationBrand(station: UkeSearchPermitStation, lookups: MapLookups | undefined): BrandLook | null | undefined {
+  if (lookups === undefined) return undefined;
+  if (station.operator === null) return null;
+  return lookups.operatorsById.get(station.operator.id)?.brand ?? null;
+}
+
+function OperatorName({ name, brand, labelClassName }: OperatorNameProps) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {brand === undefined ? null : <BrandMark brand={brand} size={BRAND_MARK_SIZE} />}
+      <span className={cn("min-w-0 truncate text-xs font-medium text-foreground", labelClassName)}>{name}</span>
+    </span>
+  );
+}
+
+function StationResultTitle({ siteId, operatorName, brand, query }: StationResultTitleProps) {
+  return (
+    <>
+      {operatorName === undefined ? null : <OperatorName name={operatorName} brand={brand} />}
+      <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">
+        <HighlightedText text={siteId} query={query} />
+      </span>
+    </>
+  );
+}
+
 function SearchResultOptionButton({
   option,
   listboxId,
   activeKey,
-  className,
   onActiveKeyChange,
   onSelect,
   children,
@@ -104,7 +150,6 @@ function SearchResultOptionButton({
   option: SearchResultOption;
   listboxId: string;
   activeKey: string | null;
-  className?: string;
   onActiveKeyChange: (key: string) => void;
   onSelect: (option: SearchResultOption) => void;
   children: ReactNode;
@@ -125,7 +170,6 @@ function SearchResultOptionButton({
       onClick={() => onSelect(option)}
       className={cn(
         "group min-h-11 w-full cursor-pointer rounded-lg px-3 py-2.5 text-left outline-none transition-colors",
-        className,
         isActive ? "bg-accent" : "hover:bg-accent/70",
       )}
     >
@@ -148,6 +192,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   const { t } = useTranslation("main");
   const gpsFormat = useGpsFormat();
+  const { lookups } = useMapLookups();
   const normalizedQuery = normalizeSearchText(queryText);
 
   return (
@@ -285,8 +330,9 @@ export function SearchResults({
                     <ResultGroupHeader id={groupLabelId} icon={AirportTowerIcon} label={t("searchResults.stations")} count={stationTotalCount} />
                     <div className="space-y-0.5 p-1">
                       {group.options.map((option) => {
-                        const station = option.result;
-                        const location = joinPresent([station.location?.city, station.extra_address ?? station.location?.address]);
+                        const hit = option.result;
+                        const location = joinPresent([hit.location?.city, hit.location?.address]);
+                        const networksId = findStationIdentifier(hit.identifiers, NETWORKS_ID_KIND);
                         return (
                           <SearchResultOptionButton
                             key={option.key}
@@ -297,16 +343,16 @@ export function SearchResults({
                             onSelect={onSelect}
                           >
                             <div className="flex min-w-0 items-center gap-2">
-                              <StationTitle
-                                stationId={station.station_id}
-                                operator={station.operator ?? undefined}
-                                stationIdClassName="group-hover:underline"
-                                highlight={normalizedQuery}
+                              <StationResultTitle
+                                siteId={hit.siteId}
+                                operatorName={hit.operator?.name}
+                                brand={getHitBrand(hit, lookups)}
+                                query={normalizedQuery}
                               />
-                              {station.extra_identificators?.networks_id ? (
+                              {networksId ? (
                                 <span className="shrink-0 font-mono text-[11px] text-foreground/70">
                                   N!
-                                  <HighlightedText text={String(station.extra_identificators.networks_id)} query={normalizedQuery} />
+                                  <HighlightedText text={networksId} query={normalizedQuery} />
                                 </span>
                               ) : null}
                             </div>
@@ -315,7 +361,7 @@ export function SearchResults({
                                 <HighlightedText text={location} query={normalizedQuery} />
                               </p>
                             ) : null}
-                            <TechnologySummary bands={getStationBands(station.cells)} className="mt-0.5 pl-0" />
+                            <TechnologySummary bands={getCellTechnologyBands(hit.cells)} className="mt-0.5 pl-0" />
                           </SearchResultOptionButton>
                         );
                       })}
@@ -358,11 +404,11 @@ export function SearchResults({
                             onSelect={onSelect}
                           >
                             <div className="flex min-w-0 items-center gap-2">
-                              <StationTitle
-                                stationId={permit.station_id}
-                                operator={permit.operator ?? undefined}
-                                stationIdClassName="group-hover:underline"
-                                highlight={normalizedQuery}
+                              <StationResultTitle
+                                siteId={permit.station_id}
+                                operatorName={permit.operator?.name}
+                                brand={getPermitStationBrand(permit, lookups)}
+                                query={normalizedQuery}
                               />
                               {matchedPermit ? (
                                 <span className="ml-auto shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground/70">
@@ -402,12 +448,7 @@ export function SearchResults({
                           >
                             <div className="flex min-w-0 items-center gap-2">
                               {radioline.operator ? (
-                                <DialogOperatorName
-                                  name={radioline.operator.name}
-                                  mnc={radioline.operator.mnc}
-                                  compact
-                                  labelClassName="text-sm font-semibold group-hover:underline"
-                                />
+                                <OperatorName name={radioline.operator.name} labelClassName="text-sm font-semibold group-hover:underline" />
                               ) : (
                                 <span className="text-sm font-semibold text-muted-foreground">{t("unknownOperator")}</span>
                               )}

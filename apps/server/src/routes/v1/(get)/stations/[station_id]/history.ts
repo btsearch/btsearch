@@ -1,36 +1,36 @@
-import { attachments, auditLogs, auditOperations, locationPhotos } from "@openbts/drizzle";
-import type { AuditEntity } from "@openbts/shared/audit";
-import { and, asc, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { attachments, auditLogs, locationPhotos } from "@openbts/drizzle";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
-import { getEntryRevertibility, loadActiveRevertCoverageByOperation } from "../../../../../features/audit/revert/revertibility.js";
+import { type AuditReach, getAuditReach, isWithinReach } from "../../../../../features/audit/access.js";
+import { getEntryRevertibility } from "../../../../../features/audit/revert/revertibility.js";
 import type { AuditOperationRow } from "../../../../../features/audit/types.js";
 import {
+  NAMED_ENTITIES,
+  type NameSource,
+  type NamedEntity,
   type StationHistoryAuthor,
   type StationHistoryChange,
   type StationHistoryLookups,
   type StationHistorySection,
-  collectLocationSnapshotNames,
+  collectNameChanges,
   groupRowsByOperation,
+  locationName,
   movesCellSector,
-  sectorAzimuthsByOperation,
+  namesAsOf,
+  referencedIds,
+  revertStatus,
   transformEntry,
 } from "../../../../../features/stations/history.js";
+import { loadHistoryRows, readHistoryPage } from "../../../../../features/stations/historyRead.js";
+import type { AuditRow, HistoryStation } from "../../../../../features/stations/historyRows.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
-const HISTORY_ENTITIES: readonly AuditEntity[] = [
-  "stations",
-  "locations",
-  "cells",
-  "station_sectors",
-  "extra_identificators",
-  "station_uplinks",
-  "station_photo_selections",
-];
+const DEFAULT_LIMIT = 25;
 
 const historyValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const historyChangeValueSchema = z.union([historyValueSchema, z.array(historyValueSchema), z.record(z.string(), historyValueSchema)]);
@@ -72,7 +72,7 @@ const schemaRoute = {
     station_id: z.coerce.number<number>().int(),
   }),
   querystring: z.object({
-    limit: z.coerce.number().int().min(1).max(100).default(25),
+    limit: z.coerce.number().int().min(1).max(100).default(DEFAULT_LIMIT),
     cursor: z.coerce.number().int().positive().optional(),
   }),
   response: {
@@ -99,59 +99,61 @@ type StationHistoryItem = StationHistorySection & {
   photoReferences: StationHistoryPhotoReference[];
 };
 type ResponseBody = { data: StationHistoryItem[]; nextCursor: number | null };
-
-type AuditRow = typeof auditLogs.$inferSelect;
+type OperationItem = Omit<StationHistoryItem, "photoReferences">;
+type ShownOperation = { operationId: number; items: OperationItem[] };
+type HistoryViewer = { canSeeAuthor: boolean; reach: AuditReach };
+type NameIds = Record<NamedEntity, number[]>;
+type NameSources = Record<NamedEntity, NameSource>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function collectLocationIds(rows: AuditRow[], currentLocationId: number | null): Set<number> {
-  const ids = new Set<number>();
-  if (currentLocationId !== null) ids.add(currentLocationId);
-  for (const row of rows) {
-    if (row.entity === "locations" && row.record_id !== null) {
-      const locationId = Number(row.record_id);
-      if (Number.isInteger(locationId)) ids.add(locationId);
-    }
-    if (row.entity !== "stations") continue;
-    for (const values of [row.old_values, row.new_values]) {
-      if (!isRecord(values)) continue;
-      if (typeof values.location_id === "number") ids.add(values.location_id);
-    }
-  }
-  return ids;
-}
-
-async function loadStaticLookups(): Promise<Pick<StationHistoryLookups, "bands" | "operators" | "regions">> {
-  const [bandRows, operatorRows, regionRows] = await Promise.all([
-    db.query.bands.findMany({ columns: { id: true, name: true } }),
-    db.query.operators.findMany({ columns: { id: true, name: true } }),
-    db.query.regions.findMany({ columns: { id: true, name: true } }),
+async function loadCurrentNames(ids: NameIds): Promise<Record<NamedEntity, Map<number, string>>> {
+  const [operatorRows, bandRows, regionRows, locationRows] = await Promise.all([
+    db.query.operators.findMany({ where: { id: { in: ids.operators } }, columns: { id: true, name: true } }),
+    db.query.bands.findMany({ where: { id: { in: ids.bands } }, columns: { id: true, name: true } }),
+    db.query.regions.findMany({ where: { id: { in: ids.regions } }, columns: { id: true, name: true } }),
+    db.query.locations.findMany({ where: { id: { in: ids.locations } }, columns: { id: true, city: true, address: true } }),
   ]);
 
   return {
-    bands: new Map(bandRows.map((band) => [band.id, band.name])),
     operators: new Map(operatorRows.map((operator) => [operator.id, operator.name])),
+    bands: new Map(bandRows.map((band) => [band.id, band.name])),
     regions: new Map(regionRows.map((region) => [region.id, region.name])),
+    locations: new Map(locationRows.map((location) => [location.id, locationName(location.id, location.city, location.address)])),
   };
 }
 
-async function loadLocationNames(rows: AuditRow[], currentLocationId: number | null): Promise<Map<number, string>> {
-  const locationIds = collectLocationIds(rows, currentLocationId);
-  const names = new Map<number, string>();
-  if (locationIds.size > 0) {
-    const locationRows = await db.query.locations.findMany({
-      where: { id: { in: [...locationIds] } },
-      columns: { id: true, city: true, address: true },
-    });
-    for (const location of locationRows) names.set(location.id, [location.city, location.address].filter(Boolean).join(", ") || `#${location.id}`);
-  }
-  collectLocationSnapshotNames(names, rows);
-  return names;
+async function loadNameEntries(ids: NameIds): Promise<AuditRow[]> {
+  const wanted = NAMED_ENTITIES.filter((named) => ids[named].length > 0);
+  if (wanted.length === 0) return [];
+
+  return db
+    .select()
+    .from(auditLogs)
+    .where(or(...wanted.map((named) => and(eq(auditLogs.entity, named), inArray(auditLogs.record_id, ids[named].map(String))))))
+    .orderBy(asc(auditLogs.operation_id), asc(auditLogs.id));
 }
 
-async function fetchAuthors(rows: (typeof auditOperations.$inferSelect)[]): Promise<Map<string, StationHistoryAuthor>> {
+async function loadNameSources(entries: readonly AuditRow[]): Promise<NameSources> {
+  const ids = {
+    operators: referencedIds(entries, "operators"),
+    bands: referencedIds(entries, "bands"),
+    regions: referencedIds(entries, "regions"),
+    locations: referencedIds(entries, "locations"),
+  };
+  const [current, nameEntries] = await Promise.all([loadCurrentNames(ids), loadNameEntries(ids)]);
+
+  return {
+    operators: { current: current.operators, changes: collectNameChanges(nameEntries, "operators") },
+    bands: { current: current.bands, changes: collectNameChanges(nameEntries, "bands") },
+    regions: { current: current.regions, changes: collectNameChanges(nameEntries, "regions") },
+    locations: { current: current.locations, changes: collectNameChanges(nameEntries, "locations") },
+  };
+}
+
+async function fetchAuthors(rows: readonly AuditOperationRow[]): Promise<Map<string, StationHistoryAuthor>> {
   const authorIds = [...new Set(rows.map((row) => row.actor_id).filter((id): id is string => id !== null))];
   const authorRows =
     authorIds.length > 0
@@ -189,16 +191,6 @@ async function fetchPhotoReferences(photoIds: ReadonlySet<number>): Promise<Map<
     .innerJoin(attachments, eq(locationPhotos.attachment_id, attachments.id))
     .where(inArray(locationPhotos.id, [...photoIds]));
   return new Map(rows.map((photo) => [photo.id, photo]));
-}
-
-function toOperationRow(row: typeof auditOperations.$inferSelect): AuditOperationRow {
-  return { ...row, metadata: isRecord(row.metadata) ? row.metadata : null };
-}
-
-function entryBelongsToStation(entry: AuditRow, stationId: number, locationId: number | null, stationCreatedAt: Date): boolean {
-  if (!HISTORY_ENTITIES.includes(entry.entity)) return false;
-  if (entry.station_id === stationId) return true;
-  return entry.entity === "locations" && locationId !== null && entry.record_id === String(locationId) && entry.createdAt >= stationCreatedAt;
 }
 
 type HistorySectionWithEntries = StationHistorySection & {
@@ -249,15 +241,49 @@ function historySections(
   return sections;
 }
 
-function revertStatusOf(
-  entryIds: readonly number[],
-  operation: AuditOperationRow,
-  coverage: { revertedEntryIds: ReadonlySet<number>; incompleteEntryIds: ReadonlySet<number> } | undefined,
-): StationHistoryItem["revertStatus"] {
-  if (operation.reverted_by_operation_id !== null) return "complete";
-  if (entryIds.every((id) => coverage?.revertedEntryIds.has(id) && !coverage.incompleteEntryIds.has(id))) return "complete";
-  if (entryIds.some((id) => coverage?.revertedEntryIds.has(id))) return "partial";
-  return "none";
+async function loadShownOperations(
+  station: HistoryStation,
+  operationIds: readonly number[],
+  liveAzimuths: ReadonlyMap<number, number>,
+  viewer: HistoryViewer,
+): Promise<ShownOperation[]> {
+  const { operations, entries, sectorAzimuths, coverage } = await loadHistoryRows(station, operationIds, liveAzimuths);
+  const [nameSources, authors] = await Promise.all([
+    loadNameSources(entries),
+    viewer.canSeeAuthor ? fetchAuthors(operations) : Promise.resolve(new Map<string, StationHistoryAuthor>()),
+  ]);
+  const entriesByOperation = groupRowsByOperation(entries);
+
+  return operations.flatMap((operation): ShownOperation[] => {
+    const lookups: StationHistoryLookups = {
+      operators: namesAsOf(nameSources.operators, operation.id),
+      bands: namesAsOf(nameSources.bands, operation.id),
+      regions: namesAsOf(nameSources.regions, operation.id),
+      locations: namesAsOf(nameSources.locations, operation.id),
+      sectorAzimuths: sectorAzimuths.get(operation.id),
+    };
+    const revertCoverage = coverage.get(operation.id);
+    const revertedEntryIds = revertCoverage?.revertedEntryIds ?? new Set<number>();
+    const sections = historySections(entriesByOperation.get(operation.id) ?? [], operation, lookups, revertedEntryIds);
+    if (sections.length === 0) return [];
+
+    const canRevert = isWithinReach(viewer.reach, operation.country_code);
+    const author = operation.actor_id === null ? null : (authors.get(operation.actor_id) ?? null);
+    const items = sections.map((section) => {
+      const item: OperationItem = {
+        ...section,
+        entryIds: canRevert ? section.entryIds : [],
+        revertible: canRevert && section.revertible,
+        operationId: operation.id,
+        createdAt: operation.createdAt,
+        revertStatus: revertStatus(section.entryIds, operation, revertCoverage),
+        isRevert: operation.kind === "revert",
+      };
+      if (viewer.canSeeAuthor) item.author = author;
+      return item;
+    });
+    return [{ operationId: operation.id, items }];
+  });
 }
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseBody>>) {
@@ -267,71 +293,24 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const directEntry = and(inArray(auditLogs.entity, HISTORY_ENTITIES), eq(auditLogs.station_id, station_id));
-  const locationEntry =
-    station.location_id === null
-      ? undefined
-      : and(eq(auditLogs.entity, "locations"), eq(auditLogs.record_id, String(station.location_id)), gte(auditLogs.createdAt, station.createdAt));
-  const belongsToStation = locationEntry === undefined ? directEntry : or(directEntry, locationEntry);
-  const operationFilter = cursor === undefined ? belongsToStation : and(belongsToStation, lt(auditLogs.operation_id, cursor));
-  const operationIdRows = await db
-    .selectDistinct({ id: auditLogs.operation_id })
-    .from(auditLogs)
-    .where(operationFilter)
-    .orderBy(desc(auditLogs.operation_id))
-    .limit(limit + 1);
-  const hasMore = operationIdRows.length > limit;
-  const operationIds = operationIdRows.slice(0, limit).map(({ id }) => id);
-  if (operationIds.length === 0) return res.send({ data: [], nextCursor: null });
-  const oldestOperationId = Math.min(...operationIds);
-
-  const [operationRows, auditRows, liveSectors, sectorRows, staticLookups] = await Promise.all([
-    db.select().from(auditOperations).where(inArray(auditOperations.id, operationIds)).orderBy(desc(auditOperations.id)),
-    db.select().from(auditLogs).where(inArray(auditLogs.operation_id, operationIds)).orderBy(asc(auditLogs.id)),
+  const [reach, liveSectors] = await Promise.all([
+    getAuditReach(req, "revert"),
     db.query.stationSectors.findMany({ where: { station_id }, columns: { id: true, azimuth: true } }),
-    db
-      .select()
-      .from(auditLogs)
-      .where(and(eq(auditLogs.entity, "station_sectors"), eq(auditLogs.station_id, station_id), gte(auditLogs.operation_id, oldestOperationId))),
-    loadStaticLookups(),
   ]);
-  const lookups: StationHistoryLookups = { ...staticLookups, locations: await loadLocationNames(auditRows, station.location_id) };
-  const liveSectorAzimuths = new Map(liveSectors.map((sector) => [sector.id, sector.azimuth]));
-  const sectorAzimuthsAsOf = sectorAzimuthsByOperation(liveSectorAzimuths, sectorRows, operationIds);
-  const auditRowsByOperation = groupRowsByOperation(auditRows);
+  const liveAzimuths = new Map(liveSectors.map((sector) => [sector.id, sector.azimuth]));
+  const viewer: HistoryViewer = { canSeeAuthor: ["admin", "editor"].includes(req.userSession?.user?.role ?? ""), reach };
+  const loadItems = (operationIds: readonly number[]) => loadShownOperations(station, operationIds, liveAzimuths, viewer);
+  const batch = { minSize: DEFAULT_LIMIT, toOperationId: (operation: ShownOperation) => operation.operationId };
 
-  const canSeeAuthor = ["admin", "editor"].includes(req.userSession?.user?.role ?? "");
-  const [authors, revertCoverageByOperation] = await Promise.all([
-    canSeeAuthor ? fetchAuthors(operationRows) : Promise.resolve(new Map<string, StationHistoryAuthor>()),
-    loadActiveRevertCoverageByOperation(db, operationIds),
-  ]);
-
-  const items = operationRows.flatMap((row) => {
-    const operation = toOperationRow(row);
-    const entries = (auditRowsByOperation.get(row.id) ?? []).filter((entry) =>
-      entryBelongsToStation(entry, station_id, station.location_id, station.createdAt),
-    );
-    const revertCoverage = revertCoverageByOperation.get(row.id);
-    const operationLookups: StationHistoryLookups = { ...lookups, sectorAzimuths: sectorAzimuthsAsOf.get(row.id) };
-    const sections = historySections(entries, operation, operationLookups, revertCoverage?.revertedEntryIds ?? new Set<number>());
-    const author = row.actor_id === null ? null : (authors.get(row.actor_id) ?? null);
-    return sections.map((section) => ({
-      ...section,
-      operationId: row.id,
-      createdAt: row.createdAt,
-      revertStatus: revertStatusOf(section.entryIds, operation, revertCoverage),
-      isRevert: row.kind === "revert",
-      ...(canSeeAuthor ? { author } : {}),
-    }));
-  });
-
+  const page = await readHistoryPage(station, limit, cursor ?? null, loadItems, batch);
+  const items = page.items.flatMap((operation) => operation.items);
   const photoReferences = await fetchPhotoReferences(new Set(items.flatMap((item) => collectPhotoIds(item.changes))));
   return res.send({
     data: items.map((item) => ({
       ...item,
       photoReferences: collectPhotoIds(item.changes).flatMap((photoId) => photoReferences.get(photoId) ?? []),
     })),
-    nextCursor: hasMore ? oldestOperationId : null,
+    nextCursor: page.nextBefore,
   });
 }
 

@@ -4,55 +4,51 @@
     "analyze": "Analyze terrain profile",
     "retry": "Run again"
   },
-  "station": {
-    "selected": "Selected station"
-  },
   "receiver": {
     "height": "Receiver height",
     "useGps": "Use GPS",
     "locating": "Locating...",
-    "hint": "Drag the blue marker on the map to move the receive point",
     "gpsErrors": {
       "unsupported": "This browser cannot access your location. Drag the marker on the map instead",
       "permissionDenied": "Location access was denied. Allow it in your browser settings or drag the marker on the map",
       "unavailable": "Your location is currently unavailable. Try again or drag the marker on the map",
       "timeout": "The GPS request timed out. Try again or drag the marker on the map",
       "unknown": "Your location could not be read. Try again or drag the marker on the map"
-    }
-  },
-  "empty": {
-    "stationDescription": "Open a station's details and choose Analyze terrain profile under Actions"
+    },
+    "title": "Receiver",
+    "changePoint": "Change point"
   },
   "states": {
     "processing": "Reading LiDAR terrain and running analysis...",
     "failed": "The profile could not be calculated",
-    "failedDescription": "Check the selected endpoints and try again",
     "failureCodes": {
       "PATH_DISTANCE_OUT_OF_RANGE": "The receiver is too close to or too far from the station. Move the marker and try again",
       "ANTENNA_DATA_UNAVAILABLE": "This station has no usable antenna height and frequency data",
       "TERRAIN_DATA_UNAVAILABLE": "GUGiK did not return enough terrain data for this path"
     },
-    "outOfAzimuth": "The receiver is outside the selected antenna's main azimuth. Choose a different sector to see the profile"
+    "calculating": "Calculating the profile",
+    "recalculating": "Calculating the new profile..."
   },
   "selection": {
-    "title": "Antenna sector",
-    "placeholder": "Band · azimuth · tilt · height",
-    "tilt": "tilt {{value}}°",
-    "required": "Choose an antenna sector to run the analysis"
+    "tilt": "tilt {{value}}°"
   },
   "verdict": {
     "clear": "Modeled path is unobstructed",
-    "constrained": "Modeled path has limited clearance",
     "blocked": "Modeled path is obstructed",
     "unavailable": "Path assessment is inconclusive",
     "summary": "{{distance}} km · azimuth {{bearing}}°",
     "surfaceOnly": "The terrain itself is clear. Buildings or vegetation constrain the path",
     "description": {
-      "clear": "Terrain, buildings and vegetation do not obstruct the modeled path. This favors reception, but actual signal and speed may vary",
-      "constrained": "The modeled path passes close to terrain, buildings or vegetation. Reception may be less reliable",
       "blocked": "Terrain, buildings or vegetation obstruct the modeled path. Reception may be weaker or less stable",
       "unavailable": "Building and vegetation coverage is incomplete, so reception conditions cannot be assessed reliably"
-    }
+    },
+    "short": {
+      "clear": "Path unobstructed",
+      "blocked": "Path obstructed",
+      "unavailable": "Assessment inconclusive"
+    },
+    "minimumClearance": "Smallest clearance",
+    "obstructionDepth": "Obstructed by up to"
   },
   "metrics": {
     "pathLoss": "Path loss",
@@ -61,16 +57,17 @@
     "beamOffsetDescription": "Vertical angle between the receiver direction and the estimated beam center. Closer to 0° means the receiver is closer to the beam axis, \"+\" means above it and \"-\" means below it",
     "beamOffsetUnavailableDescription": "The offset cannot be calculated because this data source does not provide a reliable antenna tilt",
     "fieldStrength": "Reference field strength (1 kW ERP)",
-    "fieldStrengthDescription": "Field strength describes how strong the electromagnetic field is at the receiver location and is expressed in dBµV/m. Here it is calculated by ITU-R P.1812 for 1 kW ERP. Higher values mean a stronger reference field. It is not the phone's actual signal level and does not predict data speed"
+    "fieldStrengthDescription": "Field strength describes how strong the electromagnetic field is at the receiver location and is expressed in dBµV/m. Here it is calculated by ITU-R P.1812 for 1 kW ERP. Higher values mean a stronger reference field. It is not the phone's actual signal level and does not predict data speed",
+    "beamOffsetVertical": "vertical {{value}}",
+    "beamOffsetHorizontal": "horizontal {{value}}",
+    "explain": "About: {{label}}"
   },
   "chart": {
     "label": "Terrain and line-of-sight profile",
-    "description": "Cross-section from the receiver on the left to the selected station on the right. The chart shows terrain, surface objects, and the direct ray with ITU-R P.1812-8 prediction",
-    "distance": "{{value}} km from receiver",
     "clearance": "Clearance",
     "endpoints": {
       "receiver": "Receiver · {{height}} m AGL",
-      "station": "Station · {{height}} m AGL"
+      "site": "{{siteId}} · {{height}} m AGL"
     },
     "legend": {
       "label": "Profile layers",
@@ -79,30 +76,73 @@
       "lineOfSight": "Direct ray",
       "obstruction": "Obstruction"
     },
-    "series": {
-      "surfaceElevationM": "Surface / vegetation",
-      "lineOfSightElevationM": "Line of sight"
-    }
+    "exaggeration": "vertical ×{{value}}",
+    "obstacleAt": "Obstruction · {{distance}} km"
   },
   "evidence": {
-    "lidar": "Terrain: {{source}}",
     "si2pem": "SI2PEM report · {{date}}",
     "latest": "latest",
-    "noReport": "No matching SI2PEM report"
+    "noReport": "No matching SI2PEM report",
+    "elevation": "Terrain: LiDAR {{source}}, samples every {{spacing}} m"
   },
   "warnings": {
     "codes": {
-      "ANTENNA_SELECTION_REQUIRED": "Choose the antenna sector to continue",
       "ANTENNA_SELECTION_INVALID": "The selected antenna is no longer available",
       "SI2PEM_REPORT_UNAVAILABLE": "No matching SI2PEM report was available",
       "SI2PEM_REPORT_PARSE_FAILED": "The latest SI2PEM report could not be read reliably",
       "UKE_ANTENNA_FALLBACK": "A UKE permit height was used because SI2PEM data was unavailable",
       "NETWORKS_SHARING_DATA": "Antenna data comes from the co-located partner network station (T-Mobile/Orange RAN sharing)",
-      "ANTENNA_AZIMUTH_MISMATCH": "The receiver is outside the selected antenna's main azimuth",
       "SURFACE_MODEL_UNAVAILABLE": "Surface and vegetation data was unavailable",
       "SURFACE_MODEL_PARTIAL": "Surface and vegetation coverage is incomplete along this path",
       "TERRAIN_MODEL_PARTIAL": "Terrain coverage is incomplete along this path",
       "TERRAIN_CACHE_STALE": "Cached terrain data may be older than the current GUGiK model"
+    },
+    "outsideMainBeam": "The receiver is {{degrees}}° off this antenna's axis. The result describes the path, not the antenna's direction."
+  },
+  "distanceFromStation": "{{value}} km from the station",
+  "header": {
+    "openStation": "Open the station window",
+    "collapse": "Collapse the panel",
+    "expand": "Expand the panel"
+  },
+  "placing": {
+    "title": "Place the receive point",
+    "description": "Click the map where you want to check whether the station is visible. The analysis covers points from {{minMeters}} m to {{maxKilometers}} km from the station.",
+    "gpsErrors": {
+      "unsupported": "This browser cannot access your location. Click the map to set the receive point instead",
+      "permissionDenied": "Location access was denied. Allow it in your browser settings or click the map to set the receive point",
+      "unavailable": "Your location is currently unavailable. Try again or click the map to set the receive point",
+      "timeout": "The GPS request timed out. Try again or click the map to set the receive point",
+      "unknown": "Your location could not be read. Try again or click the map to set the receive point"
     }
+  },
+  "placeholder": {
+    "placing": "The profile appears once you place the receive point",
+    "calculating": "The profile is being calculated",
+    "failed": "No profile to show",
+    "range": "Analysis range: {{minMeters}} m to {{maxKilometers}} km from the station, in Poland only"
+  },
+  "failures": {
+    "tooFar": "The receiver is more than {{maxKilometers}} km from the station. Move the point closer.",
+    "tooClose": "The receiver is less than {{minMeters}} m from the station. Choose a point farther away.",
+    "outsideCoverage": "The receive point is outside the terrain data. The analysis covers Poland only.",
+    "rateLimited": "You have used the limit of 15 analyses per 5 minutes. Try again in a moment.",
+    "sourceUnavailable": "A data source is temporarily unavailable. Try again in a moment.",
+    "unknown": "The profile could not be calculated. Try again."
+  },
+  "antenna": {
+    "title": "Antenna",
+    "autoSelected": "selected automatically",
+    "height": "{{value}} m AGL",
+    "showOthers": "Show the other antennas: {{total}}",
+    "collapseList": "Collapse the antenna list",
+    "source": {
+      "emfReport": "EMF report",
+      "emfReportDated": "EMF report of {{date}}",
+      "permit": "UKE permit"
+    }
+  },
+  "marker": {
+    "label": "Receive point, drag to move"
   }
 }

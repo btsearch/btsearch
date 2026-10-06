@@ -9,8 +9,12 @@ import {
 } from "@openbts/shared/clfExportTemplates";
 import { getBandName } from "@openbts/shared/frequency";
 
+import type { StoredStructureType } from "../structures/serialize.js";
+
 export type ClfFormat = ClfExportFormat;
 export type DescriptionTemplates = CLFDescriptionTemplates;
+
+export type BandDuplex = "FDD" | "TDD" | "SDL" | null;
 
 export type ConvertOptions = {
   templates?: DescriptionTemplates;
@@ -18,6 +22,49 @@ export type ConvertOptions = {
 };
 
 const NTM_UNKNOWN = 2147483647; // 2^31-1, used in netmonitor format
+const LEGACY_MCC = "260";
+const MCC_LENGTH = 3;
+const SHORTEST_PLMN_LENGTH = 5;
+type StructureTypeLabels = Record<StoredStructureType, string>;
+
+const STRUCTURE_TYPE_LABELS: StructureTypeLabels = {
+  lattice_tower: "lattice tower",
+  tubular_tower: "tubular tower",
+  concrete_tower: "concrete tower",
+  tower: "tower",
+  mast: "mast",
+  rooftop_mast: "rooftop mast",
+  rooftop: "rooftop",
+  chimney: "chimney",
+  church: "church",
+  water_tower: "water tower",
+  silo: "silo",
+  pole: "pole",
+  mobile_mast: "mobile mast",
+  tunnel: "tunnel",
+  indoor: "indoor",
+  other: "",
+};
+const STRUCTURE_TYPE_LABELS_BY_COUNTRY: Record<string, StructureTypeLabels> = {
+  PL: {
+    lattice_tower: "wieża kratowa",
+    tubular_tower: "wieża rurowa",
+    concrete_tower: "wieża strunobetonowa",
+    tower: "wieża",
+    mast: "maszt",
+    rooftop_mast: "maszt na dachu",
+    rooftop: "dach budynku",
+    chimney: "komin",
+    church: "kościół",
+    water_tower: "wieża ciśnień",
+    silo: "silos",
+    pole: "słup",
+    mobile_mast: "maszt mobilny",
+    tunnel: "tunel",
+    indoor: "wewnątrz budynku",
+    other: "",
+  },
+};
 
 export interface CellExportData {
   cid: number;
@@ -36,7 +83,7 @@ export interface CellExportData {
   nr_type?: "nsa" | "sa" | null;
   band_value?: number | null;
   band_name: string;
-  band_duplex?: "FDD" | "TDD" | null;
+  band_duplex?: BandDuplex;
   station_lte_tac?: number | null;
   station_id: string;
   operator_mnc?: number | null;
@@ -50,16 +97,20 @@ export interface CellExportData {
   e_gsm?: boolean | null;
   arfcn?: number | null; // UMTS UARFCN
   region_code?: string | null;
+  country_code?: string | null;
+  structure_type?: StoredStructureType | null;
+  structure_owner?: string | null;
+  structure_note?: string | null;
   is_confirmed?: boolean | null;
   sector_index?: number;
   sector_azimuth?: number;
-  nr_bands?: { value: number; duplex: "FDD" | "TDD" | null }[]; // associated NR bands at same station (for LTE cells)
+  nr_bands?: { value: number; duplex: BandDuplex }[]; // associated NR bands at same station (for LTE cells)
   nr_band_pcis?: NRBandPCIs[];
 }
 
 export interface NRBandPCIs {
   value: number;
-  duplex: "FDD" | "TDD" | null;
+  duplex: BandDuplex;
   pcis: { value: number; is_confirmed: boolean | null }[];
   has_missing_pci: boolean;
 }
@@ -97,14 +148,14 @@ const EARFCN_MAP: Record<number, Partial<Record<number, { fdd?: number; tdd?: nu
   },
 };
 
-function getEARFCN(mnc: number | null | undefined, bandValue: number | null | undefined, duplex: "FDD" | "TDD" | null | undefined): number {
+function getEARFCN(mnc: number | null | undefined, bandValue: number | null | undefined, duplex: BandDuplex | undefined): number {
   if (!mnc || !bandValue) return NTM_UNKNOWN;
   const entry = EARFCN_MAP[mnc]?.[bandValue];
   if (!entry) return NTM_UNKNOWN;
   return (duplex === "TDD" ? entry.tdd : entry.fdd) ?? NTM_UNKNOWN;
 }
 
-function getNRDesignation(bandValue: number | null | undefined, duplex: "FDD" | "TDD" | null | undefined): string | null {
+function getNRDesignation(bandValue: number | null | undefined, duplex: BandDuplex | undefined): string | null {
   switch (bandValue) {
     case 700:
       return "n28";
@@ -125,7 +176,7 @@ function getNRDesignation(bandValue: number | null | undefined, duplex: "FDD" | 
   }
 }
 
-function getLteBandName(bandValue: number | null | undefined, duplex: "FDD" | "TDD" | null | undefined): string {
+function getLteBandName(bandValue: number | null | undefined, duplex: BandDuplex | undefined): string {
   if (bandValue === null || bandValue === undefined) return "";
   return getBandName("LTE", bandValue, duplex) ?? "";
 }
@@ -194,7 +245,9 @@ function getPosRat(cell: CellExportData): number {
 }
 
 function getMccMnc(cell: CellExportData): { mcc: string; mnc: string } {
-  return { mcc: "260", mnc: cell.operator_mnc?.toString().slice(-2).padStart(2, "0") ?? "00" };
+  const digits = cell.operator_mnc?.toString() ?? "";
+  if (digits.length < SHORTEST_PLMN_LENGTH) return { mcc: LEGACY_MCC, mnc: digits.slice(-2).padStart(2, "0") };
+  return { mcc: digits.slice(0, MCC_LENGTH), mnc: digits.slice(MCC_LENGTH) };
 }
 
 function toCLF2x(cell: CellExportData, radix: 10 | 16, options?: ConvertOptions): string | null {
@@ -413,11 +466,29 @@ function getNRTemplateVars(cell: CellExportData): Record<string, string> {
   };
 }
 
+function getStructureTypeLabel(cell: CellExportData): string {
+  if (cell.structure_type === null || cell.structure_type === undefined) return "";
+
+  const labels = STRUCTURE_TYPE_LABELS_BY_COUNTRY[cell.country_code ?? ""] ?? STRUCTURE_TYPE_LABELS;
+  return labels[cell.structure_type];
+}
+
+function getStructureLabel(cell: CellExportData): string {
+  const type = getStructureTypeLabel(cell);
+  const owner = cell.structure_owner ?? "";
+  if (type === "" || owner === "") return type || owner;
+  return `${type} (${owner})`;
+}
+
 function buildTemplateVars(cell: CellExportData): CLFDescriptionTemplateValues {
   const common = {
     location: getLocationDescription(cell),
     city: cell.city,
     address: cell.address,
+    structure: getStructureLabel(cell),
+    structure_type: getStructureTypeLabel(cell),
+    structure_owner: cell.structure_owner,
+    structure_note: cell.structure_note,
     cell_type: getCellTypeLabel(cell),
     uplink: cell.uplink_type,
     notes: cell.notes,

@@ -4,13 +4,14 @@ import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const regionsUpdateSchema = createUpdateSchema(regions).strict();
+const regionsUpdateSchema = createUpdateSchema(regions).omit({ countryCode: true, isoCode: true }).strict();
 const regionsSelectSchema = createSelectSchema(regions);
 const schemaRoute = {
   params: z.object({
@@ -34,6 +35,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const region = await db.query.regions.findFirst({
     where: {
       id,
+      countryCode: LEGACY_COUNTRY_CODE,
     },
   });
   if (!region) throw new ErrorResponse("NOT_FOUND");

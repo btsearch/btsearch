@@ -1,5 +1,4 @@
 import type { ApiKey } from "@better-auth/api-key";
-import type { DescMessage } from "@bufbuild/protobuf";
 import type {
   FastifyBaseLogger,
   FastifyInstance,
@@ -10,7 +9,10 @@ import type {
   RouteGenericInterface,
 } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import type { z } from "zod/v4";
 
+import type { ScopeResolver } from "../features/access/scope.js";
+import type { ErrorBodies, ErrorReasons } from "../features/openapi/errorResponses.js";
 import type { OAuthTokenContext } from "../plugins/auth/oauthToken.js";
 import type { RoutePermission } from "../plugins/auth/permissions.js";
 import type { auth } from "../plugins/betterauth.plugin.js";
@@ -45,9 +47,13 @@ declare module "fastify" {
 
   export interface FastifyContextConfig {
     permissions?: RoutePermission[];
+    permissionsCheckedByHandler?: RoutePermission[];
+    scope?: ScopeResolver;
     allowGuestAccess?: boolean;
     retainIdempotencyKey?: boolean;
-    proto?: DescMessage;
+    multipartBody?: z.ZodType;
+    errorReasons?: ErrorReasons;
+    errorBodies?: ErrorBodies;
   }
 }
 

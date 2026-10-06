@@ -1,36 +1,39 @@
 import { ArrowDown01Icon, ArrowUpRight01Icon, Message01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useState } from "react";
+import type { Comment, Operator, UserCommentSummary } from "@openbts/shared/contract";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { ProfileComment } from "../queries";
+import { PROFILE_COMMENT_PAGE_SIZE, isUserCommentsUnavailable, userCommentsQueryOptions } from "../queries";
 import { PROFILE_SECTION_IDS } from "./profileSections";
 import { Button } from "@/components/ui/button";
 import { ClampedText } from "@/components/ui/clamped-text";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { InlineError, StaleDataNotice } from "@/components/ui/error-state";
+import { RelativeTime } from "@/components/ui/relative-time";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { SettingsCard, SettingsCardFooter, SettingsRow, SettingsSection } from "@/features/settings/components/settingsPrimitives";
+import { operatorsQueryOptions } from "@/features/shared/lookups";
 import { OperatorMark } from "@/features/station-details/components/dialogOperatorName";
+import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import { useIsMobile } from "@/hooks/useMobile";
-import { formatRelativeTime } from "@/lib/format";
 
-const PAGE_SIZE = 20;
 const ALL_OPERATORS = "all";
 const FILTER_BUTTON_CLASS =
   "inline-flex h-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-transparent px-2.5 text-[0.8125rem] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm data-[active=true]:bg-background data-[active=true]:text-foreground data-[active=true]:shadow-sm data-popup-open:text-foreground dark:aria-pressed:border-input dark:aria-pressed:bg-input/30 dark:data-[active=true]:border-input dark:data-[active=true]:bg-input/30";
 
 type OperatorOption = { key: string; name: string; mnc: number | null; count: number };
 
-function getOperatorOptions(comments: ProfileComment[]): OperatorOption[] {
-  const options = new Map<string, OperatorOption>();
-  for (const { station } of comments) {
-    if (station.operator === null) continue;
-    const key = String(station.operator.id);
-    const option = options.get(key);
-    if (option) option.count += 1;
-    else options.set(key, { key, name: station.operator.name, mnc: station.operator.mnc, count: 1 });
+function getOperatorOptions(summary: UserCommentSummary, operators: Map<number, Operator>): OperatorOption[] {
+  const options: OperatorOption[] = [];
+  for (const { operatorId, count } of summary.operatorCounts) {
+    const operator = operatorId === null ? undefined : operators.get(operatorId);
+    if (operator === undefined) continue;
+    options.push({ key: String(operator.id), name: operator.name, mnc: toV1OperatorMnc(operator), count });
   }
-  return [...options.values()].sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
+  return options.sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
 }
 
 function FilterCount({ count }: { count: number }) {
@@ -114,12 +117,13 @@ function OperatorFilter({
   );
 }
 
-function CommentRow({ comment, relativeTime, fullDate }: { comment: ProfileComment; relativeTime: string; fullDate: string }) {
+function CommentRow({ comment, operator, fullDate }: { comment: Comment; operator: Operator | null; fullDate: string }) {
   const { t } = useTranslation("main");
   const { openStationDialog } = useFloatingDialogStack();
   const { station } = comment;
-  const stationId = station.station_id ?? String(station.id);
-  const stationLabel = station.operator ? `${station.operator.name} ${stationId}` : stationId;
+  const stationId = station?.siteId ?? String(comment.stationId);
+  const stationLabel = operator ? `${operator.name} ${stationId}` : stationId;
+  const city = station?.location?.city;
 
   return (
     <article className="border-t px-4 py-3.5 first:border-t-0 sm:px-5 sm:py-4">
@@ -128,20 +132,20 @@ function CommentRow({ comment, relativeTime, fullDate }: { comment: ProfileComme
           type="button"
           aria-label={t("userProfile.comments.openStation", { station: stationLabel })}
           className="inline-flex h-6.5 max-w-full cursor-pointer items-center gap-1.5 rounded-lg border bg-background pr-2 pl-1.5 text-xs font-medium transition-colors outline-none hover:border-foreground/20 hover:bg-muted/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          onClick={() => openStationDialog(station.id, "internal")}
+          onClick={() => openStationDialog(comment.stationId, "internal")}
         >
-          {station.operator ? (
+          {operator ? (
             <>
-              <OperatorMark mnc={station.operator.mnc} compact />
-              <span className="truncate">{station.operator.name}</span>
+              <OperatorMark mnc={toV1OperatorMnc(operator)} compact />
+              <span className="truncate">{operator.name}</span>
             </>
           ) : null}
           <span className="font-semibold tabular-nums">{stationId}</span>
           <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
-        {station.city ? <span className="text-[0.8125rem] leading-[1.125rem] text-muted-foreground">{station.city}</span> : null}
+        {city ? <span className="text-[0.8125rem] leading-[1.125rem] text-muted-foreground">{city}</span> : null}
         <time dateTime={comment.createdAt} title={fullDate} className="ml-auto text-xs whitespace-nowrap text-muted-foreground">
-          {relativeTime}
+          <RelativeTime date={comment.createdAt} />
         </time>
       </div>
       <ClampedText
@@ -154,77 +158,91 @@ function CommentRow({ comment, relativeTime, fullDate }: { comment: ProfileComme
   );
 }
 
-export function ProfileComments({ comments, totalCount }: { comments: ProfileComment[]; totalCount: number }) {
+export function ProfileComments({ username, viewerId, summary }: { username: string; viewerId: string | null; summary: UserCommentSummary }) {
   const { t, i18n } = useTranslation("main");
   const { t: tCommon } = useTranslation("common");
-  const [filter, setFilter] = useState(ALL_OPERATORS);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [{ filter, visibleCount }, setPagination] = useState({ filter: ALL_OPERATORS, visibleCount: PROFILE_COMMENT_PAGE_SIZE });
+  const operatorId = filter === ALL_OPERATORS ? null : Number(filter);
+  const { data: operators = [] } = useQuery(operatorsQueryOptions());
+  const { data, error, isPending, isFetching, isRefetchError, isFetchNextPageError, isFetchingNextPage, hasNextPage, fetchNextPage, refetch } =
+    useInfiniteQuery(userCommentsQueryOptions(username, viewerId, operatorId));
+  if (isUserCommentsUnavailable(error)) return null;
 
-  const operatorOptions = getOperatorOptions(comments);
-  const filtered =
-    filter === ALL_OPERATORS
-      ? comments
-      : comments.filter((comment) => comment.station.operator !== null && String(comment.station.operator.id) === filter);
+  const operatorsById = new Map(operators.map((operator) => [operator.id, operator]));
+  const operatorOptions = getOperatorOptions(summary, operatorsById);
+  const comments = data?.pages.flatMap((page) => page.data) ?? [];
+  const selectedCount = operatorId === null ? summary.total : (summary.operatorCounts.find((entry) => entry.operatorId === operatorId)?.count ?? 0);
+  const totalCount = data?.pages[0]?.paging.total ?? selectedCount;
+  const shown = Math.min(visibleCount, comments.length);
+  const hasMore = comments.length > visibleCount || hasNextPage;
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeStyle: "short" });
 
   const changeFilter = (next: string) => {
-    setFilter(next);
-    setVisibleCount(PAGE_SIZE);
+    setPagination({ filter: next, visibleCount: PROFILE_COMMENT_PAGE_SIZE });
   };
+
+  const loadMore = async () => {
+    const nextCount = visibleCount + PROFILE_COMMENT_PAGE_SIZE;
+    if (comments.length < nextCount && hasNextPage) {
+      const result = await fetchNextPage();
+      if (result.isError) return;
+    }
+    setPagination((current) => (current.filter === filter ? { ...current, visibleCount: nextCount } : current));
+  };
+
+  let rows: ReactNode;
+  if (isPending)
+    rows = (
+      <div aria-busy="true" className="space-y-3 px-4 py-3.5 sm:px-5 sm:py-4">
+        <Skeleton className="h-6 w-2/5" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    );
+  else if (data === undefined && error) rows = <InlineError className="m-3" onRetry={() => void refetch()} isRetrying={isFetching} />;
+  else if (comments.length === 0)
+    rows = <SettingsRow icon={Message01Icon} title={tCommon("empty.comments")} description={t("userProfile.comments.emptyDescription")} />;
+  else
+    rows = comments
+      .slice(0, visibleCount)
+      .map((comment) => (
+        <CommentRow
+          key={comment.id}
+          comment={comment}
+          operator={operatorsById.get(comment.station?.operatorId ?? 0) ?? null}
+          fullDate={dateFormatter.format(new Date(comment.createdAt))}
+        />
+      ));
 
   return (
     <SettingsSection
       id={PROFILE_SECTION_IDS.comments}
       title={tCommon("labels.comments")}
       badge={
-        totalCount > 0 ? (
+        summary.total > 0 ? (
           <span className="inline-flex h-4.5 items-center rounded-md bg-muted px-1.5 text-[0.6875rem] font-semibold text-muted-foreground tabular-nums">
-            {totalCount}
+            {summary.total}
           </span>
         ) : null
       }
     >
       <SettingsCard>
         {operatorOptions.length > 1 ? (
-          <OperatorFilter options={operatorOptions} total={comments.length} value={filter} onValueChange={changeFilter} />
+          <OperatorFilter options={operatorOptions} total={summary.total} value={filter} onValueChange={changeFilter} />
         ) : null}
-        {comments.length === 0 ? (
-          <SettingsRow icon={Message01Icon} title={tCommon("empty.comments")} description={t("userProfile.comments.emptyDescription")} />
-        ) : (
-          filtered
-            .slice(0, visibleCount)
-            .map((comment) => (
-              <CommentRow
-                key={comment.id}
-                comment={comment}
-                relativeTime={formatRelativeTime(comment.createdAt, tCommon)}
-                fullDate={dateFormatter.format(new Date(comment.createdAt))}
-              />
-            ))
-        )}
-        {filtered.length > visibleCount ? (
+        {isRefetchError ? <StaleDataNotice className="m-3" onRetry={() => void refetch()} isRetrying={isFetching} /> : null}
+        {rows}
+        {isFetchNextPageError ? <InlineError className="m-3" onRetry={loadMore} isRetrying={isFetchingNextPage} /> : null}
+        {data !== undefined && hasMore ? (
           <SettingsCardFooter>
-            <p className="text-[0.8125rem] text-muted-foreground">{tCommon("pagination.showing", { shown: visibleCount, total: filtered.length })}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-            >
+            <p className="text-[0.8125rem] text-muted-foreground">{tCommon("pagination.showing", { shown, total: totalCount })}</p>
+            <Button type="button" variant="outline" size="sm" className="cursor-pointer" disabled={isFetching} onClick={() => void loadMore()}>
               {t("userProfile.comments.loadMore")}
             </Button>
-          </SettingsCardFooter>
-        ) : totalCount > comments.length ? (
-          <SettingsCardFooter>
-            <p className="text-[0.8125rem] text-muted-foreground">
-              {t("userProfile.comments.latestOnly", { shown: comments.length, total: totalCount })}
-            </p>
           </SettingsCardFooter>
         ) : null}
         {comments.length > 0 ? (
           <p role="status" className="sr-only">
-            {tCommon("pagination.showing", { shown: Math.min(visibleCount, filtered.length), total: filtered.length })}
+            {tCommon("pagination.showing", { shown, total: totalCount })}
           </p>
         ) : null}
       </SettingsCard>

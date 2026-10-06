@@ -1,11 +1,11 @@
 import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { ukeLocationsResponseType } from "@openbts/proto/server";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../constants.js";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
@@ -128,7 +128,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   let listUkeStationIds: number[] | undefined;
   if (listUuid) {
-    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    const list = await getVisibleUserList(req, listUuid);
     listUkeStationIds = getUserListMembership(list).uke;
     if (!listUkeStationIds.length) return res.send({ data: [], totalCount: 0 });
   }
@@ -198,7 +198,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     regionNames?.length
       ? db.query.regions.findMany({
           columns: { id: true },
-          where: { code: { in: regionNames } },
+          where: { code: { in: regionNames }, countryCode: LEGACY_COUNTRY_CODE },
         })
       : [],
   ]);
@@ -310,7 +310,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       latitude: ukeLocations.latitude,
       createdAt: ukeLocations.createdAt,
       updatedAt: ukeLocations.updatedAt,
-      region: { id: regions.id, name: regions.name, code: regions.code },
+      region: { id: regions.id, name: regions.name, code: regions.code, countryCode: regions.countryCode, isoCode: regions.isoCode },
     };
     const rows = isUnfiltered
       ? await db
@@ -357,6 +357,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               full_name: operators.full_name,
               parent_id: operators.parent_id,
               mnc: operators.mnc,
+              countryCode: operators.countryCode,
+              brandId: operators.brandId,
+              shortCode: operators.shortCode,
+              sortPriority: operators.sortPriority,
             },
             permit: {
               id: ukePermits.id,
@@ -374,6 +378,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               name: bands.name,
               duplex: bands.duplex,
               variant: bands.variant,
+              code: bands.code,
             },
           })
           .from(ukeStations)
@@ -461,17 +466,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return res.send({ data, totalCount });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      cause: error,
-    });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 
 const getUkeLocations: Route<ReqQuery, ResponseBody> = {
   url: "/uke/locations",
   method: "GET",
-  config: { permissions: ["read:uke_permits"], allowGuestAccess: true, proto: ukeLocationsResponseType },
+  config: { permissions: ["read:uke_permits"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

@@ -6,11 +6,13 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { hasStaffPermission } from "../../../../features/access/staff.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { findForeignStationIds } from "../../../../features/countries/legacy.js";
+import { getUserListMembership } from "../../../../features/lists/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 
 const updateSchema = createUpdateSchema(userLists, {
   stations: z.object({ internal: z.array(z.number()), uke: z.array(z.number()) }).optional(),
@@ -49,15 +51,21 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   const [list, isAdmin] = await Promise.all([
     db.query.userLists.findFirst({ where: { uuid } }),
-    verifyPermissions(userId, { user_lists: ["manage_all"] }),
+    hasStaffPermission(req, { user_lists: ["manage_all"] }),
   ]);
   if (!list) throw new ErrorResponse("NOT_FOUND");
   if (!isAdmin && list.created_by !== userId) throw new ErrorResponse("FORBIDDEN");
 
+  const stored = getUserListMembership(list).internal;
+  const sent = req.body.stations;
+  const foreign = await findForeignStationIds([...stored, ...(sent?.internal ?? [])]);
+  const isForeign = (id: number) => foreign.has(id);
+  const stations = sent ? { internal: [...sent.internal.filter((id) => !isForeign(id)), ...stored.filter(isForeign)], uke: sent.uke } : undefined;
+
   const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.update" }, async (tx, audit) => {
     const [result] = await tx
       .update(userLists)
-      .set({ ...req.body, updatedAt: new Date() })
+      .set({ ...req.body, stations, updatedAt: new Date() })
       .where(eq(userLists.uuid, uuid))
       .returning();
     if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");
@@ -66,10 +74,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     return result;
   }).catch((error) => {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("FAILED_TO_UPDATE");
+    throw new ErrorResponse("FAILED_TO_UPDATE", { cause: error });
   });
 
-  return res.send({ data: updated });
+  const { internal, uke } = getUserListMembership(updated);
+  return res.send({ data: { ...updated, stations: { internal: internal.filter((id) => !isForeign(id)), uke } } });
 }
 
 const updateList: Route<RequestData, ResponseData> = {

@@ -1,9 +1,10 @@
 import { Search01Icon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import type { Operator } from "@openbts/shared/contract";
+import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTable } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -18,34 +19,47 @@ import {
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { operatorsQueryOptions, regionsQueryOptions } from "@/features/admin/queries";
+import { adminSubmissionsQueryOptions, clampSubmissionListPage, getSubmissionListPageCount } from "@/features/admin/submissions/api";
 import {
   SubmissionChangesSummary,
   SubmissionStationSummary,
   SubmissionStatusSummary,
   SubmissionSubmitterSummary,
   SubmissionTimestamp,
-  getSubmissionStationId,
 } from "@/features/admin/submissions/components/submissionListParts";
 import { useSubmissionsColumns } from "@/features/admin/submissions/components/submissionsColumns";
 import {
-  type SubmissionStatusFilter,
-  type SubmissionTypeFilter,
   SubmissionsFilterToolbar,
   SubmissionsMobileFilterRail,
   SubmissionsStatusQueue,
 } from "@/features/admin/submissions/components/submissionsFilters";
-import type { SubmissionListItem } from "@/features/admin/submissions/types";
+import { filterSubmissionIdsByCountries } from "@/features/admin/submissions/submissionFilterScope";
+import {
+  readStoredSubmissionFilters,
+  readStoredSubmissionSortOrder,
+  seedSubmissionFilters,
+  writeStoredSubmissionFilters,
+  writeStoredSubmissionSortOrder,
+} from "@/features/admin/submissions/submissionFilterStorage";
+import type {
+  SubmissionListFilters,
+  SubmissionListRow,
+  SubmissionOperatorOption,
+  SubmissionStatusFilter,
+  SubmissionTypeFilter,
+} from "@/features/admin/submissions/types";
+import { parseUserId } from "@/features/admin/users/utils/userId";
+import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { useListPanelScope } from "@/features/stations/list/data/listPanel";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
 import { useIsMobile } from "@/hooks/useMobile";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import type { PaginationState } from "@/hooks/useTablePageSize";
 import { useTablePagination } from "@/hooks/useTablePageSize";
-import { API_BASE, fetchJson } from "@/lib/api";
-import { partitionOperators } from "@/lib/cellular/operators";
 import { appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
-import type { Operator, Region } from "@/types/station";
 
 const DESKTOP_PAGINATION_CONFIG = {
   rowHeight: DATA_TABLE_ROW_HEIGHT,
@@ -63,48 +77,44 @@ const MOBILE_SUBMISSION_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => 
   </div>
 ));
 
-function loadStoredNumberArray(key: string) {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((value): value is number => typeof value === "number" && Number.isFinite(value)) : [];
-  } catch {
-    return [];
-  }
+type AdminSubmissionsSearch = {
+  page: number;
+  q: string | undefined;
+  submitter?: string;
+};
+
+function toOperatorOption(operator: Operator): SubmissionOperatorOption {
+  return { id: operator.id, name: operator.name, mnc: toV1OperatorMnc(operator) };
 }
 
 function AdminSubmissionsListPage() {
   "use no memo";
   const { t } = useTranslation(["submissions", "common"]);
+  const { data: session } = useSettledSession();
+  const userId = session?.user.id;
   const navigate = useNavigate();
-  const { page, q } = Route.useSearch();
+  const { page, q, submitter } = Route.useSearch();
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
   const hasFloatingMobileFilters = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const [statusFilter, setStatusFilter] = useState<SubmissionStatusFilter>(() => {
-    const saved = localStorage.getItem("admin:submissions:status");
-    return saved === "all" || saved === "pending" || saved === "approved" || saved === "rejected" ? saved : "pending";
-  });
-  const [typeFilter, setTypeFilter] = useState<SubmissionTypeFilter>(() => {
-    const saved = localStorage.getItem("admin:submissions:type");
-    return saved === "all" || saved === "new" || saved === "update" || saved === "delete" ? saved : "all";
-  });
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() => {
-    const saved = localStorage.getItem("admin:submissions:sort");
-    return saved === "desc" ? "desc" : "asc";
-  });
+  const [storedFilters, setFilters] = useState(() => (submitter === undefined ? readStoredSubmissionFilters() : seedSubmissionFilters(submitter)));
+  const [sortOrder, setSortOrder] = useState(readStoredSubmissionSortOrder);
   const [searchInput, setSearchInput] = useState(q ?? "");
   const [activeSearch, setActiveSearch] = useState(q ?? "");
-  const [selectedSubmitterIds, setSelectedSubmitterIds] = useState<string[]>(() => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem("admin:submissions:submitters") ?? "[]");
-      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
-    } catch {
-      return [];
-    }
-  });
-  const [selectedOperatorMncs, setSelectedOperatorMncs] = useState<number[]>(() => loadStoredNumberArray("admin:submissions:operators"));
-  const [selectedRegionIds, setSelectedRegionIds] = useState<number[]>(() => loadStoredNumberArray("admin:submissions:regions"));
+  const { data: operators } = useQuery(operatorsQueryOptions());
+  const { data: regions } = useQuery(regionsQueryOptions());
+  const filters = useMemo(() => {
+    const operatorIds = filterSubmissionIdsByCountries(storedFilters.operatorIds, operators, storedFilters.countryCodes);
+    const regionIds = filterSubmissionIdsByCountries(storedFilters.regionIds, regions, storedFilters.countryCodes);
+    if (operatorIds === storedFilters.operatorIds && regionIds === storedFilters.regionIds) return storedFilters;
+    return { ...storedFilters, operatorIds, regionIds };
+  }, [storedFilters, operators, regions]);
+  const filterScope = useListPanelScope(filters.countryCodes, true);
+
+  useEffect(() => {
+    if (filters !== storedFilters) writeStoredSubmissionFilters(filters);
+  }, [filters, storedFilters]);
 
   const debouncedUpdate = useDebouncedCallback((value: string) => {
     setActiveSearch(value);
@@ -115,10 +125,6 @@ function AdminSubmissionsListPage() {
     });
   }, 300);
 
-  const resetPage = useCallback(() => {
-    void navigate({ from: Route.fullPath, search: (search) => ({ ...search, page: 0 }), replace: true });
-  }, [navigate]);
-
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchInput(value);
@@ -127,80 +133,54 @@ function AdminSubmissionsListPage() {
     [debouncedUpdate],
   );
 
-  const handleStatusFilter = useCallback(
-    (value: SubmissionStatusFilter) => {
-      setStatusFilter(value);
-      localStorage.setItem("admin:submissions:status", value);
-      resetPage();
+  const saveFilters = useCallback((nextFilters: SubmissionListFilters) => {
+    setFilters(nextFilters);
+    writeStoredSubmissionFilters(nextFilters);
+  }, []);
+
+  const changeFilters = useCallback(
+    (change: Partial<SubmissionListFilters>) => {
+      saveFilters({ ...filters, ...change });
+      void navigate({ from: Route.fullPath, search: (search) => ({ ...search, submitter: undefined, page: 0 }), replace: true });
     },
-    [resetPage],
+    [filters, navigate, saveFilters],
   );
 
-  const handleTypeFilter = useCallback(
-    (value: SubmissionTypeFilter) => {
-      setTypeFilter(value);
-      localStorage.setItem("admin:submissions:type", value);
-      resetPage();
-    },
-    [resetPage],
+  const handleStatusFilter = useCallback((status: SubmissionStatusFilter) => changeFilters({ status }), [changeFilters]);
+  const handleTypeFilter = useCallback((type: SubmissionTypeFilter) => changeFilters({ type }), [changeFilters]);
+  const handleSubmitterChange = useCallback((submitterIds: string[]) => changeFilters({ submitterIds }), [changeFilters]);
+  const handleCountryChange = useCallback(
+    (countryCodes: string[]) =>
+      changeFilters({
+        countryCodes,
+        operatorIds: filterSubmissionIdsByCountries(filters.operatorIds, operators, countryCodes),
+        regionIds: filterSubmissionIdsByCountries(filters.regionIds, regions, countryCodes),
+      }),
+    [changeFilters, filters.operatorIds, filters.regionIds, operators, regions],
   );
 
-  const handleSubmitterChange = useCallback(
-    (ids: string[]) => {
-      setSelectedSubmitterIds(ids);
-      localStorage.setItem("admin:submissions:submitters", JSON.stringify(ids));
-      resetPage();
-    },
-    [resetPage],
-  );
+  const handleOperatorChange = useCallback((operatorIds: number[]) => changeFilters({ operatorIds }), [changeFilters]);
 
-  const handleOperatorChange = useCallback(
-    (operators: Operator[]) => {
-      const mncs = operators.map((operator) => operator.mnc);
-      setSelectedOperatorMncs(mncs);
-      localStorage.setItem("admin:submissions:operators", JSON.stringify(mncs));
-      resetPage();
-    },
-    [resetPage],
-  );
-
-  const handleRegionChange = useCallback(
-    (regions: Region[]) => {
-      const ids = regions.map((region) => region.id);
-      setSelectedRegionIds(ids);
-      localStorage.setItem("admin:submissions:regions", JSON.stringify(ids));
-      resetPage();
-    },
-    [resetPage],
-  );
+  const handleRegionChange = useCallback((regionIds: number[]) => changeFilters({ regionIds }), [changeFilters]);
 
   const handleSortToggle = useCallback(() => {
-    setSortOrder((current) => {
-      const next = current === "asc" ? "desc" : "asc";
-      localStorage.setItem("admin:submissions:sort", next);
-      return next;
-    });
-    resetPage();
-  }, [resetPage]);
+    const nextSortOrder = sortOrder === "asc" ? "desc" : "asc";
+    setSortOrder(nextSortOrder);
+    writeStoredSubmissionSortOrder(nextSortOrder);
+    void navigate({ from: Route.fullPath, search: (search) => ({ ...search, page: 0 }), replace: true });
+  }, [navigate, sortOrder]);
 
   const handleClearAll = useCallback(() => {
-    setTypeFilter("all");
-    setSelectedSubmitterIds([]);
-    setSelectedOperatorMncs([]);
-    setSelectedRegionIds([]);
+    saveFilters({ ...filters, type: "all", submitterIds: [], countryCodes: [], operatorIds: [], regionIds: [] });
     setSearchInput("");
     setActiveSearch("");
     debouncedUpdate("");
-    localStorage.setItem("admin:submissions:type", "all");
-    localStorage.setItem("admin:submissions:submitters", "[]");
-    localStorage.setItem("admin:submissions:operators", "[]");
-    localStorage.setItem("admin:submissions:regions", "[]");
     void navigate({
       from: Route.fullPath,
-      search: (search) => ({ ...search, q: undefined, page: 0 }),
+      search: (search) => ({ ...search, q: undefined, submitter: undefined, page: 0 }),
       replace: true,
     });
-  }, [debouncedUpdate, navigate]);
+  }, [debouncedUpdate, filters, navigate, saveFilters]);
 
   const { listRef, rowHeight: mobileRowHeight } = useMeasuredListRowHeight(MOBILE_ROW_HEIGHT_FALLBACK, {
     round: false,
@@ -214,105 +194,63 @@ function AdminSubmissionsListPage() {
     setPagination: setSizePagination,
     autoPageSize,
     pageSizeOptions,
+    isPageSizeMeasured,
   } = isMobile ? mobilePagination : desktopPagination;
-  const pagination = useMemo(() => ({ pageIndex: page, pageSize: sizePagination.pageSize }), [page, sizePagination.pageSize]);
+  const pagination = useMemo(
+    () => ({ pageIndex: clampSubmissionListPage(page, sizePagination.pageSize), pageSize: sizePagination.pageSize }),
+    [page, sizePagination.pageSize],
+  );
 
   const setPagination = useCallback(
     (updater: PaginationState | ((current: PaginationState) => PaginationState)) => {
       const next = typeof updater === "function" ? updater(pagination) : updater;
       if (next.pageSize !== pagination.pageSize) setSizePagination(next);
-      if (next.pageIndex !== pagination.pageIndex)
+      if (next.pageIndex !== pagination.pageIndex) {
         void navigate({ from: Route.fullPath, search: (search) => ({ ...search, page: next.pageIndex }), replace: true });
+      }
     },
     [navigate, pagination, setSizePagination],
   );
 
-  const { data: operators = [] } = useQuery(operatorsQueryOptions());
-  const { data: regions = [] } = useQuery(regionsQueryOptions());
-  const { orderedOperators, topOperatorCount, hasOperatorGroupSeparator } = useMemo(() => {
-    const { top, other } = partitionOperators(operators);
-    return {
-      orderedOperators: [...top, ...other],
-      topOperatorCount: top.length,
-      hasOperatorGroupSeparator: top.length > 0 && other.length > 0,
-    };
-  }, [operators]);
-  const { operatorById, operatorByMnc } = useMemo(() => {
-    const byId = new Map<number, Operator>();
-    const byMnc = new Map<number, Operator>();
-    for (const operator of operators) {
-      byId.set(operator.id, operator);
-      byMnc.set(operator.mnc, operator);
-    }
-    return { operatorById: byId, operatorByMnc: byMnc };
-  }, [operators]);
-  const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
-  const selectedOperators = useMemo(
-    () => selectedOperatorMncs.map((mnc) => operatorByMnc.get(mnc)).filter((operator): operator is Operator => operator !== undefined),
-    [operatorByMnc, selectedOperatorMncs],
-  );
-  const selectedRegions = useMemo(
-    () => selectedRegionIds.map((id) => regionById.get(id)).filter((region): region is Region => region !== undefined),
-    [regionById, selectedRegionIds],
-  );
-  const selectedRegionCodes = useMemo(() => selectedRegions.map((region) => region.code), [selectedRegions]);
+  const operatorById = useMemo(() => new Map((operators ?? []).map((operator) => [operator.id, toOperatorOption(operator)])), [operators]);
   const getOperatorById = useCallback(
-    (operatorId: number | null | undefined) => (operatorId !== null && operatorId !== undefined ? operatorById.get(operatorId) : undefined),
+    (operatorId: number | null) => (operatorId === null ? undefined : operatorById.get(operatorId)),
     [operatorById],
   );
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: [
-      "admin",
-      "submissions",
-      pagination.pageIndex,
-      pagination.pageSize,
-      statusFilter,
-      typeFilter,
-      activeSearch,
+    ...adminSubmissionsQueryOptions({
+      userId,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
       sortOrder,
-      selectedSubmitterIds,
-      selectedOperatorMncs,
-      selectedRegionCodes,
-    ],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("limit", pagination.pageSize.toString());
-      params.set("offset", (pagination.pageIndex * pagination.pageSize).toString());
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (typeFilter !== "all") params.set("type", typeFilter);
-      if (activeSearch) params.set("search", activeSearch);
-      if (selectedSubmitterIds.length > 0) params.set("submitter_ids", selectedSubmitterIds.join(","));
-      if (selectedOperatorMncs.length > 0) params.set("operators", selectedOperatorMncs.join(","));
-      if (selectedRegionCodes.length > 0) params.set("regions", selectedRegionCodes.join(","));
-      params.set("sort", sortOrder);
-      return fetchJson<{ data: SubmissionListItem[]; totalCount: number }>(`${API_BASE}/submissions/admin?${params.toString()}`);
-    },
-    placeholderData: keepPreviousData,
-    staleTime: 0,
-    refetchOnMount: "always",
+      search: activeSearch,
+      filters,
+    }),
+    enabled: isPageSizeMeasured && userId !== undefined,
   });
 
-  const submissions = data?.data ?? [];
-  const total = data?.totalCount ?? 0;
+  const submissions = data?.rows ?? [];
+  const total = data?.total ?? 0;
   const activeFilterCount =
-    Number(typeFilter !== "all") +
+    Number(filters.type !== "all") +
     Number(searchInput.trim().length > 0) +
-    Number(selectedSubmitterIds.length > 0) +
-    Number(selectedOperatorMncs.length > 0) +
-    Number(selectedRegionIds.length > 0);
+    Number(filters.submitterIds.length > 0) +
+    Number(filters.countryCodes.length > 0) +
+    Number(filters.operatorIds.length > 0) +
+    Number(filters.regionIds.length > 0);
   const columns = useSubmissionsColumns({ sortOrder, onSortToggle: handleSortToggle, getOperatorById });
   const sorting = useMemo(() => [{ id: "createdAt", desc: sortOrder === "desc" }], [sortOrder]);
   const handleRowClick = useCallback(
-    (submission: SubmissionListItem) => navigate({ to: "/admin/submissions/$id", params: { id: submission.id } }),
+    (submission: SubmissionListRow) => navigate({ to: "/admin/submissions/$id", params: { id: submission.id } }),
     [navigate],
   );
-  const getRowHref = useCallback((submission: SubmissionListItem) => `/admin/submissions/${submission.id}`, []);
+  const getRowHref = useCallback((submission: SubmissionListRow) => `/admin/submissions/${submission.id}`, []);
   const getRowAriaLabel = useCallback(
-    (submission: SubmissionListItem) =>
+    (submission: SubmissionListRow) =>
       t("table.openSubmission", {
         id: submission.id.slice(-8),
-        stationId: getSubmissionStationId(submission) ?? t("common:labels.newStation"),
+        stationId: submission.siteId ?? t("common:labels.newStation"),
         status: t(`common:status.${submission.status}`),
         type: t(`common:submissionType.${submission.type}`),
       }),
@@ -325,26 +263,25 @@ function AdminSubmissionsListPage() {
     columns,
     manualPagination: true,
     manualSorting: true,
-    pageCount: Math.ceil(total / pagination.pageSize),
+    pageCount: getSubmissionListPageCount(total, pagination.pageSize),
     state: { pagination, sorting },
     onPaginationChange: setPagination,
   });
 
   const filterProps = {
-    statusFilter,
-    typeFilter,
-    selectedSubmitterIds,
-    selectedOperators,
-    selectedRegions,
-    operators: orderedOperators,
-    topOperatorCount,
-    hasOperatorGroupSeparator,
-    regions,
+    statusFilter: filters.status,
+    typeFilter: filters.type,
+    selectedSubmitterIds: filters.submitterIds,
+    countryCodes: filters.countryCodes,
+    operatorIds: filters.operatorIds,
+    regionIds: filters.regionIds,
+    scope: filterScope,
     searchInput,
     activeFilterCount,
     onStatusChange: handleStatusFilter,
     onTypeChange: handleTypeFilter,
     onSubmitterChange: handleSubmitterChange,
+    onCountryChange: handleCountryChange,
     onOperatorChange: handleOperatorChange,
     onRegionChange: handleRegionChange,
     onSearchChange: handleSearchChange,
@@ -352,7 +289,7 @@ function AdminSubmissionsListPage() {
   };
   const mobileFilterRail = isMobile ? <SubmissionsMobileFilterRail {...filterProps} /> : null;
   const hasRows = submissions.length > 0;
-  const viewState = getDataTableViewState(isLoading, isError && !hasRows, hasRows);
+  const viewState = getDataTableViewState(!isPageSizeMeasured || userId === undefined || isLoading, isError && !hasRows, hasRows);
   const showStaleNotice = isError && hasRows;
 
   return (
@@ -363,7 +300,7 @@ function AdminSubmissionsListPage() {
             <h1 className="text-2xl font-bold tracking-tight">{t("adminTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("adminDescription")}</p>
           </div>
-          {!isMobile ? <SubmissionsStatusQueue value={statusFilter} onChange={handleStatusFilter} /> : null}
+          {!isMobile ? <SubmissionsStatusQueue value={filters.status} onChange={handleStatusFilter} /> : null}
         </div>
 
         {!isMobile ? <SubmissionsFilterToolbar {...filterProps} /> : null}
@@ -393,7 +330,6 @@ function AdminSubmissionsListPage() {
                   className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={handleSortToggle}
                   aria-label={`${t("common:labels.submitted")}: ${sortOrder === "asc" ? t("table.sortAscending") : t("table.sortDescending")}`}
-                  aria-pressed="true"
                 >
                   {t("common:labels.submitted")}
                   <HugeiconsIcon
@@ -502,9 +438,10 @@ function AdminSubmissionsListPage() {
 }
 
 export const Route = createFileRoute("/_layout/admin/_layout/submissions/")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): AdminSubmissionsSearch => ({
     page: typeof search.page === "number" && search.page >= 0 ? Math.floor(search.page) : 0,
     q: typeof search.q === "string" && search.q ? search.q : undefined,
+    submitter: parseUserId(search.submitter),
   }),
   component: AdminSubmissionsListPage,
   staticData: {

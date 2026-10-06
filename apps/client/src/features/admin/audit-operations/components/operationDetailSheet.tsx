@@ -2,13 +2,13 @@ import { ArrowReloadHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getEntityLabel, getOpLabel, getRevertReasonLabel } from "../labels";
 import { auditOperationQueryOptions } from "../queries";
-import type { AuditEntry, AuditOperationSummary } from "../types";
+import type { AuditEntry, AuditOperation } from "../types";
 import { ChangesTable } from "./changesTable";
 import { OperationKindBadge } from "./operationKindBadge";
 import { RevertOperationDialog } from "./revertDialog";
@@ -30,7 +30,7 @@ type RevertTarget = {
 
 type OperationDetailSheetProps = {
   operationId: number;
-  listRow?: AuditOperationSummary;
+  listRow?: AuditOperation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenOperation: (operationId: number) => void;
@@ -45,16 +45,23 @@ function metadataNumber(metadata: Record<string, unknown> | null, key: string): 
   return null;
 }
 
-function getEntryActionClass(op: AuditEntry["op"]): string {
-  if (op === "create") return "text-emerald-700 dark:text-emerald-300";
-  if (op === "delete") return "text-rose-700 dark:text-rose-300";
+function getEntryActionClass(action: AuditEntry["action"]): string {
+  if (action === "create") return "text-emerald-700 dark:text-emerald-300";
+  if (action === "delete") return "text-rose-700 dark:text-rose-300";
   return "text-blue-700 dark:text-blue-300";
 }
 
 const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert }: { entry: AuditEntry; onRevert: (entry: AuditEntry) => void }) {
   const { t } = useTranslation("admin");
   const revertButton = (
-    <Button variant="ghost" size="icon-sm" disabled={!entry.revertible} onClick={() => onRevert(entry)} aria-label={t("common:actions.revertChange")}>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      className="cursor-pointer"
+      disabled={!entry.isRevertible}
+      onClick={() => onRevert(entry)}
+      aria-label={t("common:actions.revertChange")}
+    >
       <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-3.5" aria-hidden="true" />
     </Button>
   );
@@ -63,20 +70,22 @@ const OperationEntryBlock = memo(function OperationEntryBlock({ entry, onRevert 
     <article className="[content-visibility:auto] [contain-intrinsic-size:auto_8rem]">
       <div className="mb-2 flex min-w-0 items-center gap-2">
         <span className="text-xs font-medium">{getEntityLabel(t, entry.entity)}</span>
-        <span className={cn("text-[10px] font-semibold uppercase tracking-wider", getEntryActionClass(entry.op))}>{getOpLabel(t, entry.op)}</span>
-        {entry.record_id ? <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">#{entry.record_id}</span> : null}
+        <span className={cn("text-[10px] font-semibold uppercase tracking-wider", getEntryActionClass(entry.action))}>
+          {getOpLabel(t, entry.action)}
+        </span>
+        {entry.recordId ? <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">#{entry.recordId}</span> : null}
         <div className="ml-auto shrink-0">
-          {entry.revertible ? (
+          {entry.isRevertible ? (
             revertButton
           ) : (
             <Tooltip>
               <TooltipTrigger render={<span />}>{revertButton}</TooltipTrigger>
-              <TooltipContent>{getRevertReasonLabel(t, entry.revert_reason)}</TooltipContent>
+              <TooltipContent>{getRevertReasonLabel(t, entry.revertReason)}</TooltipContent>
             </Tooltip>
           )}
         </div>
       </div>
-      <ChangesTable oldValues={entry.old_values} newValues={entry.new_values} />
+      <ChangesTable oldValues={entry.oldValues} newValues={entry.newValues} />
     </article>
   );
 });
@@ -95,46 +104,49 @@ function OperationDetailFallback({ isError, isRetrying, onRetry }: { isError: bo
 export function OperationDetailSheet({ operationId, listRow, open, onOpenChange, onOpenOperation }: OperationDetailSheetProps) {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const [revertTarget, setRevertTarget] = useState<RevertTarget | null>(null);
+  const [isRevertOpen, setIsRevertOpen] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const detailQuery = useQuery({ ...auditOperationQueryOptions(operationId), enabled: open });
   const operation = detailQuery.data ?? listRow ?? null;
   const entries = detailQuery.data?.entries ?? EMPTY_ENTRIES;
-  const submissionId = metadataNumber(operation?.metadata ?? null, "submission_id");
-  const revertsOperationId = operation?.reverts_operation_id ?? null;
-  const revertedByOperationId = operation?.reverted_by_operation_id ?? null;
   const metadata = operation?.metadata ?? null;
   const hasMetadata = metadata !== null && Object.keys(metadata).length > 0;
+  const submissionId = metadataNumber(metadata, "submission_id");
+  const revertsOperationId = operation?.revertsOperationId ?? null;
+  const revertedByOperationId = operation?.revertedByOperationId ?? null;
+
+  function openRevert(target: RevertTarget): void {
+    setRevertTarget(target);
+    setIsRevertOpen(true);
+  }
 
   function openLinkedOperation(id: number): void {
-    setRevertTarget(null);
+    setIsRevertOpen(false);
     onOpenOperation(id);
   }
 
-  const openEntryRevert = useCallback(
-    (entry: AuditEntry): void => {
-      setRevertTarget({ operationId, entryIds: [entry.id], counts: { revertible: 1, skipped: 0 } });
-    },
-    [operationId],
-  );
+  function openEntryRevert(entry: AuditEntry): void {
+    openRevert({ operationId, entryIds: [entry.id], counts: { revertible: 1, skipped: 0 } });
+  }
 
   function openFullRevert(): void {
-    const revertible = entries.filter((entry) => entry.revertible).length;
-    setRevertTarget({ operationId, counts: { revertible, skipped: entries.length - revertible } });
+    const revertible = entries.filter((entry) => entry.isRevertible).length;
+    openRevert({ operationId, counts: { revertible, skipped: entries.length - revertible } });
   }
 
   function handleOpenChange(nextOpen: boolean): void {
-    if (!nextOpen) setRevertTarget(null);
+    if (!nextOpen) setIsRevertOpen(false);
     onOpenChange(nextOpen);
   }
 
   const fullRevertButton = (
-    <Button variant="outline" size="sm" disabled={detailQuery.data?.revertible !== true} onClick={openFullRevert}>
+    <Button variant="outline" size="sm" className="cursor-pointer" disabled={detailQuery.data?.isRevertible !== true} onClick={openFullRevert}>
       <HugeiconsIcon icon={ArrowReloadHorizontalIcon} className="size-4" aria-hidden="true" />
       {t("auditLogs.revert.action")}
     </Button>
   );
   let fullRevertControl = fullRevertButton;
-  if (detailQuery.data !== undefined && !detailQuery.data.revertible)
+  if (detailQuery.data !== undefined && !detailQuery.data.isRevertible) {
     fullRevertControl = (
       <Tooltip>
         <TooltipTrigger render={<span className="w-fit" />}>{fullRevertButton}</TooltipTrigger>
@@ -143,17 +155,19 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
         </TooltipContent>
       </Tooltip>
     );
+  }
 
   let changesContent: ReactNode;
-  if (detailQuery.isPending)
+  if (detailQuery.isPending) {
     changesContent = (
       <div className="space-y-3" aria-hidden="true">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
     );
-  else if (detailQuery.isLoadingError) changesContent = <InlineError onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />;
-  else
+  } else if (detailQuery.isLoadingError) {
+    changesContent = <InlineError onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />;
+  } else {
     changesContent = (
       <div className="space-y-4">
         {entries.map((entry) => (
@@ -161,6 +175,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
         ))}
       </div>
     );
+  }
 
   return (
     <>
@@ -184,7 +199,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
               {detailQuery.isRefetchError ? (
                 <StaleDataNotice className="self-start" onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />
               ) : null}
-              {operation.reverted_by_operation_id !== null ? (
+              {revertedByOperationId !== null ? (
                 <p className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">{t("auditLogs.revert.alreadyReverted")}</p>
               ) : null}
 
@@ -209,11 +224,11 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                       <UserChip user={operation.performer} systemLabel={t("auditLogs.actor.system")} linked />
                     </div>
                   ) : null}
-                  {operation.station_ids.length > 0 || submissionId !== null ? (
+                  {operation.stationIds.length > 0 || submissionId !== null ? (
                     <div className="col-span-2 flex flex-col gap-1">
                       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("common:labels.links")}</span>
                       <div className="flex flex-wrap gap-2">
-                        {operation.station_ids.map((stationId) => (
+                        {operation.stationIds.map((stationId) => (
                           <Link
                             key={stationId}
                             to="/admin/stations/$id"
@@ -241,7 +256,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                   {revertsOperationId !== null ? (
                     <button
                       type="button"
-                      className="col-span-2 w-fit text-sm text-primary hover:underline"
+                      className="col-span-2 w-fit cursor-pointer text-sm text-primary hover:underline"
                       onClick={() => openLinkedOperation(revertsOperationId)}
                     >
                       {t("auditLogs.detail.reverts", { id: revertsOperationId })}
@@ -250,7 +265,7 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                   {revertedByOperationId !== null ? (
                     <button
                       type="button"
-                      className="col-span-2 w-fit text-sm text-primary hover:underline"
+                      className="col-span-2 w-fit cursor-pointer text-sm text-primary hover:underline"
                       onClick={() => openLinkedOperation(revertedByOperationId)}
                     >
                       {t("auditLogs.detail.revertedBy", { id: revertedByOperationId })}
@@ -267,20 +282,20 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
                 {changesContent}
               </section>
 
-              {hasMetadata || operation.ip_address || operation.user_agent ? (
+              {hasMetadata || operation.ipAddress || operation.userAgent ? (
                 <section className="flex flex-col gap-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.metadata")}</h3>
                   <div className="flex flex-col gap-2 text-sm">
-                    {operation.ip_address ? (
+                    {operation.ipAddress ? (
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.ipAddress")}</span>
-                        <span className="font-mono text-xs">{operation.ip_address}</span>
+                        <span className="font-mono text-xs">{operation.ipAddress}</span>
                       </div>
                     ) : null}
-                    {operation.user_agent ? (
+                    {operation.userAgent ? (
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("auditLogs.detail.userAgent")}</span>
-                        <span className="font-mono text-xs text-muted-foreground break-all">{operation.user_agent}</span>
+                        <span className="font-mono text-xs text-muted-foreground break-all">{operation.userAgent}</span>
                       </div>
                     ) : null}
                     {hasMetadata ? (
@@ -300,15 +315,13 @@ export function OperationDetailSheet({ operationId, listRow, open, onOpenChange,
         </SheetContent>
       </Sheet>
 
-      {revertTarget ? (
+      {revertTarget !== null ? (
         <RevertOperationDialog
           operationId={revertTarget.operationId}
           entryIds={revertTarget.entryIds}
           counts={revertTarget.counts}
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) setRevertTarget(null);
-          }}
+          open={isRevertOpen}
+          onOpenChange={setIsRevertOpen}
         />
       ) : null}
     </>

@@ -9,7 +9,7 @@ import { StaleDataNotice } from "@/components/ui/error-state";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRegisterPageSections } from "@/contexts/pageSections";
-import { operatorsQueryOptions } from "@/features/shared/queries";
+import { operatorsQueryOptions } from "@/features/shared/lookups";
 import { InternalKpiCards, UkeKpiCards } from "@/features/statistics/components/kpiCards";
 import { statsPermitsQueryOptions, statsSummaryQueryOptions, statsVoivodeshipsQueryOptions } from "@/features/statistics/queries";
 import { formatFullDate } from "@/lib/format";
@@ -172,7 +172,10 @@ function StatisticsPage() {
   const summaryQuery = useQuery(statsSummaryQueryOptions());
   const permitsQuery = useQuery(statsPermitsQueryOptions());
   const voivodeshipsQuery = useQuery(statsVoivodeshipsQueryOptions());
-  const { data: operators } = useQuery(operatorsQueryOptions());
+  const { data: operators } = useQuery({
+    ...operatorsQueryOptions(),
+    select: (operators) => operators.filter((operator) => operator.countryCode === "PL"),
+  });
 
   useRegisterPageSections([
     { id: "uke-permits", title: t("common:labels.ukePermits") },

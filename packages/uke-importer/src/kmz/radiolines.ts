@@ -1,5 +1,5 @@
 import { ukeRadiolines } from "@openbts/drizzle";
-import { getOperatorColorByName } from "@openbts/shared/operatorUtils";
+import { DEFAULT_OPERATOR_COLOR } from "@openbts/shared/operatorUtils";
 import {
   calculateDistance,
   calculateRadiolineSpeed,
@@ -48,7 +48,7 @@ type RadiolineRow = {
   permit_number: string;
   decision_type: string;
   expiry_date: Date;
-  operator: { name: string; full_name: string } | null;
+  operator: { name: string; full_name: string; brand: { color: string } | null } | null;
   txTransmitterType: { name: string; manufacturer: { name: string } | null } | null;
   txAntennaType: { name: string; manufacturer: { name: string } | null } | null;
   rxAntennaType: { name: string; manufacturer: { name: string } | null } | null;
@@ -124,7 +124,7 @@ async function fetchAllRadiolines(): Promise<RadiolineRow[]> {
     Array.from({ length: pageCount }, (_, i) =>
       db.query.ukeRadiolines.findMany({
         with: {
-          operator: true,
+          operator: { with: { brand: true } },
           txTransmitterType: { with: { manufacturer: true } },
           txAntennaType: { with: { manufacturer: true } },
           rxAntennaType: { with: { manufacturer: true } },
@@ -148,7 +148,7 @@ async function fetchLatestDayRadiolines(): Promise<{ rows: RadiolineRow[]; day: 
 
   const rows = await db.query.ukeRadiolines.findMany({
     with: {
-      operator: true,
+      operator: { with: { brand: true } },
       txTransmitterType: { with: { manufacturer: true } },
       txAntennaType: { with: { manufacturer: true } },
       rxAntennaType: { with: { manufacturer: true } },
@@ -280,7 +280,7 @@ function buildRadiolinesKmz(links: DuplexGroup[], title: string): Uint8Array {
     const first = link.entries[0]!;
     const operatorName = first.operator?.name ?? "Unknown";
     const styleId = operatorStyleId(operatorName);
-    if (!operatorStyles.has(styleId)) operatorStyles.set(styleId, { styleId, color: getOperatorColorByName(operatorName) });
+    if (!operatorStyles.has(styleId)) operatorStyles.set(styleId, { styleId, color: first.operator?.brand?.color ?? DEFAULT_OPERATOR_COLOR });
 
     const styleUrl = `#${styleId}`;
     const name = `${formatFrequency(first.freq)} [${link.linkType}]`;

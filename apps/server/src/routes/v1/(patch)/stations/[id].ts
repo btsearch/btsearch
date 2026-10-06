@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { type OperatorChange, defineScope } from "../../../../features/access/scope.js";
 import {
   auditContextFromRequest,
   loadPhotoSelectionSnapshots,
@@ -42,6 +43,11 @@ type ReqBody = { Body: z.infer<typeof stationsUpdateSchema> };
 type ReqParams = { Params: z.infer<typeof schemaRoute.params> };
 type RequestData = ReqBody & ReqParams;
 type ResponseData = z.infer<typeof stationsSelectSchema>;
+
+function toOperatorChanges({ params, body }: FastifyRequest<RequestData>): OperatorChange[] {
+  if (typeof body.location_id === "number" || (body.operator_id === undefined && body.location_id === undefined)) return [];
+  return [{ stationId: params.station_id, operatorId: body.operator_id, location: body.location_id === null ? "removed" : "kept" }];
+}
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<ResponseData>>) {
   const { station_id } = req.params;
@@ -116,7 +122,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateStation: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id",
   method: "PATCH",
-  config: { permissions: ["update:stations"] },
+  config: {
+    permissions: ["update:stations"],
+    scope: defineScope<RequestData>((req) => ({
+      stationIds: [req.params.station_id],
+      locationIds: typeof req.body.location_id === "number" ? [req.body.location_id] : [],
+      detachedStationIds: req.body.location_id === null ? [req.params.station_id] : [],
+      operatorChanges: toOperatorChanges(req),
+    })),
+  },
   schema: schemaRoute,
   handler,
 };

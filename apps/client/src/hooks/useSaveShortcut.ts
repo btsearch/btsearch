@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { isSaveShortcut } from "@/lib/dom/keyboard";
+
 type UseSaveShortcutOptions = {
   canSave: boolean;
   isActive?: boolean;
@@ -19,8 +21,7 @@ export function useSaveShortcut({ canSave, isActive = true, onSave }: UseSaveSho
     if (!isActive) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
-      if (!isSaveShortcut) return;
+      if (!isSaveShortcut(event)) return;
 
       event.preventDefault();
       if (!canSaveRef.current) return;

@@ -12,7 +12,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { data: settings } = useSettings();
   const { data: session, isPending } = useSettledSession();
 
-  const enforced = settings?.enforceAuthForAllRoutes === true;
+  const enforced = settings?.isSignInRequired === true;
   const authenticated = !!session?.user;
 
   if (enforced && !authenticated && !isPending) return <AuthRequired showMapLink={false} />;

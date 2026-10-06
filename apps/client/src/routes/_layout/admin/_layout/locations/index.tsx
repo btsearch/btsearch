@@ -1,131 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
-import { createPortal } from "react-dom";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { useNavActionTarget } from "@/contexts/navActions";
-import { LocationsDataTable } from "@/features/admin/locations/components/locationsDataTable";
-import { LocationsFilterPanel } from "@/features/admin/locations/components/locationsFilterPanel";
-import { LocationsMobileFilterRail } from "@/features/admin/locations/components/locationsMobileFilterRail";
-import { useLocationsData } from "@/features/admin/locations/hooks/useLocationsData";
-import { MobileFilterRailInline } from "@/features/shared/filterPanel";
-import { useIsMobile } from "@/hooks/useMobile";
-import type { LocationSortBy, LocationWithStations } from "@/types/station";
+import { LocationsListPage } from "@/features/admin/locations/list/components/locationsListPage";
+import { type LocationsListSearch, parseLocationsListSearch } from "@/features/admin/locations/list/data/locationsListSearch";
 
-function AdminLocationsPage() {
+function AdminLocationsListPage() {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const navActionTarget = useNavActionTarget();
+  const search = Route.useSearch();
 
-  const {
-    locations,
-    operators,
-    regions,
-    totalLocations,
-    filters,
-    setFilters,
-    selectedRegions,
-    setSelectedRegions,
-    clearAllFilters,
-    activeFilterCount,
-    hasActiveFilters,
-    searchQuery,
-    setSearchQuery,
-    sort,
-    sortBy,
-    setSort,
-    setSortBy,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    isError,
-    isRefetchError,
-    isRefetching,
-    isFetchNextPageError,
-    refetch,
-    fetchNextPage,
-    hasMore,
-    loadMore,
-  } = useLocationsData();
+  function replaceSearch(nextSearch: LocationsListSearch) {
+    void navigate({ from: Route.fullPath, search: nextSearch, replace: true });
+  }
 
-  const handleSort = useCallback(
-    (column: LocationSortBy) => {
-      if (sortBy === column) {
-        setSort((prev) => (prev === "asc" ? "desc" : "asc"));
-      } else {
-        setSortBy(column);
-        setSort("desc");
-      }
-    },
-    [sortBy, setSort, setSortBy],
-  );
-
-  const handleRowClick = useCallback((location: LocationWithStations) => navigate({ to: `/admin/locations/${location.id}` }), [navigate]);
-  const getRowHref = useCallback((location: LocationWithStations) => `/admin/locations/${location.id}`, []);
-
-  const filterControlProps = {
-    filters,
-    operators,
-    regions,
-    selectedRegions,
-    searchQuery,
-    onFiltersChange: setFilters,
-    onRegionsChange: setSelectedRegions,
-    onClearAllFilters: clearAllFilters,
-    onSearchQueryChange: setSearchQuery,
-    locationCount: locations.length,
-    totalLocations,
-  };
-  const usesFloatingNavTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
-  const showFloatingMobileRail = isMobile && usesFloatingNavTarget;
-  const mobileFilterRail = isMobile ? <LocationsMobileFilterRail {...filterControlProps} hasActiveFilters={hasActiveFilters} /> : null;
-
-  return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
-        {!isMobile ? <LocationsFilterPanel {...filterControlProps} activeFilterCount={activeFilterCount} /> : null}
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3">
-          {isMobile && !usesFloatingNavTarget ? <MobileFilterRailInline>{mobileFilterRail}</MobileFilterRailInline> : null}
-          <LocationsDataTable
-            data={locations}
-            isLoading={isLoading}
-            isFetchingMore={isFetchingNextPage}
-            isError={isError}
-            isRefetchError={isRefetchError}
-            isLoadMoreError={isFetchNextPageError}
-            onRetry={refetch}
-            onRetryLoadMore={fetchNextPage}
-            isRetrying={isFetching}
-            isRefetching={isRefetching}
-            onRowClick={handleRowClick}
-            getRowHref={getRowHref}
-            onLoadMore={loadMore}
-            hasMore={hasMore}
-            totalItems={totalLocations ?? locations.length}
-            sort={sort}
-            sortBy={sortBy}
-            onSort={handleSort}
-          />
-        </div>
-      </div>
-
-      {showFloatingMobileRail && navActionTarget
-        ? createPortal(
-            <div className="flex items-center max-md:w-[calc(100vw-1.5rem)] max-md:min-w-0 max-md:gap-1 md:hidden">
-              <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
-                <div className="w-max">{mobileFilterRail}</div>
-              </div>
-            </div>,
-            navActionTarget,
-          )
-        : null}
-    </>
-  );
+  return <LocationsListPage search={search} onSearchChange={replaceSearch} />;
 }
 
 export const Route = createFileRoute("/_layout/admin/_layout/locations/")({
-  component: AdminLocationsPage,
+  validateSearch: parseLocationsListSearch,
+  component: AdminLocationsListPage,
   staticData: {
     titleKey: "items.locations",
     i18nNamespace: "nav",

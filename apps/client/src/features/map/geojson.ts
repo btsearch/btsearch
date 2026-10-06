@@ -1,29 +1,50 @@
+import type { StationStatus } from "@openbts/shared/contract";
 import type { Feature, FeatureCollection, GeoJsonProperties } from "geojson";
 
+import type { MapPoint, MapPointStation } from "./data/mapPoints";
 import { type DuplexRadioLink, getRadioLineMnc } from "./utils";
+import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
 import { getOperatorColor } from "@/lib/cellular/operators";
-import type { LocationWithStations, StationSource, UkeLocationWithPermits } from "@/types/station";
 
-export const DEFAULT_COLOR = "#3b82f6";
+export type AzimuthPoint = {
+  latitude: number;
+  longitude: number;
+  entries: { azimuth: number | null; color: string }[];
+};
 
-type OperatorMnc = number | null | undefined;
+export const MAP_POINT_STROKE_COLOR = "#fff";
+export const MAP_POINT_STATUS_STROKE_COLORS = {
+  awaitingCells: "#eab308",
+  inactive: "#ef4444",
+} as const satisfies Partial<Record<StationStatus, string>>;
 
-export function getOperatorData(mncs: OperatorMnc[]) {
-  const uniqueMncs = [...new Set(mncs)].filter((mnc) => mnc !== undefined);
-  const operators = uniqueMncs.filter((mnc): mnc is number => mnc !== null).sort((a, b) => a - b);
-  const hasNullOperator = uniqueMncs.some((mnc) => mnc === null);
-  const isMultiOperator = operators.length + (hasNullOperator ? 1 : 0) > 1;
+const PIE_COLOR_SEPARATOR = ",";
+const STATUS_STROKE_COLORS: ReadonlyMap<string, string> = new Map(Object.entries(MAP_POINT_STATUS_STROKE_COLORS));
 
-  return {
-    operators,
-    hasNullOperator,
-    isMultiOperator,
-    pieImageId: isMultiOperator ? `pie-${operators.join("-")}${hasNullOperator ? "-null" : ""}` : undefined,
-    color: operators.length > 0 ? getOperatorColor(operators[0]) : DEFAULT_COLOR,
-  };
+export function getMapPointStrokeColor(status: string | undefined): string {
+  return (status === undefined ? undefined : STATUS_STROKE_COLORS.get(status)) ?? MAP_POINT_STROKE_COLOR;
 }
 
-export function createPointFeature(lng: number, lat: number, properties: GeoJsonProperties): Feature {
+export function readPieColors(properties: GeoJsonProperties): string[] {
+  const pieColors: unknown = properties?.pieColors;
+  return typeof pieColors === "string" && pieColors !== "" ? pieColors.split(PIE_COLOR_SEPARATOR) : [];
+}
+
+function listOperatorColors(stations: readonly MapPointStation[]): string[] {
+  const colorsByOperator = new Map<number | null, string>();
+  for (const station of stations) {
+    if (!colorsByOperator.has(station.operatorId)) colorsByOperator.set(station.operatorId, station.color);
+  }
+  return [...colorsByOperator.values()];
+}
+
+function findSharedStatus(stations: readonly MapPointStation[]): StationStatus | undefined {
+  const statuses = new Set(stations.map((station) => station.status));
+  if (statuses.size !== 1) return undefined;
+  return stations[0].status ?? undefined;
+}
+
+function createPointFeature(lng: number, lat: number, properties: GeoJsonProperties): Feature {
   return {
     type: "Feature",
     geometry: { type: "Point", coordinates: [lng, lat] },
@@ -31,65 +52,38 @@ export function createPointFeature(lng: number, lat: number, properties: GeoJson
   };
 }
 
-export function locationsToGeoJSON(locations: LocationWithStations[], source: StationSource): FeatureCollection {
-  const features: Feature[] = [];
+export function toMapPointFeature(point: MapPoint): Feature {
+  const colors = listOperatorColors(point.stations);
+  const status = findSharedStatus(point.stations);
+  const isMultiOperator = colors.length > 1;
+  const pieName = colors.map((color) => color.replace("#", "")).join("-");
+  const outlineSuffix = status !== undefined && STATUS_STROKE_COLORS.has(status) ? `-${status}` : "";
 
-  for (const location of locations) {
-    if (location.latitude === null || location.latitude === undefined || location.longitude === null || location.longitude === undefined) continue;
-    if (!location.stations?.length) continue;
-
-    const { operators, hasNullOperator, isMultiOperator, pieImageId, color } = getOperatorData(location.stations.map((s) => s.operator?.mnc));
-    const status = new Set(location.stations.map((s) => s.status)).size === 1 ? location.stations[0].status : undefined;
-    const hasStatusOutline = status === "pending" || status === "inactive";
-
-    features.push(
-      createPointFeature(location.longitude, location.latitude, {
-        locationId: location.id,
-        source,
-        city: location.city,
-        address: location.address,
-        stationCount: location.stations.length,
-        operatorCount: operators.length,
-        operators: JSON.stringify(operators),
-        hasNullOperator,
-        color,
-        isMultiOperator,
-        pieImageId: pieImageId && hasStatusOutline ? `${pieImageId}-${status}` : pieImageId,
-        status,
-      }),
-    );
-  }
-
-  return { type: "FeatureCollection", features };
+  return createPointFeature(point.longitude, point.latitude, {
+    locationId: point.id,
+    source: point.source,
+    city: point.city ?? undefined,
+    address: point.address ?? undefined,
+    stationCount: point.stations.length,
+    color: colors[0] ?? FALLBACK_BRAND_COLOR,
+    isMultiOperator,
+    pieColors: colors.join(PIE_COLOR_SEPARATOR),
+    pieImageId: isMultiOperator ? `pie-${pieName}${outlineSuffix}` : undefined,
+    status,
+  });
 }
 
-export function ukeLocationsToGeoJSON(locations: UkeLocationWithPermits[], source: StationSource): FeatureCollection {
-  const features: Feature[] = [];
+export function mapPointsToGeoJSON(points: readonly MapPoint[]): FeatureCollection {
+  const drawnPoints = points.filter((point) => point.stations.length > 0);
+  return { type: "FeatureCollection", features: drawnPoints.map(toMapPointFeature) };
+}
 
-  for (const location of locations) {
-    if (location.latitude === null || location.latitude === undefined || location.longitude === null || location.longitude === undefined) continue;
-    if (!location.stations?.length) continue;
-
-    const { operators, hasNullOperator, isMultiOperator, pieImageId, color } = getOperatorData(location.stations.map((s) => s.operator?.mnc));
-
-    features.push(
-      createPointFeature(location.longitude, location.latitude, {
-        locationId: location.id,
-        source,
-        city: location.city,
-        address: location.address,
-        stationCount: location.stations.length,
-        operatorCount: operators.length,
-        operators: JSON.stringify(operators),
-        hasNullOperator,
-        color,
-        isMultiOperator,
-        pieImageId,
-      }),
-    );
-  }
-
-  return { type: "FeatureCollection", features };
+export function toAzimuthPoints(points: readonly MapPoint[]): AzimuthPoint[] {
+  return points.map((point) => ({
+    latitude: point.latitude,
+    longitude: point.longitude,
+    entries: point.stations.flatMap((station) => station.azimuths.map((azimuth) => ({ azimuth, color: station.color }))),
+  }));
 }
 
 export function radioLinesToGeoJSON(links: DuplexRadioLink[]): {
@@ -103,7 +97,7 @@ export function radioLinesToGeoJSON(links: DuplexRadioLink[]): {
     const mnc = getRadioLineMnc(link);
     const properties = {
       radioLineId: link.directions[0].id,
-      color: mnc ? getOperatorColor(mnc) : DEFAULT_COLOR,
+      color: mnc ? getOperatorColor(mnc) : FALLBACK_BRAND_COLOR,
       isExpired: link.isExpired,
     };
 

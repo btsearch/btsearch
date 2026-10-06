@@ -13,14 +13,14 @@
   "pushDescription": "Get notified about submission updates",
   "ukeStationDeleted": "Station removed from UKE data",
   "types": {
-    "submission_approved": "Submission approved",
-    "submission_rejected": "Submission rejected",
-    "submission_photo_upload_failed": "Submission deleted because photos were not uploaded",
-    "new_submission": "New submission",
-    "station_cells_changed": "Station cells changed",
-    "station_photos_added": "Station photos added",
-    "station_comment_approved": "New station comment",
-    "station_uke_permit_added": "UKE permits changed"
+    "submissionAccepted": "Submission approved",
+    "submissionRejected": "Submission rejected",
+    "submissionPhotoUploadFailed": "Submission deleted because photos were not uploaded",
+    "submissionCreated": "New submission",
+    "stationCellsChanged": "Station cells changed",
+    "stationPhotosAdded": "Station photos added",
+    "stationCommentApproved": "New station comment",
+    "officialPermitsChanged": "UKE permits changed"
   },
   "facts": {
     "cellsAdded_one": "<n>{{count}}</n> added",

@@ -5,10 +5,18 @@ export type FloatingDialogRect = {
   height: number;
 };
 
+export type FloatingDialogSize = Pick<FloatingDialogRect, "width" | "height">;
+
 export type FloatingDialogInteractionMode = "drag" | "resize-corner" | "resize-horizontal";
+
+export type FloatingDialogFitAnchor = "center" | "bottom";
 
 export const FLOATING_DIALOG_DESKTOP_MIN_WIDTH = 610;
 export const FLOATING_DIALOG_DESKTOP_MIN_HEIGHT = 540;
+export const FLOATING_DIALOG_DESKTOP_MIN_SIZE: FloatingDialogSize = {
+  width: FLOATING_DIALOG_DESKTOP_MIN_WIDTH,
+  height: FLOATING_DIALOG_DESKTOP_MIN_HEIGHT,
+};
 
 const DEFAULT_DIALOG_WIDTH = 920;
 const DEFAULT_DIALOG_HEIGHT = 600;
@@ -29,12 +37,15 @@ function getViewportBounds() {
   };
 }
 
-export function clampFloatingDialogRect(rect: FloatingDialogRect): FloatingDialogRect {
+export function clampFloatingDialogRect(
+  rect: FloatingDialogRect,
+  minSize: FloatingDialogSize = FLOATING_DIALOG_DESKTOP_MIN_SIZE,
+): FloatingDialogRect {
   const bounds = getViewportBounds();
   const maxAvailableWidth = Math.max(0, bounds.width - DIALOG_MARGIN * 2);
   const maxAvailableHeight = Math.max(0, bounds.height - DIALOG_MARGIN * 2);
-  const minWidth = Math.min(FLOATING_DIALOG_DESKTOP_MIN_WIDTH, maxAvailableWidth);
-  const minHeight = Math.min(FLOATING_DIALOG_DESKTOP_MIN_HEIGHT, maxAvailableHeight);
+  const minWidth = Math.min(minSize.width, maxAvailableWidth);
+  const minHeight = Math.min(minSize.height, maxAvailableHeight);
   const width = Math.min(Math.max(rect.width, minWidth), maxAvailableWidth);
   const height = Math.min(Math.max(rect.height, minHeight), maxAvailableHeight);
   const maxX = Math.max(DIALOG_MARGIN, bounds.width - width - DIALOG_MARGIN);
@@ -86,16 +97,31 @@ export function getNaturalFloatingDialogHeight(content: HTMLDivElement, body: HT
   return Math.ceil(heightOutsideScrollableBody + bodyContent.scrollHeight);
 }
 
+export function getCollapsedFloatingDialogHeight(content: HTMLDivElement, body: HTMLDivElement) {
+  return Math.ceil(content.offsetHeight - body.offsetHeight);
+}
+
+export function getFittedFloatingDialogY(rect: FloatingDialogRect, fittedHeight: number, anchor: FloatingDialogFitAnchor) {
+  const heightChange = rect.height - fittedHeight;
+  return anchor === "bottom" ? rect.y + heightChange : rect.y + heightChange / 2;
+}
+
 export function getFloatingDialogCursor(mode: FloatingDialogInteractionMode) {
   if (mode === "drag") return "grabbing";
   if (mode === "resize-horizontal") return "ew-resize";
   return "nwse-resize";
 }
 
-export function getFloatingDialogInteractionRect(mode: FloatingDialogInteractionMode, startRect: FloatingDialogRect, deltaX: number, deltaY: number) {
-  if (mode === "drag") return clampFloatingDialogRect({ ...startRect, x: startRect.x + deltaX, y: startRect.y + deltaY });
-  if (mode === "resize-horizontal") return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX });
-  return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX, height: startRect.height + deltaY });
+export function getFloatingDialogInteractionRect(
+  mode: FloatingDialogInteractionMode,
+  startRect: FloatingDialogRect,
+  deltaX: number,
+  deltaY: number,
+  minSize?: FloatingDialogSize,
+) {
+  if (mode === "drag") return clampFloatingDialogRect({ ...startRect, x: startRect.x + deltaX, y: startRect.y + deltaY }, minSize);
+  if (mode === "resize-horizontal") return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX }, minSize);
+  return clampFloatingDialogRect({ ...startRect, width: startRect.width + deltaX, height: startRect.height + deltaY }, minSize);
 }
 
 export function shouldSyncFloatingDialogRect(current: FloatingDialogRect, next: FloatingDialogRect) {

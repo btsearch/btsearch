@@ -1,8 +1,8 @@
-import type { CSSProperties, HTMLAttributes, Ref } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 
 import type { FloatingDialogRect } from "./geometry";
 import type { DuplexRadioLink } from "@/features/map/utils";
-import type { PemReport } from "@/features/station-details/api";
+import type { EmfReport, EmfSite, EmfSitePlace } from "@/features/station-details/station/emf/types";
 import type { StationSource, UkeStation } from "@/types/station";
 
 export function assertNever(value: never): never {
@@ -26,11 +26,12 @@ export function getStationHistoryTriggerId(stationId: number): string {
 }
 
 export type SI2PEMReportDialogPayload = {
-  report: PemReport;
-  latitude: number;
-  longitude: number;
+  site: EmfSite;
+  siteId: string;
+  report: EmfReport;
   operatorName: string;
   operatorMnc?: number | null;
+  place?: EmfSitePlace;
 };
 
 export type StationHistoryDialogPayload = {
@@ -43,15 +44,24 @@ export type StationHistoryDialogPayload = {
 export type StationDialogTarget = {
   id: number;
   source: StationSource;
+  locationId?: number;
   ukeStation?: UkeStation;
   switchedFrom?: StationDialogTarget;
+};
+
+export type TerrainProfileDialogPayload = {
+  placement: FloatingDialogRect;
+  isCollapsed: boolean;
+  renderPanel: (frame: FloatingDialogPanelFrameProps) => ReactNode;
+  onRequestClose: () => void;
 };
 
 export type FloatingDialogOpenRequest =
   | ({ kind: "station" } & StationDialogTarget)
   | { kind: "radioline"; link: DuplexRadioLink }
-  | ({ kind: "si2pem-report" } & SI2PEMReportDialogPayload)
-  | ({ kind: "station-history" } & StationHistoryDialogPayload);
+  | ({ kind: "si2pem-report"; openRequestId: number } & SI2PEMReportDialogPayload)
+  | ({ kind: "station-history" } & StationHistoryDialogPayload)
+  | ({ kind: "terrain-profile" } & TerrainProfileDialogPayload);
 
 export type FloatingDialogKind = FloatingDialogOpenRequest["kind"];
 

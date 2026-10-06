@@ -4,13 +4,28 @@ import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../../constants.js";
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { defineScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../../../features/audit/index.js";
-import { validateCellARFCNsForBands } from "../../../../../../features/cells/arfcnValidation.js";
+import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
 import { checkCellDuplicatesBatch, checkPciDuplicates } from "../../../../../../features/cells/duplicateCheck.js";
-import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../features/cells/ratCellPersistence.js";
-import { lteNullableFields, nrExtendFields, umtsNullableFields } from "../../../../../../features/cells/ratCellSchemas.js";
+import {
+  NORMAL_RATS,
+  type RATUpdateDetails,
+  isNormalRat,
+  updateRATCellDetailsReturning,
+} from "../../../../../../features/cells/ratCellPersistence.js";
+import {
+  assertCellUpdateFitsStoredRat,
+  assertCellUpdateSetsNoNsaFields,
+  gsmNullableFields,
+  lteNullableFields,
+  nrExtendFields,
+  umtsNullableFields,
+  withNsaFieldsCleared,
+} from "../../../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
 import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../../../features/submissions/helpers.js";
@@ -22,7 +37,7 @@ const cellsUpdateSchema = createUpdateSchema(cells)
     createdAt: true,
     updatedAt: true,
   })
-  .extend({ rat: z.enum(["GSM", "CDMA", "UMTS", "LTE", "NR"]).optional() })
+  .extend({ rat: z.enum(NORMAL_RATS).optional() })
   .strict();
 const cellsSelectSchema = createSelectSchema(cells);
 const gsmCellsSelectSchema = createSelectSchema(gsmCells).omit({ cell_id: true }).strict();
@@ -31,7 +46,7 @@ const lteCellsSelectSchema = createSelectSchema(lteCells).omit({ cell_id: true }
 const nrCellsSelectSchema = createSelectSchema(nrCells).omit({ cell_id: true }).strict();
 const cellDetailsSchema = z.union([gsmCellsSelectSchema, umtsCellsSelectSchema, lteCellsSelectSchema, nrCellsSelectSchema]).optional();
 const gsmCellsUpdateSchema = createUpdateSchema(gsmCells)
-  .extend({ lac: z.number().int().min(0).max(65535).optional(), cid: z.number().int().min(0).max(65535).optional() })
+  .extend({ ...gsmNullableFields, lac: z.number().int().min(0).max(65535).optional(), cid: z.number().int().min(0).max(65535).optional() })
   .strict();
 const umtsCellsUpdateSchema = createUpdateSchema(umtsCells)
   .extend({ ...umtsNullableFields, rnc: z.number().int().min(0).max(65535).optional(), cid: z.number().int().min(0).max(65535).optional() })
@@ -93,9 +108,11 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     },
   });
 
-  for (const cellData of cellsData) {
+  for (const [index, cellData] of cellsData.entries()) {
     const existing = existingCells.find((c) => c.id === cellData.cell_id);
     if (!existing || existing.station_id !== station_id) throw new ErrorResponse("NOT_FOUND");
+    assertCellUpdateFitsStoredRat(existing, cellData, ["cells", index, "details"]);
+    assertCellUpdateSetsNoNsaFields(existing, cellData);
   }
 
   const effectiveCells = cellsData.map((cellData) => {
@@ -133,7 +150,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     //   })),
     //   allModifiedCellIds,
     // ),
-    validateCellARFCNsForBands(effectiveCells),
+    validateCellBandsInCountry(
+      effectiveCells.map((cell, index) => ({ ...cell, rat: cellsData[index]?.rat ?? cell.rat })),
+      LEGACY_COUNTRY_CODE,
+    ),
     checkPciDuplicates(
       station_id,
       effectiveCells.map((cell) => ({
@@ -166,7 +186,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
         if (details && isNormalRat(existing.rat)) {
           /* eslint-disable-next-line no-await-in-loop */
-          const row = await updateRATCellDetailsReturning(tx, existing.rat, cell_id, details as RATUpdateDetails);
+          const row = await updateRATCellDetailsReturning(tx, existing.rat, cell_id, withNsaFieldsCleared(existing, details as RATUpdateDetails));
           if (!row)
             throw new ErrorResponse("FAILED_TO_UPDATE", {
               message: `This cell has no ${existing.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,
@@ -215,7 +235,12 @@ const updateCells: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/cells",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["update:cells"] },
+  config: {
+    permissions: ["update:cells"],
+    scope: defineScope<RequestData>((req) => ({
+      stationIds: [req.params.station_id, ...req.body.cells.flatMap((cell) => (cell.station_id === undefined ? [] : [cell.station_id]))],
+    })),
+  },
   handler,
 };
 

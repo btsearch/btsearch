@@ -1,46 +1,36 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { MapMouseEvent, MapTouchEvent } from "maplibre-gl";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { Map as MapLibreMap, MapMouseEvent, MapTouchEvent } from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import type { LocationsResponse } from "../api";
-import { fetchLocationWithStations, locationQueryKey } from "../api";
 import { PLANNED_PEM_LAYER_ID, POINT_LAYER_ID } from "../constants";
-import { locationsToGeoJSON, ukeLocationsToGeoJSON } from "../geojson";
+import type { MapFilters } from "../data/mapFilters";
+import { useMapLookups } from "../data/mapLookups";
+import { type MapPlace, type MapPoint, listRegisterStations, toMapPlace } from "../data/mapPoints";
+import { mapPointsToGeoJSON } from "../geojson";
 import { useAzimuthLayer } from "../hooks/useAzimuthLayer";
 import { useHeatmapLayer } from "../hooks/useHeatmapLayer";
 import { useMapKeybinds } from "../hooks/useMapKeybinds";
-import { useMapLayer } from "../hooks/useMapLayer";
-import type { MapPopupLocation } from "../hooks/useMapPopup";
-import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
-import { useUrlSync } from "../hooks/useURLSync";
-import { attachUkeLocationToStations, groupPermitsByStation, isUkeStationExpired, toLocationInfo } from "../utils";
-import type { StationHoverEntry } from "./stationHoverTooltipContent";
+import { type FeatureClickData, useMapLayer } from "../hooks/useMapLayer";
+import type { FollowMapPoints, MapPopupLocation, ShowMapPopup } from "../hooks/useMapPopup";
+import { type UrlInitialization, useUrlSync } from "../hooks/useURLSync";
+import { groupPermitsByStation } from "../utils";
 import { StationHoverTooltipContent } from "./stationHoverTooltipContent";
 import { useMap } from "@/components/ui/map";
-import { fetchStation, fetchUkePermit, fetchUkeStation } from "@/features/station-details/api";
+import { fetchUkePermit, fetchUkeStation } from "@/features/station-details/api";
+import { locationRecordQueryOptions, stationRecordQueryOptions } from "@/features/station-details/station/api";
 import { usePreferences } from "@/hooks/usePreferences";
 import { showApiError } from "@/lib/api";
-import type {
-  LocationInfo,
-  LocationWithStations,
-  StationFilters,
-  StationSource,
-  StationWithoutCells,
-  UkeLocationWithPermits,
-  UkeStation,
-} from "@/types/station";
+import type { StationSource, UkeStation } from "@/types/station";
 
 const EMPTY_GEOJSON = { type: "FeatureCollection" as const, features: [] };
-const EMPTY_UKE_LOCATIONS: UkeLocationWithPermits[] = [];
-const EMPTY_INTERNAL_LOCATIONS: LocationWithStations[] = [];
 const EMPTY_BLOCKED_LAYERS: string[] = [];
 const PLANNED_PEM_BLOCKED_LAYERS = [PLANNED_PEM_LAYER_ID];
 const MAP_TOUCH_LONG_PRESS_MS = 500;
 const MAP_TOUCH_MOVE_TOLERANCE_PX = 12;
 const SHARED_STATION_COORDINATE_TOLERANCE = 0.00001;
-const ignorePrefetchError = () => undefined;
+const SHARED_TARGET_ZOOM = 16;
 
 class LegacyUkeStationLinkError extends Error {
   constructor(readonly reason: "ambiguous" | "notFound") {
@@ -78,67 +68,22 @@ async function resolveLegacyUkeStation(stationId: string, center?: [number, numb
   throw new LegacyUkeStationLinkError("notFound");
 }
 
-export const DEFAULT_FILTERS: StationFilters = {
-  operators: [],
-  bands: [],
-  rat: [],
-  status: ["published"],
-  source: "internal",
-  recentDays: null,
-  recentDateFields: ["createdAt"],
-  showStations: true,
-  showRadiolines: false,
-  radiolineOperators: [],
-  showHeatmap: false,
-  showPlannedMeasurements: false,
-  uplinkTypes: [],
-};
-
-const MAP_FILTERS_STORAGE_KEY = "map:filters";
-
-export function saveMapFilters(filters: StationFilters, storageKey = MAP_FILTERS_STORAGE_KEY) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(filters));
-  } catch {
-    // ignore localStorage errors
-  }
+function flyToSharedTarget(map: MapLibreMap, longitude: number, latitude: number): void {
+  map.flyTo({ center: [longitude, latitude], zoom: SHARED_TARGET_ZOOM, essential: true, speed: 1.5 });
 }
 
-export function loadMapFilters(storageKey = MAP_FILTERS_STORAGE_KEY): StationFilters | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return {
-      operators: parsed.operators ?? [],
-      bands: parsed.bands ?? [],
-      rat: parsed.rat ?? [],
-      status: parsed.status ?? ["published"],
-      source: parsed.source ?? "internal",
-      recentDays: parsed.recentDays ?? null,
-      recentDateFields: parsed.recentDateFields ?? ["createdAt"],
-      showStations: parsed.showStations ?? true,
-      showRadiolines: parsed.showRadiolines ?? false,
-      radiolineOperators: parsed.radiolineOperators ?? [],
-      showHeatmap: parsed.showHeatmap ?? false,
-      showPlannedMeasurements: parsed.showPlannedMeasurements ?? false,
-      uplinkTypes: parsed.uplinkTypes ?? [],
-    };
-  } catch {
-    return null;
-  }
+function waitForMoveEnd(map: MapLibreMap): Promise<void> {
+  return new Promise((resolve) => map.once("moveend", () => resolve()));
 }
 
-type ShowPopupFn = (
-  coordinates: [number, number],
-  location: LocationInfo,
-  stations: StationWithoutCells[] | null,
-  ukeStations: UkeStation[] | null,
-  source: StationSource,
-) => void;
+function findPoint(pointsById: ReadonlyMap<number, MapPoint>, locationId: number, source: StationSource): MapPoint | undefined {
+  const point = pointsById.get(locationId);
+  return point?.source === source ? point : undefined;
+}
 
 type PopupActions = {
-  show: ShowPopupFn;
+  show: ShowMapPopup;
+  followPoints: FollowMapPoints;
   cleanup: () => void;
 };
 
@@ -148,9 +93,10 @@ type StationActions = {
 };
 
 type CommonStationsLayerProps = {
-  filters: StationFilters;
-  locationsResponse: LocationsResponse | undefined;
-  zoom: number;
+  filters: MapFilters;
+  points: MapPoint[];
+  wantAzimuths: boolean;
+  isPickingReceiver?: boolean;
   onActiveMarkerChange?: (marker: { latitude: number; longitude: number } | null) => void;
   stationActions: StationActions;
   popupActions: PopupActions;
@@ -159,13 +105,18 @@ type CommonStationsLayerProps = {
 };
 
 type StationsLayerProps = CommonStationsLayerProps &
-  ({ urlSyncEnabled?: true; onFiltersChange: (filters: StationFilters) => void } | { urlSyncEnabled: false; onFiltersChange?: never });
+  (
+    | { urlSyncEnabled?: true; savedFilters: MapFilters; onFiltersChange: (filters: MapFilters) => void }
+    | { urlSyncEnabled: false; savedFilters?: never; onFiltersChange?: never }
+  );
 
 export function StationsLayer({
   filters,
+  savedFilters = filters,
   onFiltersChange,
-  locationsResponse,
-  zoom,
+  points,
+  wantAzimuths,
+  isPickingReceiver = false,
   onActiveMarkerChange,
   stationActions,
   popupActions,
@@ -176,153 +127,75 @@ export function StationsLayer({
   const { t } = useTranslation("stationDetails");
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
+  const { lookups } = useMapLookups();
   const queryClient = useQueryClient();
-  const pendingStationId = useRef<number | string | undefined>(null);
-  const pendingLocationId = useRef<number | null>(null);
-  const pendingUkeLocationId = useRef<number | null>(null);
+  const [linkedLocation, setLinkedLocation] = useState<MapPopupLocation | null>(null);
+  const hasOpenedLinkedLocation = useRef(false);
 
-  const { show: showPopup, cleanup: cleanupPopup } = popupActions;
+  const { show: showPopup, followPoints, cleanup: cleanupPopup } = popupActions;
   const { openDetails: onOpenStationDetails, openUkeDetails: onOpenUkeStationDetails } = stationActions;
 
-  const handleUrlInitialize = useCallback(
-    async ({
-      filters: urlFilters,
-      center,
-      stationId,
-      ukeStationId,
-      locationId,
-      radiolineId,
-    }: {
-      filters?: StationFilters;
-      center?: [number, number];
-      stationId?: string;
-      ukeStationId?: number;
-      locationId?: number;
-      radiolineId?: number;
-    }) => {
-      if (urlFilters) onFiltersChange?.(urlFilters);
-      const activeFilters = urlFilters ?? filters;
+  function handleUrlInitialize({ filters: urlFilters, center, stationId, ukeStationId, locationId, radiolineId }: UrlInitialization) {
+    if (urlFilters) onFiltersChange?.(urlFilters);
+    const activeFilters = urlFilters ?? savedFilters;
 
-      if (ukeStationId && map) {
-        pendingStationId.current = ukeStationId;
-        queryClient
-          .query({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
-          .then((station) => {
-            if (station.location?.latitude && station.location?.longitude) {
-              map.flyTo({
-                center: [station.location.longitude, station.location.latitude],
-                zoom: 16,
-                essential: true,
-                speed: 1.5,
-              });
-              onOpenUkeStationDetails(station);
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to fetch shared station:", error);
-            showApiError(error);
-          })
-          .finally(() => {
-            pendingStationId.current = null;
-          });
-      } else if (stationId && map) {
-        pendingStationId.current = stationId;
-        const stationPromise =
-          activeFilters.source === "uke"
-            ? resolveLegacyUkeStation(stationId, center).then((ukeStation) => {
-                if (ukeStation?.location?.latitude && ukeStation?.location?.longitude) {
-                  map.flyTo({
-                    center: [ukeStation.location.longitude, ukeStation.location.latitude],
-                    zoom: 16,
-                    essential: true,
-                    speed: 1.5,
-                  });
-                  onOpenUkeStationDetails(ukeStation);
-                }
-              })
-            : fetchStation(Number(stationId)).then((station) => {
-                if (station.location?.latitude && station.location?.longitude) {
-                  map.flyTo({
-                    center: [station.location.longitude, station.location.latitude],
-                    zoom: 16,
-                    essential: true,
-                    speed: 1.5,
-                  });
-                  onOpenStationDetails(Number(stationId), "internal");
-                }
-              });
-        stationPromise
-          .catch((error) => {
-            if (error instanceof LegacyUkeStationLinkError) {
-              toast.error(t(error.reason === "ambiguous" ? "page.ambiguousUkeStationLink" : "page.stationNotFoundTitle"));
-              return;
-            }
-            console.error("Failed to fetch shared station:", error);
-            showApiError(error);
-          })
-          .finally(() => {
-            pendingStationId.current = null;
-          });
-      } else if (radiolineId) onRadiolineIdFromUrl?.(radiolineId);
-      else if (locationId && map) {
-        if (activeFilters.source === "uke") {
-          pendingUkeLocationId.current = locationId;
+    if (ukeStationId && map) {
+      queryClient
+        .query({ queryKey: ["uke-station", ukeStationId], queryFn: () => fetchUkeStation(ukeStationId) })
+        .then((station) => {
+          if (station.location?.latitude && station.location?.longitude) {
+            flyToSharedTarget(map, station.location.longitude, station.location.latitude);
+            onOpenUkeStationDetails(station);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to fetch shared station:", error);
+          showApiError(error);
+        });
+    } else if (stationId && map) {
+      const stationPromise =
+        activeFilters.source === "uke"
+          ? resolveLegacyUkeStation(stationId, center).then((ukeStation) => {
+              if (ukeStation?.location?.latitude && ukeStation?.location?.longitude) {
+                flyToSharedTarget(map, ukeStation.location.longitude, ukeStation.location.latitude);
+                onOpenUkeStationDetails(ukeStation);
+              }
+            })
+          : queryClient.query(stationRecordQueryOptions(Number(stationId))).then((station) => {
+              if (station.location === null) return;
+              flyToSharedTarget(map, station.location.longitude, station.location.latitude);
+              onOpenStationDetails(station.id, "internal");
+            });
+      stationPromise.catch((error) => {
+        if (error instanceof LegacyUkeStationLinkError) {
+          toast.error(t(error.reason === "ambiguous" ? "page.ambiguousUkeStationLink" : "page.stationNotFoundTitle"));
           return;
         }
-
-        pendingLocationId.current = locationId;
-        queryClient
-          .query({
-            queryKey: locationQueryKey(locationId, activeFilters),
-            queryFn: () => fetchLocationWithStations(locationId, activeFilters),
-            staleTime: 1000 * 60 * 2,
-          })
-          .then((locationData) => {
-            const location = toLocationInfo(locationData);
-            map.flyTo({
-              center: [location.longitude, location.latitude],
-              zoom: 16,
-              essential: true,
-              speed: 1.5,
-            });
-            return new Promise<typeof locationData>((resolve) => map.once("moveend", () => resolve(locationData)));
-          })
-          .then((locationData) => {
-            const location = toLocationInfo(locationData);
-            showPopup([location.longitude, location.latitude], location, locationData.stations as StationWithoutCells[], null, activeFilters.source);
-          })
-          .catch((error) => {
-            console.error("Failed to fetch shared location:", error);
-            showApiError(error);
-          })
-          .finally(() => {
-            pendingLocationId.current = null;
-          });
-      }
-    },
-    [queryClient, map, filters, showPopup, onFiltersChange, onOpenStationDetails, onOpenUkeStationDetails, onRadiolineIdFromUrl, t],
-  );
+        console.error("Failed to fetch shared station:", error);
+        showApiError(error);
+      });
+    } else if (radiolineId) onRadiolineIdFromUrl?.(radiolineId);
+    else if (locationId) setLinkedLocation({ locationId, source: activeFilters.source });
+  }
 
   useUrlSync({
     map,
     isLoaded,
-    filters,
+    filters: savedFilters,
     enabled: urlSyncEnabled,
     onInitialize: handleUrlInitialize,
   });
 
-  const locations = useMemo(() => locationsResponse?.data ?? [], [locationsResponse]);
-  const locationById = useMemo(
-    () => new Map<number, LocationWithStations | UkeLocationWithPermits>(locations.map((location) => [location.id, location])),
-    [locations],
-  );
+  const pointsById = useMemo(() => new Map<number, MapPoint>(points.map((point) => [point.id, point])), [points]);
+
+  useEffect(() => {
+    followPoints(pointsById);
+  }, [followPoints, pointsById]);
 
   const geoJSON = useMemo(() => {
     if (!filters.showStations && !filters.showHeatmap) return EMPTY_GEOJSON;
-    return filters.source === "uke"
-      ? ukeLocationsToGeoJSON(locations as unknown as UkeLocationWithPermits[], filters.source)
-      : locationsToGeoJSON(locations, filters.source);
-  }, [locations, filters.source, filters.showStations, filters.showHeatmap]);
+    return mapPointsToGeoJSON(points);
+  }, [points, filters.showStations, filters.showHeatmap]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -341,117 +214,70 @@ export function StationsLayer({
   }, [map, isLoaded, filters.showStations]);
 
   useEffect(() => {
-    const locationId = pendingUkeLocationId.current;
-    if (!locationId || !map || filters.source !== "uke" || locations.length === 0) return;
+    if (linkedLocation === null || hasOpenedLinkedLocation.current) return;
 
-    const ukeLocation = locationById.get(locationId) as UkeLocationWithPermits | undefined;
-    if (!ukeLocation) return;
+    if (linkedLocation.source === "uke") {
+      if (filters.source !== "uke") return;
 
-    pendingUkeLocationId.current = null;
+      const point = findPoint(pointsById, linkedLocation.locationId, "uke");
+      if (point === undefined) return;
 
-    const location: LocationInfo = {
-      id: ukeLocation.id,
-      city: ukeLocation.city ?? undefined,
-      address: ukeLocation.address ?? undefined,
-      region: ukeLocation.region?.name,
-      latitude: ukeLocation.latitude,
-      longitude: ukeLocation.longitude,
-    };
+      hasOpenedLinkedLocation.current = true;
+      showPopup([point.longitude, point.latitude], point, null, listRegisterStations(point), "uke");
+      return;
+    }
 
-    showPopup(
-      [location.longitude, location.latitude],
-      location,
-      null,
-      attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation),
-      filters.source,
-    );
-  }, [map, locations, filters.source, showPopup, locationById]);
+    if (!map || lookups === undefined) return;
 
-  const handleFeatureMouseDown = useCallback(
-    (locationId: number) => {
-      if (filters.source === "uke") return;
-      void queryClient
-        .query({
-          queryKey: locationQueryKey(locationId, filters),
-          queryFn: () => fetchLocationWithStations(locationId, filters),
-          staleTime: 1000 * 60 * 2,
-        })
-        .catch(ignorePrefetchError);
-    },
-    [queryClient, filters],
-  );
+    hasOpenedLinkedLocation.current = true;
+    queryClient
+      .query(locationRecordQueryOptions(linkedLocation.locationId))
+      .then(async (record) => {
+        const place = toMapPlace(record, lookups);
+        flyToSharedTarget(map, place.longitude, place.latitude);
+        await waitForMoveEnd(map);
+        showPopup([place.longitude, place.latitude], place, null, null, "internal");
+      })
+      .catch((error) => {
+        console.error("Failed to fetch shared location:", error);
+        showApiError(error);
+      });
+  }, [linkedLocation, filters.source, pointsById, map, lookups, queryClient, showPopup]);
 
-  const handleFeatureClick = useCallback(
-    (data: { coordinates: [number, number]; locationId: number; city?: string; address?: string; source: string }) => {
-      const { coordinates, locationId, city, address, source } = data;
-      const [lng, lat] = coordinates;
+  function handleFeatureMouseDown(locationId: number) {
+    if (isPickingReceiver || findPoint(pointsById, locationId, "internal") === undefined) return;
+    void queryClient.query(locationRecordQueryOptions(locationId)).catch(() => undefined);
+  }
 
-      if (source === "uke") {
-        const ukeLocation = locationById.get(locationId) as UkeLocationWithPermits | undefined;
-        showPopup(
-          coordinates,
-          { id: locationId, city, address, region: ukeLocation?.region?.name, latitude: lat, longitude: lng },
-          null,
-          attachUkeLocationToStations(ukeLocation?.stations ?? [], ukeLocation),
-          source as StationSource,
-        );
-        return;
-      }
+  function handleFeatureClick({ coordinates, locationId, city, address, source }: FeatureClickData) {
+    if (isPickingReceiver) return;
 
-      const locationData = locationById.get(locationId) as LocationWithStations | undefined;
-      const location: LocationInfo = {
-        id: locationId,
-        city: locationData?.city ?? city,
-        address: locationData?.address ?? address,
-        region: locationData?.region?.name,
-        latitude: lat,
-        longitude: lng,
-      };
+    const [longitude, latitude] = coordinates;
+    const point = findPoint(pointsById, locationId, source);
+    const place: MapPlace = point ?? { id: locationId, city: city ?? null, address: address ?? null, regionName: null, latitude, longitude };
 
-      showPopup(coordinates, location, locationData?.stations ?? null, null, source as StationSource);
-    },
-    [locationById, showPopup],
-  );
+    if (source === "uke") {
+      showPopup(coordinates, place, null, point === undefined ? [] : listRegisterStations(point), source);
+      return;
+    }
 
-  const handleFeatureContextMenu = useCallback(
-    async (data: { coordinates: [number, number]; locationId: number; city?: string; address?: string; source: string }) => {
-      const { coordinates } = data;
-      const [lng, lat] = coordinates;
-      onActiveMarkerChange?.({ latitude: lat, longitude: lng });
-    },
-    [onActiveMarkerChange],
-  );
+    showPopup(coordinates, place, point === undefined || point.isUnlisted ? null : point.stations, null, source);
+  }
 
-  const renderHoverTooltip = useCallback(
-    (data: { locationId: number; city?: string; address?: string; source: string }) => {
-      if (activePopupLocations?.some((location) => location.locationId === data.locationId && location.source === data.source)) return null;
+  function handleFeatureContextMenu({ coordinates }: FeatureClickData) {
+    const [longitude, latitude] = coordinates;
+    onActiveMarkerChange?.({ latitude, longitude });
+  }
 
-      const locationData = locationById.get(data.locationId);
-      if (!locationData?.stations?.length) return null;
+  function renderHoverTooltip({ locationId, source }: FeatureClickData) {
+    if (isPickingReceiver) return null;
+    if (activePopupLocations?.some((location) => location.locationId === locationId && location.source === source)) return null;
 
-      let entries: StationHoverEntry[];
-      if (data.source === "uke") {
-        entries = (locationData as UkeLocationWithPermits).stations.map((station) => ({
-          key: station.id,
-          stationId: station.station_id,
-          operatorName: station.operator?.name,
-          mnc: station.operator?.mnc,
-          isExpired: isUkeStationExpired(station),
-        }));
-      } else {
-        entries = (locationData as LocationWithStations).stations.map((station) => ({
-          key: station.id,
-          stationId: station.station_id,
-          operatorName: station.operator?.name,
-          mnc: station.operator?.mnc,
-          status: station.status,
-        }));
-      }
+    const point = findPoint(pointsById, locationId, source);
+    if (point === undefined || point.stations.length === 0) return null;
 
-      return <StationHoverTooltipContent city={data.city} address={data.address} region={locationData.region?.name} stations={entries} />;
-    },
-    [locationById, activePopupLocations],
-  );
+    return <StationHoverTooltipContent point={point} />;
+  }
 
   useMapLayer({
     map,
@@ -466,21 +292,12 @@ export function StationsLayer({
   });
 
   useHeatmapLayer({ map, isLoaded, enabled: filters.showHeatmap, showStations: filters.showStations });
-  usePlannedMeasurementsLayer({
-    map,
-    isLoaded,
-    enabled: filters.showPlannedMeasurements,
-    operators: filters.operators,
-    onOpenStation: (stationId) => onOpenStationDetails(stationId, "internal"),
-  });
 
-  const azimuthEnabled = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
   useAzimuthLayer({
     map,
     isLoaded,
-    locations: azimuthEnabled && filters.source === "internal" ? (locations as unknown as LocationWithStations[]) : EMPTY_INTERNAL_LOCATIONS,
-    ukeLocations: azimuthEnabled && filters.source === "uke" ? (locations as unknown as UkeLocationWithPermits[]) : EMPTY_UKE_LOCATIONS,
-    enabled: azimuthEnabled,
+    points,
+    enabled: wantAzimuths,
     minZoom: preferences.azimuthsMinZoom,
     lineLength: preferences.azimuthLineLength,
     spread: preferences.azimuthSpread,
@@ -576,8 +393,6 @@ export function StationsLayer({
       clearLongPressTimer();
     };
   }, [map, onActiveMarkerChange]);
-
-  if (!isLoaded) return null;
 
   return null;
 }

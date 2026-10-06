@@ -1,14 +1,27 @@
-import { locationPhotos, locations, stations } from "@openbts/drizzle";
+import { cells, locationPhotos, locations, stations } from "@openbts/drizzle";
 import { and, eq, ne } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-orm/zod";
+import type { z } from "zod/v4";
 
+import type { DbTx } from "../../../../types/global.js";
+import { OWNER_OF_ANOTHER_COUNTRY_MESSAGE, type OwnerMisfit, findOwnerMisfit } from "../../../locations/structure.js";
+import type { LocationRow } from "../../../locations/write.js";
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields } from "../compare.js";
 import { type ApplyState, type PlannedEntry, type RevertDependent, type StrategyContext, conflictFor } from "../types.js";
+import { assertRestoredCellsFitBands } from "./cells.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, snapshotFieldNames } from "./common.js";
 import { getLocationPhotoMove } from "./locationPhotos.js";
 
 const LOCATION_UNIQUE_CONSTRAINT = "locations_lonlat_unique";
+const OWNER_MISFIT_MESSAGES: Record<OwnerMisfit, string> = {
+  missing: "The original structure owner no longer exists",
+  otherCountry: OWNER_OF_ANOTHER_COUNTRY_MESSAGE,
+};
+const locationInsertSchema = createInsertSchema(locations);
+
+type LocationPlacement = Pick<LocationRow, "region_id" | "structure_owner_id">;
 
 function selectedStationMove(context: StrategyContext, stationId: number, locationId: number): number | undefined {
   const entry = context.selectedEntries.find(
@@ -104,6 +117,30 @@ async function addRegionConflict(context: StrategyContext, plan: PlannedEntry, t
     );
 }
 
+async function addStructureOwnerConflict(
+  context: StrategyContext,
+  plan: PlannedEntry,
+  target: SnapshotRecord,
+  fields: ReadonlySet<string>,
+  current?: LocationPlacement,
+): Promise<void> {
+  const restoresOwner = fields.has("structure_owner_id");
+  const restoresRegion = fields.has("region_id");
+  if (!restoresOwner && !restoresRegion) return;
+
+  const ownerId = restoresOwner ? numberField(target, "structure_owner_id") : (current?.structure_owner_id ?? null);
+  if (ownerId === null) return;
+  const regionId = restoresRegion ? numberField(target, "region_id") : (current?.region_id ?? null);
+  const misfit = await findOwnerMisfit(context.tx, ownerId, regionId);
+  if (misfit === null) return;
+  plan.conflicts.push(
+    conflictFor(plan.entry, "fk_missing", OWNER_MISFIT_MESSAGES[misfit], "drop_field", {
+      constraint: "locations_structure_owner_id_structure_owners_id_fk",
+      nullableField: "structure_owner_id",
+    }),
+  );
+}
+
 async function addUniqueConflict(context: StrategyContext, plan: PlannedEntry, id: number, target: SnapshotRecord): Promise<void> {
   const longitude = target.longitude;
   const latitude = target.latitude;
@@ -119,6 +156,15 @@ async function addUniqueConflict(context: StrategyContext, plan: PlannedEntry, i
         constraint: LOCATION_UNIQUE_CONSTRAINT,
       }),
     );
+}
+
+async function loadLocationCellIds(tx: DbTx, locationId: number): Promise<number[]> {
+  const rows = await tx
+    .select({ id: cells.id })
+    .from(cells)
+    .innerJoin(stations, eq(stations.id, cells.station_id))
+    .where(eq(stations.location_id, locationId));
+  return rows.map((row) => row.id);
 }
 
 function markLocationWrite(state: ApplyState, locationId: number, stationId: number | null): void {
@@ -173,15 +219,20 @@ export async function planLocationRevert(context: StrategyContext, entry: AuditE
       return plan;
     }
     const oldValues = requireSnapshot(entry.old_values, "old location");
-    await Promise.all([addRegionConflict(context, plan, oldValues, new Set(["region_id"])), addUniqueConflict(context, plan, id, oldValues)]);
+    await Promise.all([
+      addRegionConflict(context, plan, oldValues, new Set(["region_id"])),
+      addStructureOwnerConflict(context, plan, oldValues, new Set(["region_id", "structure_owner_id"])),
+      addUniqueConflict(context, plan, id, oldValues),
+    ]);
     plan.actions.push({
       order: 23,
       run: async (tx, state) => {
         const row = snapshotToRow(locations, oldValues, { includeIdentity: true, omit: ["point"] });
+        if (plan.droppedFields.has("structure_owner_id")) row.structure_owner_id = null;
         await tx
           .insert(locations)
           .overridingSystemValue()
-          .values({ ...row, id } as typeof locations.$inferInsert);
+          .values({ ...row, id } as z.infer<typeof locationInsertSchema>);
         state.sequenceTables.add("locations");
         markLocationWrite(state, id, entry.station_id);
       },
@@ -213,12 +264,14 @@ export async function planLocationRevert(context: StrategyContext, entry: AuditE
   if (differences.length > 0)
     plan.conflicts.push(conflictFor(entry, "stale", "The location changed after this operation", "apply", { fields: differences }));
   await addRegionConflict(context, plan, oldValues, new Set(fields));
+  await addStructureOwnerConflict(context, plan, oldValues, new Set(fields), current);
   if (fields.includes("longitude") || fields.includes("latitude")) await addUniqueConflict(context, plan, id, oldValues);
 
   plan.actions.push({
     order: 31,
     run: async (tx, state) => {
       const patch = snapshotToRow(locations, oldValues, { fields });
+      if (plan.droppedFields.has("structure_owner_id")) patch.structure_owner_id = null;
       await tx
         .update(locations)
         .set({ ...patch, updatedAt: new Date() })
@@ -229,6 +282,10 @@ export async function planLocationRevert(context: StrategyContext, entry: AuditE
   plan.finalize = async (tx, audit) => {
     const [restored] = await tx.select().from(locations).where(eq(locations.id, id)).limit(1);
     if (restored === undefined) throw new Error(`Updated location ${id} disappeared`);
+    if (restored.region_id !== current.region_id) {
+      const cellIds = await loadLocationCellIds(tx, id);
+      await assertRestoredCellsFitBands(tx, entry, { cellIds, stationId: null });
+    }
     await audit.log({
       entity: "locations",
       op: "update",

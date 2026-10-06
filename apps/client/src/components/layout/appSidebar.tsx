@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/preferences/themeToggle";
 import { GoogleAd } from "@/components/ui/google-ad";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { usePageSectionsList } from "@/contexts/pageSections";
+import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
 import { useSettings } from "@/hooks/useSettings";
 import { useWindowControlsOverlay } from "@/hooks/useWindowControlsOverlay";
 import { APP_NAME } from "@/lib/api";
@@ -46,14 +47,18 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { data: settings } = useSettings();
+  const { canOpenCountries } = useReferenceAccess();
   const { visible: isWCO, isMacOS } = useWindowControlsOverlay();
 
   const navItems = useMemo(() => translateNav(navMainConfig, t), [t]);
   const infoNavItems = useMemo(() => translateNav(infoNavConfig, t), [t]);
-  const showAuth = !!(session?.user && settings?.submissionsEnabled);
+  const showAuth = !!(session?.user && settings?.features.submissions);
   const authNavItems = useMemo(() => (showAuth ? translateNav(authNavConfig, t) : []), [t, showAuth]);
   const userRole = session?.user?.role as string | undefined;
-  const adminNavItems = useMemo(() => translateAdminNav(adminNavConfig, t, userRole, settings), [userRole, t, settings]);
+  const adminNavItems = useMemo(
+    () => translateAdminNav(adminNavConfig, t, userRole, settings, canOpenCountries),
+    [userRole, t, settings, canOpenCountries],
+  );
 
   const pathname = useLocation({ select: (location) => location.pathname });
   const pageSections = usePageSectionsList();
@@ -109,7 +114,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={navItems} />
         {authNavItems.length > 0 && <NavMain items={authNavItems} />}
-        {session?.user && settings?.enableUserLists && <NavLists />}
+        {session?.user && settings?.features.lists && <NavLists />}
         {adminNavItems.length > 0 && <NavMain items={adminNavItems} />}
         <NavMain items={infoNavItems} />
       </SidebarContent>

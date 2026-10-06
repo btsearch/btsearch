@@ -6,6 +6,7 @@ import { routeTree } from "./routeTree.gen";
 import { RouteError, RouteNotFound } from "@/components/app/errorScreens";
 import { LoadingIcon } from "@/components/ui/loading-icon";
 import { i18nReady } from "@/i18n/config";
+import { reloadOnceOnChunkLoadError } from "@/lib/staleChunkReload";
 
 const I18N_READY_TIMEOUT_MS = 2000;
 
@@ -17,10 +18,16 @@ function RoutePending() {
   );
 }
 
+const stringifySearchValues = stringifySearchWith(JSON.stringify);
+
+function stringifySearch(search: Record<string, unknown>): string {
+  return stringifySearchValues(search).replaceAll("%2C", ",");
+}
+
 const router = createRouter({
   routeTree,
   scrollRestoration: true,
-  stringifySearch: stringifySearchWith(JSON.stringify),
+  stringifySearch,
   defaultPendingComponent: RoutePending,
   defaultPendingMs: 300,
   defaultPendingMinMs: 0,
@@ -62,6 +69,7 @@ function renderApp() {
   removeAppShellWhenMounted(rootElement);
 }
 
+reloadOnceOnChunkLoadError();
 router.load().catch(() => {});
 const i18nReadyOrTimeout = Promise.race([i18nReady, new Promise((resolve) => setTimeout(resolve, I18N_READY_TIMEOUT_MS))]);
 void i18nReadyOrTimeout.then(renderApp, renderApp);

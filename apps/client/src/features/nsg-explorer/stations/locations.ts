@@ -1,55 +1,54 @@
 import type { MatchedStation } from "./correlation";
-import type { LocationWithStations, StationWithoutCells } from "@/types/station";
+import type { MapLookups } from "@/features/map/data/mapLookups";
+import { type MapPoint, type MapPointStation, createMapPointStation } from "@/features/map/data/mapPoints";
+import { sortLocationStations } from "@/features/station-details/station/utils/stations";
 
-function toStation(match: MatchedStation): StationWithoutCells {
+function toMatchedPointStation(match: MatchedStation, lookups: MapLookups): MapPointStation {
   const { station } = match;
-  return {
-    id: station.id,
-    station_id: station.station_id,
-    operator_id: station.operator.id,
-    notes: station.notes,
-    extra_address: station.extra_address,
-    updatedAt: station.updatedAt,
-    createdAt: station.createdAt,
-    is_confirmed: station.is_confirmed ?? false,
-    status: "published",
-    statusChangedAt: station.statusChangedAt,
-    operator: station.operator,
-  };
+  return createMapPointStation(
+    {
+      id: station.id,
+      siteId: station.siteId,
+      operatorId: station.operatorId,
+      status: "active",
+      statusChangedAt: station.statusChangedAt,
+    },
+    lookups,
+  );
 }
 
-function toLocation(match: MatchedStation): LocationWithStations {
+function toMatchedPoint(match: MatchedStation, lookups: MapLookups): MapPoint {
   const { location } = match.station;
   return {
+    source: "internal",
     id: location.id,
-    city: location.city ?? undefined,
-    address: location.address ?? undefined,
-    longitude: location.longitude,
+    countryCode: location.countryCode,
     latitude: location.latitude,
-    updatedAt: location.updatedAt,
-    createdAt: location.createdAt,
-    region: location.region,
-    stations: [toStation(match)],
+    longitude: location.longitude,
+    city: location.city,
+    address: location.address,
+    regionName: lookups.regionsById.get(location.regionId)?.name ?? null,
+    stations: [toMatchedPointStation(match, lookups)],
   };
 }
 
-export function mergeMatchedStationLocations(locations: readonly LocationWithStations[], matches: readonly MatchedStation[]): LocationWithStations[] {
-  const merged = locations.map((location) => ({ ...location, stations: [...location.stations] }));
-  const locationById = new Map(merged.map((location) => [location.id, location]));
+export function mergeMatchedStationPoints(points: readonly MapPoint[], matches: readonly MatchedStation[], lookups: MapLookups): MapPoint[] {
+  const merged = [...points];
+  const indexByPointId = new Map<number, number>(merged.map((point, index) => [point.id, index]));
 
-  const mergeMatch = (match: MatchedStation) => {
-    const existing = locationById.get(match.station.location.id);
-    if (!existing) {
-      const location = toLocation(match);
-      merged.push(location);
-      locationById.set(location.id, location);
-      return;
+  for (const match of matches) {
+    const index = indexByPointId.get(match.station.location.id);
+    if (index === undefined) {
+      const point = toMatchedPoint(match, lookups);
+      indexByPointId.set(point.id, merged.length);
+      merged.push(point);
+      continue;
     }
-    if (existing.stations.some((station) => station.id === match.station.id)) return;
-    existing.stations.push(toStation(match));
-  };
 
-  for (const match of matches) mergeMatch(match);
+    const point = merged[index];
+    if (point.stations.some((station) => station.id === match.station.id)) continue;
+    merged[index] = { ...point, stations: sortLocationStations([...point.stations, toMatchedPointStation(match, lookups)]) };
+  }
 
   return merged;
 }

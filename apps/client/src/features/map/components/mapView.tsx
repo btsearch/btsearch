@@ -1,55 +1,72 @@
-import { useQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { fetchLocations, fetchRadioLines } from "../api";
-import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "../constants";
+import { fetchRadioLines, mapLocationsQueryOptions } from "../api";
+import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "../constants";
+import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "../data/mapCountries";
+import { useMapLookups, useMapMaxBounds } from "../data/mapLookups";
+import { type MapPlace, useMapPoints } from "../data/mapPoints";
+import { useSavedMapFilters } from "../data/useSavedMapFilters";
 import { useMapBounds } from "../hooks/useMapBounds";
 import { loadMapPosition, useMapPositionPersistence } from "../hooks/useMapPositionPersistence";
 import { useMapQueryHousekeeping } from "../hooks/useMapQueryHousekeeping";
+import { usePlannedMeasurementsLayer } from "../hooks/usePlannedMeasurementsLayer";
 import { useStationPopupActions } from "../hooks/useStationPopupActions";
 import { useWakeLock } from "../hooks/useWakeLock";
-import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../searchApi";
-import { attachUkeLocationToStations } from "../utils";
+import { type StationSearchHit, type UkeSearchPermitStation, type UkeSearchRadioline, isRejectedSearchQuery, toSearchHitPlace } from "../searchApi";
 import { MapSearchOverlay } from "./search-overlay";
-import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "./stationsLayer";
+import { StationsLayer } from "./stationsLayer";
 import { Map as LibreMap, MapControls, MapMarker, MarkerContent, useMap } from "@/components/ui/map";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { isStationsQueryScope } from "@/features/nsg-explorer/stations/queryScope";
 import { useTerrainProfileController } from "@/features/terrain-profile/hooks/useTerrainProfileController";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
-import type { LocationInfo, StationFilters, UkeLocationWithPermits, UkeStation } from "@/types/station";
+import { useSettledSession } from "@/hooks/useSettledSession";
+import type { RadioLine, UkeStation } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("./radioLinesLayer"));
 const TerrainProfileSurface = lazy(() => import("@/features/terrain-profile/components/terrainProfileSurface"));
 
 const MAP_QUERY_FAMILIES = new Set(["locations", "radiolines"]);
+const NO_RADIO_LINES: RadioLine[] = [];
+const SELECTED_DOT_TOLERANCE = 0.0001;
+
+type SearchTextAnswer = {
+  searchText?: string;
+  isRejected: boolean;
+  isAccepted: boolean;
+};
 
 function isMainMapQuery(queryKey: readonly unknown[]): boolean {
   return !isStationsQueryScope(queryKey.at(-1));
+}
+
+function useRejectedSearchText({ searchText, isRejected, isAccepted }: SearchTextAnswer): string | undefined {
+  const [lastRejectedSearchText, setLastRejectedSearchText] = useState<string>();
+
+  let rejectedSearchText = lastRejectedSearchText;
+  if (isRejected) rejectedSearchText = searchText;
+  else if (isAccepted || lastRejectedSearchText !== searchText) rejectedSearchText = undefined;
+
+  if (rejectedSearchText !== lastRejectedSearchText) setLastRejectedSearchText(rejectedSearchText);
+  return rejectedSearchText;
 }
 
 function MapViewInner() {
   useWakeLock();
   const { map, isLoaded } = useMap();
   useMapPositionPersistence({ map, isLoaded });
-  const { bounds, zoom, isMoving } = useMapBounds({ map, isLoaded });
+  const { bounds, bbox, zoom, isMoving } = useMapBounds({ map, isLoaded });
   const { preferences } = usePreferences();
   const { data: runtimeSettings } = useSettings();
-  const { data: session } = authClient.useSession();
-  const showAddToList = !!session?.user && !!runtimeSettings?.enableUserLists;
-  const [filters, setFiltersState] = useState<StationFilters>(() => loadMapFilters() ?? DEFAULT_FILTERS);
+  const { data: session } = useSettledSession();
+  const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
+  const [savedFilters, setSavedFilters] = useSavedMapFilters();
+  const { lookups } = useMapLookups();
+  const registerOnScreen = useRegisterOnScreen(bounds);
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapQuery, setMapQuery] = useState<string | undefined>(undefined);
-
-  const setFilters = useCallback((update: StationFilters | ((prev: StationFilters) => StationFilters)) => {
-    setFiltersState((prev) => {
-      const next = typeof update === "function" ? update(prev) : update;
-      saveMapFilters(next);
-      return next;
-    });
-  }, []);
 
   const terrainProfile = useTerrainProfileController({ map, isLoaded });
 
@@ -61,67 +78,92 @@ function MapViewInner() {
     return () => setTerrainProfileStartHandler(null);
   }, [setTerrainProfileStartHandler, terrainProfile.start]);
 
+  useMapMaxBounds(map);
+
+  const shownFilters = getEffectiveMapFilters(savedFilters, registerOnScreen);
   const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
-    detailsFilters: filters,
+    statusFilter: shownFilters.status,
   });
 
   useEffect(() => {
-    closePopups((location) => location.source !== filters.source);
-  }, [filters.source, closePopups]);
+    closePopups((location) => location.source !== shownFilters.source);
+  }, [shownFilters.source, closePopups]);
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
-  const effectiveMapQuery = filters.source === "internal" ? mapQuery : undefined;
+  const searchText = shownFilters.source === "internal" ? mapQuery : undefined;
+  const isSourceUndecided = isMapSourceUndecided(savedFilters, registerOnScreen);
   useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: MAP_QUERY_FAMILIES, isInScope: isMainMapQuery });
 
-  const { data: locationsResponse } = useQuery({
-    queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, effectiveMapQuery],
-    queryFn: ({ signal }) =>
-      fetchLocations(bounds, filters, preferences.mapStationsLimit, {
-        azimuths: wantAzimuths,
-        q: effectiveMapQuery,
-        signal,
-      }),
-    enabled: isLoaded && !!bounds && !isMoving,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60,
-    placeholderData: (prev) => prev,
+  const {
+    data: page,
+    error: listError,
+    isPlaceholderData: isPreviousPage,
+  } = useQuery({
+    ...mapLocationsQueryOptions({
+      bounds,
+      request: { filters: shownFilters, lookups, limit: preferences.mapStationsLimit, wantAzimuths, searchText },
+    }),
+    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided,
+    placeholderData: keepPreviousData,
+  });
+  const rejectedSearchText = useRejectedSearchText({
+    searchText,
+    isRejected: searchText !== undefined && isRejectedSearchQuery(listError),
+    isAccepted: page !== undefined && !isPreviousPage,
   });
 
-  const locations = useMemo(() => locationsResponse?.data ?? [], [locationsResponse]);
-  const locationsRef = useRef(locations);
-  useLayoutEffect(() => {
-    locationsRef.current = locations;
-  });
-  const locationCount = locations.length;
-  const totalCount = locationsResponse?.totalCount ?? 0;
+  const points = useMapPoints(page, lookups);
+  const mapCountries = useMapCountries({ bounds, points });
+  const locationCount = page?.locations.length ?? 0;
+  const totalCount = page?.total ?? 0;
 
   const { data: radioLinesResponse, isFetching: isRadioLinesFetching } = useQuery({
-    queryKey: ["radiolines", bounds, filters.radiolineOperators, filters.recentDays, preferences.mapRadiolinesLimit],
+    queryKey: ["radiolines", bounds, shownFilters.radiolineOperators, shownFilters.recentDays, preferences.mapRadiolinesLimit],
     queryFn: ({ signal }) =>
       fetchRadioLines(bounds, {
         signal,
-        operatorIds: filters.radiolineOperators,
+        operatorIds: shownFilters.radiolineOperators,
         limit: preferences.mapRadiolinesLimit,
-        recentDays: filters.recentDays,
+        recentDays: shownFilters.recentDays,
       }),
-    enabled: filters.showRadiolines && !!bounds && !isMoving && zoom >= preferences.radiolinesMinZoom,
+    enabled: shownFilters.showRadiolines && bounds !== "" && !isMoving && zoom >= preferences.radiolinesMinZoom,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
 
-  const radioLines = radioLinesResponse?.data ?? [];
-  const radioLineCount = radioLines.length;
-  const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
+  const radioLines = radioLinesResponse?.data ?? NO_RADIO_LINES;
+  const radioLineCount = shownFilters.showRadiolines ? radioLines.length : 0;
+  const radioLineTotalCount = shownFilters.showRadiolines ? (radioLinesResponse?.totalCount ?? 0) : 0;
+
+  const { openDetails: openStationDetails } = stationActions;
+  usePlannedMeasurementsLayer({
+    map,
+    isLoaded,
+    enabled: shownFilters.showPlannedMeasurements,
+    bbox,
+    isMoving,
+    operatorIds: shownFilters.operatorIds,
+    isPickingReceiver: terrainProfile.isPickingReceiver,
+    onOpenStation: (stationId) => openStationDetails(stationId, "internal"),
+  });
 
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const latestSearchPickRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      latestSearchPickRef.current += 1;
+    };
+  }, []);
 
   const handleLocationSelect = useCallback(
     (lat: number, lng: number) => {
+      latestSearchPickRef.current += 1;
       map?.flyTo({ center: [lng, lat], zoom: 15, essential: true, speed: 1.5 });
       setSelectedLocation({ lat, lng });
     },
@@ -130,74 +172,60 @@ function MapViewInner() {
 
   const showSelectedDot =
     selectedLocation !== null &&
-    !locations.some((loc) => Math.abs(loc.latitude - selectedLocation.lat) < 0.0001 && Math.abs(loc.longitude - selectedLocation.lng) < 0.0001);
+    !points.some(
+      (point) =>
+        Math.abs(point.latitude - selectedLocation.lat) < SELECTED_DOT_TOLERANCE &&
+        Math.abs(point.longitude - selectedLocation.lng) < SELECTED_DOT_TOLERANCE,
+    );
 
-  const filtersRef = useRef(filters);
+  const shownSourceRef = useRef(shownFilters.source);
   useLayoutEffect(() => {
-    filtersRef.current = filters;
-  });
+    shownSourceRef.current = shownFilters.source;
+  }, [shownFilters.source]);
 
   const handleStationSelect = useCallback(
-    async (station: SearchStation) => {
-      if (!map) return;
+    async (hit: StationSearchHit) => {
+      const hitLocation = hit.location;
+      if (!map || hitLocation === null) return;
 
-      const stationLocation = station.location;
-      if (!stationLocation) return;
-      const { latitude: lat, longitude: lng } = stationLocation;
+      const { latitude, longitude } = hitLocation;
+      const place = toSearchHitPlace(hitLocation);
 
-      map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.5 });
+      latestSearchPickRef.current += 1;
+      const searchPick = latestSearchPickRef.current;
+      map.flyTo({ center: [longitude, latitude], zoom: 16, essential: true, speed: 1.5 });
 
       await new Promise<void>((resolve) => map.once("moveend", () => resolve()));
 
-      const currentFilters = filtersRef.current;
-      if (currentFilters.source === "uke") {
-        const ukeLocations = locationsRef.current as unknown as UkeLocationWithPermits[];
-        const ukeLocation = ukeLocations.find((loc) => loc.latitude.toFixed(6) === lat.toFixed(6) && loc.longitude.toFixed(6) === lng.toFixed(6));
-        if (!ukeLocation) return;
-
-        const location: LocationInfo = {
-          id: ukeLocation.id,
-          city: ukeLocation.city ?? stationLocation.city ?? undefined,
-          address: ukeLocation.address ?? stationLocation.address ?? undefined,
-          region: ukeLocation.region?.name ?? stationLocation.region.name,
-          latitude: lat,
-          longitude: lng,
-        };
-        showPopup([lng, lat], location, null, attachUkeLocationToStations(ukeLocation.stations ?? [], ukeLocation), currentFilters.source);
-        return;
-      }
-
-      const locationInfo: LocationInfo = {
-        id: stationLocation.id,
-        city: stationLocation.city ?? undefined,
-        address: stationLocation.address ?? undefined,
-        region: stationLocation.region.name,
-        latitude: lat,
-        longitude: lng,
-      };
-      showPopup([lng, lat], locationInfo, null, null, currentFilters.source);
+      if (searchPick !== latestSearchPickRef.current || shownSourceRef.current !== "internal") return;
+      showPopup([longitude, latitude], place, null, null, "internal");
     },
     [map, showPopup],
   );
 
   const handleActiveMarkerClear = useCallback(() => setActiveMarker(null), []);
-  const handleToggleHeatmap = useCallback(() => setFilters((prev) => ({ ...prev, showHeatmap: !prev.showHeatmap })), [setFilters]);
+  const handleToggleHeatmap = useCallback(() => setSavedFilters((prev) => ({ ...prev, showHeatmap: !prev.showHeatmap })), [setSavedFilters]);
   const handleTogglePlannedMeasurements = useCallback(
-    () => setFilters((prev) => ({ ...prev, showPlannedMeasurements: !prev.showPlannedMeasurements })),
-    [setFilters],
+    () => setSavedFilters((prev) => ({ ...prev, showPlannedMeasurements: !prev.showPlannedMeasurements })),
+    [setSavedFilters],
   );
   const handleUkeStationSelectFromSearch = useCallback(
     async (station: UkeSearchPermitStation) => {
       if (!map || !station.location) return;
-      const { latitude: lat, longitude: lng } = station.location;
-      map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.5 });
+      const { latitude, longitude } = station.location;
+      latestSearchPickRef.current += 1;
+      const searchPick = latestSearchPickRef.current;
+      map.flyTo({ center: [longitude, latitude], zoom: 16, essential: true, speed: 1.5 });
       await new Promise<void>((resolve) => map.once("moveend", () => resolve()));
-      const location: LocationInfo = {
+      if (searchPick !== latestSearchPickRef.current || shownSourceRef.current !== "uke") return;
+
+      const place: MapPlace = {
         id: station.location.id,
-        city: station.location.city ?? undefined,
-        address: station.location.address ?? undefined,
-        latitude: lat,
-        longitude: lng,
+        city: station.location.city,
+        address: station.location.address,
+        regionName: null,
+        latitude,
+        longitude,
       };
       const popupStation: UkeStation = {
         id: station.id,
@@ -205,7 +233,7 @@ function MapViewInner() {
         operator: station.operator,
         permits: station.permits,
       };
-      showPopup([lng, lat], location, null, [popupStation], "uke");
+      showPopup([longitude, latitude], place, null, [popupStation], "uke");
     },
     [map, showPopup],
   );
@@ -223,25 +251,25 @@ function MapViewInner() {
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}
-        radioLineCount={filters.showRadiolines ? radioLineCount : 0}
-        radioLineTotalCount={filters.showRadiolines ? radioLineTotalCount : 0}
-        isRadioLinesFetching={filters.showRadiolines && isRadioLinesFetching}
-        filters={filters}
+        radioLineCount={radioLineCount}
+        radioLineTotalCount={radioLineTotalCount}
+        isRadioLinesFetching={shownFilters.showRadiolines && isRadioLinesFetching}
+        filters={shownFilters}
+        mapCountries={mapCountries}
         zoom={zoom}
         activeMarker={activeMarker}
         onActiveMarkerClear={handleActiveMarkerClear}
-        onFiltersChange={setFilters}
+        onFiltersChange={setSavedFilters}
         onLocationSelect={handleLocationSelect}
         onStationSelect={handleStationSelect}
         onUkeStationSelect={handleUkeStationSelectFromSearch}
         onRadiolineSelect={handleRadiolineSelectFromSearch}
-        showHeatmap={filters.showHeatmap}
         onToggleHeatmap={handleToggleHeatmap}
-        showPlannedMeasurements={filters.showPlannedMeasurements}
         onTogglePlannedMeasurements={handleTogglePlannedMeasurements}
         onFilterQueryChange={setMapQuery}
+        rejectedSearchText={rejectedSearchText}
       />
-      {showSelectedDot && selectedLocation && (
+      {showSelectedDot && selectedLocation ? (
         <MapMarker longitude={selectedLocation.lng} latitude={selectedLocation.lat}>
           <MarkerContent>
             <div className="relative flex items-center justify-center">
@@ -250,64 +278,37 @@ function MapViewInner() {
             </div>
           </MarkerContent>
         </MapMarker>
-      )}
+      ) : null}
       <StationsLayer
-        filters={filters}
-        onFiltersChange={setFilters}
-        locationsResponse={locationsResponse}
-        zoom={zoom}
+        filters={shownFilters}
+        savedFilters={savedFilters}
+        onFiltersChange={setSavedFilters}
+        points={points}
+        wantAzimuths={wantAzimuths}
+        isPickingReceiver={terrainProfile.isPickingReceiver}
         onActiveMarkerChange={setActiveMarker}
         stationActions={stationActions}
         popupActions={popupActions}
         onRadiolineIdFromUrl={setPendingRadiolineId}
         activePopupLocations={openLocations}
       />
-      {filters.showRadiolines || !!pendingRadiolineId ? (
+      {shownFilters.showRadiolines || pendingRadiolineId !== null ? (
         <Suspense fallback={null}>
           <RadioLinesLayer
             radioLines={radioLines}
             pendingRadiolineId={pendingRadiolineId}
             showAddToList={showAddToList}
+            isPickingReceiver={terrainProfile.isPickingReceiver}
             onPendingRadiolineConsumed={setPendingRadiolineId}
           />
         </Suspense>
       ) : null}
       <MapControls showLocate showCompass showScale showFullscreen />
-      {terrainProfile.isOpen && terrainProfile.receiver && (
-        <MapMarker
-          draggable
-          longitude={terrainProfile.receiver.longitude}
-          latitude={terrainProfile.receiver.latitude}
-          onDragEnd={terrainProfile.handleReceiverDragEnd}
-        >
-          <MarkerContent>
-            <div className="relative flex items-center justify-center">
-              <div className="absolute h-5 w-5 animate-ping rounded-full bg-sky-500/30" />
-              <div className="relative h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-500 shadow-md" />
-            </div>
-          </MarkerContent>
-        </MapMarker>
-      )}
-      {terrainProfile.isOpen && (
+      {terrainProfile.hasOpened ? (
         <Suspense fallback={null}>
-          <TerrainProfileSurface
-            analysis={terrainProfile.analysis}
-            station={terrainProfile.station}
-            receiver={terrainProfile.receiver}
-            antennaKey={terrainProfile.antennaKey}
-            isWorking={terrainProfile.isWorking}
-            isLocating={terrainProfile.isLocating}
-            gpsError={terrainProfile.gpsError}
-            error={terrainProfile.error}
-            onClose={terrainProfile.close}
-            onRetry={terrainProfile.retry}
-            onUseCurrentLocation={terrainProfile.useCurrentLocation}
-            onReceiverHeightChange={terrainProfile.setReceiverHeight}
-            onAntennaChange={terrainProfile.setAntenna}
-            onHoverSample={terrainProfile.setHoveredSample}
-          />
+          <TerrainProfileSurface panel={terrainProfile.panel} />
         </Suspense>
-      )}
+      ) : null}
     </>
   );
 }
@@ -320,7 +321,6 @@ export default function MapView() {
     <LibreMap
       center={saved?.center ?? POLAND_CENTER}
       zoom={saved?.zoom ?? 7}
-      maxBounds={POLAND_BOUNDS}
       minZoom={5}
       className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}
     >

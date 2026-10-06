@@ -8,7 +8,7 @@ type Namespace = keyof (typeof translations)["en-US"];
 
 function resolveLocale(locale: string | null | undefined): Locale {
   if (locale && locale in translations) return locale as Locale;
-  return "pl-PL";
+  return "en-US";
 }
 
 type NotificationNamespace = Exclude<Namespace, "labels">;

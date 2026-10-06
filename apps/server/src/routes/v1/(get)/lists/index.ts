@@ -6,11 +6,12 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { hasStaffPermission } from "../../../../features/access/staff.js";
+import { findForeignStationIds } from "../../../../features/countries/legacy.js";
 import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 
 const userListsSchema = createSelectSchema(userLists);
 const usersSchema = createSelectSchema(users).pick({ id: true, name: true, username: true, image: true });
@@ -92,7 +93,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const offset = (page - 1) * limit;
   const userId = req.userSession.user.id;
 
-  const isAdmin = await verifyPermissions(userId, { user_lists: ["read_all"] });
+  const isAdmin = await hasStaffPermission(req, { user_lists: ["read_all"] });
   const showAll = isAdmin && all;
 
   const whereClause = and(showAll ? undefined : eq(userLists.created_by, userId), search ? ilike(userLists.name, `%${search}%`) : undefined);
@@ -125,7 +126,9 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   ]);
 
   const totalCount = countResult[0]?.count ?? 0;
-  const listStations = rows.map((row) => (row.stations as ListStations) ?? { internal: [], uke: [] });
+  const storedStations = rows.map((row) => (row.stations as ListStations) ?? { internal: [], uke: [] });
+  const foreign = await findForeignStationIds(storedStations.flatMap((entry) => entry.internal));
+  const listStations = storedStations.map(({ internal, uke }) => ({ internal: internal.filter((id) => !foreign.has(id)), uke }));
   const [internalOperators, ukeOperators] = await Promise.all([
     selectInternalStationOperators([...new Set(listStations.flatMap((entry) => entry.internal))]),
     selectUkeStationOperators([...new Set(listStations.flatMap((entry) => entry.uke))]),

@@ -1,18 +1,21 @@
-import type { DescMessage } from "@bufbuild/protobuf";
-import { AUDIT_OPERATION_ID_HEADER, AUDIT_OPERATION_KIND_HEADER } from "@openbts/shared/audit";
-import type { ClientSettableAuditOperationKind } from "@openbts/shared/audit";
+import { AUDIT_OPERATION_ID_HEADER } from "@openbts/shared/audit";
 import i18next from "i18next";
 import { customAlphabet, nanoid } from "nanoid";
 import { toast } from "sonner";
 
 export const API_BASE = import.meta.env.VITE_API_URL || "https://openbts.sakilabs.com/api/v1";
+export const API_V2_BASE = API_BASE.replace(/\/v1\/?$/, "/v2");
 export const APP_NAME = import.meta.env.VITE_APP_NAME || "BTSearch";
+export const JSON_HEADERS = { "Content-Type": "application/json" };
+export const NOT_FOUND_STATUS = 404;
+export const CONFLICT_STATUS = 409;
 
 type ApiError = { code: string; message: string; details?: unknown[] };
 
+export type DataEnvelope<T> = { data: T };
+
 export type AuditOperationHandle = {
   id: string;
-  kind: ClientSettableAuditOperationKind;
 };
 
 type BackendSuccessListener = () => void;
@@ -30,10 +33,10 @@ export function subscribeToBackendSuccess(listener: BackendSuccessListener): () 
   return () => backendSuccessListeners.delete(listener);
 }
 
-export function createAuditOperationHandle(kind: ClientSettableAuditOperationKind): AuditOperationHandle {
+export function createAuditOperationHandle(): AuditOperationHandle {
   const hex = generateAuditOperationHex();
   const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-${generateAuditOperationVariant()}${hex.slice(15, 18)}-${hex.slice(18)}`;
-  return { id, kind };
+  return { id };
 }
 
 export class ApiResponseError extends Error {
@@ -57,9 +60,20 @@ export class BackendUnavailableError extends Error {
 }
 
 export class RateLimitError extends Error {
-  constructor() {
+  retryAfterSeconds: number | null;
+
+  constructor(retryAfterSeconds: number | null = null) {
     super("You have made too many requests. Please try again later.");
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+function readRetryAfterSeconds(response: Response): number | null {
+  const header = response.headers.get("X-Retry-After");
+  if (header === null || header.trim() === "") return null;
+
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds) : null;
 }
 
 export class QuotaExceededError extends Error {
@@ -83,21 +97,16 @@ export class DuplicateRequestError extends Error {
 type FetchOptions = RequestInit & {
   allowedErrors?: number[];
   auditOperation?: AuditOperationHandle;
-  proto?: DescMessage;
 };
 
 export async function fetchJson<T>(url: string, options?: FetchOptions): Promise<T> {
-  const { allowedErrors, auditOperation, proto, ...fetchOptions } = options ?? {};
-  const shouldUpdateHeaders = fetchOptions.method === "POST" || auditOperation !== undefined || proto !== undefined;
+  const { allowedErrors, auditOperation, ...fetchOptions } = options ?? {};
+  const shouldUpdateHeaders = fetchOptions.method === "POST" || auditOperation !== undefined;
 
   if (shouldUpdateHeaders) {
     const headers = new Headers(fetchOptions.headers);
     if (fetchOptions.method === "POST" && !headers.has("x-idempotency-key")) headers.set("x-idempotency-key", nanoid());
-    if (auditOperation !== undefined) {
-      headers.set(AUDIT_OPERATION_ID_HEADER, auditOperation.id);
-      headers.set(AUDIT_OPERATION_KIND_HEADER, auditOperation.kind);
-    }
-    if (proto !== undefined) headers.set("accept", "application/x-protobuf");
+    if (auditOperation !== undefined) headers.set(AUDIT_OPERATION_ID_HEADER, auditOperation.id);
     fetchOptions.headers = headers;
   }
 
@@ -132,7 +141,7 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
       } catch (e) {
         if (e instanceof QuotaExceededError) throw e;
       }
-      throw new RateLimitError();
+      throw new RateLimitError(readRetryAfterSeconds(response));
     }
 
     if (response.status === 502 || response.status === 503 || response.status === 504) {
@@ -160,16 +169,6 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
     throw new Error(`Request failed: ${response.status}`);
   }
 
-  if (proto !== undefined && response.headers.get("content-type") === "application/x-protobuf") {
-    const [buffer, { fromBinary, toJson }] = await Promise.all([response.arrayBuffer(), import("@bufbuild/protobuf")]);
-    const result = toJson(proto, fromBinary(proto, new Uint8Array(buffer)), {
-      useProtoFieldName: true,
-      emitDefaultValues: true,
-    }) as T;
-    notifyBackendSuccess();
-    return result;
-  }
-
   if (response.status === 204) {
     notifyBackendSuccess();
     return undefined as unknown as T;
@@ -181,12 +180,17 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
 }
 
 export async function fetchApiData<T>(endpoint: string, options?: FetchOptions): Promise<T> {
-  const result = await fetchJson<{ data: T }>(`${API_BASE}/${endpoint}`, options);
+  const result = await fetchJson<DataEnvelope<T>>(`${API_BASE}/${endpoint}`, options);
   return result?.data ?? (null as unknown as T);
 }
 
+export async function fetchV2Data<T>(path: string, options?: FetchOptions): Promise<T> {
+  const response = await fetchJson<DataEnvelope<T>>(`${API_V2_BASE}/${path}`, options);
+  return response.data;
+}
+
 export async function postApiData<T, B = unknown>(endpoint: string, body: B, idempotencyKey?: string): Promise<T> {
-  const result = await fetchJson<{ data: T }>(`${API_BASE}/${endpoint}`, {
+  const result = await fetchJson<DataEnvelope<T>>(`${API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -195,6 +199,27 @@ export async function postApiData<T, B = unknown>(endpoint: string, body: B, ide
     body: JSON.stringify(body),
   });
   return result.data;
+}
+
+export function appendList(params: URLSearchParams, key: string, values: readonly (string | number)[] | undefined): void {
+  if (values !== undefined && values.length > 0) params.set(key, values.join(","));
+}
+
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiResponseError && error.status === NOT_FOUND_STATUS;
+}
+
+export function isConflict(error: unknown): boolean {
+  return error instanceof ApiResponseError && error.status === CONFLICT_STATUS;
+}
+
+export function readValidationMessages(details: readonly unknown[] | undefined): string[] {
+  const messages: string[] = [];
+  for (const detail of details ?? []) {
+    if (typeof detail !== "object" || detail === null || !("validationMessage" in detail)) continue;
+    if (typeof detail.validationMessage === "string") messages.push(detail.validationMessage);
+  }
+  return messages;
 }
 
 export function isGloballyHandledError(error: unknown): boolean {

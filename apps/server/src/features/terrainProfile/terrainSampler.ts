@@ -13,6 +13,7 @@ const NMPT_COVERAGE = "DSM_PL-EVRF2007-NH";
 const WCS_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.TERRAIN_WCS_CONCURRENCY) || 2));
 const TARGET_RESOLUTION_M = Math.max(2, Math.min(50, Number(process.env.TERRAIN_PROFILE_RESOLUTION_M) || 10));
 const MAX_SAMPLES = 401;
+const MIN_SAMPLES = 5;
 const MIN_CHUNK_SPAN_M = 1_000;
 const MAX_CHUNK_SPAN_M = 4_000;
 const MAX_COVERAGE_AREA_M2 = 2_000_000;
@@ -42,10 +43,11 @@ async function withWcsSlot<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-async function fetchText(url: string, maxBytes: number, options: { timeoutMs: number }): Promise<string> {
+async function fetchText(url: string, maxBytes: number, options: { timeoutMs: number; signal?: AbortSignal }): Promise<string> {
+  const timeout = AbortSignal.timeout(options.timeoutMs);
   const response = await fetch(url, {
     headers: { Accept: "text/plain,*/*" },
-    signal: AbortSignal.timeout(options.timeoutMs),
+    signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
   });
   if (!response.ok) throw new Error(`WCS request failed: ${response.status} ${response.statusText}`);
   const buffer = await response.arrayBuffer();
@@ -84,7 +86,7 @@ function interpolatePoints(
   receiver: TerrainProfileRequest["receiver"],
 ): { points: SamplePoint[]; effectiveResolutionM: number } {
   const distanceM = Math.hypot(end.x - start.x, end.y - start.y);
-  const sampleCount = Math.min(MAX_SAMPLES, Math.max(2, Math.ceil(distanceM / TARGET_RESOLUTION_M) + 1));
+  const sampleCount = Math.min(MAX_SAMPLES, Math.max(MIN_SAMPLES, Math.ceil(distanceM / TARGET_RESOLUTION_M) + 1));
   const effectiveResolutionM = distanceM / (sampleCount - 1);
   const points = Array.from({ length: sampleCount }, (_, index) => {
     const ratio = index / (sampleCount - 1);
@@ -119,7 +121,7 @@ function splitIntoChunks(points: SamplePoint[], effectiveResolutionM: number): S
   return chunks;
 }
 
-async function fetchCoverage(url: string, coverage: string, points: SamplePoint[], resolutionM: number): Promise<AaiGrid> {
+async function fetchCoverage(url: string, coverage: string, points: SamplePoint[], resolutionM: number, signal?: AbortSignal): Promise<AaiGrid> {
   const padding = Math.max(resolutionM * 2, 10);
   const minX = Math.min(...points.map((point) => point.x)) - padding;
   const maxX = Math.max(...points.map((point) => point.x)) + padding;
@@ -140,17 +142,25 @@ async function fetchCoverage(url: string, coverage: string, points: SamplePoint[
   });
 
   return withWcsSlot(async () => {
-    const text = await fetchText(`${url}?${params.toString()}`, MAX_COVERAGE_BYTES, { timeoutMs: TERRAIN_UPSTREAM_TIMEOUT_MS });
+    signal?.throwIfAborted();
+    const text = await fetchText(`${url}?${params.toString()}`, MAX_COVERAGE_BYTES, { timeoutMs: TERRAIN_UPSTREAM_TIMEOUT_MS, signal });
     return parseAaiGrid(text);
   });
 }
 
-async function fetchCoverageOrNull(url: string, coverage: string, points: SamplePoint[], resolutionM: number): Promise<AaiGrid | null> {
+async function fetchCoverageOrNull(
+  url: string,
+  coverage: string,
+  points: SamplePoint[],
+  resolutionM: number,
+  signal?: AbortSignal,
+): Promise<AaiGrid | null> {
   for (let attempt = 0; attempt < WCS_MAX_ATTEMPTS; attempt++) {
     try {
       // oxlint-disable-next-line no-await-in-loop -- retries are intentionally sequential
-      return await fetchCoverage(url, coverage, points, resolutionM);
+      return await fetchCoverage(url, coverage, points, resolutionM, signal);
     } catch (error) {
+      if (signal?.aborted) return null;
       const message = error instanceof Error ? error.message : String(error);
       const isTimeout = message.includes("timed out") || message.includes("closed unexpectedly") || message.includes("abort");
       if (!isTimeout || attempt === WCS_MAX_ATTEMPTS - 1) return null;
@@ -166,7 +176,11 @@ function modelStatus(values: (number | null)[]): "available" | "partial" | "unav
   return "available";
 }
 
-async function sampleUncached(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"]): Promise<TerrainSampleResult> {
+async function sampleUncached(
+  station: ResolvedTerrainStation,
+  receiver: TerrainProfileRequest["receiver"],
+  signal?: AbortSignal,
+): Promise<TerrainSampleResult> {
   const [start, end] = await Promise.all([projectPoint(station.latitude, station.longitude), projectPoint(receiver.latitude, receiver.longitude)]);
   const { points, effectiveResolutionM } = interpolatePoints(start, end, station, receiver);
   const chunks = splitIntoChunks(points, effectiveResolutionM);
@@ -176,8 +190,8 @@ async function sampleUncached(station: ResolvedTerrainStation, receiver: Terrain
   await Promise.all(
     chunks.map(async (chunk) => {
       const [terrainGrid, surfaceGrid] = await Promise.all([
-        fetchCoverageOrNull(NMT_WCS_URL, NMT_COVERAGE, chunk, effectiveResolutionM),
-        fetchCoverageOrNull(NMPT_WCS_URL, NMPT_COVERAGE, chunk, effectiveResolutionM),
+        fetchCoverageOrNull(NMT_WCS_URL, NMT_COVERAGE, chunk, effectiveResolutionM, signal),
+        fetchCoverageOrNull(NMPT_WCS_URL, NMPT_COVERAGE, chunk, effectiveResolutionM, signal),
       ]);
       for (const point of chunk) {
         const terrainValue = terrainGrid ? sampleGrid(terrainGrid, point) : null;
@@ -206,23 +220,23 @@ async function sampleUncached(station: ResolvedTerrainStation, receiver: Terrain
 }
 
 export interface TerrainSampler {
-  samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"]): Promise<TerrainSampleResult>;
+  samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<TerrainSampleResult>;
 }
 
 export class GeoportalTerrainSampler implements TerrainSampler {
-  async samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"]): Promise<TerrainSampleResult> {
+  async samplePath(station: ResolvedTerrainStation, receiver: TerrainProfileRequest["receiver"], signal?: AbortSignal): Promise<TerrainSampleResult> {
     const fingerprint = [station.latitude, station.longitude, receiver.latitude, receiver.longitude].map((value) => value.toFixed(5)).join(":");
     const cacheId = createHash("sha256").update(`${fingerprint}:${TARGET_RESOLUTION_M}`).digest("hex").slice(0, 32);
     const result = await withRedisStaleCache(
-      `terrain:gugik:v2:${cacheId}`,
+      `terrain:gugik:v3:${cacheId}`,
       {
         freshTtlSeconds: 86400,
         staleTtlSeconds: 7 * 86400,
         lockTtlSeconds: WCS_CACHE_LOCK_TTL_SECONDS,
         lockWaitDeadlineMs: WCS_CACHE_LOCK_TTL_SECONDS * 1_000,
-        shouldCache: (value) => value.terrainStatus !== "unavailable",
+        shouldCache: (value) => value.terrainStatus !== "unavailable" && !signal?.aborted,
       },
-      () => sampleUncached(station, receiver),
+      () => sampleUncached(station, receiver, signal),
     );
     return { ...result.value, fromCache: result.fromCache, stale: result.stale };
   }

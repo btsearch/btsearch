@@ -1,174 +1,70 @@
-import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import type { Submission } from "@openbts/shared/contract";
 import { useTranslation } from "react-i18next";
 
-import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { QueueNav } from "./queueNav";
+import type { BrandLook } from "@/components/cellular/brandMark";
+import { Badge } from "@/components/ui/badge";
+import { toV1SubmissionStatus, toV1SubmissionType } from "@/features/admin/submissions/api";
+import type { StationRecord } from "@/features/station-details/station/types";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { useNavActionTarget } from "@/contexts/navActions";
-import {
-  DetailHeader,
-  DetailHeaderId,
-  DetailHeaderLocation,
-  DetailHeaderSeparator,
-  DetailHeaderStationActions,
-  DetailHeaderTimestamp,
-} from "@/features/admin/components/detailHeader";
-import type { SubmissionDetail } from "@/features/admin/submissions/types";
+  EditPageHead,
+  EditPageHeadId,
+  EditPageHeadLocation,
+  EditPageHeadSeparator,
+  EditPageHeadStationLinks,
+  EditPageHeadTimestamp,
+} from "@/features/station-editing/components/frame/editPageHead";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
-import { cn } from "@/lib/utils";
-import type { Operator, Station } from "@/types/station";
 
 type SubmissionDetailHeaderProps = {
-  submission: SubmissionDetail;
-  currentStation: Station | null;
-  operator: Operator | null;
-  isReadOnly: boolean;
-  isProcessing: boolean;
-  hasUnsavedChanges: boolean;
-  onApprove: () => void;
-  onReject: () => void;
-  onSave: () => void;
+  submission: Submission;
+  station: StationRecord | null;
+  operator: { name: string; brand: BrandLook | null } | null;
 };
 
-export function SubmissionDetailHeader({
-  submission,
-  currentStation,
-  operator,
-  isReadOnly,
-  isProcessing,
-  hasUnsavedChanges,
-  onApprove,
-  onReject,
-  onSave,
-}: SubmissionDetailHeaderProps) {
+const SHORT_ID_LENGTH = 8;
+
+export function SubmissionDetailHeader({ submission, station, operator }: SubmissionDetailHeaderProps) {
   const { t } = useTranslation(["submissions", "common"]);
-  const navActionTarget = useNavActionTarget();
-  const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
-  const isHeaderActionTarget = !!navActionTarget && !isFloatingActionTarget;
-
-  const city = currentStation ? currentStation.location.city : submission.proposedLocation?.city;
-  const address = currentStation ? currentStation.extra_address || currentStation.location.address : submission.proposedLocation?.address;
-
-  const actionBar = (
-    <div className="flex items-center gap-1">
-      {isReadOnly ? (
-        <div className="px-3 text-sm font-medium text-muted-foreground">{t("detail.readOnly")}</div>
-      ) : (
-        <>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isProcessing}
-                  className={cn(
-                    "text-destructive hover:text-destructive hover:bg-destructive/10",
-                    isFloatingActionTarget && "max-md:bg-background max-md:dark:bg-background",
-                  )}
-                />
-              }
-            >
-              {isHeaderActionTarget ? <HugeiconsIcon icon={Cancel01Icon} className="size-3.5 md:hidden" /> : null}
-              <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("header.reject")}</span>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("rejectApproveCard.confirmReject")}</AlertDialogTitle>
-                <AlertDialogDescription>{t("rejectApproveCard.confirmRejectDesc")}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={onReject} disabled={isProcessing}>
-                  {t("header.reject")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button variant="default" size="sm" disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" />
-              }
-            >
-              {isHeaderActionTarget ? <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 md:hidden" /> : null}
-              <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("header.approve")}</span>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("rejectApproveCard.confirmApprove")}</AlertDialogTitle>
-                <AlertDialogDescription>{t("rejectApproveCard.confirmApproveDesc")}</AlertDialogDescription>
-              </AlertDialogHeader>
-              {hasUnsavedChanges ? (
-                <Alert className="border-yellow-600/30 bg-yellow-300/15 text-yellow-800 dark:border-yellow-400/30 dark:bg-yellow-400/12 dark:text-yellow-300">
-                  <HugeiconsIcon icon={Alert02Icon} aria-hidden="true" />
-                  <AlertDescription className="text-current">{t("rejectApproveCard.confirmApproveUnsaved")}</AlertDescription>
-                </Alert>
-              ) : null}
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common:actions.cancel")}</AlertDialogCancel>
-                <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onApprove} disabled={isProcessing}>
-                  {t("header.approve")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button size="sm" onClick={onSave} disabled={isProcessing} className="shadow-sm font-medium">
-            {isProcessing ? (
-              <Spinner />
-            ) : (
-              <>
-                {isHeaderActionTarget ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5 md:hidden" /> : null}
-                <span className={cn(isHeaderActionTarget && "max-md:sr-only")}>{t("common:actions.saveChanges")}</span>
-              </>
-            )}
-          </Button>
-        </>
-      )}
-    </div>
-  );
+  const status = toV1SubmissionStatus(submission.status);
+  const place = station?.location ?? null;
+  const proposedPlace = submission.changes.location;
+  const city = place === null ? proposedPlace?.city : place.city;
+  const address = place === null ? proposedPlace?.address : place.address;
 
   return (
-    <DetailHeader
-      actionBar={actionBar}
+    <EditPageHead
       operator={operator}
-      stationCode={submission.station?.station_id || submission.proposedStation?.station_id}
+      siteId={station?.siteId ?? submission.changes.station?.siteId}
       badges={
         <>
-          <SubmissionTypeBadge type={submission.type} />
-          <SubmissionStatusBadge status={submission.status} />
+          <SubmissionTypeBadge type={toV1SubmissionType(submission.action)} />
+          {submission.origin === "analyzer" ? (
+            <Badge variant="outline" className="h-6 rounded-md px-2 text-xs font-medium text-muted-foreground">
+              {t("review.origin.analyzer")}
+            </Badge>
+          ) : null}
+          <SubmissionStatusBadge status={status} />
         </>
       }
-      compactBadges={<SubmissionStatusBadge status={submission.status} compact />}
-      subtitle={city || address ? <DetailHeaderLocation locationId={currentStation?.location.id} city={city} address={address} /> : null}
+      compactBadges={<SubmissionStatusBadge status={status} compact />}
+      subtitle={city || address ? <EditPageHeadLocation locationId={place?.id} city={city} address={address} /> : null}
       meta={
         <>
-          <DetailHeaderTimestamp label={t("common:labels.submitted")} value={submission.createdAt} />
-          {submission.reviewed_at ? (
+          <EditPageHeadTimestamp label={t("common:labels.submitted")} value={submission.createdAt} />
+          {submission.reviewedAt === null ? null : (
             <>
-              <DetailHeaderSeparator />
-              <DetailHeaderTimestamp label={t("common:labels.reviewed")} value={submission.reviewed_at} />
+              <EditPageHeadSeparator />
+              <EditPageHeadTimestamp label={t("common:labels.reviewed")} value={submission.reviewedAt} />
             </>
-          ) : null}
-          <DetailHeaderSeparator />
-          <DetailHeaderId value={submission.id} displayValue={submission.id.slice(0, 8)} />
+          )}
+          <EditPageHeadSeparator />
+          <EditPageHeadId value={submission.id} displayValue={submission.id.slice(0, SHORT_ID_LENGTH)} />
         </>
       }
-      actions={currentStation ? <DetailHeaderStationActions station={currentStation} /> : null}
+      links={station === null ? null : <EditPageHeadStationLinks stationId={station.id} place={station.location} />}
+      queue={<QueueNav submission={submission} />}
     />
   );
 }

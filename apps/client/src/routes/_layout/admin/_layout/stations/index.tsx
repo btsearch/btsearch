@@ -1,40 +1,21 @@
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
-import { StationsListLayout } from "@/features/stations/components/stationsFilterLayout";
-import { useStationsData } from "@/features/stations/hooks/useStationsData";
-import type { Station } from "@/types/station";
+import { StationsListPage } from "@/features/stations/list/components/stationsListPage";
+import { type StationsListSearch, parseAdminStationsListSearch } from "@/features/stations/list/data/stationsListSearch";
 
 function AdminStationsListPage() {
-  const { t } = useTranslation("stations");
   const navigate = useNavigate();
-  const data = useStationsData();
-  const handleRowClick = useCallback(
-    (station: Station) => navigate({ to: "/admin/stations/$id", params: { id: String(station.id) }, search: { uke: undefined } }),
-    [navigate],
-  );
-  const getRowHref = useCallback((station: Station) => `/admin/stations/${station.id}`, []);
+  const search = Route.useSearch();
 
-  return (
-    <StationsListLayout
-      data={data}
-      onRowClick={handleRowClick}
-      getRowHref={getRowHref}
-      headerActions={
-        <Button size="sm" onClick={() => navigate({ to: "/admin/stations/$id", params: { id: "new" }, search: { uke: undefined } })}>
-          <HugeiconsIcon icon={Add01Icon} className="size-4 sm:mr-0.5" />
-          <span className="hidden sm:inline">{t("actions.newStation")}</span>
-        </Button>
-      }
-    />
-  );
+  function replaceSearch(nextSearch: StationsListSearch) {
+    void navigate({ from: Route.fullPath, search: nextSearch, replace: true });
+  }
+
+  return <StationsListPage variant="admin" search={search} onSearchChange={replaceSearch} />;
 }
 
 export const Route = createFileRoute("/_layout/admin/_layout/stations/")({
+  validateSearch: parseAdminStationsListSearch,
   component: AdminStationsListPage,
   staticData: {
     titleKey: "items.stations",

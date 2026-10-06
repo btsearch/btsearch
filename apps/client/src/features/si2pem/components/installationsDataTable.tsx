@@ -1,8 +1,8 @@
 import { FileChartLineIcon, FileEditIcon } from "@hugeicons/core-free-icons";
+import type { EmfFiling } from "@openbts/shared/contract";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 
-import type { PEMInstallation } from "../api";
 import { PEMRecordSummary } from "./measurementSummary";
 import {
   type PEMDataTableProps,
@@ -14,26 +14,22 @@ import {
   PEMStationCell,
   getPEMRowContext,
 } from "./pemDataTable";
-import { formatFullDate, formatShortDate } from "@/lib/format";
+import { formatFullDate, formatShortDate, formatShortUtcDate } from "@/lib/format";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
 
-function getInstallationKey(installation: PEMInstallation) {
+function getInstallationKey(installation: EmfFiling) {
   return [
-    installation.station_id,
-    installation.entity,
-    installation.published_at,
-    installation.reference_no,
-    installation.installation_file,
-    installation.report_file,
+    installation.siteId,
+    installation.filerName,
+    installation.publishedAt,
+    installation.referenceNumber,
+    installation.installationDocumentUrl,
+    installation.reportUrl,
   ].join(":");
 }
 
-function formatRegistrationDate(date: string, locale: string) {
-  return new Date(date).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
-}
-
 type InstallationProps = {
-  installation: PEMInstallation;
+  installation: EmfFiling;
   t: TFunction;
 };
 
@@ -41,8 +37,8 @@ function InstallationDocuments({ installation, t }: InstallationProps) {
   const context = getPEMRowContext(installation, t);
   return (
     <>
-      <PEMDocumentLink href={installation.installation_file} label={t("table.installationForm")} context={context} icon={FileEditIcon} />
-      <PEMDocumentLink href={installation.report_file} label={t("table.measurementReport")} context={context} icon={FileChartLineIcon} />
+      <PEMDocumentLink href={installation.installationDocumentUrl} label={t("table.installationForm")} context={context} icon={FileEditIcon} />
+      <PEMDocumentLink href={installation.reportUrl} label={t("table.measurementReport")} context={context} icon={FileChartLineIcon} />
     </>
   );
 }
@@ -50,12 +46,12 @@ function InstallationDocuments({ installation, t }: InstallationProps) {
 function InstallationDates({ installation, t, locale }: InstallationProps & { locale: string }) {
   return (
     <div className="flex min-w-0 flex-col">
-      <time dateTime={installation.published_at} title={formatFullDate(installation.published_at, locale)} className="text-sm tabular-nums">
-        {formatShortDate(installation.published_at, locale)}
+      <time dateTime={installation.publishedAt} title={formatFullDate(installation.publishedAt, locale)} className="text-sm tabular-nums">
+        {formatShortDate(installation.publishedAt, locale)}
       </time>
-      {installation.registration_date ? (
+      {installation.registeredOn ? (
         <span className="truncate text-xs text-muted-foreground tabular-nums">
-          {t("installations.registeredOn", { date: formatRegistrationDate(installation.registration_date, locale) })}
+          {t("installations.registeredOn", { date: formatShortUtcDate(installation.registeredOn, locale) })}
         </span>
       ) : null}
     </div>
@@ -71,7 +67,7 @@ type MobileRowProps = InstallationProps & {
 function InstallationMobileRow({ installation, locale, t, tCommon, onOpenStation }: MobileRowProps) {
   return (
     <PEMRecordSummary
-      stationId={installation.station_id}
+      siteId={installation.siteId}
       operator={installation.operator}
       city={installation.location.city || t("table.unknownCity")}
       regionName={installation.region?.name}
@@ -81,13 +77,13 @@ function InstallationMobileRow({ installation, locale, t, tCommon, onOpenStation
       footer={
         <div className="mt-2 flex min-w-0 items-center justify-between gap-3 text-xs text-muted-foreground">
           <div className="flex min-w-0 items-center gap-1.5">
-            <time dateTime={installation.published_at} className="shrink-0 tabular-nums">
-              {formatShortDate(installation.published_at, locale)}
+            <time dateTime={installation.publishedAt} className="shrink-0 tabular-nums">
+              {formatShortDate(installation.publishedAt, locale)}
             </time>
-            {installation.reference_no ? (
+            {installation.referenceNumber ? (
               <>
                 <span aria-hidden="true">·</span>
-                <span className="truncate font-mono">{installation.reference_no}</span>
+                <span className="truncate font-mono">{installation.referenceNumber}</span>
               </>
             ) : null}
           </div>
@@ -100,8 +96,8 @@ function InstallationMobileRow({ installation, locale, t, tCommon, onOpenStation
   );
 }
 
-export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...props }: PEMDataTableProps<PEMInstallation>) {
-  const columns: ColumnDef<AppTableFeatures, PEMInstallation>[] = [
+export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...props }: PEMDataTableProps<EmfFiling>) {
+  const columns: ColumnDef<AppTableFeatures, EmfFiling>[] = [
     {
       id: "publishedAt",
       header: t("installations.publishedAt"),
@@ -114,9 +110,9 @@ export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...p
       size: 250,
       cell: ({ row }) => (
         <PEMStationCell
-          stationId={row.original.station_id}
+          siteId={row.original.siteId}
           operator={row.original.operator}
-          subtitle={row.original.station_name ?? (row.original.operator ? null : row.original.entity)}
+          subtitle={row.original.siteName ?? (row.original.operator ? null : row.original.filerName)}
         />
       ),
     },
@@ -134,7 +130,7 @@ export function InstallationsDataTable({ t, tCommon, locale, onOpenStation, ...p
       ),
     },
     {
-      accessorKey: "reference_no",
+      accessorKey: "referenceNumber",
       header: t("installations.referenceNo"),
       size: 200,
       cell: ({ getValue }) => {

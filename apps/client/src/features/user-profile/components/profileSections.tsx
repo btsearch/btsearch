@@ -29,7 +29,7 @@ import {
   SettingsSection,
 } from "@/features/settings/components/settingsPrimitives";
 import { useCopyText } from "@/features/settings/copyText";
-import { regionsQueryOptions } from "@/features/shared/queries";
+import { regionsQueryOptions } from "@/features/shared/lookups";
 import { cn } from "@/lib/utils";
 
 export const PROFILE_SECTION_IDS = {

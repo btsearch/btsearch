@@ -1,34 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchStationWatch, unwatchStation, watchStation } from "../api";
+import { fetchIsUkeStationWatched, unwatchUkeStation, watchUkeStation } from "../api";
+import { fetchIsStationWatched, stationWatchKeys, unwatchStation, watchStation } from "../station/watch/api";
 import { showApiError } from "@/lib/api";
+import type { StationSource } from "@/types/station";
 
-const stationWatchKey = (source: "internal" | "uke", stationId: number) => ["station-watch", source, stationId] as const;
+function getStationWatchKey(source: StationSource, stationId: number) {
+  return source === "internal" ? stationWatchKeys.status(stationId) : (["station-watch", source, stationId] as const);
+}
 
-export function useStationWatch(stationId: number, source: "internal" | "uke" = "internal", enabled = true) {
+function fetchIsWatched(source: StationSource, stationId: number, signal: AbortSignal): Promise<boolean> {
+  return source === "internal" ? fetchIsStationWatched(stationId, signal) : fetchIsUkeStationWatched(stationId);
+}
+
+function saveWatch(source: StationSource, stationId: number, watched: boolean): Promise<void> {
+  if (source === "internal") return watched ? watchStation(stationId) : unwatchStation(stationId);
+  return watched ? watchUkeStation(stationId) : unwatchUkeStation(stationId);
+}
+
+export function useStationWatch(stationId: number, source: StationSource = "internal", enabled = true) {
   const queryClient = useQueryClient();
-  const queryKey = stationWatchKey(source, stationId);
 
   const statusQuery = useQuery({
-    queryKey,
-    queryFn: () => fetchStationWatch(stationId, source).then((status) => status.watched),
+    queryKey: getStationWatchKey(source, stationId),
+    queryFn: ({ signal }) => fetchIsWatched(source, stationId, signal),
     enabled,
   });
 
   const mutation = useMutation({
-    mutationFn: (watched: boolean) => (watched ? watchStation(stationId, source) : unwatchStation(stationId, source)),
+    mutationKey: getStationWatchKey(source, stationId),
+    mutationFn: (watched: boolean) => saveWatch(source, stationId, watched),
     onMutate: async (watched) => {
+      const queryKey = getStationWatchKey(source, stationId);
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<boolean>(queryKey);
       queryClient.setQueryData(queryKey, watched);
       return { previous, queryKey };
     },
     onError: (error, watched, context) => {
-      queryClient.setQueryData(context?.queryKey ?? queryKey, context?.previous ?? !watched);
+      queryClient.setQueryData(context?.queryKey ?? getStationWatchKey(source, stationId), context?.previous ?? !watched);
       showApiError(error);
     },
     onSettled: (_data, _error, _watched, context) => {
-      void queryClient.invalidateQueries({ queryKey: context?.queryKey ?? queryKey });
+      void queryClient.invalidateQueries({ queryKey: context?.queryKey ?? getStationWatchKey(source, stationId) });
     },
   });
 

@@ -1,129 +1,77 @@
-import { ArrowUpRight01Icon, Radar01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Fragment, useId, useMemo } from "react";
+import { type ReactNode, type Ref, useId, useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { fetchSI2PEMAntennas } from "../api";
-import type { PemReport, SI2PEMAntenna } from "../api";
+import { AntennaReportBar } from "../station/emf/antennas/antennaReportBar";
+import { AntennaReportContent } from "../station/emf/antennas/antennaReportContent";
+import { AntennaComparisonNotice, AntennaEmpty, AntennaFailure, AntennaLoading } from "../station/emf/antennas/antennaStates";
+import { useAntennaReportChoice } from "../station/emf/antennas/useAntennaReportChoice";
+import { emfAntennasQueryOptions } from "../station/emf/api";
+import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
+import { getLocationLabel } from "../station/utils/stations";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { SI2PEMLogo } from "./si2pemLogo";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CloseButton } from "@/components/ui/close-button";
-import { ErrorState } from "@/components/ui/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { FloatingDialogPanelFrameProps } from "@/features/floating-dialogs/types";
+import { useFloatingDialogFocus } from "@/features/floating-dialogs/hooks/useFloatingDialogFocus";
+import type { FloatingDialogPanelFrameProps, SI2PEMReportDialogPayload } from "@/features/floating-dialogs/types";
+import { useIsMobile } from "@/hooks/useMobile";
 import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
-type SI2PEMAntennaDialogPanelProps = FloatingDialogPanelFrameProps & {
-  report: PemReport;
-  latitude: number;
-  longitude: number;
-  operatorName: string;
-  operatorMnc?: number | null;
-};
+type SI2PEMAntennaDialogPanelProps = FloatingDialogPanelFrameProps & SI2PEMReportDialogPayload;
 
-function SI2PEMAntennaList({ antennas }: { antennas: SI2PEMAntenna[] }) {
-  const { t, i18n } = useTranslation("stationDetails");
-  const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }), [i18n.language]);
+type AntennaDialogHeaderProps = Pick<SI2PEMReportDialogPayload, "siteId" | "operatorName" | "operatorMnc" | "place"> &
+  Pick<FloatingDialogPanelFrameProps, "onClose" | "headerDragProps"> & {
+    titleId: string;
+    tintColor: string;
+    closeButtonRef: Ref<HTMLButtonElement>;
+  };
 
-  function formatNumber(value: number | null, unit = ""): string {
-    return value === null ? "-" : `${numberFormatter.format(value)}${unit}`;
-  }
-
-  function formatTiltRange(range: SI2PEMAntenna["bands"][number]["tiltRange"]): string {
-    return range === null ? "-" : `${numberFormatter.format(range.minimum)}-${numberFormatter.format(range.maximum)}°`;
-  }
-
-  return (
-    <div className="divide-y divide-border/60">
-      {antennas.map((item, antennaIndex) => {
-        const antennaKey = `${item.pageNumber}:${item.rowNumber ?? "prose"}:${antennaIndex}`;
-        const summary = [
-          [t("common:labels.azimuth"), formatNumber(item.antenna.azimuth, "°")],
-          [t("common:labels.height"), formatNumber(item.antenna.mountedHeight, " m")],
-          ["EIRP", formatNumber(item.totalEirp, " W")],
-        ];
-
-        return (
-          <section key={antennaKey} className="py-2.5 first:pt-1 last:pb-1" aria-labelledby={`${antennaKey}-title`}>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <Badge variant="secondary" aria-hidden="true" className="h-5 min-w-6 justify-center px-1 py-0 text-[10px] font-semibold tabular-nums">
-                {antennaIndex + 1}
-              </Badge>
-              <h3 id={`${antennaKey}-title`} className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-                <span className="sr-only">{t("si2pemAntennaData.antennaNumber", { number: antennaIndex + 1 })} · </span>
-                {item.antenna.model ?? t("si2pemAntennaData.unknownModel")}
-                {item.antenna.manufacturer ? <span className="font-normal text-muted-foreground"> · {item.antenna.manufacturer}</span> : null}
-              </h3>
-              <p className="w-full text-xs text-muted-foreground tabular-nums sm:ml-auto sm:w-auto">
-                {summary.map(([label, value], index) => (
-                  <span key={label}>
-                    {index > 0 ? <span className="mx-1.5 text-muted-foreground/50">·</span> : null}
-                    {label} <span className="font-medium text-foreground">{value}</span>
-                  </span>
-                ))}
-              </p>
-            </div>
-            <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-4 gap-y-1 rounded-lg bg-muted/30 px-2.5 py-1.5 text-sm tabular-nums">
-              {item.bands.map((band, bandIndex) => (
-                <Fragment key={`${band.label ?? band.value}:${bandIndex}`}>
-                  <span className="truncate font-mono font-medium text-foreground">{`${numberFormatter.format(band.value)} MHz`}</span>
-                  <span className="text-right">
-                    <span className="text-xs text-muted-foreground">{t("si2pemAntennaData.fields.tiltRange")} </span>
-                    <span className="font-medium">{formatTiltRange(band.tiltRange)}</span>
-                  </span>
-                  <span className="text-right">
-                    <span className="text-xs text-muted-foreground">{t("si2pemAntennaData.fields.measuredTilt")} </span>
-                    <span className="font-medium">{formatNumber(band.measuredTilt, "°")}</span>
-                  </span>
-                </Fragment>
-              ))}
-            </div>
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-function SI2PEMAntennaEmpty() {
+function AntennaDialogHeader({
+  siteId,
+  operatorName,
+  operatorMnc,
+  place,
+  titleId,
+  tintColor,
+  closeButtonRef,
+  headerDragProps,
+  onClose,
+}: AntennaDialogHeaderProps) {
   const { t } = useTranslation("stationDetails");
+  const placeLabel = place === undefined ? null : getLocationLabel(place);
 
   return (
-    <div className="flex min-h-56 flex-1 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center">
-      <HugeiconsIcon icon={Radar01Icon} className="size-7 text-muted-foreground" />
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{t("si2pemAntennaData.emptyTitle")}</h3>
-      <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">{t("si2pemAntennaData.emptyDescription")}</p>
-    </div>
-  );
-}
-
-function SI2PEMAntennaLoading() {
-  return (
-    <div className="divide-y divide-border/60" aria-hidden="true">
-      {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="py-2.5 first:pt-1 last:pb-1">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-5 w-6 rounded-md" />
-            <Skeleton className="h-4 w-44" />
-            <Skeleton className="ml-auto hidden h-3 w-48 sm:block" />
+    <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragProps?.className)}>
+      <div className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5" style={{ backgroundImage: getOperatorHeaderTintGradient(tintColor) }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <SI2PEMLogo className="h-3.5 shrink-0" />
+            <h2 id={titleId} className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">
+              {t("si2pemAntennaData.title")}
+            </h2>
           </div>
-          <Skeleton className="mt-1.5 h-16 w-full rounded-lg" />
+          <div className="mt-1 flex min-w-0 items-center gap-2">
+            <DialogOperatorName name={operatorName} mnc={operatorMnc} compact />
+            <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{siteId}</span>
+            {placeLabel === null ? null : <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{placeLabel}</p>}
+          </div>
         </div>
-      ))}
+        <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-1">
+          <CloseButton ref={closeButtonRef} onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
+        </div>
+      </div>
     </div>
   );
 }
 
 export function SI2PEMAntennaDialogPanel({
+  site,
+  siteId,
   report,
-  latitude,
-  longitude,
   operatorName,
   operatorMnc,
+  place,
   onClose,
   className,
   contentClassName,
@@ -133,29 +81,88 @@ export function SI2PEMAntennaDialogPanel({
   style,
   headerDragProps,
 }: SI2PEMAntennaDialogPanelProps) {
-  const { t, i18n } = useTranslation(["stationDetails", "common"]);
   const titleId = useId();
-  const headerDragClassName = headerDragProps?.className;
-  const reportDate = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language, { dateStyle: "long" }).format(new Date(report.date)),
-    [i18n.language, report.date],
-  );
-  const {
-    data: antennas,
-    error,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useQuery({
-    queryKey: ["si2pem-report-antennas", report.station_id, report.details.document_url],
-    queryFn: () => fetchSI2PEMAntennas({ stationId: report.station_id, latitude, longitude, reportUrl: report.details.document_url }),
-    staleTime: 1000 * 60 * 60 * 24,
-    retry: false,
-  });
+  const isPhone = useIsMobile();
+  const windowRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [isComparisonRequested, setIsComparisonRequested] = useState(false);
+  const reportChoice = useAntennaReportChoice(site, report);
+  const { shownReport, olderReport, alternativeReport } = reportChoice;
+  const antennasQuery = useQuery(emfAntennasQueryOptions(site, shownReport.url));
+  const antennas = antennasQuery.data?.antennas;
   const hasAntennas = antennas !== undefined && antennas.length > 0;
+  const isComparing = isComparisonRequested && olderReport !== null;
+  const needsOlderAntennas = isComparing && hasAntennas;
+  const comparedReport = olderReport ?? shownReport;
+  const olderAntennasQuery = useQuery({ ...emfAntennasQueryOptions(site, comparedReport.url), enabled: needsOlderAntennas });
+  useImperativeHandle(bodyRef, () => scrollerRef.current!);
+  useFloatingDialogFocus(windowRef, closeButtonRef);
+
+  const operatorColor = operatorMnc ? getOperatorColor(operatorMnc) : FALLBACK_BRAND_COLOR;
+  const fillsBody = !antennasQuery.isPending && !hasAntennas;
+  const olderAntennaReport = needsOlderAntennas ? olderAntennasQuery.data : undefined;
+  const hasOlderReadFailed = needsOlderAntennas && olderAntennaReport === undefined && olderAntennasQuery.isError;
+  const isOlderTableMissing = olderAntennaReport !== undefined && olderAntennaReport.antennas.length === 0;
+  const hasComparisonFailed = hasOlderReadFailed || isOlderTableMissing;
+  const olderAntennas = olderAntennaReport === undefined || isOlderTableMissing ? undefined : olderAntennaReport.antennas;
+  const isComparisonPressed = isComparing && !fillsBody;
+  const isComparisonBusy = isComparisonPressed && olderAntennaReport === undefined && !hasOlderReadFailed;
+
+  function keepFocusInWindow() {
+    if (scrollerRef.current?.contains(document.activeElement)) windowRef.current?.focus({ preventScroll: true });
+  }
+
+  function showReport(reportUrl: string) {
+    keepFocusInWindow();
+    reportChoice.showReport(reportUrl);
+    setSelectedGroupKey(null);
+    setIsComparisonRequested(false);
+    scrollerRef.current?.scrollTo({ top: 0 });
+  }
+
+  function retryAntennas() {
+    keepFocusInWindow();
+    void antennasQuery.refetch();
+  }
+
+  function retryComparison() {
+    keepFocusInWindow();
+    void olderAntennasQuery.refetch();
+  }
+
+  function toggleComparison() {
+    setIsComparisonRequested((isRequested) => !isRequested);
+  }
+
+  let body: ReactNode;
+  if (antennasQuery.isPending) {
+    body = <AntennaLoading isPhone={isPhone} />;
+  } else if (antennas === undefined) {
+    body = <AntennaFailure error={antennasQuery.error} reportUrl={shownReport.url} onRetry={retryAntennas} />;
+  } else if (antennas.length === 0) {
+    body = <AntennaEmpty reportUrl={shownReport.url} alternativeReport={alternativeReport} onShowReport={showReport} />;
+  } else {
+    body = (
+      <AntennaReportContent
+        antennas={antennas}
+        olderAntennas={olderAntennas}
+        comparisonNotice={
+          hasComparisonFailed ? (
+            <AntennaComparisonNotice error={olderAntennasQuery.error} onRetry={hasOlderReadFailed ? retryComparison : undefined} />
+          ) : null
+        }
+        color={operatorColor}
+        selectedGroupKey={selectedGroupKey}
+        onSelectedGroupKeyChange={setSelectedGroupKey}
+        isPhone={isPhone}
+      />
+    );
+  }
 
   return (
-    <div className={cn("relative", className)} style={style} role="dialog" aria-labelledby={titleId}>
+    <div ref={windowRef} tabIndex={-1} className={cn("relative outline-none", className)} style={style} role="dialog" aria-labelledby={titleId}>
       <div
         ref={contentRef}
         className={cn(
@@ -163,67 +170,29 @@ export function SI2PEMAntennaDialogPanel({
           contentClassName,
         )}
       >
-        <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragClassName)}>
-          <div
-            className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-            style={{ backgroundImage: getOperatorHeaderTintGradient(operatorMnc ? getOperatorColor(operatorMnc) : "#3b82f6") }}
-          >
-            <div id={titleId} className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <SI2PEMLogo className="h-3.5 shrink-0" />
-                <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("si2pemAntennaData.title")}</h2>
-              </div>
-              <div className="mt-1 flex min-w-0 items-center gap-2">
-                <DialogOperatorName name={operatorName} mnc={operatorMnc} compact />
-                <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{report.station_id}</span>
-                <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                  {reportDate}
-                  <span className="mx-1.5 text-muted-foreground/50">·</span>
-                  {report.details.lab_name}
-                </p>
-              </div>
-            </div>
-            <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-1">
-              <a
-                href={report.details.document_url}
-                target="_blank"
-                rel="noreferrer"
-                onPointerDown={(event) => event.stopPropagation()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <span className="hidden sm:inline">{t("si2pemAntennaData.openReport")}</span>
-                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-4" />
-              </a>
-              <CloseButton onClick={onClose} onPointerDown={(event) => event.stopPropagation()} />
-            </div>
-          </div>
-        </div>
-
-        <div ref={bodyRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable">
-          <div ref={bodyContentRef} className={cn("px-3 py-2 sm:px-4 sm:py-2.5", !isLoading && !hasAntennas && "flex min-h-full flex-col")}>
-            {isLoading ? <SI2PEMAntennaLoading /> : null}
-            {error && !antennas ? (
-              <ErrorState
-                className="flex-1"
-                title={t("si2pemAntennaData.errorTitle")}
-                description={t("si2pemAntennaData.errorDescription")}
-                onRetry={() => refetch()}
-                isRetrying={isFetching}
-                action={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    nativeButton={false}
-                    render={<a href={report.details.document_url} target="_blank" rel="noreferrer" />}
-                  >
-                    {t("si2pemAntennaData.openReport")}
-                    <HugeiconsIcon icon={ArrowUpRight01Icon} data-icon="inline-end" />
-                  </Button>
-                }
-              />
-            ) : null}
-            {!error && antennas?.length === 0 ? <SI2PEMAntennaEmpty /> : null}
-            {hasAntennas ? <SI2PEMAntennaList antennas={antennas} /> : null}
+        <AntennaDialogHeader
+          siteId={siteId}
+          operatorName={operatorName}
+          operatorMnc={operatorMnc}
+          place={place}
+          titleId={titleId}
+          tintColor={operatorColor}
+          closeButtonRef={closeButtonRef}
+          headerDragProps={headerDragProps}
+          onClose={onClose}
+        />
+        <AntennaReportBar
+          reportChoice={reportChoice}
+          onShowReport={showReport}
+          isComparisonPressed={isComparisonPressed}
+          isComparisonBusy={isComparisonBusy}
+          isComparisonDisabled={fillsBody}
+          onToggleComparison={toggleComparison}
+          isPhone={isPhone}
+        />
+        <div ref={scrollerRef} className="flex-1 overflow-y-auto custom-scrollbar scrollbar-gutter-stable" aria-busy={antennasQuery.isPending}>
+          <div ref={bodyContentRef} className={cn("@container", fillsBody ? "flex min-h-full flex-col px-3 py-2 sm:px-4 sm:py-2.5" : null)}>
+            {body}
           </div>
         </div>
       </div>

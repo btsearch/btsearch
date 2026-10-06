@@ -1,57 +1,83 @@
 import { UserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { Submission, UserRef } from "@openbts/shared/contract";
 import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import { resolveDisplayName } from "@/features/admin/users/utils/identity";
+import { EditCard } from "@/features/station-editing/components/frame/editCard";
 import { UserLink } from "@/features/user-profile/components/userLink";
-import i18n from "@/i18n/config";
 import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 
-export function SubmitterCard({ submission }: { submission: SubmissionDetail }) {
+type SubmissionPersonProps = {
+  user: UserRef | null;
+  dateLabel: string;
+  date: string | null;
+  noteLabel: string;
+  note: string | null;
+  emptyNote: string;
+};
+
+type SubmitterCardProps = {
+  submission: Pick<Submission, "submitter" | "createdAt" | "note">;
+};
+
+export function SubmissionPerson({ user, dateLabel, date, noteLabel, note, emptyNote }: SubmissionPersonProps) {
+  const { t, i18n } = useTranslation("submissions");
+  const name = user === null ? t("detail.deletedUser") : resolveDisplayName(user);
+
+  return (
+    <div className="space-y-4 px-4 py-3">
+      <div className="flex items-start gap-4">
+        <Avatar className="size-10 border">
+          {user === null ? (
+            <AvatarFallback>
+              <HugeiconsIcon icon={UserIcon} className="size-4 text-muted-foreground" />
+            </AvatarFallback>
+          ) : (
+            <>
+              <AvatarImage src={resolveAvatarUrl(user.image)} />
+              <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+            </>
+          )}
+        </Avatar>
+        <div className="min-w-0 flex-1 space-y-1">
+          <UserLink user={user} className="block w-fit max-w-full truncate text-sm leading-4 font-medium">
+            {name}
+          </UserLink>
+          {user?.username ? <p className="truncate text-xs text-muted-foreground">@{user.username}</p> : null}
+          {date === null ? null : (
+            <p className="text-[11px] text-muted-foreground">
+              {dateLabel}: {formatFullDate(date, i18n.language)}
+            </p>
+          )}
+        </div>
+      </div>
+      {note ? (
+        <div className="space-y-1 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 p-3">
+          <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{noteLabel}</p>
+          <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">{note}</p>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{emptyNote}</p>
+      )}
+    </div>
+  );
+}
+
+export function SubmitterCard({ submission }: SubmitterCardProps) {
   const { t } = useTranslation("submissions");
 
   return (
-    <div className="border rounded-xl overflow-hidden bg-card">
-      <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center gap-2">
-        <HugeiconsIcon icon={UserIcon} className="size-4 text-muted-foreground" />
-        <span className="font-semibold text-sm">{t("detail.submitter")}</span>
-      </div>
-      <div className="px-4 py-3 space-y-4">
-        <div className="flex items-start gap-4">
-          <Avatar className="size-10 border">
-            {submission.submitter ? (
-              <>
-                <AvatarImage src={resolveAvatarUrl(submission.submitter.image)} />
-                <AvatarFallback>{submission.submitter.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </>
-            ) : (
-              <AvatarFallback>
-                <HugeiconsIcon icon={UserIcon} className="size-4 text-muted-foreground" />
-              </AvatarFallback>
-            )}
-          </Avatar>
-          <div className="flex-1 min-w-0 space-y-1">
-            <UserLink user={submission.submitter} className="block w-fit max-w-full truncate text-sm leading-4 font-medium">
-              {submission.submitter?.name ?? t("detail.deletedUser")}
-            </UserLink>
-            {submission.submitter?.username && <p className="text-xs text-muted-foreground truncate">@{submission.submitter.username}</p>}
-            {submission.createdAt && (
-              <p className="text-[11px] text-muted-foreground/70">
-                {t("detail.createdAt")}: {formatFullDate(submission.createdAt, i18n.language)}
-              </p>
-            )}
-          </div>
-        </div>
-        {submission.submitter_note ? (
-          <div className="border-l-4 border-primary/40 bg-primary/5 rounded-r-lg p-3 space-y-1">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t("detail.submitterNotes")}</p>
-            <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-wrap">{submission.submitter_note}</p>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">{t("detail.noSubmitterNote")}</p>
-        )}
-      </div>
-    </div>
+    <EditCard title={t("detail.submitter")} icon={UserIcon} className="bg-card">
+      <SubmissionPerson
+        user={submission.submitter}
+        dateLabel={t("detail.createdAt")}
+        date={submission.createdAt}
+        noteLabel={t("detail.submitterNotes")}
+        note={submission.note}
+        emptyNote={t("detail.noSubmitterNote")}
+      />
+    </EditCard>
   );
 }

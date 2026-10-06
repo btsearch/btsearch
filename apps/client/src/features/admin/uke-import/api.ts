@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { referenceKeys } from "@/features/admin/reference/api/queryKeys";
+import { countryStatisticsQueryOptions } from "@/features/map/statsApi";
 import { API_BASE, fetchJson } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 
@@ -66,16 +68,28 @@ export async function fetchImportStatus(): Promise<ImportJobStatus> {
   return res.data;
 }
 
-async function fetchImportStatusAndRefreshHistory(): Promise<ImportJobStatus> {
-  const previousJobId = queryClient.getQueryData<ImportJobStatus>(UKE_IMPORT_STATUS_QUERY_KEY)?.id;
+function hasImportJobEndedSince(previous: ImportJobStatus | undefined, status: ImportJobStatus): boolean {
+  if (previous === undefined || status.state === "running") return false;
+  if (previous.state === "running") return true;
+  return status.state !== "idle" && previous.id !== status.id;
+}
+
+function invalidateStatisticsQueries(): void {
+  void queryClient.invalidateQueries({ queryKey: countryStatisticsQueryOptions().queryKey });
+  void queryClient.invalidateQueries({ queryKey: referenceKeys.countryStatistics() });
+}
+
+async function fetchImportStatusAndRefreshDerivedQueries(): Promise<ImportJobStatus> {
+  const previous = queryClient.getQueryData<ImportJobStatus>(UKE_IMPORT_STATUS_QUERY_KEY);
   const status = await fetchImportStatus();
-  if (previousJobId !== undefined && previousJobId !== status.id) void queryClient.invalidateQueries({ queryKey: UKE_IMPORT_HISTORY_QUERY_KEY });
+  if (previous?.id !== undefined && previous.id !== status.id) void queryClient.invalidateQueries({ queryKey: UKE_IMPORT_HISTORY_QUERY_KEY });
+  if (hasImportJobEndedSince(previous, status)) invalidateStatisticsQueries();
   return status;
 }
 
 export const importStatusQueryOptions = queryOptions({
   queryKey: UKE_IMPORT_STATUS_QUERY_KEY,
-  queryFn: fetchImportStatusAndRefreshHistory,
+  queryFn: fetchImportStatusAndRefreshDerivedQueries,
   refetchInterval: (query) => (isImportStatusInProgress(query.state.data) ? 2000 : 60_000),
 });
 

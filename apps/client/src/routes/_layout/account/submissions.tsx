@@ -11,7 +11,7 @@ import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 function MySubmissionsPage() {
   const { t } = useTranslation("submissions");
-  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissionsEnabled");
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissions");
 
   if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
   if (isDisabled) return <Navigate to="/" replace />;

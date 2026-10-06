@@ -1,11 +1,11 @@
-import { locations, regions, stations } from "@openbts/drizzle";
-import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { removeRegion } from "../../../../features/regions/remove.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -21,22 +21,13 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   const region = await db.query.regions.findFirst({
     where: {
       id: id,
+      countryCode: LEGACY_COUNTRY_CODE,
     },
   });
   if (!region) throw new ErrorResponse("NOT_FOUND");
 
   try {
-    await runAuditedOperation(auditContextFromRequest(req), { kind: "region.delete" }, async (tx, audit) => {
-      const [station] = await tx
-        .select({ id: stations.id })
-        .from(stations)
-        .innerJoin(locations, eq(locations.id, stations.location_id))
-        .where(eq(locations.region_id, id))
-        .limit(1);
-      if (station) throw new ErrorResponse("CONFLICT", { message: "Cannot delete a region that still has stations" });
-      await tx.delete(regions).where(eq(regions.id, id));
-      await audit.log({ entity: "regions", op: "delete", recordId: id, old: region });
-    });
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "region.delete" }, (tx, audit) => removeRegion(tx, audit, region));
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });

@@ -9,25 +9,23 @@ import {
   ZoomInAreaIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ComponentPropsWithoutRef, type ReactNode, type Ref, useState } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode, type Ref, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { PhotoView } from "./photoFiles";
 import { preloadLightbox } from "@/components/lightbox";
 import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
+import { formatMonthYear, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const RECENT_PHOTO_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type PhotoMetaData = {
-  note: string | null;
-  taken_at?: string | null;
-  createdAt: string;
-  author: { username: string } | null;
-};
+export type PhotoMetaData = Pick<PhotoView, "note" | "takenAt" | "createdAt" | "author">;
 
 export function isRecentPhoto(createdAt: string) {
   return Date.now() - new Date(createdAt).getTime() < RECENT_PHOTO_MS;
@@ -63,7 +61,7 @@ export function PhotoWithFallback({
 }: PhotoWithFallbackProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  if (src.trim().length === 0 || failedSrc === src)
+  if (src.trim().length === 0 || failedSrc === src) {
     return (
       <PhotoUnavailable
         title={title}
@@ -75,6 +73,7 @@ export function PhotoWithFallback({
         labelClassName={fallbackLabelClassName}
       />
     );
+  }
 
   return (
     <img
@@ -108,6 +107,8 @@ export function PhotoImage({
   ref?: Ref<HTMLDivElement>;
   src: string;
 }) {
+  const { t } = useTranslation("common");
+
   return (
     <div ref={ref} className={cn("relative h-36", frameClassName)}>
       <PhotoWithFallback src={src} alt={alt} className={cn("w-full h-full object-cover", imageClassName)} loading="lazy" />
@@ -122,9 +123,9 @@ export function PhotoImage({
         onPointerEnter={preloadLightbox}
         onFocus={preloadLightbox}
         aria-haspopup="dialog"
-        aria-label="View full size"
+        aria-label={t("actions.openPhoto")}
       >
-        <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" />
+        <HugeiconsIcon icon={ZoomInAreaIcon} className="size-3 text-white" aria-hidden="true" />
       </button>
     </div>
   );
@@ -136,14 +137,12 @@ export function PhotoMeta({ className, locale, photo }: { className?: string; lo
       <p className="truncate font-medium text-foreground/70">@{photo.author?.username ?? "-"}</p>
       <div className="flex items-center gap-1 text-muted-foreground">
         <HugeiconsIcon icon={Upload04Icon} className="size-2.5 shrink-0" />
-        <span className="tabular-nums truncate">
-          {new Date(photo.createdAt).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" })}
-        </span>
+        <span className="tabular-nums truncate">{formatShortDate(photo.createdAt, locale)}</span>
       </div>
-      {photo.taken_at ? (
+      {photo.takenAt ? (
         <div className="flex items-center gap-1 text-muted-foreground">
           <HugeiconsIcon icon={Camera01Icon} className="size-2.5 shrink-0" />
-          <span className="tabular-nums truncate">{new Date(photo.taken_at).toLocaleDateString(locale, { year: "numeric", month: "short" })}</span>
+          <span className="tabular-nums truncate">{formatMonthYear(photo.takenAt, locale, "short")}</span>
         </div>
       ) : null}
       {photo.note ? <p className="truncate italic text-muted-foreground">{photo.note}</p> : null}
@@ -160,7 +159,6 @@ export function PhotoEditPopover({
   onOpenChange,
   onSave,
   onTakenAtChange,
-  showTakenAt = true,
   takenAt,
 }: {
   isOpen: boolean;
@@ -171,10 +169,18 @@ export function PhotoEditPopover({
   onOpenChange: (open: boolean) => void;
   onSave: () => void;
   onTakenAtChange: (date: Date | null) => void;
-  showTakenAt?: boolean;
   takenAt: Date | null;
 }) {
   const { t } = useTranslation("submissions");
+  const noteInputId = useId();
+  const takenAtLabelId = useId();
+  const [openValues, setOpenValues] = useState({ note, takenAt });
+
+  if (isOpen && (openValues.note !== note || openValues.takenAt !== takenAt)) setOpenValues({ note, takenAt });
+
+  const shownNote = isOpen ? note : openValues.note;
+  const shownTakenAt = isOpen ? takenAt : openValues.takenAt;
+
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
       <PopoverTrigger
@@ -183,24 +189,33 @@ export function PhotoEditPopover({
           event.stopPropagation();
           onOpen();
         }}
-        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        className="w-full flex cursor-pointer items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
       >
         <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
         {t("common:actions.edit")}
       </PopoverTrigger>
       <PopoverContent side="bottom" align="end" className="w-64 flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-foreground">{t("photos.note")}</label>
-          <Input value={note} onChange={(event) => onNoteChange(event.target.value)} maxLength={100} placeholder={t("photos.notePlaceholder")} />
+          <label htmlFor={noteInputId} className="text-xs font-medium text-foreground">
+            {t("photos.note")}
+          </label>
+          <Input
+            {...NO_AUTOFILL_PROPS}
+            id={noteInputId}
+            value={shownNote}
+            onChange={(event) => onNoteChange(event.target.value)}
+            maxLength={100}
+            placeholder={t("photos.notePlaceholder")}
+          />
         </div>
-        {showTakenAt ? (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-foreground">{t("photos.takenAt")}</label>
-            <DatePickerInput value={takenAt} onChange={onTakenAtChange} />
-          </div>
-        ) : null}
+        <div role="group" aria-labelledby={takenAtLabelId} className="flex flex-col gap-1.5">
+          <span id={takenAtLabelId} className="text-xs font-medium text-foreground">
+            {t("photos.takenAt")}
+          </span>
+          <DatePickerInput value={shownTakenAt} onChange={onTakenAtChange} />
+        </div>
         <div className="flex items-center justify-end gap-2">
-          <Button type="button" size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" size="sm" variant="ghost" className="cursor-pointer" onClick={() => onOpenChange(false)}>
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
             {t("common:actions.cancel")}
           </Button>
@@ -219,7 +234,7 @@ export function PhotoDeleteButton({ label, onClick }: { label: string; onClick: 
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+      className="flex cursor-pointer items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
     >
       <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
       {label}
@@ -245,7 +260,7 @@ export function AddPhotoTile({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "h-36 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-muted/30 transition-colors disabled:opacity-50",
+        "h-36 cursor-pointer rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-muted/30 transition-colors disabled:cursor-default disabled:opacity-50",
         className,
       )}
     >

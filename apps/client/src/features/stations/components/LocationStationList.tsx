@@ -3,7 +3,10 @@ import { useTranslation } from "react-i18next";
 
 import { StationStatusBadge } from "./StationStatusBadge";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
-import { getStationBands } from "@/features/map/utils";
+import { getCellTechnologyBands, getStationBands } from "@/features/map/utils";
+import type { LocationStationRecord } from "@/features/station-details/station/types";
+import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
+import { NETWORKS_ID_KIND, findStationIdentifier, toV1OperatorMnc, toV1StationStatus } from "@/features/station-details/station/utils/stations";
 import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
 import type { StationWithoutCells } from "@/types/station";
 
@@ -13,13 +16,46 @@ type LocationStationLinkProps = {
   children: ReactNode;
 };
 
-type LocationStationListProps = {
-  stations: readonly StationWithoutCells[];
-  renderLink: (station: StationWithoutCells, linkProps: LocationStationLinkProps) => ReactNode;
+type LocationStation = StationWithoutCells | LocationStationRecord;
+
+type StationPresentation = {
+  mnc: number | null;
+  siteId: string;
+  networksId: string | number | null;
+  status: StationWithoutCells["status"];
+  bands: readonly string[];
+};
+
+type LocationStationListProps<StationRow extends LocationStation> = {
+  stations: readonly StationRow[];
+  renderLink: (station: StationRow, linkProps: LocationStationLinkProps) => ReactNode;
   className?: string;
 };
 
-export function LocationStationList({ stations, renderLink, className }: LocationStationListProps) {
+function toStationPresentation(station: LocationStation): StationPresentation {
+  if ("siteId" in station)
+    return {
+      mnc: toV1OperatorMnc(station.operator),
+      siteId: station.siteId,
+      networksId: findStationIdentifier(station.identifiers, NETWORKS_ID_KIND),
+      status: toV1StationStatus(station.status),
+      bands: getCellTechnologyBands(station.cells),
+    };
+
+  return {
+    mnc: station.operator?.mnc ?? null,
+    siteId: station.station_id,
+    networksId: station.extra_identificators?.networks_id ?? null,
+    status: station.status,
+    bands: station.cells?.length ? getStationBands(station.cells) : [],
+  };
+}
+
+export function LocationStationList<StationRow extends LocationStation>({
+  stations,
+  renderLink,
+  className,
+}: LocationStationListProps<StationRow>): ReactNode {
   const { t } = useTranslation("main");
 
   if (stations.length === 0) return <div className="px-3 py-6 text-center text-xs text-muted-foreground">{t("popup.noStations")}</div>;
@@ -27,9 +63,8 @@ export function LocationStationList({ stations, renderLink, className }: Locatio
   return (
     <ul className={className}>
       {stations.map((station) => {
-        const mnc = station.operator?.mnc;
-        const color = mnc ? getOperatorColor(mnc) : "#3b82f6";
-        const bands = station.cells?.length ? getStationBands(station.cells) : [];
+        const { mnc, siteId, networksId, status, bands } = toStationPresentation(station);
+        const color = mnc ? getOperatorColor(mnc) : FALLBACK_BRAND_COLOR;
         return (
           <li key={station.id} className="border-b border-border/30 last:border-0">
             {renderLink(station, {
@@ -40,15 +75,11 @@ export function LocationStationList({ stations, renderLink, className }: Locatio
                   <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     <div className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: color }} />
                     <span className="text-sm font-medium">{station.operator?.name ?? t("unknownOperator")}</span>
-                    <span className="font-mono text-xs text-foreground/70">{station.station_id}</span>
-                    {station.extra_identificators?.networks_id ? (
-                      <span className="font-mono text-xs text-foreground/70">N!{station.extra_identificators.networks_id}</span>
-                    ) : null}
-                    {station.status ? (
-                      <StationStatusBadge status={station.status} statusChangedAt={station.statusChangedAt} className="ml-auto" />
-                    ) : null}
+                    <span className="font-mono text-xs text-foreground/70">{siteId}</span>
+                    {networksId ? <span className="font-mono text-xs text-foreground/70">N!{networksId}</span> : null}
+                    {status ? <StationStatusBadge status={status} statusChangedAt={station.statusChangedAt} className="ml-auto" /> : null}
                   </div>
-                  {station.status !== "pending" && bands.length > 0 ? <TechnologySummary bands={bands} /> : null}
+                  {status !== "pending" && bands.length > 0 ? <TechnologySummary bands={bands} /> : null}
                 </>
               ),
             })}

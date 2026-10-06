@@ -1,6 +1,7 @@
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { findForeignStationIds } from "../../../../features/countries/legacy.js";
 import { getUserListMembership, getVisibleUserList, userListSelectSchema } from "../../../../features/lists/visibility.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -23,8 +24,9 @@ type ReqParams = { Params: { uuid: string } };
 type ResponseBody = z.infer<(typeof schemaRoute.response)["200"]>;
 
 async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const list = await getVisibleUserList(req.params.uuid, req.userSession?.user.id);
+  const list = await getVisibleUserList(req, req.params.uuid);
   const { internal, uke, radiolines } = getUserListMembership(list);
+  const foreign = await findForeignStationIds(internal);
 
   return res.send({
     data: {
@@ -34,7 +36,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       description: list.description,
       is_public: list.is_public,
       notificationsEnabled: list.notificationsEnabled,
-      stations: { internal, uke },
+      stations: { internal: internal.filter((id) => !foreign.has(id)), uke },
       radiolines,
       createdAt: list.createdAt,
       updatedAt: list.updatedAt,

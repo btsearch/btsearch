@@ -1,127 +1,23 @@
-import { API_BASE, fetchJson } from "@/lib/api";
-import type { AuditOperationHandle } from "@/lib/api";
-import type { Cell, Sector, Station, StationUplink, UplinkType } from "@/types/station";
+import type { StationCreate, StationUpdate } from "@openbts/shared/contract";
 
-export async function patchStation(stationId: number, body: Record<string, unknown>, auditOperation?: AuditOperationHandle) {
-  return fetchJson<{ data: Station }>(`${API_BASE}/stations/${stationId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    auditOperation,
-  });
-}
+import { STATION_INCLUDE } from "@/features/station-details/station/api";
+import type { StationRecord } from "@/features/station-details/station/types";
+import { type AuditOperationHandle, JSON_HEADERS, fetchV2Data } from "@/lib/api";
 
-export async function patchCell(stationId: number, cellId: number, body: Record<string, unknown>) {
-  return fetchJson<{ data: Cell }>(`${API_BASE}/stations/${stationId}/cells/${cellId}`, {
+const STATION_QUERY = `include=${STATION_INCLUDE}`;
+
+export function updateStation(stationId: number, body: StationUpdate): Promise<StationRecord> {
+  return fetchV2Data<StationRecord>(`stations/${stationId}?${STATION_QUERY}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: JSON_HEADERS,
     body: JSON.stringify(body),
   });
 }
 
-export async function patchCells(
-  stationId: number,
-  cellsData: ({ cell_id: number } & Record<string, unknown>)[],
-  auditOperation?: AuditOperationHandle,
-) {
-  return fetchJson<{ data: Cell[] }>(`${API_BASE}/stations/${stationId}/cells`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cells: cellsData }),
-    auditOperation,
-  });
-}
-
-export async function createCells(stationId: number, cellsData: Record<string, unknown>[], auditOperation?: AuditOperationHandle) {
-  return fetchJson<{ data: Cell[] }>(`${API_BASE}/stations/${stationId}/cells`, {
+export function createStation(body: StationCreate, auditOperation?: AuditOperationHandle): Promise<StationRecord> {
+  return fetchV2Data<StationRecord>(`stations?${STATION_QUERY}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cells: cellsData }),
-    auditOperation,
-  });
-}
-
-export async function deleteCell(stationId: number, cellId: number, auditOperation?: AuditOperationHandle) {
-  return fetchJson<void>(`${API_BASE}/stations/${stationId}/cells/${cellId}`, {
-    method: "DELETE",
-    auditOperation,
-  });
-}
-
-export async function createLocation(
-  body: { region_id: number; city?: string; address?: string; longitude: number; latitude: number },
-  auditOperation?: AuditOperationHandle,
-) {
-  return fetchJson<{ data: { id: number } }>(`${API_BASE}/locations`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    auditOperation,
-  });
-}
-
-export async function deleteStation(stationId: number) {
-  return fetchJson<void>(`${API_BASE}/stations/${stationId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function createStation(body: Record<string, unknown>, auditOperation?: AuditOperationHandle) {
-  return fetchJson<{ data: Station }>(`${API_BASE}/stations`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    auditOperation,
-  });
-}
-
-export async function fetchSiblingExtraIds(stationId: number) {
-  return fetchJson<{ data: { networks_id: number | null; networks_name: string | null; mno_name: string | null } }>(
-    `${API_BASE}/stations/${stationId}/extra-identifiers/sibling`,
-  );
-}
-
-export async function updateExtraIds(
-  stationId: number,
-  body: { networks_id?: number | null; networks_name?: string | null; mno_name?: string | null },
-  auditOperation?: AuditOperationHandle,
-) {
-  return fetchJson<{ data: { id: number; networks_id: number | null; networks_name: string | null; mno_name: string | null } }>(
-    `${API_BASE}/stations/${stationId}/extra-identifiers`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      auditOperation,
-    },
-  );
-}
-
-export async function getStationSectors(stationId: number) {
-  return fetchJson<{ data: Sector[] }>(`${API_BASE}/stations/${stationId}/sectors`);
-}
-
-export async function fetchSiblingSectors(stationId: number) {
-  return fetchJson<{ data: Sector[] }>(`${API_BASE}/stations/${stationId}/sectors/sibling`);
-}
-
-export async function putStationSectors(stationId: number, sectors: { id?: number; azimuth: number }[], auditOperation?: AuditOperationHandle) {
-  return fetchJson<{ data: Sector[] }>(`${API_BASE}/stations/${stationId}/sectors`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sectors }),
-    auditOperation,
-  });
-}
-
-export async function updateUplink(
-  stationId: number,
-  body: { type: UplinkType | null; speed?: number | null; model?: string | null },
-  auditOperation?: AuditOperationHandle,
-) {
-  return fetchJson<{ data: StationUplink | null }>(`${API_BASE}/stations/${stationId}/uplink`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: JSON_HEADERS,
     body: JSON.stringify(body),
     auditOperation,
   });

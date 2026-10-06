@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { fetchStats } from "../../statsApi.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.js";
-import i18n from "@/i18n/config.js";
-import { formatFullDate, formatRelativeTime } from "@/lib/format.js";
-import { cn } from "@/lib/utils.js";
-import type { StationSource } from "@/types/station.js";
+import type { MapCountries } from "../../data/mapCountries";
+import { countryStatisticsQueryOptions, readMapDataDates } from "../../statsApi";
+import { RelativeTime } from "@/components/ui/relative-time";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import i18n from "@/i18n/config";
+import { formatFullDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import type { StationSource } from "@/types/station";
 
 type StationCounterProps = {
   locationCount: number;
@@ -17,7 +19,23 @@ type StationCounterProps = {
   showStations: boolean;
   zoom?: number;
   source: StationSource;
+  mapCountries: MapCountries;
   onSourceChange: (source: StationSource) => void;
+};
+
+const SOURCE_CELL_CLASS = "px-2 py-1.5 flex items-center gap-1.5";
+const SOURCE_LABEL_CLASS = "text-[8px] uppercase font-bold leading-none whitespace-nowrap";
+const SOURCE_SURFACE_CLASS: Record<StationSource, string> = {
+  internal: "bg-emerald-500/10",
+  uke: "bg-violet-500/10",
+};
+const SOURCE_SWITCH_CLASS: Record<StationSource, string> = {
+  internal: "cursor-pointer transition-colors hover:bg-emerald-500/20",
+  uke: "cursor-pointer transition-colors hover:bg-violet-500/20",
+};
+const SOURCE_TEXT_CLASS: Record<StationSource, string> = {
+  internal: "text-emerald-700 dark:text-emerald-400",
+  uke: "text-violet-600 dark:text-violet-400",
 };
 
 export function StationCounter({
@@ -29,6 +47,7 @@ export function StationCounter({
   showStations,
   zoom,
   source,
+  mapCountries,
   onSourceChange,
 }: StationCounterProps) {
   const { t } = useTranslation("main");
@@ -36,21 +55,30 @@ export function StationCounter({
   const hasMoreLocations = totalCount > locationCount;
   const hasMoreRadioLines = radioLineTotalCount > radioLineCount;
   const showRadioLines = radioLineCount > 0 || isRadioLinesFetching;
+  const { isRegisterOnScreen } = mapCountries;
 
-  const { data: stats } = useQuery({
-    queryKey: ["stats"],
-    queryFn: fetchStats,
-    staleTime: 1000 * 60 * 60,
-  });
+  const { data: statistics } = useQuery({ ...countryStatisticsQueryOptions(), enabled: isRegisterOnScreen });
+  const dataDates = readMapDataDates(statistics, mapCountries.onScreen);
 
-  const sourceItems: { label: string; date: string | null | undefined; value: StationSource }[] = [
-    { label: t("stats.internalData"), date: stats?.lastUpdated.stations, value: "internal" },
-    { label: tCommon("labels.ukePermits"), date: stats?.lastUpdated.stations_permits, value: "uke" },
+  const sourceItems: { label: string; date: string | null; value: StationSource }[] = [
+    { label: t("stats.internalData"), date: dataDates.database, value: "internal" },
+    { label: tCommon("labels.ukePermits"), date: dataDates.register, value: "uke" },
   ];
+
+  const sourceLabelClass = cn(SOURCE_LABEL_CLASS, SOURCE_TEXT_CLASS[source]);
+  const zoomLabel = (
+    <span className={sourceLabelClass}>
+      {t("overlay.zoom")} {zoom?.toFixed(1) || "-"}
+    </span>
+  );
+
+  function handleSourceSwitch() {
+    onSourceChange(source === "internal" ? "uke" : "internal");
+  }
 
   return (
     <div className="flex items-stretch shadow-xl rounded-lg overflow-hidden border bg-background/95 backdrop-blur-md">
-      {showStations && (
+      {showStations ? (
         <Tooltip>
           <TooltipTrigger
             className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreLocations && "cursor-help")}
@@ -67,8 +95,8 @@ export function StationCounter({
           </TooltipTrigger>
           <TooltipContent side="bottom">{t("overlay.moreStations", { total: totalCount, shown: locationCount })}</TooltipContent>
         </Tooltip>
-      )}
-      {showRadioLines && (
+      ) : null}
+      {showRadioLines ? (
         <Tooltip>
           <TooltipTrigger
             className={cn("px-2 py-1.5 flex items-center gap-2 border-r border-border/50", hasMoreRadioLines && "cursor-help")}
@@ -90,42 +118,31 @@ export function StationCounter({
             })}
           </TooltipContent>
         </Tooltip>
-      )}
-      <div
-        className={cn(
-          "px-2 py-1.5 flex items-center gap-1.5 cursor-pointer transition-colors",
-          source === "uke" ? "bg-violet-500/10 hover:bg-violet-500/20" : "bg-emerald-500/10 hover:bg-emerald-500/20",
-        )}
-        onClick={() => onSourceChange(source === "internal" ? "uke" : "internal")}
-      >
+      ) : null}
+      {isRegisterOnScreen ? (
         <Tooltip>
           <TooltipTrigger
-            className={cn(
-              "text-[8px] uppercase font-bold leading-none whitespace-nowrap",
-              source === "uke" ? "text-violet-600 dark:text-violet-400" : "text-emerald-700 dark:text-emerald-400",
-            )}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={handleSourceSwitch}
+            className={cn(SOURCE_CELL_CLASS, SOURCE_SURFACE_CLASS[source], SOURCE_SWITCH_CLASS[source])}
           >
-            {sourceItems.find((s) => s.value === source)?.label}
+            <span className={sourceLabelClass}>{sourceItems.find((item) => item.value === source)?.label}</span>
+            <span aria-hidden="true" className="w-px h-2 bg-border/60" />
+            {zoomLabel}
           </TooltipTrigger>
           <TooltipContent side="bottom">
             {sourceItems.map(({ label, date, value }) => (
               <p key={value} className={cn(source === value && "font-semibold")}>
-                {label}: {date ? formatRelativeTime(date, tCommon) : tCommon("status.never")}
-                {date && <span className="text-background/60"> · {formatFullDate(date, i18n.language)}</span>}
+                {label}: {date === null ? tCommon("status.never") : <RelativeTime date={date} />}
+                {date === null ? null : <span className="text-background/60"> · {formatFullDate(date, i18n.language)}</span>}
               </p>
             ))}
           </TooltipContent>
         </Tooltip>
-        <div className="w-px h-2 bg-border/60" />
-        <span
-          className={cn(
-            "text-[8px] uppercase font-bold leading-none whitespace-nowrap",
-            source === "uke" ? "text-violet-600 dark:text-violet-400" : "text-emerald-700 dark:text-emerald-400",
-          )}
-        >
-          {t("overlay.zoom")} {zoom?.toFixed(1) || "-"}
-        </span>
-      </div>
+      ) : (
+        <div className={cn(SOURCE_CELL_CLASS, SOURCE_SURFACE_CLASS[source])}>{zoomLabel}</div>
+      )}
     </div>
   );
 }

@@ -1,18 +1,21 @@
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
 
 import { useFloatingDialogStackState } from "../hooks/useFloatingDialogStackState";
-import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload } from "../types";
+import type { SI2PEMReportDialogPayload, StationHistoryDialogPayload, TerrainProfileDialogPayload } from "../types";
 import { FloatingDialogStack } from "./floatingDialogStack";
 import type { DuplexRadioLink } from "@/features/map/utils";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import type { StationSource, UkeStation } from "@/types/station";
 
 type FloatingDialogStackContextValue = {
-  openStationDialog: (id: number, source: StationSource) => boolean;
+  openStationDialog: (id: number, source: StationSource, locationId?: number) => boolean;
   openUkePermitDialog: (station: UkeStation) => boolean;
   openRadioLineDialog: (link: DuplexRadioLink) => boolean;
   openSI2PEMReportDialog: (payload: SI2PEMReportDialogPayload) => boolean;
   openStationHistoryDialog: (payload: StationHistoryDialogPayload) => boolean;
+  openTerrainProfileDialog: (payload: TerrainProfileDialogPayload) => boolean;
+  closeTerrainProfileDialog: () => void;
+  focusTerrainProfileDialog: () => void;
   setTerrainProfileStartHandler: (handler: ((station: TerrainProfileStationTarget) => void) | null) => void;
 };
 
@@ -31,14 +34,20 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
       openRadioLineDialog: stack.openRadioLineDialog,
       openSI2PEMReportDialog: stack.openSI2PEMReportDialog,
       openStationHistoryDialog: stack.openStationHistoryDialog,
+      openTerrainProfileDialog: stack.openTerrainProfileDialog,
+      closeTerrainProfileDialog: stack.closeTerrainProfileDialog,
+      focusTerrainProfileDialog: stack.focusTerrainProfileDialog,
       setTerrainProfileStartHandler,
     }),
     [
       setTerrainProfileStartHandler,
+      stack.closeTerrainProfileDialog,
+      stack.focusTerrainProfileDialog,
       stack.openRadioLineDialog,
       stack.openSI2PEMReportDialog,
       stack.openStationHistoryDialog,
       stack.openStationDialog,
+      stack.openTerrainProfileDialog,
       stack.openUkePermitDialog,
     ],
   );
@@ -48,7 +57,7 @@ export function FloatingDialogStackProvider({ children }: { children: ReactNode 
       {children}
       <FloatingDialogStack
         dialogs={stack.dialogs}
-        onClose={stack.closeDialog}
+        onClose={stack.requestCloseDialog}
         onFocus={stack.focusDialog}
         onRectChange={stack.updateDialogRect}
         onSwitchStation={stack.switchStationDialog}

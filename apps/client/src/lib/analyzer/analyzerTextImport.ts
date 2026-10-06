@@ -1,8 +1,6 @@
 import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "./analyzerImport";
 /* oxlint-disable no-await-in-loop -- Ordered stream reads and batch yields bound memory and keep cancellation responsive */
-import { type FileFormat, type ParsedRow, detectFormat, parseFile } from "./analyzerParsers";
-
-type TextFileFormat = Exclude<FileFormat, "nsg">;
+import { type AnalyzerTextFormat, type ParsedRow, detectFormat, parseFile } from "./analyzerParsers";
 
 const MAX_LINE_LENGTH = 16 * 1024 * 1024;
 const TEXT_PREFIXES = {
@@ -15,18 +13,16 @@ export class AnalyzerTextImportError extends AnalyzerImportError {}
 type ImportOptions = {
   signal?: AbortSignal;
   onProgress?: (bytesRead: number) => void;
-  format?: TextFileFormat;
+  format?: AnalyzerTextFormat;
 };
-
-function detectTextFormat(fileName: string, line: string): TextFileFormat {
-  return detectFormat(fileName, line) === "netmonitor" ? "netmonitor" : "ntm";
-}
 
 export async function importAnalyzerTextFile(
   file: File,
   { signal, onProgress, format: requestedFormat }: ImportOptions = {},
-): Promise<{ rows: ParsedRow[]; format: TextFileFormat }> {
+): Promise<{ rows: ParsedRow[]; format: AnalyzerTextFormat; skippedLines: number }> {
   const rows: ParsedRow[] = [];
+  let skippedLines = 0;
+  let cellsOverLimit = 0;
   let format = requestedFormat;
   let prefix = "";
   let prefixHasTrailingWhitespace = false;
@@ -66,7 +62,7 @@ export async function importAnalyzerTextFile(
         return;
       }
       const token = delimiter === -1 ? content : content.slice(0, delimiter);
-      format ??= detectTextFormat(file.name, `${token};`);
+      format ??= detectFormat(file.name, `${token};`);
       prefix = "";
       if (!TEXT_PREFIXES[format].has(token)) {
         discarding = true;
@@ -79,12 +75,16 @@ export async function importAnalyzerTextFile(
     parts.push(content);
   };
   const finishLine = () => {
-    if (!format && prefix.trim().length > 0) format = detectTextFormat(file.name, prefix);
+    if (!format && prefix.trim().length > 0) format = detectFormat(file.name, prefix);
     if (candidate && format) {
       const parsed = parseFile(format, parts.join(""));
-      if (rows.length + parsed.length > ANALYZER_MAX_CELLS)
-        throw new AnalyzerTextImportError("tooManyCells", `The file contains more than ${ANALYZER_MAX_CELLS.toLocaleString("en-US")} cells.`);
-      rows.push(...parsed);
+      if (parsed.length === 0) skippedLines++;
+      for (const row of parsed) {
+        if (rows.length < ANALYZER_MAX_CELLS) rows.push(row);
+        else cellsOverLimit++;
+      }
+    } else if (discarding || prefix.trim().length > 0) {
+      skippedLines++;
     }
     prefix = "";
     prefixHasTrailingWhitespace = false;
@@ -126,7 +126,14 @@ export async function importAnalyzerTextFile(
     await consume(decoder.decode());
     finishLine();
     checkAborted();
-    return { rows, format: format ?? detectTextFormat(file.name, "") };
+    if (cellsOverLimit > 0) {
+      throw new AnalyzerTextImportError(
+        "tooManyCells",
+        `The file contains more than ${ANALYZER_MAX_CELLS.toLocaleString("en-US")} cells.`,
+        ANALYZER_MAX_CELLS + cellsOverLimit,
+      );
+    }
+    return { rows, format: format ?? detectFormat(file.name, ""), skippedLines };
   } catch (error) {
     checkAborted();
     if (error instanceof AnalyzerTextImportError) throw error;

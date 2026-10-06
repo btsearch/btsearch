@@ -1,8 +1,8 @@
-import type { SearchStation, UkeSearchPermitStation, UkeSearchRadioline } from "../../searchApi";
+import type { StationSearchHit, UkeSearchPermitStation, UkeSearchRadioline } from "../../searchApi";
 import type { FilterKeyword } from "../../types";
-import type { GeocodingResult, GeocodingSource } from "@/lib/geo/geocoding";
+import type { GeocodedPlace, GeocodingSource } from "@/lib/geo/geocoding";
 
-export type GpsSearchResult = {
+type GpsSearchResult = {
   lat: number;
   lng: number;
   address: string | null;
@@ -10,8 +10,8 @@ export type GpsSearchResult = {
 
 type FilterSearchOption = { kind: "filter"; key: string; keyword: FilterKeyword };
 type GpsSearchOption = { kind: "gps"; key: string; result: GpsSearchResult };
-type LocationSearchOption = { kind: "location"; key: string; result: GeocodingResult };
-type StationSearchOption = { kind: "station"; key: string; result: SearchStation };
+type LocationSearchOption = { kind: "location"; key: string; result: GeocodedPlace };
+type StationSearchOption = { kind: "station"; key: string; result: StationSearchHit };
 type PermitSearchOption = { kind: "permit"; key: string; result: UkeSearchPermitStation };
 type RadiolineSearchOption = { kind: "radioline"; key: string; result: UkeSearchRadioline };
 
@@ -36,21 +36,18 @@ type SearchResultCapabilities = {
 type BuildSearchResultOptionsArgs = {
   gpsResult: GpsSearchResult | null;
   gpsSource: GeocodingSource | null;
-  locationResults: GeocodingResult[];
+  locationResults: GeocodedPlace[];
   locationSource: GeocodingSource | null;
-  stationResults: SearchStation[];
+  stationResults: StationSearchHit[];
   permitResults: UkeSearchPermitStation[];
   radiolineResults: UkeSearchRadioline[];
   capabilities: SearchResultCapabilities;
 };
 
-export type BuiltSearchResults = {
+type BuiltSearchResults = {
   options: SearchResultOption[];
   groups: SearchResultGroup[];
-  stationTotalCount: number;
 };
-
-const MAX_STATION_RESULTS = 15;
 
 export function buildAutocompleteOptions(keywords: FilterKeyword[]): SearchOption[] {
   return keywords.map((keyword) => ({ kind: "filter", key: `filter:${keyword.key}`, keyword }));
@@ -72,7 +69,7 @@ export function buildSearchResultOptions({
     ? locationResults.map((result) => ({ kind: "location", key: `location:${result.id}`, result }))
     : [];
   const stationOptions: StationSearchOption[] = capabilities.station
-    ? stationResults.slice(0, MAX_STATION_RESULTS).map((result) => ({ kind: "station", key: `station:${result.id}`, result }))
+    ? stationResults.map((result) => ({ kind: "station", key: `station:${result.id}`, result }))
     : [];
   const permitOptions: PermitSearchOption[] = capabilities.permit
     ? permitResults.map((result) => ({ kind: "permit", key: `permit:${result.id}`, result }))
@@ -89,11 +86,7 @@ export function buildSearchResultOptions({
   const options: SearchResultOption[] = [];
   for (const group of groups) options.push(...group.options);
 
-  return {
-    options,
-    groups,
-    stationTotalCount: capabilities.station ? stationResults.length : 0,
-  };
+  return { options, groups };
 }
 
 export function getSearchOptionId(listboxId: string, optionKey: string): string {

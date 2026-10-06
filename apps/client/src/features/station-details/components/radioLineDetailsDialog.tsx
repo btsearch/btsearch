@@ -19,6 +19,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
 import { CopyButton } from "./copyButton";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { ShareButton } from "./shareButton";
@@ -160,7 +161,7 @@ export function RadioLineDetailsDialogPanel({
   const effectiveDirIndex = Math.min(selectedDirIndex, Math.max(link.directions.length - 1, 0));
   const radioLine = link.directions[effectiveDirIndex] ?? link.directions[0];
   const mnc = resolveOperatorMnc(radioLine.operator?.mnc, radioLine.operator?.name);
-  const operatorColor = mnc ? getOperatorColor(mnc) : "#3b82f6";
+  const operatorColor = mnc ? getOperatorColor(mnc) : FALLBACK_BRAND_COLOR;
   const operatorName = radioLine.operator?.name ? normalizeOperatorName(radioLine.operator.name) : t("unknownOperator");
   const linkTypeStyle = getLinkTypeStyle(link.linkType);
 
@@ -210,7 +211,7 @@ export function RadioLineDetailsDialogPanel({
                     </>
                   ) : null}
                 </div>
-                {session?.user && settings?.enableUserLists ? (
+                {session?.user && settings?.features.lists ? (
                   <StationDialogActionBar>
                     <AddToListPopover
                       radiolineIds={link.directions.map((direction) => direction.id)}

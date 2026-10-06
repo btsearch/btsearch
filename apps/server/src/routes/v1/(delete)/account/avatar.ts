@@ -1,19 +1,11 @@
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { deleteAvatarFile } from "../../../../features/users/avatarFile.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
-
-function isUploadedImage(image: string | null | undefined): boolean {
-  if (!image) return false;
-  return !image.startsWith("http") && image.endsWith(".webp");
-}
 
 const schemaRoute = {
   response: {
@@ -31,13 +23,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<null>>) {
     columns: { image: true },
   });
 
-  if (!currentUser?.image) return res.send({ data: null });
-
-  if (isUploadedImage(currentUser.image)) {
-    try {
-      await fs.unlink(path.join(UPLOAD_DIR, currentUser.image));
-    } catch {}
-  }
+  if (currentUser?.image) await deleteAvatarFile(userId, currentUser.image);
 
   return res.send({ data: null });
 }

@@ -19,29 +19,37 @@ import { useCallback, useMemo, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+import { ForbiddenState } from "@/components/auth/requireRole";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DATA_TABLE_HEADER_HEIGHT, DATA_TABLE_PAGINATION_HEIGHT, DATA_TABLE_ROW_HEIGHT, DataTable } from "@/components/ui/data-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
+import { ErrorState, PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavActionTarget } from "@/contexts/navActions";
+import { CountryFilterButton, CountryFilterChip } from "@/features/admin/audit-operations/components/countryFilter";
 import { DatePickerButton } from "@/features/admin/audit-operations/components/datePickerButton";
 import { OperationDetailSheet } from "@/features/admin/audit-operations/components/operationDetailSheet";
 import { OperationKindBadge } from "@/features/admin/audit-operations/components/operationKindBadge";
 import { UserChip } from "@/features/admin/audit-operations/components/userChip";
 import { ENTITY_OPTIONS, KIND_GROUPS } from "@/features/admin/audit-operations/constants";
+import { parseCountrySearch, toCountrySearch } from "@/features/admin/audit-operations/countrySearch";
 import { formatCountsSummary, getEntityLabel, getKindLabel } from "@/features/admin/audit-operations/labels";
 import { auditOperationsQueryOptions } from "@/features/admin/audit-operations/queries";
-import type { AuditOperationSummary } from "@/features/admin/audit-operations/types";
-import { UserPicker } from "@/features/admin/users/components/UserPicker";
-import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
+import type { AuditOperation } from "@/features/admin/audit-operations/types";
+import { type CountryFilter, useCountryFilter } from "@/features/admin/audit-operations/useCountryFilter";
+import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
+import { useUserSearchText } from "@/features/admin/users/components/list/useUserSearchText";
+import { UserPicker } from "@/features/admin/users/picker/userPicker";
+import { UserPickerPopover } from "@/features/admin/users/picker/userPickerPopover";
+import { parseUserId } from "@/features/admin/users/utils/userId";
 import { ClearFiltersButton } from "@/features/shared/filterPanel";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useTablePagination } from "@/hooks/useTablePageSize";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { type AppTableFeatures, appTableFeatures } from "@/lib/tableFeatures";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +63,7 @@ const MOBILE_PAGINATION_CONFIG = { rowHeight: 112, headerHeight: DATA_TABLE_HEAD
 const SORT_ASC_STYLE = { transform: "scaleY(-1)" };
 
 const ALL_KINDS = KIND_GROUPS.flatMap((group) => group.kinds);
-const EMPTY_OPERATIONS: AuditOperationSummary[] = [];
+const EMPTY_OPERATIONS: AuditOperation[] = [];
 const MOBILE_AUDIT_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => (
   <div key={index} className="space-y-2.5 px-3 py-2.5">
     <div className="flex items-center justify-between gap-3">
@@ -87,7 +95,7 @@ function formatAuditDate(dateString: string, locale: string): string {
   return formatter.format(new Date(dateString));
 }
 
-const columnHelper = createColumnHelper<AppTableFeatures, AuditOperationSummary>();
+const columnHelper = createColumnHelper<AppTableFeatures, AuditOperation>();
 
 type AuditOperationsFilterState = {
   entityFilter: AuditEntity | "";
@@ -101,6 +109,8 @@ type AuditOperationsFilterState = {
 type AuditLogsSearch = {
   q?: string;
   operation?: number;
+  user?: string;
+  countries?: string;
 };
 
 function parseAuditLogsQuery(value: unknown): string | undefined {
@@ -157,6 +167,11 @@ const initialFilterState: AuditOperationsFilterState = {
   dateTo: "",
   sort: "desc",
 };
+
+function createInitialFilterState(preselectedUserId: string | undefined): AuditOperationsFilterState {
+  if (preselectedUserId === undefined) return initialFilterState;
+  return { ...initialFilterState, selectedUserIds: [preselectedUserId] };
+}
 
 function KindsFilterButton({ value, onChange }: { value: AuditOperationKind[]; onChange: (value: AuditOperationKind[]) => void }) {
   const { t } = useTranslation(["admin", "common"]);
@@ -220,12 +235,14 @@ type AuditOperationsMobileFilterRailProps = {
   dateTo: string;
   queryFilter: string;
   selectedUserIds: string[];
+  countryFilter: CountryFilter;
   onEntityChange: (value: AuditEntity | "") => void;
   onKindsChange: (value: AuditOperationKind[]) => void;
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
   onQueryChange: (value: string) => void;
   onUsersChange: (ids: string[]) => void;
+  onCountriesChange: (countryCodes: string[]) => void;
   onClear: () => void;
 };
 
@@ -236,20 +253,25 @@ function AuditOperationsMobileFilterRail({
   dateTo,
   queryFilter,
   selectedUserIds,
+  countryFilter,
   onEntityChange,
   onKindsChange,
   onDateFromChange,
   onDateToChange,
   onQueryChange,
   onUsersChange,
+  onCountriesChange,
   onClear,
 }: AuditOperationsMobileFilterRailProps) {
   const { t } = useTranslation(["admin", "common"]);
-  const hasActiveFilters = Boolean(entityFilter || kindsFilter.length || dateFrom || dateTo || queryFilter || selectedUserIds.length);
+  const hasSearchText = queryFilter.trim() !== "";
+  const hasActiveFilters = Boolean(
+    entityFilter || kindsFilter.length || dateFrom || dateTo || hasSearchText || selectedUserIds.length || countryFilter.selected.length,
+  );
 
   return (
     <div className="flex items-center gap-1">
-      <MobileFilterChip active={Boolean(queryFilter)} icon={Search01Icon} label={t("auditLogs.filters.recordId")}>
+      <MobileFilterChip active={hasSearchText} icon={Search01Icon} label={t("auditLogs.filters.recordId")}>
         <MobileFilterPanelTitle>{t("auditLogs.filters.recordId")}</MobileFilterPanelTitle>
         <div className="relative">
           <HugeiconsIcon
@@ -257,6 +279,7 @@ function AuditOperationsMobileFilterRail({
             className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
+            {...NO_AUTOFILL_PROPS}
             className="h-9 w-full pl-8 pr-8"
             placeholder={t("auditLogs.filters.recordId")}
             value={queryFilter}
@@ -323,10 +346,20 @@ function AuditOperationsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
-      <MobileFilterChip active={selectedUserIds.length > 0} count={selectedUserIds.length} icon={UserIcon} label={t("auditLogs.columns.actor")}>
-        <MobileFilterPanelTitle>{t("auditLogs.columns.actor")}</MobileFilterPanelTitle>
+      <MobileFilterChip
+        active={selectedUserIds.length > 0}
+        count={selectedUserIds.length}
+        icon={UserIcon}
+        label={t("auditLogs.columns.actor")}
+        contentClassName="gap-0 p-0"
+      >
+        <div className="px-2 pt-2.5">
+          <MobileFilterPanelTitle>{t("auditLogs.columns.actor")}</MobileFilterPanelTitle>
+        </div>
         <UserPicker selectedUserIds={selectedUserIds} onSelectionChange={onUsersChange} />
       </MobileFilterChip>
+
+      <CountryFilterChip filter={countryFilter} onChange={onCountriesChange} />
 
       <MobileFilterChip
         active={Boolean(dateFrom || dateTo)}
@@ -355,7 +388,7 @@ function AuditOperationsMobileFilterRail({
   );
 }
 
-function getPerformerAttribution(t: TFunction, operation: AuditOperationSummary): string | null {
+function getPerformerAttribution(t: TFunction, operation: AuditOperation): string | null {
   const { actor, performer } = operation;
   if (performer === null || performer.id === actor?.id) return null;
 
@@ -365,18 +398,18 @@ function getPerformerAttribution(t: TFunction, operation: AuditOperationSummary)
     : t("auditLogs.actor.via", { name: performerName });
 }
 
-function getOperationTargetLabel(t: TFunction, operation: AuditOperationSummary): string {
-  if (operation.station_ids.length === 1) return `#${operation.station_ids[0]}`;
-  if (operation.station_ids.length > 1) return t("common:labels.stations", { count: operation.station_ids.length });
+function getOperationTargetLabel(t: TFunction, operation: AuditOperation): string {
+  if (operation.stationIds.length === 1) return `#${operation.stationIds[0]}`;
+  if (operation.stationIds.length > 1) return t("common:labels.stations", { count: operation.stationIds.length });
 
   const entities = [...new Set(operation.counts.map((count) => count.entity))];
   return entities.length > 0 ? entities.map((entity) => getEntityLabel(t, entity)).join(", ") : "-";
 }
 
-function AuditOperationTarget({ operation, targetLabel, className }: { operation: AuditOperationSummary; targetLabel: string; className?: string }) {
-  const stationId = operation.station_ids.length === 1 ? operation.station_ids[0] : undefined;
+function AuditOperationTarget({ operation, targetLabel, className }: { operation: AuditOperation; targetLabel: string; className?: string }) {
+  const stationId = operation.stationIds.length === 1 ? operation.stationIds[0] : undefined;
 
-  if (stationId !== undefined)
+  if (stationId !== undefined) {
     return (
       <Link
         to="/admin/stations/$id"
@@ -391,6 +424,7 @@ function AuditOperationTarget({ operation, targetLabel, className }: { operation
         {targetLabel}
       </Link>
     );
+  }
 
   return <span className={cn("text-xs", targetLabel === "-" ? "text-muted-foreground" : "font-medium", className)}>{targetLabel}</span>;
 }
@@ -401,7 +435,7 @@ function AuditOperationMobileRow({
   onOpenOperation,
   t,
 }: {
-  operation: AuditOperationSummary;
+  operation: AuditOperation;
   locale: string;
   onOpenOperation: (operationId: number) => void;
   t: TFunction;
@@ -464,7 +498,7 @@ type AuditOperationsMobileListProps = {
   isLoading: boolean;
   isError: boolean;
   isRetrying: boolean;
-  operations: AuditOperationSummary[];
+  operations: AuditOperation[];
   pageSize: number;
   autoPageSize: number;
   sort: "asc" | "desc";
@@ -542,7 +576,7 @@ type AuditOperationsTableRowsProps = {
   isLoading: boolean;
   isError: boolean;
   isRetrying: boolean;
-  operations: AuditOperationSummary[];
+  operations: AuditOperation[];
   pageSize: number;
   autoPageSize: number;
   onOpenOperation: (operationId: number) => void;
@@ -561,14 +595,18 @@ function AuditOperationsTableRows({
   onRetry,
 }: AuditOperationsTableRowsProps) {
   const { t } = useTranslation("admin");
-  const handleRowClick = useCallback((row: AuditOperationSummary) => onOpenOperation(row.id), [onOpenOperation]);
+
+  function openRow(row: AuditOperation): void {
+    onOpenOperation(row.id);
+  }
 
   if (isLoading) return <DataTable.Skeleton rows={pageSize} columns={columnsCount} />;
 
-  if (isError && operations.length === 0)
+  if (isError && operations.length === 0) {
     return <DataTable.Error columns={columnsCount} rows={autoPageSize} onRetry={onRetry} isRetrying={isRetrying} />;
+  }
 
-  if (operations.length === 0)
+  if (operations.length === 0) {
     return (
       <tbody>
         <tr>
@@ -582,8 +620,9 @@ function AuditOperationsTableRows({
         </tr>
       </tbody>
     );
+  }
 
-  return <DataTable.Body onRowClick={handleRowClick} />;
+  return <DataTable.Body onRowClick={openRow} />;
 }
 
 function AdminAuditLogsPage() {
@@ -591,19 +630,23 @@ function AdminAuditLogsPage() {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const queryFilter = search.q ?? "";
+  const searchText = (search.q ?? "").trim();
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
   const showFloatingMobileFilters = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
-  const [filterState, dispatchFilter] = useReducer(auditOperationsFilterReducer, initialFilterState);
+  const [filterState, dispatchFilter] = useReducer(auditOperationsFilterReducer, search.user, createInitialFilterState);
   const { entityFilter, kindsFilter, selectedUserIds, dateFrom, dateTo, sort } = filterState;
+  const [lastOperationId, setLastOperationId] = useState(search.operation);
+  const countryFilter = useCountryFilter(search.countries);
+  const selectedCountryCodes = countryFilter.selected;
 
   const desktopPagination = useTablePagination(TABLE_PAGINATION_CONFIG);
   const mobilePagination = useTablePagination(MOBILE_PAGINATION_CONFIG);
   const { setPagination: setDesktopPagination } = desktopPagination;
   const { setPagination: setMobilePagination } = mobilePagination;
-  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions } = isMobile ? mobilePagination : desktopPagination;
+  const activePagination = isMobile ? mobilePagination : desktopPagination;
+  const { containerRef, pagination, setPagination, autoPageSize, pageSizeOptions, isPageSizeMeasured } = activePagination;
 
   const resetPage = useCallback(() => {
     setDesktopPagination((previous) => ({ ...previous, pageIndex: 0 }));
@@ -614,25 +657,46 @@ function AdminAuditLogsPage() {
     resetPage();
   }, [resetPage, sort]);
 
+  function applySearchText(text: string): void {
+    resetPage();
+    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, q: text || undefined }), replace: true });
+  }
+  const { text: queryFilter, changeText: changeQueryFilter, clearText: clearQueryFilter } = useUserSearchText(searchText, applySearchText);
+
+  if (search.operation !== undefined && search.operation !== lastOperationId) setLastOperationId(search.operation);
+  const sheetOperationId = search.operation ?? lastOperationId;
+
   const activeFilterCount = [
     entityFilter !== "",
     kindsFilter.length > 0,
     dateFrom !== "",
     dateTo !== "",
-    queryFilter !== "",
+    queryFilter.trim() !== "",
     selectedUserIds.length > 0,
+    selectedCountryCodes.length > 0,
   ].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
 
   function clearAllFilters(): void {
+    clearQueryFilter();
     dispatchFilter({ type: "CLEAR_FILTERS" });
     resetPage();
-    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, q: undefined }), replace: true });
+    void navigate({
+      from: Route.fullPath,
+      search: (current) => ({ ...current, q: undefined, user: undefined, countries: undefined }),
+      replace: true,
+    });
   }
 
-  function handleQueryFilterChange(value: string): void {
+  function handleCountriesChange(countryCodes: string[]): void {
     resetPage();
-    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, q: value || undefined }), replace: true });
+    void navigate({ from: Route.fullPath, search: (current) => ({ ...current, countries: toCountrySearch(countryCodes) }), replace: true });
+  }
+
+  function handleUsersChange(userIds: string[]): void {
+    dispatchFilter({ type: "SET_USER_IDS", payload: userIds });
+    resetPage();
+    if (search.user !== undefined) void navigate({ from: Route.fullPath, search: (current) => ({ ...current, user: undefined }), replace: true });
   }
 
   const openOperation = useCallback(
@@ -641,23 +705,26 @@ function AdminAuditLogsPage() {
     },
     [navigate],
   );
-  const { data, isLoading, isFetching, isError, refetch } = useQuery(
-    auditOperationsQueryOptions({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    ...auditOperationsQueryOptions({
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
-      sort,
+      sort: sort === "asc" ? "createdAt" : "-createdAt",
       entities: entityFilter ? [entityFilter] : undefined,
-      kinds: kindsFilter.length > 0 ? kindsFilter : undefined,
-      userIds: selectedUserIds.length > 0 ? selectedUserIds : undefined,
-      from: dateFrom ? new Date(`${dateFrom}T00:00:00`).toISOString() : undefined,
-      to: dateTo ? new Date(`${dateTo}T23:59:59.999`).toISOString() : undefined,
-      q: queryFilter || undefined,
+      kinds: kindsFilter,
+      userIds: selectedUserIds,
+      countryCodes: selectedCountryCodes,
+      createdAfter: dateFrom ? new Date(`${dateFrom}T00:00:00`).toISOString() : undefined,
+      createdBefore: dateTo ? new Date(`${dateTo}T23:59:59.999`).toISOString() : undefined,
+      q: searchText || undefined,
+      includeTotal: true,
     }),
-  );
+    enabled: isPageSizeMeasured,
+  });
 
   const operations = data?.data ?? EMPTY_OPERATIONS;
-  const total = data?.totalCount ?? 0;
-  const selectedRow = operations.find((operation) => operation.id === search.operation);
+  const total = data?.paging.total ?? 0;
+  const selectedRow = operations.find((operation) => operation.id === sheetOperationId);
 
   const columns = useMemo(
     () =>
@@ -732,6 +799,7 @@ function AdminAuditLogsPage() {
     onPaginationChange: setPagination,
   });
 
+  const showInitialLoading = !isPageSizeMeasured || isLoading;
   const showError = isError && operations.length === 0;
   const showStaleNotice = isError && operations.length > 0;
 
@@ -788,23 +856,23 @@ function AdminAuditLogsPage() {
                 className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none"
               />
               <Input
+                {...NO_AUTOFILL_PROPS}
                 className="h-8 pl-7 w-40"
                 placeholder={t("auditLogs.filters.recordId")}
                 value={queryFilter}
-                onChange={(e) => handleQueryFilterChange(e.target.value)}
+                onChange={(e) => changeQueryFilter(e.target.value)}
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">{t("auditLogs.columns.actor")}</span>
-            <UserPickerPopover
-              selectedUserIds={selectedUserIds}
-              onSelectionChange={(ids) => {
-                dispatchFilter({ type: "SET_USER_IDS", payload: ids });
-                resetPage();
-              }}
-            />
+            <UserPickerPopover selectedUserIds={selectedUserIds} onSelectionChange={handleUsersChange} />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("users.detail.grants.dialog.country")}</span>
+            <CountryFilterButton filter={countryFilter} onChange={handleCountriesChange} />
           </div>
 
           <div className="flex flex-col gap-1">
@@ -848,7 +916,7 @@ function AdminAuditLogsPage() {
         {isMobile ? (
           <div className="flex flex-col">
             <AuditOperationsMobileList
-              isLoading={isLoading}
+              isLoading={showInitialLoading}
               isError={isError}
               isRetrying={isFetching}
               operations={operations}
@@ -872,7 +940,7 @@ function AdminAuditLogsPage() {
                   <DataTable.Header />
                   <AuditOperationsTableRows
                     columnsCount={columns.length}
-                    isLoading={isLoading}
+                    isLoading={showInitialLoading}
                     isError={isError}
                     isRetrying={isFetching}
                     operations={operations}
@@ -891,11 +959,11 @@ function AdminAuditLogsPage() {
         )}
       </div>
 
-      {search.operation !== undefined ? (
+      {sheetOperationId !== undefined ? (
         <OperationDetailSheet
-          operationId={search.operation}
+          operationId={sheetOperationId}
           listRow={selectedRow}
-          open
+          open={search.operation !== undefined}
           onOpenChange={(nextOpen) => {
             if (!nextOpen) void navigate({ from: Route.fullPath, search: (current) => ({ ...current, operation: undefined }), replace: true });
           }}
@@ -914,6 +982,7 @@ function AdminAuditLogsPage() {
                     dateTo={dateTo}
                     queryFilter={queryFilter}
                     selectedUserIds={selectedUserIds}
+                    countryFilter={countryFilter}
                     onEntityChange={(value) => {
                       dispatchFilter({ type: "SET_ENTITY_FILTER", payload: value });
                       resetPage();
@@ -930,11 +999,9 @@ function AdminAuditLogsPage() {
                       dispatchFilter({ type: "SET_DATE_TO", payload: value });
                       resetPage();
                     }}
-                    onQueryChange={handleQueryFilterChange}
-                    onUsersChange={(ids) => {
-                      dispatchFilter({ type: "SET_USER_IDS", payload: ids });
-                      resetPage();
-                    }}
+                    onQueryChange={changeQueryFilter}
+                    onUsersChange={handleUsersChange}
+                    onCountriesChange={handleCountriesChange}
                     onClear={clearAllFilters}
                   />
                 </div>
@@ -947,15 +1014,28 @@ function AdminAuditLogsPage() {
   );
 }
 
+function AuditLogsGate() {
+  const access = useReferenceAccess();
+
+  if (access.isPending) return null;
+  if (access.hasLoadFailed) return <PageErrorState onRetry={access.retry} />;
+  if (!access.canOpenCountries) return <ForbiddenState />;
+
+  return <AdminAuditLogsPage />;
+}
+
 export const Route = createFileRoute("/_layout/admin/_layout/audit-logs")({
   validateSearch: (search: Record<string, unknown>): AuditLogsSearch => ({
     q: parseAuditLogsQuery(search.q),
     operation: parseOperationId(search.operation),
+    user: parseUserId(search.user),
+    countries: parseCountrySearch(search.countries),
   }),
-  component: AdminAuditLogsPage,
+  component: AuditLogsGate,
   staticData: {
     titleKey: "items.auditLogs",
     i18nNamespace: "nav",
+    allowedRoles: ["admin", "editor"],
     breadcrumbs: [{ titleKey: "sections.admin", path: "/admin/stations", i18nNamespace: "nav" }],
   },
 });

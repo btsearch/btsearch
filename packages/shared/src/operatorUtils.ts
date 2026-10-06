@@ -48,8 +48,9 @@ const OPERATOR_NAME_TO_MNC: Record<string, number> = {
   "towerlink poland": 26001,
   p4: 26006,
   play: 26006,
-  NetWorks: 26034,
-  aero2: 26016,
+  networks: 26034,
+  aero2: 26017,
+  "aero 2": 26017,
 };
 
 export function resolveOperatorMnc(mnc?: number | null, name?: string | null): number | null {
@@ -58,7 +59,7 @@ export function resolveOperatorMnc(mnc?: number | null, name?: string | null): n
   return OPERATOR_NAME_TO_MNC[name.toLowerCase().trim()] ?? null;
 }
 
-const DEFAULT_OPERATOR_COLOR = "#00E1FF";
+export const DEFAULT_OPERATOR_COLOR = "#00E1FF";
 
 const OPERATOR_NAME_TO_COLOR: Record<string, string> = {
   orange: "#F59E0B",

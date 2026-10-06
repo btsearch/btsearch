@@ -3,6 +3,7 @@ import type { CLFDescriptionTemplates, ClfExportFormat } from "@openbts/shared/c
 import {
   type AnyPgColumn,
   boolean,
+  char,
   check,
   index,
   integer,
@@ -10,6 +11,7 @@ import {
   pgEnum,
   pgSchema,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -20,7 +22,7 @@ import {
 import { sql } from "drizzle-orm/sql";
 import { nanoid } from "nanoid";
 
-import { UkeSchema, locations, stations, ukeStations } from "./bts.ts";
+import { UkeSchema, countries, locations, regions, stations, ukeStations } from "./bts.ts";
 
 export const NotificationType = pgEnum("notification_type", [
   "submission_approved",
@@ -58,6 +60,8 @@ export type CloudUserPreferences = {
   cartoVariant?: "auto" | "dark" | "light";
   clfExportFilters?: {
     operators: number[];
+    countryCode?: string;
+    operatorIds?: number[];
     regions: string[];
     bands: number[];
     format: ClfExportFormat;
@@ -77,6 +81,7 @@ export const Role = pgEnum("role", ["user", "moderator", "admin"]);
 export const APITokenTier = pgEnum("api_token_tier", ["basic", "pro", "unlimited"]);
 export const AuditOp = pgEnum("audit_op", ["create", "update", "delete"]);
 export const AuditSource = pgEnum("audit_source", ["api", "import", "system"]);
+export const GrantRole = pgEnum("grant_role", ["editor", "maintainer"]);
 export const AuditSchema = pgSchema("audit");
 export const AuthSchema = pgSchema("auth");
 
@@ -110,6 +115,45 @@ export const users = AuthSchema.table(
     cloudPreferences: jsonb("cloud_preferences").$type<CloudPreferences>(),
   },
   (table) => [index("users_email_idx").on(table.email)],
+);
+
+export const roleGrants = AuthSchema.table(
+  "role_grants",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`)
+      .notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: GrantRole("role").notNull(),
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    isCountryWide: boolean("is_country_wide").notNull(),
+    grantedById: uuid("granted_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("role_grants_user_role_country_unique").on(t.userId, t.role, t.countryCode),
+    index("role_grants_country_code_idx").on(t.countryCode),
+    check("role_grants_maintainer_country_wide", sql`${t.role} <> 'maintainer' OR ${t.isCountryWide}`),
+  ],
+);
+
+export const roleGrantRegions = AuthSchema.table(
+  "role_grant_regions",
+  {
+    grantId: uuid("grant_id")
+      .notNull()
+      .references(() => roleGrants.id, { onDelete: "cascade" }),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.grantId, t.regionId] }), index("role_grant_regions_region_id_idx").on(t.regionId)],
 );
 
 export const sessions = AuthSchema.table(
@@ -612,10 +656,12 @@ export const auditOperations = AuditSchema.table(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
+    country_code: char("country_code", { length: 2 }).references(() => countries.code, { onDelete: "set null", onUpdate: "cascade" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("audit_operations_created_at_id_idx").on(table.createdAt, table.id),
+    index("audit_operations_country_created_at_id_idx").on(table.country_code, table.createdAt, table.id),
     index("audit_operations_actor_id_idx").on(table.actor_id),
     index("audit_operations_performed_by_idx").on(table.performed_by),
     index("audit_operations_kind_idx").on(table.kind),

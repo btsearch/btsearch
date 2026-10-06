@@ -10,7 +10,8 @@
     "noResultsHint": "Try other keywords or filters",
     "errorTitle": "Could not load search results",
     "partialError": "Some result sources could not be loaded",
-    "showingTop": "Showing <num>{{shown, number}}</num> of <num>{{total, number}}</num> stations"
+    "showingTop": "Showing <num>{{shown, number}}</num> of <num>{{total, number}}</num> stations",
+    "queryRejected": "The query has an error. Check the filters you typed."
   },
   "autocomplete": {
     "availableFilters": "Available filters",
@@ -72,7 +73,9 @@
       "supportsNrRedcap": "Supports RedCap (true, false)",
       "networksId": "NetWorks ID",
       "networksName": "NetWorks name",
-      "mnoName": "MNO name"
+      "mnoName": "MNO name",
+      "plmn": "Any of the operator's PLMN codes (MCC and MNC together, 5 or 6 digits)",
+      "country": "Two-letter country code (ISO 3166-1)"
     }
   },
   "searchResults": {
@@ -124,9 +127,7 @@
     "dismiss": "Dismiss advertisement"
   },
   "stats": {
-    "internalData": "Internal database",
-    "stations": "Number of stations",
-    "permits": "Number of permits"
+    "internalData": "Internal database"
   },
   "filters": {
     "dataSource": "Data source",
@@ -135,11 +136,6 @@
     "recentOnlyDays_other": "Only from the last {{count, number}} days",
     "recentDaysValue_one": "{{count, number}} day",
     "recentDaysValue_other": "{{count, number}} days",
-    "showingStationsOfTotal": "Fetched {{count, number}} of {{total, number}} stations",
-    "showingLocationsOfTotal": "Fetched {{count, number}} of {{total, number}} locations",
-    "showingLocations_one": "Fetched {{count, number}} location",
-    "showingLocations_other": "Fetched {{count, number}} locations",
-    "showingStations": "Fetched {{count, number}} stations",
     "layers": "Layers",
     "operator": "BTS operator",
     "showPlannedPem": "Planned EMF",
@@ -151,11 +147,43 @@
     "date": {
       "createdAt": "Created",
       "updatedAt": "Updated"
-    }
+    },
+    "country": "Country",
+    "registerOnly": "UKE permits cover Poland only.",
+    "offScreen": "off screen",
+    "collapse": "Collapse",
+    "collapseOperators": "Collapse the operator list",
+    "registerLayerOnly": "Data for Poland only",
+    "registerLayersNote": "Microwave links and planned EMF cover Poland only.",
+    "registerLayersUnavailable": "Microwave links and planned EMF are available in Poland only.",
+    "bandMhz": "{{value}} MHz",
+    "bandOnlyIn": "{{value}} MHz, {{country}} only",
+    "unknownBand": "Unknown band",
+    "radiolinesLayerNote": "Microwave links cover Poland only.",
+    "radiolinesLayerUnavailable": "Microwave links are available in Poland only.",
+    "otherCountries_one": "{{count, number}} other country",
+    "otherCountries_other": "{{count, number}} other countries",
+    "collapseCountries": "Collapse the country list",
+    "countrySelectedOperators": "{{country}}, selected operators: {{count, number}}",
+    "bandGhzOnlyIn": "{{value}}, {{country}} only",
+    "addCountry": "Add a country...",
+    "countriesShown_one": "{{shown, number}} of {{count, number}} country",
+    "countriesShown_other": "{{shown, number}} of {{count, number}} countries",
+    "pickCountryForOperators": "Pick a country to filter by operator",
+    "allRegions": "All regions",
+    "noRegionsFound": "No regions found",
+    "otherStructureTypes_one": "{{count, number}} other structure type",
+    "otherStructureTypes_other": "{{count, number}} other structure types",
+    "collapseStructureTypes": "Collapse the structure type list",
+    "allStructureOwners": "All owners",
+    "withoutStations": "Without stations",
+    "missingData": "Missing data",
+    "withoutPhotos": "Without photos",
+    "withoutStructure": "Without a structure",
+    "unconfirmed": "Unconfirmed"
   },
   "unknownOperator": "Unknown operator",
   "photos": {
-    "subtitle": "A live contact sheet of photos selected for published base stations",
     "loadedCount": "Showing {{count, number}} of {{total, number}} photos",
     "loadingMore": "Loading more photos...",
     "emptyTitle": "No station photos yet",
@@ -164,15 +192,16 @@
     "filteredEmptySubtitle": "Clear filters or widen the search to see more station photos",
     "errorSubtitle": "Refresh the gallery or try again in a moment",
     "loadMoreError": "Couldn't load more photos",
-    "searchPlaceholder": "Search station, city, address, region, note...",
     "mainOnly": "Main only",
     "allLoaded": "All matching photos loaded",
     "stationPhotoCount_one": "{{count, number}} photo",
     "stationPhotoCount_other": "{{count, number}} photos",
-    "viewStation": "View station",
     "scrollTop": "Scroll to top",
-    "unknownUser": "unknown",
-    "mainPhoto": "Main station photo"
+    "mainPhoto": "Main station photo",
+    "locationNumber": "Location #{{id}}",
+    "title": "Base station photos",
+    "searchFieldPlaceholder": "Search by station ID, city, address or note...",
+    "recentUploadsOnly": "Uploaded in the last 7 days"
   },
   "radiolines": {
     "txSide": "Transmitting side (TX)",

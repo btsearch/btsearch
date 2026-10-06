@@ -6,6 +6,7 @@ import { baseUrl } from "../../config.js";
 import db from "../../database/psql.js";
 import redis from "../../database/redis.js";
 import { ErrorResponse } from "../../errors.js";
+import { locationInPublicCountry } from "../../features/countries/visibility.js";
 import { MAX_SITEMAP_CHUNK_PAGE, parseSitemapChunkFile } from "../../features/seo/routes.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
@@ -25,7 +26,6 @@ const STATIC_PATHS = [
   "/pem-measurements",
   "/clf-export",
   "/kmz",
-  "/deleted-entries",
   "/changelog",
   "/about",
   "/contact",
@@ -48,7 +48,12 @@ let statsFetchedAt = 0;
 
 type SitemapUrl = { loc: string; lastmod?: string };
 
-const publishedSEOStations = and(eq(stations.status, "published"), isNotNull(stations.location_id), isNotNull(stations.operator_id));
+const publishedSEOStations = and(
+  eq(stations.status, "published"),
+  isNotNull(stations.location_id),
+  isNotNull(stations.operator_id),
+  locationInPublicCountry(stations.location_id),
+);
 const publishedLocationActivity = db
   .select({ locationId: stations.location_id, stationLastmod: max(stations.updatedAt).as("station_lastmod") })
   .from(stations)

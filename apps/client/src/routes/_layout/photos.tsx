@@ -1,10 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { PhotosGallery } from "@/features/photos/components/PhotosGallery";
+import { PhotosGalleryPage } from "@/features/photos/components/photosGalleryPage";
+import { type PhotosGallerySearch, parsePhotosGallerySearch } from "@/features/photos/galleryFilters";
 import { buildStaticPageHead } from "@/lib/seo";
 
+function PhotosGalleryRoute() {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+
+  function replaceSearch(nextSearch: PhotosGallerySearch) {
+    void navigate({ from: Route.fullPath, search: nextSearch, replace: true });
+  }
+
+  return <PhotosGalleryPage search={search} onSearchChange={replaceSearch} />;
+}
+
 export const Route = createFileRoute("/_layout/photos")({
-  component: PhotosGallery,
+  validateSearch: parsePhotosGallerySearch,
+  component: PhotosGalleryRoute,
   head: () => buildStaticPageHead("/photos"),
   staticData: {
     titleKey: "items.photos",

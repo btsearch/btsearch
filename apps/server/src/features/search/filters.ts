@@ -8,15 +8,18 @@ import {
   nrCells,
   operators,
   regions,
-  stationPhotoSelections,
   stationSectors,
   stations,
   umtsCells,
 } from "@openbts/drizzle";
 import { CELL_TYPES, CELL_TYPE_SHORT_LABELS, type CellType } from "@openbts/shared/cellTypes";
-import { type SQL, gte, inArray, lte, or, sql } from "drizzle-orm";
+import { MAX_ID } from "@openbts/shared/contract";
+import { type SQL, and, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../constants.js";
+import { ErrorResponse } from "../../errors.js";
+import { buildHasPhotosCondition, buildHasSectorsCondition } from "../stations/filter.js";
 import { buildUplinkCondition, isUplinkType } from "../stations/uplink.js";
 
 export type FilterValue = string | number | boolean;
@@ -54,7 +57,7 @@ export type FilterCondition = {
   buildCondition: (value: FilterValue, refs: SearchFilterRefs) => SQL;
 };
 
-const splitList = (value: string) =>
+export const splitList = (value: string) =>
   value
     .split(",")
     .map((item) => item.trim())
@@ -62,6 +65,8 @@ const splitList = (value: string) =>
 
 const HEX_PREFIX_REGEX = /^0x([0-9a-f]+)$/i;
 const HEX_LETTERS_REGEX = /^[0-9a-f]+$/i;
+const EARLIEST_DATE = new Date("0001-01-01T00:00:00Z");
+const LATEST_DATE = new Date("9999-12-31T00:00:00Z");
 const parseNumericOrHex = (item: string): number => {
   const prefixMatch = HEX_PREFIX_REGEX.exec(item);
   if (prefixMatch) return Number.parseInt(prefixMatch[1]!, 16);
@@ -73,6 +78,9 @@ const numericListSchema = z
   .string()
   .transform((value) => splitList(value).map(parseNumericOrHex))
   .pipe(z.array(z.number().int()).min(1));
+const int32ListSchema = numericListSchema.pipe(z.array(z.number().min(-MAX_ID).max(MAX_ID)));
+const dateSchema = z.coerce.date().min(EARLIEST_DATE).max(LATEST_DATE);
+const coordinatesSchema = z.tuple([z.coerce.number().min(-90).max(90), z.coerce.number().min(-180).max(180)]);
 const stringListSchema = z
   .string()
   .transform((value) => splitList(value))
@@ -93,8 +101,20 @@ const duplexListSchema = z
 
 type DuplexValue = "FDD" | "TDD";
 
-function parseNumbers(v: FilterValue): number[] {
+export function parseNumbers(v: FilterValue): number[] {
   return numericListSchema.parse(String(v));
+}
+
+function parseInt32s(v: FilterValue): number[] {
+  return int32ListSchema.parse(String(v));
+}
+
+function parseDate(v: FilterValue): Date {
+  return dateSchema.parse(String(v));
+}
+
+export function parseCoordinates(v: FilterValue): [number, number] {
+  return coordinatesSchema.parse(splitList(String(v)));
 }
 
 function parseStrings(v: FilterValue): string[] {
@@ -151,12 +171,12 @@ const buildLikeAny =
 const buildDateGte =
   <T>(column: T) =>
   (value: FilterValue) =>
-    gte(column as never, new Date(String(value)));
+    gte(column as never, parseDate(value));
 
 const buildDateLte =
   <T>(column: T) =>
   (value: FilterValue) => {
-    const date = new Date(String(value));
+    const date = parseDate(value);
     date.setHours(23, 59, 59, 999);
     return lte(column as never, date);
   };
@@ -164,7 +184,7 @@ const buildDateLte =
 const buildInArrayFromSubquery =
   <T>(column: T, buildSubquery: (values: number[]) => SQL) =>
   (value: FilterValue) =>
-    inArray(column as never, buildSubquery(parseNumbers(value)));
+    inArray(column as never, buildSubquery(parseInt32s(value)));
 
 const buildInArrayFromStringSubquery =
   <T>(column: T, buildSubquery: (values: string[]) => SQL) =>
@@ -222,19 +242,11 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
 
   has_photo: {
     table: "stations",
-    buildCondition: (value, refs) => {
-      const hasPhoto = parseBoolean(value);
-      const subquery = sql`(SELECT 1 FROM ${stationPhotoSelections} WHERE ${stationPhotoSelections.station_id} = ${refs.stations.id})`;
-      return hasPhoto ? sql`EXISTS ${subquery}` : sql`NOT EXISTS ${subquery}`;
-    },
+    buildCondition: (value, refs) => buildHasPhotosCondition(refs.stations.id, parseBoolean(value)),
   },
   has_azimuth: {
     table: "stations",
-    buildCondition: (value, refs) => {
-      const hasAzimuth = parseBoolean(value);
-      const subquery = sql`(SELECT 1 FROM ${refs.stationSectors} WHERE ${refs.stationSectors.station_id} = ${refs.stations.id})`;
-      return hasAzimuth ? sql`EXISTS ${subquery}` : sql`NOT EXISTS ${subquery}`;
-    },
+    buildCondition: (value, refs) => buildHasSectorsCondition(refs.stationSectors, refs.stations.id, parseBoolean(value)),
   },
   uplink: {
     table: "stations",
@@ -271,59 +283,59 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   // gsmCells
   lac: {
     table: "gsmCells",
-    buildCondition: (value, refs) => buildInArray(refs.gsmCells.lac, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.gsmCells.lac, parseInt32s)(value),
   },
   cid: {
     table: "gsmCells",
-    buildCondition: (value, refs) => buildInArray(refs.gsmCells.cid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.gsmCells.cid, parseInt32s)(value),
   },
 
   // umtsCells
   rnc: {
     table: "umtsCells",
-    buildCondition: (value, refs) => buildInArray(refs.umtsCells.rnc, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.rnc, parseInt32s)(value),
   },
   umts_cid: {
     table: "umtsCells",
-    buildCondition: (value, refs) => buildInArray(refs.umtsCells.cid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.cid, parseInt32s)(value),
   },
   cid_long: {
     table: "umtsCells",
-    buildCondition: (value, refs) => buildInArray(refs.umtsCells.cid_long, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.cid_long, parseInt32s)(value),
   },
   umts_lac: {
     table: "umtsCells",
-    buildCondition: (value, refs) => buildInArray(refs.umtsCells.lac, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.lac, parseInt32s)(value),
   },
   uarfcn: {
     table: "umtsCells",
-    buildCondition: (value, refs) => buildInArray(refs.umtsCells.arfcn, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.umtsCells.arfcn, parseInt32s)(value),
   },
 
   // lteCells
   enbid: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.enbid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.enbid, parseInt32s)(value),
   },
   ecid: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.ecid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.ecid, parseInt32s)(value),
   },
   lte_clid: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.clid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.clid, parseInt32s)(value),
   },
   tac: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.tac, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.tac, parseInt32s)(value),
   },
   lte_pci: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.pci, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.pci, parseInt32s)(value),
   },
   earfcn: {
     table: "lteCells",
-    buildCondition: (value, refs) => buildInArray(refs.lteCells.earfcn, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.lteCells.earfcn, parseInt32s)(value),
   },
   supports_iot: {
     table: "lteCells",
@@ -333,7 +345,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   // nrCells
   gnbid: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.gnbid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.gnbid, parseInt32s)(value),
   },
   nci: {
     table: "nrCells",
@@ -341,19 +353,19 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   },
   nr_clid: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.clid, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.clid, parseInt32s)(value),
   },
   nrtac: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.nrtac, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.nrtac, parseInt32s)(value),
   },
   nr_pci: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.pci, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.pci, parseInt32s)(value),
   },
   arfcn: {
     table: "nrCells",
-    buildCondition: (value, refs) => buildInArray(refs.nrCells.arfcn, parseNumbers)(value),
+    buildCondition: (value, refs) => buildInArray(refs.nrCells.arfcn, parseInt32s)(value),
   },
   supports_nr_redcap: {
     table: "nrCells",
@@ -364,9 +376,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
   gps: {
     table: "locations",
     buildCondition: (value, refs) => {
-      const [latStr = "", lngStr = ""] = String(value).split(",");
-      const lat = Number.parseFloat(latStr.trim());
-      const lng = Number.parseFloat(lngStr.trim());
+      const [lat, lng] = parseCoordinates(value);
       return sql`ST_DWithin(${refs.locations.point}::geography, ST_MakePoint(${lng}, ${lat})::geography, 1000)`;
     },
   },
@@ -378,7 +388,7 @@ export const FILTER_DEFINITIONS: Record<string, FilterCondition> = {
       buildInArrayFromStringSubquery(
         refs.locations.region_id,
         (values) =>
-          sql`(SELECT id FROM ${refs.regions} WHERE code IN (${sql.join(
+          sql`(SELECT id FROM ${refs.regions} WHERE country_code = ${LEGACY_COUNTRY_CODE} AND upper(code) IN (${sql.join(
             values.map((v) => sql`${v.toUpperCase()}`),
             sql`, `,
           )}))`,
@@ -434,7 +444,7 @@ export type GroupedFilters = {
 };
 
 const filterRegex =
-  /(\w+):\s*(?:'([^']*)'|"([^"]*)"|(true|false)|(\d{4}-\d{2}-\d{2})|([\p{L}\p{N}]+(?:,\s*[\p{L}\p{N}]+)*)|([+-]?\d+\.\d+,\s*[+-]?\d+\.\d+)|(\d+(?:,\s*\d+)*))/giu;
+  /(\w+):\s*(?:'([^']*)'|"([^"]*)"|(true|false)|(\d{4}-\d{2}-\d{2})|([+-]?\d+\.\d+,\s*[+-]?\d+\.\d+)|([\p{L}\p{N}]+(?:,\s*[\p{L}\p{N}]+)*)|(\d+(?:,\s*\d+)*))/giu;
 
 type FilterMatch = {
   key: string;
@@ -449,8 +459,8 @@ const parseFilterMatch = (match: RegExpMatchArray): FilterMatch | null => {
   const stringValue = match[2] ?? match[3];
   const booleanValue = match[4];
   const dateValue = match[5];
-  const alphanumericValue = match[6];
-  const coordinateValue = match[7];
+  const coordinateValue = match[6];
+  const alphanumericValue = match[7];
   const numericValue = match[8];
 
   if (stringValue !== undefined) return { key, value: stringValue, raw: match[0] };
@@ -463,7 +473,7 @@ const parseFilterMatch = (match: RegExpMatchArray): FilterMatch | null => {
   return null;
 };
 
-const createEmptyGroupedFilters = (): GroupedFilters => ({
+export const createEmptyGroupedFilters = (): GroupedFilters => ({
   stations: [],
   cells: [],
   gsmCells: [],
@@ -483,7 +493,7 @@ export function parseFilterQuery(query: string): { filters: ParsedFilters; remai
   for (const match of query.matchAll(filterRegex)) {
     const parsed = parseFilterMatch(match);
     if (!parsed) continue;
-    if (!FILTER_DEFINITIONS[parsed.key]) continue;
+    if (!Object.hasOwn(FILTER_DEFINITIONS, parsed.key)) continue;
 
     filters[parsed.key] = parsed.value;
     remainingQuery = remainingQuery.replace(parsed.raw, "").trim();
@@ -505,11 +515,27 @@ export function parseFilterQuery(query: string): { filters: ParsedFilters; remai
 }
 
 export function groupFiltersByTable(filters: ParsedFilters, refs: SearchFilterRefs = defaultFilterRefs): GroupedFilters {
-  return Object.entries(filters).reduce((grouped, [key, value]) => {
+  const grouped = createEmptyGroupedFilters();
+
+  for (const [key, value] of Object.entries(filters)) {
     const definition = FILTER_DEFINITIONS[key];
-    if (definition) grouped[definition.table].push(definition.buildCondition(value, refs));
-    return grouped;
-  }, createEmptyGroupedFilters());
+    if (!definition) continue;
+
+    try {
+      grouped[definition.table].push(definition.buildCondition(value, refs));
+    } catch (error) {
+      throw new ErrorResponse("INVALID_QUERY", { message: `Invalid value for the search keyword "${key}"`, cause: error });
+    }
+  }
+  return grouped;
+}
+
+export function buildRatAndBandKeywordMatch(rat: FilterValue | undefined, band: FilterValue | undefined): SQL | undefined {
+  const filters: ParsedFilters = {};
+  if (rat !== undefined) filters.rat = rat;
+  if (band !== undefined) filters.band = band;
+
+  return and(...groupFiltersByTable(filters).cells);
 }
 
 export function hasFilters(filters: ParsedFilters): boolean {

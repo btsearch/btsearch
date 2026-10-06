@@ -33,3 +33,9 @@ export async function verifyPermissions(userId: string, permissions: PermissionO
 
   return hasPerm.success === true;
 }
+
+export async function refreshUserSessions(userId: string): Promise<void> {
+  const context = await auth.$context;
+  const user = await context.internalAdapter.findUserById(userId);
+  if (user) await context.internalAdapter.refreshUserSessions(user);
+}

@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { stationParamScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
 import { assertCanDeleteCells } from "../../../../../../features/stations/status.js";
@@ -86,7 +87,7 @@ const deleteCell: Route<ReqParams, void> = {
   url: "/stations/:station_id/cells/:cell_id",
   method: "DELETE",
   schema: schemaRoute,
-  config: { permissions: ["delete:cells"] },
+  config: { permissions: ["delete:cells"], scope: stationParamScope },
   handler,
 };
 

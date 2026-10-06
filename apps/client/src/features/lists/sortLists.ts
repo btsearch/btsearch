@@ -1,11 +1,15 @@
-import type { UserListSummary } from "./api";
+type DatedList = { updatedAt: string };
 
-export function sortLists(lists: UserListSummary[], favoriteUuids: string[]): UserListSummary[] {
-  const favoriteRank = new Map(favoriteUuids.map((uuid, index) => [uuid, index]));
-  return [...lists].sort((a, b) => {
-    const aRank = favoriteRank.get(a.uuid) ?? Number.POSITIVE_INFINITY;
-    const bRank = favoriteRank.get(b.uuid) ?? Number.POSITIVE_INFINITY;
-    if (aRank !== bRank) return aRank - bRank;
-    return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+export function sortFavoriteListsFirst<T extends DatedList>(
+  lists: readonly T[],
+  favoriteIds: readonly string[],
+  getListId: (list: T) => string,
+): T[] {
+  const favoriteRanks = new Map(favoriteIds.map((favoriteId, index) => [favoriteId, index]));
+  return [...lists].sort((left, right) => {
+    const leftRank = favoriteRanks.get(getListId(left)) ?? Number.POSITIVE_INFINITY;
+    const rightRank = favoriteRanks.get(getListId(right)) ?? Number.POSITIVE_INFINITY;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
   });
 }

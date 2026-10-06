@@ -1,10 +1,12 @@
 import { contributionSnapshots } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
-import { and, asc, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import z from "zod";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../constants.ts";
 import redis from "../../../../../database/redis.ts";
+import { endOfToday } from "../../../../../features/stats/dates.ts";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.ts";
 
@@ -13,7 +15,7 @@ const CACHE_TTL = 86400;
 const schemaRoute = {
   querystring: z.object({
     from: z.coerce.date().optional().default(new Date(0)),
-    to: z.coerce.date().optional().default(new Date()),
+    to: z.coerce.date().optional().default(endOfToday),
     granularity: z.enum(["daily", "monthly"]).default("monthly"),
   }),
   response: {
@@ -50,7 +52,13 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const rows = await db
     .select()
     .from(contributionSnapshots)
-    .where(and(gte(contributionSnapshots.snapshot_date, from), lte(contributionSnapshots.snapshot_date, to)))
+    .where(
+      and(
+        eq(contributionSnapshots.countryCode, LEGACY_COUNTRY_CODE),
+        gte(contributionSnapshots.snapshot_date, from),
+        lte(contributionSnapshots.snapshot_date, to),
+      ),
+    )
     .orderBy(asc(contributionSnapshots.snapshot_date));
 
   const byBucket = new Map<string, (typeof rows)[number]>();
