@@ -2,11 +2,12 @@ import { regionBoundaries, regionLookup, regions } from "@openbts/drizzle";
 import { sql as connection, db } from "@openbts/drizzle/db";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
 import { z } from "zod/v4";
 
 import type { RegionRow } from "../features/regions/serialize.js";
 import type { DbTx } from "../types/global.js";
+import { readRegionBoundaries } from "./importRegionBoundaries/boundaries.js";
+import { readBoundaryInput } from "./importRegionBoundaries/input.js";
 
 type StoredOutline = { isValid: boolean; reason: string; points: number; areaKm2: number };
 type Overlap = { first: string; second: string; areaM2: number };
@@ -15,47 +16,26 @@ type Disagreement = { filed: string; found: string | null; state: "outside" | "m
 
 class DryRun extends Error {}
 
-const featureCollectionSchema = z.object({
-  features: z.array(
-    z.object({
-      properties: z.record(z.string(), z.unknown()).nullable(),
-      geometry: z.object({ type: z.enum(["Polygon", "MultiPolygon"]), coordinates: z.unknown() }),
-    }),
-  ),
-});
-
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
-  return index === -1 ? undefined : process.argv[index + 1];
+  if (index === -1) return undefined;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) throw new Error(`--${name} requires a value`);
+  return value;
 }
 
 const FILE = option("file");
+const REMOTE_URL = option("url");
 const PROPERTY = option("property");
 const PREFIX = option("prefix") ?? "";
+const COUNTRY = option("country")?.trim().toUpperCase();
 const APPLY = process.argv.includes("--apply");
 
-function readShapes(file: string, property: string): Map<string, unknown[]> {
-  const { features } = featureCollectionSchema.parse(JSON.parse(readFileSync(file, "utf8")));
-  const shapes = new Map<string, unknown[]>();
-
-  for (const feature of features) {
-    const value = feature.properties?.[property];
-    if (typeof value !== "string" && typeof value !== "number") {
-      console.log(`skipped a feature without "${property}"`);
-      continue;
-    }
-
-    const isoCode = `${PREFIX}${value}`;
-    shapes.set(isoCode, [...(shapes.get(isoCode) ?? []), feature.geometry]);
-  }
-  return shapes;
-}
-
-async function storeOutline(tx: DbTx, region: RegionRow, geometries: unknown[], source: string): Promise<void> {
+async function storeOutline(tx: DbTx, region: RegionRow, geometries: unknown[], source: string, srid: number): Promise<void> {
   const shape = JSON.stringify({ type: "GeometryCollection", geometries });
   const [stored] = await tx.execute<StoredOutline>(sql`
     WITH raw AS (
-      SELECT ST_CollectionExtract(ST_SetSRID(ST_GeomFromGeoJSON(${shape}::text), 4326), 3) AS geom
+      SELECT ST_CollectionExtract(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${shape}::text), ${srid}::integer), 4326), 3) AS geom
     ), stored AS (
       INSERT INTO ${regionBoundaries} (region_id, geom, source)
       SELECT ${region.id}::integer, ST_Multi(ST_CollectionExtract(ST_MakeValid(raw.geom, 'method=structure'), 3)), ${source}::text FROM raw
@@ -66,7 +46,7 @@ async function storeOutline(tx: DbTx, region: RegionRow, geometries: unknown[], 
       ST_Area(stored.geom::geography) / 1000000 AS "areaKm2"
     FROM raw, stored
   `);
-  if (!stored || stored.points === 0) throw new Error(`${region.isoCode}: the file has no polygon for this region`);
+  if (!stored || stored.points === 0) throw new Error(`${region.countryCode}/${region.code}: the file has no polygon for this region`);
 
   await tx.delete(regionLookup).where(eq(regionLookup.regionId, region.id));
   await tx.execute(sql`
@@ -79,7 +59,9 @@ async function storeOutline(tx: DbTx, region: RegionRow, geometries: unknown[], 
   `);
 
   const repair = stored.isValid ? "" : `, repaired (${stored.reason})`;
-  console.log(`${region.isoCode} ${region.name}: ${stored.points} points, ${stored.areaKm2.toFixed(0)} km2${repair}`);
+  console.log(
+    `${region.isoCode ?? `${region.countryCode}/${region.code}`} ${region.name}: ${stored.points} points, ${stored.areaKm2.toFixed(0)} km2${repair}`,
+  );
 }
 
 async function reportMissingOutlines(tx: DbTx, countryCodes: string[]): Promise<void> {
@@ -166,40 +148,61 @@ async function reportLocationDisagreements(tx: DbTx): Promise<void> {
   }
 }
 
-async function main() {
-  if (!FILE || !PROPERTY) {
-    console.log("usage: importRegionBoundaries --file <geojson> --property <feature property> [--prefix <text>] [--source <text>] [--apply]");
-    console.log("the prefix followed by the property's value must be the region's iso_code, for example --property terc --prefix PL-");
+async function main(): Promise<void> {
+  if (!FILE && !REMOTE_URL) {
+    console.log(
+      "usage: importRegionBoundaries (--file <geojson path or URL> | --url <HTTP(S) URL>) [--country <ISO country>] [--property <feature property>] [--prefix <text>] [--mapping <json>] [--srid <EPSG code>] [--source <text>] [--apply]",
+    );
+    console.log("region codes and names are detected automatically; --property selects a specific field, for example --property terc --prefix PL-");
+    console.log("--mapping is a JSON object mapping source values to existing region ISO codes, short codes or names");
     process.exitCode = 1;
     return;
   }
 
-  const source = option("source") ?? basename(FILE);
-  const shapes = readShapes(FILE, PROPERTY);
-  const isoCodes = [...shapes.keys()];
-  const rows = isoCodes.length === 0 ? [] : await db.select().from(regions).where(inArray(regions.isoCode, isoCodes)).orderBy(regions.isoCode);
-
-  const known = new Set(rows.map((row) => row.isoCode));
-  for (const isoCode of new Set(isoCodes).difference(known)) console.log(`no region has iso_code ${isoCode}, skipped`);
-  if (rows.length === 0) return;
+  if (COUNTRY !== undefined && !/^[A-Z]{2}$/.test(COUNTRY)) throw new Error("--country must be a two-letter ISO country code");
+  const sridOption = option("srid");
+  const srid = sridOption === undefined ? undefined : Number(sridOption);
+  if (srid !== undefined && (!Number.isInteger(srid) || srid <= 0)) throw new Error("--srid must be a positive EPSG integer");
+  const mappingFile = option("mapping");
+  const mappingInput: unknown = mappingFile === undefined ? undefined : JSON.parse(readFileSync(mappingFile, "utf8"));
+  const mapping = mappingInput === undefined ? undefined : z.record(z.string(), z.string()).parse(mappingInput);
+  if (
+    mapping !== undefined &&
+    typeof mappingInput === "object" &&
+    mappingInput !== null &&
+    Object.keys(mappingInput).some((key) => !Object.hasOwn(mapping, key))
+  )
+    throw new Error("--mapping contains a source key that cannot be preserved");
+  const { data: input, source: inputSource } = await readBoundaryInput(FILE, REMOTE_URL);
+  const source = option("source") ?? inputSource;
+  const rows = await db.select().from(regions).orderBy(regions.countryCode, regions.code);
+  const {
+    shapes,
+    srid: sourceSrid,
+    messages,
+  } = readRegionBoundaries(input, rows, { property: PROPERTY, prefix: PREFIX, country: COUNTRY, srid, mapping });
+  for (const message of messages) console.log(message);
+  console.log(`source coordinate system: EPSG:${sourceSrid}`);
+  const matched = rows.filter((row) => shapes.has(row.id));
+  if (matched.length === 0) throw new Error("No boundaries matched existing regions; check --country, --property or --mapping");
 
   try {
     await db.transaction(async (tx) => {
-      for (const region of rows) {
+      for (const region of matched) {
         // eslint-disable-next-line no-await-in-loop
-        await storeOutline(tx, region, shapes.get(region.isoCode ?? "") ?? [], source);
+        await storeOutline(tx, region, shapes.get(region.id) ?? [], source, sourceSrid);
       }
 
-      await reportMissingOutlines(tx, [...new Set(rows.map((row) => row.countryCode))]);
+      await reportMissingOutlines(tx, [...new Set(matched.map((row) => row.countryCode))]);
       await reportOverlaps(tx);
       await reportGaps(tx);
       await reportLocationDisagreements(tx);
       if (!APPLY) throw new DryRun();
     });
-    console.log(`\nstored ${rows.length} outlines`);
+    console.log(`\nstored ${matched.length} outlines`);
   } catch (error) {
     if (!(error instanceof DryRun)) throw error;
-    console.log(`\nnothing was written; run again with --apply to store these ${rows.length} outlines`);
+    console.log(`\nnothing was written; run again with --apply to store these ${matched.length} outlines`);
   }
 }
 
