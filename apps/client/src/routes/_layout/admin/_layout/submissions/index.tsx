@@ -246,7 +246,12 @@ function AdminSubmissionsListPage() {
     Number(filters.countryCodes.length > 0) +
     Number(filters.operatorIds.length > 0) +
     Number(filters.regionIds.length > 0);
-  const columns = useSubmissionsColumns({ sortOrder, onSortToggle: handleSortToggle, getOperatorById });
+  const columns = useSubmissionsColumns({
+    sortOrder,
+    onSortToggle: handleSortToggle,
+    getOperatorById,
+    hasCountryTile: filterScope.countries.hasCountryTiles,
+  });
   const sorting = useMemo(() => [{ id: "createdAt", desc: sortOrder === "desc" }], [sortOrder]);
   const handleRowClick = useCallback(
     (submission: SubmissionListRow) => navigate({ to: "/admin/submissions/$id", params: { id: submission.id } }),
@@ -375,7 +380,11 @@ function AdminSubmissionsListPage() {
                         aria-label={getRowAriaLabel(submission)}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <SubmissionStationSummary submission={submission} getOperatorById={getOperatorById} />
+                          <SubmissionStationSummary
+                            submission={submission}
+                            getOperatorById={getOperatorById}
+                            hasCountryTile={filterScope.countries.hasCountryTiles}
+                          />
                           <SubmissionStatusSummary submission={submission} />
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3">

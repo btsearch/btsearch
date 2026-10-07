@@ -13,8 +13,7 @@ const schemaRoute = {
   summary: "Look up the place at coordinates",
   description:
     "Returns the place found at the given coordinates. It is meant for the site's own forms.\n\n" +
-    "Only the site itself can use this endpoint. The request has to come from one of the site's pages, which the server checks with the " +
-    "`Sec-Fetch-Site`, `Origin` and `Referer` headers. Anything else gets a 403 before credentials, parameters or rate limits are checked.\n\n" +
+    "Only the site itself can use this endpoint.\n\n" +
     "The lookup is forwarded to an external geocoding provider, and `source` tells you which provider the result came from. " +
     "If the providers do not support the requested `language`, the result is in English. Results are cached for a day. " +
     "`data` is `null` if nothing is found at the coordinates, or if the server has no geocoding provider configured.",

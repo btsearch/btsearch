@@ -15,14 +15,22 @@ import { cn } from "@/lib/utils";
 
 export type GetOperatorById = (operatorId: number | null) => SubmissionOperatorOption | undefined;
 
-export function SubmissionStationSummary({ submission, getOperatorById }: { submission: SubmissionListRow; getOperatorById: GetOperatorById }) {
+export function SubmissionStationSummary({
+  submission,
+  getOperatorById,
+  hasCountryTile,
+}: {
+  submission: SubmissionListRow;
+  getOperatorById: GetOperatorById;
+  hasCountryTile: boolean;
+}) {
   const { t } = useTranslation("common");
 
   return (
     <div className="min-w-0 space-y-1">
       <StationIdentityCell
         stationId={submission.siteId}
-        countryCode={submission.countryCode}
+        countryCode={hasCountryTile ? submission.countryCode : null}
         operator={getOperatorById(submission.operatorId)}
         fallback={t("labels.newStation")}
       />

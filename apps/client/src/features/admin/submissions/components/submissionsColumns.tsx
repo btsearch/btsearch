@@ -21,10 +21,12 @@ export function useSubmissionsColumns({
   sortOrder,
   onSortToggle,
   getOperatorById,
+  hasCountryTile,
 }: {
   sortOrder: "asc" | "desc";
   onSortToggle: () => void;
   getOperatorById: GetOperatorById;
+  hasCountryTile: boolean;
 }) {
   const { t } = useTranslation(["submissions", "common"]);
 
@@ -35,7 +37,7 @@ export function useSubmissionsColumns({
           id: "station",
           header: t("common:labels.station"),
           size: 220,
-          cell: ({ row }) => <SubmissionStationSummary submission={row.original} getOperatorById={getOperatorById} />,
+          cell: ({ row }) => <SubmissionStationSummary submission={row.original} getOperatorById={getOperatorById} hasCountryTile={hasCountryTile} />,
         }),
         columnHelper.display({
           id: "changes",
@@ -76,6 +78,6 @@ export function useSubmissionsColumns({
           cell: ({ row }) => <SubmissionStatusSummary submission={row.original} inline />,
         }),
       ]),
-    [getOperatorById, onSortToggle, sortOrder, t],
+    [getOperatorById, hasCountryTile, onSortToggle, sortOrder, t],
   );
 }
