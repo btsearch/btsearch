@@ -1,6 +1,6 @@
 import type { CloudPreferences, CloudUserPreferences } from "@openbts/drizzle";
 import { CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH, CLF_DESCRIPTION_TEMPLATE_RATS, CLF_EXPORT_FORMATS } from "@openbts/shared/clfExportTemplates";
-import { countryCodeSchema } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT, countryCodeSchema } from "@openbts/shared/contract";
 import { z } from "zod/v4";
 
 export const MAX_CLOUD_PREFERENCES_BYTES = 262_144;
@@ -27,7 +27,7 @@ export const userPreferencesSchema = z
     navigationApps: z.array(z.enum(["google-maps", "apple-maps", "waze", "osmand", "organic-maps", "openstreetmap"])),
     navLinksDisplay: z.enum(["inline", "buttons"]),
     radiolinesMinZoom: z.number().min(7).max(11),
-    mapStationsLimit: z.number().min(10).max(1000),
+    mapStationsLimit: z.number().min(10).max(MAX_LOCATION_LIST_LIMIT),
     mapRadiolinesLimit: z.number().min(10).max(1000),
     showMapHoverTooltip: z.boolean(),
     allowMultipleMapPopups: z.boolean(),

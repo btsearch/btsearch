@@ -1,13 +1,13 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import getLocation from "../../../../../src/routes/v2/(get)/locations/[id].js";
 import getLocations from "../../../../../src/routes/v2/(get)/locations/index.js";
 import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
-import { readLocation, readUserId } from "../../../../helpers/readFixtures.js";
-import { createRouteHarness } from "../../../../helpers/routeHarness.js";
+import { readLocation, readStation, readUserId } from "../../../../helpers/readFixtures.js";
+import { createRouteHarness, createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
 
 describe("getLocations", () => {
   it.each([false, true])("skips location reads for an empty public list with totals=%s", async (includeTotal) => {
@@ -61,6 +61,67 @@ describe("getLocations", () => {
     else expect(response.json().paging).not.toHaveProperty("total");
   });
 
+  it("loads embedded stations while the exact total is still pending", async () => {
+    vi.useFakeTimers();
+    let finishTotal: ((rows: { total: number }[]) => void) | undefined;
+    const total = new Promise<{ total: number }[]>((resolve) => {
+      finishTotal = resolve;
+    });
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor("select", "locations", [{ ...readLocation, key: 1 }], total);
+    dbMock.enqueueFor("select", "stations", [{ station: { ...readStation, location_id: 1 } }], []);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const app = await createRouteHarness(getLocations);
+    const response = Promise.resolve(app.inject({ url: "/locations?include=stations&includeTotal=true" }));
+    try {
+      await vi.waitFor(() => expect(dbMock.calls.some((call) => call.table === "extra_identificators")).toBe(true), {
+        timeout: 100,
+        interval: 1,
+      });
+    } finally {
+      finishTotal?.([{ total: 7 }]);
+    }
+    const result = await response;
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toMatchObject({ data: [{ id: 1, stations: [{ id: 1 }] }], paging: { total: 7 } });
+  });
+
+  it("accepts a page of 1500 locations and preserves the continuation cursor", async () => {
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor(
+      "select",
+      "locations",
+      Array.from({ length: 1501 }, (_, index) => ({
+        ...readLocation,
+        location: { ...readLocation.location, id: index + 1 },
+        key: index + 1,
+      })),
+    );
+    const app = await createRouteHarness(getLocations);
+    const response = await app.inject({ url: "/locations?limit=1500" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toHaveLength(1500);
+    expect(response.json().paging).toMatchObject({ limit: 1500, nextCursor: expect.any(String) });
+    expect(dbMock.calls.find((call) => call.table === "locations")?.clauses.limit).toEqual([1501]);
+  });
+
+  it.each(["page", "total", "stations"])("returns a controlled failure when the %s query rejects", async (failedQuery) => {
+    const failure = new Error(`Failed ${failedQuery} query`);
+    dbMock.enqueueFor("select", "countries", []);
+    dbMock.enqueueFor(
+      "select",
+      "locations",
+      failedQuery === "page" ? failure : [{ ...readLocation, key: 1 }],
+      failedQuery === "total" ? failure : [{ total: 7 }],
+    );
+    dbMock.enqueueFor("select", "stations", failedQuery === "stations" ? failure : [{ station: { ...readStation, location_id: 1 } }], []);
+    dbMock.enqueueFor("select", "extra_identificators", []);
+    const { app, errors } = await createRouteHarnessWithErrors(getLocations);
+    const response = await app.inject({ url: "/locations?include=stations&includeTotal=true" });
+    expect(response.statusCode).toBe(500);
+    expect(errors).toContain(failure);
+  });
+
   it.each(["includeEmpty=true", "hasStations=false", "editableOnly=true"])("protects staff-only selector %s", async (query) => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     const app = await createRouteHarness(getLocations, { session: userSession(readUserId) });
@@ -79,7 +140,7 @@ describe("getLocations", () => {
     expect(response.json()).toEqual({ data: [], paging: { limit: 50, nextCursor: null, total: 0 } });
   });
 
-  it.each(["limit=1001", "cursor=x&offset=0", "hasStations=0", "include=stations.invalid", "q=%00", "structureTypes=unknownValue"])(
+  it.each(["limit=1501", "cursor=x&offset=0", "hasStations=0", "include=stations.invalid", "q=%00", "structureTypes=unknownValue"])(
     "rejects an invalid location query before access: %s",
     async (query) => {
       const app = await createRouteHarness(getLocations);

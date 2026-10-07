@@ -1,4 +1,4 @@
-import type { Band, CellRat, Operator, StationStatus } from "@openbts/shared/contract";
+import { type Band, type CellRat, MAX_LOCATION_LIST_LIMIT, type Operator, type StationStatus } from "@openbts/shared/contract";
 
 import { REGISTER_COUNTRY_CODE } from "../constants";
 import { DEFAULT_MAP_FILTERS, IOT_RAT, type MapFilters, UNKNOWN_BAND_LABEL, listAppliedMapBands, listAppliedMapRats } from "./mapFilters";
@@ -33,7 +33,7 @@ const CELL_RATS: ReadonlyMap<string, CellRat> = new Map<string, CellRat>([
 const UNKNOWN_BAND_WORD = "unknown";
 const NO_MATCHING_BAND_ID = 2_147_483_647;
 const MIN_PAGE_SIZE = 1;
-const MAX_PAGE_SIZE = 1000;
+const MAX_REGISTER_PAGE_SIZE = 1000;
 const LIST_INCLUDE = "stations";
 const LIST_INCLUDE_WITH_SECTORS = "stations,stations.sectors";
 
@@ -82,8 +82,8 @@ export function setRecentParams(params: URLSearchParams, { recentDays, recentDat
   params.set(recentDateFields.includes("updatedAt") ? "updatedAfter" : "createdAfter", getRecentCutoff(recentDays));
 }
 
-function clampPageSize(limit: number): number {
-  return Math.min(MAX_PAGE_SIZE, Math.max(MIN_PAGE_SIZE, Math.round(limit)));
+function clampPageSize(limit: number, maximum: number): number {
+  return Math.min(maximum, Math.max(MIN_PAGE_SIZE, Math.round(limit)));
 }
 
 function buildStationFilterParams({ filters, lookups }: MapListRequest): URLSearchParams | null {
@@ -114,7 +114,7 @@ function buildMapListParams(request: MapListRequest): string | null {
   if (filters.countryCodes.length > 0) params.set("countryCodes", [...filters.countryCodes].sort().slice(0, MOST_LIST_VALUES).join(","));
   params.set("include", wantAzimuths ? LIST_INCLUDE_WITH_SECTORS : LIST_INCLUDE);
   params.set("includeTotal", "true");
-  params.set("limit", String(clampPageSize(limit)));
+  params.set("limit", String(clampPageSize(limit, MAX_LOCATION_LIST_LIMIT)));
   return params.toString();
 }
 
@@ -149,7 +149,7 @@ function buildRegisterListParams({ filters, lookups, limit, wantAzimuths, listId
   if (filters.recentDays !== null) params.set("since", `${dateFields.join(",")}:${filters.recentDays}`);
   if (listId !== undefined) params.set("list", listId);
   if (wantAzimuths) params.set("azimuths", "true");
-  params.set("limit", String(clampPageSize(limit)));
+  params.set("limit", String(clampPageSize(limit, MAX_REGISTER_PAGE_SIZE)));
   return params.toString();
 }
 

@@ -89,6 +89,7 @@ export function SettingsCardHeader({
   description,
   badge,
   action,
+  wrap = false,
   className,
 }: {
   icon?: IconSvgElement;
@@ -98,21 +99,26 @@ export function SettingsCardHeader({
   description?: ReactNode;
   badge?: ReactNode;
   action?: ReactNode;
+  wrap?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-3.5 px-4 py-3.5 sm:px-5 sm:py-4", className)}>
-      {icon ? <SettingsIconTile icon={icon} tone={iconTone} /> : null}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h3 id={titleId} className="text-sm leading-5 font-semibold">
-            {title}
-          </h3>
-          {badge}
+    <div className={cn("flex items-center gap-3.5 px-4 py-3.5 sm:px-5 sm:py-4", wrap && "flex-wrap", className)}>
+      <div className={cn("flex min-w-0 flex-1 items-center gap-3.5", wrap && "basis-56")}>
+        {icon ? <SettingsIconTile icon={icon} tone={iconTone} /> : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3 id={titleId} className="text-sm leading-5 font-semibold">
+              {title}
+            </h3>
+            {badge}
+          </div>
+          {description ? <div className={cn("mt-0.5", SETTINGS_DESCRIPTION_CLASS)}>{description}</div> : null}
         </div>
-        {description ? <div className={cn("mt-0.5", SETTINGS_DESCRIPTION_CLASS)}>{description}</div> : null}
       </div>
-      {action ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">{action}</div> : null}
+      {action ? (
+        <div className={cn("flex shrink-0 flex-wrap items-center justify-end gap-1.5", wrap && "ml-auto max-sm:w-full")}>{action}</div>
+      ) : null}
     </div>
   );
 }

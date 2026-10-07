@@ -301,6 +301,8 @@ export const locationQuerySchema = z
   .strict();
 export type LocationQuery = z.infer<typeof locationQuerySchema>;
 
+export const MAX_LOCATION_LIST_LIMIT = 1500;
+
 const INCLUDE_EMPTY_NOTE =
   "If `true`, locations without a matching station are returned too. Requires the `update:locations` permission. " +
   "Has no effect together with a station filter other than `statuses`, or with a station or cell keyword in `q`";
@@ -327,7 +329,7 @@ export const locationListQuerySchema = z
     sort: z.enum(LOCATION_SORTS).default("-id").describe(SORT_NOTE),
     includeEmpty: booleanQuerySchema.optional().describe(INCLUDE_EMPTY_NOTE),
     hasStations: booleanQuerySchema.optional().describe(HAS_STATIONS_NOTE),
-    limit: z.coerce.number<number>().int().min(1).max(1000).default(50).describe(LIMIT_NOTE),
+    limit: z.coerce.number<number>().int().min(1).max(MAX_LOCATION_LIST_LIMIT).default(50).describe(LIMIT_NOTE),
     cursor: cursorSchema.optional(),
     offset: offsetSchema.optional(),
     includeTotal: booleanQuerySchema.optional().describe(INCLUDE_TOTAL_NOTE),

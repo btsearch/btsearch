@@ -1,5 +1,6 @@
 import { TaskDaily01Icon, TaskRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
@@ -35,7 +36,7 @@ import { ApiResponseError } from "@/lib/api";
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
 
-const LIST_FETCH_LIMIT = 1000;
+const LIST_RADIOLINES_LIMIT = 1000;
 const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-radiolines"]);
 const LIST_UNAVAILABLE_STATUSES = new Set([401, 403, 404]);
 const LIST_MAP_FILTER_OVERRIDES: Partial<MapFilters> = { showStations: true };
@@ -81,7 +82,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     ...mapLocationsQueryOptions({
       bounds,
       family: "list-locations",
-      request: { filters: shownFilters, lookups, limit: LIST_FETCH_LIMIT, wantAzimuths, listId: uuid },
+      request: { filters: shownFilters, lookups, limit: MAX_LOCATION_LIST_LIMIT, wantAzimuths, listId: uuid },
     }),
     enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided,
     placeholderData: keepPreviousData,
@@ -93,7 +94,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       fetchRadioLines(bounds, {
         signal,
         operatorIds: shownFilters.radiolineOperators,
-        limit: LIST_FETCH_LIMIT,
+        limit: LIST_RADIOLINES_LIMIT,
         recentDays: shownFilters.recentDays,
         list: uuid,
       }),

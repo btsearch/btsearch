@@ -36,7 +36,7 @@ type CellIdentifiers = Partial<Record<CellIdentifierField, number | null>>;
 const TABLE_LAYOUTS: Record<RatType, TableLayout> = {
   GSM: { identifiers: ["lac", "cid", "bsic"], channel: null, hoistable: ["lac"] },
   UMTS: { identifiers: ["lac", "rnc", "cid", "longCid", "psc"], channel: "UARFCN", hoistable: ["rnc", "lac"] },
-  LTE: { identifiers: ["tac", "enbid", "clid", "eci", "pci"], channel: "EARFCN", hoistable: ["enbid", "tac"] },
+  LTE: { identifiers: ["tac", "enbid", "clid", "eci", "pci"], channel: "EARFCN", hoistable: ["tac"] },
   NR: { identifiers: ["tac", "gnbid", "clid", "nci", "pci"], channel: "ARFCN", hoistable: ["gnbid", "tac"] },
 };
 

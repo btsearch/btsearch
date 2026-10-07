@@ -4,6 +4,7 @@ import {
   type ClfExportFormat,
   normalizeCLFDescriptionTemplates,
 } from "@openbts/shared/clfExportTemplates";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
@@ -92,7 +93,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   navigationApps: ["google-maps"],
   navLinksDisplay: "inline",
   radiolinesMinZoom: 8,
-  mapStationsLimit: 1000,
+  mapStationsLimit: MAX_LOCATION_LIST_LIMIT,
   mapRadiolinesLimit: 500,
   showMapHoverTooltip: false,
   allowMultipleMapPopups: true,

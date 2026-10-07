@@ -55,17 +55,30 @@ export async function findHostStationIds(locationIds: readonly number[]): Promis
     .where(inArray(stations.location_id, [...locationIds]))
     .orderBy(sql`${stations.status} = 'inactive'`, asc(stations.id));
 
+  type HostCandidate = Pick<(typeof rows)[number], "id" | "operatorId">;
+  type HostCandidates = { first: HostCandidate; firstDifferentOperator?: HostCandidate };
+  const candidatesByLocation = new Map<number | null, Map<number, HostCandidates>>();
+  for (const station of rows) {
+    if (!station.hasPermits) continue;
+
+    let candidatesByNetwork = candidatesByLocation.get(station.locationId);
+    if (candidatesByNetwork === undefined) {
+      candidatesByNetwork = new Map();
+      candidatesByLocation.set(station.locationId, candidatesByNetwork);
+    }
+    const candidates = candidatesByNetwork.get(station.sharedNetworkId);
+    if (candidates === undefined) candidatesByNetwork.set(station.sharedNetworkId, { first: station });
+    else if (candidates.firstDifferentOperator === undefined && candidates.first.operatorId !== station.operatorId)
+      candidates.firstDifferentOperator = station;
+  }
+
   for (const station of rows) {
     if (station.hasPermits || hostStationIds.has(station.id)) continue;
 
-    const host = rows.find(
-      (candidate) =>
-        candidate.hasPermits &&
-        candidate.locationId === station.locationId &&
-        candidate.sharedNetworkId === station.sharedNetworkId &&
-        candidate.operatorId !== station.operatorId,
-    );
-    if (host) hostStationIds.set(station.id, host.id);
+    const candidates = candidatesByLocation.get(station.locationId)?.get(station.sharedNetworkId);
+    if (candidates === undefined) continue;
+    const host = candidates.first.operatorId === station.operatorId ? candidates.firstDifferentOperator : candidates.first;
+    if (host !== undefined) hostStationIds.set(station.id, host.id);
   }
   return hostStationIds;
 }

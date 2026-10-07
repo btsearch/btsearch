@@ -69,6 +69,7 @@ function TwoFactorCard({ user }: { user: SettingsUser }) {
   return (
     <SettingsCard>
       <SettingsCardHeader
+        wrap
         icon={SecurityCheckIcon}
         title={t("common:labels.twoFactor")}
         badge={

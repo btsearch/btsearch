@@ -16,7 +16,7 @@ import {
   WazeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import type { PushTopics } from "@openbts/shared/contract";
+import { MAX_LOCATION_LIST_LIMIT, type PushTopics } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -575,7 +575,7 @@ function MapCard({
           description={t("preferences.mapStationsLimitHint")}
           value={preferences.mapStationsLimit}
           min={10}
-          max={1000}
+          max={MAX_LOCATION_LIST_LIMIT}
           step={10}
           onValueChange={(mapStationsLimit) => updatePreferences({ mapStationsLimit })}
         />

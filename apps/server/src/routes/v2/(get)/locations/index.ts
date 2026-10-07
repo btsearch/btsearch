@@ -94,7 +94,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const filters = and(...conditions);
   const keyset = createKeyset(sort, locations.id, SORT_COLUMNS, cursor);
 
-  const [rows, totals] = await Promise.all([
+  const [result, totals] = await Promise.all([
     db
       .select({ location: locationColumns, region: regions, owner: structureOwners, key: keyset.key })
       .from(locations)
@@ -103,15 +103,21 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       .where(and(filters, keyset.after))
       .orderBy(...keyset.orderBy)
       .limit(limit + 1)
-      .offset(offset ?? 0),
+      .offset(offset ?? 0)
+      .then(async (rows) => {
+        const page = rows.slice(0, limit);
+        const last = page.at(-1);
+        const paging: Paging = {
+          limit,
+          nextCursor: rows.length > limit && last ? keyset.cursorAfter({ id: last.location.id, key: last.key }) : null,
+        };
+        return { data: await serializeLocations(page, include, stationFilter, queried.sectorCondition), paging };
+      }),
     includeTotal ? db.select({ total: count() }).from(locations).innerJoin(regions, eq(regions.id, locations.region_id)).where(filters) : null,
   ]);
-  const page = rows.slice(0, limit);
-  const last = page.at(-1);
-  const paging: Paging = { limit, nextCursor: rows.length > limit && last ? keyset.cursorAfter({ id: last.location.id, key: last.key }) : null };
-  if (totals) paging.total = totals[0]?.total ?? 0;
+  if (totals) result.paging.total = totals[0]?.total ?? 0;
 
-  return res.send({ data: await serializeLocations(page, include, stationFilter, queried.sectorCondition), paging });
+  return res.send(result);
 }
 
 const getLocations: Route<ReqQuery, LocationList> = {
