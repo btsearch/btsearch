@@ -164,7 +164,7 @@ export default class App {
       const message = isUnexpected || !err.message ? "An internal server error occurred." : err.message;
       const code = err.code || "INTERNAL_SERVER_ERROR";
 
-      if (code !== "UNAUTHORIZED" && statusCode !== 404 && statusCode !== 429) {
+      if (code !== "UNAUTHORIZED" && code !== "MAINTENANCE_MODE" && statusCode !== 404 && statusCode !== 429) {
         logger.error(err.code, {
           ...serializeError(err),
           statusCode,
@@ -201,6 +201,7 @@ export default class App {
       const responseError = errorResponse.errors[0];
       if (responseError && (err instanceof ValidationError || err instanceof DetailedErrorResponse)) responseError.details = err.details;
 
+      if (code === "MAINTENANCE_MODE") res.header("Cache-Control", "no-store");
       return res.status(statusCode).send(errorResponse);
     });
     this.fastify.setNotFoundHandler((_req, res) => {

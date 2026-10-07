@@ -69,6 +69,13 @@ describe("getDefaultRuntimeSettings", () => {
 });
 
 describe("mergeRuntimeSettings", () => {
+  it("toggles maintenance mode while retaining all other settings", () => {
+    const before = { ...runtime.getDefaultRuntimeSettings(), submissionsEnabled: false };
+    const enabled = runtime.mergeRuntimeSettings(before, { maintenanceEnabled: true });
+    expect(enabled).toEqual({ ...before, maintenanceEnabled: true });
+    expect(runtime.mergeRuntimeSettings(enabled, { photosEnabled: false })).toEqual({ ...enabled, photosEnabled: false });
+    expect(runtime.mergeRuntimeSettings(enabled, { maintenanceEnabled: false })).toEqual(before);
+  });
   it("preserves an explicit false and unrelated settings in a partial feature update", () => {
     const before = { ...runtime.getDefaultRuntimeSettings(), photosEnabled: true };
     const disabled = runtime.mergeRuntimeSettings(before, { photosEnabled: false });
@@ -81,6 +88,14 @@ describe("mergeRuntimeSettings", () => {
 });
 
 describe("initRuntimeSettings", () => {
+  it("defaults maintenance mode to false for older stored settings without resetting other fields", async () => {
+    const older = olderSettings();
+    delete older.maintenanceEnabled;
+    stored = JSON.stringify(older);
+    await runtime.initRuntimeSettings();
+    expect(runtime.getRuntimeSettings()).toEqual({ ...older, maintenanceEnabled: false });
+    expect(redisBoundary.set).not.toHaveBeenCalled();
+  });
   it("loads stored global settings without adding removed country flags", async () => {
     const older = olderSettings();
     stored = JSON.stringify(older);
@@ -118,6 +133,12 @@ describe("saveRuntimeSettings", () => {
 });
 
 describe("loadStoredRuntimeSettings", () => {
+  it.each([null, "true", 1])("rejects the invalid stored maintenance flag %s without resetting current settings", async (invalid) => {
+    const current = runtime.getRuntimeSettings();
+    current.maintenanceEnabled = true;
+    stored = JSON.stringify({ ...current, maintenanceEnabled: invalid });
+    expect(await runtime.loadStoredRuntimeSettings()).toEqual(current);
+  });
   it("reads global settings without restoring removed feature defaults", async () => {
     const older = olderSettings();
     stored = JSON.stringify(older);
@@ -134,6 +155,21 @@ describe("loadStoredRuntimeSettings", () => {
 });
 
 describe("runtime settings subscription", () => {
+  it("defaults a missing maintenance flag from an older settings writer without resetting other fields", async () => {
+    await runtime.initRuntimeSettings();
+    const older = olderSettings();
+    delete older.maintenanceEnabled;
+    subscriber!(JSON.stringify(older));
+    expect(runtime.getRuntimeSettings()).toEqual({ ...older, maintenanceEnabled: false });
+  });
+  it("applies maintenance mode updates from another server replica", async () => {
+    await runtime.initRuntimeSettings();
+    const enabled = { ...runtime.getRuntimeSettings(), maintenanceEnabled: true };
+    subscriber!(JSON.stringify(enabled));
+    expect(runtime.getRuntimeSettings()).toEqual(enabled);
+    subscriber!(JSON.stringify({ ...enabled, maintenanceEnabled: false }));
+    expect(runtime.getRuntimeSettings()).toEqual({ ...enabled, maintenanceEnabled: false });
+  });
   it("accepts an older published settings object without resetting its other fields", async () => {
     await runtime.initRuntimeSettings();
     const older = olderSettings();

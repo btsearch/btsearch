@@ -9,6 +9,7 @@ export interface Announcement {
 }
 
 export interface RuntimeSettings {
+  maintenanceEnabled: boolean;
   enforceAuthForAllRoutes: boolean;
   allowedUnauthenticatedRoutes: NonEmptyString[];
   disabledRoutes: NonEmptyString[];
@@ -26,11 +27,14 @@ export interface RuntimeSettingsPatch extends Partial<Omit<RuntimeSettings, "all
   announcement?: Partial<Announcement>;
 }
 
+type StoredRuntimeSettings = Omit<RuntimeSettings, "maintenanceEnabled"> & { maintenanceEnabled?: boolean };
+
 const SETTINGS_KEY = "runtime:settings";
 const CHANNEL = "runtime:settings:updates";
 const RESYNC_INTERVAL_MS = 60_000;
 
 const defaultSettings: RuntimeSettings = {
+  maintenanceEnabled: false,
   enforceAuthForAllRoutes: false,
   allowedUnauthenticatedRoutes: ["/api/v1/auth"] as NonEmptyString[],
   disabledRoutes: [],
@@ -49,10 +53,11 @@ function isNonEmptyString(value: unknown): value is NonEmptyString {
   return typeof value === "string" && value.length > 0;
 }
 
-function isSettings(obj: unknown): obj is RuntimeSettings {
+function isStoredSettings(obj: unknown): obj is StoredRuntimeSettings {
   if (!obj || typeof obj !== "object") return false;
-  const candidate = obj as RuntimeSettings;
+  const candidate = obj as StoredRuntimeSettings;
   return (
+    (candidate.maintenanceEnabled === undefined || typeof candidate.maintenanceEnabled === "boolean") &&
     typeof candidate.enforceAuthForAllRoutes === "boolean" &&
     Array.isArray(candidate.allowedUnauthenticatedRoutes) &&
     candidate.allowedUnauthenticatedRoutes.every(isNonEmptyString) &&
@@ -75,7 +80,7 @@ function parseSettings(json: string | null): RuntimeSettings | null {
   if (!json) return null;
   try {
     const parsed: unknown = JSON.parse(json);
-    return isSettings(parsed) ? parsed : null;
+    return isStoredSettings(parsed) ? { ...parsed, maintenanceEnabled: parsed.maintenanceEnabled ?? false } : null;
   } catch {
     return null;
   }
@@ -91,6 +96,7 @@ function mergeAnnouncement(base: Announcement, patch: Partial<Announcement>): An
 
 export function mergeRuntimeSettings(base: RuntimeSettings, patch: RuntimeSettingsPatch): RuntimeSettings {
   const next: RuntimeSettings = { ...base };
+  if (typeof patch.maintenanceEnabled === "boolean") next.maintenanceEnabled = patch.maintenanceEnabled;
   if (typeof patch.enforceAuthForAllRoutes === "boolean") next.enforceAuthForAllRoutes = patch.enforceAuthForAllRoutes;
   if (typeof patch.enableStationComments === "boolean") next.enableStationComments = patch.enableStationComments;
   if (typeof patch.commentQueueEnabled === "boolean") next.commentQueueEnabled = patch.commentQueueEnabled;

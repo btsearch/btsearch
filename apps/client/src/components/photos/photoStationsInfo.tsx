@@ -1,27 +1,36 @@
 import { StarIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { Operator, StationBase, StationLocation } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type GalleryTile, listTilePlaces } from "../galleryTiles";
 import { findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
 import { getLocationLabel } from "@/features/station-details/station/utils/stations";
 
-export function PhotoStationsInfo({ tiles }: { tiles: GalleryTile[] }) {
+type PhotoStationsPlace = {
+  location: Pick<StationLocation, "id" | "city" | "address">;
+  selections: readonly {
+    station: Pick<StationBase, "id" | "siteId" | "operatorId"> & { operator?: Pick<Operator, "name"> | null };
+    isMain: boolean;
+  }[];
+};
+
+export function PhotoStationsInfo({ places }: { places: readonly PhotoStationsPlace[] }) {
   const { t } = useTranslation("main");
   const { data: operators } = useQuery(operatorsQueryOptions());
-  const mainCount = tiles.filter((tile) => tile.isMain).length;
-  const marksMainStations = mainCount > 0 && mainCount < tiles.length;
+  const hasMainSelection = places.some((place) => place.selections.some((selection) => selection.isMain));
+  const hasNonMainSelection = places.some((place) => place.selections.some((selection) => !selection.isMain));
+  const marksMainStations = hasMainSelection && hasNonMainSelection;
 
   return (
     <>
-      {listTilePlaces(tiles).map(({ location, tiles: placeTiles }, placeIndex) => (
+      {places.map(({ location, selections: placeSelections }, placeIndex) => (
         <Fragment key={location.id}>
           {placeIndex > 0 ? "; " : null}
-          {placeTiles.map(({ station, isMain }, stationIndex) => {
-            const stationOperator = findOperator(operators, station.operatorId);
+          {placeSelections.map(({ station, isMain }, stationIndex) => {
+            const operatorName = station.operator?.name ?? findOperator(operators, station.operatorId)?.name;
 
             return (
               <Fragment key={station.id}>
@@ -32,7 +41,7 @@ export function PhotoStationsInfo({ tiles }: { tiles: GalleryTile[] }) {
                     <span className="sr-only">{t("photos.mainPhoto")}: </span>
                   </>
                 ) : null}
-                {stationOperator ? `${stationOperator.name} ` : null}
+                {operatorName ? `${operatorName} ` : null}
                 <Link
                   to="/stations/$id"
                   params={{ id: String(station.id) }}

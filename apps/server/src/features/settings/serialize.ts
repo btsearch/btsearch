@@ -11,6 +11,7 @@ function toAnnouncement({ enabled, type, message }: Announcement): SettingsAnnou
 
 export function toSettings(stored: RuntimeSettings, { isAdministrator }: SettingsViewer): Settings {
   const settings: Settings = {
+    isMaintenanceMode: stored.maintenanceEnabled,
     isSignInRequired: stored.enforceAuthForAllRoutes,
     features: {
       submissions: stored.submissionsEnabled,
@@ -31,8 +32,15 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
   return settings;
 }
 
-export function toRuntimeSettingsPatch({ isSignInRequired, features, announcement, access }: SettingsUpdate): RuntimeSettingsPatch {
+export function toRuntimeSettingsPatch({
+  isMaintenanceMode,
+  isSignInRequired,
+  features,
+  announcement,
+  access,
+}: SettingsUpdate): RuntimeSettingsPatch {
   const patch: RuntimeSettingsPatch = {
+    maintenanceEnabled: isMaintenanceMode,
     enforceAuthForAllRoutes: isSignInRequired,
     submissionsEnabled: features?.submissions,
     photosEnabled: features?.photoUploads,

@@ -96,12 +96,24 @@
     "userLists": "User lists",
     "lead": "Switches and route lists are saved right away. Every change goes to the <auditLog>audit log</auditLog>",
     "sections": {
+      "maintenance": "Maintenance",
       "access": "Access",
       "features": "Features",
       "cleanup": "Cleanup"
     },
     "errors": {
       "conflict": "Another change to the settings is being saved right now. Try again in a moment"
+    },
+    "maintenance": {
+      "title": "Maintenance mode",
+      "description": "Visitors see the maintenance page and cannot use the API",
+      "note": "Administrators keep access to the site and API, including these settings",
+      "preview": "Preview page",
+      "confirm": {
+        "title": "Enable maintenance mode?",
+        "description": "The site and API will be unavailable to everyone except administrators until you turn maintenance mode off",
+        "action": "Enable"
+      }
     },
     "signIn": {
       "title": "Sign-in required",

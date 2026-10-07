@@ -59,6 +59,12 @@ export class BackendUnavailableError extends Error {
   }
 }
 
+export class MaintenanceModeError extends Error {
+  constructor() {
+    super("Maintenance in progress");
+  }
+}
+
 export class RateLimitError extends Error {
   retryAfterSeconds: number | null;
 
@@ -98,6 +104,12 @@ type FetchOptions = RequestInit & {
   allowedErrors?: number[];
   auditOperation?: AuditOperationHandle;
 };
+
+function isMaintenanceResponse(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null || !("errors" in payload) || !Array.isArray(payload.errors)) return false;
+
+  return payload.errors.some((error: unknown) => typeof error === "object" && error !== null && "code" in error && error.code === "MAINTENANCE_MODE");
+}
 
 export async function fetchJson<T>(url: string, options?: FetchOptions): Promise<T> {
   const { allowedErrors, auditOperation, ...fetchOptions } = options ?? {};
@@ -142,6 +154,11 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
         if (e instanceof QuotaExceededError) throw e;
       }
       throw new RateLimitError(readRetryAfterSeconds(response));
+    }
+
+    if (response.status === 503) {
+      const errorData: unknown = await response.json().catch(() => null);
+      if (isMaintenanceResponse(errorData)) throw new MaintenanceModeError();
     }
 
     if (response.status === 502 || response.status === 503 || response.status === 504) {
@@ -223,7 +240,12 @@ export function readValidationMessages(details: readonly unknown[] | undefined):
 }
 
 export function isGloballyHandledError(error: unknown): boolean {
-  return error instanceof RateLimitError || error instanceof QuotaExceededError || error instanceof DuplicateRequestError;
+  return (
+    error instanceof RateLimitError ||
+    error instanceof QuotaExceededError ||
+    error instanceof DuplicateRequestError ||
+    error instanceof MaintenanceModeError
+  );
 }
 
 export function showApiError(error: unknown) {

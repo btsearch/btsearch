@@ -1,7 +1,11 @@
 import type { LocationStationRecord, PhotoRecord } from "../../types";
 import { getOperatorShortLabel, sortLocationStations } from "../../utils/stations";
 
-export type OtherLocationPhoto = { photo: PhotoRecord; stationNames: string };
+export type OtherLocationPhoto = {
+  photo: PhotoRecord;
+  stationNames: string;
+  selections: { station: LocationStationRecord; isMain: boolean }[];
+};
 
 const STATION_NAME_SEPARATOR = ", ";
 
@@ -22,14 +26,15 @@ export function listOtherLocationPhotos(
   const stations = sortLocationStations(locationStations ?? []);
   const otherPhotos: OtherLocationPhoto[] = [];
   for (const photo of locationPhotos) {
-    const showingStationIds = new Set(photo.selections.map((selection) => selection.stationId));
-    if (showingStationIds.has(stationId) || shownPhotoIds.has(photo.id)) continue;
+    const selectionsByStationId = new Map(photo.selections.map((selection) => [selection.stationId, selection]));
+    if (selectionsByStationId.has(stationId) || shownPhotoIds.has(photo.id)) continue;
 
-    const stationNames = stations
-      .filter((station) => showingStationIds.has(station.id))
-      .map((station) => getStationName(station))
-      .join(STATION_NAME_SEPARATOR);
-    otherPhotos.push({ photo, stationNames });
+    const selections = stations.flatMap((station) => {
+      const selection = selectionsByStationId.get(station.id);
+      return selection === undefined ? [] : [{ station, isMain: selection.isMain }];
+    });
+    const stationNames = selections.map(({ station }) => getStationName(station)).join(STATION_NAME_SEPARATOR);
+    otherPhotos.push({ photo, stationNames, selections });
   }
 
   return otherPhotos;

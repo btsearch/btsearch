@@ -297,6 +297,13 @@
     "signInRequired": {
       "title": "Zaloguj się, aby kontynuować",
       "description": "Ta część serwisu jest dostępna tylko dla zalogowanych użytkowników"
+    },
+    "maintenance": {
+      "title": "Przerwa techniczna",
+      "description": "Pracujemy nad serwisem. Spróbuj ponownie za chwilę",
+      "retry": "Sprawdź ponownie",
+      "signIn": "Logowanie administratora",
+      "settings": "Ustawienia systemu"
     }
   },
   "toast": {

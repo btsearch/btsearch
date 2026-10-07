@@ -21,6 +21,13 @@ const SIGN_IN_PATHS = [
   "/api/v1/auth/sign-out",
 ];
 const SETTINGS_ROUTE = "/api/v2/settings";
+const ACCOUNT_RECOVERY_PATHS = [
+  "/api/v1/auth/request-password-reset",
+  "/api/v1/auth/reset-password",
+  "/api/v1/auth/reset-password/*",
+  "/api/v1/auth/send-verification-email",
+  "/api/v1/auth/verify-email",
+];
 const NEVER_DISABLED_ROUTES = [...SIGN_IN_PATHS, HEALTH_ROUTE, SETTINGS_ROUTE];
 
 const apiRoutePatterns = new Set<string>();
@@ -47,6 +54,10 @@ function handlesPath(pattern: string, path: string): boolean {
 
 export function isSignInRequest(req: FastifyRequest, path: string): boolean {
   return req.routeOptions.url === AUTH_ROUTE && SIGN_IN_PATHS.some((pattern) => handlesPath(pattern, path));
+}
+
+export function isAccountRecoveryRequest(req: FastifyRequest, path: string): boolean {
+  return req.routeOptions.url === AUTH_ROUTE && ACCOUNT_RECOVERY_PATHS.some((pattern) => handlesPath(pattern, path));
 }
 
 export function isSettingsRoute(req: FastifyRequest): boolean {

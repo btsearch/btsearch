@@ -23,6 +23,7 @@ export function toRouteListUpdate(list: RouteListName, entries: string[]): Setti
 export function applySettingsUpdate(settings: Settings, update: SettingsUpdate): Settings {
   return {
     ...settings,
+    isMaintenanceMode: update.isMaintenanceMode ?? settings.isMaintenanceMode,
     isSignInRequired: update.isSignInRequired ?? settings.isSignInRequired,
     features: { ...settings.features, ...update.features },
     announcement: update.announcement ? { ...readAnnouncement(settings), ...update.announcement } : settings.announcement,

@@ -12,6 +12,15 @@ describe("getSettings", () => {
     recordRoutePattern("/api/v2/settings");
     recordRoutePattern("/api/v2/stations");
   });
+  it("exposes maintenance mode to guests without administrator-only settings", async () => {
+    getRuntimeSettings().maintenanceEnabled = true;
+    const app = await createRouteHarness(getSettings, { runAuth: true, prefix: "/api/v2" });
+    const response = await app.inject({ url: "/api/v2/settings" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({ isMaintenanceMode: true, announcement: null });
+    expect(response.json().data).not.toHaveProperty("access");
+    expect(response.headers["cache-control"]).toBe("private, no-store");
+  });
 
   it("omits stored rules for removed routes without writing settings on a read", async () => {
     Object.assign(getRuntimeSettings(), {

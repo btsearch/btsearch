@@ -302,6 +302,13 @@
     "signInRequired": {
       "title": "Sign in to continue",
       "description": "This part of the site is only available to signed-in users"
+    },
+    "maintenance": {
+      "title": "Maintenance in progress",
+      "description": "We're working on the site. Please check back in a little while",
+      "retry": "Check again",
+      "signIn": "Administrator sign-in",
+      "settings": "System settings"
     }
   },
   "toast": {

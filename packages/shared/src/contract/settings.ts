@@ -43,6 +43,9 @@ export const settingsAccessSchema = z.object({
 export type SettingsAccess = z.infer<typeof settingsAccessSchema>;
 
 export const settingsSchema = z.object({
+  isMaintenanceMode: z
+    .boolean()
+    .describe("When `true`, only administrators can use the site. Sign-in, account recovery, the settings and the health check stay available"),
   isSignInRequired: z
     .boolean()
     .describe("When `true`, guests are rejected everywhere except the open routes, the sign-in routes and `GET /settings`"),
@@ -57,6 +60,10 @@ export type Settings = z.infer<typeof settingsSchema>;
 
 export const settingsUpdateSchema = z
   .object({
+    isMaintenanceMode: z
+      .boolean()
+      .optional()
+      .describe("When `true`, only administrators can use the site. Sign-in, account recovery, the settings and the health check stay available"),
     isSignInRequired: z
       .boolean()
       .optional()

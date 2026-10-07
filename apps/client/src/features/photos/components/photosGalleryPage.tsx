@@ -13,14 +13,14 @@ import {
 import { useGalleryLayout } from "../galleryLayout";
 import { usePhotosGalleryPages } from "../galleryRequests";
 import { usePhotosGalleryState } from "../galleryState";
-import { buildGallery, listGalleryPhotos } from "../galleryTiles";
+import { buildGallery, listGalleryPhotos, listTilePlaces } from "../galleryTiles";
 import { GalleryGrid } from "./galleryGrid";
 import { GallerySkeleton } from "./GallerySkeleton";
 import { PhotosFilterBar } from "./photosFilterBar";
 import { PhotosMobileFilters } from "./photosMobileFilters";
-import { PhotoStationsInfo } from "./photoStationsInfo";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { PhotoStationsInfo } from "@/components/photos/photoStationsInfo";
 import { ErrorState, InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavActionTarget } from "@/contexts/navActions";
@@ -76,7 +76,7 @@ export function PhotosGalleryPage({ search, onSearchChange }: PhotosGalleryPageP
       gallery.slides.map(({ photo, tiles }) => ({
         ...photo,
         isMain: tiles.every((tile) => tile.isMain),
-        extra: <PhotoStationsInfo tiles={tiles} />,
+        extra: <PhotoStationsInfo places={listTilePlaces(tiles).map(({ location, tiles }) => ({ location, selections: tiles }))} />,
       })),
     [gallery],
   );

@@ -10,10 +10,15 @@ const userId = userSession().user.id;
 function settings(patch: RuntimeSettingsPatch): void {
   Object.assign(getRuntimeSettings(), mergeRuntimeSettings(getRuntimeSettings(), patch));
 }
-async function request(config: FastifyContextConfig = {}, headers: Record<string, string> = {}, url = "/guarded"): Promise<LightMyRequestResponse> {
+async function request(
+  config: FastifyContextConfig = {},
+  headers: Record<string, string> = {},
+  url = "/guarded",
+  routePattern = url,
+): Promise<LightMyRequestResponse> {
   const app = await createRouteHarness(
     {
-      url,
+      url: routePattern,
       method: "GET",
       config,
       schema: { response: { 200: z.object({ data: z.object({ actor: z.string().nullable(), publishable: z.boolean() }) }) } },
@@ -51,6 +56,72 @@ describe("authHook", () => {
   it("allows static API documentation without looking up a session", async () => {
     expect((await request({}, {}, "/api/v2/openapi.json")).statusCode).toBe(200);
     expect(authBoundary.getCurrentUser).not.toHaveBeenCalled();
+  });
+  it.each(["/guarded", "/api/v2/openapi.json", "/uploads/photo.jpg", "/robots.txt"])("returns maintenance mode for guests on %s", async (url) => {
+    settings({ maintenanceEnabled: true });
+    const response = await request({ allowGuestAccess: true }, {}, url);
+    expectFailure(response, 503, "MAINTENANCE_MODE");
+    expect(response.headers["cache-control"]).toBe("no-store");
+  });
+  it.each(["user", "editor"] as const)("returns maintenance mode for a signed-in %s", async (role) => {
+    settings({ maintenanceEnabled: true });
+    authBoundary.getCurrentUser.mockResolvedValue(userSession(userId, role));
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    expectFailure(await request({ allowGuestAccess: true }), 503, "MAINTENANCE_MODE");
+  });
+  it.each(["/guarded", "/api/v2/openapi.json"])("allows an administrator to keep using %s during maintenance", async (url) => {
+    settings({ maintenanceEnabled: true });
+    authBoundary.getCurrentUser.mockResolvedValue(userSession(userId, "admin"));
+    expect((await request({ allowGuestAccess: true }, {}, url)).statusCode).toBe(200);
+    expect(authBoundary.getCurrentUser).toHaveBeenCalledOnce();
+    expect(authBoundary.auth.api.userHasPermission).toHaveBeenCalledWith({ body: { userId, permissions: { settings: ["update"] } } });
+  });
+  it.each<Record<string, string>>([{ "x-api-key": "api-secret" }, { "x-api-key": "pk_secret" }, { authorization: "Bearer oat_secret" }])(
+    "rejects token access during maintenance for %j",
+    async (headers) => {
+      settings({ maintenanceEnabled: true });
+      authBoundary.getCurrentUser.mockResolvedValue(userSession(userId, "admin"));
+      expectFailure(await request({ allowGuestAccess: true }, headers), 503, "MAINTENANCE_MODE");
+      expect(authBoundary.verifyApiKey).not.toHaveBeenCalled();
+      expect(dbMock.query.oauthAccessTokens.findFirst).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["/api/v1/health", "/api/v2/settings"])("keeps %s readable during maintenance", async (url) => {
+    settings({ maintenanceEnabled: true, enforceAuthForAllRoutes: true });
+    expect((await request({ allowGuestAccess: true }, {}, url)).statusCode).toBe(200);
+  });
+  it.each([
+    "/api/v1/auth/sign-in/email",
+    "/api/v1/auth/callback/google",
+    "/api/v1/auth/get-session",
+    "/api/v1/auth/sign-out",
+    "/api/v1/auth/passkey/generate-authenticate-options",
+    "/api/v1/auth/two-factor/verify-totp",
+    "/api/v1/auth/request-password-reset",
+    "/api/v1/auth/reset-password",
+    "/api/v1/auth/reset-password/token",
+    "/api/v1/auth/send-verification-email",
+    "/api/v1/auth/verify-email",
+  ])("keeps the authentication endpoint %s reachable during maintenance", async (url) => {
+    settings({ maintenanceEnabled: true, enforceAuthForAllRoutes: true, allowedUnauthenticatedRoutes: [] });
+    expect((await request({}, {}, url, "/api/v1/auth/*")).statusCode).toBe(200);
+    expect(authBoundary.getCurrentUser).not.toHaveBeenCalled();
+  });
+  it("blocks new registrations during maintenance", async () => {
+    settings({ maintenanceEnabled: true });
+    expectFailure(await request({}, {}, "/api/v1/auth/sign-up/email", "/api/v1/auth/*"), 503, "MAINTENANCE_MODE");
+  });
+  it("restores guest access when maintenance mode is disabled", async () => {
+    settings({ maintenanceEnabled: true });
+    expectFailure(await request({ allowGuestAccess: true }), 503, "MAINTENANCE_MODE");
+    settings({ maintenanceEnabled: false });
+    expect((await request({ allowGuestAccess: true })).statusCode).toBe(200);
+  });
+  it("retains permission checks for administrators during maintenance", async () => {
+    settings({ maintenanceEnabled: true });
+    authBoundary.getCurrentUser.mockResolvedValue(userSession(userId, "admin"));
+    authBoundary.auth.api.userHasPermission.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false });
+    expectFailure(await request({ permissions: ["create:stations"] }), 403, "INSUFFICIENT_PERMISSIONS");
   });
   it.each(["/guarded", "/api/v2/openapi.json"])("applies site-wide authentication to %s", async (url) => {
     settings({ enforceAuthForAllRoutes: true });

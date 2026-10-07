@@ -8,6 +8,7 @@ import { listOtherLocationPhotos } from "./otherPhotos";
 import { useLightbox } from "@/components/lightbox";
 import { PhotoWithFallback } from "@/components/photos/photoGridPrimitives";
 import { PhotoLightbox } from "@/components/photos/photoLightbox";
+import { PhotoStationsInfo } from "@/components/photos/photoStationsInfo";
 import { cn } from "@/lib/utils";
 
 const TILE_STAGGER_MS = 50;
@@ -40,7 +41,11 @@ export function OtherLocationPhotos({ station }: OtherLocationPhotosProps) {
   const otherPhotos = listOtherLocationPhotos(locationPhotos, station.id, stationPhotos, location?.stations);
   if (otherPhotos.length === 0) return null;
 
-  const viewerPhotos = otherPhotos.map(({ photo, stationNames }) => ({ ...photo, extra: stationNames }));
+  const viewerPhotos = otherPhotos.map(({ photo, selections }) => ({
+    ...photo,
+    isMain: selections.length > 0 && selections.every((selection) => selection.isMain),
+    extra: location === undefined || selections.length === 0 ? undefined : <PhotoStationsInfo places={[{ location, selections }]} />,
+  }));
 
   return (
     <section aria-labelledby={headingId} className="mt-6 sm:mt-8">

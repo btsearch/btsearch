@@ -7,6 +7,7 @@ import { I18nextProvider } from "react-i18next";
 import { BackendStatusProvider } from "@/components/app/backendStatus";
 import { CookieConsentBanner } from "@/components/app/cookieConsentBanner";
 import { ErrorBoundary } from "@/components/app/errorBoundary";
+import { MaintenanceGuard } from "@/components/app/maintenanceGuard";
 import { ReloadPrompt } from "@/components/app/reloadPrompt";
 import { PhotoUploadProgressBar } from "@/components/photos/photoUploadProgressBar";
 import { ThemeProvider } from "@/components/preferences/themeProvider";
@@ -17,6 +18,7 @@ import i18n from "@/i18n/config";
 import { APP_NAME } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 import { STAFF_ROLES } from "@/lib/auth/roles";
+import { checkMaintenanceAccess } from "@/lib/maintenance";
 import { queryClient } from "@/lib/queryClient";
 import { buildDefaultMeta } from "@/lib/seo";
 import "@/index.css";
@@ -142,7 +144,9 @@ function RootComponent() {
           <BackendStatusProvider queryClient={queryClient}>
             <AppProviders>
               <SeoHead />
-              <Outlet />
+              <MaintenanceGuard>
+                <Outlet />
+              </MaintenanceGuard>
             </AppProviders>
           </BackendStatusProvider>
         </ThemeProvider>
@@ -152,6 +156,7 @@ function RootComponent() {
 }
 
 export const Route = createRootRoute({
+  beforeLoad: ({ location }) => checkMaintenanceAccess(location.pathname),
   component: RootComponent,
   head: () => {
     const adClient = import.meta.env.VITE_ADSENSE_CLIENT as string | undefined;

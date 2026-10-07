@@ -149,7 +149,7 @@ export const TAGS: readonly DocumentedTag[] = [
     name: "settings",
     "x-displayName": "Settings",
     description:
-      "Site-wide settings: which features are enabled, whether signing in is required, and the announcement banner. " +
+      "Site-wide settings: maintenance mode, which features are enabled, whether signing in is required, and the announcement banner. " +
       "Administrators can also manage the rules that disable endpoints or open them up to guests.",
   },
   {

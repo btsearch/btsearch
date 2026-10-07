@@ -47,7 +47,7 @@ const RESPONSE_DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
     "You are sending too many requests, or the weekly quota of your API key is used up. " +
     "When `X-Retry-After` is present, it tells you how many seconds to wait.",
   500: "Something went wrong on the server. The details are logged, not returned.",
-  503: "A service this endpoint depends on is not responding right now. Try again later.",
+  503: "The site is in maintenance mode, or a service this endpoint depends on is not responding right now. Try again later.",
 };
 
 const GUEST_REASONS: ErrorReasons = {
@@ -158,7 +158,7 @@ function derivedStatuses(route: RouteOptions, { multipartBody }: FastifyContextC
     415: takesBody,
     429: true,
     500: true,
-    503: false,
+    503: url !== "/settings" && url !== "/api/v2/settings",
   };
 }
 

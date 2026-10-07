@@ -98,12 +98,24 @@
     "userLists": "Listy użytkowników",
     "lead": "Przełączniki i listy tras zapisują się od razu. Każda zmiana trafia do <auditLog>dziennika zdarzeń</auditLog>",
     "sections": {
+      "maintenance": "Przerwa techniczna",
       "access": "Dostęp",
       "features": "Funkcje",
       "cleanup": "Porządki"
     },
     "errors": {
       "conflict": "Inna zmiana ustawień jest właśnie zapisywana. Spróbuj ponownie za chwilę"
+    },
+    "maintenance": {
+      "title": "Tryb przerwy technicznej",
+      "description": "Odwiedzający zobaczą stronę przerwy technicznej i stracą dostęp do API",
+      "note": "Administratorzy zachowują dostęp do serwisu i API, w tym do tych ustawień",
+      "preview": "Podgląd strony",
+      "confirm": {
+        "title": "Włączyć przerwę techniczną?",
+        "description": "Serwis i API będą niedostępne dla wszystkich poza administratorami, dopóki nie wyłączysz przerwy technicznej",
+        "action": "Włącz"
+      }
     },
     "signIn": {
       "title": "Wymagane logowanie",

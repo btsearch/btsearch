@@ -3,9 +3,10 @@ import type { FastifyRequest } from "fastify";
 import { PUBLIC_ROUTES } from "../constants.js";
 import { ErrorResponse } from "../errors.js";
 import { assertRouteScope } from "../features/access/scope.js";
+import { hasStaffPermission } from "../features/access/staff.js";
 import { assertLegacyRecord } from "../features/countries/legacy.js";
 import { getRequestPathname, isSEOPublicPath } from "../features/seo/routes.js";
-import { isSettingsRead, isSettingsRoute, isSignInRequest, routeRulePath } from "../features/settings/routeRules.js";
+import { isAccountRecoveryRequest, isSettingsRead, isSettingsRoute, isSignInRequest, routeRulePath } from "../features/settings/routeRules.js";
 import type { TokenTier } from "../interfaces/auth.interface.ts";
 import type { ApiToken } from "../interfaces/fastify.interface.js";
 import type { Route } from "../interfaces/routes.interface.js";
@@ -44,6 +45,14 @@ async function authenticate(req: FastifyRequest, route: Route) {
   if (isSignInRequest(req, path)) return;
 
   const settings = getRuntimeSettings();
+  const isClientPage = req.routeOptions.url === "/stations/:id" || req.routeOptions.url === "/locations/:id";
+  if (settings.maintenanceEnabled && (isClientPage || isAccountRecoveryRequest(req, path))) return;
+  const isMaintenanceRestricted = settings.maintenanceEnabled && !isSettingsRoute(req) && !TWO_FACTOR_ALLOWED.includes(path);
+  if (isMaintenanceRestricted) {
+    if (req.headers["x-api-key"] !== undefined || req.headers.authorization !== undefined) throw new ErrorResponse("MAINTENANCE_MODE");
+    req.userSession = await getCurrentUser(req);
+    if (!(await hasStaffPermission(req, { settings: ["update"] }))) throw new ErrorResponse("MAINTENANCE_MODE");
+  }
   if (!isSettingsRoute(req) && settings.disabledRoutes.some((p) => path.startsWith(p))) throw new ErrorResponse("FORBIDDEN");
   const isSettingsReadRequest = isSettingsRead(req);
   const isOpenByRuntime = isSettingsReadRequest || settings.allowedUnauthenticatedRoutes.some((p) => path.startsWith(p));
@@ -79,7 +88,7 @@ async function authenticate(req: FastifyRequest, route: Route) {
   }
 
   if (!authHeader) {
-    const user = await getCurrentUser(req);
+    const user = isMaintenanceRestricted ? req.userSession : await getCurrentUser(req);
     const allowGuest = route?.config?.allowGuestAccess && !requiresSignIn;
     const requiresAuthentication = !allowGuest && !isNetMonsterExport(req);
     if (!user && requiresAuthentication) throw new ErrorResponse("UNAUTHORIZED");

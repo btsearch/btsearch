@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { recordRoutePattern } from "../../../../src/features/settings/routeRules.js";
 import { getRuntimeSettings } from "../../../../src/lib/runtimeSettings.js";
 import route from "../../../../src/routes/v2/(patch)/settings.js";
-import { dbMock, redisMock, userSession } from "../../../helpers/boundaries.js";
+import { authBoundary, dbMock, redisMock, userSession } from "../../../helpers/boundaries.js";
 import { expectError, injectMutation, scriptAudit } from "../../../helpers/mutationAssertions.js";
+import { createRouteHarness } from "../../../helpers/routeHarness.js";
 
 const request = { method: "PATCH" as const, url: "/settings", payload: { features: { comments: true } } };
 const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "admin") };
@@ -12,6 +13,41 @@ const options = { session: userSession("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "
 describe("PATCH /settings", () => {
   beforeEach(() => {
     for (const pattern of ["/api/v1/auth/*", "/api/v2/settings", "/api/v2/stations", "/api/v1/submissions/cleanup"]) recordRoutePattern(pattern);
+  });
+  it.each([true, false])("lets administrators set maintenance mode to %s and records the change", async (enabled) => {
+    getRuntimeSettings().maintenanceEnabled = !enabled;
+    const before = structuredClone(getRuntimeSettings());
+    authBoundary.getCurrentUser.mockResolvedValue(options.session);
+    scriptAudit();
+    const app = await createRouteHarness(route, { runAuth: true, prefix: "/api/v2" });
+    const response = await app.inject({ method: "PATCH", url: "/api/v2/settings", payload: { isMaintenanceMode: enabled } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.isMaintenanceMode).toBe(enabled);
+    expect(getRuntimeSettings()).toEqual({ ...before, maintenanceEnabled: enabled });
+    expect(redisMock.multi).toHaveBeenCalledOnce();
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toEqual(
+      expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: { ...before, maintenanceEnabled: enabled } })]),
+    );
+  });
+  it("prevents guests from disabling maintenance mode", async () => {
+    getRuntimeSettings().maintenanceEnabled = true;
+    const app = await createRouteHarness(route, { runAuth: true, prefix: "/api/v2" });
+    expectError(await app.inject({ method: "PATCH", url: "/api/v2/settings", payload: { isMaintenanceMode: false } }), 401, "UNAUTHORIZED");
+    expect(getRuntimeSettings().maintenanceEnabled).toBe(true);
+    expect(redisMock.multi).not.toHaveBeenCalled();
+  });
+  it("prevents a user without settings permission from disabling maintenance mode", async () => {
+    getRuntimeSettings().maintenanceEnabled = true;
+    authBoundary.getCurrentUser.mockResolvedValue(userSession());
+    authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
+    const app = await createRouteHarness(route, { runAuth: true, prefix: "/api/v2" });
+    expectError(
+      await app.inject({ method: "PATCH", url: "/api/v2/settings", payload: { isMaintenanceMode: false } }),
+      403,
+      "INSUFFICIENT_PERMISSIONS",
+    );
+    expect(getRuntimeSettings().maintenanceEnabled).toBe(true);
+    expect(redisMock.multi).not.toHaveBeenCalled();
   });
 
   it.each(["/api/v1/analyzer", "/api/v1/analyzer/apply", "/api/v1/settings", "/api/v1/submissions/batch"])(
@@ -185,6 +221,7 @@ describe("PATCH /settings", () => {
     { features: {} },
     { announcement: {} },
     { access: {} },
+    { isMaintenanceMode: "true" },
     { features: { unsupported: true } },
     { announcement: { message: "x".repeat(1001) } },
     { access: { openRoutes: ["/"] } },

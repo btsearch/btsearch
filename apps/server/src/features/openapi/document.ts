@@ -30,6 +30,9 @@ const API_DESCRIPTION = [
     "- **API key**: sent in the `X-Api-Key` header. Keys are meant for reading public data.\n" +
     "- **OAuth access token**: issued to an application the user has approved, sent as `Authorization: Bearer <token>`.",
   "Sign-in, API keys and OAuth applications are managed through the endpoints under `/api/v1/auth`.",
+  "## Maintenance",
+  "When `isMaintenanceMode` on `GET /settings` is enabled, endpoints return 503 `MAINTENANCE_MODE` unless an administrator is signed in " +
+    "with a session cookie. Sign-in, account recovery, the settings endpoints and the health check remain available.",
   "## Responses",
   "Successful responses wrap their payload in `data`. Paginated lists also return `paging`: " +
     "pass its `nextCursor` as `cursor` to get the next page, and stop when it is `null`.",

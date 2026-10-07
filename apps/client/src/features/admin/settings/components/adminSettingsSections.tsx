@@ -10,6 +10,7 @@ import { STRETCHED_TWO_COLUMN_CLASS } from "./classNames";
 import { RejectedPhotosCard } from "./cleanup/rejectedPhotosCard";
 import { CommentsCard } from "./features/commentsCard";
 import { ContributionsCard } from "./features/contributionsCard";
+import { MaintenanceCard } from "./maintenanceCard";
 import { SettingsSection } from "@/features/settings/components/settingsPrimitives";
 
 type AdminSettingsSectionsProps = {
@@ -23,6 +24,9 @@ export function AdminSettingsSections({ settings, announcementFormRef }: AdminSe
 
   return (
     <>
+      <SettingsSection id="admin-settings-maintenance" title={t("settings.sections.maintenance")}>
+        <MaintenanceCard isMaintenanceMode={settings.isMaintenanceMode} />
+      </SettingsSection>
       <SettingsSection id="admin-settings-access" title={t("settings.sections.access")}>
         {access === undefined ? (
           <SignInCard isSignInRequired={settings.isSignInRequired} />

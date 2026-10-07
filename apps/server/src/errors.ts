@@ -60,6 +60,7 @@ export type ErrorCode =
   | "DUPLICATE_ENTRY"
   | "CONFLICT"
   | "SERVICE_UNAVAILABLE"
+  | "MAINTENANCE_MODE"
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST"
   | "PHOTO_TOO_SMALL"
@@ -143,6 +144,10 @@ export const errors: Record<ErrorCode, ErrorDefinition> = {
   },
   SERVICE_UNAVAILABLE: {
     message: "The service is temporarily unavailable.",
+    statusCode: 503,
+  },
+  MAINTENANCE_MODE: {
+    message: "The site is temporarily unavailable for maintenance. Please try again later.",
     statusCode: 503,
   },
   TWO_FACTOR_REQUIRED: {
