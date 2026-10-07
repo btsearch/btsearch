@@ -175,7 +175,7 @@ function StationPage() {
                       stationId: station.id,
                       stationCode: station.siteId,
                       operatorName,
-                      operatorMnc: toV1OperatorMnc(station.operator),
+                      operatorBrandId: station.operator?.brandId ?? null,
                     })
                   }
                   className={`${stationDialogInlineActionClassName} w-auto px-1.5`}

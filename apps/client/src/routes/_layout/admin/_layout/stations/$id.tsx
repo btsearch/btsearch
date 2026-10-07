@@ -133,7 +133,7 @@ function NewStationRoute({ registerStationId }: NewStationRouteProps) {
 
   if (isLoadingPrefill) return <EditorSkeleton />;
   if (registerStationId !== undefined && permits === undefined) return <PageErrorState onRetry={retryPermits} />;
-  if (permits !== undefined && reference.hasFailed) return <PageErrorState onRetry={() => retryEditLookups(queryClient, null)} />;
+  if (permits !== undefined && reference.hasFailed) return <PageErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />;
 
   const registerStation = permits === undefined ? undefined : groupPermitsByStation(permits).at(0);
   const prefill = registerStation === undefined ? undefined : toRegisterStationDraft(registerStation, reference, REGISTER_PREFILL_RULES.editor);

@@ -16,7 +16,7 @@ import type {
 } from "@openbts/shared/contract";
 
 import { findCell, getAreaValue, getBackhaulModel, isMarkerMoved, isSameOwnerChoice, listSectorEntries, normalizeText } from "./changes";
-import { DEFAULT_NR_MODE, RAT_FIELDS, getAreaCodeField, getCellFlag, getCellNumber, toAzimuth } from "./ratFields";
+import { DEFAULT_GNBID_LENGTH, DEFAULT_NR_MODE, RAT_FIELDS, getAreaCodeField, getCellFlag, getCellNumber, toAzimuth } from "./ratFields";
 import { EMPTY_SNAPSHOT, IDENTIFIER_KINDS, UNKNOWN_OWNER } from "./snapshots";
 import type {
   BuiltBody,
@@ -116,6 +116,7 @@ type NewNrCell = CellCommon & {
   mode: NrMode;
   tac?: number | null;
   gnbid?: number | null;
+  gnbidLength?: number;
   clid?: number | null;
   pci?: number | null;
   arfcn?: number | null;
@@ -130,6 +131,7 @@ type CellUpdateFields = SectorRef &
     notes?: string | null;
     isConfirmed?: boolean;
     mode?: NrMode;
+    gnbidLength?: number;
   };
 type CellPartEntry = (NewCell & { action: "create" }) | (CellUpdateFields & { action: "update"; id: number }) | { action: "delete"; id: number };
 type Confirmation = "all" | "new" | "none";
@@ -355,6 +357,7 @@ function buildNewNrCell(cell: CellDraft, common: CellCommon, bandId: number, are
 
   if (areaValue !== null) created.tac = areaValue;
   if (gnbid !== null) created.gnbid = gnbid;
+  if (cell.mode === "sa") created.gnbidLength = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
   if (clid !== null) created.clid = clid;
   if (pci !== null) created.pci = pci;
   if (arfcn !== null) created.arfcn = arfcn;
@@ -402,6 +405,8 @@ function buildCellUpdateFields(
   if (cell.cellType !== baseCell.cellType) fields.cellType = cell.cellType;
   if (notes !== normalizeText(baseCell.notes)) fields.notes = toNullableText(notes);
   if (cell.mode !== null && cell.mode !== baseCell.mode) fields.mode = cell.mode;
+  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? DEFAULT_GNBID_LENGTH) !== (baseCell.gnbidLength ?? DEFAULT_GNBID_LENGTH))
+    fields.gnbidLength = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
   for (const { field } of spec.numbers) {
     const value = field === areaField ? getAreaValue(draft, cell) : getCellNumber(cell, field);
     const baseValue = field === areaField ? getAreaValue(base, baseCell) : getCellNumber(baseCell, field);

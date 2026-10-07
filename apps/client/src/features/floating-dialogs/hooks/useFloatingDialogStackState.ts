@@ -73,7 +73,7 @@ function hasSamePayload(dialog: FloatingDialogItem, request: FloatingDialogOpenR
         dialog.stationId === request.stationId &&
         dialog.stationCode === request.stationCode &&
         dialog.operatorName === request.operatorName &&
-        dialog.operatorMnc === request.operatorMnc
+        dialog.operatorBrandId === request.operatorBrandId
       );
     case "terrain-profile":
       return (

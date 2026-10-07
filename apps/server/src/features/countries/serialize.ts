@@ -11,7 +11,13 @@ export function toCountry(row: CountryRow): Country {
   const { viewWest: west, viewSouth: south, viewEast: east, viewNorth: north } = row;
   const defaultView = west !== null && south !== null && east !== null && north !== null ? { west, south, east, north } : null;
 
-  return { code: row.code, isVisible: row.isVisible, contributions: row.contributions, defaultView };
+  return {
+    code: row.code,
+    isVisible: row.isVisible,
+    contributions: row.contributions,
+    features: { structureOwnerProposals: row.structureOwnerProposals, psc: row.psc, bsic: row.bsic },
+    defaultView,
+  };
 }
 
 export function viewColumns(view: CountryView | null | undefined) {

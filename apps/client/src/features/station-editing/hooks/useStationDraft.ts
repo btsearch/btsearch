@@ -90,8 +90,9 @@ export function useStationDraft(input: StationDraftInput): StationDraftApi {
   const [session, send] = useReducer(draftReducer, input, createSession);
   const { t, i18n } = useTranslation();
   const reference = useEditReference();
-  const countryCode = findDraftCountryCode(session.draft, reference.operatorsById, reference.regionsById, session.countryCode);
-  const lookups = useCountryLookups(reference, countryCode);
+  const featureCountryCode = findDraftCountryCode(session.draft, reference.operatorsById, reference.regionsById, null);
+  const countryCode = featureCountryCode ?? session.countryCode;
+  const lookups = useCountryLookups(reference, countryCode, featureCountryCode);
   const { language } = i18n;
   const { canEdit } = input;
   const context = useMemo(() => createChangeContext(lookups, t("stations:cells.unknownBand"), language), [lookups, t, language]);

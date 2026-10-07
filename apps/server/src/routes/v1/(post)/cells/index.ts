@@ -14,6 +14,7 @@ import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
 import { normalRatInsertSchemaMap } from "../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -73,9 +74,11 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
     const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.create" }, async (tx, audit) => {
       const [inserted] = await tx.insert(cells).values(cellData).returning();
       if (!inserted) throw new ErrorResponse("FAILED_TO_CREATE");
+      const featuresByStation = await getStationCountryFeatures([inserted.station_id], tx);
+      const features = featuresByStation.get(inserted.station_id) ?? disabledCountryFeatures;
 
       if (requestedDetails && isNormalRat(inserted.rat))
-        await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails);
+        await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails, features);
 
       const snapshot = await loadCellSnapshot(tx, inserted.id);
       if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");

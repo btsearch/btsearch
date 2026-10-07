@@ -1,6 +1,7 @@
 import type { AuditOperationKind } from "@openbts/shared/audit";
 import type {
   CellRat,
+  CountryFeatures,
   Sector,
   StationHistoryAction,
   StationHistoryCell,
@@ -44,6 +45,7 @@ type ValuePair = { from: StationHistoryValue; to: StationHistoryValue };
 type SectorSide = keyof SectorAzimuthsAsOf;
 
 export type HistoryContext = {
+  countryFeatures: Readonly<CountryFeatures>;
   locations: ReadonlyMap<number, StationHistoryLocation>;
   structureOwnerNames: ReadonlyMap<number, string>;
   photos: ReadonlyMap<number, StationHistoryPhoto>;
@@ -89,7 +91,6 @@ const CELL_FIELD_NAMES: Readonly<Partial<Record<string, CellValueField>>> = {
   notes: "notes",
   is_confirmed: "isConfirmed",
   cell_type: "cellType",
-  gnbid_length: "gnbidLength",
   ...RADIO_FIELD_NAMES.gsm,
   ...RADIO_FIELD_NAMES.umts,
   ...RADIO_FIELD_NAMES.lte,
@@ -245,8 +246,8 @@ function cellNumber(column: string, flat: HistoryObject, context: HistoryContext
 
 function cellChange(row: AuditRow, action: StationHistoryAction, context: HistoryContext): StationHistoryCell | null {
   const id = Number(row.record_id);
-  const oldFlat = flattenCell(row.old_values);
-  const newFlat = flattenCell(row.new_values);
+  const oldFlat = flattenCell(row.old_values, context.countryFeatures);
+  const newFlat = flattenCell(row.new_values, context.countryFeatures);
   const identity = action === "create" ? newFlat : oldFlat;
   const rat = toCellRat(identity?.rat);
   if (!Number.isSafeInteger(id) || id <= 0 || identity === null || rat === undefined) return null;

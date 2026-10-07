@@ -143,7 +143,7 @@ function renderDialogPanelContent(
           stationId={dialog.stationId}
           stationCode={dialog.stationCode}
           operatorName={dialog.operatorName}
-          operatorMnc={dialog.operatorMnc}
+          operatorBrandId={dialog.operatorBrandId}
         />
       );
     case "terrain-profile":

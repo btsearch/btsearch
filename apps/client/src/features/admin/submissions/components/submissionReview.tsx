@@ -25,7 +25,7 @@ import { stationHistoryQueryOptions } from "@/features/station-details/station/h
 import type { StationHistoryItem } from "@/features/station-details/station/history/types";
 import type { StationRecord } from "@/features/station-details/station/types";
 import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
-import { getStationCountryCode, toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { getStationCountryCode } from "@/features/station-details/station/utils/stations";
 import { CellsPanel } from "@/features/station-editing/components/cells/cellsPanel";
 import { EditPage, type EditPageCard } from "@/features/station-editing/components/frame/editPage";
 import { HistoryCard } from "@/features/station-editing/components/frame/historyCard";
@@ -133,7 +133,7 @@ function ReviewCells({ edit }: ReviewCellsProps) {
   const queryClient = useQueryClient();
   const { lookups } = edit;
 
-  if (lookups.hasFailed) return <ErrorState onRetry={() => retryEditLookups(queryClient, lookups.countryCode)} />;
+  if (lookups.hasFailed) return <ErrorState onRetry={() => retryEditLookups(queryClient, lookups.countryCode, lookups)} />;
   if (!lookups.isReady) {
     return (
       <div className="flex flex-col gap-2">
@@ -315,7 +315,7 @@ export function SubmissionReview({ opened, submission, station, onReload }: Subm
       stationId: shownStation.id,
       stationCode: shownStation.siteId,
       operatorName: shownStation.operator?.name ?? t("main:unknownOperator"),
-      operatorMnc: toV1OperatorMnc(shownStation.operator),
+      operatorBrandId: shownStation.operator?.brandId ?? null,
     });
   }
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(patch)/submissions/[id].js";
-import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { authBoundary, dbMock, setCountryFeatures, userSession } from "../../../../helpers/boundaries.js";
 import { cellBands } from "../../../../helpers/cellWriteFixtures.js";
 import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
@@ -37,6 +37,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     };
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValueOnce(fixture.row).mockResolvedValueOnce(previous).mockResolvedValueOnce(fixture.snapshot);
+    dbMock.enqueueSubmissionPlacement([{ regionId: previous.proposedLocation.region_id, operatorId: previous.proposedStation.operator_id }]);
     const body = {
       station: {
         siteId: "SITE-LIVE",
@@ -136,6 +137,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
       dbMock.enqueueFor("select", "regions", [{ countryCode: "PL", regionId: 2 }]);
       dbMock.enqueueFor("select", "stations", [{ countryCode: "PL", regionId: 1 }]);
       if (coversDestination) {
+        dbMock.enqueueSubmissionPlacement([{ regionId: oldSnapshot.proposedLocation?.region_id ?? null, operatorId: null }]);
         dbMock.query.submissions.findFirst.mockResolvedValueOnce(oldSnapshot).mockResolvedValueOnce(fixture.snapshot);
         scriptAudit();
         dbMock.enqueueFor("select", "submissions", [{ status: "pending", updatedAt: initial.updatedAt }], [fixture.row]);
@@ -181,6 +183,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     const old = { ...fixture.snapshot, proposedCells: [fixture.snapshot.proposedCells[0]!] };
     dbMock.query.submissions.findFirst.mockResolvedValueOnce(fixture.row).mockResolvedValueOnce(old).mockResolvedValueOnce(fixture.snapshot);
+    dbMock.enqueueSubmissionPlacement([{ regionId: old.proposedLocation?.region_id ?? null, operatorId: old.proposedStation?.operator_id ?? null }]);
     dbMock.enqueueFor("select", "cells", targets.slice(1));
     dbMock.enqueueFor("select", "bands", [{ id: 1 }], cellBands, []);
     dbMock.enqueueFor("select", "stations", [{ countryCode: "PL", regionId: 1 }], [{ locationCountry: "PL", operatorCountry: "PL" }]);
@@ -270,6 +273,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     const initial = { ...submissionRow, station_id: 1, type: "delete", submitter_note: "Old evidence" };
     const updated = { ...initial, submitter_note: null };
     const snapshot = { ...initial, proposedStation: null, proposedLocation: null, proposedSectors: [], proposedCells: [] };
+    dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     dbMock.query.submissions.findFirst
       .mockResolvedValueOnce(initial)
       .mockResolvedValueOnce(snapshot)
@@ -412,7 +416,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     { description: "listed replacement", structure: { ownerId: 99 }, ownerId: 99, ownerName: null },
     { description: "unchanged proposal", structure: { ownerName: "Original Owner" }, ownerId: null, ownerName: "Original Owner" },
   ] as const)("allows $description while new owner proposals are disabled", async ({ structure, ownerId, ownerName }) => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const fixture = draftFixture([draftRadios[0]]);
@@ -445,7 +449,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("retains the unchanged proposed name when a location moves between regions of the same country", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const fixture = draftFixture([draftRadios[0]]);
@@ -471,7 +475,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("resolves an existing named owner while new owner proposals are disabled", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const fixture = draftFixture([draftRadios[0]]);
@@ -492,7 +496,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("rejects moving an omitted pending owner proposal into another country while proposals are disabled", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const body = { location: { regionId: 2, latitude: 52, longitude: 21, city: "Berlin", address: "Changed address" } } satisfies SubmissionUpdate;
@@ -512,7 +516,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("preserves an omitted pending owner proposal when moving between regions of the same country", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const fixture = draftFixture([draftRadios[0]]);
@@ -537,7 +541,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("retains an omitted name across countries when the destination already has that owner", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const fixture = draftFixture([draftRadios[0]]);
@@ -560,7 +564,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     { description: "a different unknown name", ownerName: "Replacement Owner", regionId: 1 },
     { description: "the same name in a different country", ownerName: "Original Owner", regionId: 2 },
   ])("rejects $description while proposals are disabled", async ({ ownerName, regionId }) => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const previous = draftFixture([draftRadios[0]]);
     previous.snapshot.proposedLocation = { ...draftLocation, structure_owner_name: "Original Owner" };
     const body = {
@@ -581,7 +585,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   });
 
   it("rejects a new owner name from a moderator while proposals are disabled", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const body = {
       location: { regionId: 1, latitude: 52, longitude: 21, structure: { ownerName: "Moderator Proposal" } },
     } satisfies SubmissionUpdate;
@@ -593,6 +597,9 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
 
   it("rejects clearing a sector still used by an omitted cell proposal", async () => {
     const fixture = draftFixture([draftRadios[0]]);
+    dbMock.enqueueSubmissionPlacement([
+      { regionId: fixture.snapshot.proposedLocation?.region_id ?? null, operatorId: fixture.snapshot.proposedStation?.operator_id ?? null },
+    ]);
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValue(fixture.row);
     dbMock.query.proposedSectors.findFirst.mockResolvedValue(fixture.sectors[0]);
@@ -714,6 +721,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     const initial = { ...submissionRow, status: "rejected" };
     const updated = { ...initial, review_notes: "Corrected review" };
     const snapshot = { ...initial, proposedStation: null, proposedLocation: null, proposedSectors: [], proposedCells: [] };
+    dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     dbMock.enqueueFor("select", "users", [{ role: "admin" }]);
     dbMock.enqueueFor("select", "role_grants", []);
     dbMock.query.submissions.findFirst
@@ -793,6 +801,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     const updated = { ...submissionRow, submitter_note: "Updated note" };
     const snapshot = { ...submissionRow, proposedStation: null, proposedLocation: null, proposedSectors: [], proposedCells: [] };
+    dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     dbMock.query.submissions.findFirst
       .mockResolvedValueOnce(submissionRow)
       .mockResolvedValueOnce(snapshot)
@@ -818,6 +827,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   it("rejects a note update that changes nothing", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValue({ ...submissionRow, submitter_note: "Updated note" });
+    dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     const response = await injectMutation(route, request, options);
     expectError(response, 400, "BAD_REQUEST", "No changes detected. Please modify the data before updating.");
     expect(dbMock.calls.some((call) => call.operation === "update")).toBe(false);
@@ -892,6 +902,7 @@ describe("PATCH /submissions/11111111-1111-4111-8111-111111111111", () => {
   it("rejects an owner's attempt to change the review note", async () => {
     authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
     dbMock.query.submissions.findFirst.mockResolvedValue(submissionRow);
+    dbMock.enqueueSubmissionPlacement([{ regionId: null, operatorId: null }]);
     const response = await injectMutation(route, { ...request, payload: { reviewNote: "Changed review" } }, options);
     expectError(response, 403, "FORBIDDEN", "Cannot modify review notes");
   });

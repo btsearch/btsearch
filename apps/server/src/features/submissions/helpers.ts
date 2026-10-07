@@ -59,7 +59,7 @@ export const nrInsertSchemaBase = createInsertSchema(proposedNRCells)
   .extend({
     nrtac: z.number().int().min(0).max(16777215).nullable().optional(),
     gnbid: z.number().int().min(0).max(2147483647).nullable().optional(),
-    gnbid_length: gnbidLengthSchema,
+    gnbid_length: gnbidLengthSchema.nullable(),
     clid: z.number().int().min(0).max(16383).nullable().optional(),
     pci: z.number().int().min(0).max(1007).nullable().optional(),
     arfcn: z.number().int().min(0).max(3279165).nullable().optional(),

@@ -1,5 +1,6 @@
 import { attachments, auditLogs, auditOperations, locationPhotos, locations, stationSectors, structureOwners, users } from "@openbts/drizzle";
 import type {
+  CountryFeatures,
   StationHistoryItem,
   StationHistoryList,
   StationHistoryLocation,
@@ -20,12 +21,14 @@ import type { AuditOperationRow } from "../audit/types.js";
 import { loadUnknownBandIds } from "../bands/unknown.js";
 import { photoUrls } from "../photos/read.js";
 import { type UserRefViewer, loadUserRefViewer, toPublicUserRef } from "../users/userRef.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "./countryFeatures.js";
 import { type SectorAzimuthsAsOf, isPlainObject, normalize, sectorAzimuthsByOperation } from "./history.js";
 import { locationChangeIds, operationChanges, photoChangeIds, structureOwnerChangeIds } from "./historyChanges.js";
 import { type AuditRow, type HistoryStation, stationEntryCondition } from "./historyRows.js";
 import type { StationRow } from "./serialize.js";
 
 type HistoryReadContext = {
+  countryFeatures: Readonly<CountryFeatures>;
   viewer: UserRefViewer;
   reach: AuditReach;
   liveAzimuths: ReadonlyMap<number, number>;
@@ -214,7 +217,7 @@ export async function readHistoryPage<T>(
 async function loadHistoryItems(
   station: StationRow,
   operationIds: readonly number[],
-  { viewer, reach, liveAzimuths, unknownBandIds }: HistoryReadContext,
+  { viewer, reach, liveAzimuths, unknownBandIds, countryFeatures }: HistoryReadContext,
 ): Promise<StationHistoryItem[]> {
   const { operations, entries, sectorAzimuths, coverage } = await loadHistoryRows(station, operationIds, liveAzimuths);
   const [locationRefs, structureOwnerNames, photoRefs, authors] = await Promise.all([
@@ -230,6 +233,7 @@ async function loadHistoryItems(
 
   return operations.flatMap((operation): StationHistoryItem[] => {
     const context = {
+      countryFeatures,
       locations: locationRefs,
       structureOwnerNames,
       photos: photoRefs,
@@ -256,14 +260,21 @@ async function loadHistoryItems(
 
 export async function readStationHistory(req: FastifyRequest, station: StationRow, query: StationHistoryQuery): Promise<StationHistoryList> {
   const before = query.cursor === undefined ? null : decodeCursor(query.cursor, historyCursorSchema).before;
-  const [viewer, reach, liveSectors, unknownBandIds] = await Promise.all([
+  const [viewer, reach, liveSectors, unknownBandIds, featuresByStation] = await Promise.all([
     loadUserRefViewer(req),
     getAuditReach(req, "revert"),
     db.select({ id: stationSectors.id, azimuth: stationSectors.azimuth }).from(stationSectors).where(eq(stationSectors.station_id, station.id)),
     loadUnknownBandIds(),
+    getStationCountryFeatures([station.id]),
   ]);
   const liveAzimuths = new Map(liveSectors.map((sector) => [sector.id, sector.azimuth]));
-  const context: HistoryReadContext = { viewer, reach, liveAzimuths, unknownBandIds };
+  const context: HistoryReadContext = {
+    viewer,
+    reach,
+    liveAzimuths,
+    unknownBandIds,
+    countryFeatures: featuresByStation.get(station.id) ?? disabledCountryFeatures,
+  };
 
   const page = await readHistoryPage(station, query.limit, before, (operationIds) => loadHistoryItems(station, operationIds, context));
   const nextCursor = page.nextBefore === null ? null : encodeCursor({ before: page.nextBefore });

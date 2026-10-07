@@ -25,6 +25,8 @@ import { InlineError, StaleDataNotice } from "@/components/ui/error-state";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FloatingDialogPanelFrameProps, StationDialogTarget } from "@/features/floating-dialogs/types";
 import { getOfficialSiteMapHash } from "@/features/map/mapLinks";
+import { brandsQueryOptions, findOperator, operatorsQueryOptions } from "@/features/shared/lookups";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useSettings } from "@/hooks/useSettings";
 import { authClient } from "@/lib/auth/client";
@@ -73,14 +75,18 @@ function UkeStationDialogPanel({
   const { t } = useTranslation(["stationDetails", "common"]);
   const queryClient = useQueryClient();
   const { data: settings } = useSettings();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: isSessionPending, error: sessionError } = authClient.useSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const userRole = session?.user?.role as string | undefined;
   const isAdmin = userRole === "admin" || userRole === "editor";
   const isLoggedIn = !!session?.user;
 
   const { data, isLoading, isFetching, error, errorUpdateCount, refetch } = useQuery(ukeStationQueryOptions(stationId));
+  const { data: operators } = useQuery({ ...operatorsQueryOptions({ viewerId: session?.user.id ?? null }), enabled: viewerReady });
+  const { data: brands } = useQuery(brandsQueryOptions());
 
   const station = data ?? placeholder;
+  const operatorBrand = getOperatorBrand(findOperator(viewerReady ? operators : undefined, station?.operator?.id ?? null), brands);
   const showDetailsError = !data && (error !== null || (isFetching && errorUpdateCount > 0));
   const operatorName = station?.operator?.name ?? t("main:unknownOperator");
   const location = station?.location;
@@ -103,14 +109,14 @@ function UkeStationDialogPanel({
     <StationDialogShell
       {...frameProps}
       onClose={onClose}
-      operatorMnc={station?.operator?.mnc}
+      operatorBrand={operatorBrand}
       sourceSwitch={sourceSwitch}
       enterFrom={switchedFrom ? "right" : undefined}
       heading={
         station ? (
           <StationDialogHeading
             operatorName={operatorName}
-            operatorMnc={station.operator?.mnc}
+            operatorBrand={operatorBrand}
             stationCode={station.station_id}
             location={location}
             createdAt={station.createdAt}

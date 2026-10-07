@@ -1,7 +1,7 @@
 import type { Settings, SettingsAccess, SettingsAnnouncement, SettingsFeatures, SettingsUpdate } from "@openbts/shared/contract";
 
 export type RouteListName = keyof SettingsAccess;
-export type SwitchedFeature = Exclude<keyof SettingsFeatures, "psc" | "bsic">;
+export type SwitchedFeature = keyof SettingsFeatures;
 
 const HIDDEN_ANNOUNCEMENT: SettingsAnnouncement = { isEnabled: false, type: "info", message: "" };
 

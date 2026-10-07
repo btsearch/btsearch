@@ -7,12 +7,12 @@ import { readDate } from "./readFixtures.js";
 import { stationRow } from "./stationFixtures.js";
 
 export const radioTables = { gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells };
-export const cellInputs: Record<NewCellInput["rat"], NewCellInput> = {
+export const cellInputs = {
   gsm: { rat: "gsm", bandId: 1, lac: 1, cid: 2 },
   umts: { rat: "umts", bandId: 2, rnc: 1, cid: 2 },
   lte: { rat: "lte", bandId: 3, enbid: 100, clid: 1 },
   nr: { rat: "nr", bandId: 4, mode: "nsa" },
-};
+} satisfies Record<NewCellInput["rat"], NewCellInput>;
 export const cellBands = [
   { id: 1, rat: "GSM", value: 900, duplex: "FDD", code: "E-GSM900", name: "GSM 900", variant: "commercial" },
   { id: 2, rat: "UMTS", value: 2100, duplex: "FDD", code: "I", name: "UMTS 2100", variant: "commercial" },
@@ -65,7 +65,7 @@ export function storedCell(input: NewCellInput, id = 11, stationId = 1) {
           type: input.mode,
           nrtac: input.tac ?? null,
           gnbid: input.gnbid ?? null,
-          gnbid_length: null,
+          gnbid_length: input.gnbidLength ?? null,
           clid: input.clid ?? null,
           nci: null,
           pci: input.pci ?? null,

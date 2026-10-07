@@ -21,6 +21,7 @@ import {
   withNsaFieldsCleared,
 } from "../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -128,7 +129,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
       if (details && isNormalRat(cell.rat)) {
-        const updatedDetails = await updateRATCellDetailsReturning(tx, cell.rat, id, withNsaFieldsCleared(cell, details as RATUpdateDetails));
+        const featuresByStation = await getStationCountryFeatures([saved.station_id], tx);
+        const features = featuresByStation.get(saved.station_id) ?? disabledCountryFeatures;
+        const updatedDetails = await updateRATCellDetailsReturning(
+          tx,
+          cell.rat,
+          id,
+          withNsaFieldsCleared(cell, details as RATUpdateDetails),
+          features,
+        );
         if (!updatedDetails)
           throw new ErrorResponse("FAILED_TO_UPDATE", {
             message: `This cell has no ${cell.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,

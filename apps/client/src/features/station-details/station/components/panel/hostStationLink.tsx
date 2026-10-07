@@ -4,7 +4,6 @@ import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, LocationStationRecord } from "../../types";
-import { getBrandColor } from "../../utils/brands";
 import { toV1StationStatus } from "../../utils/stations";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
@@ -31,7 +30,7 @@ export function HostStationLink({ station, brand, onOpen }: HostStationLinkProps
       href={`/stations/${station.id}`}
       onClick={handleClick}
       className="group flex min-w-0 items-center gap-1.5 rounded-md border border-border/60 px-2 py-1.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      style={{ backgroundImage: getOperatorTintGradient(getBrandColor(brand)) }}
+      style={{ backgroundImage: brand === null ? undefined : getOperatorTintGradient(brand.color) }}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <BrandMark brand={brand} size={16} />

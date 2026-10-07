@@ -44,6 +44,7 @@ import { operatedBy, outsideCountriesOf } from "../operators/sharing.js";
 import { type RegionRow, toRegion } from "../regions/serialize.js";
 import { DATABASE_STRUCTURE_TYPES, type StructureOwnerRow } from "../structures/serialize.js";
 import { stationCountries, stationCountryCode, stationPlacementMatches } from "./country.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "./countryFeatures.js";
 import {
   IOT_CAPABLE_CELL,
   type SectorFilter,
@@ -300,39 +301,41 @@ export async function serializeStations(
   const locationIds = unique(rows.map((row) => row.location_id));
   const operatorIds = unique(rows.map((row) => row.operator_id));
 
-  const [identifierRows, hostStationIds, operatorsById, locationRows, cellRows, bandRows, sectorRows, backhaulRows] = await Promise.all([
-    db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
-    findHostStationIds(locationIds),
-    loadOperators(db, wants("operator") ? operatorIds : []),
-    wantsLocation && locationIds.length > 0
-      ? db
-          .select({ location: locationColumns, region: regions, owner: structureOwners })
-          .from(locations)
-          .innerJoin(regions, eq(regions.id, locations.region_id))
-          .leftJoin(structureOwners, eq(structureOwners.id, locations.structure_owner_id))
-          .where(inArray(locations.id, locationIds))
-      : [],
-    wantsCells
-      ? db
-          .select({ cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells })
-          .from(cells)
-          .leftJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
-          .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
-          .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
-          .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
-          .where(inArray(cells.station_id, stationIds))
-          .orderBy(asc(cells.id))
-      : [],
-    wantsCells ? db.select().from(bands) : [],
-    wants("sectors")
-      ? db
-          .select()
-          .from(stationSectors)
-          .where(and(inArray(stationSectors.station_id, stationIds), sectorCondition))
-          .orderBy(asc(stationSectors.id))
-      : [],
-    wants("backhaul") ? db.select().from(stationUplinks).where(inArray(stationUplinks.station_id, stationIds)) : [],
-  ]);
+  const [identifierRows, hostStationIds, operatorsById, locationRows, cellRows, bandRows, sectorRows, backhaulRows, featuresByStation] =
+    await Promise.all([
+      db.select().from(extraIdentificators).where(inArray(extraIdentificators.station_id, stationIds)).orderBy(asc(extraIdentificators.id)),
+      findHostStationIds(locationIds),
+      loadOperators(db, wants("operator") ? operatorIds : []),
+      wantsLocation && locationIds.length > 0
+        ? db
+            .select({ location: locationColumns, region: regions, owner: structureOwners })
+            .from(locations)
+            .innerJoin(regions, eq(regions.id, locations.region_id))
+            .leftJoin(structureOwners, eq(structureOwners.id, locations.structure_owner_id))
+            .where(inArray(locations.id, locationIds))
+        : [],
+      wantsCells
+        ? db
+            .select({ cell: cells, gsm: gsmCells, umts: umtsCells, lte: lteCells, nr: nrCells })
+            .from(cells)
+            .leftJoin(gsmCells, eq(gsmCells.cell_id, cells.id))
+            .leftJoin(umtsCells, eq(umtsCells.cell_id, cells.id))
+            .leftJoin(lteCells, eq(lteCells.cell_id, cells.id))
+            .leftJoin(nrCells, eq(nrCells.cell_id, cells.id))
+            .where(inArray(cells.station_id, stationIds))
+            .orderBy(asc(cells.id))
+        : [],
+      wantsCells ? db.select().from(bands) : [],
+      wants("sectors")
+        ? db
+            .select()
+            .from(stationSectors)
+            .where(and(inArray(stationSectors.station_id, stationIds), sectorCondition))
+            .orderBy(asc(stationSectors.id))
+        : [],
+      wants("backhaul") ? db.select().from(stationUplinks).where(inArray(stationUplinks.station_id, stationIds)) : [],
+      getStationCountryFeatures(wantsCells ? stationIds : []),
+    ]);
 
   const identifiersByStation = Map.groupBy(identifierRows, (row) => row.station_id);
   const locationsById = new Map(locationRows.map((row) => [row.location.id, row]));
@@ -340,7 +343,11 @@ export async function serializeStations(
   const sectorsByStation = Map.groupBy(sectorRows, (row) => row.station_id);
   const backhaulByStation = new Map(backhaulRows.map((row) => [row.station_id, row]));
   const cellsByStation = Map.groupBy(
-    cellRows.flatMap((row) => toCell(row, bandsById.get(row.cell.band_id), wants("cells.band")) ?? []),
+    cellRows.flatMap(
+      (row) =>
+        toCell(row, bandsById.get(row.cell.band_id), wants("cells.band"), featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures) ??
+        [],
+    ),
     (cell) => cell.stationId,
   );
 

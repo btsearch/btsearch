@@ -34,6 +34,7 @@ import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -206,10 +207,16 @@ function CellDetailPair({ label, value, className }: DetailPairProps) {
 
 function StationChanges({ submission, operators }: StoredChangesProps) {
   const { t } = useTranslation(["submissions", "common", "stations", "stationDetails"]);
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const { changes, station } = submission;
   const { sectors } = changes;
   const structure = changes.location?.structure;
-  const { data: regions } = useQuery({ ...regionsQueryOptions(), enabled: changes.location?.regionId !== undefined });
+  const { data: regionData } = useQuery({
+    ...regionsQueryOptions({ viewerId: session?.user.id ?? null }),
+    enabled: viewerReady && changes.location?.regionId !== undefined,
+  });
+  const regions = viewerReady ? regionData : undefined;
   const { data: owners } = useQuery({ ...structureOwnersQueryOptions(), enabled: typeof structure?.ownerId === "number" });
   const operatorId = changes.station?.operatorId ?? station?.operatorId ?? null;
   const operator = operators.find((candidate) => candidate.id === operatorId);

@@ -1,11 +1,12 @@
 import { ArrowUpRight01Icon, Clock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, type RefObject, Suspense, lazy, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StationTitle } from "../../components/stationTitle";
+import { findBrand } from "../utils/brands";
 import { stationHistoryQueryOptions } from "./api";
 import { groupHistoryByDay } from "./entries";
 import { HistoryEntry } from "./historyEntry";
@@ -17,8 +18,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
 import { useFloatingDialogFocus } from "@/features/floating-dialogs/hooks/useFloatingDialogFocus";
 import type { FloatingDialogPanelFrameProps, StationHistoryDialogPayload } from "@/features/floating-dialogs/types";
+import { brandsQueryOptions } from "@/features/shared/lookups";
 import { useSettledSession } from "@/hooks/useSettledSession";
-import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
+import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 type StationHistoryDialogPanelProps = FloatingDialogPanelFrameProps & StationHistoryDialogPayload;
@@ -101,7 +103,7 @@ export function StationHistoryDialogPanel({
   stationId,
   stationCode,
   operatorName,
-  operatorMnc,
+  operatorBrandId,
   onClose,
   modal = false,
   className,
@@ -118,6 +120,7 @@ export function StationHistoryDialogPanel({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const { data: session } = useSettledSession();
+  const { data: brands } = useQuery(brandsQueryOptions());
   const { canOpenCountries: canOpenAuditLog } = useReferenceAccess();
   const names = useHistoryNames();
   const [revertTarget, setRevertTarget] = useState<RevertTarget | null>(null);
@@ -129,6 +132,7 @@ export function StationHistoryDialogPanel({
   useFloatingDialogFocus(windowRef, closeButtonRef, !modal);
 
   const canOpenAdminHistory = canOpenAuditLog || session?.user?.role === "editor";
+  const brand = findBrand(brands, operatorBrandId);
   const adminHistoryLabel = canOpenAuditLog ? t("history.openAuditLog") : t("common:labels.submissions");
   const items = data?.pages.flatMap((page) => page.data) ?? [];
   const groups = groupHistoryByDay(items, i18n.language);
@@ -225,16 +229,12 @@ export function StationHistoryDialogPanel({
           <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragProps?.className)}>
             <div
               className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
-              style={{ backgroundImage: getOperatorHeaderTintGradient(getOperatorColor(operatorMnc ?? 0)) }}
+              style={{ backgroundImage: brand === null ? undefined : getOperatorHeaderTintGradient(brand.color) }}
             >
               <div id={titleId} className="min-w-0 flex-1">
                 <h2 className="min-w-0 truncate text-base font-semibold leading-5 tracking-tight text-foreground">{t("history.title")}</h2>
                 <div className="mt-1 flex min-w-0 items-center gap-2">
-                  <StationTitle
-                    stationId={stationCode}
-                    operator={{ name: operatorName, mnc: operatorMnc ?? 0 }}
-                    stationIdClassName="text-xs text-muted-foreground"
-                  />
+                  <StationTitle stationId={stationCode} operator={{ name: operatorName, brand }} stationIdClassName="text-xs text-muted-foreground" />
                 </div>
               </div>
               <div className="-mt-1 -mr-2 flex shrink-0 items-center gap-1">

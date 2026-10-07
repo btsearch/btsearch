@@ -8,6 +8,7 @@ import type {
   CellMatchInclude,
   CellMatchReason,
   CellMatchResult,
+  CountryFeatures,
   NrIdentity,
   ObservedCell,
   Station,
@@ -18,9 +19,9 @@ import type { FastifyRequest } from "fastify";
 import db from "../../database/psql.js";
 import { type LimitedTask, runLimited } from "../../lib/async/runLimited.js";
 import { chunks, unique } from "../../lib/collections.js";
-import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { logger } from "../../utils/logger.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, toCell } from "../stations/serialize.js";
 import { UKE_MATCH_MNCS, candidateLTEEnbids, lteEnbidKey, ukeFragmentCandidates } from "./logic.js";
@@ -303,32 +304,37 @@ function matched(
   };
 }
 
-function findDifferences(comparisons: readonly ComparedField[]): CellDifference[] {
-  const { pscEnabled, bsicEnabled } = getRuntimeSettings();
-
+function findDifferences(comparisons: readonly ComparedField[], features: Readonly<CountryFeatures>): CellDifference[] {
   return comparisons.flatMap(([field, observed, stored]) => {
     if (observed === null || observed === undefined || observed === stored) return [];
-    if ((field === "psc" && !pscEnabled) || (field === "bsic" && !bsicEnabled)) return [];
+    if ((field === "psc" && !features.psc) || (field === "bsic" && !features.bsic)) return [];
     return [{ field, observed, stored }];
   });
 }
 
-function resolveCell(cell: ObservedCell, network: Network | undefined, found: StoredCellIndex): ObservedCellMatch {
+function resolveCell(
+  cell: ObservedCell,
+  network: Network | undefined,
+  found: StoredCellIndex,
+  featuresByStation: ReadonlyMap<number, CountryFeatures>,
+): ObservedCellMatch {
   if (!network) return unmatched(null, "operatorUnknown");
   const own = network.operatorId;
+  const compare = (stored: StoredCell, comparisons: readonly ComparedField[]) =>
+    findDifferences(comparisons, featuresByStation.get(stored.cell.station_id) ?? disabledCountryFeatures);
 
   switch (cell.rat) {
     case "gsm": {
       const exact = found.gsm.get(identityKey(own, cell.lac, cell.cid));
       if (!exact?.gsm) return unmatched(own, "cellUnknown");
-      return matched("cell", network, exact, findDifferences([["bsic", cell.bsic, exact.gsm.bsic]]));
+      return matched("cell", network, exact, compare(exact, [["bsic", cell.bsic, exact.gsm.bsic]]));
     }
 
     case "umts": {
       const rnc = knownRnc(cell.rnc);
       const exact = rnc === null ? undefined : found.umtsByRnc.get(identityKey(own, rnc, cell.cid));
       if (exact?.umts) {
-        const differences = findDifferences([
+        const differences = compare(exact, [
           ["lac", cell.lac, exact.umts.lac],
           ["psc", cell.psc, exact.umts.psc],
           ["uarfcn", cell.uarfcn, exact.umts.arfcn],
@@ -338,7 +344,7 @@ function resolveCell(cell: ObservedCell, network: Network | undefined, found: St
 
       const byLac = found.umtsByLac.get(identityKey(own, cell.lac, cell.cid));
       if (!byLac?.umts) return unmatched(own, "cellUnknown");
-      const differences = findDifferences([
+      const differences = compare(byLac, [
         ["rnc", rnc, knownRnc(byLac.umts.rnc)],
         ["psc", cell.psc, byLac.umts.psc],
         ["uarfcn", cell.uarfcn, byLac.umts.arfcn],
@@ -351,7 +357,7 @@ function resolveCell(cell: ObservedCell, network: Network | undefined, found: St
 
       const exact = found.lte.get(identityKey(own, cell.enbid, cell.clid));
       if (exact?.lte) {
-        const differences = findDifferences([
+        const differences = compare(exact, [
           ["tac", cell.tac, exact.lte.tac],
           ["pci", cell.pci, exact.lte.pci],
           ["earfcn", cell.earfcn, exact.lte.earfcn],
@@ -373,7 +379,7 @@ function resolveCell(cell: ObservedCell, network: Network | undefined, found: St
 
       const exact = byNci ?? bySplit;
       if (exact?.nr) {
-        const differences = findDifferences([
+        const differences = compare(exact, [
           ["tac", cell.tac, exact.nr.nrtac],
           ["pci", cell.pci, exact.nr.pci],
           ["arfcn", cell.arfcn, exact.nr.arfcn],
@@ -398,12 +404,14 @@ async function loadStations(stationIds: readonly number[]): Promise<Station[]> {
   return serializeStations(rows, ["location"]);
 }
 
-async function serializeMatchedCells(storedCells: readonly StoredCell[]): Promise<Cell[]> {
+async function serializeMatchedCells(storedCells: readonly StoredCell[], featuresByStation: ReadonlyMap<number, CountryFeatures>): Promise<Cell[]> {
   const rows = [...new Map(storedCells.map((row) => [row.cell.id, row])).values()].sort((a, b) => a.cell.id - b.cell.id);
   if (rows.length === 0) return [];
 
   const bandsById = new Map((await db.select().from(bands)).map((band) => [band.id, band]));
-  return rows.flatMap((row) => toCell(row, bandsById.get(row.cell.band_id), false) ?? []);
+  return rows.flatMap(
+    (row) => toCell(row, bandsById.get(row.cell.band_id), false, featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures) ?? [],
+  );
 }
 
 async function findOfficialSitesForUnknownCells(
@@ -433,15 +441,17 @@ export async function matchCells(
   const hidden = await loadHiddenCountryCodes(req);
   const networks = await resolveNetworks(unique(observed.map((cell) => cell.plmn)), hidden);
   const found = await findStoredCells(observed, networks, hidden);
+  const storedStationIds = unique(Object.values(found).flatMap((index) => [...index.values()].map((row) => row.cell.station_id)));
+  const featuresByStation = await getStationCountryFeatures(storedStationIds);
 
-  const matches = observed.map((cell) => resolveCell(cell, networks.get(cell.plmn), found));
+  const matches = observed.map((cell) => resolveCell(cell, networks.get(cell.plmn), found, featuresByStation));
   const results = matches.map(({ result }) => result);
   const stationIds = unique(results.flatMap((result) => result.stationId ?? []));
   const matchedCells = matches.flatMap(({ result, storedCell }) => (storedCell && result.cellId !== null ? [storedCell] : []));
 
   const [stationList, cellList, officialSites] = await Promise.all([
     include.includes("stations") ? loadStations(stationIds) : undefined,
-    include.includes("cells") ? serializeMatchedCells(matchedCells) : undefined,
+    include.includes("cells") ? serializeMatchedCells(matchedCells, featuresByStation) : undefined,
     include.includes("officialSites") ? findOfficialSitesForUnknownCells(observed, results, networks) : undefined,
   ]);
 

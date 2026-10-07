@@ -24,7 +24,7 @@ const LADDER_DOT_RADIUS = 3.5;
 type AntennaOverviewProps = {
   groups: readonly AntennaGroup[];
   heights: readonly HeightLevel[];
-  color: string;
+  color: string | null;
   selectedGroup: AntennaGroup | null;
   onSelectedGroupKeyChange: (groupKey: string | null) => void;
   selectedDirectionLabelRef: Ref<HTMLButtonElement>;
@@ -138,7 +138,7 @@ function AntennaHeightLadder({ heights }: AntennaHeightLadderProps) {
           {heights.map((level, position) => (
             <li
               key={level.heightMeters}
-              className="absolute flex items-baseline gap-1.5 leading-[18px] whitespace-nowrap"
+              className="absolute flex items-baseline gap-1.5 leading-4.5 whitespace-nowrap"
               style={{ left: LADDER_LABEL_LEFT, top: getLabelY(position) - LADDER_LABEL_HALF_HEIGHT }}
             >
               <span className="font-mono text-[12.5px] font-semibold tabular-nums">{format.meters(level.heightMeters)}</span>

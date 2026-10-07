@@ -98,6 +98,7 @@ const CELL_PATH_FIELDS: Partial<Record<string, EditField>> = {
   notes: "notes",
   isConfirmed: "isConfirmed",
   mode: "mode",
+  gnbidLength: "gnbidLength",
 };
 
 function readGroup(match: RegExpExecArray, index: number): string {

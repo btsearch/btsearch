@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createSession } from "../../../../../../client/src/features/station-editing/model/draftReducer";
-import { toEditErrors } from "../../../../../../client/src/features/station-editing/model/serverRefusals";
+import { createSession } from "../../../../../../client/src/features/station-editing/model/draftReducer.js";
+import { toEditErrors } from "../../../../../../client/src/features/station-editing/model/serverRefusals.js";
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(post)/submissions/index.js";
-import { dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { dbMock, setCountryFeatures, userSession } from "../../../../helpers/boundaries.js";
 import { expectError, injectMutation, scriptAudit } from "../../../../helpers/mutationAssertions.js";
 import { createRouteHarnessWithErrors } from "../../../../helpers/routeHarness.js";
 import { stationRow } from "../../../../helpers/stationFixtures.js";
@@ -45,6 +45,23 @@ function scriptPreflight(submitter: { name: string; username: string | null } = 
 }
 
 describe("POST /submissions", () => {
+  it.each([22, 24, 32])("round-trips a selected %i-bit NR SA gNBID length through the submission", async (gnbidLength) => {
+    const radio = draftRadios[3];
+    const fixture = draftFixture([radio]);
+    fixture.input.cells = [{ ...radio.input, gnbidLength }];
+    fixture.cells[0] = { ...fixture.cells[0]!, nr: { ...radio.details, gnbid_length: gnbidLength, proposed_cell_id: 40 } };
+    fixture.snapshot.proposedCells = fixture.cells.map(({ cell, ...rows }) => ({ ...cell, ...rows }));
+    scriptDraftCreate(fixture);
+    const response = await injectMutation(route, { ...request, payload: [fixture.input] }, options);
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json().data[0].changes.cells).toMatchObject([{ rat: "nr", mode: "sa", gnbidLength }]);
+    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "proposed_nr_cells")?.values).toMatchObject({
+      proposed_cell_id: 40,
+      gnbid_length: gnbidLength,
+    });
+  });
+
   it.each(["location/structure/ownerName", "0/location/structure/ownerName", "1/location/structure/ownerName"])(
     "localizes the disabled proposal field %s independently of server message text",
     (field) => {
@@ -254,7 +271,7 @@ describe("POST /submissions", () => {
   });
 
   it.each([true, false])("binds an existing named owner while proposals are enabled=%s", async (enabled) => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = enabled;
+    setCountryFeatures({ structureOwnerProposals: enabled });
     const fixture = existingContentDraft();
     fixture.input.location = { address: "Changed address", structure: { ownerName: "Existing Owner" } };
     fixture.snapshot.proposedLocation = {
@@ -747,7 +764,7 @@ describe("POST /submissions", () => {
   });
 
   it.each(["user", "editor", "admin"] as const)("rejects a new owner proposal from a %s while proposals are disabled", async (role) => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const fixture = draftFixture([draftRadios[0]]);
     fixture.input.location = { ...fixture.input.location, structure: { ownerName: "Unlisted Owner" } };
     scriptDraftCreate(fixture);
@@ -759,7 +776,7 @@ describe("POST /submissions", () => {
   });
 
   it("points a disabled owner proposal at the rejected batch item and saves none of the batch", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
+    setCountryFeatures({ structureOwnerProposals: false });
     const first = draftFixture([draftRadios[0]]);
     const rejected = draftFixture([draftRadios[0]], "22222222-2222-4222-8222-222222222222", 100);
     rejected.input.location = { ...rejected.input.location, structure: { ownerName: "Unlisted Owner" } };

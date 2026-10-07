@@ -163,6 +163,7 @@
       "tooManyAzimuths": "Najwyżej {{max}} azymutów na stacji",
       "required": "{{field}}: wymagane",
       "range": "{{field}}: wartość od 0 do {{max}}",
+      "gnbidLengthRange": "Długość gNBID: liczba całkowita od {{min}} do {{max}} bitów",
       "bandRequired": "Pasmo: wymagane",
       "modeRequired": "Tryb: wymagany",
       "nsaField": "{{field}}: komórka NSA nie ma tego pola",
@@ -317,16 +318,20 @@
       "cardLabel": "Komórki {{rat}}",
       "note": "Notatka",
       "addNote": "Dodaj notatkę",
+      "resetUnavailableCodes": "Wyczyść niedostępne kody",
+      "savedCodesUnchanged": "Zapisane kody pozostają bez zmian",
       "duplicate": "Duplikuj",
       "refuseDeletion": "Odrzuć usunięcie",
       "newSector": "Nowy...",
       "columns": {
         "mode": "Tryb",
+        "gnbidLength": "Bity gNBID",
         "cellType": "Rodzaj"
       },
       "hints": {
         "sector": "Sektor anteny, do którego należy komórka",
         "mode": "NSA (Non-Standalone) albo SA (Standalone)",
+        "gnbidLength": "Długość gNBID: 22–32 bity. Pozostałe bity 36-bitowego NCI zawierają CLID",
         "clid": "Cell ID w stacji bazowej",
         "channel": "Kanał downlink",
         "eci": "E-UTRAN Cell Identifier · wyliczane: eNBID x 256 + CLID",

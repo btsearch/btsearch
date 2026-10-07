@@ -28,7 +28,7 @@ type AntennaListProps = {
   comparison: AntennaComparison | null;
   comparisonNotice: ReactNode;
   tiltScale: TiltScale;
-  color: string;
+  color: string | null;
   isPhone: boolean;
 };
 
@@ -118,7 +118,7 @@ function AntennaListHead({ antennaCount, azimuthCount, selectedGroup, onClearSel
   return (
     <div
       className={cn(
-        "flex min-h-[34px] flex-wrap items-center gap-x-2 gap-y-1 pt-2 pb-0.5 text-xs leading-4 text-muted-foreground",
+        "flex min-h-8.5 flex-wrap items-center gap-x-2 gap-y-1 pt-2 pb-0.5 text-xs leading-4 text-muted-foreground",
         isPhone ? "px-2.5" : "pr-3 pl-3.5",
       )}
     >

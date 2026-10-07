@@ -157,10 +157,6 @@
           "action": "Disable submissions"
         }
       },
-      "structureOwnerProposals": {
-        "title": "New structure owner proposals",
-        "description": "Submitters can propose owners that are missing from the list. Existing owners can still be selected"
-      },
       "photoUploads": {
         "title": "Photos in submissions",
         "description": "Photos can be attached to a submission",
@@ -1169,6 +1165,25 @@
       "general": {
         "title": "General",
         "readOnlyNote": "Only an administrator can change these settings",
+        "features": {
+          "title": "Data and submissions",
+          "description": "Which details can be submitted and displayed in this country",
+          "structureOwnerProposals": {
+            "title": "Allow new structure owner names",
+            "description": "Submitters can propose a new owner. Existing owners remain selectable"
+          },
+          "psc": {
+            "title": "UMTS PSC",
+            "description": "Collect and display primary scrambling codes for UMTS cells"
+          },
+          "bsic": {
+            "title": "GSM BSIC",
+            "description": "Collect and display base station identity codes for GSM cells"
+          },
+          "note": "Each setting is independent and saved right away. Disabling PSC or BSIC hides existing values without deleting them",
+          "savedToast": "Country data settings saved",
+          "saveFailed": "Couldn't save the country's data settings"
+        },
         "availability": {
           "title": "Availability",
           "description": "Who sees the country and whether submissions can be sent for it",

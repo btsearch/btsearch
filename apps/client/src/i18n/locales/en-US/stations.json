@@ -143,6 +143,7 @@
       "tooManyAzimuths": "At most {{max}} azimuths per station",
       "required": "{{field}}: required",
       "range": "{{field}}: value from 0 to {{max}}",
+      "gnbidLengthRange": "gNBID length: an integer from {{min}} to {{max}} bits",
       "bandRequired": "Band: required",
       "modeRequired": "Mode: required",
       "nsaField": "{{field}}: an NSA cell does not have this field",
@@ -281,16 +282,20 @@
       "cardLabel": "{{rat}} cells",
       "note": "Note",
       "addNote": "Add a note",
+      "resetUnavailableCodes": "Reset unavailable codes",
+      "savedCodesUnchanged": "Saved codes stay unchanged",
       "duplicate": "Duplicate",
       "refuseDeletion": "Reject the deletion",
       "newSector": "New...",
       "columns": {
         "mode": "Mode",
+        "gnbidLength": "gNBID bits",
         "cellType": "Type"
       },
       "hints": {
         "sector": "The antenna sector the cell belongs to",
         "mode": "NSA (Non-Standalone) or SA (Standalone)",
+        "gnbidLength": "gNBID length: 22–32 bits. The remaining bits of the 36-bit NCI hold CLID",
         "clid": "Cell ID within the base station",
         "channel": "Downlink channel",
         "eci": "E-UTRAN Cell Identifier · computed: eNBID x 256 + CLID",

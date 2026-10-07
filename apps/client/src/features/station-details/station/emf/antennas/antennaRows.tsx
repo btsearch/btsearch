@@ -23,14 +23,14 @@ const NEW_TAG_CLASS = cn(
 type AntennaGroupBlockProps = {
   group: AntennaGroup;
   isPhone: boolean;
-  color: string;
+  color: string | null;
   tiltScale: TiltScale;
   previousAntennas: readonly (EmfAntenna | null)[] | null;
 };
 
 type AntennaGroupHeadingProps = {
   group: AntennaGroup;
-  color: string;
+  color: string | null;
   titleId: string;
 };
 

@@ -14,6 +14,9 @@ export type NrMode = (typeof NR_MODES)[number];
 
 export const BSIC_MAX = 63;
 export const PSC_MAX = 511;
+export const GNBID_MIN_LENGTH = 22;
+export const GNBID_MAX_LENGTH = 32;
+export const DEFAULT_GNBID_LENGTH = 24;
 
 export const CELL_FIELD_NOTES = {
   lac: "Location area code",
@@ -23,6 +26,7 @@ export const CELL_FIELD_NOTES = {
   tac: "Tracking area code",
   enbid: "eNBID, the id of the cell's base station",
   gnbid: "gNBID, the id of the cell's base station",
+  gnbidLength: "The length of the gNBID in bits, from 22 to 32. The remaining bits of the 36-bit nci hold clid",
   clid: "The cell's id within its base station",
   pci: "Physical cell id",
   earfcn: "EARFCN, the downlink channel number",
@@ -87,7 +91,7 @@ export const nrCellSchema = z.object({
   mode: z.enum(NR_MODES).describe(CELL_FIELD_NOTES.mode),
   tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
   gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
-  gnbidLength: identifierSchema.describe("The length of the gNBID in bits. The remaining bits of the 36-bit `nci` hold `clid`"),
+  gnbidLength: identifierSchema.describe(CELL_FIELD_NOTES.gnbidLength),
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
   nci: identifierSchema.describe("The NR cell identity, made up of `gnbid` and `clid`. `null` if either is unknown"),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),

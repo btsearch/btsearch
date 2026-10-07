@@ -1,4 +1,5 @@
 import { attachments, auditLogs, locationPhotos } from "@openbts/drizzle";
+import type { CountryFeatures } from "@openbts/shared/contract";
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -8,6 +9,7 @@ import { ErrorResponse } from "../../../../../errors.js";
 import { type AuditReach, getAuditReach, isWithinReach } from "../../../../../features/audit/access.js";
 import { getEntryRevertibility } from "../../../../../features/audit/revert/revertibility.js";
 import type { AuditOperationRow } from "../../../../../features/audit/types.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../features/stations/countryFeatures.js";
 import {
   NAMED_ENTITIES,
   type NameSource,
@@ -246,6 +248,7 @@ async function loadShownOperations(
   operationIds: readonly number[],
   liveAzimuths: ReadonlyMap<number, number>,
   viewer: HistoryViewer,
+  countryFeatures: Readonly<CountryFeatures>,
 ): Promise<ShownOperation[]> {
   const { operations, entries, sectorAzimuths, coverage } = await loadHistoryRows(station, operationIds, liveAzimuths);
   const [nameSources, authors] = await Promise.all([
@@ -256,6 +259,7 @@ async function loadShownOperations(
 
   return operations.flatMap((operation): ShownOperation[] => {
     const lookups: StationHistoryLookups = {
+      countryFeatures,
       operators: namesAsOf(nameSources.operators, operation.id),
       bands: namesAsOf(nameSources.bands, operation.id),
       regions: namesAsOf(nameSources.regions, operation.id),
@@ -293,13 +297,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   const station = await db.query.stations.findFirst({ where: { id: station_id } });
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const [reach, liveSectors] = await Promise.all([
+  const [reach, liveSectors, featuresByStation] = await Promise.all([
     getAuditReach(req, "revert"),
     db.query.stationSectors.findMany({ where: { station_id }, columns: { id: true, azimuth: true } }),
+    getStationCountryFeatures([station_id]),
   ]);
   const liveAzimuths = new Map(liveSectors.map((sector) => [sector.id, sector.azimuth]));
   const viewer: HistoryViewer = { canSeeAuthor: ["admin", "editor"].includes(req.userSession?.user?.role ?? ""), reach };
-  const loadItems = (operationIds: readonly number[]) => loadShownOperations(station, operationIds, liveAzimuths, viewer);
+  const countryFeatures = featuresByStation.get(station_id) ?? disabledCountryFeatures;
+  const loadItems = (operationIds: readonly number[]) => loadShownOperations(station, operationIds, liveAzimuths, viewer, countryFeatures);
   const batch = { minSize: DEFAULT_LIMIT, toOperationId: (operation: ShownOperation) => operation.operationId };
 
   const page = await readHistoryPage(station, limit, cursor ?? null, loadItems, batch);

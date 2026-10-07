@@ -180,6 +180,7 @@
     "addComment": "Dodaj komentarz",
     "placeholder": "Dodaj komentarz...",
     "addImages": "Dodaj obrazy",
+    "textRequired": "Dodaj tekst komentarza, aby opublikować obrazy",
     "removeImage": "Usuń obraz {{number}}",
     "postComment": "Opublikuj komentarz",
     "postFailed": "Nie udało się opublikować komentarza",

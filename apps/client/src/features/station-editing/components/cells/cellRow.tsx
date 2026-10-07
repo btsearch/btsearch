@@ -7,12 +7,13 @@ import { CELL_CONTROL_PROPS, cellRowProps } from "../../hooks/useCellNavigation"
 import { type DraftDispatch, toFlagPatch } from "../../model/draftReducer";
 import { CELL_NUMBER_LABELS, RAT_FIELDS, computeCellId, getCellFlag, getCellNumber, isFieldInUse } from "../../model/ratFields";
 import type { CellDraft, CellRowState, DraftKey, EditError, EditKind, RowKind, SectorDraft } from "../../model/types";
+import { CellErrors } from "./cellErrors";
 import {
   BandField,
   CheckField,
   ComputedValue,
-  ErrorLine,
   FieldCell,
+  GnbidLengthField,
   ModeField,
   NumberField,
   SectorField,
@@ -215,6 +216,22 @@ function CellRowInner({
         </FieldCell>
       );
     }
+    if (column.kind === "gnbidLength") {
+      const isUnused = cell.mode !== "sa";
+      return (
+        <FieldCell key={column.id} field={column.id} marks={getMarks("gnbidLength")} title={isUnused ? texts.standaloneOnly : undefined}>
+          <GnbidLengthField
+            cellKey={cell.key}
+            length={cell.gnbidLength}
+            texts={texts}
+            className={cn(getClass("gnbidLength"), isUnused && UNUSED_FIELD_CLASS)}
+            isInvalid={hasError("gnbidLength")}
+            isLocked={isLocked || isUnused}
+            dispatch={dispatch}
+          />
+        </FieldCell>
+      );
+    }
     if (column.kind === "number") {
       const { field, label } = column.spec;
       const isUnused = !isFieldInUse(cell, column.spec);
@@ -295,7 +312,14 @@ function CellRowInner({
         />
         <RowActions cellKey={cell.key} texts={texts} isDeleted={cell.isDeleted} canEdit={canEdit} dispatch={dispatch} />
       </div>
-      {errors.length === 0 ? null : <ErrorLine errors={errors} className="col-span-full pt-0.5 pb-[3px] pl-0.5" />}
+      <CellErrors
+        cell={cell}
+        errors={errors}
+        texts={texts}
+        isLocked={isLocked}
+        dispatch={dispatch}
+        className="col-span-full pt-0.5 pb-[3px] pl-0.5"
+      />
     </div>
   );
 }

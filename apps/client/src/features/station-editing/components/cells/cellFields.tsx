@@ -7,7 +7,7 @@ import { CELL_CONTROL_PROPS, cellFieldProps } from "../../hooks/useCellNavigatio
 import { useEditText } from "../../hooks/useStationDraft";
 import { TEXT_SEPARATOR, UNCHANGED_FIELD, parseDigits } from "../../model/changes";
 import { type CellPatch, type DraftDispatch, toNumberPatch } from "../../model/draftReducer";
-import { MAX_SECTORS, OMNIDIRECTIONAL_DEGREES } from "../../model/ratFields";
+import { DEFAULT_GNBID_LENGTH, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, MAX_SECTORS, OMNIDIRECTIONAL_DEGREES } from "../../model/ratFields";
 import { newDraftKey } from "../../model/snapshots";
 import type {
   CellDraft,
@@ -105,6 +105,13 @@ type ModeFieldProps = ControlProps & {
   dispatch: DraftDispatch;
 };
 
+type GnbidLengthFieldProps = ControlProps & {
+  cellKey: DraftKey;
+  length: number | null;
+  texts: CellTexts;
+  dispatch: DraftDispatch;
+};
+
 type NumberFieldProps = ControlProps & {
   cellKey: DraftKey;
   field: CellNumberField;
@@ -145,6 +152,7 @@ const NO_SECTOR_VALUE = "-";
 const NEW_SECTOR_VALUE = "+";
 const BAND_WITHOUT_E_GSM_MHZ = 1800;
 const NR_MODES: readonly NrMode[] = ["nsa", "sa"];
+const GNBID_LENGTHS = Array.from({ length: GNBID_MAX_LENGTH - GNBID_MIN_LENGTH + 1 }, (_, index) => GNBID_MIN_LENGTH + index);
 const NR_MODE_NAMES: Record<NrMode, string> = { nsa: "NSA (Non-Standalone)", sa: "SA (Standalone)" };
 const LEGACY_CELL_TYPES: Record<CellType, LegacyCellType> = { macro: "MACROCELL", micro: "MICROCELL", pico: "PICOCELL", femto: "FEMTOCELL" };
 const CELL_TYPES_BY_LEGACY: Record<LegacyCellType, CellType> = { MACROCELL: "macro", MICROCELL: "micro", PICOCELL: "pico", FEMTOCELL: "femto" };
@@ -376,6 +384,36 @@ export function ModeField({ cellKey, mode, texts, className, isInvalid, isLocked
         {NR_MODES.map((option) => (
           <SelectItem key={option} value={option}>
             {NR_MODE_NAMES[option]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function GnbidLengthField({ cellKey, length, texts, className, isInvalid, isLocked, dispatch }: GnbidLengthFieldProps) {
+  const value = length ?? DEFAULT_GNBID_LENGTH;
+
+  function changeLength(selected: string | null) {
+    const nextLength = GNBID_LENGTHS.find((option) => String(option) === selected);
+    if (nextLength !== undefined) dispatch({ type: "setCell", key: cellKey, patch: { gnbidLength: nextLength } });
+  }
+
+  return (
+    <Select value={String(value)} onValueChange={changeLength} disabled={isLocked}>
+      <SelectTrigger
+        size="sm"
+        aria-label={texts.gnbidLength}
+        aria-invalid={isInvalid ? true : undefined}
+        className={cn(TRIGGER_CLASS, "font-mono", className)}
+        {...CELL_CONTROL_PROPS}
+      >
+        <SelectValue>{value}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {GNBID_LENGTHS.map((option) => (
+          <SelectItem key={option} value={String(option)}>
+            {option}
           </SelectItem>
         ))}
       </SelectContent>

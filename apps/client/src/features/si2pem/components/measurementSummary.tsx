@@ -1,11 +1,12 @@
 import { Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { EmfMeasurement } from "@openbts/shared/contract";
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 
 import { type MeasurementTabRow, isInactiveSite } from "../api";
+import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { formatShortUtcDate } from "@/lib/format";
 
 export function getMeasurementDate(measurement: MeasurementTabRow, locale: string) {
@@ -27,11 +28,12 @@ type PEMStationTitleProps = {
 };
 
 export function PEMStationTitle({ siteId, operator }: PEMStationTitleProps) {
+  const { brands } = useContext(OperatorBrandCatalogContext);
   return (
     <div className="flex min-w-0 items-center gap-2">
       <StationTitle
         stationId={siteId ?? "-"}
-        operator={operator ? { name: operator.name, mnc: toV1OperatorMnc(operator) } : undefined}
+        operator={operator ? { name: operator.name, brand: getOperatorBrand(operator, brands) } : undefined}
         stationIdClassName="underline-offset-2 group-hover:underline"
       />
     </div>

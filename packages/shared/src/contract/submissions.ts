@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 import { UNKNOWN_BAND_NOTE } from "./bands.ts";
-import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, NR_MODES, PSC_MAX } from "./cells.ts";
+import { BSIC_MAX, CELL_FIELD_NOTES, CELL_RATS, CELL_TYPES, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, NR_MODES, PSC_MAX } from "./cells.ts";
 import {
   AT_LEAST_ONE_FIELD_ISSUE,
   CURSOR_OR_OFFSET_ISSUE,
@@ -234,6 +234,7 @@ const createAction = { action: z.literal("create") };
 const BAND_ID_NOTE = "The cell's band. It must be a band of the cell's technology that is in the country's band plan";
 const UNKNOWN_NOTE = "`null` if unknown";
 const NR_MODE_NOTE = `${CELL_FIELD_NOTES.mode}. A non-standalone cell cannot have \`tac\`, \`gnbid\`, \`clid\` or RedCap support`;
+const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_LENGTH).optional().describe(CELL_FIELD_NOTES.gnbidLength);
 
 const newCellShape = {
   bandId: idSchema.describe(BAND_ID_NOTE),
@@ -281,6 +282,7 @@ export const newNrCellSchema = z
     mode: z.enum(NR_MODES).describe(NR_MODE_NOTE),
     tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
     gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
+    gnbidLength: gnbidLengthSchema,
     clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
     pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
     arfcn: identifierSchema.describe(CELL_FIELD_NOTES.arfcn),
@@ -307,6 +309,7 @@ const cellRadioUpdateShape = {
   rnc: identifierSchema.describe(CELL_FIELD_NOTES.rnc),
   enbid: identifierSchema.describe(CELL_FIELD_NOTES.enbid),
   gnbid: identifierSchema.describe(CELL_FIELD_NOTES.gnbid),
+  gnbidLength: gnbidLengthSchema,
   clid: identifierSchema.describe(CELL_FIELD_NOTES.clid),
   tac: identifierSchema.describe(CELL_FIELD_NOTES.tac),
   pci: identifierSchema.describe(CELL_FIELD_NOTES.pci),
@@ -619,6 +622,7 @@ export const cellChangeSchema = z.object({
   rnc: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.rnc),
   enbid: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.enbid),
   gnbid: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.gnbid),
+  gnbidLength: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.gnbidLength),
   clid: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.clid),
   tac: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.tac),
   pci: z.number().int().nullable().optional().describe(CELL_FIELD_NOTES.pci),

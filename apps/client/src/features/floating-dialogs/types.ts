@@ -38,7 +38,7 @@ export type StationHistoryDialogPayload = {
   stationId: number;
   stationCode: string;
   operatorName: string;
-  operatorMnc?: number | null;
+  operatorBrandId: number | null;
 };
 
 export type StationDialogTarget = {

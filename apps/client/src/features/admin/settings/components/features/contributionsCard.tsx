@@ -42,13 +42,6 @@ export function ContributionsCard({ features }: { features: SettingsFeatures }) 
       />
       <FeatureSwitchRow
         isNested
-        title={t("settings.features.structureOwnerProposals.title")}
-        description={t("settings.features.structureOwnerProposals.description")}
-        isEnabled={features.structureOwnerProposals}
-        onEnabledChange={(isEnabled) => changeFeature("structureOwnerProposals", isEnabled)}
-      />
-      <FeatureSwitchRow
-        isNested
         title={t("settings.features.photoUploads.title")}
         description={
           features.submissions ? (

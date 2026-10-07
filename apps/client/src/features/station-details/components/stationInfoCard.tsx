@@ -60,7 +60,7 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, upli
             {preferences.navLinksDisplay === "inline" && (
               <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" className="flex" />
             )}
-            <CopyButton text={`${location.latitude}, ${location.longitude}`} />
+            <CopyButton text={`${location.latitude}, ${location.longitude}`} fieldLabel={t("common:labels.coordinates")} />
           </StationInfoItem>
           <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
             <span>{location.region?.name || "-"}</span>
@@ -75,7 +75,7 @@ export function StationInfoGrid({ stationCode, operator, location, emfSite, upli
       <div className={stationInfoGroupClassName}>
         <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
           <span className="font-mono">{stationCode}</span>
-          <CopyButton text={stationCode} />
+          <CopyButton text={stationCode} fieldLabel={t("common:labels.stationId")} />
         </StationInfoItem>
         {uplink ? <StationUplinkItem uplink={uplink} /> : null}
         {reportedEmfSite !== undefined ? (

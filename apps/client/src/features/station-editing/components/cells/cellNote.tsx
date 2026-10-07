@@ -32,8 +32,8 @@ type NoteEditorProps = {
 };
 
 const NOTE_FIELD = "notes";
-const FIELD_SLOT_CLASS = "hidden flex-1 @[206px]/tail:block";
-const ICON_SLOT_CLASS = "@[206px]/tail:hidden";
+const FIELD_SLOT_CLASS = "hidden flex-1 @[166px]/tail:block";
+const ICON_SLOT_CLASS = "@[166px]/tail:hidden";
 
 function NoteEditor({ note, texts, isLocked, onChange }: NoteEditorProps) {
   const inputId = useId();

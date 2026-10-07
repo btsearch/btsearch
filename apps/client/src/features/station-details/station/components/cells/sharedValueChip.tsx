@@ -13,7 +13,7 @@ export function SharedValueChip({ label, value }: SharedValueChipProps) {
     <span className={CHIP_CLASS}>
       <span className="text-[11px] font-medium leading-4 text-muted-foreground">{label}</span>
       <span className="font-mono text-sm tabular-nums">{value}</span>
-      <CopyButton text={String(value)} compact />
+      <CopyButton text={String(value)} fieldLabel={label} compact />
     </span>
   );
 }

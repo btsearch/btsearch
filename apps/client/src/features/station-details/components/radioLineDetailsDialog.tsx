@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
 import { CopyButton } from "./copyButton";
 import { DialogOperatorName } from "./dialogOperatorName";
+import { RadioLineOperatorMark } from "./radioLineOperatorMark";
 import { ShareButton } from "./shareButton";
 import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { stationDialogHeaderIconActionClassName } from "./stationDialogHeaderStyles";
@@ -190,7 +191,10 @@ export function RadioLineDetailsDialogPanel({
             <div className="min-w-0 flex-1">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-20 sm:pr-0">
-                  <DialogOperatorName name={operatorName} mnc={mnc} />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <RadioLineOperatorMark mnc={mnc} />
+                    <DialogOperatorName name={operatorName} brand={null} />
+                  </div>
                   {linkTypeStyle ? <span className={cn("shrink-0 text-xs font-semibold", linkTypeStyle.text)}>{link.linkType}</span> : null}
                   {link.isExpired ? <HugeiconsIcon icon={Alert02Icon} className="size-3.5 shrink-0 text-destructive" /> : null}
                 </div>

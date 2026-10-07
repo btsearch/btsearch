@@ -18,7 +18,7 @@ import { ErrorResponse } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
 import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cells/duplicateCheck.js";
 import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
 import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
 import { findPlacementCountryCode } from "../stations/country.js";

@@ -9,7 +9,6 @@ import { findHostStation, toV1StationStatus } from "../../utils/stations";
 import { getStructureOwnerBrand } from "../../utils/structure";
 import { HostedStationBadge } from "./hostedStationBadge";
 import { StationStructureLine } from "./stationStructureLine";
-import { BrandMark } from "@/components/cellular/brandMark";
 import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 
 type StationPanelHeadingProps = {
@@ -28,7 +27,7 @@ export function StationPanelHeading({ station, brands, operators, locationStatio
   return (
     <StationDialogHeading
       operatorName={station.operator?.name ?? t("main:unknownOperator")}
-      operatorMark={<BrandMark brand={getOperatorBrand(station.operator, brands)} size={20} />}
+      operatorBrand={getOperatorBrand(station.operator, brands)}
       stationCode={station.siteId}
       badges={
         <>

@@ -7,43 +7,40 @@ import { AntennaReportContent } from "../station/emf/antennas/antennaReportConte
 import { AntennaComparisonNotice, AntennaEmpty, AntennaFailure, AntennaLoading } from "../station/emf/antennas/antennaStates";
 import { useAntennaReportChoice } from "../station/emf/antennas/useAntennaReportChoice";
 import { emfAntennasQueryOptions } from "../station/emf/api";
-import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
+import { getOperatorBrand } from "../station/utils/brands";
 import { getLocationLabel } from "../station/utils/stations";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { SI2PEMLogo } from "./si2pemLogo";
+import type { BrandLook } from "@/components/cellular/brandMark";
 import { CloseButton } from "@/components/ui/close-button";
 import { useFloatingDialogFocus } from "@/features/floating-dialogs/hooks/useFloatingDialogFocus";
 import type { FloatingDialogPanelFrameProps, SI2PEMReportDialogPayload } from "@/features/floating-dialogs/types";
+import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { findOperatorForPlmn } from "@/features/shared/operatorBrands";
 import { useIsMobile } from "@/hooks/useMobile";
-import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
+import { useSettledSession } from "@/hooks/useSettledSession";
+import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 type SI2PEMAntennaDialogPanelProps = FloatingDialogPanelFrameProps & SI2PEMReportDialogPayload;
 
-type AntennaDialogHeaderProps = Pick<SI2PEMReportDialogPayload, "siteId" | "operatorName" | "operatorMnc" | "place"> &
+type AntennaDialogHeaderProps = Pick<SI2PEMReportDialogPayload, "siteId" | "operatorName" | "place"> &
   Pick<FloatingDialogPanelFrameProps, "onClose" | "headerDragProps"> & {
     titleId: string;
-    tintColor: string;
+    brand: BrandLook | null;
     closeButtonRef: Ref<HTMLButtonElement>;
   };
 
-function AntennaDialogHeader({
-  siteId,
-  operatorName,
-  operatorMnc,
-  place,
-  titleId,
-  tintColor,
-  closeButtonRef,
-  headerDragProps,
-  onClose,
-}: AntennaDialogHeaderProps) {
+function AntennaDialogHeader({ siteId, operatorName, place, titleId, brand, closeButtonRef, headerDragProps, onClose }: AntennaDialogHeaderProps) {
   const { t } = useTranslation("stationDetails");
   const placeLabel = place === undefined ? null : getLocationLabel(place);
 
   return (
     <div {...headerDragProps} className={cn("shrink-0 border-b bg-background/95 backdrop-blur-sm", headerDragProps?.className)}>
-      <div className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5" style={{ backgroundImage: getOperatorHeaderTintGradient(tintColor) }}>
+      <div
+        className="flex items-start gap-3 px-4 py-3 sm:px-6 sm:py-3.5"
+        style={{ backgroundImage: brand === null ? undefined : getOperatorHeaderTintGradient(brand.color) }}
+      >
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <SI2PEMLogo className="h-3.5 shrink-0" />
@@ -52,7 +49,7 @@ function AntennaDialogHeader({
             </h2>
           </div>
           <div className="mt-1 flex min-w-0 items-center gap-2">
-            <DialogOperatorName name={operatorName} mnc={operatorMnc} compact />
+            <DialogOperatorName name={operatorName} brand={brand} compact />
             <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{siteId}</span>
             {placeLabel === null ? null : <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{placeLabel}</p>}
           </div>
@@ -83,6 +80,8 @@ export function SI2PEMAntennaDialogPanel({
 }: SI2PEMAntennaDialogPanelProps) {
   const titleId = useId();
   const isPhone = useIsMobile();
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const windowRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -91,6 +90,8 @@ export function SI2PEMAntennaDialogPanel({
   const reportChoice = useAntennaReportChoice(site, report);
   const { shownReport, olderReport, alternativeReport } = reportChoice;
   const antennasQuery = useQuery(emfAntennasQueryOptions(site, shownReport.url));
+  const { data: operators } = useQuery({ ...operatorsQueryOptions({ viewerId: session?.user.id ?? null }), enabled: viewerReady });
+  const { data: brands } = useQuery(brandsQueryOptions());
   const antennas = antennasQuery.data?.antennas;
   const hasAntennas = antennas !== undefined && antennas.length > 0;
   const isComparing = isComparisonRequested && olderReport !== null;
@@ -100,7 +101,8 @@ export function SI2PEMAntennaDialogPanel({
   useImperativeHandle(bodyRef, () => scrollerRef.current!);
   useFloatingDialogFocus(windowRef, closeButtonRef);
 
-  const operatorColor = operatorMnc ? getOperatorColor(operatorMnc) : FALLBACK_BRAND_COLOR;
+  const plmn = operatorMnc === undefined || operatorMnc === null ? null : String(operatorMnc);
+  const brand = getOperatorBrand(findOperatorForPlmn(viewerReady ? operators : undefined, plmn), brands);
   const fillsBody = !antennasQuery.isPending && !hasAntennas;
   const olderAntennaReport = needsOlderAntennas ? olderAntennasQuery.data : undefined;
   const hasOlderReadFailed = needsOlderAntennas && olderAntennaReport === undefined && olderAntennasQuery.isError;
@@ -153,7 +155,7 @@ export function SI2PEMAntennaDialogPanel({
             <AntennaComparisonNotice error={olderAntennasQuery.error} onRetry={hasOlderReadFailed ? retryComparison : undefined} />
           ) : null
         }
-        color={operatorColor}
+        color={brand?.color ?? null}
         selectedGroupKey={selectedGroupKey}
         onSelectedGroupKeyChange={setSelectedGroupKey}
         isPhone={isPhone}
@@ -173,10 +175,9 @@ export function SI2PEMAntennaDialogPanel({
         <AntennaDialogHeader
           siteId={siteId}
           operatorName={operatorName}
-          operatorMnc={operatorMnc}
           place={place}
           titleId={titleId}
-          tintColor={operatorColor}
+          brand={brand}
           closeButtonRef={closeButtonRef}
           headerDragProps={headerDragProps}
           onClose={onClose}

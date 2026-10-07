@@ -188,8 +188,8 @@ export function CellHeadRow({ columns, texts, tail }: CellHeadRowProps) {
       ))}
       {tail === undefined ? (
         <div className="@container/tail flex min-w-0 items-center">
-          <span className="hidden truncate @[206px]/tail:inline">{t("common:labels.notes")}</span>
-          <span title={texts.note} className="flex w-7 justify-center @[206px]/tail:hidden">
+          <span className="hidden truncate @[166px]/tail:inline">{t("common:labels.notes")}</span>
+          <span title={texts.note} className="flex w-7 justify-center @[166px]/tail:hidden">
             <HugeiconsIcon icon={Note01Icon} aria-hidden="true" className="size-3.5" />
             <span className="sr-only">{texts.note}</span>
           </span>

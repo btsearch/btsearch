@@ -11,7 +11,7 @@ type AntennaReportContentProps = {
   antennas: readonly EmfAntenna[];
   olderAntennas?: readonly EmfAntenna[];
   comparisonNotice: ReactNode;
-  color: string;
+  color: string | null;
   selectedGroupKey: string | null;
   onSelectedGroupKeyChange: (groupKey: string | null) => void;
   isPhone: boolean;

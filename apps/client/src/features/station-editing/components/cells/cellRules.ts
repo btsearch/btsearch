@@ -87,7 +87,7 @@ function listShownColumns(edit: StationDraftApi, rat: Rat, hasStandaloneCells: b
     hasConfirmedColumn: session.kind !== "form",
     hasStandaloneCells,
     isAreaCodePerCell: session.draft.areaCodes[rat].mode === "perCell",
-    switches: lookups.features ?? NO_SITE_SWITCHES,
+    switches: lookups.countryFeatures ?? NO_SITE_SWITCHES,
   });
 }
 

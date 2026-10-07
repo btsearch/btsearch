@@ -159,7 +159,7 @@ function CountryPill({ countryCode, isActive, onToggleCountry }: CountryPillProp
   const { i18n } = useTranslation();
 
   return (
-    <FacetPill active={isActive} onClick={() => onToggleCountry(countryCode)} className="max-w-full pl-[5px]">
+    <FacetPill active={isActive} onClick={() => onToggleCountry(countryCode)} className="max-w-full pl-1.25">
       <CountryCodeTile code={countryCode} size="xs" tone={isActive ? "inverse" : "default"} />
       <span className="truncate">{getCountryName(countryCode, i18n.language)}</span>
     </FacetPill>

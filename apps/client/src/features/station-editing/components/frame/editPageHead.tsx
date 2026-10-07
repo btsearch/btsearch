@@ -16,7 +16,6 @@ import {
   stationDialogInlineActionClassName,
   stationDialogInlineActionLabelClassName,
 } from "@/features/station-details/components/stationDialogActionBar";
-import { getBrandColor } from "@/features/station-details/station/utils/brands";
 import { useIsMobile } from "@/hooks/useMobile";
 import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate } from "@/lib/format";
@@ -85,6 +84,7 @@ export function EditPageHead({
   const hasPageTitle = pageTitle !== undefined;
   const title = hasSiteId ? siteId : t("labels.newStation");
   const backText = backLabel ?? t("actions.back");
+  const operatorColor = operator?.brand?.color;
 
   if (isPhone) {
     return (
@@ -137,7 +137,7 @@ export function EditPageHead({
 
       <div
         className="flex items-center gap-3 border-t border-border/50 px-4 py-2.5"
-        style={operator === null ? undefined : { backgroundImage: getOperatorHeaderTintGradient(getBrandColor(operator.brand)) }}
+        style={operatorColor === undefined ? undefined : { backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}
       >
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

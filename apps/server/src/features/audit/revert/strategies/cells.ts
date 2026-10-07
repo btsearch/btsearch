@@ -1,4 +1,5 @@
 import { bands, cells, gsmCells, lteCells, nrCells, proposedCells, stationSectors, stations, umtsCells } from "@openbts/drizzle";
+import type { CountryFeatures } from "@openbts/shared/contract";
 import { count, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
@@ -14,6 +15,7 @@ import {
   isNormalRat,
   updateRATCellDetailsReturning,
 } from "../../../cells/ratCellPersistence.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../stations/countryFeatures.js";
 import { loadCellSnapshots } from "../../snapshots.js";
 import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, isSnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow, writableColumnNames } from "../columns.js";
@@ -22,6 +24,26 @@ import { type ApplyState, type PlannedEntry, type RevertConflict, type StrategyC
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, stringField } from "./common.js";
 
 const cellInsertSchema = createInsertSchema(cells);
+const featuresByApplyState = new WeakMap<ApplyState, Promise<Map<number, CountryFeatures>>>();
+
+async function featuresForRestoredStation(tx: DbTx, context: StrategyContext, state: ApplyState, stationId: number | null): Promise<CountryFeatures> {
+  let pending = featuresByApplyState.get(state);
+  if (pending === undefined) {
+    const stationIds = new Set<number>();
+    for (const entry of context.selectedEntries) {
+      if (entry.station_id !== null) stationIds.add(entry.station_id);
+      for (const snapshot of [entry.old_values, entry.new_values]) {
+        const id = isSnapshotRecord(snapshot) ? numberField(snapshot, "station_id") : null;
+        if (id !== null) stationIds.add(id);
+      }
+    }
+    if (stationId !== null) stationIds.add(stationId);
+    pending = getStationCountryFeatures([...stationIds], tx);
+    featuresByApplyState.set(state, pending);
+  }
+  const features = await pending;
+  return stationId === null ? disabledCountryFeatures : (features.get(stationId) ?? disabledCountryFeatures);
+}
 
 function detailsSnapshot(snapshot: SnapshotRecord, rat: string): SnapshotRecord | null {
   if (isSnapshotRecord(snapshot.details)) return snapshot.details;
@@ -237,6 +259,7 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
 
     const rat = stringField(oldValues, "rat") ?? "";
     const details = detailsSnapshot(oldValues, rat);
+    const stationId = numberField(oldValues, "station_id");
     await addForeignKeyConflicts(context, plan, oldValues, new Set(["station_id", "band_id", "sector_id"]));
     plan.actions.push({
       order: 26,
@@ -248,15 +271,19 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
           .insert(cells)
           .overridingSystemValue()
           .values({ ...cellRow, id, sector_id: sectorToRestore } as z.infer<typeof cellInsertSchema>);
-        if (isNormalRat(rat) && details !== null) {
-          const restored = await insertRATCellDetailsReturning(tx, rat, id, details as unknown as RATInsertDetails);
-          if (restored === null) throw new Error(`Failed to restore ${rat} details for cell ${id}`);
-        }
-        const stationId = numberField(oldValues, "station_id");
         if (stationId !== null) addCellChange(state, stationId, "added");
         state.sequenceTables.add("cells");
       },
     });
+    if (isNormalRat(rat) && details !== null)
+      plan.actions.push({
+        order: 34,
+        run: async (tx, state) => {
+          const features = await featuresForRestoredStation(tx, context, state, stationId);
+          const restored = await insertRATCellDetailsReturning(tx, rat, id, details as unknown as RATInsertDetails, features);
+          if (restored === null) throw new Error(`Failed to restore ${rat} details for cell ${id}`);
+        },
+      });
     plan.finalize = async (tx, audit) => {
       await assertRestoredCellsFitBands(tx, entry, { cellIds: [id], stationId: null });
       const restored = (await loadCellSnapshots(tx, [id])).get(id);
@@ -320,7 +347,9 @@ export async function planCellRevert(context: StrategyContext, entry: AuditEntry
       }
       if (isNormalRat(oldRat) && oldDetails !== null && detailFields.length > 0) {
         const detailPatch = snapshotToRow(ratTable(oldRat), oldDetails, { fields: detailFields, omit: ["cell_id"] });
-        const restored = await updateRATCellDetailsReturning(tx, oldRat, id, detailPatch as unknown as RATUpdateDetails);
+        const stationId = baseFields.includes("station_id") ? numberField(oldValues, "station_id") : current.station_id;
+        const features = await featuresForRestoredStation(tx, context, state, stationId);
+        const restored = await updateRATCellDetailsReturning(tx, oldRat, id, detailPatch as unknown as RATUpdateDetails, features);
         if (restored === null) throw new Error(`Failed to restore ${oldRat} details for cell ${id}`);
       }
       const restoredStationId = numberField(oldValues, "station_id");

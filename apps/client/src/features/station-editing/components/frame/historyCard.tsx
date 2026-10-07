@@ -12,13 +12,12 @@ import { stationHistoryQueryOptions } from "@/features/station-details/station/h
 import { groupHistoryByDay } from "@/features/station-details/station/history/entries";
 import { HistoryEntry } from "@/features/station-details/station/history/historyEntry";
 import { useHistoryNames } from "@/features/station-details/station/history/lookups";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import { cn } from "@/lib/utils";
 
 type HistoryCardStation = {
   id: number;
   siteId: string;
-  operator: Pick<Operator, "name" | "primaryPlmn"> | null;
+  operator: Pick<Operator, "name" | "brandId"> | null;
 };
 
 type HistoryCardProps = {
@@ -68,7 +67,7 @@ export function HistoryCard({ station, markedSince = null }: HistoryCardProps) {
       stationId: station.id,
       stationCode: station.siteId,
       operatorName: station.operator?.name ?? t("main:unknownOperator"),
-      operatorMnc: toV1OperatorMnc(station.operator),
+      operatorBrandId: station.operator?.brandId ?? null,
     });
   }
 

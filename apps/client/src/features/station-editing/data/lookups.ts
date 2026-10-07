@@ -1,4 +1,4 @@
-import type { Band, Brand, Operator, Region, SettingsFeatures, StructureOwner } from "@openbts/shared/contract";
+import type { Band, Brand, Country, CountryFeatures, Operator, Region, SettingsFeatures, StructureOwner } from "@openbts/shared/contract";
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -7,10 +7,14 @@ import type { Rat } from "../model/types";
 import { bandPlanQueryOptions } from "@/features/admin/reference/api/bandPlan";
 import { structureOwnersQueryOptions } from "@/features/admin/reference/api/structureOwners";
 import { getCountryStructureOwners } from "@/features/shared/location/structureOwners";
-import { bandsQueryOptions, brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { settingsQueryOptions } from "@/hooks/useSettings";
+import { authClient } from "@/lib/auth/client";
 
 type ReferenceSources = {
+  countries: readonly Country[] | undefined;
+  viewerId: string | null;
+  retrySession: () => void;
   operators: readonly Operator[] | undefined;
   brands: readonly Brand[] | undefined;
   regions: readonly Region[] | undefined;
@@ -23,12 +27,15 @@ type ReferenceSources = {
 export type EditReference = {
   isReady: boolean;
   hasFailed: boolean;
+  viewerId: string | null;
+  retrySession: () => void;
   operators: readonly Operator[];
   brands: readonly Brand[];
   regions: readonly Region[];
   bands: readonly Band[];
   owners: readonly StructureOwner[];
   features: SettingsFeatures | null;
+  countriesByCode: ReadonlyMap<string, Country>;
   operatorsById: ReadonlyMap<number, Operator>;
   regionsById: ReadonlyMap<number, Region>;
   bandsById: ReadonlyMap<number, Band>;
@@ -37,6 +44,7 @@ export type EditReference = {
 
 export type EditLookups = EditReference & {
   countryCode: string | null;
+  countryFeatures: CountryFeatures | null;
   bandPlanIds: ReadonlySet<number> | null;
   planBands: Record<Rat, Band[]>;
   countryOperators: readonly Operator[];
@@ -52,18 +60,21 @@ function indexById<Row extends { id: number }>(rows: readonly Row[] | undefined)
 }
 
 function buildEditReference(sources: ReferenceSources): EditReference {
-  const { operators, brands, regions, bands, owners, features } = sources;
-  const isReady = [operators, brands, regions, bands, owners, features].every((source) => source !== undefined);
+  const { countries, operators, brands, regions, bands, owners, features } = sources;
+  const isReady = [countries, operators, brands, regions, bands, owners, features].every((source) => source !== undefined);
 
   return {
     isReady,
     hasFailed: sources.hasFailed,
+    viewerId: sources.viewerId,
+    retrySession: sources.retrySession,
     operators: operators ?? [],
     brands: brands ?? [],
     regions: regions ?? [],
     bands: bands ?? [],
     owners: owners ?? [],
     features: features ?? null,
+    countriesByCode: new Map((countries ?? []).map((country) => [country.code, country])),
     operatorsById: indexById(operators),
     regionsById: indexById(regions),
     bandsById: indexById(bands),
@@ -87,13 +98,19 @@ function listPlanBands(bands: readonly Band[], bandPlanIds: ReadonlySet<number> 
   return planBands;
 }
 
-function buildEditLookups(reference: EditReference, countryCode: string | null, plan: readonly number[] | undefined): EditLookups {
+function buildEditLookups(
+  reference: EditReference,
+  countryCode: string | null,
+  plan: readonly number[] | undefined,
+  featureCountryCode: string | null,
+): EditLookups {
   const bandPlanIds = countryCode === null || plan === undefined ? null : new Set(plan);
 
   return {
     ...reference,
     isReady: reference.isReady && (countryCode === null || plan !== undefined),
     countryCode,
+    countryFeatures: featureCountryCode === null ? null : (reference.countriesByCode.get(featureCountryCode)?.features ?? null),
     bandPlanIds,
     planBands: listPlanBands(reference.bands, bandPlanIds),
     countryOperators: countryCode === null ? reference.operators : reference.operators.filter((operator) => operator.countryCode === countryCode),
@@ -103,42 +120,57 @@ function buildEditLookups(reference: EditReference, countryCode: string | null, 
 }
 
 export function useEditReference(): EditReference {
-  const operatorsQuery = useQuery(operatorsQueryOptions());
+  const { data: session, isPending, error, refetch: retrySession } = authClient.useSession();
+  const viewerId = session?.user.id ?? null;
+  const viewerReady = !isPending && !error;
+  const countriesQuery = useQuery({ ...countriesQueryOptions({ viewerId }), enabled: viewerReady });
+  const operatorsQuery = useQuery({ ...operatorsQueryOptions({ viewerId }), enabled: viewerReady });
   const brandsQuery = useQuery(brandsQueryOptions());
-  const regionsQuery = useQuery(regionsQueryOptions());
+  const regionsQuery = useQuery({ ...regionsQueryOptions({ viewerId }), enabled: viewerReady });
   const bandsQuery = useQuery(bandsQueryOptions());
   const ownersQuery = useQuery(structureOwnersQueryOptions());
   const settingsQuery = useQuery(settingsQueryOptions());
 
-  const operators = operatorsQuery.data;
+  const countries = viewerReady ? countriesQuery.data : undefined;
+  const operators = viewerReady ? operatorsQuery.data : undefined;
   const brands = brandsQuery.data;
-  const regions = regionsQuery.data;
+  const regions = viewerReady ? regionsQuery.data : undefined;
   const bands = bandsQuery.data;
   const owners = ownersQuery.data;
   const features = settingsQuery.data?.features;
-  const hasFailed = [operatorsQuery, brandsQuery, regionsQuery, bandsQuery, ownersQuery, settingsQuery].some(
-    (query) => query.isError && query.data === undefined,
-  );
+  const hasFailed =
+    Boolean(error) ||
+    [brandsQuery, bandsQuery, ownersQuery, settingsQuery].some((query) => query.isError && query.data === undefined) ||
+    (viewerReady && [countriesQuery, operatorsQuery, regionsQuery].some((query) => query.isError && query.data === undefined));
 
   return useMemo(
-    () => buildEditReference({ operators, brands, regions, bands, owners, features, hasFailed }),
-    [operators, brands, regions, bands, owners, features, hasFailed],
+    () => buildEditReference({ countries, viewerId, retrySession, operators, brands, regions, bands, owners, features, hasFailed }),
+    [countries, viewerId, retrySession, operators, brands, regions, bands, owners, features, hasFailed],
   );
 }
 
-export function useCountryLookups(reference: EditReference, countryCode: string | null): EditLookups {
+export function useCountryLookups(reference: EditReference, countryCode: string | null, featureCountryCode: string | null): EditLookups {
   const planQuery = useQuery({ ...bandPlanQueryOptions(countryCode ?? NO_COUNTRY), enabled: countryCode !== null });
   const plan = countryCode === null ? undefined : planQuery.data;
   const hasFailed = reference.hasFailed || (countryCode !== null && planQuery.isError && plan === undefined);
 
-  return useMemo(() => ({ ...buildEditLookups(reference, countryCode, plan), hasFailed }), [reference, countryCode, plan, hasFailed]);
+  return useMemo(
+    () => ({ ...buildEditLookups(reference, countryCode, plan, featureCountryCode), hasFailed }),
+    [reference, countryCode, plan, featureCountryCode, hasFailed],
+  );
 }
 
-export function retryEditLookups(queryClient: QueryClient, countryCode: string | null): Promise<void[]> {
+export function retryEditLookups(
+  queryClient: QueryClient,
+  countryCode: string | null,
+  reference: Pick<EditReference, "viewerId" | "retrySession">,
+): Promise<void[]> {
+  reference.retrySession();
   const keys: (readonly unknown[])[] = [
-    operatorsQueryOptions().queryKey,
+    countriesQueryOptions({ viewerId: reference.viewerId }).queryKey,
+    operatorsQueryOptions({ viewerId: reference.viewerId }).queryKey,
     brandsQueryOptions().queryKey,
-    regionsQueryOptions().queryKey,
+    regionsQueryOptions({ viewerId: reference.viewerId }).queryKey,
     bandsQueryOptions().queryKey,
     structureOwnersQueryOptions().queryKey,
     settingsQueryOptions().queryKey,

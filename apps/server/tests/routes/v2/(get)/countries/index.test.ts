@@ -7,9 +7,10 @@ import { dbMock, userSession } from "../../../../helpers/boundaries.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const userId = "123e4567-e89b-42d3-a456-426614174000";
-const visible = { code: "PL", isVisible: true, contributions: "open", defaultView: null };
-const hidden = { code: "US", isVisible: false, contributions: "closed", defaultView: null };
-const viewColumns = { viewWest: null, viewSouth: null, viewEast: null, viewNorth: null };
+const features = { structureOwnerProposals: false, psc: true, bsic: false };
+const visible = { code: "PL", isVisible: true, contributions: "open", features, defaultView: null };
+const hidden = { code: "US", isVisible: false, contributions: "closed", features, defaultView: null };
+const viewColumns = { ...features, viewWest: null, viewSouth: null, viewEast: null, viewNorth: null };
 
 describe("getCountries", () => {
   it.each(["guest", "user", "editor", "admin"] as const)("applies country visibility to %s viewers", async (role) => {
@@ -41,7 +42,7 @@ describe("getCountries", () => {
 describe("getCountry", () => {
   it("returns a visible country's configured view", async () => {
     const row = { ...visible, defaultView: { west: 170, south: -10, east: -170, north: 10 } };
-    dbMock.query.countries.findFirst.mockResolvedValue({ ...visible, viewWest: 170, viewSouth: -10, viewEast: -170, viewNorth: 10 });
+    dbMock.query.countries.findFirst.mockResolvedValue({ ...visible, ...features, viewWest: 170, viewSouth: -10, viewEast: -170, viewNorth: 10 });
     const app = await createRouteHarness(getCountry);
     const response = await app.inject({ method: "GET", url: "/countries/PL" });
     expect(response.statusCode).toBe(200);

@@ -28,7 +28,7 @@ type StationPatch = Partial<Pick<StationDraft, "siteId" | "status" | "isConfirme
 export type PlacePatch = Partial<Pick<PlaceDraft, "locationId" | "latitude" | "longitude" | "regionId" | "isRegionPicked" | "city" | "address">>;
 type StructurePatch = Partial<Pick<StructureDraft, "type" | "note">>;
 type PickedPlace = Omit<PlaceDraft, "move" | "isRegionPicked">;
-export type CellPatch = Partial<Pick<CellDraft, "bandId" | "sectorKey" | "cellType" | "notes" | "isConfirmed" | "mode">> & {
+export type CellPatch = Partial<Pick<CellDraft, "bandId" | "sectorKey" | "cellType" | "notes" | "isConfirmed" | "mode" | "gnbidLength">> & {
   numbers?: CellDraft["numbers"];
   flags?: CellDraft["flags"];
 };
@@ -286,8 +286,8 @@ function findInsertIndex(cells: readonly CellDraft[], rat: Rat, afterKey: DraftK
   const afterIndex = afterKey === undefined ? -1 : cells.findIndex((cell) => cell.key === afterKey);
   if (afterIndex !== -1) return afterIndex + 1;
 
-  const lastOfRat = cells.findLastIndex((cell) => cell.rat === rat);
-  return lastOfRat === -1 ? cells.length : lastOfRat + 1;
+  for (let index = cells.length - 1; index >= 0; index--) if (cells[index]?.rat === rat) return index + 1;
+  return cells.length;
 }
 
 function insertCell(cells: readonly CellDraft[], rat: Rat, options: NewCellOptions): CellDraft[] {
@@ -347,6 +347,7 @@ function isSameCell(left: CellDraft, right: CellDraft): boolean {
     left.notes === right.notes &&
     left.isConfirmed === right.isConfirmed &&
     left.mode === right.mode &&
+    left.gnbidLength === right.gnbidLength &&
     left.isDeleted === right.isDeleted &&
     numbers.every(({ field }) => getCellNumber(left, field) === getCellNumber(right, field)) &&
     flags.every(({ field }) => (left.flags[field] ?? false) === (right.flags[field] ?? false))
@@ -367,6 +368,7 @@ export function patchCell(cell: CellDraft, patch: CellPatch): CellDraft {
     notes: patch.notes ?? cell.notes,
     isConfirmed: patch.isConfirmed ?? cell.isConfirmed,
     mode: resolveMode(cell, patch),
+    gnbidLength: cell.rat === "nr" && patch.gnbidLength !== undefined ? patch.gnbidLength : cell.gnbidLength,
     numbers: mergeNumbers(cell, patch.numbers),
     flags: mergeFlags(cell, patch.flags),
   };
@@ -402,6 +404,7 @@ function duplicateCell(session: EditSession, key: DraftKey, isConfirmed: boolean
     notes: source.notes,
     isConfirmed: isConfirmed ?? source.isConfirmed,
     mode: source.mode,
+    gnbidLength: source.gnbidLength,
     numbers,
     flags: { ...source.flags },
   });
@@ -548,6 +551,7 @@ function toFieldPatch(base: CellDraft, field: EditField): CellPatch {
   if (field === "notes") return { notes: base.notes };
   if (field === "isConfirmed") return { isConfirmed: base.isConfirmed };
   if (field === "mode") return { mode: base.mode };
+  if (field === "gnbidLength") return { gnbidLength: base.gnbidLength };
   return {};
 }
 

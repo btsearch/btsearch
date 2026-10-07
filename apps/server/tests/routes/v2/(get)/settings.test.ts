@@ -56,26 +56,14 @@ describe("getSettings", () => {
     expect((await app.inject({ url: "/settings?include=access" })).statusCode).toBe(400);
   });
 
-  it.each([true, false])("exposes the owner proposal policy to guests (%s)", async (enabled) => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = enabled;
+  it("does not expose country-scoped policies through global settings", async () => {
+    Object.assign(getRuntimeSettings(), { structureOwnerProposalsEnabled: false, pscEnabled: true, bsicEnabled: true });
     const app = await createRouteHarness(getSettings);
     const response = await app.inject({ url: "/settings" });
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.features.structureOwnerProposals).toBe(enabled);
+    for (const feature of ["structureOwnerProposals", "psc", "bsic"]) expect(response.json().data.features).not.toHaveProperty(feature);
     expect(response.headers["cache-control"]).toBe("private, no-store");
     expect(response.json().data).not.toHaveProperty("access");
     expect(redisMock.multi).not.toHaveBeenCalled();
-  });
-
-  it("accepts boolean owner proposal policies and rejects null in the emitted shared contract", async () => {
-    const builtSettingsUrl = new URL("../../../../../../packages/shared/dist/src/contract/settings.js", import.meta.url).href;
-    const { settingsFeaturesSchema }: Pick<typeof import("@openbts/shared/contract"), "settingsFeaturesSchema"> = await import(builtSettingsUrl);
-    const app = await createRouteHarness(getSettings);
-    const response = await app.inject({ url: "/settings" });
-    expect(response.statusCode).toBe(200);
-    const features = response.json().data.features;
-    expect(settingsFeaturesSchema.safeParse({ ...features, structureOwnerProposals: true }).success).toBe(true);
-    expect(settingsFeaturesSchema.safeParse({ ...features, structureOwnerProposals: false }).success).toBe(true);
-    expect(settingsFeaturesSchema.safeParse({ ...features, structureOwnerProposals: null }).success).toBe(false);
   });
 });

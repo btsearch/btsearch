@@ -1,9 +1,18 @@
 import { cells, extraIdentificators, gsmCells, lteCells, nrCells, stationSectors, stationUplinks, stations, umtsCells } from "@openbts/drizzle";
-import type { Backhaul, Cell, CellRat, Sector, Station, StationIdentifier, StationLocation, StationStatus } from "@openbts/shared/contract";
+import type {
+  Backhaul,
+  Cell,
+  CellRat,
+  CountryFeatures,
+  Sector,
+  Station,
+  StationIdentifier,
+  StationLocation,
+  StationStatus,
+} from "@openbts/shared/contract";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { z } from "zod/v4";
 
-import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { type BandRow, toBand } from "../bands/serialize.js";
 import { isUnknownBand } from "../bands/unknown.js";
 import { toStructure } from "../locations/structure.js";
@@ -30,6 +39,10 @@ export type CellRows = {
   umts: z.infer<typeof umtsCellSelectSchema> | null;
   lte: z.infer<typeof lteCellSelectSchema> | null;
   nr: z.infer<typeof nrCellSelectSchema> | null;
+};
+
+type LegacyRatRows = {
+  [Rat in CellRat]: Omit<NonNullable<CellRows[Rat]>, "cell_id"> | null | undefined;
 };
 
 const STATUSES = { published: "active", pending: "awaitingCells", inactive: "inactive" } as const;
@@ -81,7 +94,21 @@ export function toStationLocation(row: Omit<LocationRow, "point">, countryCode: 
   };
 }
 
-export function toCell({ cell, gsm, umts, lte, nr }: CellRows, band: BandRow | undefined, embedBand: boolean): Cell | null {
+export function toLegacyCellDetails(
+  { gsm, umts, lte, nr }: LegacyRatRows,
+  features: Readonly<CountryFeatures>,
+): NonNullable<LegacyRatRows[CellRat]> | null {
+  if (gsm) return { ...gsm, bsic: features.bsic ? gsm.bsic : null };
+  if (umts) return { ...umts, psc: features.psc ? umts.psc : null };
+  return lte ?? nr ?? null;
+}
+
+export function toCell(
+  { cell, gsm, umts, lte, nr }: CellRows,
+  band: BandRow | undefined,
+  embedBand: boolean,
+  features: Readonly<CountryFeatures>,
+): Cell | null {
   const common = {
     id: cell.id,
     stationId: cell.station_id,
@@ -96,7 +123,7 @@ export function toCell({ cell, gsm, umts, lte, nr }: CellRows, band: BandRow | u
   const base = embedBand && band && !isUnknownBand(band) ? { ...common, band: toBand(band) } : common;
 
   if (cell.rat === "GSM" && gsm) {
-    const bsic = getRuntimeSettings().bsicEnabled ? gsm.bsic : null;
+    const bsic = features.bsic ? gsm.bsic : null;
     return { ...base, rat: "gsm", lac: gsm.lac, cid: gsm.cid, isEGsm: gsm.e_gsm ?? false, bsic };
   }
 
@@ -109,7 +136,7 @@ export function toCell({ cell, gsm, umts, lte, nr }: CellRows, band: BandRow | u
       rnc,
       cid: rnc === null && umts.cid === 0 ? null : umts.cid,
       longCid: rnc === null ? null : umts.cid_long,
-      psc: getRuntimeSettings().pscEnabled ? umts.psc : null,
+      psc: features.psc ? umts.psc : null,
       uarfcn: umts.arfcn,
     };
   }

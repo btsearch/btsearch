@@ -4,7 +4,7 @@ import type { Operator, Region } from "@openbts/shared/contract";
 import { keepPreviousData, skipToken, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useContext, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -21,15 +21,18 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { REGISTER_COUNTRY_CODE } from "@/features/map/constants";
 import { ClearFiltersButton, MobileFilterRailInline } from "@/features/shared/filterPanel";
-import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
 import { type MeasurementTab, fetchFilingRows, fetchMeasurementTabRows } from "@/features/si2pem/api";
 import { InstallationsDataTable } from "@/features/si2pem/components/installationsDataTable";
 import { MeasurementsDataTable } from "@/features/si2pem/components/measurementsDataTable";
 import { PEM_MOBILE_ROW_HEIGHT } from "@/features/si2pem/components/pemDataTable";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { useTablePagination } from "@/hooks/useTablePageSize";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { TOP4_MNCS } from "@/lib/cellular/operators";
@@ -125,6 +128,7 @@ function PEMMeasurementsMobileRail({
   onRetryRegions,
 }: PEMMeasurementsMobileRailProps) {
   const { t } = useTranslation(["pem", "common"]);
+  const { brands } = useContext(OperatorBrandCatalogContext);
   const hasSearch = siteId.trim().length > 0;
   const hasActiveFilters = hasSearch || operator !== null || region !== null;
 
@@ -216,7 +220,7 @@ function PEMMeasurementsMobileRail({
                 >
                   <DialogOperatorName
                     name={item.name}
-                    mnc={toV1OperatorMnc(item)}
+                    brand={getOperatorBrand(item, brands)}
                     compact
                     labelClassName={cn("text-sm leading-5 font-normal", selected ? "text-primary" : null)}
                   />
@@ -276,6 +280,8 @@ function PEMMeasurementsMobileRail({
 function PEMMeasurementsPage() {
   const { t, i18n } = useTranslation("pem");
   const { t: tCommon } = useTranslation("common");
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
   const { openStationDialog } = useFloatingDialogStack();
@@ -293,7 +299,12 @@ function PEMMeasurementsPage() {
     isFetching: areOperatorsFetching,
     isLoadingError: operatorsError,
     refetch: refetchOperators,
-  } = useQuery(operatorsQueryOptions());
+  } = useQuery({ ...operatorsQueryOptions({ viewerId: session?.user.id ?? null }), enabled: viewerReady });
+  const { data: brands } = useQuery(brandsQueryOptions());
+  const operatorCatalog = useMemo(
+    () => ({ operators: viewerReady ? allOperators : undefined, brands: viewerReady ? brands : undefined }),
+    [allOperators, brands, viewerReady],
+  );
   const {
     data: allRegions = [],
     isLoading: areRegionsLoading,
@@ -381,7 +392,7 @@ function PEMMeasurementsPage() {
   const measurementRows = measurementsQuery.data?.rows ?? [];
   const filingRows = filingsQuery.data?.rows ?? [];
   const activeFilterCount = [siteIdInput.trim() !== "", operatorFilter !== null, regionFilter !== null].filter(Boolean).length;
-  const pemOperators = allOperators.filter(isPEMOperator);
+  const pemOperators = viewerReady ? allOperators.filter(isPEMOperator) : [];
   const pemRegions = allRegions.filter((region) => region.countryCode === REGISTER_COUNTRY_CODE);
   const selectedOperator = pemOperators.find((operator) => operator.id === operatorFilter);
   const selectedRegion = pemRegions.find((region) => region.id === regionFilter);
@@ -431,7 +442,7 @@ function PEMMeasurementsPage() {
     />
   ) : null;
 
-  return (
+  const content = (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-col gap-3 px-3 pt-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
@@ -511,7 +522,7 @@ function PEMMeasurementsPage() {
                     {selectedOperator ? (
                       <DialogOperatorName
                         name={selectedOperator.name}
-                        mnc={toV1OperatorMnc(selectedOperator)}
+                        brand={getOperatorBrand(selectedOperator, brands)}
                         compact
                         labelClassName="text-sm leading-5 font-normal"
                       />
@@ -531,7 +542,12 @@ function PEMMeasurementsPage() {
                       ) : null}
                       {pemOperators.map((op) => (
                         <SelectItem key={op.id} value={String(op.id)}>
-                          <DialogOperatorName name={op.name} mnc={toV1OperatorMnc(op)} compact labelClassName="text-sm leading-5 font-normal" />
+                          <DialogOperatorName
+                            name={op.name}
+                            brand={getOperatorBrand(op, brands)}
+                            compact
+                            labelClassName="text-sm leading-5 font-normal"
+                          />
                         </SelectItem>
                       ))}
                     </>
@@ -591,7 +607,7 @@ function PEMMeasurementsPage() {
 
       {hasFloatingMobileFilters && navActionTarget
         ? createPortal(
-            <div className="relative w-[calc(100vw-1.5rem)] min-w-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-l after:from-background after:to-transparent md:hidden">
+            <div className="relative w-[calc(100vw-1.5rem)] min-w-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-linear-to-l after:from-background after:to-transparent md:hidden">
               <div className="scrollbar-hide min-w-0 flex-1 overflow-x-auto overflow-y-hidden pr-8">
                 <div className="mx-auto w-max">{mobileFilterRail}</div>
               </div>
@@ -601,6 +617,7 @@ function PEMMeasurementsPage() {
         : null}
     </div>
   );
+  return <OperatorBrandCatalogContext value={operatorCatalog}>{content}</OperatorBrandCatalogContext>;
 }
 
 export const Route = createFileRoute("/_layout/pem-measurements")({

@@ -1,4 +1,5 @@
 import type { Country, Operator } from "@openbts/shared/contract";
+import { useQuery } from "@tanstack/react-query";
 import { Fragment, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -17,8 +18,9 @@ import {
 } from "@/components/ui/combobox";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { Label } from "@/components/ui/label";
+import { brandsQueryOptions } from "@/features/shared/lookups";
 import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { foldText } from "@/lib/foldText";
 import { getCountryName } from "@/lib/geo/countryName";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ type OperatorSelectorProps = {
 
 export function ClfOperatorSelector({ countries, operators, countryCode, operatorIds, disabled, onChange }: OperatorSelectorProps) {
   const { t, i18n } = useTranslation("clfExport");
+  const { data: brands } = useQuery(brandsQueryOptions());
   const anchorRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const allOperatorsLabel = t("common:labels.allOperators");
@@ -134,7 +137,7 @@ export function ClfOperatorSelector({ countries, operators, countryCode, operato
               ) : (
                 <DialogOperatorName
                   name={option.operator.name}
-                  mnc={toV1OperatorMnc(option.operator)}
+                  brand={getOperatorBrand(option.operator, brands)}
                   compact
                   labelClassName="text-base font-normal md:text-sm"
                 />
@@ -168,7 +171,7 @@ export function ClfOperatorSelector({ countries, operators, countryCode, operato
                         <>
                           <DialogOperatorName
                             name={option.operator.name}
-                            mnc={toV1OperatorMnc(option.operator)}
+                            brand={getOperatorBrand(option.operator, brands)}
                             compact
                             labelClassName="text-sm font-normal"
                           />

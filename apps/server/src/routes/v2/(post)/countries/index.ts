@@ -26,7 +26,7 @@ const schemaRoute = {
 type ReqBody = { Body: CountryCreate };
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<Country>>) {
-  const { code, isVisible, contributions, defaultView } = req.body;
+  const { code, isVisible, contributions, features, defaultView } = req.body;
 
   try {
     const country = await runAuditedOperation(standaloneAuditContext(req), { kind: "country.create" }, async (tx, audit) => {
@@ -39,6 +39,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           code,
           isVisible,
           contributions,
+          ...features,
           viewWest: defaultView?.west,
           viewSouth: defaultView?.south,
           viewEast: defaultView?.east,

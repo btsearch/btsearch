@@ -2,9 +2,8 @@ import type { NewCellInput } from "@openbts/shared/contract";
 import { getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { getRuntimeSettings } from "../../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../../src/routes/v2/(put)/submissions/[id]/review.js";
-import { dbMock, userSession } from "../../../../../helpers/boundaries.js";
+import { dbMock, setCountryFeatures, userSession } from "../../../../../helpers/boundaries.js";
 import { cellInputs, radioTables, storedCell } from "../../../../../helpers/cellWriteFixtures.js";
 import { expectError, injectMutation, whereQuery } from "../../../../../helpers/mutationAssertions.js";
 import { readDate } from "../../../../../helpers/readFixtures.js";
@@ -38,6 +37,18 @@ const reviewedDetails = {
 };
 
 describe("submission approval application", () => {
+  it.each([22, 24, 32])("applies an explicitly selected %i-bit gNBID length when approving an NR SA update", async (gnbidLength) => {
+    const scenario = prepareUpdatedCellReview({ ...cellInputs.nr, mode: "sa", gnbidLength });
+    writeUpdatedCellReview(scenario);
+    const response = await injectMutation(route, request, options);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.changes.cells).toMatchObject([{ rat: "nr", gnbidLength }]);
+    expect(dbMock.calls.find((call) => call.operation === "update" && call.table === "nr_cells")?.values).toMatchObject({
+      gnbid_length: gnbidLength,
+    });
+  });
+
   it("reviews a valid historical persisted sector list with nullable operation flags through v2", async () => {
     const initial = prepareNewReview([cellInputs.gsm]);
     const scenario = { ...initial, proposedSectors: initial.proposedSectors.map((sector) => ({ ...sector, operation: null })) };
@@ -649,7 +660,7 @@ describe("submission approval application", () => {
   );
 
   it.each(reviewedInputs)("applies an existing $rat cell proposal without changing its technology, sector or confirmation", async (input) => {
-    Object.assign(getRuntimeSettings(), { bsicEnabled: true, pscEnabled: true });
+    setCountryFeatures({ bsic: true, psc: true });
     const scenario = prepareUpdatedCellReview(input);
     writeUpdatedCellReview(scenario);
     const { app, errors } = await createRouteHarnessWithErrors(route, options);

@@ -21,6 +21,7 @@ import {
   umtsInsertSchema,
 } from "../../../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
@@ -119,6 +120,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   try {
     const response = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.create" }, async (tx, audit) => {
+      const featuresByStation = await getStationCountryFeatures([station_id], tx);
+      const features = featuresByStation.get(station_id) ?? disabledCountryFeatures;
       const now = new Date();
       const created = await tx
         .insert(cells)
@@ -135,7 +138,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       await Promise.all(
         created.map(async (row, index) => {
           const details = cellsData[index]?.details;
-          if (details && isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails);
+          if (details && isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails, features);
         }),
       );
 

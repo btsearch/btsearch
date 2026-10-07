@@ -14,13 +14,10 @@ export function toSettings(stored: RuntimeSettings, { isAdministrator }: Setting
     isSignInRequired: stored.enforceAuthForAllRoutes,
     features: {
       submissions: stored.submissionsEnabled,
-      structureOwnerProposals: stored.structureOwnerProposalsEnabled,
       photoUploads: stored.photosEnabled,
       comments: stored.enableStationComments,
       commentReview: stored.commentQueueEnabled,
       lists: stored.enableUserLists,
-      psc: stored.pscEnabled,
-      bsic: stored.bsicEnabled,
     },
     announcement: isAdministrator || stored.announcement.enabled ? toAnnouncement(stored.announcement) : null,
   };
@@ -38,13 +35,10 @@ export function toRuntimeSettingsPatch({ isSignInRequired, features, announcemen
   const patch: RuntimeSettingsPatch = {
     enforceAuthForAllRoutes: isSignInRequired,
     submissionsEnabled: features?.submissions,
-    structureOwnerProposalsEnabled: features?.structureOwnerProposals,
     photosEnabled: features?.photoUploads,
     enableStationComments: features?.comments,
     commentQueueEnabled: features?.commentReview,
     enableUserLists: features?.lists,
-    pscEnabled: features?.psc,
-    bsicEnabled: features?.bsic,
     allowedUnauthenticatedRoutes: access?.openRoutes,
     disabledRoutes: access?.disabledRoutes,
   };

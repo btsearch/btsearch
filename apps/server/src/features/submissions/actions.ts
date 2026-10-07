@@ -12,6 +12,7 @@ import {
   submissions,
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
+import type { CountryFeatures } from "@openbts/shared/contract";
 import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { logger } from "better-auth";
 import { and, count, eq, inArray, isNull, ne } from "drizzle-orm";
@@ -52,6 +53,7 @@ import { type StructureChange, assertOwnerFitsAfterWrite } from "../locations/st
 import { buildInternalStationActionUrl } from "../notifications/actionUrls.js";
 import { createAndDeliverNotification, createQueuedSubmissionApprovalNotification, notifyStationWatchers } from "../notifications/service.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { syncStationsPermitsAssociations } from "../stations/permitsAssociation.js";
 import { migrateStationPhotosToLocation } from "../stations/photoMigration.js";
 import { writeSectorAzimuths } from "../stations/sectorAzimuths.js";
@@ -938,27 +940,33 @@ function getProposedRATDetails(proposed: ProposedCellRow, rat: NormalRat): Propo
   }
 }
 
-async function insertCellDetails(tx: DbTx, proposed: ProposedCellRow, cellId: number): Promise<RATCellDetailsRow | null> {
+async function insertCellDetails(tx: DbTx, proposed: ProposedCellRow, cellId: number, features: CountryFeatures): Promise<RATCellDetailsRow | null> {
   if (!proposed.rat || !isNormalRat(proposed.rat)) return null;
 
   const details = getProposedRATDetails(proposed, proposed.rat);
   if (!details) return null;
 
-  return insertRATCellDetailsReturning(tx, proposed.rat, cellId, details as RATInsertDetails);
+  return insertRATCellDetailsReturning(tx, proposed.rat, cellId, details as RATInsertDetails, features);
 }
 
-function keepingStoredGnbidLength<Details extends object>(proposedDetails: Details): Details {
-  return "gnbid_length" in proposedDetails ? { ...proposedDetails, gnbid_length: undefined } : proposedDetails;
+function withKnownGnbidLength<Details extends object>(proposedDetails: Details): Details {
+  if (!("gnbid_length" in proposedDetails)) return proposedDetails;
+  return { ...proposedDetails, gnbid_length: proposedDetails.gnbid_length ?? undefined };
 }
 
-async function updateCellDetails(tx: DbTx, proposed: ProposedCellRow, targetCell: TargetCellRow): Promise<RATCellDetailsRow | null> {
+async function updateCellDetails(
+  tx: DbTx,
+  proposed: ProposedCellRow,
+  targetCell: TargetCellRow,
+  features: CountryFeatures,
+): Promise<RATCellDetailsRow | null> {
   const rat = proposed.rat ?? targetCell.rat;
   if (!isNormalRat(rat)) return null;
 
   const details = getProposedRATDetails(proposed, rat);
   if (!details) return null;
 
-  return updateRATCellDetailsReturning(tx, rat, targetCell.id, keepingStoredGnbidLength(details) as RATUpdateDetails);
+  return updateRATCellDetailsReturning(tx, rat, targetCell.id, withKnownGnbidLength(details) as RATUpdateDetails, features);
 }
 
 async function addProposedCell(
@@ -966,6 +974,7 @@ async function addProposedCell(
   proposed: ProposedCellRow,
   stationId: number | null,
   sectorIdByLocalId: ReadonlyMap<string, number>,
+  features: CountryFeatures,
 ): Promise<number> {
   if (!stationId) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot add cell without a station" });
   if (!proposed.rat) throw new ErrorResponse("BAD_REQUEST", { message: "Cannot add cell without RAT" });
@@ -986,7 +995,7 @@ async function addProposedCell(
     .returning();
   if (!newCell) throw new ErrorResponse("FAILED_TO_CREATE", { message: "Failed to create cell" });
 
-  await insertCellDetails(tx, proposed, newCell.id);
+  await insertCellDetails(tx, proposed, newCell.id, features);
   return newCell.id;
 }
 
@@ -996,6 +1005,7 @@ async function updateProposedCell(
   targetCellsMap: ReadonlyMap<number, TargetCellRow>,
   sectorIdByLocalId: ReadonlyMap<string, number>,
   changeCells: readonly ChangeCell[],
+  countryFeatures: ReadonlyMap<number, CountryFeatures>,
 ): Promise<{ id: number; old: CellSnapshot }> {
   const targetCellId = proposed.target_cell_id;
   if (!targetCellId) throw new ErrorResponse("BAD_REQUEST", { message: "A cell update does not say which cell to update" });
@@ -1023,7 +1033,8 @@ async function updateProposedCell(
 
   await tx.update(cells).set(cellUpdate).where(eq(cells.id, targetCellId));
 
-  await updateCellDetails(tx, proposed, targetCell);
+  const destinationStationId = edited?.destination_station_id ?? targetCell.station_id;
+  await updateCellDetails(tx, proposed, targetCell, countryFeatures.get(destinationStationId) ?? disabledCountryFeatures);
   return { id: targetCellId, old: flattenCellRow(targetCell) };
 }
 
@@ -1049,19 +1060,24 @@ async function applyProposedCells(
 ): Promise<CellAuditChanges> {
   const changes: CellAuditChanges = { added: [], updated: [], deleted: [] };
   const writeTasks: (() => Promise<void>)[] = [];
+  const countryFeatures = await getStationCountryFeatures(
+    unique([stationId, ...changeCells.map((cell) => cell.destination_station_id), ...[...targetCellsMap.values()].map((cell) => cell.station_id)]),
+    tx,
+  );
+  const stationFeatures = stationId === null ? disabledCountryFeatures : (countryFeatures.get(stationId) ?? disabledCountryFeatures);
 
   for (const proposed of proposedCellRows) {
     switch (proposed.operation) {
       case "add":
         writeTasks.push(() =>
-          addProposedCell(tx, proposed, stationId, sectorIdByLocalId).then((added) => {
+          addProposedCell(tx, proposed, stationId, sectorIdByLocalId, stationFeatures).then((added) => {
             changes.added.push(added);
           }),
         );
         break;
       case "update":
         writeTasks.push(() =>
-          updateProposedCell(tx, proposed, targetCellsMap, sectorIdByLocalId, changeCells).then((updated) => {
+          updateProposedCell(tx, proposed, targetCellsMap, sectorIdByLocalId, changeCells, countryFeatures).then((updated) => {
             changes.updated.push(updated);
           }),
         );

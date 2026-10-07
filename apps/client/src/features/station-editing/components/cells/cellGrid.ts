@@ -10,7 +10,7 @@ type ColumnBase = {
 
 export type CellColumn = ColumnBase &
   (
-    | { kind: "band" | "sector" | "mode" | "cellType" | "confirmed" }
+    | { kind: "band" | "sector" | "mode" | "gnbidLength" | "cellType" | "confirmed" }
     | { kind: "number"; spec: NumberFieldSpec }
     | { kind: "computed"; spec: ComputedIdSpec }
     | { kind: "flag"; spec: FlagFieldSpec }
@@ -96,6 +96,13 @@ const MODE_COLUMN: CellColumn = {
   label: { key: "stations:edit.cells.columns.mode" },
   hint: { key: "stations:edit.cells.hints.mode" },
 };
+const GNBID_LENGTH_COLUMN: CellColumn = {
+  kind: "gnbidLength",
+  id: "gnbidLength",
+  width: 76,
+  label: { key: "stations:edit.cells.columns.gnbidLength" },
+  hint: { key: "stations:edit.cells.hints.gnbidLength" },
+};
 const CELL_TYPE_COLUMN: CellColumn = {
   kind: "cellType",
   id: "cellType",
@@ -135,6 +142,7 @@ function listNumberColumns(options: CellGridOptions): CellColumn[] {
     if (isSharedAreaCode || isSwitchedOff || (spec.isSaOnly && !hasStandaloneCells)) return [];
 
     const column = toNumberColumn(rat, spec);
+    if (rat === "nr" && spec.field === "gnbid") return [column, GNBID_LENGTH_COLUMN];
     return spec.field === cellIdField && computedId !== null ? [column, toComputedColumn(computedId)] : [column];
   });
 }

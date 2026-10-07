@@ -5,22 +5,24 @@ import { Trans, useTranslation } from "react-i18next";
 
 import { RanSharingLink } from "./ranSharingLink";
 import { StationLink } from "./stationLink";
+import type { BrandLook } from "@/components/cellular/brandMark";
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
-import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
+import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import type { Station } from "@/types/station";
 
 type VirtualStationBadgeProps = {
   station: Pick<Station, "physicalStation">;
+  operatorBrand?: BrandLook | null;
   onOpenStation: (id: number) => void;
 };
 
-export function VirtualStationBadge({ station, onOpenStation }: VirtualStationBadgeProps) {
+export function VirtualStationBadge({ station, operatorBrand = null, onOpenStation }: VirtualStationBadgeProps) {
   const { t } = useTranslation("stationDetails");
   const [open, setOpen] = useState(false);
   const physicalStation = station.physicalStation;
   if (!physicalStation) return null;
 
-  const operatorTint = getOperatorTintGradient(getOperatorColor(physicalStation.operator.mnc));
+  const operatorTint = operatorBrand === null ? undefined : getOperatorTintGradient(operatorBrand.color);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -43,6 +45,7 @@ export function VirtualStationBadge({ station, onOpenStation }: VirtualStationBa
         </PopoverDescription>
         <StationLink
           station={physicalStation}
+          operatorBrand={operatorBrand}
           onOpen={(id) => {
             setOpen(false);
             onOpenStation(id);

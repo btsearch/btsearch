@@ -33,7 +33,7 @@ type RequestData = ReqBody & ReqParams;
 
 async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONBody<Country>>) {
   const { code } = req.params;
-  const { isVisible, contributions, defaultView } = req.body;
+  const { isVisible, contributions, features, defaultView } = req.body;
 
   const country = await db.query.countries.findFirst({ where: { code } });
   if (!country) throw new ErrorResponse("NOT_FOUND");
@@ -42,7 +42,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     const updated = await runAuditedOperation(standaloneAuditContext(req), { kind: "country.update" }, async (tx, audit) => {
       const [result] = await tx
         .update(countries)
-        .set({ isVisible, contributions, ...viewColumns(defaultView), updatedAt: new Date() })
+        .set({ isVisible, contributions, ...features, ...viewColumns(defaultView), updatedAt: new Date() })
         .where(eq(countries.code, code))
         .returning();
       if (!result) throw new ErrorResponse("FAILED_TO_UPDATE");

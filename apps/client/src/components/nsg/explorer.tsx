@@ -1,5 +1,6 @@
 import { AirportTowerIcon, Cancel01Icon, Download04Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -25,8 +26,11 @@ import { findClosestRouteLocation, getLocationTimeMs, prepareRouteLocations } fr
 import { type SignalTrail, createSignalTrail } from "@/features/nsg-explorer/map/signalTrail";
 import { findReplayLocationIndex } from "@/features/nsg-explorer/replay/replayClock";
 import { collectMatchedStations } from "@/features/nsg-explorer/stations/correlation";
+import { brandsQueryOptions, operatorsQueryOptions } from "@/features/shared/lookups";
+import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
 import { useIsMobile } from "@/hooks/useMobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { showApiError } from "@/lib/api";
 import { parseNsgTimestampMs } from "@/lib/nsg-parser";
 import type { NsgCell, NsgLocation, NsgLog, NsgProgress } from "@/lib/nsg-parser/model";
@@ -77,6 +81,11 @@ function latestRegisteredCell(cells: NsgCell[], elapsedUs: number, eventIndex: n
 export default function Explorer({ log, progress, error, onSelectFile, onCancel, onClear, isParsing }: ExplorerProps) {
   const { t } = useTranslation(["nsg", "common"]);
   const { preferences } = usePreferences();
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
+  const { data: operators } = useQuery({ ...operatorsQueryOptions({ viewerId: session?.user.id ?? null }), enabled: viewerReady });
+  const { data: brands } = useQuery(brandsQueryOptions());
+  const operatorCatalog = useMemo(() => ({ operators: viewerReady ? operators : undefined, brands }), [operators, brands, viewerReady]);
   const isMobile = useIsMobile();
   const [isCompact, setIsCompact] = useState(isMobile);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -331,7 +340,7 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
     />
   ) : null;
 
-  return (
+  const content = (
     <div ref={containerRef} className="@container h-full min-h-0 min-w-0 flex-1 overflow-hidden">
       <div
         className={cn(
@@ -579,4 +588,5 @@ export default function Explorer({ log, progress, error, onSelectFile, onCancel,
       ) : null}
     </div>
   );
+  return <OperatorBrandCatalogContext value={operatorCatalog}>{content}</OperatorBrandCatalogContext>;
 }

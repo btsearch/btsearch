@@ -1,5 +1,6 @@
 import type { Operator, Submission, SubmissionAction, SubmissionStatus } from "@openbts/shared/contract";
 
+import type { BrandLook } from "@/components/cellular/brandMark";
 import type { CellOperation } from "@/features/submissions/types";
 
 export type SubmissionRowStatus = "pending" | "approved" | "rejected";
@@ -21,7 +22,7 @@ export type SubmissionListRow = Pick<Submission, "id" | "countryCode" | "created
   cells: { operation: CellOperation }[];
 };
 
-export type SubmissionOperatorOption = Pick<Operator, "id" | "name"> & { mnc: number | null };
+export type SubmissionOperatorOption = Pick<Operator, "id" | "name"> & { brand: BrandLook | null };
 
 export type SubmissionStatusFilter = "all" | SubmissionStatus;
 export type SubmissionTypeFilter = "all" | SubmissionAction;

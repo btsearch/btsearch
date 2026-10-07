@@ -2,10 +2,10 @@ import { useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { FALLBACK_BRAND_COLOR } from "../station/utils/brands";
 import { DialogOperatorName } from "./dialogOperatorName";
 import { StationDialogActionBar, stationDialogInlineActionClassName, stationDialogInlineActionLabelClassName } from "./stationDialogActionBar";
 import { WatchButton } from "./watchButton";
+import type { BrandLook } from "@/components/cellular/brandMark";
 import { SOURCE_SWITCH_SLIDE_MS, SourceSwitch } from "@/components/cellular/sourceSwitch";
 import { CloseButton } from "@/components/ui/close-button";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -16,7 +16,7 @@ import { AddToListPopover } from "@/features/lists/components/addToListPopover";
 import { isTerrainProfileAvailable } from "@/features/terrain-profile/availability";
 import { TerrainProfileAnalyzeButton } from "@/features/terrain-profile/components/terrainProfileAnalyzeButton";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
-import { getOperatorColor, getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
+import { getOperatorHeaderTintGradient } from "@/lib/cellular/operators";
 import { formatFullDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { StationSource } from "@/types/station";
@@ -27,8 +27,7 @@ const ENTER_FROM_CLASS_NAMES = {
 } as const;
 
 type StationDialogShellProps = FloatingDialogPanelFrameProps & {
-  operatorMnc?: number | null;
-  tintColor?: string;
+  operatorBrand: BrandLook | null;
   heading: ReactNode;
   actions?: ReactNode;
   toolbar?: ReactNode;
@@ -42,8 +41,7 @@ type StationDialogShellProps = FloatingDialogPanelFrameProps & {
 };
 
 export function StationDialogShell({
-  operatorMnc,
-  tintColor,
+  operatorBrand,
   heading,
   actions,
   toolbar,
@@ -63,7 +61,7 @@ export function StationDialogShell({
   style,
   headerDragProps,
 }: StationDialogShellProps) {
-  const operatorColor = tintColor ?? (typeof operatorMnc === "number" ? getOperatorColor(operatorMnc) : FALLBACK_BRAND_COLOR);
+  const operatorColor = operatorBrand?.color;
   const enterClassName = enterFrom ? ENTER_FROM_CLASS_NAMES[enterFrom] : undefined;
 
   return (
@@ -76,7 +74,12 @@ export function StationDialogShell({
         )}
       >
         <div {...headerDragProps} className={cn("shrink-0 bg-background/95 backdrop-blur-sm border-b", headerDragProps?.className)}>
-          <div className="relative px-4 py-3 sm:px-6 sm:py-3.5" style={{ backgroundImage: getOperatorHeaderTintGradient(operatorColor) }}>
+          <div
+            className="relative px-4 py-3 sm:px-6 sm:py-3.5"
+            style={{
+              backgroundImage: operatorColor === undefined ? undefined : getOperatorHeaderTintGradient(operatorColor),
+            }}
+          >
             <div className="flex items-start gap-3">
               <div className={cn("flex-1 min-w-0", enterClassName)}>{heading}</div>
               <div className="absolute top-2 right-2 flex shrink-0 items-center gap-0.5 sm:static sm:-mt-1 sm:-mr-2">
@@ -107,8 +110,7 @@ export function StationDialogShell({
 
 type StationDialogHeadingProps = {
   operatorName: string;
-  operatorMnc?: number | null;
-  operatorMark?: ReactNode;
+  operatorBrand: BrandLook | null;
   stationCode: string;
   badges?: ReactNode;
   location?: { city: string | null; address: string | null } | null;
@@ -120,8 +122,7 @@ type StationDialogHeadingProps = {
 
 export function StationDialogHeading({
   operatorName,
-  operatorMnc,
-  operatorMark,
+  operatorBrand,
   stationCode,
   badges,
   location,
@@ -136,14 +137,7 @@ export function StationDialogHeading({
   return (
     <div className="min-w-0 space-y-1.5">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-28 sm:pr-0">
-        {operatorMark === undefined ? (
-          <DialogOperatorName name={operatorName} mnc={operatorMnc} />
-        ) : (
-          <div className="flex min-w-0 items-center gap-2">
-            {operatorMark}
-            <DialogOperatorName name={operatorName} />
-          </div>
-        )}
+        <DialogOperatorName name={operatorName} brand={operatorBrand} />
         <span className="shrink-0 font-mono text-xs font-medium text-muted-foreground">{stationCode}</span>
         {badges}
       </div>

@@ -249,7 +249,7 @@ function BatchGate({ draft, role }: BatchGateProps) {
       <PageErrorState
         title={t("submissions:batch.loadErrorTitle")}
         description={t("submissions:batch.loadErrorDescription")}
-        onRetry={() => retryEditLookups(queryClient, null)}
+        onRetry={() => retryEditLookups(queryClient, null, reference)}
       />
     );
   }

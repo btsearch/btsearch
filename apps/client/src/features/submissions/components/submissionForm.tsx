@@ -78,7 +78,7 @@ function RegisterStationForm({ registerStationId, controls, onAgain }: RegisterS
 
   if (isLoadingError) return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => refetch()} isRetrying={isFetching} />} />;
   if (reference.hasFailed) {
-    return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => retryEditLookups(queryClient, null)} />} />;
+    return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />} />;
   }
   if (permits === undefined || !reference.isReady) return <SubmissionPendingPage target={target} cells={<LoadingPanel />} />;
 

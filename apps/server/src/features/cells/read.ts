@@ -7,6 +7,7 @@ import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
 import { bandCondition, splitBandFilter } from "../bands/unknown.js";
 import { operatedBy } from "../operators/sharing.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { type CellRows, DATABASE_RATS, DATABASE_STATUSES, type StationRow, toCell } from "../stations/serialize.js";
 
@@ -69,12 +70,21 @@ export async function serializeCells(rows: readonly ListedCellRows[], include: r
   if (rows.length === 0) return [];
 
   const stationRows = include.includes("station") ? [...new Map(rows.map((row) => [row.station.id, row.station])).values()] : [];
-  const [bandRows, listedStations] = await Promise.all([db.select().from(bands), serializeStations(stationRows)]);
+  const [bandRows, listedStations, featuresByStation] = await Promise.all([
+    db.select().from(bands),
+    serializeStations(stationRows),
+    getStationCountryFeatures(rows.map((row) => row.cell.station_id)),
+  ]);
   const bandsById = new Map(bandRows.map((row) => [row.id, row]));
   const stationsById = new Map(listedStations.map((station) => [station.id, station]));
 
   return rows.flatMap((row) => {
-    const cell = toCell(row, bandsById.get(row.cell.band_id), include.includes("band"));
+    const cell = toCell(
+      row,
+      bandsById.get(row.cell.band_id),
+      include.includes("band"),
+      featuresByStation.get(row.cell.station_id) ?? disabledCountryFeatures,
+    );
     if (cell === null) return [];
 
     const station = stationsById.get(row.cell.station_id);

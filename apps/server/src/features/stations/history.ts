@@ -1,7 +1,6 @@
 import type { AuditEntity, AuditOperationKind } from "@openbts/shared/audit";
-import type { StationHistoryRevertStatus } from "@openbts/shared/contract";
+import type { CountryFeatures, StationHistoryRevertStatus } from "@openbts/shared/contract";
 
-import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import type { ActiveRevertCoverage } from "../audit/revert/revertibility.js";
 import type { AuditOperationRow } from "../audit/types.js";
 import type { AuditRow } from "./historyRows.js";
@@ -33,6 +32,7 @@ export type StationHistorySection = {
 export type SectorAzimuthsAsOf = { before: ReadonlyMap<number, number>; after: ReadonlyMap<number, number> };
 
 export type StationHistoryLookups = {
+  countryFeatures: Readonly<CountryFeatures>;
   bands: ReadonlyMap<number, string>;
   operators: ReadonlyMap<number, string>;
   regions: ReadonlyMap<number, string>;
@@ -156,18 +156,17 @@ function diffFields(
   return changes;
 }
 
-function isSwitchedOff(key: string): boolean {
-  const settings = getRuntimeSettings();
-  return (key === "psc" && !settings.pscEnabled) || (key === "bsic" && !settings.bsicEnabled);
+function isSwitchedOff(key: string, features: Readonly<CountryFeatures>): boolean {
+  return (key === "psc" && !features.psc) || (key === "bsic" && !features.bsic);
 }
 
-export function flattenCell(value: unknown): HistoryObject | null {
+export function flattenCell(value: unknown, features: Readonly<CountryFeatures>): HistoryObject | null {
   if (!isPlainObject(value)) return null;
   const flat: HistoryObject = {};
   for (const key of CELL_FIELDS) if (key in value) flat[key] = value[key];
   if ("type" in value) flat.cell_type = value.type ?? null;
   const details = [value.details, value.gsm, value.umts, value.lte, value.nr].find(isPlainObject) ?? null;
-  if (details) for (const key of CELL_DETAIL_FIELDS) if (key in details && !isSwitchedOff(key)) flat[key] = details[key];
+  if (details) for (const key of CELL_DETAIL_FIELDS) if (key in details && !isSwitchedOff(key, features)) flat[key] = details[key];
   return flat;
 }
 
@@ -198,7 +197,7 @@ function cellIdentifier(flat: HistoryObject): string | undefined {
 
 function transformCells(row: AuditRow, action: StationHistorySection["action"], lookups: StationHistoryLookups): StationHistoryChange[] {
   if (action === "create" || action === "delete") {
-    const flat = flattenCell(action === "create" ? row.new_values : row.old_values);
+    const flat = flattenCell(action === "create" ? row.new_values : row.old_values, lookups.countryFeatures);
     if (!flat) return [];
     const snapshot = cellSnapshot(flat, lookups, action === "create" ? "after" : "before");
     const change: StationHistoryChange = {
@@ -212,8 +211,8 @@ function transformCells(row: AuditRow, action: StationHistorySection["action"], 
     return [change];
   }
 
-  const oldFlat = flattenCell(row.old_values);
-  const newFlat = flattenCell(row.new_values);
+  const oldFlat = flattenCell(row.old_values, lookups.countryFeatures);
+  const newFlat = flattenCell(row.new_values, lookups.countryFeatures);
   if (!oldFlat || !newFlat) return [];
   const baseLabel = cellLabel(newFlat, lookups) ?? cellLabel(oldFlat, lookups);
   const identifier = cellIdentifier(oldFlat) ?? cellIdentifier(newFlat);

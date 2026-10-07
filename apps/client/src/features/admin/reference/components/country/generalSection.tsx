@@ -4,6 +4,7 @@ import type { Country } from "../../types";
 import { REFERENCE_TWO_COLUMN_CLASS, ReferenceSection } from "../shared/referenceSection";
 import { AvailabilityCard } from "./availabilityCard";
 import { COUNTRY_SECTION_IDS } from "./countrySections";
+import { DataAndSubmissionsCard } from "./dataAndSubmissionsCard";
 import { DefaultViewCard } from "./defaultViewCard";
 
 type GeneralSectionProps = {
@@ -19,6 +20,7 @@ export function GeneralSection({ country, canEdit }: GeneralSectionProps) {
       <div className={REFERENCE_TWO_COLUMN_CLASS}>
         <AvailabilityCard country={country} canEdit={canEdit} />
         <DefaultViewCard country={country} canEdit={canEdit} />
+        <DataAndSubmissionsCard country={country} canEdit={canEdit} />
       </div>
     </ReferenceSection>
   );

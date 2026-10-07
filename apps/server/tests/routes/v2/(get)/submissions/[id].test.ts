@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(get)/submissions/[id].js";
-import { authBoundary, dbMock, userSession } from "../../../../helpers/boundaries.js";
+import { authBoundary, dbMock, setCountryFeatures, userSession } from "../../../../helpers/boundaries.js";
 import { expectError, injectMutation, whereQuery } from "../../../../helpers/mutationAssertions.js";
 import { photoId, photoRow } from "../../../../helpers/photoFixtures.js";
 import { readStation } from "../../../../helpers/readFixtures.js";
@@ -31,8 +31,7 @@ describe("GET /submissions/11111111-1111-4111-8111-111111111111", () => {
   ])(
     "projects draft changes, privacy, sentinels and photo announcements with BSIC=$bsicEnabled/PSC=$pscEnabled",
     async ({ bsicEnabled, pscEnabled }) => {
-      getRuntimeSettings().bsicEnabled = bsicEnabled;
-      getRuntimeSettings().pscEnabled = pscEnabled;
+      setCountryFeatures({ bsic: bsicEnabled, psc: pscEnabled });
       authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: false });
       dbMock.enqueueFor("select", "submissions", [
         {
@@ -41,6 +40,7 @@ describe("GET /submissions/11111111-1111-4111-8111-111111111111", () => {
           status: "approved",
           origin: "analyzer",
           station_id: 1,
+          country_code: "PL",
           reviewer_id: foreignReaderId,
           reviewed_at: proposalDate,
           pending_photos: 3,

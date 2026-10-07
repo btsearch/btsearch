@@ -534,6 +534,9 @@ export function scriptDraftUpdate(
   } = {},
 ): void {
   const previous = options.old ?? draftFixture([draftRadios[0]]);
+  dbMock.enqueueSubmissionPlacement([
+    { regionId: previous.snapshot.proposedLocation?.region_id ?? null, operatorId: previous.snapshot.proposedStation?.operator_id ?? null },
+  ]);
   const role = options.role ?? "user";
   authBoundary.auth.api.userHasPermission.mockResolvedValue({ success: role === "admin" });
   if (role === "admin") {

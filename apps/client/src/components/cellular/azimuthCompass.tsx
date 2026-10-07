@@ -65,7 +65,7 @@ type AzimuthCompassDirection = {
 
 type AzimuthCompassProps = {
   directions: readonly AzimuthCompassDirection[];
-  color?: string;
+  color?: string | null;
   hideLabels?: boolean;
   selectedAzimuth?: number | null;
   onSelectedAzimuthChange?: (azimuth: number | null | undefined) => void;
@@ -75,12 +75,12 @@ type AzimuthCompassProps = {
 
 type AzimuthCompassMarkProps = {
   azimuth?: number | null;
-  color: string;
+  color: string | null;
 };
 
 type CompassShapeProps = {
   azimuth: number | null;
-  color?: string;
+  color?: string | null;
   look: ShapeLook;
 };
 
@@ -229,14 +229,15 @@ export function AzimuthCompassMark({ azimuth, color }: AzimuthCompassMarkProps) 
   return (
     <svg width={MARK_SIZE} height={MARK_SIZE} viewBox={`0 0 ${MARK_SIZE} ${MARK_SIZE}`} aria-hidden="true" className="block shrink-0">
       <circle cx="9" cy="9" r="7.5" className="fill-foreground/5 stroke-input" />
-      {typeof azimuth === "number" ? <path d={MARK_WEDGE_PATH} fill={color} transform={`rotate(${azimuth} 9 9)`} /> : null}
-      {azimuth === null ? <circle cx="9" cy="9" r="4" fill="none" stroke={color} strokeWidth="1.5" /> : null}
+      {typeof azimuth === "number" && color !== null ? <path d={MARK_WEDGE_PATH} fill={color} transform={`rotate(${azimuth} 9 9)`} /> : null}
+      {azimuth === null && color !== null ? <circle cx="9" cy="9" r="4" fill="none" stroke={color} strokeWidth="1.5" /> : null}
       <circle cx="9" cy="9" r="1.25" className="fill-foreground" />
     </svg>
   );
 }
 
 function CompassShape({ azimuth, color, look }: CompassShapeProps) {
+  if (color === null) return null;
   const className = cn(SHAPE_CLASS, color === undefined ? "fill-primary stroke-primary" : null);
 
   if (azimuth === null) {

@@ -20,7 +20,9 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { findPhysicalStation, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
+import { toLegacyCellDetails } from "../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -97,11 +99,15 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const physicalStation = await findPhysicalStation(station.id, station.location?.id, station.operator?.mnc);
+  const [physicalStation, featuresByStation] = await Promise.all([
+    findPhysicalStation(station.id, station.location?.id, station.operator?.mnc),
+    getStationCountryFeatures(station.cells.length > 0 ? [station.id] : []),
+  ]);
+  const features = featuresByStation.get(station.id) ?? disabledCountryFeatures;
 
   const cells: CellResponse[] = (station.cells as CellWithRats[]).map((cell) => {
     const { gsm, umts, lte, nr, band, ...rest } = cell;
-    const details: CellDetails = gsm ?? umts ?? lte ?? nr ?? null;
+    const details: CellDetails = toLegacyCellDetails({ gsm, umts, lte, nr }, features);
     return { ...rest, band, details };
   });
 

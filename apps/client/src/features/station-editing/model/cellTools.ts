@@ -97,7 +97,12 @@ export function addMissingLteCells(cells: readonly CellDraft[], operatorMnc: num
   });
   if (additions.length === 0) return cells;
 
-  const insertIndex = cells.findLastIndex((cell) => cell.rat === "lte") + 1;
+  let insertIndex = 0;
+  for (let index = cells.length - 1; index >= 0; index--) {
+    if (cells[index]?.rat !== "lte") continue;
+    insertIndex = index + 1;
+    break;
+  }
   return [...cells.slice(0, insertIndex), ...additions, ...cells.slice(insertIndex)];
 }
 

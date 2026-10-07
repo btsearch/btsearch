@@ -10,7 +10,7 @@ import { ErrorResponse } from "../../../../../../errors.js";
 import { defineScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicate, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
 import {
   NORMAL_RATS,
   type RATUpdateDetails,
@@ -26,6 +26,7 @@ import {
   withNsaFieldsCleared,
 } from "../../../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
@@ -174,7 +175,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
       if (details && isNormalRat(saved.rat)) {
-        const existing = await updateRATCellDetailsReturning(tx, saved.rat, cell_id, withNsaFieldsCleared(saved, details as RATUpdateDetails));
+        const featuresByStation = await getStationCountryFeatures([saved.station_id], tx);
+        const features = featuresByStation.get(saved.station_id) ?? disabledCountryFeatures;
+        const existing = await updateRATCellDetailsReturning(
+          tx,
+          saved.rat,
+          cell_id,
+          withNsaFieldsCleared(saved, details as RATUpdateDetails),
+          features,
+        );
         if (!existing)
           throw new ErrorResponse("FAILED_TO_UPDATE", {
             message: `This cell has no ${saved.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,

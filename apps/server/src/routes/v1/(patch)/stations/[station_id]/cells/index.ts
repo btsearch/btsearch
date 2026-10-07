@@ -27,6 +27,7 @@ import {
   withNsaFieldsCleared,
 } from "../../../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
@@ -167,6 +168,8 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
   try {
     const response = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.update" }, async (tx, audit) => {
+      const featuresByStation = await getStationCountryFeatures([station_id], tx);
+      const features = featuresByStation.get(station_id) ?? disabledCountryFeatures;
       const oldSnapshots = await loadCellSnapshots(tx, allModifiedCellIds);
       if (oldSnapshots.size !== allModifiedCellIds.length) throw new ErrorResponse("NOT_FOUND");
 
@@ -186,7 +189,13 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 
         if (details && isNormalRat(existing.rat)) {
           /* eslint-disable-next-line no-await-in-loop */
-          const row = await updateRATCellDetailsReturning(tx, existing.rat, cell_id, withNsaFieldsCleared(existing, details as RATUpdateDetails));
+          const row = await updateRATCellDetailsReturning(
+            tx,
+            existing.rat,
+            cell_id,
+            withNsaFieldsCleared(existing, details as RATUpdateDetails),
+            features,
+          );
           if (!row)
             throw new ErrorResponse("FAILED_TO_UPDATE", {
               message: `This cell has no ${existing.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,

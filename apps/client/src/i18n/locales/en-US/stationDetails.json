@@ -166,6 +166,7 @@
     "addComment": "Add a comment",
     "placeholder": "Add a comment...",
     "addImages": "Add images",
+    "textRequired": "Add comment text to post these images",
     "removeImage": "Remove image {{number}}",
     "postComment": "Post comment",
     "postFailed": "Couldn't post the comment",

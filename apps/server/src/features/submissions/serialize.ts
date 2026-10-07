@@ -17,6 +17,7 @@ import {
 } from "@openbts/drizzle";
 import type {
   CellChange,
+  CountryFeatures,
   LocationChange,
   SectorChange,
   StationChange,
@@ -32,10 +33,10 @@ import type { z } from "zod/v4";
 
 import db from "../../database/psql.js";
 import { unique } from "../../lib/collections.js";
-import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { loadUnknownBandIds } from "../bands/unknown.js";
 import { loadHiddenCountryCodes } from "../countries/visibility.js";
 import { type PhotoRow, photoColumns, photoUrls, toPhotoDetails } from "../photos/read.js";
+import { disabledCountryFeatures, getCountryFeaturesByCode } from "../stations/countryFeatures.js";
 import { serializeStations, stationAreaConditions } from "../stations/read.js";
 import { CELL_TYPES, CONTRACT_RATS, type StationRow, toAzimuth } from "../stations/serialize.js";
 import { toStructureType } from "../structures/serialize.js";
@@ -144,14 +145,13 @@ function toSectorChange(row: ProposedSectorRow): SectorChange {
   };
 }
 
-function toRadioFields({ gsm, umts, lte, nr }: ProposedCellRows): Partial<CellChange> {
-  const settings = getRuntimeSettings();
-  if (gsm) return { lac: gsm.lac, cid: gsm.cid, isEGsm: gsm.e_gsm ?? false, bsic: settings.bsicEnabled ? gsm.bsic : null };
+function toRadioFields({ gsm, umts, lte, nr }: ProposedCellRows, features: Readonly<CountryFeatures>): Partial<CellChange> {
+  if (gsm) return { lac: gsm.lac, cid: gsm.cid, isEGsm: gsm.e_gsm ?? false, bsic: features.bsic ? gsm.bsic : null };
 
   if (umts) {
     const rnc = umts.rnc === 0 ? null : umts.rnc;
     const cid = rnc === null && umts.cid === 0 ? null : umts.cid;
-    return { lac: umts.lac, rnc, cid, psc: settings.pscEnabled ? umts.psc : null, uarfcn: umts.arfcn };
+    return { lac: umts.lac, rnc, cid, psc: features.psc ? umts.psc : null, uarfcn: umts.arfcn };
   }
 
   if (lte) {
@@ -171,6 +171,7 @@ function toRadioFields({ gsm, umts, lte, nr }: ProposedCellRows): Partial<CellCh
       mode: nr.type,
       tac: nr.nrtac,
       gnbid: nr.gnbid === 0 ? null : nr.gnbid,
+      gnbidLength: nr.gnbid_length,
       clid: nr.clid,
       pci: nr.pci,
       arfcn: nr.arfcn,
@@ -185,7 +186,12 @@ function keepsLiveNotes(cell: ProposedCellRows["cell"]): boolean {
   return cell.operation === "update" && cell.notes === null;
 }
 
-function toCellChange(rows: ProposedCellRows, liveNotes: ReadonlyMap<number, string | null>, unknownBandIds: ReadonlySet<number>): CellChange {
+function toCellChange(
+  rows: ProposedCellRows,
+  liveNotes: ReadonlyMap<number, string | null>,
+  unknownBandIds: ReadonlySet<number>,
+  features: Readonly<CountryFeatures>,
+): CellChange {
   const { cell } = rows;
   const notes = keepsLiveNotes(cell) && cell.target_cell_id !== null ? (liveNotes.get(cell.target_cell_id) ?? null) : normalizeText(cell.notes);
 
@@ -201,7 +207,7 @@ function toCellChange(rows: ProposedCellRows, liveNotes: ReadonlyMap<number, str
     cellType: cell.type === null ? null : CELL_TYPES[cell.type],
     notes,
     isConfirmed: cell.is_confirmed,
-    ...toRadioFields(rows),
+    ...toRadioFields(rows, features),
   };
 }
 
@@ -293,7 +299,11 @@ export async function serializeSubmissions(
     wantsStation ? loadVisibleStations(req, stationIds) : [],
     loadUserRefViewer(req),
   ]);
-  const [liveNotes, unknownBandIds] = await Promise.all([loadLiveNotes(cellRows), cellRows.length > 0 ? loadUnknownBandIds() : new Set<number>()]);
+  const [liveNotes, unknownBandIds, featuresByCountry] = await Promise.all([
+    loadLiveNotes(cellRows),
+    cellRows.length > 0 ? loadUnknownBandIds() : new Set<number>(),
+    getCountryFeaturesByCode(cellRows.length > 0 ? rows.map((row) => row.country_code) : []),
+  ]);
 
   const stationBySubmission = new Map(stationRows.map((row) => [row.submission_id, row]));
   const locationBySubmission = new Map(locationRows.map((row) => [row.submission_id, row]));
@@ -311,6 +321,8 @@ export async function serializeSubmissions(
     const submitter = row.submitter_id === null ? undefined : usersById.get(row.submitter_id);
     const reviewer = row.reviewer_id === null ? undefined : usersById.get(row.reviewer_id);
     const targetStation = row.station_id === null ? null : (targetStationsById.get(row.station_id) ?? null);
+    const countryFeatures =
+      row.country_code === null ? disabledCountryFeatures : (featuresByCountry.get(row.country_code) ?? disabledCountryFeatures);
 
     const submission: Submission = {
       id: row.id,
@@ -330,7 +342,7 @@ export async function serializeSubmissions(
         station: proposedStation ? toStationChange(proposedStation) : null,
         location: proposedLocation ? toLocationChange(proposedLocation) : null,
         sectors: (sectorsBySubmission.get(row.id) ?? []).map(toSectorChange),
-        cells: (cellsBySubmission.get(row.id) ?? []).map((cell) => toCellChange(cell, liveNotes, unknownBandIds)),
+        cells: (cellsBySubmission.get(row.id) ?? []).map((cell) => toCellChange(cell, liveNotes, unknownBandIds, countryFeatures)),
         photos: toPhotoChanges(row, uploadsBySubmission.get(row.id) ?? 0, picksBySubmission.get(row.id) ?? [], viewer),
       },
     };

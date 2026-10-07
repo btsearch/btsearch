@@ -5,6 +5,8 @@ import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
+import { toLegacyCellDetails } from "../../../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 
@@ -61,7 +63,9 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   if (cell.station_id !== station_id) throw new ErrorResponse("INVALID_QUERY", { message: "Requested cell does not belong to this station" });
 
   const { gsm, umts, lte, nr, ...rest } = cell as CellWithRats;
-  const details: CellDetails = gsm ?? umts ?? lte ?? nr ?? null;
+  const featuresByStation = await getStationCountryFeatures([station_id]);
+  const features = featuresByStation.get(station_id) ?? disabledCountryFeatures;
+  const details: CellDetails = toLegacyCellDetails({ gsm, umts, lte, nr }, features);
   return res.send({ data: { ...rest, details } as Cell });
 }
 

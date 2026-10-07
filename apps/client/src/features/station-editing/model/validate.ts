@@ -8,6 +8,8 @@ import { getAreaValue, getRowKind, normalizeText } from "./changes";
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
+  GNBID_MAX_LENGTH,
+  GNBID_MIN_LENGTH,
   MAX_CELL_CHANGES,
   MAX_SECTORS,
   OMNIDIRECTIONAL_DEGREES,
@@ -18,6 +20,7 @@ import {
   getAreaCodeMax,
   getCellFlag,
   getCellNumber,
+  getCellNumberMax,
 } from "./ratFields";
 import { IDENTIFIER_KINDS } from "./snapshots";
 import type {
@@ -39,7 +42,7 @@ import { shallowEqual } from "@/lib/shallowEqual";
 type ValidationContext = {
   bandsById: ReadonlyMap<number, Band>;
   bandPlanIds: ReadonlySet<number> | null;
-  features: { psc: boolean; bsic: boolean } | null;
+  countryFeatures: { psc: boolean; bsic: boolean } | null;
 };
 
 type UploadFile = {
@@ -232,14 +235,19 @@ function validateNumbers(session: EditSession, context: ValidationContext, cell:
   const isAreaShared = session.draft.areaCodes[cell.rat].mode === "shared";
   const errors: EditError[] = [];
 
-  for (const { field, label, max, isSaOnly, siteSwitch } of spec.numbers) {
+  if (cell.rat === "nr" && cell.mode === "sa" && cell.gnbidLength !== null && isOutOfRange(cell.gnbidLength, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH))
+    errors.push(toError(cellTarget(cell, "gnbidLength"), "stations:edit.errors.gnbidLengthRange", { min: GNBID_MIN_LENGTH, max: GNBID_MAX_LENGTH }));
+
+  for (const numberSpec of spec.numbers) {
+    const { field, label, isSaOnly, siteSwitch } = numberSpec;
+    const max = getCellNumberMax(cell, numberSpec);
     const value = getCellNumber(cell, field);
     if (value === null || (field === spec.areaCodeField && isAreaShared)) continue;
 
     const target = cellTarget(cell, field);
     if (isSaOnly && cell.mode !== "sa") errors.push(toError(target, "stations:edit.errors.nsaField", { field: label }));
     else if (isOutOfRange(value, 0, max)) errors.push(toError(target, "stations:edit.errors.range", { field: label, max }));
-    if (siteSwitch !== null && context.features !== null && !context.features[siteSwitch]) {
+    if (siteSwitch !== null && context.countryFeatures?.[siteSwitch] !== true) {
       errors.push(toError(target, "stations:edit.errors.codeDisabled", { field: label }));
     }
   }

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { stationDialogInlineActionClassName } from "../../../components/stationDialogActionBar";
 import { StationDialogActions } from "../../../components/stationDialogShell";
 import type { StationRecord } from "../../types";
-import { getStationCountryCode, toV1OperatorMnc } from "../../utils/stations";
+import { getStationCountryCode } from "../../utils/stations";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { getStationHistoryTriggerId } from "@/features/floating-dialogs/types";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
@@ -33,7 +33,7 @@ export function StationPanelToolbar({ station, onStartTerrainProfile, onClose }:
             stationId: station.id,
             stationCode: station.siteId,
             operatorName,
-            operatorMnc: toV1OperatorMnc(station.operator),
+            operatorBrandId: station.operator?.brandId ?? null,
           })
         }
         className={cn(stationDialogInlineActionClassName, "w-auto px-1.5")}

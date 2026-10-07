@@ -12,6 +12,7 @@ export type CellTexts = {
   newSector: string;
   omnidirectional: string;
   mode: string;
+  gnbidLength: string;
   cellType: string;
   confirmed: string;
   note: string;
@@ -21,6 +22,8 @@ export type CellTexts = {
   remove: string;
   restore: string;
   standaloneOnly: string;
+  resetUnavailableCodes: string;
+  savedCodesUnchanged: string;
 };
 
 export function useCellTexts(editKind: EditKind): CellTexts {
@@ -37,6 +40,7 @@ export function useCellTexts(editKind: EditKind): CellTexts {
       newSector: t("stations:edit.cells.newSector"),
       omnidirectional: t("stationDetails:sectors.omnidirectional"),
       mode: t("stations:edit.cells.columns.mode"),
+      gnbidLength: t("stations:edit.cells.columns.gnbidLength"),
       cellType: t("common:labels.cellType"),
       confirmed: t("common:labels.confirmed"),
       note: t("stations:edit.cells.note"),
@@ -46,6 +50,8 @@ export function useCellTexts(editKind: EditKind): CellTexts {
       remove: t("common:actions.delete"),
       restore: editKind === "review" ? t("stations:edit.cells.refuseDeletion") : t("common:actions.restore"),
       standaloneOnly: t("stations:edit.cells.hints.saOnly"),
+      resetUnavailableCodes: t("stations:edit.cells.resetUnavailableCodes"),
+      savedCodesUnchanged: t("stations:edit.cells.savedCodesUnchanged"),
     }),
     [t, language, editKind],
   );

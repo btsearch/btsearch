@@ -327,7 +327,7 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                             <TooltipTrigger>
                               <Badge
                                 variant="secondary"
-                                className="bg-green-500/10 text-green-600 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
+                                className="bg-green-500/10 text-green-800 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
                               >
                                 {t("common:labels.new")}
                               </Badge>

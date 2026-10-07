@@ -187,7 +187,7 @@ function readFlags(rat: Rat, source: FlagSource, fallback: CellFlags): CellFlags
 
 function toCellDraft(cell: Cell): CellDraft {
   const numbers: NumberSource = cell;
-  const flags: FlagSource = cell;
+  const flags: FlagSource = cell.rat === "umts" ? {} : cell;
 
   return {
     key: toCellKey(cell.id),
@@ -463,6 +463,7 @@ function toProposedCell(entry: CellChange, rat: Rat, layer: SectorLayer): CellDr
     notes: entry.notes ?? "",
     isConfirmed: entry.isConfirmed,
     mode: entry.mode ?? DEFAULT_NR_MODE,
+    gnbidLength: rat === "nr" ? (entry.gnbidLength ?? null) : null,
     numbers: readNumbers(rat, numbers, {}),
     flags: readFlags(rat, flags, {}),
   });
@@ -479,6 +480,7 @@ function overlayCell(cell: CellDraft, entry: CellChange, layer: SectorLayer): Ce
     cellType: entry.cellType,
     notes: entry.notes ?? "",
     mode: cell.rat === "nr" ? (entry.mode ?? cell.mode) : null,
+    gnbidLength: cell.rat === "nr" ? (entry.gnbidLength ?? cell.gnbidLength) : null,
     numbers: readNumbers(cell.rat, numbers, cell.numbers),
     flags: readFlags(cell.rat, flags, cell.flags),
   };

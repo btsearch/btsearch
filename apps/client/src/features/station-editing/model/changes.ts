@@ -4,6 +4,7 @@ import { calculateDistance, formatDistance } from "@openbts/shared/radiolinesUti
 import {
   CELL_FLAG_LABELS,
   CELL_NUMBER_LABELS,
+  DEFAULT_GNBID_LENGTH,
   OMNIDIRECTIONAL_DEGREES,
   RAT_FIELDS,
   RAT_ORDER,
@@ -541,6 +542,8 @@ function listChangedCellFields(cell: CellDraft, baseCell: CellDraft, draft: Stat
   if (cell.bandId !== baseCell.bandId) fields.push("bandId");
   if (isSectorChanged(cell, baseCell, draft, base)) fields.push("sectorKey");
   if (cell.mode !== baseCell.mode) fields.push("mode");
+  if (cell.rat === "nr" && cell.mode === "sa" && (cell.gnbidLength ?? DEFAULT_GNBID_LENGTH) !== (baseCell.gnbidLength ?? DEFAULT_GNBID_LENGTH))
+    fields.push("gnbidLength");
   for (const { field } of spec.numbers) {
     const isChanged =
       field === spec.areaCodeField ? isAreaValueChanged(cell, baseCell, draft, base) : getCellNumber(cell, field) !== getCellNumber(baseCell, field);
@@ -560,6 +563,7 @@ function describeCellValue(cell: CellDraft, field: CellField, snapshot: StationS
   if (field === "notes") return toTextPart(cell.notes);
   if (field === "isConfirmed") return toBooleanPart(cell.isConfirmed);
   if (field === "mode") return cell.mode === null ? null : { text: cell.mode.toUpperCase() };
+  if (field === "gnbidLength") return toNumberPart(cell.gnbidLength ?? DEFAULT_GNBID_LENGTH);
   if (isCellFlagField(field)) return toBooleanPart(getCellFlag(cell, field));
   if (field === getAreaCodeField(cell.rat)) return toNumberPart(getAreaValue(snapshot, cell));
   return toNumberPart(getCellNumber(cell, field));
@@ -571,6 +575,7 @@ function describeCellField(field: CellField): TextPart {
   if (field === "cellType") return { key: "stations:edit.changes.fields.cellType" };
   if (field === "notes") return { key: "stations:edit.changes.fields.note" };
   if (field === "mode") return { key: "stations:edit.changes.fields.mode" };
+  if (field === "gnbidLength") return { key: "stations:edit.cells.columns.gnbidLength" };
   if (field === "isConfirmed") return { key: "common:labels.confirmed" };
   if (isCellFlagField(field)) return { text: CELL_FLAG_LABELS[field] };
   return { text: CELL_NUMBER_LABELS[field] };

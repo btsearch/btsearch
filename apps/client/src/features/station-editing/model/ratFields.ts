@@ -1,4 +1,6 @@
-import type { CellType, NrMode } from "@openbts/shared/contract";
+import { type CellType, DEFAULT_GNBID_LENGTH, type NrMode } from "@openbts/shared/contract";
+
+export { DEFAULT_GNBID_LENGTH, GNBID_MIN_LENGTH, GNBID_MAX_LENGTH } from "@openbts/shared/contract";
 
 import type { AreaCodeField, CellDraft, CellFlagField, CellNumberField, Rat } from "./types";
 
@@ -47,7 +49,6 @@ export const MAX_CELL_CHANGES = 200;
 export const DEFAULT_CELL_TYPE: CellType = "macro";
 export const DEFAULT_NR_MODE: NrMode = "nsa";
 
-const DEFAULT_GNBID_LENGTH = 24;
 const NCI_BITS = 36;
 const ECI_ENBID_FACTOR = 256;
 const LONG_CID_RNC_FACTOR = 65536;
@@ -197,6 +198,15 @@ export function getCellNumber(cell: Pick<CellDraft, "numbers">, field: CellNumbe
 
 export function getCellFlag(cell: Pick<CellDraft, "flags">, field: CellFlagField): boolean {
   return cell.flags[field] ?? false;
+}
+
+export function getCellNumberMax(cell: Pick<CellDraft, "rat" | "gnbidLength">, spec: NumberFieldSpec): number {
+  if (cell.rat !== "nr") return spec.max;
+
+  const length = cell.gnbidLength ?? DEFAULT_GNBID_LENGTH;
+  if (spec.field === "gnbid") return Math.min(spec.max, 2 ** length - 1);
+  if (spec.field === "clid") return Math.min(spec.max, 2 ** (NCI_BITS - length) - 1);
+  return spec.max;
 }
 
 function isKnownNode(value: number | null): value is number {

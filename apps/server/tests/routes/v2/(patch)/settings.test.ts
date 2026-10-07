@@ -67,7 +67,7 @@ describe("PATCH /settings", () => {
     });
     const audits = dbMock.calls.filter((call) => call.operation === "insert" && call.table === "audit_logs");
     expect(audits).toHaveLength(1);
-    expect(audits[0].values).toEqual(expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: getRuntimeSettings() })]));
+    expect(audits[0]?.values).toEqual(expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: getRuntimeSettings() })]));
     expect(redisMock.multi).toHaveBeenCalledOnce();
   });
 
@@ -120,34 +120,8 @@ describe("PATCH /settings", () => {
     expect(redisMock.eval).toHaveBeenCalledOnce();
   });
 
-  it("persists and audits disabling owner proposals without changing other features", async () => {
-    const before = structuredClone(getRuntimeSettings());
-    scriptAudit();
-    const response = await injectMutation(route, { ...request, payload: { features: { structureOwnerProposals: false } } }, options);
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data.features).toMatchObject({
-      structureOwnerProposals: false,
-      submissions: before.submissionsEnabled,
-      photoUploads: before.photosEnabled,
-    });
-    expect(getRuntimeSettings()).toEqual({ ...before, structureOwnerProposalsEnabled: false });
-    expect(redisMock.multi).toHaveBeenCalledOnce();
-    expect(dbMock.calls.find((call) => call.operation === "insert" && call.table === "audit_logs")?.values).toEqual(
-      expect.arrayContaining([expect.objectContaining({ old_values: before, new_values: { ...before, structureOwnerProposalsEnabled: false } })]),
-    );
-  });
-
-  it("retains disabled owner proposals when an unrelated feature is patched", async () => {
-    getRuntimeSettings().structureOwnerProposalsEnabled = false;
-    scriptAudit();
-    const response = await injectMutation(route, request, options);
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data.features).toMatchObject({ comments: true, structureOwnerProposals: false });
-    expect(getRuntimeSettings().structureOwnerProposalsEnabled).toBe(false);
-  });
-
-  it.each([null, "false"])("rejects invalid owner proposal feature value %s without saving settings", async (value) => {
-    const response = await injectMutation(route, { ...request, payload: { features: { structureOwnerProposals: value } } }, options);
+  it.each(["structureOwnerProposals", "psc", "bsic"])("rejects updating country-scoped feature %s through global settings", async (feature) => {
+    const response = await injectMutation(route, { ...request, payload: { features: { [feature]: true } } }, options);
     expectError(response, 400, "VALIDATION_ERROR");
     expect(redisMock.multi).not.toHaveBeenCalled();
     expect(dbMock.transaction).not.toHaveBeenCalled();

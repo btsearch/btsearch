@@ -1,10 +1,10 @@
 import { gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
 import type { Database } from "@openbts/drizzle/db";
+import type { CountryFeatures } from "@openbts/shared/contract";
 import { eq } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type z from "zod";
 
-import { getRuntimeSettings } from "../../lib/runtimeSettings.ts";
 import type { DbTx } from "../../types/global.ts";
 import {
   gsmInsertSchema,
@@ -46,8 +46,14 @@ export function isNormalRat(rat: string): rat is NormalRat {
   return NORMAL_RATS.some((normalRat) => normalRat === rat);
 }
 
-export async function updateRATCellDetails(tx: DbWriter, rat: NormalRat, cellId: number, cellDetails: RATUpdateDetails): Promise<void> {
-  await updateRATCellDetailsReturning(tx, rat, cellId, cellDetails);
+export async function updateRATCellDetails(
+  tx: DbWriter,
+  rat: NormalRat,
+  cellId: number,
+  cellDetails: RATUpdateDetails,
+  features: CountryFeatures,
+): Promise<void> {
+  await updateRATCellDetailsReturning(tx, rat, cellId, cellDetails, features);
 }
 
 export async function updateRATCellDetailsReturning(
@@ -55,11 +61,12 @@ export async function updateRATCellDetailsReturning(
   rat: NormalRat,
   cellId: number,
   cellDetails: RATUpdateDetails,
+  features: CountryFeatures,
 ): Promise<RATCellDetailsRow | null> {
   switch (rat) {
     case "GSM": {
       const details = cellDetails as GSMUpdateDetails;
-      const bsic = getRuntimeSettings().bsicEnabled ? details.bsic : undefined;
+      const bsic = features.bsic ? details.bsic : undefined;
       const [updated] = await tx
         .update(gsmCells)
         .set({ ...details, bsic, updatedAt: new Date() })
@@ -69,7 +76,7 @@ export async function updateRATCellDetailsReturning(
     }
     case "UMTS": {
       const details = cellDetails as UMTSUpdateDetails;
-      const psc = getRuntimeSettings().pscEnabled ? details.psc : undefined;
+      const psc = features.psc ? details.psc : undefined;
       const [updated] = await tx
         .update(umtsCells)
         .set({ ...details, psc, updatedAt: new Date() })
@@ -98,8 +105,14 @@ export async function updateRATCellDetailsReturning(
   }
 }
 
-export async function insertRATCellDetails(tx: DbWriter, rat: NormalRat, cellId: number, cellDetails: RATInsertDetails): Promise<void> {
-  await insertRATCellDetailsReturning(tx, rat, cellId, cellDetails);
+export async function insertRATCellDetails(
+  tx: DbWriter,
+  rat: NormalRat,
+  cellId: number,
+  cellDetails: RATInsertDetails,
+  features: CountryFeatures,
+): Promise<void> {
+  await insertRATCellDetailsReturning(tx, rat, cellId, cellDetails, features);
 }
 
 export async function insertRATCellDetailsReturning(
@@ -107,11 +120,12 @@ export async function insertRATCellDetailsReturning(
   rat: NormalRat,
   cellId: number,
   cellDetails: RATInsertDetails,
+  features: CountryFeatures,
 ): Promise<RATCellDetailsRow | null> {
   switch (rat) {
     case "GSM": {
       const details = cellDetails as GSMInsertDetails;
-      const bsic = getRuntimeSettings().bsicEnabled ? details.bsic : undefined;
+      const bsic = features.bsic ? details.bsic : undefined;
       const [inserted] = await tx
         .insert(gsmCells)
         .values({ cell_id: cellId, lac: details.lac, cid: details.cid, e_gsm: details.e_gsm, bsic })
@@ -120,7 +134,7 @@ export async function insertRATCellDetailsReturning(
     }
     case "UMTS": {
       const details = cellDetails as UMTSInsertDetails;
-      const psc = getRuntimeSettings().pscEnabled ? details.psc : undefined;
+      const psc = features.psc ? details.psc : undefined;
       const [inserted] = await tx
         .insert(umtsCells)
         .values({ cell_id: cellId, lac: details.lac, rnc: details.rnc, cid: details.cid, arfcn: details.arfcn, psc })

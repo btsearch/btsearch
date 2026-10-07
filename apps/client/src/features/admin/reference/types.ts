@@ -13,6 +13,7 @@ export type {
   Country,
   CountryBand,
   CountryCreate,
+  CountryFeatures,
   CountryStatistics,
   CountryUpdate,
   CountryView,

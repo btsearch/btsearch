@@ -10,7 +10,7 @@ import { ErrorResponse } from "../../../../errors.js";
 import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.js";
 import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../features/cells/duplicateCheck.js";
+import { checkCellDuplicatesBatch } from "../../../../features/cells/duplicateCheck.js";
 import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
 import {
   INSERT_OMIT,
@@ -21,6 +21,7 @@ import {
   umtsNullableFields,
 } from "../../../../features/cells/ratCellSchemas.js";
 import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { syncStationsPermitsAssociations } from "../../../../features/stations/permitsAssociation.js";
 import { stationStatusForCellCount } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.js";
@@ -132,6 +133,8 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE");
 
       if (cellsData.length > 0) {
+        const featuresByStation = await getStationCountryFeatures([newStation.id], tx);
+        const features = featuresByStation.get(newStation.id) ?? disabledCountryFeatures;
         const createdCells = await tx
           .insert(cells)
           .values(
@@ -148,7 +151,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           createdCells.map(async (row, idx) => {
             const details = cellsData[idx]?.details;
             if (!details) return;
-            if (isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails);
+            if (isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails, features);
           }),
         );
       }

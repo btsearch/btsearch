@@ -1,6 +1,6 @@
 import { Search01Icon, Sorting05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Operator } from "@openbts/shared/contract";
+import type { Brand, Operator } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTable } from "@tanstack/react-table";
@@ -49,8 +49,8 @@ import type {
   SubmissionTypeFilter,
 } from "@/features/admin/submissions/types";
 import { parseUserId } from "@/features/admin/users/utils/userId";
-import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { useListPanelScope } from "@/features/stations/list/data/listPanel";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useMeasuredListRowHeight } from "@/hooks/useMeasuredListRowHeight";
@@ -83,14 +83,15 @@ type AdminSubmissionsSearch = {
   submitter?: string;
 };
 
-function toOperatorOption(operator: Operator): SubmissionOperatorOption {
-  return { id: operator.id, name: operator.name, mnc: toV1OperatorMnc(operator) };
+function toOperatorOption(operator: Operator, brands: readonly Brand[] | undefined): SubmissionOperatorOption {
+  return { id: operator.id, name: operator.name, brand: getOperatorBrand(operator, brands) };
 }
 
 function AdminSubmissionsListPage() {
   "use no memo";
   const { t } = useTranslation(["submissions", "common"]);
-  const { data: session } = useSettledSession();
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const userId = session?.user.id;
   const navigate = useNavigate();
   const { page, q, submitter } = Route.useSearch();
@@ -102,8 +103,11 @@ function AdminSubmissionsListPage() {
   const [sortOrder, setSortOrder] = useState(readStoredSubmissionSortOrder);
   const [searchInput, setSearchInput] = useState(q ?? "");
   const [activeSearch, setActiveSearch] = useState(q ?? "");
-  const { data: operators } = useQuery(operatorsQueryOptions());
-  const { data: regions } = useQuery(regionsQueryOptions());
+  const { data: operatorData } = useQuery({ ...operatorsQueryOptions({ viewerId: userId ?? null }), enabled: viewerReady });
+  const operators = viewerReady ? operatorData : undefined;
+  const { data: brands } = useQuery(brandsQueryOptions());
+  const { data: regionData } = useQuery({ ...regionsQueryOptions({ viewerId: userId ?? null }), enabled: viewerReady });
+  const regions = viewerReady ? regionData : undefined;
   const filters = useMemo(() => {
     const operatorIds = filterSubmissionIdsByCountries(storedFilters.operatorIds, operators, storedFilters.countryCodes);
     const regionIds = filterSubmissionIdsByCountries(storedFilters.regionIds, regions, storedFilters.countryCodes);
@@ -212,7 +216,10 @@ function AdminSubmissionsListPage() {
     [navigate, pagination, setSizePagination],
   );
 
-  const operatorById = useMemo(() => new Map((operators ?? []).map((operator) => [operator.id, toOperatorOption(operator)])), [operators]);
+  const operatorById = useMemo(
+    () => new Map((operators ?? []).map((operator) => [operator.id, toOperatorOption(operator, brands)])),
+    [operators, brands],
+  );
   const getOperatorById = useCallback(
     (operatorId: number | null) => (operatorId === null ? undefined : operatorById.get(operatorId)),
     [operatorById],

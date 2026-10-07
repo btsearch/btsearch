@@ -11,7 +11,7 @@ import {
   TaskDaily01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Operator, Submission, SubmissionStatus } from "@openbts/shared/contract";
+import type { Brand, Operator, Submission, SubmissionStatus } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -51,8 +51,8 @@ import type { SubmissionOperatorOption } from "@/features/admin/submissions/type
 import { resolveDisplayName } from "@/features/admin/users/utils/identity";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
 import { findOperatorIdsByMncs } from "@/features/map/data/mapLookups";
-import { bandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { bandsQueryOptions, brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { submissionPhotosQueryOptions } from "@/features/station-editing/data/submissionPhotos";
 import { invalidateSubmissionQueries, withdrawSubmission } from "@/features/station-editing/data/submissions";
 import { useListPanelScope } from "@/features/stations/list/data/listPanel";
@@ -60,8 +60,8 @@ import { SubmissionStatusBadge } from "@/features/submissions/components/submiss
 import { type MySubmissionsFilters, useMySubmissions } from "@/features/submissions/hooks/useMySubmissions";
 import { UserLink } from "@/features/user-profile/components/userLink";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { showApiError } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -182,8 +182,8 @@ function storeOperatorIds(operatorIds: readonly number[]): void {
   }
 }
 
-function toOperatorOption(operator: Operator): SubmissionOperatorOption {
-  return { id: operator.id, name: operator.name, mnc: toV1OperatorMnc(operator) };
+function toOperatorOption(operator: Operator, brands: readonly Brand[] | undefined): SubmissionOperatorOption {
+  return { id: operator.id, name: operator.name, brand: getOperatorBrand(operator, brands) };
 }
 
 function listUniqueSubmissions(pages: readonly SubmissionsPage[]): Submission[] {
@@ -362,7 +362,8 @@ function MySubmissionsDesktopFilters({
 export function MySubmissions() {
   const { t, i18n } = useTranslation(["submissions", "common"]);
   const queryClient = useQueryClient();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
   const userId = session?.user?.id;
 
   const navActionTarget = useNavActionTarget();
@@ -376,9 +377,17 @@ export function MySubmissions() {
   const [isSubmissionSheetOpen, setIsSubmissionSheetOpen] = useState(false);
   const activeSearch = useDebouncedValue(searchInput, 300);
 
-  const { data: operators, isError: hasOperatorsError } = useQuery(operatorsQueryOptions());
+  const { data: operatorData, isError: hasOperatorsError } = useQuery({
+    ...operatorsQueryOptions({ viewerId: userId ?? null }),
+    enabled: viewerReady,
+  });
+  const operators = viewerReady ? operatorData : undefined;
+  const { data: brands } = useQuery(brandsQueryOptions());
   const filterScope = useListPanelScope(countryCodes, false);
-  const operatorById = useMemo(() => new Map((operators ?? NO_OPERATORS).map((operator) => [operator.id, toOperatorOption(operator)])), [operators]);
+  const operatorById = useMemo(
+    () => new Map((operators ?? NO_OPERATORS).map((operator) => [operator.id, toOperatorOption(operator, brands)])),
+    [operators, brands],
+  );
   const getOperatorById = useCallback(
     (operatorId: number | null) => (operatorId === null ? undefined : operatorById.get(operatorId)),
     [operatorById],
@@ -473,11 +482,12 @@ export function MySubmissions() {
     (submission: Submission) => {
       void queryClient.prefetchQuery(submissionPhotosQueryOptions(submission.id));
       if (submission.changes.cells.length > 0) void queryClient.prefetchQuery(bandsQueryOptions());
-      if (submission.changes.location?.regionId !== undefined) void queryClient.prefetchQuery(regionsQueryOptions());
+      if (viewerReady && submission.changes.location?.regionId !== undefined)
+        void queryClient.prefetchQuery(regionsQueryOptions({ viewerId: userId ?? null }));
       setOpenedSubmission({ submission, listUpdatedAt: dataUpdatedAt });
       setIsSubmissionSheetOpen(true);
     },
-    [queryClient, dataUpdatedAt],
+    [queryClient, dataUpdatedAt, viewerReady, userId],
   );
 
   const getSubmissionKey = useCallback((index: number) => submissions.at(index)?.id ?? index, [submissions]);

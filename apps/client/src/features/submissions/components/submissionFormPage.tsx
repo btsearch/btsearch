@@ -75,7 +75,7 @@ function CellsArea({ edit }: CellsAreaProps) {
   if (lookups.isReady && !hasBeenReady) setHasBeenReady(true);
 
   function retryLookups() {
-    return retryEditLookups(queryClient, lookups.countryCode);
+    return retryEditLookups(queryClient, lookups.countryCode, lookups);
   }
 
   if (session.action === "delete") return <EmptyPanel>{t("deleteStation.warning")}</EmptyPanel>;

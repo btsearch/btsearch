@@ -35,7 +35,7 @@ export function SiteIdItem({ siteId }: SiteIdItemProps) {
   return (
     <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} aria-hidden="true" className="size-4" />} label={t("labels.stationId")}>
       <span className="font-mono">{siteId}</span>
-      <CopyButton text={siteId} />
+      <CopyButton text={siteId} fieldLabel={t("labels.stationId")} />
     </StationInfoItem>
   );
 }
@@ -51,7 +51,7 @@ export function IdentifierItems({ identifiers, operator }: IdentifierItemsProps)
       {networksId ? (
         <StationInfoItem icon={<NetWorksIcon aria-hidden="true" className="size-4" />} label={t("labels.networksId")}>
           <span className="font-mono">{networksId}</span>
-          <CopyButton text={networksId} />
+          <CopyButton text={networksId} fieldLabel={t("labels.networksId")} />
         </StationInfoItem>
       ) : null}
       {networksName ? (
@@ -61,7 +61,7 @@ export function IdentifierItems({ identifiers, operator }: IdentifierItemsProps)
               <TooltipTrigger render={<span className="min-w-0 truncate" />}>{networksName}</TooltipTrigger>
               <TooltipContent>{networksName}</TooltipContent>
             </Tooltip>
-            <CopyButton text={networksName} />
+            <CopyButton text={networksName} fieldLabel={t("labels.networksName")} />
           </div>
         </StationInfoItem>
       ) : null}

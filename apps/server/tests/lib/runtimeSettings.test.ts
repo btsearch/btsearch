@@ -58,21 +58,21 @@ function olderSettings(): Record<string, unknown> {
     allowedUnauthenticatedRoutes: ["/api/v2/settings"],
     announcement: { enabled: true, type: "warning", message: "Stored announcement" },
   };
-  Reflect.deleteProperty(settings, "structureOwnerProposalsEnabled");
   return settings;
 }
 
 describe("getDefaultRuntimeSettings", () => {
-  it("allows structure owner proposals by default", () => {
-    expect(runtime.getDefaultRuntimeSettings().structureOwnerProposalsEnabled).toBe(true);
+  it("does not include the country-scoped feature flags", () => {
+    const settings = runtime.getDefaultRuntimeSettings();
+    for (const flag of ["structureOwnerProposalsEnabled", "pscEnabled", "bsicEnabled"]) expect(settings).not.toHaveProperty(flag);
   });
 });
 
 describe("mergeRuntimeSettings", () => {
   it("preserves an explicit false and unrelated settings in a partial feature update", () => {
-    const before = { ...runtime.getDefaultRuntimeSettings(), photosEnabled: false };
-    const disabled = runtime.mergeRuntimeSettings(before, { structureOwnerProposalsEnabled: false });
-    expect(disabled).toEqual({ ...before, structureOwnerProposalsEnabled: false });
+    const before = { ...runtime.getDefaultRuntimeSettings(), photosEnabled: true };
+    const disabled = runtime.mergeRuntimeSettings(before, { photosEnabled: false });
+    expect(disabled).toEqual({ ...before, photosEnabled: false });
     expect(runtime.mergeRuntimeSettings(disabled, { submissionsEnabled: false })).toEqual({
       ...disabled,
       submissionsEnabled: false,
@@ -81,22 +81,22 @@ describe("mergeRuntimeSettings", () => {
 });
 
 describe("initRuntimeSettings", () => {
-  it("defaults the missing proposal flag to true without resetting older settings", async () => {
+  it("loads stored global settings without adding removed country flags", async () => {
     const older = olderSettings();
     stored = JSON.stringify(older);
     await runtime.initRuntimeSettings();
-    expect(runtime.getRuntimeSettings()).toEqual({ ...older, structureOwnerProposalsEnabled: true });
+    expect(runtime.getRuntimeSettings()).toEqual(older);
   });
 
   it("keeps a stored explicit false after initialization", async () => {
-    const settings = { ...runtime.getDefaultRuntimeSettings(), structureOwnerProposalsEnabled: false, submissionsEnabled: false };
+    const settings = { ...runtime.getDefaultRuntimeSettings(), submissionsEnabled: false };
     stored = JSON.stringify(settings);
     await runtime.initRuntimeSettings();
     expect(runtime.getRuntimeSettings()).toEqual(settings);
   });
 
-  it.each([null, "false"])("does not repair an explicitly invalid startup flag %s into a persisted boolean", async (invalid) => {
-    stored = JSON.stringify({ ...runtime.getDefaultRuntimeSettings(), structureOwnerProposalsEnabled: invalid });
+  it.each([null, "false"])("does not repair an explicitly invalid startup setting %s into a persisted boolean", async (invalid) => {
+    stored = JSON.stringify({ ...runtime.getDefaultRuntimeSettings(), photosEnabled: invalid });
     const invalidStored = stored;
     await runtime.initRuntimeSettings();
     expect(runtime.getRuntimeSettings()).toEqual(runtime.getDefaultRuntimeSettings());
@@ -107,7 +107,7 @@ describe("initRuntimeSettings", () => {
 
 describe("saveRuntimeSettings", () => {
   it("stores and publishes an explicit false together with the other settings", async () => {
-    const settings = { ...runtime.getDefaultRuntimeSettings(), structureOwnerProposalsEnabled: false, photosEnabled: false };
+    const settings = { ...runtime.getDefaultRuntimeSettings(), photosEnabled: false };
     await runtime.saveRuntimeSettings(settings);
     expect(savedBatch.set).toHaveBeenCalledWith("runtime:settings", JSON.stringify(settings));
     expect(savedBatch.publish).toHaveBeenCalledWith("runtime:settings:updates", JSON.stringify(settings));
@@ -118,17 +118,16 @@ describe("saveRuntimeSettings", () => {
 });
 
 describe("loadStoredRuntimeSettings", () => {
-  it("defaults only the missing flag when reading older settings", async () => {
+  it("reads global settings without restoring removed feature defaults", async () => {
     const older = olderSettings();
     stored = JSON.stringify(older);
-    expect(await runtime.loadStoredRuntimeSettings()).toEqual({ ...older, structureOwnerProposalsEnabled: true });
+    expect(await runtime.loadStoredRuntimeSettings()).toEqual(older);
   });
 
-  it.each([null, "false", 0])("rejects an invalid stored proposal flag %s without replacing current settings", async (invalid) => {
+  it.each([null, "false", 0])("rejects an invalid stored global setting %s without replacing current settings", async (invalid) => {
     const current = runtime.getRuntimeSettings();
-    current.structureOwnerProposalsEnabled = false;
     current.photosEnabled = false;
-    stored = JSON.stringify({ ...runtime.getDefaultRuntimeSettings(), structureOwnerProposalsEnabled: invalid });
+    stored = JSON.stringify({ ...runtime.getDefaultRuntimeSettings(), photosEnabled: invalid });
     expect(await runtime.loadStoredRuntimeSettings()).toEqual(current);
     expect(runtime.getRuntimeSettings()).toEqual(current);
   });
@@ -139,33 +138,33 @@ describe("runtime settings subscription", () => {
     await runtime.initRuntimeSettings();
     const older = olderSettings();
     subscriber!(JSON.stringify(older));
-    expect(runtime.getRuntimeSettings()).toEqual({ ...older, structureOwnerProposalsEnabled: true });
+    expect(runtime.getRuntimeSettings()).toEqual(older);
   });
 
   it("applies an explicit false from another settings writer", async () => {
     await runtime.initRuntimeSettings();
-    const next = { ...runtime.getRuntimeSettings(), structureOwnerProposalsEnabled: false };
+    const next = { ...runtime.getRuntimeSettings(), photosEnabled: false };
     subscriber!(JSON.stringify(next));
     expect(runtime.getRuntimeSettings()).toEqual(next);
   });
 
-  it.each([null, "false"])("ignores an invalid published proposal flag %s", async (invalid) => {
+  it.each([null, "false"])("ignores an invalid published global setting %s", async (invalid) => {
     await runtime.initRuntimeSettings();
     const before = structuredClone(runtime.getRuntimeSettings());
-    subscriber!(JSON.stringify({ ...before, structureOwnerProposalsEnabled: invalid, photosEnabled: false }));
+    subscriber!(JSON.stringify({ ...before, submissionsEnabled: invalid, photosEnabled: false }));
     expect(runtime.getRuntimeSettings()).toEqual(before);
   });
 });
 
 describe("runtime settings resynchronization", () => {
-  it("accepts older settings and preserves explicit false on the next resynchronization", async () => {
+  it("accepts older settings and applies a later global update", async () => {
     await runtime.initRuntimeSettings();
     const older = olderSettings();
     stored = JSON.stringify(older);
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(runtime.getRuntimeSettings()).toEqual({ ...older, structureOwnerProposalsEnabled: true });
-    stored = JSON.stringify({ ...older, structureOwnerProposalsEnabled: false });
+    expect(runtime.getRuntimeSettings()).toEqual(older);
+    stored = JSON.stringify({ ...older, photosEnabled: true });
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(runtime.getRuntimeSettings()).toEqual({ ...older, structureOwnerProposalsEnabled: false });
+    expect(runtime.getRuntimeSettings()).toEqual({ ...older, photosEnabled: true });
   });
 });

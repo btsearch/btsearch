@@ -1,5 +1,5 @@
 import { gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
-import { BSIC_MAX, PSC_MAX } from "@openbts/shared/contract";
+import { BSIC_MAX, GNBID_MAX_LENGTH, GNBID_MIN_LENGTH, PSC_MAX } from "@openbts/shared/contract";
 import { createInsertSchema, createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod/v4";
 
@@ -58,7 +58,7 @@ export const lteUpdateSchema = createUpdateSchema(lteCells)
   })
   .strict();
 
-export const gnbidLengthSchema = z.number().int().min(22).max(32).optional();
+export const gnbidLengthSchema = z.number().int().min(GNBID_MIN_LENGTH).max(GNBID_MAX_LENGTH).optional();
 
 export const nrExtendFields = {
   nrtac: z.number().int().min(0).max(16777215).nullable().optional(),

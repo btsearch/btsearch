@@ -42,8 +42,10 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
   const isPostingRef = useRef(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const contentId = useId();
+  const contentHintId = `${contentId}-hint`;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const hasContent = content.trim().length > 0;
 
   useEffect(
     () => () => {
@@ -138,12 +140,13 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
 
   const handleSubmit = (e: SubmitEvent) => {
     e.preventDefault();
-    if (isPostingRef.current || !content.trim()) return;
+    if (isPostingRef.current || !hasContent) return;
     isPostingRef.current = true;
     mutation.mutate({ content, files: imagesRef.current.map((image) => image.file) });
   };
 
-  const isDisabled = mutation.isPending || !content.trim();
+  const isDisabled = mutation.isPending || !hasContent;
+  const requiresCommentText = images.length > 0 && !hasContent;
   const qualityErrorKey = photoQualityErrorKey(mutation.error);
   let postErrorDescription: string | null = null;
   if (qualityErrorKey) postErrorDescription = t(`submissions:${qualityErrorKey}`);
@@ -165,6 +168,7 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
       >
         <Textarea
           id={contentId}
+          aria-describedby={requiresCommentText ? contentHintId : undefined}
           placeholder={t("comments.placeholder")}
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -202,6 +206,11 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
             ))}
           </div>
         ) : null}
+        {requiresCommentText ? (
+          <p id={contentHintId} role="status" className="px-3 pb-3 text-xs text-muted-foreground">
+            {t("comments.textRequired")}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-2 py-2">
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleAddImages} className="hidden" />
           <Button
@@ -219,7 +228,13 @@ export function AddCommentForm({ stationId }: AddCommentFormProps) {
             </span>
           </Button>
 
-          <Button type="submit" size="sm" className="cursor-pointer" disabled={isDisabled}>
+          <Button
+            type="submit"
+            size="sm"
+            className="cursor-pointer"
+            disabled={isDisabled}
+            aria-describedby={requiresCommentText ? contentHintId : undefined}
+          >
             {mutation.isPending ? t("common:actions.submitting") : t("comments.postComment")}
             {mutation.isPending ? <Spinner data-icon="inline-end" /> : null}
           </Button>

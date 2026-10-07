@@ -19,7 +19,7 @@ import {
 import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
 import { PopupAddToListButton, PopupBrandMark, PopupExpiredLabel, PopupOperatorName, PopupRowFrame, PopupShareButton } from "./popupParts";
 import { CloseButton } from "@/components/ui/close-button";
-import { OperatorMark } from "@/features/station-details/components/dialogOperatorName";
+import { RadioLineOperatorMark } from "@/features/station-details/components/radioLineOperatorMark";
 import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
 import { getOperatorColor, normalizeOperatorName } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
@@ -112,7 +112,7 @@ type RadioLineRowProps = Omit<ComponentProps<typeof PopupRowFrame>, "mark" | "co
 export function RadioLineRow({ link, ...frameProps }: RadioLineRowProps) {
   const mnc = getRadioLineMnc(link);
   const color = mnc === null ? FALLBACK_BRAND_COLOR : getOperatorColor(mnc);
-  const mark = mnc === null ? <PopupBrandMark brand={null} color={color} /> : <OperatorMark mnc={mnc} compact />;
+  const mark = mnc === null ? <PopupBrandMark brand={null} color={color} /> : <RadioLineOperatorMark mnc={mnc} compact />;
 
   return <PopupRowFrame mark={mark} color={color} title={<RadioLineTitle link={link} />} {...frameProps} />;
 }

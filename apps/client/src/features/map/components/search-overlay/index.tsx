@@ -108,7 +108,7 @@ function SearchPanelFrame({ children }: { children: ReactNode }) {
       animate={PANEL_EXPANDED}
       exit={PANEL_COLLAPSED}
       transition={transition}
-      className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-[compact]/search:hidden")}
+      className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-compact/search:hidden")}
     >
       <SmoothHeight className="m-0" contentClassName="p-0">
         <div className="flex max-h-[min(70dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
@@ -294,7 +294,8 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   const showAutocomplete = canShowSearch && !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
   const showResults = canShowSearch && searchMode === "results" && activeOverlay === "results";
   const isMobileSearchExpanded = mobileExpanded || showAutocomplete || showResults;
-  const showMobileMapContext = isMobile && mapContext !== undefined && !isMobileSearchExpanded && !isFocused;
+  const isMobileSearchCollapsed = isMobile && !isMobileSearchExpanded && !isFocused;
+  const showMobileMapContext = isMobileSearchCollapsed && mapContext !== undefined;
   let candidateNavigationOptions: SearchOption[] = EMPTY_RESULTS;
   if (!isUkeSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
   else if (searchMode === "results") candidateNavigationOptions = searchResultOptions;
@@ -556,11 +557,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
           <search
             ref={containerRef}
             onBlurCapture={handleSearchBlur}
-            data-compact={showMobileMapContext ? "" : undefined}
+            data-compact={isMobileSearchCollapsed ? "" : undefined}
             className={cn(
               "group/search relative rounded-2xl border bg-background/95 shadow-xl backdrop-blur-md transition-[border-color,box-shadow] duration-200",
               isFocused && "border-primary/30 ring-2 ring-primary/20",
-              showMobileMapContext ? "shrink-0" : "min-w-0 flex-1",
+              isMobileSearchCollapsed ? "ml-auto shrink-0" : "min-w-0 flex-1",
             )}
           >
             <SearchInput

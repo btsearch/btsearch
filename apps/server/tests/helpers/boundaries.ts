@@ -1,5 +1,7 @@
+import type { CountryFeatures } from "@openbts/shared/contract";
 import { type SQL, type SQLWrapper, getTableName, sql } from "drizzle-orm";
 import type { Table } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import type { FastifyRequest } from "fastify";
 import { type Mock, vi } from "vitest";
 
@@ -13,7 +15,7 @@ export type DatabaseCall = {
   values?: unknown;
   selection?: unknown;
 };
-type ScriptedResult = { operation?: string; table?: string; result: unknown };
+type ScriptedResult = { operation?: string; table?: string; countryFeatures?: boolean; submissionPlacement?: boolean; result: unknown };
 type QueryBoundary = {
   [Name in keyof Database["query"]]: {
     findFirst: Mock<(options?: unknown) => Promise<unknown>>;
@@ -23,6 +25,58 @@ type QueryBoundary = {
 const results: ScriptedResult[] = [];
 const calls: DatabaseCall[] = [];
 const queryTables: Record<string, Record<string, ReturnType<typeof vi.fn>>> = {};
+const defaultCountryFeatures: CountryFeatures = { structureOwnerProposals: true, psc: false, bsic: false };
+const countryFeatures = new Map<string, CountryFeatures>();
+const stationCountries = new Map<number, string>();
+const dialect = new PgDialect();
+
+export function setCountryFeatures(features: Partial<CountryFeatures>, countryCode = "PL"): void {
+  countryFeatures.set(countryCode, { ...(countryFeatures.get(countryCode) ?? defaultCountryFeatures), ...features });
+}
+
+export function setStationCountry(stationId: number, countryCode: string): void {
+  stationCountries.set(stationId, countryCode);
+}
+
+function isCountryFeatureProjection(selection: unknown): selection is Record<string, unknown> {
+  return (
+    typeof selection === "object" &&
+    selection !== null &&
+    Object.keys(selection).length <= 4 &&
+    "structureOwnerProposals" in selection &&
+    "psc" in selection &&
+    "bsic" in selection
+  );
+}
+
+function isSubmissionPlacementProjection(call: DatabaseCall): boolean {
+  const selection = call.selection;
+  return (
+    call.table === "submissions" &&
+    typeof selection === "object" &&
+    selection !== null &&
+    Object.keys(selection).length === 2 &&
+    "regionId" in selection &&
+    "operatorId" in selection
+  );
+}
+
+function defaultFeatureResult(call: DatabaseCall, selection: Record<string, unknown>) {
+  const condition = call.clauses.where?.[0];
+  const params =
+    typeof condition === "object" && condition !== null && "getSQL" in condition ? dialect.sqlToQuery((condition as SQLWrapper).getSQL()).params : [];
+  if ("stationId" in selection)
+    return [...new Set(params.filter((value): value is number => typeof value === "number"))].map((stationId) => ({
+      stationId,
+      ...(countryFeatures.get(stationCountries.get(stationId) ?? "PL") ?? defaultCountryFeatures),
+    }));
+  if ("code" in selection)
+    return [...new Set(params.filter((value): value is string => typeof value === "string"))].map((code) => ({
+      code,
+      ...(countryFeatures.get(code) ?? defaultCountryFeatures),
+    }));
+  return [{ ...(countryFeatures.get("PL") ?? defaultCountryFeatures) }];
+}
 
 function tableName(table: unknown): string | undefined {
   if (typeof table !== "object" || table === null) return undefined;
@@ -35,9 +89,17 @@ function tableName(table: unknown): string | undefined {
 
 function consume(call: DatabaseCall): Promise<unknown> {
   calls.push(call);
+  const selection = call.selection;
+  const featureProjection = isCountryFeatureProjection(selection);
+  const placementProjection = isSubmissionPlacementProjection(call);
   const matching = results.findIndex(
-    (entry) => (entry.operation === undefined || entry.operation === call.operation) && (entry.table === undefined || entry.table === call.table),
+    (entry) =>
+      (entry.countryFeatures === true) === featureProjection &&
+      (entry.submissionPlacement === true) === placementProjection &&
+      (entry.operation === undefined || entry.operation === call.operation) &&
+      (entry.table === undefined || entry.table === call.table),
   );
+  if (matching < 0 && featureProjection) return Promise.resolve(defaultFeatureResult(call, selection));
   if (matching < 0) return Promise.reject(new Error(`Unscripted database call: ${call.operation} ${call.table ?? ""}`));
   const entry = results.splice(matching, 1)[0];
   if (entry?.result instanceof Error) return Promise.reject(entry.result);
@@ -108,6 +170,12 @@ export const dbMock = {
   },
   enqueueFor(operation: string, table: string | undefined, ...scripted: unknown[]): void {
     results.push(...scripted.map((result) => ({ operation, table, result })));
+  },
+  enqueueCountryFeatures(table: "countries" | "stations", ...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", table, countryFeatures: true, result })));
+  },
+  enqueueSubmissionPlacement(...scripted: unknown[]): void {
+    results.push(...scripted.map((result) => ({ operation: "select", table: "submissions", submissionPlacement: true, result })));
   },
   pendingResults(): number {
     return results.length;
@@ -200,6 +268,8 @@ export function resetBoundaries(): void {
   results.length = 0;
   calls.length = 0;
   redisValues.clear();
+  countryFeatures.clear();
+  stationCountries.clear();
   redisMock.isReady = true;
   vi.clearAllMocks();
   for (const [name, implementation] of initialRedisImplementations) {

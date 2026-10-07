@@ -159,10 +159,6 @@
           "action": "Wyłącz zgłoszenia"
         }
       },
-      "structureOwnerProposals": {
-        "title": "Propozycje nowych właścicieli obiektów",
-        "description": "Zgłaszający mogą proponować właścicieli, których nie ma na liście. Nadal można wybierać istniejących właścicieli"
-      },
       "photoUploads": {
         "title": "Zdjęcia w zgłoszeniach",
         "description": "Do zgłoszenia można dołączyć zdjęcia",
@@ -1275,6 +1271,25 @@
       "general": {
         "title": "Ogólne",
         "readOnlyNote": "Te ustawienia zmienia tylko administrator",
+        "features": {
+          "title": "Dane i zgłoszenia",
+          "description": "Jakie szczegóły można zgłaszać i wyświetlać w tym kraju",
+          "structureOwnerProposals": {
+            "title": "Zezwalaj na nowe nazwy właścicieli konstrukcji",
+            "description": "Zgłaszający mogą zaproponować nowego właściciela. Istniejących właścicieli nadal można wybrać"
+          },
+          "psc": {
+            "title": "UMTS PSC",
+            "description": "Zbieraj i wyświetlaj kody PSC komórek UMTS"
+          },
+          "bsic": {
+            "title": "GSM BSIC",
+            "description": "Zbieraj i wyświetlaj kody BSIC komórek GSM"
+          },
+          "note": "Każde ustawienie jest niezależne i zapisuje się od razu. Wyłączenie PSC lub BSIC ukrywa istniejące wartości bez ich usuwania",
+          "savedToast": "Ustawienia danych kraju zapisane",
+          "saveFailed": "Nie udało się zapisać ustawień danych kraju"
+        },
         "availability": {
           "title": "Dostępność",
           "description": "Kto widzi kraj i czy można wysyłać do niego zgłoszenia",

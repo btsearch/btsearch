@@ -11,10 +11,11 @@ import { newDraftKey } from "../../model/snapshots";
 import type { CellDraft, DraftKey, FieldMark } from "../../model/types";
 import { NO_EDIT_ERRORS } from "../../model/validate";
 import { FieldMarks } from "../frame/wasLine";
+import { CellErrors } from "./cellErrors";
 import {
   BandField,
   EMPTY_TEXT,
-  ErrorLine,
+  GnbidLengthField,
   ModeField,
   NumberField,
   SectorField,
@@ -112,7 +113,7 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
   const previousCell = index === -1 ? undefined : siblings[index - 1];
   const nextCell = index === -1 ? undefined : siblings[index + 1];
   const columns = listSheetColumns(edit, cell);
-  const fieldColumns = columns.filter((column) => column.kind === "mode" || column.kind === "number");
+  const fieldColumns = columns.filter((column) => column.kind === "mode" || column.kind === "number" || column.kind === "gnbidLength");
   const hasOddFields = fieldColumns.length % 2 === 1;
   const hasComputedId = columns.some((column) => column.kind === "computed");
   const lastFieldId = hasOddFields && !hasComputedId ? fieldColumns.at(-1)?.id : undefined;
@@ -149,6 +150,22 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
             className={cn(TRIGGER_CLASS, getClass("mode"))}
             isInvalid={hasError("mode")}
             isLocked={isLocked}
+            dispatch={dispatch}
+          />
+        </SheetField>
+      );
+    }
+    if (column.kind === "gnbidLength") {
+      const isUnused = cell.mode !== "sa";
+      return (
+        <SheetField key={column.id} label={texts.gnbidLength} marks={getMarks("gnbidLength")} className={wideClass}>
+          <GnbidLengthField
+            cellKey={cell.key}
+            length={cell.gnbidLength}
+            texts={texts}
+            className={cn(TRIGGER_CLASS, getClass("gnbidLength"), isUnused && UNUSED_FIELD_CLASS)}
+            isInvalid={hasError("gnbidLength")}
+            isLocked={isLocked || isUnused}
             dispatch={dispatch}
           />
         </SheetField>
@@ -207,7 +224,7 @@ function SheetBody({ edit, cell, errorsByKey, texts, canConfirm, onOpenCell, onC
         </SheetTitle>
       </div>
       <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3.5 pb-4">
-        {errors.length === 0 ? null : <ErrorLine errors={errors} className="mb-3" />}
+        <CellErrors cell={cell} errors={errors} texts={texts} isLocked={isLocked} dispatch={dispatch} className="mb-3" />
         <div className="grid grid-cols-2 gap-3">
           <SheetField label={texts.band} marks={getMarks("bandId")}>
             <BandField

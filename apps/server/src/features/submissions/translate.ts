@@ -9,16 +9,19 @@ import {
   nrCells,
   operators,
   proposedLocations,
+  proposedStations,
   regions,
   stationPhotoSelections,
   stationSectors,
   stations,
+  submissions,
   umtsCells,
 } from "@openbts/drizzle";
 import type {
   CellEditInput,
   CellRat,
   CellType,
+  CountryFeatures,
   LocationChangeInput,
   SectorChangeInput,
   StationChangeInput,
@@ -37,11 +40,11 @@ import { ErrorResponse, ValidationError } from "../../errors.js";
 import { unique } from "../../lib/collections.js";
 import { toFieldPath } from "../../lib/fieldPath.js";
 import { itemRefusal } from "../../lib/itemRefusals.js";
-import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 import { RADIO_FIELD_NAMES } from "../cells/radioFields.js";
 import { isNormalRat } from "../cells/ratCellPersistence.js";
 import { assertOwnerFitsRegion, toStructureChange } from "../locations/structure.js";
 import { findRegionIdAt } from "../regions/lookup.js";
+import { disabledCountryFeatures, findPlacementCountryFeatures, getStationCountryFeatures } from "../stations/countryFeatures.js";
 import { CONTRACT_RATS, type CellRow, DATABASE_RATS, DATABASE_STATUSES } from "../stations/serialize.js";
 import { findNamedOwner } from "../structures/write.js";
 import {
@@ -87,7 +90,7 @@ type InvalidField = { field: string; validationMessage: string };
 type IdentifierPair = { fields: readonly [node: string, cell: string]; unknownTogetherMessage: string };
 type PhotoPickLocation = Pick<LocationChangeInput, "latitude" | "longitude">;
 export type BodyPath = (path: PropertyKey[]) => PropertyKey[];
-type TranslationContext = { bodyPath?: BodyPath; submissionId?: string };
+type TranslationContext = { bodyPath?: BodyPath; submissionId?: string; detachesLocation?: boolean };
 
 const OMNIDIRECTIONAL_AZIMUTH = 360;
 
@@ -195,15 +198,14 @@ function toCellType(cellType: CellType | null): CellRow["type"] {
   return cellType === null ? null : DATABASE_CELL_TYPES[cellType];
 }
 
-function assertCodesEnabled(cell: CellEditInput): void {
-  const settings = getRuntimeSettings();
+function assertCodesEnabled(cell: CellEditInput, features: CountryFeatures): void {
   const source: Record<string, unknown> = cell;
-  if (!settings.pscEnabled && typeof source.psc === "number") throw new ErrorResponse("BAD_REQUEST", { message: "psc is not kept on this site" });
-  if (!settings.bsicEnabled && typeof source.bsic === "number") throw new ErrorResponse("BAD_REQUEST", { message: "bsic is not kept on this site" });
+  if (!features.psc && typeof source.psc === "number") throw new ErrorResponse("BAD_REQUEST", { message: "psc is not kept in this country" });
+  if (!features.bsic && typeof source.bsic === "number") throw new ErrorResponse("BAD_REQUEST", { message: "bsic is not kept in this country" });
 }
 
-function toCellInput(cell: CellEditInput, targets: ReadonlyMap<number, TargetCell>): ChangeCell {
-  assertCodesEnabled(cell);
+function toCellInput(cell: CellEditInput, targets: ReadonlyMap<number, TargetCell>, features: CountryFeatures): ChangeCell {
+  assertCodesEnabled(cell, features);
 
   if (cell.action === "create") {
     const details = toDetails(cell.rat, cell);
@@ -343,11 +345,12 @@ async function keepsStoredOwnerProposal(
 async function findProposedOwner(
   stationId: number | null,
   location: SubmittedLocationInput | undefined,
+  features: CountryFeatures,
   { bodyPath, submissionId }: TranslationContext,
 ): Promise<ProposedOwner> {
   if (location === undefined) return {};
   const submittedName = location.structure?.ownerName;
-  const proposalsEnabled = getRuntimeSettings().structureOwnerProposalsEnabled;
+  const proposalsEnabled = features.structureOwnerProposals;
   if (submittedName === undefined && (location.structure?.ownerId !== undefined || proposalsEnabled || submissionId === undefined)) return {};
 
   const stored =
@@ -372,21 +375,57 @@ async function findProposedOwner(
   return submittedName === undefined ? {} : { structure_owner_id: null, structure_owner_name: ownerName };
 }
 
+async function loadSubmissionPlacement(submissionId: string | undefined) {
+  if (submissionId === undefined) return undefined;
+
+  const [placement] = await db
+    .select({ regionId: proposedLocations.region_id, operatorId: proposedStations.operator_id })
+    .from(submissions)
+    .leftJoin(proposedLocations, eq(proposedLocations.submission_id, submissions.id))
+    .leftJoin(proposedStations, eq(proposedStations.submission_id, submissions.id))
+    .where(eq(submissions.id, submissionId))
+    .limit(1);
+  return placement;
+}
+
 async function translateContent(stationId: number | null, content: ChangeContent, context: TranslationContext = {}): Promise<TranslatedContent> {
-  const [azimuths, targets, location] = await Promise.all([
+  const destinationStationIds = (content.cells ?? []).flatMap((cell) =>
+    cell.action === "update" && cell.stationId !== undefined && cell.stationId !== stationId ? [cell.stationId] : [],
+  );
+  const [azimuths, targets, normalizedLocation, storedPlacement, destinationFeatures] = await Promise.all([
     loadSectorAzimuths(stationId, content.sectors),
     loadTargetCells(stationId, content.cells),
     withRegion(stationId, content.location),
+    loadSubmissionPlacement(context.submissionId),
+    getStationCountryFeatures(destinationStationIds),
     assertReferencesExist(content),
   ]);
+  const location =
+    normalizedLocation && normalizedLocation.regionId === undefined && typeof storedPlacement?.regionId === "number"
+      ? { ...normalizedLocation, regionId: storedPlacement.regionId }
+      : normalizedLocation;
+  const features = await findPlacementCountryFeatures({
+    stationId,
+    regionId: location?.regionId ?? storedPlacement?.regionId,
+    operatorId: content.station?.operatorId ?? storedPlacement?.operatorId,
+    withoutLocation: context.detachesLocation,
+  });
   await assertSentOwnerFits(stationId, location);
-  const proposedOwner = await findProposedOwner(stationId, location, context);
+  const proposedOwner = await findProposedOwner(stationId, location, features, context);
 
   return {
     station: content.station && toStationInput(content.station),
     location: location && toLocationInput(location, proposedOwner),
     sectors: content.sectors?.map((sector) => toSectorInput(sector, azimuths)),
-    cells: content.cells?.map((cell) => toCellInput(cell, targets)),
+    cells: content.cells?.map((cell) =>
+      toCellInput(
+        cell,
+        targets,
+        cell.action === "update" && cell.stationId !== undefined && cell.stationId !== stationId
+          ? (destinationFeatures.get(cell.stationId) ?? disabledCountryFeatures)
+          : features,
+      ),
+    ),
   };
 }
 
@@ -533,11 +572,11 @@ export async function toSingleSubmission(body: SubmissionCreate, bodyPath?: Body
 
 export async function toDirectChange(edit: StationEdit, bodyPath?: BodyPath): Promise<SubmissionChange> {
   const stationId = edit.stationId ?? null;
-  const translated = await translateContent(stationId, { ...edit, location: edit.location ?? undefined });
+  const detachesStation = edit.action === "update" && edit.location === null;
+  const translated = await translateContent(stationId, { ...edit, location: edit.location ?? undefined }, { detachesLocation: detachesStation });
   assertValid(translated, bodyPath);
 
   const { status, isConfirmed } = edit.station ?? {};
-  const detachesStation = edit.action === "update" && edit.location === null;
   return {
     type: SUBMISSION_TYPES[edit.action],
     station_id: edit.stationId,

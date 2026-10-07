@@ -46,7 +46,7 @@ import { buildStructureOwnerOptions } from "@/features/shared/location/structure
 import type { StructureDraft } from "@/features/shared/location/types";
 import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import type { LocationRecord } from "@/features/station-details/station/types";
-import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
 import { LocationPicker } from "@/features/station-editing/components/location/locationPicker";
 import type { LocationPickerValue } from "@/features/station-editing/components/location/locationPicker";
 import { normalizeText } from "@/features/station-editing/model/changes";
@@ -58,7 +58,6 @@ import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useScrolled } from "@/hooks/useScrolled";
 import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError, showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 
 type LocationFormValues = LocationPickerValue & { structure: StructureDraft };
@@ -270,14 +269,15 @@ function LocationDetailForm({ location, area }: { location: LocationRecord; area
     const seen = new Set<number>();
     const colors: string[] = [];
     for (const station of stations) {
-      const mnc = toV1OperatorMnc(station.operator);
-      if (mnc !== null && !seen.has(mnc)) {
-        seen.add(mnc);
-        colors.push(getOperatorColor(mnc));
-      }
+      const operator = station.operator;
+      if (operator === null || seen.has(operator.id)) continue;
+      const brand = getOperatorBrand(operator, brands);
+      if (brand === null) continue;
+      seen.add(operator.id);
+      colors.push(brand.color);
     }
     return colors;
-  }, [stations]);
+  }, [stations, brands]);
 
   const headerTopStyle = useMemo(() => {
     if (operatorColors.length === 0) return undefined;

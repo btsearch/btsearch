@@ -2,9 +2,8 @@ import type { ObservedCell } from "@openbts/shared/contract";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
-import { getRuntimeSettings } from "../../../../../src/lib/runtimeSettings.js";
 import route from "../../../../../src/routes/v2/(post)/cells/match.js";
-import { dbMock } from "../../../../helpers/boundaries.js";
+import { dbMock, setCountryFeatures } from "../../../../helpers/boundaries.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const plmn = "26001";
@@ -154,7 +153,7 @@ describe("POST /cells/match", () => {
   });
 
   it.each([true, false])("reports a BSIC difference only when the feature is enabled (%s)", async (enabled) => {
-    getRuntimeSettings().bsicEnabled = enabled;
+    setCountryFeatures({ bsic: enabled });
     network();
     dbMock.enqueueFor("select", "cells", [stored("gsm")]);
     const app = await createRouteHarness(route);

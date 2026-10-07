@@ -35,7 +35,7 @@ export function CoordinatesItem({ latitude, longitude }: CoordinatesProps) {
       {preferences.navLinksDisplay === "inline" ? (
         <NavigationLinks latitude={latitude} longitude={longitude} displayMode="inline" className="flex" />
       ) : null}
-      <CopyButton text={`${latitude}, ${longitude}`} />
+      <CopyButton text={`${latitude}, ${longitude}`} fieldLabel={t("labels.coordinates")} />
     </StationInfoItem>
   );
 }

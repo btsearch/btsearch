@@ -4,7 +4,6 @@ import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Brand, LocationStationRecord } from "../../types";
-import { getBrandColor } from "../../utils/brands";
 import { toV1StationStatus } from "../../utils/stations";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,16 +33,16 @@ export function StationSiblingChip({ station, brand, isCurrent, onSelect, onPref
     onSelect(station.id);
   };
 
-  const chip = isCurrent ? (
-    <span aria-current="true" tabIndex={-1} className={cn(CHIP_CLASS, "bg-muted ring-foreground/30")} />
-  ) : (
+  const chip = (
     <a
-      href={`/stations/${station.id}`}
-      onClick={handleClick}
-      onPointerEnter={() => onPrefetch(station.id)}
-      onFocus={() => onPrefetch(station.id)}
-      className={cn(CHIP_CLASS, "cursor-pointer ring-border/60 transition-colors hover:bg-muted/50")}
-      style={{ backgroundImage: getOperatorTintGradient(getBrandColor(brand)) }}
+      aria-current={isCurrent ? "true" : undefined}
+      tabIndex={isCurrent ? -1 : undefined}
+      href={isCurrent ? undefined : `/stations/${station.id}`}
+      onClick={isCurrent ? undefined : handleClick}
+      onPointerEnter={isCurrent ? undefined : () => onPrefetch(station.id)}
+      onFocus={isCurrent ? undefined : () => onPrefetch(station.id)}
+      className={cn(CHIP_CLASS, isCurrent ? "bg-muted ring-foreground/30" : "cursor-pointer ring-border/60 transition-colors hover:bg-muted/50")}
+      style={{ backgroundImage: isCurrent || brand === null ? undefined : getOperatorTintGradient(brand.color) }}
     />
   );
 

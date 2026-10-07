@@ -12,7 +12,7 @@ import type { TabId } from "../../tabs";
 import { groupPermitsByUkeStation } from "../../utils";
 import { useStationEditTarget } from "../access";
 import { locationRecordQueryOptions, seedStationRecord, stationRecordQueryOptions } from "../api";
-import { getBrandColor, getOperatorBrand } from "../utils/brands";
+import { getOperatorBrand } from "../utils/brands";
 import { fetchIsStationWatched, stationWatchKeys } from "../watch/api";
 import { StationPanelActions } from "./panel/stationPanelActions";
 import { StationPanelBanners } from "./panel/stationPanelBanners";
@@ -134,7 +134,7 @@ export function StationPanel({
     <StationDialogShell
       {...frameProps}
       onClose={onClose}
-      tintColor={getBrandColor(getOperatorBrand(tintOperator, brands))}
+      operatorBrand={getOperatorBrand(tintOperator, brands)}
       sourceSwitch={sourceSwitch}
       enterFrom={previousUkeTarget ? "left" : undefined}
       heading={heading}

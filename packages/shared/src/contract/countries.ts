@@ -23,10 +23,24 @@ export const countryViewSchema = z
   .refine((view) => view.south < view.north, { path: ["north"], message: "Must be greater than south" });
 export type CountryView = z.infer<typeof countryViewSchema>;
 
+export const countryFeaturesSchema = z.object({
+  structureOwnerProposals: z.boolean().describe("Submitters can propose new structure owners while existing owners remain selectable"),
+  psc: z
+    .boolean()
+    .describe("UMTS primary scrambling codes can be collected and displayed. Disabling this hides existing values without deleting them"),
+  bsic: z
+    .boolean()
+    .describe("GSM base station identity codes can be collected and displayed. Disabling this hides existing values without deleting them"),
+});
+export type CountryFeatures = z.infer<typeof countryFeaturesSchema>;
+
+const countryFeaturesUpdateSchema = countryFeaturesSchema.partial().strict().refine(hasAnyField, AT_LEAST_ONE_FIELD_ISSUE);
+
 export const countrySchema = z.object({
   code: countryCodeSchema,
   isVisible: z.boolean().describe(VISIBILITY_NOTE),
   contributions: z.enum(CONTRIBUTION_MODES).describe(CONTRIBUTIONS_NOTE),
+  features: countryFeaturesSchema,
   defaultView: countryViewSchema.nullable().describe(`${DEFAULT_VIEW_NOTE}, or \`null\` if none is set`),
 });
 export type Country = z.infer<typeof countrySchema>;
@@ -38,6 +52,7 @@ export const countryCreateSchema = z
     code: countryCodeSchema,
     isVisible: z.boolean().optional().describe(`${VISIBILITY_NOTE}. Defaults to \`false\``),
     contributions: z.enum(CONTRIBUTION_MODES).optional().describe(`${CONTRIBUTIONS_NOTE}. Defaults to \`closed\``),
+    features: countryFeaturesUpdateSchema.optional().describe("New owner proposals default to true. PSC and BSIC default to false"),
     defaultView: countryViewSchema.nullable().optional().describe(`${DEFAULT_VIEW_NOTE}. If omitted, none is set`),
   })
   .strict();
@@ -47,6 +62,7 @@ export const countryUpdateSchema = z
   .object({
     isVisible: z.boolean().optional().describe(VISIBILITY_NOTE),
     contributions: z.enum(CONTRIBUTION_MODES).optional().describe(CONTRIBUTIONS_NOTE),
+    features: countryFeaturesUpdateSchema.optional().describe("Updates only the supplied country features"),
     defaultView: countryViewSchema.nullable().optional().describe(`${DEFAULT_VIEW_NOTE}. \`null\` clears it`),
   })
   .strict()

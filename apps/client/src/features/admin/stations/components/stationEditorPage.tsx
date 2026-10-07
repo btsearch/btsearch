@@ -155,7 +155,7 @@ function EditorCells({ edit }: EditorCellsProps) {
   const { data: authSession } = authClient.useSession();
   const { lookups } = edit;
 
-  if (lookups.hasFailed) return <InlineError onRetry={() => retryEditLookups(queryClient, lookups.countryCode)} />;
+  if (lookups.hasFailed) return <InlineError onRetry={() => retryEditLookups(queryClient, lookups.countryCode, lookups)} />;
   if (!lookups.isReady) {
     return (
       <div className="flex flex-col gap-2" aria-busy="true">
