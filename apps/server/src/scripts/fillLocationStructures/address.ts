@@ -46,13 +46,13 @@ const OWNER_RULES: readonly Rule<ParsedOwner>[] = [
   [/cellnex\s*\/\s*play/, "on_tower"],
   [/cellnex\s*\/\s*plus/, "towerlink"],
   [/cellnex/, "cellnex"],
-  [/towernorth/, "towernorth"],
+  [/towernorth(?:\s*\/\s*t-?mobile)?/, "towernorth"],
   [/emitel/, "emitel"],
   [/w[łl]asn/, "station_operator"],
   [/orange/, "orange"],
   [/t-?mobile/, "t_mobile"],
   [/\bplay\b/, "play"],
-  [/\bplus[ a]?\b|polkomtel/, "plus"],
+  [/\bplus[ a]?\b|polkomtel/, "towerlink"],
   [/\bpkp\b/, "pkp"],
   [/\benea\b/, "enea"],
   [/\benerg[ai]\b/, "energa"],
@@ -74,7 +74,7 @@ const SEPARATOR_BEFORE_DESCRIPTION = new RegExp(`\\s*[-,]\\s*(?=${STRUCTURE_STAR
 const DASH_OUTSIDE_BRACKETS = / - (?![^()]*\))/;
 const TRAILING_BRACKETS = /\s*\(([^()]+)\)$/;
 
-const FORMER_REMARK = /\s*\(((?:dawn|by[łl])[^()]*)\)/gi;
+const FORMER_REMARK = /\s*\(((?:dawn|by[łl]|d\.\s)[^()]*)\)/gi;
 const STARTS_AS_FORMER = /^(?:dawn|by[łl])\S* /i;
 const FORMER_STRUCTURE_ADJECTIVE = /(?:^|\s)(?:dawn|by[łl])\S* /i;
 
@@ -143,12 +143,19 @@ const TECHNICAL_DETAIL_START = new RegExp(
   "i",
 );
 const OWNER_PREFIX_WORDS = [
-  /cellnex|on ?tower|towerlink|towernorth|emitela?|orange|t-?mobile|play|plusa?|polkomtel/,
-  /pkp|enea|energ[ai]|tauron|pge|pse/,
+  /cellnex|on ?tower|towerlink|towernorth(?:\s*\/\s*t-?mobile)?|emitela?|orange|t-?mobile|play|plusa?|polkomtel/,
+  /pkp|enea|energ[ai]|tauron|pge(?:\s+dystrybucja(?:\s+s\.a\.)?)?|pse/,
 ]
   .map((pattern) => pattern.source)
   .join("|");
 const OWNER_PREFIX = new RegExp(`^(?:${OWNER_PREFIX_WORDS})${WORD_END}`, "i");
+const RADIO_SITE_START = /(?:ton|tsr|slr|rton|rtcn)(?![a-ząćęłńóśźż0-9_])/;
+const STRUCTURE_DETAIL_START = new RegExp(
+  `${DASH_OUTSIDE_BRACKETS.source}|\\s+(?=na terenie\\b|\\(teren\\b)` +
+    `|\\s+z\\s+(?=${RADIO_SITE_START.source})|\\s*\\/\\s*(?=${RADIO_SITE_START.source})`,
+  "i",
+);
+const FORMER_RADIO_SITE_START = new RegExp(`^(?:dawn|by[łl])\\S*\\s+(?=${RADIO_SITE_START.source})`, "i");
 const STRUCTURE_CONNECTOR = new RegExp(`^(?:na|z)\\s+(?=${STRUCTURE_PREFIX_WORDS})`, "i");
 const PREFIX_ADJECTIVES = new RegExp(`^${LEADING_ADJECTIVES.source}`, "i");
 const NOTE_SEPARATORS = new RegExp(`^[\\s${NOTE_SEPARATOR_PUNCTUATION}-]+`);
@@ -206,7 +213,7 @@ export function withoutFormerRemarks(description: string): string {
 }
 
 function formerRemarks(description: string): string | null {
-  const remarks = [...description.matchAll(FORMER_REMARK)].map((match) => (match[1] ?? "").trim());
+  const remarks = [...description.matchAll(FORMER_REMARK)].map((match) => (match[1] ?? "").trim().replace(/^d\.\s*/i, "dawniej "));
   return remarks.length === 0 ? null : remarks.join(", ");
 }
 
@@ -303,6 +310,29 @@ function extraNote(description: string, type: StoredStructureType | null, owner:
   return note === null ? "biurowiec" : `biurowiec - ${note}`;
 }
 
+function parseStructureWithDetail(description: string): Pick<ParsedAddress, "type" | "owner" | "note"> | null {
+  const separator = STRUCTURE_DETAIL_START.exec(description);
+  if (separator === null) return null;
+
+  const prefix = description.slice(0, separator.index).trim();
+  const normalized = withoutFormerRemarks(prefix).toLowerCase();
+  const type = firstMatch(TYPE_RULES, normalized);
+  const owner = STARTS_AS_FORMER.test(normalized) ? null : firstMatch(OWNER_RULES, normalized);
+  if (type === null || owner === null) return null;
+
+  const remarks = formerRemarks(prefix);
+  if (extraNote(prefix, type, owner) !== remarks) return null;
+
+  let detail = description.slice(separator.index + separator[0].length).trim();
+  if (STARTS_WITH_STRUCTURE.test(detail) || STRUCTURE_PREFIX.test(detail) || ALTERNATIVE_START.test(detail) || ROOFTOP_PLACEMENT.test(detail)) {
+    return null;
+  }
+  if (/^\(teren\b[^()]*\)$/i.test(detail)) detail = detail.slice(1, -1);
+  detail = detail.replace(FORMER_RADIO_SITE_START, "dawniej ");
+  const note = [remarks, detail].filter((part) => part !== null && part !== "").join(", ") || null;
+  return { type, owner, note };
+}
+
 export function namesStreetOrNumber(text: string): boolean {
   return STREET_OR_NUMBER.test(text);
 }
@@ -327,6 +357,9 @@ export function parseAddress(address: string | null): ParsedAddress {
 
   const { description, placeHint } = splitPlaceHint(fullDescription);
   if (description === "") return withoutStructure(street, placeHint);
+
+  const structure = parseStructureWithDetail(description);
+  if (structure !== null) return { street, description, placeHint, ...structure };
 
   const asItIsToday = withoutFormerRemarks(description).toLowerCase();
   const type = firstMatch(TYPE_RULES, asItIsToday);
