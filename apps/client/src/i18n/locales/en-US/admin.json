@@ -890,7 +890,7 @@
       "user_lists_other": "{{count, number}} user lists",
       "settings_one": "{{count, number}} setting",
       "settings_other": "{{count, number}} settings",
-      "other": "{{count, number}} × {{entity}}",
+      "other": "{{count, number}} x {{entity}}",
       "structure_owners_one": "{{count, number}} structure owner",
       "structure_owners_other": "{{count, number}} structure owners"
     },

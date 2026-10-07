@@ -968,7 +968,7 @@
       "settings_few": "{{count, number}} ustawienia",
       "settings_many": "{{count, number}} ustawień",
       "settings_other": "{{count, number}} ustawień",
-      "other": "{{count, number}} × {{entity}}",
+      "other": "{{count, number}} x {{entity}}",
       "structure_owners_one": "{{count, number}} właściciel obiektów",
       "structure_owners_few": "{{count, number}} właścicieli obiektów",
       "structure_owners_many": "{{count, number}} właścicieli obiektów",

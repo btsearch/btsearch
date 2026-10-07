@@ -76,7 +76,7 @@
       "lineOfSight": "Direct ray",
       "obstruction": "Obstruction"
     },
-    "exaggeration": "vertical ×{{value}}",
+    "exaggeration": "vertical x{{value}}",
     "obstacleAt": "Obstruction · {{distance}} km"
   },
   "evidence": {

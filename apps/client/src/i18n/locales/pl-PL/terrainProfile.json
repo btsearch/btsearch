@@ -76,7 +76,7 @@
       "lineOfSight": "Promień",
       "obstruction": "Przeszkoda"
     },
-    "exaggeration": "pionowo ×{{value}}",
+    "exaggeration": "pionowo x{{value}}",
     "obstacleAt": "Przeszkoda · {{distance}} km"
   },
   "evidence": {
