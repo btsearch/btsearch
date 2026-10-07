@@ -24,6 +24,8 @@ const workerCount = Number(process.env.WORKERS) || availableParallelism();
 const QUICK_EXIT_MS = 10_000;
 const MAX_RESTART_DELAY_MS = 10_000;
 const SIGNAL_EXIT_CODE_BASE = 128;
+const WORKER_DRAIN_DEADLINE_MS = 25_000;
+const STOP_WORKER_MESSAGE = "stop";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -202,6 +204,8 @@ if (cluster.isPrimary) {
   const quickExitsByPort = new Map<string, number>();
 
   const startWorker = (workerPort: string) => {
+    if (isStopping) return;
+
     const w = cluster.fork({ WORKER_PORT: workerPort });
     workerSlots.set(w.id, { port: workerPort, startedAt: Date.now() });
   };
@@ -220,12 +224,25 @@ if (cluster.isPrimary) {
 
   for (let i = 0; i < workerCount; i++) startWorker(String(port + 1 + i));
 
+  const drainWorkers = async (): Promise<void> => {
+    const workers = Object.values(cluster.workers ?? {})
+      .filter((worker) => worker !== undefined)
+      .filter((worker) => worker.isConnected());
+    const exits = workers.map((worker) => new Promise<void>((resolve) => worker.once("exit", () => resolve())));
+    for (const worker of workers) worker.send(STOP_WORKER_MESSAGE);
+
+    const deadline = new Promise<void>((resolve) => {
+      setTimeout(resolve, WORKER_DRAIN_DEADLINE_MS);
+    });
+    await Promise.race([Promise.all(exits), deadline]);
+  };
+
   const stop = async (signal: NodeJS.Signals) => {
     if (isStopping) return;
 
     isStopping = true;
     try {
-      await resignAsScheduler();
+      await Promise.all([resignAsScheduler(), drainWorkers()]);
     } finally {
       process.exit(SIGNAL_EXIT_CODE_BASE + constants.signals[signal]);
     }
@@ -251,5 +268,12 @@ if (cluster.isPrimary) {
   const app = new App();
   void app.listen(workerPort).then(() => {
     logger.info("worker_started", { pid: process.pid, port: workerPort });
+  });
+
+  process.on("message", (message) => {
+    if (message !== STOP_WORKER_MESSAGE || isStopping) return;
+
+    isStopping = true;
+    void app.fastify.close().finally(() => process.exit(0));
   });
 }
