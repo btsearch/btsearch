@@ -1,4 +1,3 @@
-import type { Band } from "@openbts/shared/contract";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,7 +5,6 @@ import { type LabeledAntenna, findSelectedAntenna, getReceiverBearing, isOmnidir
 import { useTerrainFormat } from "../format";
 import type { TerrainProfilePanelModel } from "../hooks/useTerrainProfileController";
 import type { TerrainAntenna } from "../types";
-import { useMapLookups } from "@/features/map/data/mapLookups";
 import { FacetDisclosurePill, FacetPill, FilterPanelSection } from "@/features/shared/filterPanel";
 import { ratToGenLabel } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
@@ -22,13 +20,9 @@ type AntennaPillProps = {
 
 const LABEL_SEPARATOR = " · ";
 
-function findBand(bandsById: ReadonlyMap<number, Band> | undefined, antenna: TerrainAntenna): Band | undefined {
-  return antenna.bandId === null ? undefined : bandsById?.get(antenna.bandId);
-}
-
-function getBandLabel(antenna: TerrainAntenna, band: Band | undefined, language: string): string {
-  if (band === undefined || band.labelMhz === null) return String(Math.round(antenna.frequencyMhz));
-  return formatBandMhzLabel(band.labelMhz, language);
+function getBandLabel(antenna: TerrainAntenna, language: string): string {
+  if (antenna.labelMhz === null) return String(Math.round(antenna.frequencyMhz));
+  return formatBandMhzLabel(antenna.labelMhz, language);
 }
 
 function AutoSelectedMark({ isShown }: { isShown: boolean }) {
@@ -64,14 +58,12 @@ function AntennaPill({ choice, generation, isSelected, onSelect }: AntennaPillPr
 export function TerrainProfileAntennaSection({ panel }: { panel: TerrainProfilePanelModel }) {
   const { t, i18n } = useTranslation(["terrainProfile", "stationDetails", "main"]);
   const format = useTerrainFormat();
-  const { lookups } = useMapLookups();
   const [isUnfolded, setIsUnfolded] = useState(false);
   const { profile, receiverPoint, station, selectAntenna } = panel;
-  const bandsById = lookups?.bandsById;
   if (profile === null || receiverPoint === null) return null;
 
   function describeAntenna(antenna: TerrainAntenna, withHeight: boolean): string {
-    const parts = [getBandLabel(antenna, findBand(bandsById, antenna), i18n.language)];
+    const parts = [getBandLabel(antenna, i18n.language)];
     if (isOmnidirectional(antenna)) parts.push(t("stationDetails:sectors.omnidirectional"));
     else if (antenna.azimuth !== null) parts.push(`${format.compact(antenna.azimuth, 1)}°`);
     if (withHeight) parts.push(`${format.compact(antenna.heightMeters, 1)} m`);
@@ -79,8 +71,7 @@ export function TerrainProfileAntennaSection({ panel }: { panel: TerrainProfileP
   }
 
   function getGeneration(antenna: TerrainAntenna): string | null {
-    const band = findBand(bandsById, antenna);
-    return band === undefined ? null : ratToGenLabel(band.rat.toUpperCase());
+    return antenna.technology === null ? null : ratToGenLabel(antenna.technology.toUpperCase());
   }
 
   const selected = findSelectedAntenna(profile, panel.selectedAntennaKey);

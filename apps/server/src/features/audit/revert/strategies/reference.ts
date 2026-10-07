@@ -16,7 +16,6 @@ import {
   stations,
   statsSnapshots,
   ukeLocations,
-  ukePermits,
   ukeStations,
 } from "@openbts/drizzle";
 import { operatorLinkSchema, plmnSchema } from "@openbts/shared/contract";
@@ -143,11 +142,9 @@ async function operatorDependents(context: StrategyContext, plan: PlannedEntry, 
 }
 
 async function bandDependents(context: StrategyContext, plan: PlannedEntry, id: number): Promise<RevertDependent[]> {
-  const [cellRows, permitRows, proposedRows, snapshotRows] = await Promise.all([
+  const [cellRows, proposedRows] = await Promise.all([
     context.tx.select({ id: cells.id }).from(cells).where(eq(cells.band_id, id)),
-    context.tx.select({ value: count() }).from(ukePermits).where(eq(ukePermits.band_id, id)),
     context.tx.select({ value: count() }).from(proposedCells).where(eq(proposedCells.band_id, id)),
-    context.tx.select({ value: count() }).from(statsSnapshots).where(eq(statsSnapshots.band_id, id)),
   ]);
   const retainedCells = cellRows.filter((cell) => {
     const prerequisiteEntryId = selectedReferenceRemoval(context, "cells", cell.id, "band_id", id, true);
@@ -157,9 +154,7 @@ async function bandDependents(context: StrategyContext, plan: PlannedEntry, id: 
   });
   return positiveDependents([
     { table: "cells", count: retainedCells.length },
-    { table: "uke.uke_permits", count: permitRows[0]?.value ?? 0 },
     { table: "submissions.proposed_cells", count: proposedRows[0]?.value ?? 0 },
-    { table: "statistics.stats_snapshots", count: snapshotRows[0]?.value ?? 0 },
   ]);
 }
 

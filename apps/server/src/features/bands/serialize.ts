@@ -10,16 +10,18 @@ const countryBandSelectSchema = createSelectSchema(countryBands);
 export type BandRow = z.infer<typeof bandSelectSchema>;
 export type CountryBandRow = z.infer<typeof countryBandSelectSchema>;
 
-const RATS = { GSM: "gsm", CDMA: "cdma", UMTS: "umts", LTE: "lte", NR: "nr", IOT: "iot" } as const;
+const RATS = { GSM: "gsm", UMTS: "umts", LTE: "lte", NR: "nr" } as const;
 const DUPLEXES = { FDD: "fdd", TDD: "tdd", SDL: "sdl" } as const;
 
-export const DATABASE_RATS: Record<BandRat, BandRow["rat"]> = { gsm: "GSM", cdma: "CDMA", umts: "UMTS", lte: "LTE", nr: "NR", iot: "IOT" };
+export const DATABASE_RATS: Record<BandRat, BandRow["rat"]> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" };
 
 function toRange(range: KhzRange | null | undefined): [number, number] | null {
   return range ? [range[0], range[1]] : null;
 }
 
 export function toBand(row: BandRow): Band {
+  if (row.rat === "CDMA" || row.rat === "IOT") throw new Error(`Unsupported cell band technology: ${row.rat}`);
+
   const catalog = findCatalogBand(row.code);
   const duplex = catalog && catalog.duplex !== "SUL" ? catalog.duplex : row.duplex;
 

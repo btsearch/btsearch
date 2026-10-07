@@ -1,10 +1,9 @@
-import { bands, cells, countryBands, stations, ukePermits } from "@openbts/drizzle";
+import { bands, cells, countryBands, stations } from "@openbts/drizzle";
 import { countryBandParamsSchema, noContentSchema } from "@openbts/shared/contract";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import type { z } from "zod/v4";
 
-import { LEGACY_COUNTRY_CODE } from "../../../../../../constants.js";
 import { ErrorResponse } from "../../../../../../errors.js";
 import { runAuditedOperation, standaloneAuditContext } from "../../../../../../features/audit/index.js";
 import { isUnknownBand } from "../../../../../../features/bands/unknown.js";
@@ -32,16 +31,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
       const [existing] = await tx.select().from(countryBands).where(countryBandKey).for("update").limit(1);
       if (!existing) throw new ErrorResponse("NOT_FOUND");
 
-      const [[cell], [permit]] = await Promise.all([
-        tx
-          .select({ id: cells.id })
-          .from(cells)
-          .innerJoin(stations, eq(stations.id, cells.station_id))
-          .where(and(eq(cells.band_id, bandId), stationPlacementMatches(eq(stationCountryCode, code))))
-          .limit(1),
-        code === LEGACY_COUNTRY_CODE ? tx.select({ id: ukePermits.id }).from(ukePermits).where(eq(ukePermits.band_id, bandId)).limit(1) : [],
-      ]);
-      if (cell || permit) throw new ErrorResponse("CONFLICT", { message: "Cannot remove a band that cells or permits in this country still use" });
+      const [cell] = await tx
+        .select({ id: cells.id })
+        .from(cells)
+        .innerJoin(stations, eq(stations.id, cells.station_id))
+        .where(and(eq(cells.band_id, bandId), stationPlacementMatches(eq(stationCountryCode, code))))
+        .limit(1);
+      if (cell) throw new ErrorResponse("CONFLICT", { message: "Cannot remove a band that cells in this country still use" });
 
       await tx.delete(countryBands).where(countryBandKey);
       await audit.log({ entity: "country_bands", op: "delete", recordId: `${code}:${bandId}`, old: existing });
@@ -61,7 +57,7 @@ const deleteCountryBand: Route<ReqParams, void> = {
     permissions: ["update:countries"],
     errorReasons: {
       404: "The band does not exist, or it is not in this country's band plan.",
-      409: "Cells in this country, or permits in its official register, still use the band.",
+      409: "Cells in this country still use the band.",
     },
   },
   schema: schemaRoute,

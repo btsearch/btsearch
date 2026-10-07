@@ -17,7 +17,7 @@ import { MapSearchOverlay } from "@/features/map/components/search-overlay";
 import { StationsLayer } from "@/features/map/components/stationsLayer";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "@/features/map/constants";
 import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "@/features/map/data/mapCountries";
-import type { MapFilters } from "@/features/map/data/mapFilters";
+import { type MapFilters, areMapRatFiltersReady } from "@/features/map/data/mapFilters";
 import { useMapLookups, useMapMaxBounds } from "@/features/map/data/mapLookups";
 import { type MapPoint, type MapPopupStation, locationRecordToMapPoint, useMapPoints } from "@/features/map/data/mapPoints";
 import { useSavedMapFilters } from "@/features/map/data/useSavedMapFilters";
@@ -65,7 +65,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const { data: session } = useSettledSession();
   const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
   const { preferences } = usePreferences();
-  const [savedFilters, setSavedFilters] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
+  const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
   const { lookups } = useMapLookups();
   const registerOnScreen = useRegisterOnScreen(bounds);
 
@@ -84,7 +84,7 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       family: "list-locations",
       request: { filters: shownFilters, lookups, limit: MAX_LOCATION_LIST_LIMIT, wantAzimuths, listId: uuid },
     }),
-    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided,
+    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided && areMapRatFiltersReady(shownFilters, isRegisterRatListReady),
     placeholderData: keepPreviousData,
   });
 

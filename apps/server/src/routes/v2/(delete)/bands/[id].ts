@@ -41,7 +41,7 @@ const deleteBand: Route<ReqParams, void> = {
     permissions: ["delete:bands"],
     errorReasons: {
       404: "The band does not exist.",
-      409: "The band is still used by cells, permits in the official register, submissions or stored statistics.",
+      409: "The band is still used by cells or submissions.",
     },
   },
   schema: schemaRoute,

@@ -1024,7 +1024,7 @@
         "viewNorthBelowSouth": "Północ musi być większa niż południe"
       },
       "bandPlan": {
-        "bandInUse": "Tego pasma używają jeszcze komórki albo pozwolenia w tym kraju"
+        "bandInUse": "Tego pasma używają jeszcze komórki w tym kraju"
       },
       "region": {
         "taken": "W tym kraju jest już region o tym kodzie albo tej nazwie",
@@ -1040,7 +1040,7 @@
         "otherTechnology": "Technologii pasma nie da się zmienić. Wybierz kod tej samej technologii",
         "exists": "To pasmo już istnieje jako {{value}}",
         "nameTaken": "Ta nazwa pasma jest już zajęta",
-        "inUse": "Tego pasma używają jeszcze komórki, pozwolenia, zgłoszenia albo zapisane statystyki"
+        "inUse": "Tego pasma używają jeszcze komórki albo zgłoszenia"
       },
       "brand": {
         "slugTaken": "Marka o tym slugu już istnieje",
@@ -1157,9 +1157,7 @@
         "descriptionTouch": "Pasma, na których stacje w tym kraju mogą mieć komórki. Dotknięcie od razu dodaje pasmo albo je usuwa",
         "descriptionReadOnly": "Pasma, na których stacje w tym kraju mogą mieć komórki",
         "planCount": "{{inPlan}} z {{total}}",
-        "note": "Pasmo, na którym w tym kraju są komórki albo pozwolenia, zostaje w planie. Bez kodu 3GPP są etykiety z rejestru pozwoleń",
-        "noteTouch": "Pasmo, na którym w tym kraju są komórki albo pozwolenia, zostaje w planie",
-        "noteReadOnly": "Bez kodu 3GPP są etykiety z rejestru pozwoleń",
+        "note": "Pasmo, na którym w tym kraju są komórki, zostaje w planie",
         "add": "Dodaj do planu",
         "remove": "Usuń z planu",
         "locked_one": "{{count, number}} komórka w tym kraju - pasmo zostaje w planie",
@@ -1424,7 +1422,7 @@
       "cellsNoun_many": "komórek",
       "cellsNoun_other": "komórki",
       "list": {
-        "description": "Pasma z katalogu 3GPP i etykiety z rejestru pozwoleń, wspólne dla wszystkich krajów",
+        "description": "Pasma, na których mogą być komórki, wspólne dla wszystkich krajów",
         "searchPlaceholder": "Nazwa albo kod 3GPP",
         "shownCount_one": "{{shown, number}} z {{count, number}} pasma",
         "shownCount_few": "{{shown, number}} z {{count, number}} pasm",
@@ -1454,7 +1452,6 @@
         "addDescription": "Pasmo powstaje z kodu w katalogu 3GPP. Technologia, duplex i zakresy wynikają z kodu",
         "codelessNotice": "To pasmo nie ma kodu 3GPP, więc nie zna swoich zakresów. Nadanego kodu nie da się potem usunąć",
         "technologyFixed": "Technologii pasma nie da się zmienić",
-        "noCatalogForRat": "Katalog 3GPP nie ma pasm tej technologii, więc to pasmo nie dostanie kodu",
         "nameLength": "{{length}} z {{max}} znaków",
         "labelFromCatalog": "Z katalogu, można zmienić",
         "labelInvalid": "Liczba całkowita od 1 do {{max}}",

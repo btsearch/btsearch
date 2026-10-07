@@ -1,6 +1,6 @@
 import type { Operator } from "@openbts/shared/contract";
 
-import { RAT_OPTIONS, REGISTER_COUNTRY_CODE, UKE_RAT_OPTIONS } from "../constants";
+import { RAT_OPTIONS, REGISTER_COUNTRY_CODE } from "../constants";
 import { isCountryCode, isRecordId } from "@/lib/apiValues";
 import { isUplinkType } from "@/lib/format/uplink";
 import type { StationSource, StationStatus, UplinkType } from "@/types/station";
@@ -37,10 +37,7 @@ const DEFAULT_MAP_STATUS: StationStatus = "published";
 const DEFAULT_RECENT_DATE_FIELD: MapRecentDateField = "createdAt";
 const MAP_STATUSES: ReadonlySet<string> = new Set<StationStatus>(["published", "pending", "inactive"]);
 const RECENT_DATE_FIELDS: ReadonlySet<string> = new Set<MapRecentDateField>(["createdAt", "updatedAt"]);
-const MAP_RATS_BY_SOURCE: Record<StationSource, ReadonlySet<string>> = {
-  internal: new Set<string>(RAT_OPTIONS.map((rat) => rat.value)),
-  uke: new Set<string>(UKE_RAT_OPTIONS.map((rat) => rat.value)),
-};
+const INTERNAL_MAP_RATS: ReadonlySet<string> = new Set<string>(RAT_OPTIONS.map((rat) => rat.value));
 
 export const DEFAULT_MAP_FILTERS: MapFilters = {
   operatorIds: [],
@@ -94,8 +91,13 @@ export function clampRecentDays(days: number): number | null {
   return Math.min(MAX_RECENT_DAYS, Math.max(MIN_RECENT_DAYS, Math.round(days)));
 }
 
-export function sanitizeMapFilters(filters: MapFilters): MapFilters {
-  const knownRats = MAP_RATS_BY_SOURCE.uke;
+function listKnownMapRats(source: StationSource, registerRats: readonly string[] | undefined): ReadonlySet<string> | null {
+  if (source === "internal") return INTERNAL_MAP_RATS;
+  return registerRats === undefined ? null : new Set(registerRats);
+}
+
+export function sanitizeMapFilters(filters: MapFilters, registerRats?: readonly string[]): MapFilters {
+  const knownRats = listKnownMapRats(filters.source, registerRats);
   const status = unique(filters.status);
   const recentDateFields = unique(filters.recentDateFields);
 
@@ -104,7 +106,7 @@ export function sanitizeMapFilters(filters: MapFilters): MapFilters {
     operatorIds: unique(filters.operatorIds.filter(isRecordId)),
     countryCodes: unique(filters.countryCodes.filter(isCountryCode)),
     bands: unique(filters.bands.filter(isBandLabel)),
-    rat: unique(filters.rat.filter((rat) => knownRats.has(rat))),
+    rat: unique(filters.rat.filter((rat) => knownRats === null || knownRats.has(rat))),
     status: status.length > 0 ? status : [DEFAULT_MAP_STATUS],
     recentDays: filters.recentDays === null ? null : clampRecentDays(filters.recentDays),
     recentDateFields: recentDateFields.length > 0 ? recentDateFields : [DEFAULT_RECENT_DATE_FIELD],
@@ -146,8 +148,11 @@ export function listAppliedMapBands(filters: Pick<MapFilters, "source" | "bands"
 }
 
 export function listAppliedMapRats(filters: Pick<MapFilters, "source" | "rat">): string[] {
-  const sourceRats = MAP_RATS_BY_SOURCE[filters.source];
-  return filters.rat.filter((rat) => sourceRats.has(rat));
+  return filters.source === "uke" ? filters.rat : filters.rat.filter((rat) => INTERNAL_MAP_RATS.has(rat));
+}
+
+export function areMapRatFiltersReady(filters: Pick<MapFilters, "source" | "rat">, isRegisterRatListReady: boolean): boolean {
+  return filters.source !== "uke" || filters.rat.length === 0 || isRegisterRatListReady;
 }
 
 export function countAllowedMapOperators(filters: MapFilters, operators: readonly Operator[] | undefined): number {

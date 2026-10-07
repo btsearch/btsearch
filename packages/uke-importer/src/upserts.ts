@@ -1,5 +1,5 @@
-import { type BandVariant, bands, countryBands, type ratEnum, regions, ukeLocations, ukeOperators } from "@openbts/drizzle";
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { type BandVariant, type ratEnum, regions, ukeBands, ukeLocations, ukeOperators } from "@openbts/drizzle";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { BATCH_SIZE, COUNTRY_CODE } from "./config.js";
 import { db } from "./database.js";
@@ -50,44 +50,28 @@ export async function upsertBands(
 
   if (!unique.length) return new Map();
 
-  const matchesAnyKey = or(...unique.map((k) => and(eq(bands.rat, k.rat), eq(bands.value, k.value), eq(bands.variant, k.variant))));
-  const existing = await db
-    .select()
-    .from(bands)
-    .where(and(matchesAnyKey, isNull(bands.duplex)));
+  const matchesAnyKey = or(...unique.map((k) => and(eq(ukeBands.rat, k.rat), eq(ukeBands.value, k.value), eq(ukeBands.variant, k.variant))));
+  const existing = await db.select().from(ukeBands).where(matchesAnyKey);
 
   const map = new Map<string, number>(existing.map((b) => [`${b.rat}:${b.value}:${b.variant}`, b.id]));
   const toInsert = unique.filter((k) => !map.has(`${k.rat}:${k.value}:${k.variant}`));
 
   if (toInsert.length) {
     const inserted = await db
-      .insert(bands)
+      .insert(ukeBands)
       .values(
         toInsert.map((b) => ({
           rat: b.rat,
           value: b.value,
-          duplex: null,
           name: b.variant === "railway" ? `GSM-R ${b.value}` : `${b.rat} ${b.value}`,
           variant: b.variant,
         })),
       )
-      .returning({ id: bands.id, rat: bands.rat, value: bands.value, variant: bands.variant });
+      .returning({ id: ukeBands.id, rat: ukeBands.rat, value: ukeBands.value, variant: ukeBands.variant });
     for (const r of inserted) map.set(`${r.rat}:${r.value}:${r.variant}`, r.id);
   }
 
-  await addBandsToCountryPlan([...map.values()]);
-
   return map;
-}
-
-async function addBandsToCountryPlan(bandIds: number[]): Promise<void> {
-  const planned = await db
-    .select({ bandId: countryBands.bandId })
-    .from(countryBands)
-    .where(and(eq(countryBands.countryCode, COUNTRY_CODE), inArray(countryBands.bandId, bandIds)));
-  const plannedIds = new Set(planned.map((row) => row.bandId));
-  const missing = bandIds.filter((bandId) => !plannedIds.has(bandId));
-  if (missing.length) await db.insert(countryBands).values(missing.map((bandId) => ({ countryCode: COUNTRY_CODE, bandId })));
 }
 
 export async function getOperators(rawNames: string[]): Promise<Map<string, number>> {

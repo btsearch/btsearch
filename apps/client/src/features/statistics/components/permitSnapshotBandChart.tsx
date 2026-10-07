@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { LabelList, Rectangle, ReferenceLine, useYAxisScale } from "recharts";
 
 import type { PermitSnapshot } from "../api";
-import { compareBandNames } from "../lib/bandOrder";
+import type { BandComparator } from "../lib/bandOrder";
 import { operatorColor, operatorDataKey, operatorSeries } from "../lib/series";
 import * as BarChartImport from "@/components/evilcharts/charts/bar-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
@@ -66,7 +66,7 @@ const SNAPSHOT_LAYOUT = {
 const DELTA_TONE_CLASS_NAMES = { positive: "fill-emerald-700 dark:fill-emerald-400", negative: "fill-red-600 dark:fill-red-400" } as const;
 const EXPORT_COLORS = { operator: "#d4d4d8", baseline: "#52525b", positive: "#34d399", negative: "#f87171" } as const;
 
-export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined): SnapshotBand[] {
+export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined, compareBands: BandComparator): SnapshotBand[] {
   const bands = new Map<string, SnapshotBand>();
   const operatorOrder = new Map(operatorSeries((rows ?? []).map((row) => row.operator)).map((series, index) => [series.key, index]));
 
@@ -85,7 +85,7 @@ export function buildSnapshotBands(rows: PermitSnapshot["rows"] | undefined): Sn
             (operatorOrder.get(operatorDataKey(b.operator)) ?? Number.MAX_SAFE_INTEGER) || a.operator.name.localeCompare(b.operator.name),
       ),
     }))
-    .sort((a, b) => compareBandNames(a.name, b.name));
+    .sort(compareBands);
 }
 
 function formatWholeNumber(value: unknown, locale: string): string {

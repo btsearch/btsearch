@@ -15,7 +15,7 @@ type BandCatalog = {
   resolveBand: (band: BandLike) => CatalogBand | null;
 };
 
-const CATALOG_RATS: Partial<Record<BandRat, CatalogRat>> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" };
+const CATALOG_RATS: Record<BandRat, CatalogRat> = { gsm: "GSM", umts: "UMTS", lte: "LTE", nr: "NR" };
 const WORD_BREAK = /\s+/;
 
 async function loadBandCatalog(): Promise<BandCatalog> {
@@ -32,8 +32,8 @@ export function bandCatalogQueryOptions() {
   });
 }
 
-export function getCatalogRat(rat: BandRat): CatalogRat | null {
-  return CATALOG_RATS[rat] ?? null;
+function getCatalogRat(rat: BandRat): CatalogRat {
+  return CATALOG_RATS[rat];
 }
 
 export function isUplinkOnly(entry: CatalogBand): boolean {
@@ -84,7 +84,7 @@ function resolveBandCode(band: Band, resolveBand: BandCatalog["resolveBand"]): s
   if (band.code !== null) return band.code;
 
   const rat = getCatalogRat(band.rat);
-  if (rat === null || (band.duplex === null && rat !== "GSM")) return null;
+  if (band.duplex === null && rat !== "GSM") return null;
 
   const duplex = band.duplex === null ? null : band.duplex.toUpperCase();
   return resolveBand({ rat, value: band.labelMhz, duplex, variant: band.variant })?.code ?? null;

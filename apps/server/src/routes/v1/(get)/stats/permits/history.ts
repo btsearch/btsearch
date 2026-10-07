@@ -1,4 +1,4 @@
-import { bands, operators, statsSnapshots, ukeImportMetadata } from "@openbts/drizzle";
+import { operators, statsSnapshots, ukeBands, ukeImportMetadata } from "@openbts/drizzle";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -86,14 +86,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         operator_id: operators.id,
         operator_name: operators.name,
         operator_mnc: operators.mnc,
-        band_id: bands.id,
-        band_name: bands.name,
+        band_id: ukeBands.id,
+        band_name: ukeBands.name,
         unique_stations: statsSnapshots.unique_stations_count,
         permits_count: statsSnapshots.permits_count,
       })
       .from(statsSnapshots)
       .innerJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-      .innerJoin(bands, eq(statsSnapshots.band_id, bands.id))
+      .innerJoin(ukeBands, eq(statsSnapshots.band_id, ukeBands.id))
       .where(whereClause)
       .orderBy(statsSnapshots.snapshot_date);
 
@@ -109,14 +109,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         operator_id: operators.id,
         operator_name: operators.name,
         operator_mnc: operators.mnc,
-        band_id: bands.id,
-        band_name: bands.name,
+        band_id: ukeBands.id,
+        band_name: ukeBands.name,
         unique_stations: statsSnapshots.unique_stations_count,
         permits_count: statsSnapshots.permits_count,
       })
       .from(statsSnapshots)
       .innerJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-      .innerJoin(bands, eq(statsSnapshots.band_id, bands.id))
+      .innerJoin(ukeBands, eq(statsSnapshots.band_id, ukeBands.id))
       .where(whereClause)
       .orderBy(
         sql`date_trunc('month', ${statsSnapshots.snapshot_date})`,

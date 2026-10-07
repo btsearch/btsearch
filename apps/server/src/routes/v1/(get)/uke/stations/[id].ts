@@ -1,10 +1,11 @@
-import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
+import { operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import { findPermitHolderStation, physicalStationSchema } from "../../../../../features/stations/physicalStations.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
@@ -22,13 +23,12 @@ const ukePermitsSchema = createSelectSchema(ukePermits)
     updatedAt: z.iso.datetime({ offset: true }),
     expiry_date: z.iso.datetime({ offset: true }),
   });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 const sectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true }).extend({ antenna_height: z.number().nullable() });
 
 const permitResponseSchema = ukePermitsSchema.extend({
-  band: bandsSchema.nullable(),
+  band: permitBandSchema.nullable(),
   sectors: z.array(sectorsSchema),
 });
 
@@ -113,6 +113,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       },
       permits: station.permits.map((permit) => ({
         ...permit,
+        band: permit.band ? toPermitBand(permit.band) : null,
         expiry_date: iso(permit.expiry_date),
         createdAt: iso(permit.createdAt),
         updatedAt: iso(permit.updatedAt),

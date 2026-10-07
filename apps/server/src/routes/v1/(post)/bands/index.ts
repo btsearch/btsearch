@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { assertRealBand } from "../../../../features/bands/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -23,6 +24,8 @@ const schemaRoute = {
 };
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
+  assertRealBand(req.body);
+
   try {
     const band = await runAuditedOperation(auditContextFromRequest(req), { kind: "band.create" }, async (tx, audit) => {
       const [created] = await tx.insert(bands).values(req.body).returning();

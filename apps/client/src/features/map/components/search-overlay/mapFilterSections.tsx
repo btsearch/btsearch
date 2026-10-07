@@ -4,7 +4,8 @@ import { AnimatePresence } from "motion/react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { RAT_OPTIONS, UKE_RAT_OPTIONS } from "../../constants";
+import { registerBandsQueryOptions } from "../../api";
+import { RAT_OPTIONS } from "../../constants";
 import {
   DEFAULT_RECENT_DAYS,
   IOT_RAT,
@@ -33,6 +34,7 @@ import { InlineError } from "@/components/ui/error-state";
 import { Slider } from "@/components/ui/slider";
 import { type UkeOperator, fetchUkeRadioLineOperators } from "@/features/shared/api";
 import { FacetCountryMark, FacetPill, FilterPanelSection, KbdHint } from "@/features/shared/filterPanel";
+import { type RatOption, listRegisterRatOptions, toRegisterRatOption } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { formatBandMhzLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
 import { UPLINK_APPEARANCE, UPLINK_TYPES, uplinkTypeKey } from "@/lib/format/uplink";
@@ -75,12 +77,6 @@ type BandFacetPillProps = {
   pill: BandPill;
   isActive: boolean;
   onToggleBand: (label: number) => void;
-};
-
-type RatOption = {
-  value: string;
-  label: string;
-  gen: string;
 };
 
 type UplinkSectionProps = {
@@ -198,7 +194,11 @@ export function RadiolineOperatorsSection({
 export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHint = true }: StandardSectionProps) {
   const { t } = useTranslation(["main", "common"]);
   const isDatabaseSource = filters.source === "internal";
-  const ratOptions: readonly RatOption[] = isDatabaseSource ? RAT_OPTIONS : UKE_RAT_OPTIONS;
+  const registerRatsQuery = useQuery({ ...registerBandsQueryOptions(), select: listRegisterRatOptions, enabled: !isDatabaseSource });
+  const ratOptions: readonly RatOption[] = isDatabaseSource
+    ? RAT_OPTIONS
+    : (registerRatsQuery.data ?? filters.rat.map((value) => ({ ...toRegisterRatOption(value), value })));
+  const isError = !isDatabaseSource && hasFailedLoad(registerRatsQuery);
   const hasAppliedRats = listAppliedMapRats(filters).length > 0;
 
   return (
@@ -214,6 +214,9 @@ export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHi
       }
       onClear={hasAppliedRats ? onClearAllRats : undefined}
     >
+      <Reveal shown={isError} className="pb-1.5">
+        <InlineError size="sm" onRetry={() => registerRatsQuery.refetch()} isRetrying={registerRatsQuery.isFetching} />
+      </Reveal>
       <SmoothHeight contentClassName="flex flex-wrap items-center gap-1.5">
         <AnimatePresence initial={false}>
           {ratOptions.flatMap((rat) => {
@@ -221,7 +224,7 @@ export function StandardSection({ filters, onToggleRat, onClearAllRats, hasKeyHi
             const pill = (
               <FadeItem key={rat.value}>
                 <FacetPill active={isActive} onClick={() => onToggleRat(rat.value)} className="pl-1.5">
-                  <GenerationTag active={isActive}>{rat.gen}</GenerationTag>
+                  {rat.gen === null ? null : <GenerationTag active={isActive}>{rat.gen}</GenerationTag>}
                   <span>{rat.label}</span>
                 </FacetPill>
               </FadeItem>

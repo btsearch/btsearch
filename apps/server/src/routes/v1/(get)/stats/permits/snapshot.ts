@@ -1,4 +1,4 @@
-import { bands, operators, statsSnapshots } from "@openbts/drizzle";
+import { operators, statsSnapshots, ukeBands } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import { and, desc, eq, gte, isNotNull, lt } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -76,15 +76,15 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       operator_id: operators.id,
       operator_name: operators.name,
       operator_mnc: operators.mnc,
-      band_id: bands.id,
-      band_name: bands.name,
-      band_rat: bands.rat,
+      band_id: ukeBands.id,
+      band_name: ukeBands.name,
+      band_rat: ukeBands.rat,
       unique_stations: statsSnapshots.unique_stations_count,
       permits: statsSnapshots.permits_count,
     })
     .from(statsSnapshots)
     .innerJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-    .innerJoin(bands, eq(statsSnapshots.band_id, bands.id))
+    .innerJoin(ukeBands, eq(statsSnapshots.band_id, ukeBands.id))
     .where(and(eq(statsSnapshots.snapshot_date, latest[0].date), isNotNull(statsSnapshots.band_id)));
 
   const previousRows = previous[0]

@@ -1,4 +1,4 @@
-import { bands, operators, regions, stationsPermits, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
+import { operators, regions, stationsPermits, ukeBands, ukeLocations, ukePermits, ukeStations } from "@openbts/drizzle";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, countDistinct, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -9,6 +9,7 @@ import { LEGACY_COUNTRY_CODE } from "../../../../../constants.js";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { type UkeBandRow, permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -25,12 +26,11 @@ const ukePermitsSchema = createSelectSchema(ukePermits)
 const ukeStationsSchema = createSelectSchema(ukeStations)
   .omit({ operator_id: true, location_id: true })
   .extend({ createdAt: z.iso.datetime({ offset: true }), updatedAt: z.iso.datetime({ offset: true }) });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 
 const permitResponseSchema = ukePermitsSchema.extend({
-  band: bandsSchema.nullable(),
+  band: permitBandSchema.nullable(),
 });
 
 const locationResponseSchema = ukeLocationsSchema.extend({
@@ -74,12 +74,13 @@ const schemaRoute = {
 
 type ReqQuery = { Querystring: z.infer<typeof schemaRoute.querystring> };
 type StationData = z.infer<typeof stationResponseSchema>;
+type PermitWithBandRow = Omit<z.infer<typeof permitResponseSchema>, "band"> & { band: UkeBandRow | null };
 type ResponseBody = z.infer<typeof responseSchema>;
 
 const CACHE_TTL = 30;
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const cacheKey = `uke:permits:unassigned:${JSON.stringify(req.query)}`;
+  const cacheKey = `uke:permits:unassigned:v2:${JSON.stringify(req.query)}`;
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached));
 
@@ -183,7 +184,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
             ) ORDER BY ${ukePermits.id}
           ) FILTER (WHERE ${ukeLocations.id} IS NOT NULL)
         )[1]`,
-        permits: sql<z.infer<typeof permitResponseSchema>[]>`
+        permits: sql<PermitWithBandRow[]>`
           json_agg(
             json_build_object(
               'id',              ${ukePermits.id},
@@ -194,13 +195,11 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               'createdAt',       ${ukePermits.createdAt},
               'updatedAt',       ${ukePermits.updatedAt},
               'band', json_build_object(
-                'id',      ${bands.id},
-                'value',   ${bands.value},
-                'rat',     ${bands.rat},
-                'name',    ${bands.name},
-                'duplex',  ${bands.duplex},
-                'variant', ${bands.variant},
-                'code',    ${bands.code}
+                'id',      ${ukeBands.id},
+                'value',   ${ukeBands.value},
+                'rat',     ${ukeBands.rat},
+                'name',    ${ukeBands.name},
+                'variant', ${ukeBands.variant}
               )
             ) ORDER BY ${ukePermits.id}
           ) FILTER (WHERE ${ukePermits.id} IS NOT NULL)`,
@@ -210,7 +209,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
       .leftJoin(ukeLocations, eq(ukeLocations.id, ukeStations.location_id))
       .leftJoin(regions, eq(regions.id, ukeLocations.region_id))
-      .leftJoin(bands, eq(bands.id, ukePermits.band_id))
+      .leftJoin(ukeBands, eq(ukeBands.id, ukePermits.band_id))
       .where(and(...baseConditions, inArray(ukeStations.id, stationIds)))
       .groupBy(ukeStations.id)
       .orderBy(sql`MAX(${ukePermits.id}) DESC`);
@@ -222,6 +221,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
           ...row,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
+          permits: row.permits.map((permit) => ({ ...permit, band: permit.band ? toPermitBand(permit.band) : null })),
         },
       ]),
     );

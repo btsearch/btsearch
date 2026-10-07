@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -7,28 +8,31 @@ import type { ChartErrorProps } from "./statChartCard";
 import { EvilPieChart, Label, Legend, Pie, Tooltip } from "@/components/evilcharts/charts/pie-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { ErrorState } from "@/components/ui/error-state";
+import { registerBandsQueryOptions } from "@/features/map/api";
+import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
+import type { Band } from "@/types/station";
 
-const RAT_COLORS: Record<string, string> = {
-  LTE: "var(--chart-1)",
-  NR: "var(--chart-2)",
-  GSM: "var(--chart-3)",
-  UMTS: "var(--chart-4)",
-  CDMA: "var(--chart-5)",
-  IOT: "var(--chart-1)",
-};
+const RAT_PALETTE = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
 type PieRow = { name: string; value: number };
 type DistributionChartsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
 const EMPTY_PIE: { data: PieRow[]; config: ChartConfig } = { data: [], config: {} };
 
-function buildRatPieData(rows: StatsSummary["by_rat"]): { data: PieRow[]; config: ChartConfig } {
+function buildRatPieData(
+  rows: StatsSummary["by_rat"],
+  registerBands: readonly Pick<Band, "rat">[] | undefined,
+): { data: PieRow[]; config: ChartConfig } {
+  const compareRats = registerBands === undefined ? compareRatsByName : toRegisterRatComparator(registerBands);
+  const ratOrder = [...new Set([...(registerBands ?? []).map((band) => band.rat), ...rows.map((row) => row.rat)])].sort(compareRats);
+  const sortedRows = [...rows].sort((left, right) => compareRats(left.rat, right.rat));
+
   return {
-    data: rows.map((row) => ({ name: row.rat, value: row.unique_stations })),
+    data: sortedRows.map((row) => ({ name: row.rat, value: row.unique_stations })),
     config: Object.fromEntries(
-      rows.map((row) => [
-        row.rat,
-        { label: row.rat, colors: { light: [RAT_COLORS[row.rat] ?? "var(--chart-1)"], dark: [RAT_COLORS[row.rat] ?? "var(--chart-1)"] } },
-      ]),
+      sortedRows.map((row) => {
+        const color = RAT_PALETTE[ratOrder.indexOf(row.rat) % RAT_PALETTE.length];
+        return [row.rat, { label: row.rat, colors: { light: [color], dark: [color] } }];
+      }),
     ),
   };
 }
@@ -80,8 +84,9 @@ function DistributionError({ onRetry, isRetrying }: Omit<ChartErrorProps, "isErr
 export const UkeDistributionCharts = memo(function UkeDistributionCharts({ data, isLoading, isError, onRetry, isRetrying }: DistributionChartsProps) {
   const { t, i18n } = useTranslation("statistics");
   const locale = i18n.language;
+  const { data: registerBands } = useQuery(registerBandsQueryOptions());
 
-  const ratPie = useMemo(() => (data?.by_rat.length ? buildRatPieData(data.by_rat) : EMPTY_PIE), [data]);
+  const ratPie = useMemo(() => (data?.by_rat.length ? buildRatPieData(data.by_rat, registerBands) : EMPTY_PIE), [data, registerBands]);
   const operatorPie = useMemo(
     () => (data?.by_operator.length ? buildOperatorPieData(data.by_operator, (row) => row.unique_stations) : EMPTY_PIE),
     [data],

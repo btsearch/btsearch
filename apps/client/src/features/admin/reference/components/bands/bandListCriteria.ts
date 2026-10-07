@@ -1,5 +1,5 @@
 import type { Band } from "../../types";
-import { type BandGroupKey, getBandGroupKey } from "../../utils/bands";
+import type { BandGroupKey } from "../../utils/bands";
 import { BAND_GROUP_KEYS, type BandCodePresence, type BandListSearch, listBandGroups } from "./bandListSearch";
 import { joinSearchValues } from "@/lib/urlSearch";
 
@@ -35,7 +35,7 @@ export function filterBands(bands: readonly Band[], searchText: string, { groups
   return bands.filter((band) => {
     if (codePresence === "with" && band.code === null) return false;
     if (codePresence === "without" && band.code !== null) return false;
-    if (groups.length > 0 && !groups.includes(getBandGroupKey(band.rat))) return false;
+    if (groups.length > 0 && !groups.includes(band.rat)) return false;
     return query === "" || `${band.name} ${band.code ?? ""}`.toLowerCase().includes(query);
   });
 }

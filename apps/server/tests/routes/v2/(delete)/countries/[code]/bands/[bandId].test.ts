@@ -19,11 +19,23 @@ describe("DELETE /countries/PL/bands/7", () => {
     dbMock.enqueueFor("select", "bands", [row]);
     dbMock.enqueueFor("select", "country_bands", [{ countryCode: "PL", bandId: 7 }]);
     dbMock.enqueueFor("select", "cells", []);
-    dbMock.enqueueFor("select", "uke_permits", []);
     dbMock.enqueueFor("delete", "country_bands", []);
     const response = await injectMutation(route, request, options);
     expect(response.statusCode).toBe(204);
     expect(response.body).toBe("");
+  });
+
+  it("removes the real band from the plan even when a permit label has the same id", async () => {
+    scriptAudit();
+    dbMock.enqueueFor("select", "bands", [row]);
+    dbMock.enqueueFor("select", "country_bands", [{ countryCode: "PL", bandId: 7 }]);
+    dbMock.enqueueFor("select", "cells", []);
+    dbMock.enqueueFor("select", "uke_permits", [{ id: 1 }]);
+    dbMock.enqueueFor("delete", "country_bands", []);
+
+    const response = await injectMutation(route, request, options);
+    expect(response.statusCode).toBe(204);
+    expect(dbMock.calls.some((call) => call.table === "uke_permits")).toBe(false);
   });
 
   it("hides the internal unknown band from band-plan management", async () => {
@@ -40,7 +52,6 @@ describe("DELETE /countries/PL/bands/7", () => {
     dbMock.enqueueFor("select", "bands", [row]);
     dbMock.enqueueFor("select", "country_bands", [{ countryCode: "PL", bandId: 7 }]);
     dbMock.enqueueFor("select", "cells", [{ id: 1 }]);
-    dbMock.enqueueFor("select", "uke_permits", []);
 
     const response = await injectMutation(route, request, options);
     expectError(response, 409, "CONFLICT");

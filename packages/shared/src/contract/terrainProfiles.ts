@@ -19,6 +19,8 @@ export type SurfaceVerdict = (typeof SURFACE_VERDICTS)[number];
 export const TERRAIN_ANTENNA_SOURCES = ["emfReport", "permit"] as const;
 export type TerrainAntennaSource = (typeof TERRAIN_ANTENNA_SOURCES)[number];
 
+export const TERRAIN_ANTENNA_TECHNOLOGIES = ["gsm", "cdma", "umts", "lte", "nr", "iot"] as const;
+
 export const TERRAIN_TILT_SOURCES = ["measured", "declared"] as const;
 export type TerrainTiltSource = (typeof TERRAIN_TILT_SOURCES)[number];
 
@@ -67,7 +69,8 @@ const terrainAntennaShape = {
     .nullable()
     .describe("Where the tilt comes from: `measured` for the report, `declared` for the permit. `null` if there is no tilt"),
   frequencyMhz: z.number(),
-  bandId: z.number().int().nullable().describe("The band matched to the antenna, or `null` if none could be matched"),
+  technology: z.enum(TERRAIN_ANTENNA_TECHNOLOGIES).nullable().describe("The antenna's technology, or `null` if none could be matched"),
+  labelMhz: z.number().int().nullable().describe("The frequency label in MHz, or `null` if none could be matched"),
 };
 
 export const terrainAntennaSchema = z.object(terrainAntennaShape);

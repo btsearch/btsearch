@@ -91,7 +91,7 @@ function BandPlanGroupRow({ countryCode, group, bands, planBandIds, cellsByBand,
     <div className={GROUP_ROW_CLASS}>
       <div className={GROUP_LABEL_CLASS}>
         <span id={labelId} className="inline-flex items-center gap-1.5 text-sm leading-5 font-medium whitespace-nowrap">
-          {group.generationRat === null ? null : <RatGenerationLabel rat={group.generationRat} />}
+          <RatGenerationLabel rat={group.generationRat} />
           {group.label}
         </span>
         <span className="text-xs leading-4 text-muted-foreground tabular-nums">
@@ -235,13 +235,7 @@ export function BandPlanSection({ country, canEdit }: BandPlanSectionProps) {
           isRetrying={isFetchingBands || isFetchingPlan}
           onRetry={retryLoad}
         />
-        {canEdit ? (
-          <ReferenceCardNote icon={LockIcon}>
-            {isMobile ? t("reference.country.bandPlan.noteTouch") : t("reference.country.bandPlan.note")}
-          </ReferenceCardNote>
-        ) : (
-          <ReferenceCardNote>{t("reference.country.bandPlan.noteReadOnly")}</ReferenceCardNote>
-        )}
+        {canEdit ? <ReferenceCardNote icon={LockIcon}>{t("reference.country.bandPlan.note")}</ReferenceCardNote> : null}
       </ReferenceCard>
     </ReferenceSection>
   );

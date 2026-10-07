@@ -11,7 +11,7 @@ import {
   idParamSchema,
 } from "./common.ts";
 
-export const BAND_RATS = ["gsm", "cdma", "umts", "lte", "nr", "iot"] as const;
+export const BAND_RATS = ["gsm", "umts", "lte", "nr"] as const;
 export type BandRat = (typeof BAND_RATS)[number];
 
 export const UNKNOWN_BAND = "unknown";
@@ -32,9 +32,7 @@ export const COUNTRY_BAND_INCLUDES = ["band"] as const;
 
 const khzRangeSchema = z.tuple([z.number().int(), z.number().int()]);
 
-const BAND_RAT_NOTE =
-  "The technology the band belongs to. Cells can only use `gsm`, `umts`, `lte` and `nr` bands. " +
-  "`cdma` and `iot` bands are kept for permits in the official register";
+const BAND_RAT_NOTE = "The technology the band belongs to: `gsm`, `umts`, `lte` or `nr`";
 const BAND_CODE_NOTE =
   "A code from the 3GPP catalogue, such as `E-GSM900`, `VIII`, `B3` or `n78`. Uplink-only bands are not accepted. " +
   "The code sets the band's technology, duplex mode and frequency ranges, and an existing band can only change to a code of the same technology";

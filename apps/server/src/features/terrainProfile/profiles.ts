@@ -1,4 +1,4 @@
-import { terrainPropagationSchema, terrainResultSchema } from "@openbts/shared/contract";
+import { TERRAIN_ANTENNA_TECHNOLOGIES, terrainPropagationSchema, terrainResultSchema } from "@openbts/shared/contract";
 import type {
   EmfReportHead,
   TerrainAntenna,
@@ -71,7 +71,7 @@ const sampler: TerrainSampler = new GeoportalTerrainSampler();
 const running = new Map<string, AbortController>();
 
 function profileKey(id: string): string {
-  return `terrain:profile:v1:${id}`;
+  return `terrain:profile:v2:${id}`;
 }
 
 function claimKey(id: string): string {
@@ -91,7 +91,7 @@ function requestKey({ station, receiver, antennaKey }: ProfileRequest): string {
     receiver.longitude.toFixed(5),
     receiver.heightMeters.toFixed(1),
   ];
-  return `terrain:profile:request:v1:${createHash("sha256").update(JSON.stringify(parts)).digest("hex")}`;
+  return `terrain:profile:request:v2:${createHash("sha256").update(JSON.stringify(parts)).digest("hex")}`;
 }
 
 async function saveProfile(profile: StoredTerrainProfile): Promise<StoredTerrainProfile> {
@@ -135,6 +135,7 @@ function makeAntennaKey(candidate: AntennaCandidate): string {
 
 function toAntenna(key: string, candidate: AntennaCandidate): TerrainAntenna {
   const isFromReport = candidate.source === "si2pem_report";
+  const technology = candidate.band?.rat.toLowerCase();
   let tiltSource: TerrainAntenna["tiltSource"] = null;
   if (candidate.measuredTilt !== null) tiltSource = isFromReport ? "measured" : "declared";
 
@@ -146,7 +147,8 @@ function toAntenna(key: string, candidate: AntennaCandidate): TerrainAntenna {
     tilt: candidate.measuredTilt,
     tiltSource,
     frequencyMhz: candidate.frequencyMHz,
-    bandId: candidate.band?.id ?? null,
+    technology: TERRAIN_ANTENNA_TECHNOLOGIES.find((value) => value === technology) ?? null,
+    labelMhz: candidate.band?.value ?? null,
   };
 }
 

@@ -9,6 +9,14 @@ import type { BandRow } from "./serialize.js";
 type BandIdentity = { id?: number; rat: BandRow["rat"]; variant: BandRow["variant"]; code: string | null; name?: string };
 type CodelessBand = Pick<BandRow, "id" | "rat" | "value" | "duplex" | "variant">;
 
+export function assertRealBand({ rat, duplex, value }: { rat: BandRow["rat"]; duplex?: BandRow["duplex"]; value?: BandRow["value"] }): void {
+  if (rat === "CDMA" || rat === "IOT" || (rat !== "GSM" && !duplex && value !== 0)) {
+    throw new ErrorResponse("BAD_REQUEST", {
+      message: "A cell band must use GSM, UMTS, LTE or NR and have a duplex mode unless it is GSM or unknown",
+    });
+  }
+}
+
 export function requireCatalogBand(code: string) {
   const catalog = findCatalogBand(code);
   if (!catalog) throw new ErrorResponse("BAD_REQUEST", { message: "Unknown band code" });

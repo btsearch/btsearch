@@ -1,4 +1,4 @@
-import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
+import { operators, regions, ukeBands, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, count, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -8,6 +8,7 @@ import { z } from "zod/v4";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -24,13 +25,12 @@ const ukePermitsSchema = createSelectSchema(ukePermits)
     updatedAt: z.iso.datetime({ offset: true }),
     expiry_date: z.iso.datetime({ offset: true }),
   });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 const sectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true }).extend({ antenna_height: z.number().nullable() });
 
 const permitResponseSchema = ukePermitsSchema.extend({
-  band: bandsSchema.nullable(),
+  band: permitBandSchema.nullable(),
   sectors: z.array(sectorsSchema),
 });
 
@@ -110,7 +110,7 @@ function iso(date: Date): string {
 }
 
 async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody<ResponseBody>>) {
-  const cacheKey = `uke:stations:${JSON.stringify(req.query)}`;
+  const cacheKey = `uke:stations:v2:${JSON.stringify(req.query)}`;
   const cached = await redis.get(cacheKey);
   if (cached) return res.send(JSON.parse(cached));
 
@@ -134,16 +134,16 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const mappedRats: RatType[] = standardRats.map((r) => ratMap[r]).filter((r): r is RatType => r !== undefined);
 
   const bandConditions: SQL<unknown>[] = [];
-  if (bandValues?.length) bandConditions.push(inArray(bands.value, bandValues));
+  if (bandValues?.length) bandConditions.push(inArray(ukeBands.value, bandValues));
   if (mappedRats.length || wantsGsmR) {
     const ratConds: SQL<unknown>[] = [];
     if (mappedRats.length) {
       const wantsRegularGsm = mappedRats.includes("GSM");
       const nonGsmRats = mappedRats.filter((r) => r !== "GSM");
-      if (nonGsmRats.length) ratConds.push(inArray(bands.rat, nonGsmRats));
-      if (wantsRegularGsm) ratConds.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'commercial')`);
+      if (nonGsmRats.length) ratConds.push(inArray(ukeBands.rat, nonGsmRats));
+      if (wantsRegularGsm) ratConds.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'commercial')`);
     }
-    if (wantsGsmR) ratConds.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'railway')`);
+    if (wantsGsmR) ratConds.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'railway')`);
     if (ratConds.length) bandConditions.push(sql`(${sql.join(ratConds, sql` OR `)})`);
   }
   const hasBandFilters = bandConditions.length > 0;
@@ -151,8 +151,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const [eligibleBandRows, operatorRows, boundaryLocations] = await Promise.all([
     hasBandFilters
       ? db
-          .select({ id: bands.id })
-          .from(bands)
+          .select({ id: ukeBands.id })
+          .from(ukeBands)
           .where(and(...bandConditions))
       : [],
     expandedOperatorMncs?.length ? db.query.operators.findMany({ columns: { id: true }, where: { mnc: { in: expandedOperatorMncs } } }) : [],
@@ -266,6 +266,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       },
       permits: station.permits.map((permit) => ({
         ...permit,
+        band: permit.band ? toPermitBand(permit.band) : null,
         expiry_date: iso(permit.expiry_date),
         createdAt: iso(permit.createdAt),
         updatedAt: iso(permit.updatedAt),

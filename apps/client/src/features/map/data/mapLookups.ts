@@ -3,6 +3,8 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo } from "react";
 
+import { listRegisterBandLabels, registerBandsQueryOptions } from "../api";
+import { REGISTER_COUNTRY_CODE } from "../constants";
 import { UNKNOWN_BAND_LABEL } from "./mapFilters";
 import { bandPlanQueryOptions } from "@/features/admin/reference/api/bandPlan";
 import { bandsQueryOptions, brandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
@@ -71,8 +73,6 @@ const KEYBIND_OPERATOR_COUNT = 4;
 const FULL_TURN_DEGREES = 360;
 const CODED_CELL_BAND_RANK = 0;
 const UNCODED_CELL_BAND_RANK = 1;
-const REGISTER_ONLY_BAND_RANK = 2;
-const CELL_BAND_RATS: ReadonlySet<string> = new Set<Band["rat"]>(["gsm", "umts", "lte", "nr"]);
 const lookupsByOperators = new WeakMap<readonly Operator[], MapLookups>();
 let mountedLookupReaderCount = 0;
 
@@ -212,14 +212,6 @@ function countryBandPlanQueryOptions(countryCode: string) {
   return { ...bandPlanQueryOptions(countryCode), select: getPlanSelector(countryCode) };
 }
 
-function isCodedCellBand(band: Band): boolean {
-  return band.code !== null && CELL_BAND_RATS.has(band.rat);
-}
-
-function isCellBandByDuplex(band: Band): boolean {
-  return CELL_BAND_RATS.has(band.rat) && (band.rat === "gsm" || band.duplex !== null);
-}
-
 function listPlanBands(bandIds: readonly number[], bandsById: ReadonlyMap<number, Band>): Band[] {
   return bandIds.flatMap((bandId) => {
     const band = bandsById.get(bandId);
@@ -227,24 +219,17 @@ function listPlanBands(bandIds: readonly number[], bandsById: ReadonlyMap<number
   });
 }
 
-function listCellBands(bands: readonly Band[]): Band[] {
-  const codedBands = bands.filter(isCodedCellBand);
-  return codedBands.length > 0 ? codedBands : bands.filter(isCellBandByDuplex);
-}
-
-function listPlanBandLabels(bandIds: readonly number[], bandsById: ReadonlyMap<number, Band>, source: StationSource): number[] {
+function listPlanBandLabels(bandIds: readonly number[], bandsById: ReadonlyMap<number, Band>): number[] {
   const planBands = listPlanBands(bandIds, bandsById);
-  const shownBands = source === "uke" ? planBands : listCellBands(planBands);
   const labels = new Set<number>();
 
-  for (const band of shownBands) {
+  for (const band of planBands) {
     if (band.labelMhz !== null && band.labelMhz !== UNKNOWN_BAND_LABEL) labels.add(band.labelMhz);
   }
   return [...labels].sort((left, right) => left - right);
 }
 
 function rankBandRow(band: Band): number {
-  if (!CELL_BAND_RATS.has(band.rat)) return REGISTER_ONLY_BAND_RANK;
   return band.code === null ? UNCODED_CELL_BAND_RANK : CODED_CELL_BAND_RANK;
 }
 
@@ -266,24 +251,36 @@ function collectBandPlans(planQueries: readonly BandPlanQuery[]): BandPlanAnswer
 }
 
 export function useCountryBandPlans(countryCodes: readonly string[], source: StationSource, lookups: MapLookups | undefined) {
+  const registerBandLabelsQuery = useQuery({ ...registerBandsQueryOptions(), select: listRegisterBandLabels, enabled: source === "uke" });
   const { plans, isError, isRetrying, refetchFailedPlans } = useQueries({
-    queries: countryCodes.map((countryCode) => countryBandPlanQueryOptions(countryCode)),
+    queries: source === "uke" ? [] : countryCodes.map((countryCode) => countryBandPlanQueryOptions(countryCode)),
     combine: collectBandPlans,
   });
 
   const labelsByCountry: MapBandLabelsByCountry = useMemo(() => {
     const labels = new Map<string, readonly number[]>();
+    if (source === "uke") {
+      if (registerBandLabelsQuery.data !== undefined) labels.set(REGISTER_COUNTRY_CODE, registerBandLabelsQuery.data);
+      return labels;
+    }
     if (lookups === undefined) return labels;
 
-    for (const plan of plans) labels.set(plan.countryCode, listPlanBandLabels(plan.bandIds, lookups.bandsById, source));
+    for (const plan of plans) labels.set(plan.countryCode, listPlanBandLabels(plan.bandIds, lookups.bandsById));
     return labels;
-  }, [lookups, plans, source]);
+  }, [lookups, plans, source, registerBandLabelsQuery.data]);
 
   function retry() {
-    for (const refetchPlan of refetchFailedPlans) void refetchPlan();
+    if (source === "uke") void registerBandLabelsQuery.refetch();
+    else for (const refetchPlan of refetchFailedPlans) void refetchPlan();
   }
 
-  return { labelsByCountry, isError, isRetrying, retry };
+  const hasRegisterBandLabelsFailed = source === "uke" && hasFailedLoad(registerBandLabelsQuery);
+  return {
+    labelsByCountry,
+    isError: isError || hasRegisterBandLabelsFailed,
+    isRetrying: isRetrying || (hasRegisterBandLabelsFailed && registerBandLabelsQuery.isFetching),
+    retry,
+  };
 }
 
 export function getMapMaxBounds(countries: readonly Country[]): MapMaxBounds | undefined {

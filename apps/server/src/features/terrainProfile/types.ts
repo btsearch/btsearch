@@ -47,7 +47,6 @@ export const AntennaCandidateSchema = z.object({
       name: z.string(),
       value: z.number().positive().nullable(),
       rat: z.string(),
-      duplex: z.string().nullable(),
       variant: z.string(),
     })
     .nullable(),

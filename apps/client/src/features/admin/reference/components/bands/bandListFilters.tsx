@@ -30,7 +30,6 @@ type CodePresenceOption = {
 };
 
 function toGroupOption(group: BandGroup): FacetOption<BandGroupKey> {
-  if (group.generationRat === null) return { value: group.key, label: group.label };
   return { value: group.key, label: group.label, lead: <RatGenerationLabel rat={group.generationRat} /> };
 }
 

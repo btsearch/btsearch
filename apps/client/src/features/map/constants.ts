@@ -58,15 +58,6 @@ export const RAT_OPTIONS = [
   { value: "GSM", label: "GSM", gen: "2G" },
   { value: "iot", label: "IoT", gen: "NB" },
 ] as const;
-export const UKE_RAT_OPTIONS = [
-  { value: "NR", label: "NR", gen: "5G" },
-  { value: "LTE", label: "LTE", gen: "4G" },
-  { value: "UMTS", label: "UMTS", gen: "3G" },
-  { value: "CDMA", label: "CDMA", gen: "3G" },
-  { value: "GSM", label: "GSM", gen: "2G" },
-  { value: "GSM-R", label: "GSM-R", gen: "2G" },
-  { value: "iot", label: "IoT", gen: "NB" },
-] as const;
 
 type KnownFilterKeyword = FilterKeyword & { key: `${SearchKeyword}:` };
 

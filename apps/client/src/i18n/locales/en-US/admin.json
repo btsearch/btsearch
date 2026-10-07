@@ -936,7 +936,7 @@
         "viewNorthBelowSouth": "North must be greater than south"
       },
       "bandPlan": {
-        "bandInUse": "Cells or permits in this country still use this band"
+        "bandInUse": "Cells in this country still use this band"
       },
       "region": {
         "taken": "This country already has a region with this code or name",
@@ -952,7 +952,7 @@
         "otherTechnology": "A band can't move to another technology. Choose a code of the same technology",
         "exists": "This band already exists as {{value}}",
         "nameTaken": "This band name is already in use",
-        "inUse": "Cells, permits, submissions or stored statistics still use this band"
+        "inUse": "Cells or submissions still use this band"
       },
       "brand": {
         "slugTaken": "A brand with this slug already exists",
@@ -1065,9 +1065,7 @@
         "descriptionTouch": "The bands that stations in this country can have cells on. A tap adds a band or removes it right away",
         "descriptionReadOnly": "The bands that stations in this country can have cells on",
         "planCount": "{{inPlan}} of {{total}}",
-        "note": "A band that has cells or permits in this country stays in the plan. Bands without a 3GPP code are labels from the permit register",
-        "noteTouch": "A band that has cells or permits in this country stays in the plan",
-        "noteReadOnly": "Bands without a 3GPP code are labels from the permit register",
+        "note": "A band that has cells in this country stays in the plan",
         "add": "Add to the plan",
         "remove": "Remove from the plan",
         "locked_one": "{{count, number}} cell in this country - the band stays in the plan",
@@ -1316,7 +1314,7 @@
       "cellsNoun_one": "cell",
       "cellsNoun_other": "cells",
       "list": {
-        "description": "Bands from the 3GPP catalog and labels from the permit register, shared by all countries",
+        "description": "Bands that cells can use, shared by all countries",
         "searchPlaceholder": "Name or 3GPP code",
         "shownCount_one": "{{shown, number}} of {{count, number}} band",
         "shownCount_other": "{{shown, number}} of {{count, number}} bands",
@@ -1344,7 +1342,6 @@
         "addDescription": "A band is created from a code in the 3GPP catalog. Technology, duplex and ranges follow from the code",
         "codelessNotice": "This band has no 3GPP code, so it doesn't know its ranges. Once a code is set, it can't be removed",
         "technologyFixed": "A band's technology can't be changed",
-        "noCatalogForRat": "The 3GPP catalog has no bands of this technology, so this band can't get a code",
         "nameLength": "{{length}} of {{max}} characters",
         "labelFromCatalog": "From the catalog, can be changed",
         "labelInvalid": "A whole number from 1 to {{max}}",

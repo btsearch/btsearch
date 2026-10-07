@@ -473,9 +473,18 @@ export const ukeStations = UkeSchema.table(
   ],
 );
 
-/**
- * UKE permits table
- */
+export const ukeBands = UkeSchema.table(
+  "uke_bands",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    rat: ratEnum("rat").notNull(),
+    value: integer("value").notNull(),
+    variant: BandVariant("variant").notNull().default("commercial"),
+    name: varchar("name", { length: 15 }).notNull(),
+  },
+  (t) => [unique("uke_bands_rat_value_variant_unique").on(t.rat, t.value, t.variant), unique("uke_bands_name_unique").on(t.name)],
+);
+
 export const ukePermits = UkeSchema.table(
   "uke_permits",
   {
@@ -487,7 +496,7 @@ export const ukePermits = UkeSchema.table(
     decision_type: UKEPermissionType("decision_type").notNull(),
     expiry_date: timestamp({ withTimezone: true }).notNull(),
     band_id: integer("band_id")
-      .references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" })
+      .references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
     source: PermitsSource("source").notNull().default("permits"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -710,6 +719,10 @@ export const bands = pgTable(
       .where(sql`${t.code} IS NOT NULL`),
     index("bands_value_idx").on(t.value),
     index("bands_rat_idx").on(t.rat),
+    check(
+      "bands_real_band_check",
+      sql`${t.rat} IN ('GSM', 'UMTS', 'LTE', 'NR') AND (${t.rat} = 'GSM' OR ${t.duplex} IS NOT NULL OR ${t.value} IS NOT DISTINCT FROM 0)`,
+    ),
   ],
 );
 
@@ -853,7 +866,7 @@ export const statsSnapshots = StatisticsSchema.table(
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    band_id: integer("band_id").references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    band_id: integer("band_id").references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" }),
     unique_stations_count: integer("unique_stations_count").notNull(),
     permits_count: integer("permits_count").notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

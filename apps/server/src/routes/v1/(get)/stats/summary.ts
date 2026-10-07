@@ -1,4 +1,4 @@
-import { bands, cells, operators, stations, ukePermits, ukeStations } from "@openbts/drizzle";
+import { cells, operators, stations, ukeBands, ukePermits, ukeStations } from "@openbts/drizzle";
 import { and, count, countDistinct, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -98,15 +98,15 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const [byRatRows, byOperatorRows, ukeTotals, internalByRat, internalByOperator, internalTotals] = await Promise.all([
     db
       .select({
-        rat: bands.rat,
+        rat: ukeBands.rat,
         unique_stations: countDistinct(ukePermits.uke_station_id),
         permits: count(),
       })
       .from(ukePermits)
       .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
-      .innerJoin(bands, eq(ukePermits.band_id, bands.id))
+      .innerJoin(ukeBands, eq(ukePermits.band_id, ukeBands.id))
       .where(ukeWhere)
-      .groupBy(bands.rat),
+      .groupBy(ukeBands.rat),
 
     db
       .select({

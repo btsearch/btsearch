@@ -23,7 +23,6 @@ import {
   bandCatalogQueryOptions,
   describeBandRanges,
   getCatalogBandName,
-  getCatalogRat,
   indexTakenCodes,
   listCatalogEntries,
 } from "./bandCatalog";
@@ -236,7 +235,6 @@ function BandForm({ band, bands, isPending, onCreate, onUpdate, onCancel }: Band
 
   const catalog = catalogQuery.data;
   const baseline = toBandValues(editedBand);
-  const canHaveCode = editedBand === null || getCatalogRat(editedBand.rat) !== null;
   const entries = catalog === undefined ? NO_ENTRIES : listCatalogEntries(catalog, editedBand);
   const entry = code === null ? null : (entries.find((candidate) => candidate.code === code) ?? null);
   const savedFacts = editedBand === null || code !== editedBand.code ? null : toSavedBandFacts(editedBand);
@@ -267,9 +265,7 @@ function BandForm({ band, bands, isPending, onCreate, onUpdate, onCancel }: Band
   }
 
   let codeControl: ReactNode;
-  if (!canHaveCode) {
-    codeControl = <div className={PICKER_STATUS_CLASS}>{t("admin:reference.bands.code.none")}</div>;
-  } else if (catalog !== undefined) {
+  if (catalog !== undefined) {
     codeControl = (
       <BandCodePicker
         entries={entries}
@@ -309,16 +305,14 @@ function BandForm({ band, bands, isPending, onCreate, onUpdate, onCancel }: Band
         <DialogTitle>{editedBand === null ? t("admin:reference.bands.actions.add") : t("admin:reference.bands.actions.edit")}</DialogTitle>
         <DialogDescription>{editedBand === null ? t("admin:reference.bands.dialog.addDescription") : editedBand.name}</DialogDescription>
       </DialogHeader>
-      {editedBand !== null && editedBand.code === null && canHaveCode ? <BandCodelessNotice /> : null}
+      {editedBand !== null && editedBand.code === null ? <BandCodelessNotice /> : null}
       <div>
         <Field data-invalid={twinName !== undefined || undefined}>
           <FieldTitle id={codeTitleId}>{t("admin:reference.bands.fields.code")}</FieldTitle>
           {codeControl}
           {twinName !== undefined ? <FieldError>{t("admin:reference.errors.band.exists", { value: twinName })}</FieldError> : null}
           {twinName === undefined && editedBand !== null ? (
-            <FieldDescription>
-              {canHaveCode ? t("admin:reference.bands.dialog.technologyFixed") : t("admin:reference.bands.dialog.noCatalogForRat")}
-            </FieldDescription>
+            <FieldDescription>{t("admin:reference.bands.dialog.technologyFixed")}</FieldDescription>
           ) : null}
         </Field>
         <BandCatalogFacts facts={entry ?? savedFacts} />

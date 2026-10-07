@@ -5,10 +5,11 @@ import { RAT_ORDER } from "./ratFields";
 import { createCellDraft } from "./snapshots";
 import type { CellDraft, EditKind, Rat, StationSnapshot } from "./types";
 import { listIdentifierKinds } from "./validate";
+import { REGISTER_COUNTRY_CODE } from "@/features/map/constants";
 import type { UkeStation } from "@/types/station";
 
 type RegisterPermit = {
-  band?: { id: number; rat: string } | null;
+  band?: { id: number; rat: string; value: number; variant: string | null } | null;
   source?: "permits" | "device_registry";
   sectors?: readonly unknown[];
 };
@@ -16,6 +17,8 @@ type RegisterPermit = {
 type PermitBand = {
   id: number;
   rat: Rat;
+  value: number;
+  variant: string | null;
 };
 
 type BandPermit = {
@@ -27,6 +30,8 @@ type RegisterLookups = {
   operatorsById: ReadonlyMap<number, Operator>;
   regionsById: ReadonlyMap<number, Region>;
   bands: readonly Band[];
+  countryCode?: string | null;
+  bandPlanIds?: ReadonlySet<number> | null;
 };
 
 type RegisterPrefillRules = {
@@ -48,17 +53,17 @@ function isRat(value: string): value is Rat {
   return RAT_ORDER.some((rat) => rat === value);
 }
 
-function findPermitBand(permit: RegisterPermit, bandsById: ReadonlyMap<number, Band>): PermitBand | null {
+function findPermitBand(permit: RegisterPermit): PermitBand | null {
   const band = permit.band ?? null;
   if (band === null) return null;
 
-  const rat = bandsById.get(band.id)?.rat ?? band.rat.toLowerCase();
-  return isRat(rat) ? { id: band.id, rat } : null;
+  const rat = band.rat.toLowerCase();
+  return isRat(rat) ? { ...band, rat } : null;
 }
 
-function listBandPermits(permits: readonly RegisterPermit[], bandsById: ReadonlyMap<number, Band>): BandPermit[] {
+function listBandPermits(permits: readonly RegisterPermit[]): BandPermit[] {
   return permits.flatMap((permit): BandPermit[] => {
-    const band = findPermitBand(permit, bandsById);
+    const band = findPermitBand(permit);
     return band === null ? [] : [{ permit, band }];
   });
 }
@@ -77,9 +82,12 @@ function getFallbackCellCount(sectorCounts: ReadonlyMap<number, number>): number
   return knownCounts.length === 0 ? FEWEST_CELLS_PER_BAND : Math.min(...knownCounts);
 }
 
-export function toRegisterCells(permits: readonly RegisterPermit[], bands: readonly Band[]): CellDraft[] {
-  const bandsById = new Map(bands.map((band): [number, Band] => [band.id, band]));
-  const bandPermits = listBandPermits(permits, bandsById);
+export function toRegisterCells(
+  permits: readonly RegisterPermit[],
+  bands: readonly Band[],
+  bandPlanIds: ReadonlySet<number> | null = null,
+): CellDraft[] {
+  const bandPermits = listBandPermits(permits);
   const sectorCounts = countRegistrySectors(bandPermits);
   const fallbackCount = getFallbackCellCount(sectorCounts);
   const seenBandIds = new Set<number>();
@@ -89,8 +97,18 @@ export function toRegisterCells(permits: readonly RegisterPermit[], bands: reado
     if (seenBandIds.has(band.id)) continue;
     seenBandIds.add(band.id);
 
+    const candidates = bands.filter(
+      (candidate) =>
+        candidate.rat === band.rat &&
+        candidate.labelMhz === band.value &&
+        candidate.variant === band.variant &&
+        (bandPlanIds === null || bandPlanIds.has(candidate.id)),
+    );
+    if (candidates.length === 0) continue;
+
+    const bandId = candidates.length === 1 ? candidates[0].id : null;
     const cellCount = Math.max(sectorCounts.get(band.id) ?? fallbackCount, FEWEST_CELLS_PER_BAND);
-    cells.push(...Array.from({ length: cellCount }, () => createCellDraft(band.rat, { bandId: band.id })));
+    cells.push(...Array.from({ length: cellCount }, () => createCellDraft(band.rat, { bandId })));
   }
   return RAT_ORDER.flatMap((rat) => cells.filter((cell) => cell.rat === rat));
 }
@@ -121,7 +139,8 @@ export function listRegisterStationActions(station: UkeStation, lookups: Registe
     });
   }
   if (rules.clearsSectors) actions.push({ type: "applySectors", sectors: [] });
-  actions.push({ type: "applyCells", cells: toRegisterCells(station.permits, lookups.bands) }, { type: "setEnabledRats", rats: [] });
+  const bandPlanIds = lookups.countryCode === REGISTER_COUNTRY_CODE ? (lookups.bandPlanIds ?? null) : null;
+  actions.push({ type: "applyCells", cells: toRegisterCells(station.permits, lookups.bands, bandPlanIds) }, { type: "setEnabledRats", rats: [] });
   for (const rat of RAT_ORDER) actions.push({ type: "setAreaCode", rat, value: null });
   return actions;
 }

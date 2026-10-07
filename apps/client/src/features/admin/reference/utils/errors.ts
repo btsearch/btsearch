@@ -25,7 +25,7 @@ const COUNTRY_MESSAGES: readonly MessageKey[] = [
   ["Country not found", "admin:reference.errors.country.notFound"],
   ["Must be a two-letter country code in upper case", "admin:reference.errors.country.codeFormat"],
   ["Must be greater than south", "admin:reference.errors.country.viewNorthBelowSouth"],
-  ["Cannot remove a band that cells or permits in this country still use", "admin:reference.errors.bandPlan.bandInUse"],
+  ["Cannot remove a band that cells in this country still use", "admin:reference.errors.bandPlan.bandInUse"],
 ];
 
 const REGION_MESSAGES: readonly MessageKey[] = [
@@ -41,7 +41,7 @@ const BAND_MESSAGES: readonly MessageKey[] = [
   ["An uplink-only band cannot hold cells", "admin:reference.errors.band.uplinkOnly"],
   ["A band cannot move to another technology", "admin:reference.errors.band.otherTechnology"],
   ["This band name is already in use", "admin:reference.errors.band.nameTaken"],
-  ["Cannot delete a band that cells, permits, submissions or statistics still use", "admin:reference.errors.band.inUse"],
+  ["Cannot delete a band that cells or submissions still use", "admin:reference.errors.band.inUse"],
 ];
 
 const BRAND_MESSAGES: readonly MessageKey[] = [

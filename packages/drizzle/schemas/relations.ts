@@ -52,6 +52,7 @@ import {
   stationsPermits,
   statsSnapshots,
   structureOwners,
+  ukeBands,
   ukeImportMetadata,
   ukeLocations,
   ukeOperators,
@@ -90,6 +91,7 @@ export const relations = defineRelations(
     stationSectors,
     stationUplinks,
     ukeStations,
+    ukeBands,
     ukePermits,
     ukePermitSectors,
     radioLinesManufacturers,
@@ -593,9 +595,9 @@ export const relations = defineRelations(
       }),
     },
     ukePermits: {
-      band: helpers.one.bands({
+      band: helpers.one.ukeBands({
         from: helpers.ukePermits.band_id,
-        to: helpers.bands.id,
+        to: helpers.ukeBands.id,
         optional: false,
       }),
       station: helpers.one.ukeStations({
@@ -798,9 +800,9 @@ export const relations = defineRelations(
         to: helpers.operators.id,
         optional: false,
       }),
-      band: helpers.one.bands({
+      band: helpers.one.ukeBands({
         from: helpers.statsSnapshots.band_id,
-        to: helpers.bands.id,
+        to: helpers.ukeBands.id,
         optional: false,
       }),
     },

@@ -4,6 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { fetchRadioLines, mapLocationsQueryOptions } from "../api";
 import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "../constants";
 import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "../data/mapCountries";
+import { areMapRatFiltersReady } from "../data/mapFilters";
 import { useMapLookups, useMapMaxBounds } from "../data/mapLookups";
 import { type MapPlace, useMapPoints } from "../data/mapPoints";
 import { useSavedMapFilters } from "../data/useSavedMapFilters";
@@ -62,7 +63,7 @@ function MapViewInner() {
   const { data: runtimeSettings } = useSettings();
   const { data: session } = useSettledSession();
   const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
-  const [savedFilters, setSavedFilters] = useSavedMapFilters();
+  const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters();
   const { lookups } = useMapLookups();
   const registerOnScreen = useRegisterOnScreen(bounds);
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -107,7 +108,7 @@ function MapViewInner() {
       bounds,
       request: { filters: shownFilters, lookups, limit: preferences.mapStationsLimit, wantAzimuths, searchText },
     }),
-    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided,
+    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided && areMapRatFiltersReady(shownFilters, isRegisterRatListReady),
     placeholderData: keepPreviousData,
   });
   const rejectedSearchText = useRejectedSearchText({

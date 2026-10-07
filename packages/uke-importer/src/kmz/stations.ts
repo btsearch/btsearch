@@ -32,7 +32,7 @@ type PermitRow = {
       region: { name: string; code: string } | null;
     } | null;
   };
-  band: { name: string; rat: string; value: number | null; duplex: string | null } | null;
+  band: { name: string; rat: string; value: number } | null;
   sectors: { azimuth: number | null; elevation: number | null; antenna_height: number | null; antenna_type: string | null }[];
 };
 

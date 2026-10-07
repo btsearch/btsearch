@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { useRegisterBandComparator } from "../lib/bandOrder";
 import { permitSnapshotQueryOptions } from "../queries";
 import { PermitSnapshotBandChart, type SnapshotBand, type SnapshotMetric, buildSnapshotBands } from "./permitSnapshotBandChart";
 import { PermitSnapshotImage, exportPermitSnapshotImage } from "./permitSnapshotImage";
@@ -141,7 +142,8 @@ export function PermitsByMonthChart() {
   const [isExporting, setIsExporting] = useState(false);
   const exportImageRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, isLoadingError, isFetching, refetch } = useQuery(permitSnapshotQueryOptions(month));
-  const bands = useMemo(() => buildSnapshotBands(data?.rows), [data?.rows]);
+  const compareBands = useRegisterBandComparator();
+  const bands = useMemo(() => buildSnapshotBands(data?.rows, compareBands), [data?.rows, compareBands]);
 
   const description = data?.snapshot_date
     ? t("permitsByMonth.snapshotDate", {

@@ -5,7 +5,7 @@ import { toV2Bbox } from "./data/mapBox";
 import { type MapListRequest, type MapLocationsQuery, buildMapLocationsQuery } from "./data/mapRequests";
 import { endpointPairKey } from "./utils";
 import { API_BASE, API_V2_BASE, fetchJson } from "@/lib/api";
-import type { RadioLine, StationSource, UkeLocationWithPermits, UkePermit } from "@/types/station";
+import type { Band, RadioLine, StationSource, UkeLocationWithPermits, UkePermit } from "@/types/station";
 
 type StationInclude = "operator" | "cells" | "sectors" | "backhaul";
 
@@ -37,6 +37,7 @@ type MapLocationsQueryArgs = {
 
 const MAP_LOCATIONS_SOURCE_KEY_INDEX = 2;
 const MAP_LOCATIONS_STALE_TIME = 1000 * 60 * 2;
+const REGISTER_BANDS_STALE_TIME = 1000 * 60 * 5;
 const MAP_LOCATIONS_GC_TIME = 1000 * 60;
 
 export const mapKeys = {
@@ -89,6 +90,22 @@ export async function fetchUkePermitsByStationId(stationId: string, operator?: n
   if (operator !== null && operator !== undefined) params.set("operator", String(operator));
   const result = await fetchJson<{ data: UkePermit[] }>(`${API_BASE}/uke/permits?${decodeURIComponent(params.toString())}`);
   return result.data;
+}
+
+export function registerBandsQueryOptions() {
+  return queryOptions({
+    queryKey: ["uke-bands"] as const,
+    queryFn: async ({ signal }) => {
+      const result = await fetchJson<{ data: Band[] }>(`${API_BASE}/uke/bands`, { signal });
+      return result.data;
+    },
+    staleTime: REGISTER_BANDS_STALE_TIME,
+  });
+}
+
+export function listRegisterBandLabels(registerBands: readonly Band[]): number[] {
+  const labels = new Set(registerBands.map((band) => band.value).filter((value) => value > 0));
+  return [...labels].sort((left, right) => left - right);
 }
 
 export type RadioLinesResponse = {

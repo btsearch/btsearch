@@ -2418,6 +2418,28 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+  /uke/bands:
+    get:
+      tags: [UKE]
+      summary: List UKE permit band labels
+      description: |
+        Returns all permit labels ordered by technology and MHz. Each label has the v1 band shape, with `duplex` and `code` always null.
+        These labels are separate from the bands used by cells and country band plans.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Band" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
   /uke/locations:
     get:
       tags: [UKE]

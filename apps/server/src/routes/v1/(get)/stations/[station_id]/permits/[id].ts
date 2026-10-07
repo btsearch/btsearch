@@ -1,22 +1,22 @@
-import { bands, operators, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
+import { operators, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { permitBandSchema, toPermitBand } from "../../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 
 const permitsSchema = createSelectSchema(ukePermits).omit({ band_id: true, uke_station_id: true });
-const bandsSchema = createSelectSchema(bands);
 const ukePermitsSchema = createSelectSchema(ukePermits).omit({ band_id: true, uke_station_id: true });
 const operatorsSchema = createSelectSchema(operators);
 const ukeLocationsSchema = createSelectSchema(ukeLocations).omit({ point: true, region_id: true });
 const ukeStationsSchema = createSelectSchema(ukeStations).omit({ operator_id: true, location_id: true });
 const sectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true });
 type Permit = z.infer<typeof ukePermitsSchema> & {
-  band: z.infer<typeof bandsSchema>;
+  band: z.infer<typeof permitBandSchema>;
   station: z.infer<typeof ukeStationsSchema> & {
     operator: z.infer<typeof operatorsSchema>;
     location: z.infer<typeof ukeLocationsSchema>;
@@ -31,7 +31,7 @@ const schemaRoute = {
   response: {
     200: z.object({
       data: permitsSchema.extend({
-        band: bandsSchema,
+        band: permitBandSchema,
         station: ukeStationsSchema.extend({
           operator: operatorsSchema,
           location: ukeLocationsSchema,
@@ -88,7 +88,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     });
     if (!permitLink || !permitLink.permit) throw new ErrorResponse("NOT_FOUND");
 
-    return res.send({ data: permitLink.permit });
+    return res.send({ data: { ...permitLink.permit, band: toPermitBand(permitLink.permit.band) } });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });

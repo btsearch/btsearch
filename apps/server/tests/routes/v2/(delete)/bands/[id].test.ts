@@ -12,7 +12,7 @@ describe("DELETE /bands/7", () => {
   it("applies the documented catalog or band-plan mutation", async () => {
     scriptAudit();
     dbMock.query.bands.findFirst.mockResolvedValue(row);
-    for (const table of ["cells", "uke_permits", "proposed_cells", "stats_snapshots"]) dbMock.enqueueFor("select", table, []);
+    for (const table of ["cells", "proposed_cells"]) dbMock.enqueueFor("select", table, []);
     dbMock.enqueueFor("delete", "country_bands", []);
     dbMock.enqueueFor("delete", "bands", []);
     const response = await injectMutation(route, request, options);
@@ -27,15 +27,26 @@ describe("DELETE /bands/7", () => {
     expect(dbMock.calls).toEqual([]);
   });
 
-  it("refuses deletion while cells still use the band", async () => {
+  it.each(["cells", "proposed_cells"])("refuses deletion while %s still use the band", async (table) => {
     scriptAudit();
     dbMock.query.bands.findFirst.mockResolvedValue(row);
-    dbMock.enqueueFor("select", "cells", [{ id: 1 }]);
-    dbMock.enqueueFor("select", "uke_permits", []);
-    dbMock.enqueueFor("select", "proposed_cells", []);
-    dbMock.enqueueFor("select", "stats_snapshots", []);
+    dbMock.enqueueFor("select", "cells", table === "cells" ? [{ id: 1 }] : []);
+    dbMock.enqueueFor("select", "proposed_cells", table === "proposed_cells" ? [{ id: 1 }] : []);
     const response = await injectMutation(route, request, options);
     expectError(response, 409, "CONFLICT");
     expect(dbMock.calls.some((call) => call.operation === "delete" && call.table === "bands")).toBe(false);
+  });
+
+  it("ignores permits and snapshots that reference a separate label with the same id", async () => {
+    scriptAudit();
+    dbMock.query.bands.findFirst.mockResolvedValue(row);
+    for (const table of ["cells", "proposed_cells"]) dbMock.enqueueFor("select", table, []);
+    for (const table of ["uke_permits", "stats_snapshots"]) dbMock.enqueueFor("select", table, [{ id: 1 }]);
+    dbMock.enqueueFor("delete", "country_bands", []);
+    dbMock.enqueueFor("delete", "bands", []);
+
+    const response = await injectMutation(route, request, options);
+    expect(response.statusCode).toBe(204);
+    expect(dbMock.calls.some((call) => call.table === "uke_permits" || call.table === "stats_snapshots")).toBe(false);
   });
 });
