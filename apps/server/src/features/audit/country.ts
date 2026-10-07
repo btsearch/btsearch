@@ -1,8 +1,8 @@
 import { auditLogs, auditOperations, locations, operators, proposedLocations, proposedStations, regions, submissions } from "@openbts/drizzle";
 import type { AuditEntity } from "@openbts/shared/audit";
-import { eq, inArray } from "drizzle-orm";
+import { type SQL, type SQLWrapper, asc, eq, inArray, sql } from "drizzle-orm";
 
-import { unique } from "../../lib/collections.js";
+import { chunks, unique } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
 import { stationCountries, stationCountryCode } from "../stations/country.js";
@@ -17,6 +17,8 @@ type CountryLookups = {
   operators: Map<number, string | null>;
   submissions: Map<string, SubmissionPlace>;
 };
+
+const LOOKUP_BATCH_SIZE = 5000;
 
 function valueAt(snapshot: unknown, ...path: string[]): unknown {
   let value = snapshot;
@@ -145,24 +147,26 @@ async function countriesById<Id>(
   ids: Id[],
   load: (ids: Id[]) => PromiseLike<{ id: Id; countryCode: string | null }[]>,
 ): Promise<Map<Id, string | null>> {
-  if (ids.length === 0) return new Map();
-  return new Map((await load(ids)).map((row) => [row.id, row.countryCode]));
+  const batches = await Promise.all(chunks(ids, LOOKUP_BATCH_SIZE).map((batch) => load(batch)));
+  return new Map(batches.flat().map((row) => [row.id, row.countryCode]));
 }
 
 async function loadCountryLookups(handle: Reader, entries: readonly SnapshotEntry[]): Promise<CountryLookups> {
   const snapshots = entries.flatMap((entry) => entry.snapshots);
   const submissionIds = unique(entries.flatMap(entrySubmissionIds));
-  const submissionRows =
-    submissionIds.length === 0
-      ? []
-      : await handle
-          .select({ id: submissions.id, stationId: submissions.station_id, proposedCountryCode: stationCountryCode })
-          .from(submissions)
-          .leftJoin(proposedLocations, eq(proposedLocations.submission_id, submissions.id))
-          .leftJoin(regions, eq(regions.id, proposedLocations.region_id))
-          .leftJoin(proposedStations, eq(proposedStations.submission_id, submissions.id))
-          .leftJoin(operators, eq(operators.id, proposedStations.operator_id))
-          .where(inArray(submissions.id, submissionIds));
+  const submissionBatches = await Promise.all(
+    chunks(submissionIds, LOOKUP_BATCH_SIZE).map((ids) =>
+      handle
+        .select({ id: submissions.id, stationId: submissions.station_id, proposedCountryCode: stationCountryCode })
+        .from(submissions)
+        .leftJoin(proposedLocations, eq(proposedLocations.submission_id, submissions.id))
+        .leftJoin(regions, eq(regions.id, proposedLocations.region_id))
+        .leftJoin(proposedStations, eq(proposedStations.submission_id, submissions.id))
+        .leftJoin(operators, eq(operators.id, proposedStations.operator_id))
+        .where(inArray(submissions.id, ids)),
+    ),
+  );
+  const submissionRows: ({ id: string } & SubmissionPlace)[] = submissionBatches.flat();
   const stationIds = unique([...entries.flatMap(entryStationIds), ...submissionRows.map((row) => row.stationId)]);
   const locationIds = idsAt(snapshots, "location_id");
   const regionIds = unique([...idsAt(snapshots, "region_id"), ...idsAt(snapshots, "proposedLocation", "region_id")]);
@@ -199,21 +203,38 @@ async function loadCountryLookups(handle: Reader, entries: readonly SnapshotEntr
   };
 }
 
+function countrySnapshot(snapshot: SQLWrapper): SQL {
+  return sql`CASE WHEN ${snapshot} IS NULL OR ${snapshot} = 'null'::jsonb THEN NULL
+    ELSE jsonb_build_object(
+      'station_id', ${snapshot}->'station_id',
+      'location_id', ${snapshot}->'location_id',
+      'region_id', ${snapshot}->'region_id',
+      'operator_id', ${snapshot}->'operator_id',
+      'countryCode', ${snapshot}->'countryCode',
+      'submission_id', ${snapshot}->'submission_id',
+      'proposedLocation', jsonb_build_object('region_id', ${snapshot}->'proposedLocation'->'region_id'),
+      'proposedStation', jsonb_build_object('operator_id', ${snapshot}->'proposedStation'->'operator_id')
+    ) END`;
+}
+
 export async function loadOperationCountries(handle: Reader, operationIds: readonly number[]): Promise<Map<number, string | null>> {
   const countries = new Map<number, string | null>(operationIds.map((id) => [id, null]));
   if (operationIds.length === 0) return countries;
 
+  const fields = {
+    operationId: auditLogs.operation_id,
+    entity: auditLogs.entity,
+    stationId: auditLogs.station_id,
+    recordId: sql<string | null>`CASE WHEN ${auditLogs.entity} IN ('locations', 'submissions') THEN ${auditLogs.record_id} ELSE NULL END`,
+    oldValues: countrySnapshot(auditLogs.old_values),
+    newValues: countrySnapshot(auditLogs.new_values),
+  };
   const rows = await handle
-    .select({
-      operationId: auditLogs.operation_id,
-      entity: auditLogs.entity,
-      stationId: auditLogs.station_id,
-      recordId: auditLogs.record_id,
-      oldValues: auditLogs.old_values,
-      newValues: auditLogs.new_values,
-    })
+    .select(fields)
     .from(auditLogs)
-    .where(inArray(auditLogs.operation_id, [...operationIds]));
+    .where(inArray(auditLogs.operation_id, [...operationIds]))
+    .groupBy(fields.operationId, fields.entity, fields.stationId, fields.recordId, fields.oldValues, fields.newValues)
+    .orderBy(asc(sql`max(${auditLogs.id})`));
   const entries = rows.map(({ oldValues, newValues, ...entry }) => ({
     ...entry,
     snapshots: [oldValues, newValues].filter((snapshot) => snapshot !== null && snapshot !== undefined),
