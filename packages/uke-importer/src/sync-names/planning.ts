@@ -1,6 +1,7 @@
 import { extraIdentificators, operators, stations } from "@openbts/drizzle";
 import { and, eq, inArray } from "drizzle-orm/sql/expressions/conditions";
 
+import { COUNTRY_CODE } from "../config.js";
 import { DATABASE_READ_CONCURRENCY, DATABASE_STATEMENT_BATCH_SIZE, mapInConcurrentBatches } from "../database-batching.js";
 import { db } from "../database.js";
 import { chunk } from "../utils.js";
@@ -14,7 +15,10 @@ interface MatchingStation {
 
 export async function loadOperatorIds(files: FileSpec[]): Promise<Map<string, number>> {
   const operatorNames = Array.from(new Set(files.map((file) => file.operator.name)));
-  const rows = await db.select({ id: operators.id, name: operators.name }).from(operators).where(inArray(operators.name, operatorNames));
+  const rows = await db
+    .select({ id: operators.id, name: operators.name })
+    .from(operators)
+    .where(and(inArray(operators.name, operatorNames), eq(operators.countryCode, COUNTRY_CODE)));
   return new Map(rows.map((row) => [row.name, row.id]));
 }
 

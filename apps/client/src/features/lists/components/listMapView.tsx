@@ -1,6 +1,7 @@
 import { TaskDaily01Icon, TaskRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LngLatBounds } from "maplibre-gl";
 import { type JSX, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,31 +11,36 @@ import { MapLinkButton } from "@/components/app/errorScreens";
 import { ErrorState } from "@/components/ui/error-state";
 import { Map as LibreMap, MapControls, useMap } from "@/components/ui/map";
 import { Spinner } from "@/components/ui/spinner";
-import { useListDetail } from "@/features/lists/hooks/useListDetail";
-import type { LocationsResponse } from "@/features/map/api";
-import { buildFilterParams, fetchLocations, fetchRadioLines } from "@/features/map/api";
+import { listQueryOptions } from "@/features/lists/api";
+import { fetchRadioLines, mapLocationsQueryOptions } from "@/features/map/api";
 import { MapSearchOverlay } from "@/features/map/components/search-overlay";
-import { DEFAULT_FILTERS, StationsLayer, loadMapFilters, saveMapFilters } from "@/features/map/components/stationsLayer";
-import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_BOUNDS, POLAND_CENTER } from "@/features/map/constants";
+import { StationsLayer } from "@/features/map/components/stationsLayer";
+import { FLOATING_NAV_MAP_OFFSET_CLASS, POLAND_CENTER } from "@/features/map/constants";
+import { getEffectiveMapFilters, isMapSourceUndecided, useMapCountries, useRegisterOnScreen } from "@/features/map/data/mapCountries";
+import { type MapFilters, areMapRatFiltersReady } from "@/features/map/data/mapFilters";
+import { useMapLookups, useMapMaxBounds } from "@/features/map/data/mapLookups";
+import { type MapPoint, type MapPopupStation, locationRecordToMapPoint, useMapPoints } from "@/features/map/data/mapPoints";
+import { useSavedMapFilters } from "@/features/map/data/useSavedMapFilters";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { useMapKeybinds } from "@/features/map/hooks/useMapKeybinds";
 import type { MapPopupLocation } from "@/features/map/hooks/useMapPopup";
 import { useMapPositionPersistence } from "@/features/map/hooks/useMapPositionPersistence";
 import { useMapQueryHousekeeping } from "@/features/map/hooks/useMapQueryHousekeeping";
+import { usePlannedMeasurementsLayer } from "@/features/map/hooks/usePlannedMeasurementsLayer";
 import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActions";
-import type { SearchStation } from "@/features/map/searchApi";
+import { type StationSearchHit, type StationSearchHitLocation, toSearchHitLocation, toSearchHitPlace } from "@/features/map/searchApi";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
-import type { LocationWithStations, StationFilters, StationWithoutCells } from "@/types/station";
 
 const RadioLinesLayer = lazy(() => import("@/features/map/components/radioLinesLayer"));
 
-const LIST_MAP_FILTERS_STORAGE_KEY = "list-map:filters";
-const LIST_FETCH_LIMIT = 1000;
+const LIST_RADIOLINES_LIMIT = 1000;
 const LIST_MAP_QUERY_FAMILIES = new Set(["list-locations", "list-radiolines"]);
 const LIST_UNAVAILABLE_STATUSES = new Set([401, 403, 404]);
+const LIST_MAP_FILTER_OVERRIDES: Partial<MapFilters> = { showStations: true };
+const NO_POINTS: MapPoint[] = [];
 
 type ListMapContextProps = { name: string };
 
@@ -54,76 +60,75 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   const navigate = useNavigate();
   const { map, isLoaded } = useMap();
   useMapPositionPersistence({ map, isLoaded });
-  const { bounds, zoom, isMoving } = useMapBounds({ map, isLoaded });
+  const { bounds, bbox, zoom, isMoving } = useMapBounds({ map, isLoaded });
   const { data: runtimeSettings } = useSettings();
-  const { data: session } = authClient.useSession();
-  const showAddToList = !!session?.user && !!runtimeSettings?.enableUserLists;
+  const { data: session } = useSettledSession();
+  const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
   const { preferences } = usePreferences();
+  const [savedFilters, setSavedFilters, isRegisterRatListReady] = useSavedMapFilters("list-map", LIST_MAP_FILTER_OVERRIDES);
+  const { lookups } = useMapLookups();
+  const registerOnScreen = useRegisterOnScreen(bounds);
 
-  const [filters, setFiltersState] = useState<StationFilters>(() => {
-    const saved = loadMapFilters(LIST_MAP_FILTERS_STORAGE_KEY) ?? DEFAULT_FILTERS;
-    return { ...saved, showStations: true };
-  });
-  const setFilters = useCallback((update: StationFilters | ((prev: StationFilters) => StationFilters)) => {
-    setFiltersState((prev) => {
-      const next = typeof update === "function" ? update(prev) : update;
-      saveMapFilters(next, LIST_MAP_FILTERS_STORAGE_KEY);
-      return next;
-    });
-  }, []);
+  const { data: listData, error: listError, isLoading, isPaused, isFetching, refetch } = useQuery(listQueryOptions(uuid));
 
-  const { data: listData, error: listError, isLoading, isPaused, isFetching, refetch } = useListDetail(uuid);
+  useMapMaxBounds(map);
 
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
-  const filterParams = buildFilterParams(filters).toString();
+  const isSourceUndecided = isMapSourceUndecided(savedFilters, registerOnScreen);
   useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LIST_MAP_QUERY_FAMILIES });
 
-  const { data: fetchedLocations } = useQuery({
-    queryKey: ["list-locations", bounds, uuid, filters.source, filterParams, wantAzimuths],
-    queryFn: ({ signal }) => fetchLocations(bounds, filters, LIST_FETCH_LIMIT, { azimuths: wantAzimuths, list: uuid, signal }),
-    enabled: isLoaded && !!bounds && !isMoving,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60,
-    placeholderData: (prev) => prev,
+  const shownFilters = getEffectiveMapFilters(savedFilters, registerOnScreen);
+  const { data: page } = useQuery({
+    ...mapLocationsQueryOptions({
+      bounds,
+      family: "list-locations",
+      request: { filters: shownFilters, lookups, limit: MAX_LOCATION_LIST_LIMIT, wantAzimuths, listId: uuid },
+    }),
+    enabled: isLoaded && bounds !== "" && !isMoving && !isSourceUndecided && areMapRatFiltersReady(shownFilters, isRegisterRatListReady),
+    placeholderData: keepPreviousData,
   });
 
   const { data: radioLinesResponse } = useQuery({
-    queryKey: ["list-radiolines", bounds, uuid, filters.radiolineOperators, filters.recentDays],
+    queryKey: ["list-radiolines", bounds, uuid, shownFilters.radiolineOperators, shownFilters.recentDays],
     queryFn: ({ signal }) =>
       fetchRadioLines(bounds, {
         signal,
-        operatorIds: filters.radiolineOperators,
-        limit: LIST_FETCH_LIMIT,
-        recentDays: filters.recentDays,
+        operatorIds: shownFilters.radiolineOperators,
+        limit: LIST_RADIOLINES_LIMIT,
+        recentDays: shownFilters.recentDays,
         list: uuid,
       }),
-    enabled: filters.showRadiolines && !!bounds && !isMoving,
+    enabled: shownFilters.showRadiolines && bounds !== "" && !isMoving,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
   const radioLines = radioLinesResponse?.data;
 
   const [activeMarker, setActiveMarker] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [tempLocations, setTempLocations] = useState<LocationWithStations[]>([]);
+  const [searchedLocations, setSearchedLocations] = useState<StationSearchHitLocation[]>([]);
 
-  const locationsResponse = useMemo<LocationsResponse | undefined>(() => {
-    if (!fetchedLocations) return undefined;
-    if (filters.source !== "internal" || tempLocations.length === 0) return fetchedLocations;
-    const existingIds = new Set(fetchedLocations.data.map((location) => location.id));
-    const extras = tempLocations.filter((location) => !existingIds.has(location.id));
-    if (extras.length === 0) return fetchedLocations;
-    return { data: [...fetchedLocations.data, ...extras], totalCount: fetchedLocations.totalCount };
-  }, [fetchedLocations, tempLocations, filters.source]);
+  const listedPoints = useMapPoints(page, lookups);
+  const isDatabasePage = page?.source === "internal";
+  const searchedPoints = useMemo(() => {
+    if (!isDatabasePage || lookups === undefined || searchedLocations.length === 0) return NO_POINTS;
 
-  const internalMemberIds = listData?.stations.internal;
-  const listStationIds = useMemo(() => new Set(internalMemberIds ?? []), [internalMemberIds]);
+    const listedIds = new Set(listedPoints.map((point) => point.id));
+    return searchedLocations
+      .filter((location) => !listedIds.has(location.id))
+      .map((location): MapPoint => ({ ...locationRecordToMapPoint(location, lookups), isUnlisted: true }));
+  }, [isDatabasePage, lookups, searchedLocations, listedPoints]);
+  const points = useMemo(() => (searchedPoints.length === 0 ? listedPoints : [...listedPoints, ...searchedPoints]), [listedPoints, searchedPoints]);
+  const mapCountries = useMapCountries({ bounds, points });
+
+  const listStationIds = listData?.items.stationIds;
+  const listStationIdSet = useMemo(() => new Set(listStationIds ?? []), [listStationIds]);
 
   const hasFitBoundsRef = useRef(false);
   useEffect(() => {
-    if (!map || !isLoaded || hasFitBoundsRef.current || !fetchedLocations) return;
+    if (!map || !isLoaded || hasFitBoundsRef.current || !page) return;
     const listBounds = new LngLatBounds();
-    for (const location of fetchedLocations.data) {
+    for (const location of page.locations) {
       listBounds.extend([location.longitude, location.latitude]);
     }
     for (const rl of radioLines ?? []) {
@@ -133,34 +138,45 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
     if (listBounds.isEmpty()) return;
     hasFitBoundsRef.current = true;
     map.fitBounds(listBounds, { padding: 80, maxZoom: 14 });
-  }, [map, isLoaded, fetchedLocations, radioLines]);
+  }, [map, isLoaded, page, radioLines]);
 
   const handlePopupClose = useCallback((closedLocation: MapPopupLocation) => {
     if (closedLocation.source !== "internal") return;
-    setTempLocations((locations) => locations.filter((location) => location.id !== closedLocation.locationId));
+    setSearchedLocations((locations) => locations.filter((location) => location.id !== closedLocation.locationId));
   }, []);
 
   const filterListStations = useCallback(
-    (stations: StationWithoutCells[]) => {
-      const memberStations = stations.filter((station) => listStationIds.has(station.id));
+    (stations: MapPopupStation[]) => {
+      const memberStations = stations.filter((station) => listStationIdSet.has(station.id));
       return memberStations.length > 0 ? memberStations : stations;
     },
-    [listStationIds],
+    [listStationIdSet],
   );
 
-  const { showPopup, openLocations, closePopups, popupActions, stationActions } = useStationPopupActions({
+  const { showPopup, openLocations, popupContents, closePopups, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
-    detailsFilters: filters,
+    statusFilter: shownFilters.status,
     filterStations: filterListStations,
     onClose: handlePopupClose,
   });
 
   useEffect(() => {
-    closePopups((location) => location.source !== filters.source);
-  }, [filters.source, closePopups]);
+    closePopups((location) => location.source !== shownFilters.source);
+  }, [shownFilters.source, closePopups]);
+
+  const { openDetails: openStationDetails } = stationActions;
+  usePlannedMeasurementsLayer({
+    map,
+    isLoaded,
+    enabled: shownFilters.showPlannedMeasurements,
+    bbox,
+    isMoving,
+    operatorIds: shownFilters.operatorIds,
+    onOpenStation: (stationId) => openStationDetails(stationId, "internal"),
+  });
 
   const handleActiveMarkerClear = useCallback(() => setActiveMarker(null), []);
 
@@ -178,48 +194,28 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
   );
 
   const handleStationSelect = useCallback(
-    (station: SearchStation) => {
-      const location = station.location;
-      if (!location || !map) return;
+    (hit: StationSearchHit) => {
+      const hitLocation = toSearchHitLocation(hit);
+      if (hitLocation === null || !map) return;
 
-      const { id: locationId, latitude: lat, longitude: lng } = location;
-      const alreadyOnMap = fetchedLocations?.data.some((loc) => loc.id === locationId) ?? false;
-      if (!alreadyOnMap) {
-        const tempLoc: LocationWithStations = {
-          id: locationId,
-          latitude: lat,
-          longitude: lng,
-          city: location.city ?? undefined,
-          address: location.address ?? undefined,
-          region: location.region,
-          updatedAt: location.updatedAt,
-          createdAt: location.createdAt,
-          stations: [station as unknown as StationWithoutCells],
-        };
-        setTempLocations((locations) => [...locations.filter((location) => location.id !== locationId), tempLoc]);
-      }
+      const { id: locationId, latitude, longitude } = hitLocation;
+      const isListed = page !== undefined && page.source === "internal" && page.locations.some((location) => location.id === locationId);
+      if (!isListed) setSearchedLocations((locations) => [...locations.filter((location) => location.id !== locationId), hitLocation]);
 
-      const locationInfo = {
-        id: locationId,
-        city: location.city ?? undefined,
-        address: location.address ?? undefined,
-        region: location.region.name,
-        latitude: lat,
-        longitude: lng,
-      };
+      const place = toSearchHitPlace(hitLocation);
 
-      map.flyTo({ center: [lng, lat], zoom: 16, essential: true, speed: 1.5 });
+      map.flyTo({ center: [longitude, latitude], zoom: 16, essential: true, speed: 1.5 });
       void map.once("moveend", () => {
-        showPopup([lng, lat], locationInfo, [station as unknown as StationWithoutCells], null, "internal");
+        showPopup([longitude, latitude], place, null, null, "internal");
       });
     },
-    [map, fetchedLocations, showPopup],
+    [map, page, showPopup],
   );
 
-  const locationCount = locationsResponse?.data.length ?? 0;
-  const totalCount = fetchedLocations?.totalCount ?? 0;
-  const radioLineCount = radioLines?.length ?? 0;
-  const radioLineTotalCount = radioLinesResponse?.totalCount ?? 0;
+  const locationCount = (page?.locations.length ?? 0) + searchedPoints.length;
+  const totalCount = page?.total ?? 0;
+  const radioLineCount = shownFilters.showRadiolines ? (radioLines?.length ?? 0) : 0;
+  const radioLineTotalCount = shownFilters.showRadiolines ? (radioLinesResponse?.totalCount ?? 0) : 0;
   const listName = listData?.name;
   const listMapContext = useMemo(() => (listName !== undefined ? <ListMapContext name={listName} /> : undefined), [listName]);
   const isListLoading = isLoading || (isPaused && listData === undefined);
@@ -228,16 +224,18 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
 
   return (
     <>
+      {popupContents}
       <MapSearchOverlay
         locationCount={locationCount}
         totalCount={totalCount}
         radioLineCount={radioLineCount}
         radioLineTotalCount={radioLineTotalCount}
-        filters={filters}
+        filters={shownFilters}
+        mapCountries={mapCountries}
         zoom={zoom}
         activeMarker={activeMarker}
         onActiveMarkerClear={handleActiveMarkerClear}
-        onFiltersChange={setFilters}
+        onFiltersChange={setSavedFilters}
         onLocationSelect={handleLocationSelect}
         onStationSelect={handleStationSelect}
         mapContext={listMapContext}
@@ -269,17 +267,18 @@ function ListMapInner({ uuid }: { uuid: string }): JSX.Element {
       ) : null}
 
       <StationsLayer
-        filters={filters}
-        onFiltersChange={setFilters}
-        locationsResponse={locationsResponse}
-        zoom={zoom}
+        filters={shownFilters}
+        savedFilters={savedFilters}
+        onFiltersChange={setSavedFilters}
+        points={points}
+        wantAzimuths={wantAzimuths}
         onActiveMarkerChange={setActiveMarker}
         stationActions={stationActions}
         popupActions={popupActions}
         activePopupLocations={openLocations}
       />
 
-      {filters.showRadiolines && radioLines && radioLines.length > 0 ? (
+      {shownFilters.showRadiolines && radioLines && radioLines.length > 0 ? (
         <Suspense fallback={null}>
           <RadioLinesLayer radioLines={radioLines} showAddToList={showAddToList} />
         </Suspense>
@@ -294,13 +293,7 @@ export function ListMapView({ uuid }: { uuid: string }): JSX.Element {
   const { preferences } = usePreferences();
 
   return (
-    <LibreMap
-      center={POLAND_CENTER}
-      zoom={6}
-      maxBounds={POLAND_BOUNDS}
-      minZoom={5}
-      className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}
-    >
+    <LibreMap center={POLAND_CENTER} zoom={6} minZoom={5} className={preferences.navMode === "floating" ? FLOATING_NAV_MAP_OFFSET_CLASS : undefined}>
       <ListMapInner uuid={uuid} />
     </LibreMap>
   );

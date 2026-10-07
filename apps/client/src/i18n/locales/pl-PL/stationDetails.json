@@ -20,13 +20,21 @@
     "pemReports": "Raporty PEM",
     "pemInstallationForm": "Formularz zgłoszenia",
     "pemReportsEmpty": "Brak raportów PEM w SI2PEM",
-    "pemReportsError": "Nie udało się wczytać raportów PEM"
+    "pemReportsError": "Nie udało się wczytać raportów PEM",
+    "region": "Region"
   },
   "sectors": {
     "suggestedCount": "Sugerowana liczba azymutów:",
     "empty": "Brak azymutów",
     "add": "Dodaj azymut",
-    "reorder": "Zmień kolejność {{label}}"
+    "reorder": "Zmień kolejność {{label}}",
+    "omnidirectional": "Dookólny",
+    "bandsOnSector": "Pasma na azymucie",
+    "noLinkedCells": "Żadna komórka na tej stacji nie ma przypisanego azymutu",
+    "unlinkedCells_one": "{{count, number}} komórka na tej stacji nie ma przypisanego azymutu",
+    "unlinkedCells_few": "{{count, number}} komórki na tej stacji nie mają przypisanego azymutu",
+    "unlinkedCells_many": "{{count, number}} komórek na tej stacji nie ma przypisanego azymutu",
+    "unlinkedCells_other": "{{count, number}} komórki na tej stacji nie ma przypisanego azymutu"
   },
   "si2pemAntennaData": {
     "action": "Anteny",
@@ -36,11 +44,78 @@
     "errorDescription": "Nie udało się pobrać wybranego raportu SI2PEM albo odczytać z niego tabeli anten. Spróbuj ponownie lub otwórz raport źródłowy",
     "emptyTitle": "Brak danych anten",
     "emptyDescription": "Ten raport nie zawiera wierszy anten, które można wyświetlić",
-    "antennaNumber": "Antena {{number}}",
     "unknownModel": "Nieznany model anteny",
     "fields": {
-      "tiltRange": "Zakres tiltu",
-      "measuredTilt": "Zmierzony tilt"
+      "tiltRange": "Zakres pochylenia",
+      "measuredTilt": "Zmierzone pochylenie"
+    },
+    "report": "Raport",
+    "reportPosition": "{{position}} z {{total}}",
+    "changesSince": "Zmiany od {{date}}",
+    "showReportFrom": "Pokaż raport z {{date}}",
+    "tableLabel": "Anteny z raportu",
+    "antennaHeights": "Wysokość anten",
+    "antennaCount_one": "{{count, number}} antena",
+    "antennaCount_few": "{{count, number}} anteny",
+    "antennaCount_many": "{{count, number}} anten",
+    "antennaCount_other": "{{count, number}} anteny",
+    "antennaCountOf_one": "{{shown, number}} z {{count, number}} anteny",
+    "antennaCountOf_few": "{{shown, number}} z {{count, number}} anten",
+    "antennaCountOf_many": "{{shown, number}} z {{count, number}} anten",
+    "antennaCountOf_other": "{{shown, number}} z {{count, number}} anteny",
+    "directionCount_one": "{{count, number}} kierunek",
+    "directionCount_few": "{{count, number}} kierunki",
+    "directionCount_many": "{{count, number}} kierunków",
+    "directionCount_other": "{{count, number}} kierunku",
+    "direction": "Kierunek {{direction}}",
+    "showAllDirections": "Pokaż wszystkie kierunki",
+    "reportRow": "poz. {{row}}",
+    "reportRowTitle": "Wiersz {{row}} w tabeli raportu, strona {{page}}",
+    "reportPage": "str. {{page}}",
+    "reportPageTitle": "Strona {{page}} raportu",
+    "columns": {
+      "height": "Wys.",
+      "antenna": "Antena",
+      "bands": "Pasma (MHz)",
+      "tilt": "Pochylenie"
+    },
+    "groups": {
+      "omnidirectional": "Dookólne",
+      "undirected": "Bez kierunku"
+    },
+    "tilt": {
+      "between": "{{min}} do {{max}}°",
+      "fixed": "stały"
+    },
+    "loading": {
+      "title": "Odczytywanie tabeli anten z raportu...",
+      "hint": "Pierwsze otwarcie raportu trwa dłużej."
+    },
+    "failure": {
+      "limitTitle": "Limit odczytów raportów",
+      "limitDescription": "Wykorzystano limit 15 odczytów raportów na 5 minut. Spróbuj ponownie za chwilę.",
+      "unavailableTitle": "SI2PEM nie odpowiada",
+      "unavailableDescription": "Raportu nie udało się teraz pobrać z SI2PEM. Spróbuj ponownie za chwilę albo otwórz raport źródłowy."
+    },
+    "comparison": {
+      "newTag": "nowa",
+      "was": "było {{value}}",
+      "added_one": "{{count, number}} nowa antena",
+      "added_few": "{{count, number}} nowe anteny",
+      "added_many": "{{count, number}} nowych anten",
+      "added_other": "{{count, number}} nowej anteny",
+      "changed_one": "{{count, number}} zmieniona",
+      "changed_few": "{{count, number}} zmienione",
+      "changed_many": "{{count, number}} zmienionych",
+      "changed_other": "{{count, number}} zmienionej",
+      "removed_one": "{{count, number}} usunięta",
+      "removed_few": "{{count, number}} usunięte",
+      "removed_many": "{{count, number}} usuniętych",
+      "removed_other": "{{count, number}} usuniętej",
+      "unchanged": "bez zmian",
+      "missing": "Brak w tym raporcie: {{antennas}}",
+      "omnidirectional": "dookólna",
+      "failed": "Nie udało się odczytać starszego raportu do porównania."
     }
   },
   "permits": {
@@ -59,7 +134,6 @@
     "sourceUke": "Źródło: Urząd Komunikacji Elektronicznej (UKE)",
     "sourcePermits": "Pozwolenia",
     "sourceDeviceRegistry": "Rejestr urządzeń",
-    "sourceRadiolines": "Radiolinie",
     "noPermits": "Brak pozwoleń UKE dla tej stacji",
     "permitHolder": "W tej lokalizacji pozwolenie ma stacja",
     "ukeStation": "Stacja UKE:",
@@ -95,17 +169,18 @@
     "inactiveStationTitle": "Stacja oznaczona do usunięcia",
     "inactiveStationDescription": "Ta stacja nie jest już aktywna i oczekuje na usunięcie z bazy danych",
     "detailsLoadErrorTitle": "Nie udało się wczytać aktualnych danych stacji",
-    "detailsLoadErrorDescription": "Część informacji może być niepełna lub nieaktualna"
+    "detailsLoadErrorDescription": "Część informacji może być niepełna lub nieaktualna",
+    "atThisLocation": "W tej lokalizacji"
   },
   "comments": {
     "title": "Komentarze społeczności",
     "unavailable": "Komentarze są obecnie niedostępne",
     "noCommentsHint": "Bądź pierwszą osobą, która podzieli się informacjami o tej stacji",
     "unknownAuthor": "Nieznany użytkownik",
-    "file": "Plik",
     "addComment": "Dodaj komentarz",
     "placeholder": "Dodaj komentarz...",
     "addImages": "Dodaj obrazy",
+    "textRequired": "Dodaj tekst komentarza, aby opublikować obrazy",
     "removeImage": "Usuń obraz {{number}}",
     "postComment": "Opublikuj komentarz",
     "postFailed": "Nie udało się opublikować komentarza",
@@ -123,7 +198,11 @@
     "noPhotosHint": "Zdjęcia są dodawane po zatwierdzeniu zgłoszeń",
     "main": "Główne zdjęcie",
     "sortOldestFirst": "Od najstarszych",
-    "sortNewestFirst": "Od najnowszych"
+    "sortNewestFirst": "Od najnowszych",
+    "hidePanel": "Ukryj panel zdjęć",
+    "showPanel": "Pokaż panel zdjęć",
+    "otherAtLocation": "Inne zdjęcia z tej lokalizacji",
+    "otherAtLocationHint": "Dodane przy stacjach innych operatorów"
   },
   "history": {
     "title": "Historia zmian stacji",
@@ -152,7 +231,7 @@
       "openPhoto": "Otwórz zdjęcie #{{id}} w nowej karcie",
       "photoPreviewAlt": "Podgląd zdjęcia #{{id}}",
       "photoPreviewFailed": "Nie udało się wczytać podglądu zdjęcia #{{id}}",
-      "photoUnavailable": "Zdjęcie #{{id}} nie jest już dostępne"
+      "mainPhotoUnavailable": "Zdjęcie niedostępne (główne zdjęcie)"
     },
     "titles": {
       "station_create": "Utworzono stację",
@@ -176,10 +255,12 @@
       "photos_delete": "Usunięto zdjęcia"
     },
     "fields": {
-      "cell": "Komórka",
-      "photo": "Zdjęcie",
       "mnoName": "Nazwa MNO",
       "uplinkModel": "Model radiolinii"
+    },
+    "sources": {
+      "import": "Import",
+      "system": "System"
     }
   }
 }

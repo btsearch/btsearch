@@ -1,18 +1,14 @@
 import { stationComments } from "@openbts/drizzle";
-import { eq } from "drizzle-orm";
+import { COMMENT_MAX_LENGTH } from "@openbts/shared/contract";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../../features/audit/index.js";
-import { buildInternalStationActionUrl } from "../../../../../../features/notifications/actionUrls.js";
-import { notifyStationWatchers } from "../../../../../../features/notifications/service.js";
+import { type CommentChanges, canModerateComments, updateStationComment } from "../../../../../../features/comments/write.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-import { logger } from "../../../../../../utils/logger.js";
 
 const stationCommentSelectSchema = createSelectSchema(stationComments);
 
@@ -23,7 +19,7 @@ const schemaRoute = {
   }),
   body: z
     .object({
-      content: z.string().min(1).max(10000).optional(),
+      content: z.string().trim().min(1).max(COMMENT_MAX_LENGTH).optional(),
       approve: z.boolean().optional(),
     })
     .refine((b) => b.content !== undefined || b.approve !== undefined, { message: "At least one field required" }),
@@ -53,47 +49,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
   });
   if (!comment) throw new ErrorResponse("NOT_FOUND");
 
-  const isPrivileged = await verifyPermissions(userId, { comments: ["moderate"] });
+  const isPrivileged = await canModerateComments(req, station_id);
   if (comment.user_id !== userId && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
   if (approve !== undefined && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
-  const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.update" }, async (tx, audit) => {
-    const [result] = await tx
-      .update(stationComments)
-      .set({
-        ...(content !== undefined && { content }),
-        ...(approve !== undefined && { status: approve ? "approved" : "pending" }),
-        updatedAt: new Date(),
-      })
-      .where(eq(stationComments.id, comment_id))
-      .returning();
-    if (!result) throw new ErrorResponse("INTERNAL_SERVER_ERROR");
+  let status: CommentChanges["status"];
+  if (approve !== undefined) status = approve ? "approved" : "pending";
 
-    await audit.log({
-      entity: "station_comments",
-      op: "update",
-      recordId: comment_id,
-      stationId: station_id,
-      old: comment,
-      new: result,
-    });
-    return result;
-  });
-
-  if (approve === true && comment.status !== "approved") {
-    const station = await db.query.stations.findFirst({
-      where: { id: station_id },
-      columns: { id: true, station_id: true },
-      with: { location: { columns: { latitude: true, longitude: true } } },
-    });
-    void notifyStationWatchers({
-      stationId: station_id,
-      stationStringId: station?.station_id ?? null,
-      type: "station_comment_approved",
-      actionUrl: station ? buildInternalStationActionUrl(station) : undefined,
-    }).catch((e) => logger.error("Failed to notify station watchers about approved comment", { error: e }));
-  }
+  const updated = await updateStationComment(req, comment, { content, status });
 
   return res.send({ data: updated });
 }

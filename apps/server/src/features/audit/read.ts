@@ -1,38 +1,42 @@
-import { auditLogs, auditOperations, users } from "@openbts/drizzle";
+import { auditLogs, auditOperations, stations, users } from "@openbts/drizzle";
 import type { AuditEntity, AuditOp, AuditOperationKind } from "@openbts/shared/audit";
-import { type SQL, and, asc, count, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import type { AuditOperationListQuery, AuditOperationSort, AuditOperationStation } from "@openbts/shared/contract";
+import { type SQL, and, asc, count, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
+import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import type { Database } from "../../database/psql.js";
+import { runLimited } from "../../lib/async/runLimited.js";
+import { chunks } from "../../lib/collections.js";
+import { type SortColumn, type SortField, createKeyset } from "../../lib/keyset.js";
 import type { DbTx } from "../../types/global.js";
+import { loadHiddenCountryCodes } from "../countries/visibility.js";
+import { containsPattern } from "../search/text.js";
+import { stationAreaConditions } from "../stations/read.js";
+import type { AuditReach } from "./access.js";
+import { toAuditMetadata } from "./metadata.js";
 import { getEntryRevertibility, loadRevertedEntryIds } from "./revert/revertibility.js";
-import type {
-  AuditCount,
-  AuditEntry,
-  AuditMetadata,
-  AuditOperationRow,
-  AuditOperationSummary,
-  AuditOperationWithEntries,
-  UserSummary,
-} from "./types.js";
+import { findRestoringBandEntries } from "./revert/strategies/reference.js";
+import type { AuditCount, AuditEntry, AuditOperationRow, AuditOperationSummary, AuditOperationWithEntries, UserSummary } from "./types.js";
 
 type AuditOperationFilters = {
-  limit: number;
-  offset: number;
-  sort: "asc" | "desc";
   kinds: AuditOperationKind[];
   entities: AuditEntity[];
   ops: AuditOp[];
   userIds: string[];
+  stationIds: number[];
   from?: Date;
   to?: Date;
-  stationId?: number;
   query?: string;
+  countryCodes?: readonly string[];
 };
 
-function metadata(value: unknown): AuditMetadata | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as AuditMetadata) : null;
-}
+type CursorPaging = Pick<AuditOperationListQuery, "sort" | "limit" | "cursor" | "offset" | "includeTotal">;
+
+const STATION_IDS_PER_QUERY = 5000;
+const SORT_COLUMNS: Record<SortField<AuditOperationSort>, SortColumn | null> = {
+  createdAt: { column: auditOperations.createdAt, kind: "instant" },
+};
 
 function entryExists(filters: SQL[]): SQL {
   const condition = and(eq(auditLogs.operation_id, auditOperations.id), ...filters);
@@ -49,29 +53,31 @@ function operationConditions(filters: AuditOperationFilters): SQL[] {
     conditions.push(or(inArray(auditOperations.actor_id, filters.userIds), inArray(auditOperations.performed_by, filters.userIds))!);
   if (filters.from !== undefined) conditions.push(gte(auditOperations.createdAt, filters.from));
   if (filters.to !== undefined) conditions.push(lte(auditOperations.createdAt, filters.to));
+  if (filters.countryCodes !== undefined) conditions.push(inArray(auditOperations.country_code, [...filters.countryCodes]));
 
   const entryFilters: SQL[] = [];
   if (filters.entities.length === 1) entryFilters.push(eq(auditLogs.entity, filters.entities[0]!));
   else if (filters.entities.length > 1) entryFilters.push(inArray(auditLogs.entity, filters.entities));
   if (filters.ops.length === 1) entryFilters.push(eq(auditLogs.op, filters.ops[0]!));
   else if (filters.ops.length > 1) entryFilters.push(inArray(auditLogs.op, filters.ops));
-  if (filters.stationId !== undefined) entryFilters.push(eq(auditLogs.station_id, filters.stationId));
+  if (filters.stationIds.length === 1) entryFilters.push(eq(auditLogs.station_id, filters.stationIds[0]!));
+  else if (filters.stationIds.length > 1) entryFilters.push(inArray(auditLogs.station_id, filters.stationIds));
   if (filters.query !== undefined && filters.query !== "") {
     const numeric = /^\d+$/.test(filters.query) ? Number(filters.query) : null;
     if (numeric !== null && Number.isSafeInteger(numeric) && numeric <= 2_147_483_647)
       entryFilters.push(or(eq(auditLogs.record_id, filters.query), eq(auditLogs.station_id, numeric))!);
-    else entryFilters.push(or(eq(auditLogs.record_id, filters.query), sql`${auditLogs.metadata}::text ILIKE ${`%${filters.query}%`}`)!);
+    else entryFilters.push(or(eq(auditLogs.record_id, filters.query), sql`${auditLogs.metadata}::text ILIKE ${containsPattern(filters.query)}`)!);
   }
   if (entryFilters.length > 0) conditions.push(entryExists(entryFilters));
   return conditions;
 }
 
 function toOperationRow(row: typeof auditOperations.$inferSelect): AuditOperationRow {
-  return { ...row, metadata: metadata(row.metadata) };
+  return { ...row, metadata: toAuditMetadata(row.metadata) };
 }
 
 function toAuditEntry(row: typeof auditLogs.$inferSelect): AuditEntry {
-  return { ...row, metadata: metadata(row.metadata) };
+  return { ...row, metadata: toAuditMetadata(row.metadata) };
 }
 
 async function summaries(handle: Database | DbTx, rows: (typeof auditOperations.$inferSelect)[]): Promise<AuditOperationSummary[]> {
@@ -123,23 +129,54 @@ async function summaries(handle: Database | DbTx, rows: (typeof auditOperations.
   });
 }
 
-export async function fetchAuditOperations(filters: AuditOperationFilters): Promise<{ data: AuditOperationSummary[]; totalCount: number }> {
-  const conditions = operationConditions(filters);
-  const where = conditions.length === 0 ? undefined : and(...conditions);
-  const [totalRow, rows] = await Promise.all([
-    db.select({ count: count() }).from(auditOperations).where(where),
+export async function fetchAuditOperationPage(
+  filters: AuditOperationFilters,
+  paging: CursorPaging,
+): Promise<{ data: AuditOperationSummary[]; nextCursor: string | null; total?: number }> {
+  const where = and(...operationConditions(filters));
+  const keyset = createKeyset(paging.sort, auditOperations.id, SORT_COLUMNS, paging.cursor);
+  const [rows, totals] = await Promise.all([
     db
-      .select()
+      .select({ operation: auditOperations, key: keyset.key })
       .from(auditOperations)
-      .where(where)
-      .orderBy(
-        filters.sort === "asc" ? asc(auditOperations.createdAt) : desc(auditOperations.createdAt),
-        filters.sort === "asc" ? asc(auditOperations.id) : desc(auditOperations.id),
-      )
-      .limit(filters.limit)
-      .offset(filters.offset),
+      .where(and(where, keyset.after))
+      .orderBy(...keyset.orderBy)
+      .limit(paging.limit + 1)
+      .offset(paging.offset ?? 0),
+    paging.includeTotal ? db.select({ total: count() }).from(auditOperations).where(where) : null,
   ]);
-  return { data: await summaries(db, rows), totalCount: totalRow[0]?.count ?? 0 };
+  const page = rows.slice(0, paging.limit);
+  const last = page.at(-1);
+
+  return {
+    data: await summaries(
+      db,
+      page.map((row) => row.operation),
+    ),
+    nextCursor: rows.length > paging.limit && last ? keyset.cursorAfter({ id: last.operation.id, key: last.key }) : null,
+    total: totals ? (totals[0]?.total ?? 0) : undefined,
+  };
+}
+
+export async function fetchReadableStations(
+  req: FastifyRequest,
+  reach: AuditReach,
+  stationIds: readonly number[],
+): Promise<Map<number, AuditOperationStation>> {
+  const readable = new Map<number, AuditOperationStation>();
+  if (stationIds.length === 0) return readable;
+
+  const countryCodes = reach.isEverywhere ? undefined : reach.countryCodes;
+  const area = stationAreaConditions({ countryCodes }, await loadHiddenCountryCodes(req));
+  const lookups = chunks(stationIds, STATION_IDS_PER_QUERY).map((chunk) => async () => {
+    const rows = await db
+      .select({ id: stations.id, siteId: stations.station_id, operatorId: stations.operator_id })
+      .from(stations)
+      .where(and(inArray(stations.id, chunk), ...area));
+    for (const row of rows) readable.set(row.id, row);
+  });
+  await runLimited(lookups);
+  return readable;
 }
 
 export async function fetchAuditOperationSummary(handle: Database | DbTx, id: number): Promise<AuditOperationSummary | null> {
@@ -168,9 +205,10 @@ export async function fetchAuditOperation(id: number): Promise<AuditOperationWit
   const entryRows = await db.select().from(auditLogs).where(eq(auditLogs.operation_id, id)).orderBy(asc(auditLogs.id));
   const operation = toOperationRow(row);
   const revertedEntryIds = await loadRevertedEntryIds(db, id);
-  const entries = entryRows.map((entryRow) => {
-    const entry = toAuditEntry(entryRow);
-    const result = getEntryRevertibility(entry, { operation, revertedEntryIds });
+  const auditEntries = entryRows.map(toAuditEntry);
+  const restoringBandEntries = await findRestoringBandEntries(db, auditEntries);
+  const entries = auditEntries.map((entry) => {
+    const result = getEntryRevertibility(restoringBandEntries.get(entry.id) ?? entry, { operation, revertedEntryIds });
     return result.revertible ? { ...entry, revertible: true } : { ...entry, revertible: false, revert_reason: result.reason };
   });
   const [reverts, revertedBy] = await Promise.all([operationLink(row.reverts_operation_id), operationLink(row.reverted_by_operation_id)]);

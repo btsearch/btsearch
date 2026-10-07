@@ -1,16 +1,15 @@
-import { bands, operators, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { ukePermitResponseType } from "@openbts/proto/server";
+import { operators, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
 const permitsSchema = createSelectSchema(ukePermits).omit({ band_id: true, uke_station_id: true });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const ukeLocationsSchema = createSelectSchema(ukeLocations);
 const ukeStationsSchema = createSelectSchema(ukeStations).omit({ operator_id: true, location_id: true });
@@ -22,7 +21,7 @@ const schemaRoute = {
   response: {
     200: z.object({
       data: permitsSchema.extend({
-        band: bandsSchema,
+        band: permitBandSchema,
         station: ukeStationsSchema.extend({
           operator: operatorsSchema,
           location: ukeLocationsSchema,
@@ -33,7 +32,7 @@ const schemaRoute = {
   },
 };
 type Permit = z.infer<typeof permitsSchema> & {
-  band: z.infer<typeof bandsSchema>;
+  band: z.infer<typeof permitBandSchema>;
   station: z.infer<typeof ukeStationsSchema> & {
     operator: z.infer<typeof operatorsSchema>;
     location: z.infer<typeof ukeLocationsSchema>;
@@ -75,7 +74,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
     if (!permit) throw new ErrorResponse("NOT_FOUND");
 
     return res.send({
-      data: permit,
+      data: { ...permit, band: toPermitBand(permit.band) },
     });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -86,7 +85,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 const getUkePermit: Route<IdParams, Permit> = {
   url: "/uke/permits/:id",
   method: "GET",
-  config: { permissions: ["read:uke_permits"], allowGuestAccess: true, proto: ukePermitResponseType },
+  config: { permissions: ["read:uke_permits"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

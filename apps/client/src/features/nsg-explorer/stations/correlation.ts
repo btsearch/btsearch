@@ -1,28 +1,22 @@
-import { mapNsgAnalyzerCell } from "@/features/analyzer/nsg/cellAdapter";
-import { type ServingCellResolution, type ServingCellSnapshot, resolveServingCellAt } from "@/features/nsg-explorer/cells/servingTimeline";
-import type { AnalyzerCell } from "@/lib/analyzer/analyzerParsers";
-import type { AnalyzerResult, AnalyzerStation } from "@/lib/analyzer/api";
-import type { NsgCell } from "@/lib/nsg-parser/model";
+import type { ObservedCell } from "@openbts/shared/contract";
 
-export type AnalyzerInput = Exclude<AnalyzerCell, { rat: "NR" }>;
+import { type LocatedStation, type StationMatch, toNsgObservedCell } from "./match";
+import { type ServingCellResolution, type ServingCellSnapshot, resolveServingCellAt } from "@/features/nsg-explorer/cells/servingTimeline";
+import type { NsgCell } from "@/lib/nsg-parser/model";
 
 export type AnalyzerRequest = {
   key: string;
-  input: AnalyzerInput;
+  input: ObservedCell;
 };
 
-export type AnalyzerResultsByKey = ReadonlyMap<string, AnalyzerResult>;
+export type AnalyzerResultsByKey = ReadonlyMap<string, StationMatch>;
 
 export type MatchedStation = {
-  station: AnalyzerStation;
+  station: LocatedStation;
   confidence: "exact" | "probable";
 };
 
-function isAnalyzerInput(input: AnalyzerCell): input is AnalyzerInput {
-  return input.rat !== "NR";
-}
-
-export function getAnalyzerRequestKey(input: AnalyzerInput): string {
+export function getAnalyzerRequestKey(input: ObservedCell): string {
   return JSON.stringify(input);
 }
 
@@ -31,8 +25,8 @@ const analyzerRequestByCell = new WeakMap<NsgCell, AnalyzerRequest | null>();
 function getAnalyzerRequestForCell(cell: NsgCell): AnalyzerRequest | null {
   const cached = analyzerRequestByCell.get(cell);
   if (cached !== undefined) return cached;
-  const input = cell.registered === true ? mapNsgAnalyzerCell(cell) : null;
-  const request = input !== null && isAnalyzerInput(input) ? { key: getAnalyzerRequestKey(input), input } : null;
+  const input = cell.registered === true ? toNsgObservedCell(cell) : null;
+  const request = input === null ? null : { key: getAnalyzerRequestKey(input), input };
   analyzerRequestByCell.set(cell, request);
   return request;
 }
@@ -65,37 +59,29 @@ export function collectAnalyzerRequests(cells: readonly NsgCell[]): AnalyzerRequ
   });
 }
 
-export function mapAnalyzerResults(requests: readonly AnalyzerRequest[], results: readonly AnalyzerResult[]): AnalyzerResultsByKey {
+export function mapAnalyzerResults(requests: readonly AnalyzerRequest[], results: readonly StationMatch[]): AnalyzerResultsByKey {
   if (requests.length !== results.length) throw new Error(`Analyzer returned ${results.length} results for ${requests.length} NSG cell requests.`);
   return new Map(requests.map((request, index) => [request.key, results[index]]));
 }
 
-export function getAnalyzerResultForCell(resultsByKey: AnalyzerResultsByKey, cell: NsgCell): AnalyzerResult | null {
+export function getAnalyzerResultForCell(resultsByKey: AnalyzerResultsByKey, cell: NsgCell): StationMatch | null {
   const request = getAnalyzerRequestForCell(cell);
   return request === null ? null : (resultsByKey.get(request.key) ?? null);
+}
+
+function toMatchedStation(match: StationMatch | null): MatchedStation | null {
+  if (match === null || match.station === null || match.result.match === "none") return null;
+  return { station: match.station, confidence: match.result.match === "cell" && !match.result.isShared ? "exact" : "probable" };
 }
 
 export function collectMatchedStations(cells: readonly NsgCell[], resultsByKey: AnalyzerResultsByKey): MatchedStation[] {
   const stations = new Map<number, MatchedStation>();
 
   for (const cell of cells) {
-    const result = getAnalyzerResultForCell(resultsByKey, cell);
-    if (!result?.station || (result.status !== "found" && result.status !== "probable")) continue;
-
-    const confidence = result.status === "found" ? "exact" : "probable";
-    const existing = stations.get(result.station.id);
-    if (!existing) {
-      stations.set(result.station.id, {
-        station: result.station,
-        confidence,
-      });
-      continue;
-    }
-
-    if (confidence === "exact" && existing.confidence === "probable") {
-      existing.station = result.station;
-      existing.confidence = confidence;
-    }
+    const match = toMatchedStation(getAnalyzerResultForCell(resultsByKey, cell));
+    if (match === null) continue;
+    const existing = stations.get(match.station.id);
+    if (existing === undefined || (match.confidence === "exact" && existing.confidence === "probable")) stations.set(match.station.id, match);
   }
 
   return [...stations.values()].sort((left, right) => left.station.id - right.station.id);
@@ -112,7 +98,5 @@ export function resolveReplayServingStation(
 ): MatchedStation | null {
   const resolution = resolveReplayServingCell(timeline, playheadMs);
   if (resolution.status !== "available") return null;
-  const result = getAnalyzerResultForCell(resultsByKey, resolution.measurement);
-  if (!result?.station || (result.status !== "found" && result.status !== "probable")) return null;
-  return { station: result.station, confidence: result.status === "found" ? "exact" : "probable" };
+  return toMatchedStation(getAnalyzerResultForCell(resultsByKey, resolution.measurement));
 }

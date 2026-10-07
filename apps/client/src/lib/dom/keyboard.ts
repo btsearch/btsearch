@@ -32,8 +32,18 @@ type ModifierKeyEvent = {
   shiftKey: boolean;
 };
 
+type ShortcutKeyEvent = {
+  ctrlKey: boolean;
+  metaKey: boolean;
+  key: string;
+};
+
 export function hasModifierKey(event: ModifierKeyEvent): boolean {
   return event.altKey || event.ctrlKey || event.metaKey || event.shiftKey;
+}
+
+export function isSaveShortcut(event: ShortcutKeyEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
 }
 
 export function isInteractiveTarget(target: EventTarget | null, currentTarget?: EventTarget): boolean {

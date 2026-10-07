@@ -171,42 +171,16 @@ export type RadioLine = {
 
 export type StationSource = "internal" | "uke";
 
-export type StationSortBy = "station_id" | "updatedAt" | "createdAt" | "relevance";
-export type StationSortDirection = "asc" | "desc";
-
-export type LocationSortBy = "id" | "updatedAt" | "createdAt";
-export type LocationSortDirection = "asc" | "desc";
-
-export type StationFilters = {
-  operators: number[];
-  bands: number[];
-  rat: string[];
-  status: StationStatus[];
-  source: StationSource;
-  recentDays: number | null;
-  recentDateFields: ("createdAt" | "updatedAt")[];
-  showStations: boolean;
-  showRadiolines: boolean;
-  radiolineOperators: number[];
-  showHeatmap: boolean;
-  showPlannedMeasurements: boolean;
-  uplinkTypes: UplinkType[];
-};
-
 export type StationWithoutCells = Omit<Station, "location" | "cells"> & {
   cells?: Cell[];
 };
 
-export type LocationInfo = {
+export type LocationWithStations = {
   id: number;
   city?: string;
   address?: string;
-  region?: string;
   latitude: number;
   longitude: number;
-};
-
-export type LocationWithStations = Omit<LocationInfo, "region"> & {
   updatedAt: string;
   createdAt: string;
   region: Region;
@@ -284,35 +258,7 @@ export type UkeStation = {
   internalStation?: PhysicalStation | null;
 };
 
-export type CommentAttachment = {
-  uuid: string;
-  type: string;
-};
-
-export type StationComment = {
-  id: string;
-  station_id: number;
-  user_id: string;
-  content: string;
-  status: "pending" | "approved";
-  createdAt: string;
-  updatedAt: string;
-  attachments?: CommentAttachment[];
-  author?: {
-    id: string;
-    username: string | null;
-    name: string | null;
-    image: string | null;
-  };
-};
-
 export type Sector = {
   id: number;
   azimuth: number;
-};
-
-export type SectorDraft = {
-  _localId: string;
-  id?: number;
-  azimuth: number | "";
 };

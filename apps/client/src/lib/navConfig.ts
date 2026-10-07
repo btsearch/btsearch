@@ -2,10 +2,11 @@ import {
   AddCircleIcon,
   AirportTowerIcon,
   AnalyticsUpIcon,
+  Building03Icon,
   Camera01Icon,
+  CellularNetworkIcon,
   DashboardSquare01Icon,
   DatabaseIcon,
-  Delete02Icon,
   DiscordIcon,
   Download04Icon,
   EarthIcon,
@@ -13,7 +14,9 @@ import {
   FileSearchIcon,
   FileSignalIcon,
   FullSignalIcon,
+  Globe02Icon,
   InformationCircleIcon,
+  Layers01Icon,
   LegalDocument01Icon,
   LegalDocument02Icon,
   Location01Icon,
@@ -21,7 +24,9 @@ import {
   MapsIcon,
   Message01Icon,
   Note01Icon,
+  PaintBoardIcon,
   Radar01Icon,
+  Radio01Icon,
   SecurityLockIcon,
   SentIcon,
   Settings02Icon,
@@ -30,6 +35,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
+import type { Settings } from "@openbts/shared/contract";
 
 export type NavConfigItem = {
   titleKey: string;
@@ -37,7 +43,8 @@ export type NavConfigItem = {
   href?: string;
   icon: IconSvgElement;
   allowedRoles?: string[];
-  requiresSetting?: "enableUserLists";
+  requiresSetting?: "lists";
+  requiresAccess?: "countries";
 };
 
 export type NavConfigSection = {
@@ -64,9 +71,7 @@ export type TranslatedNavSection = {
   items: TranslatedNavItem[];
 };
 
-type RuntimeSettingsFlags = {
-  enableUserLists?: boolean;
-};
+type NavSettings = Pick<Settings, "features">;
 
 export const navMainConfig: NavConfigSection[] = [
   {
@@ -79,7 +84,6 @@ export const navMainConfig: NavConfigSection[] = [
       { titleKey: "items.database", url: "/stations", icon: DatabaseIcon },
       { titleKey: "items.photos", url: "/photos", icon: Camera01Icon },
       { titleKey: "items.statistics", url: "/statistics", icon: AnalyticsUpIcon },
-      { titleKey: "items.deletedEntries", url: "/deleted-entries", icon: Delete02Icon },
       { titleKey: "items.clfExport", url: "/clf-export", icon: Download04Icon },
       { titleKey: "items.kmz", url: "/kmz", icon: EarthIcon },
       { titleKey: "items.analyzer", url: "/analyzer", icon: FileSearchIcon },
@@ -125,7 +129,7 @@ export const infoNavConfig: NavConfigSection[] = [
       { titleKey: "items.contact", url: "/contact", icon: Mail01Icon },
       { titleKey: "items.terms", url: "/terms", icon: LegalDocument01Icon },
       { titleKey: "items.privacy", url: "/privacy", icon: LegalDocument02Icon },
-      { titleKey: "items.apiDocs", url: "#", href: "/api/v1/docs", icon: FileBracesIcon },
+      { titleKey: "items.apiDocs", url: "#", href: "/api/v2/docs", icon: FileBracesIcon },
       { titleKey: "items.discord", url: "#", href: "https://discord.gg/SZETJPeayg", icon: DiscordIcon },
     ],
   },
@@ -144,10 +148,23 @@ export const adminNavConfig: NavConfigSection[] = [
       { titleKey: "items.locations", url: "/admin/locations", allowedRoles: ["admin", "editor"], icon: Location01Icon },
       { titleKey: "items.submissions", url: "/admin/submissions", allowedRoles: ["admin", "editor"], icon: SentIcon },
       { titleKey: "items.ukeImport", url: "/admin/uke-import", allowedRoles: ["admin"], icon: Upload04Icon },
-      { titleKey: "items.lists", url: "/admin/lists", allowedRoles: ["admin"], icon: TaskDaily01Icon, requiresSetting: "enableUserLists" },
+      { titleKey: "items.lists", url: "/admin/lists", allowedRoles: ["admin"], icon: TaskDaily01Icon, requiresSetting: "lists" },
       { titleKey: "items.comments", url: "/admin/comments", allowedRoles: ["admin", "editor"], icon: Message01Icon },
-      { titleKey: "items.auditLogs", url: "/admin/audit-logs", allowedRoles: ["admin"], icon: Note01Icon },
-      { titleKey: "items.settings", url: "/admin/settings", allowedRoles: ["admin"], icon: Settings02Icon },
+      { titleKey: "items.auditLogs", url: "/admin/audit-logs", allowedRoles: ["admin", "editor"], icon: Note01Icon, requiresAccess: "countries" },
+      { titleKey: "items.systemSettings", url: "/admin/settings", allowedRoles: ["admin"], icon: Settings02Icon },
+    ],
+  },
+  {
+    titleKey: "sections.reference",
+    key: "reference",
+    url: "#",
+    icon: Layers01Icon,
+    items: [
+      { titleKey: "items.countries", url: "/admin/countries", allowedRoles: ["admin", "editor"], icon: Globe02Icon, requiresAccess: "countries" },
+      { titleKey: "items.operators", url: "/admin/operators", allowedRoles: ["admin"], icon: CellularNetworkIcon },
+      { titleKey: "items.brands", url: "/admin/brands", allowedRoles: ["admin"], icon: PaintBoardIcon },
+      { titleKey: "items.bands", url: "/admin/bands", allowedRoles: ["admin"], icon: Radio01Icon },
+      { titleKey: "items.structureOwners", url: "/admin/structure-owners", allowedRoles: ["admin"], icon: Building03Icon },
     ],
   },
 ];
@@ -171,7 +188,8 @@ export function translateAdminNav(
   config: NavConfigSection[],
   t: (key: string) => string,
   userRole: string | undefined,
-  settings: RuntimeSettingsFlags | null | undefined,
+  settings: NavSettings | undefined,
+  canOpenCountries: boolean,
 ) {
   if (userRole !== "admin" && userRole !== "editor") return [];
 
@@ -183,7 +201,8 @@ export function translateAdminNav(
       icon: section.icon,
       items: section.items
         .filter((item) => !item.allowedRoles || item.allowedRoles.includes(userRole))
-        .filter((item) => !item.requiresSetting || !!settings?.[item.requiresSetting])
+        .filter((item) => !item.requiresSetting || !!settings?.features[item.requiresSetting])
+        .filter((item) => item.requiresAccess !== "countries" || canOpenCountries)
         .map((item) => ({
           title: t(item.titleKey),
           url: item.url,

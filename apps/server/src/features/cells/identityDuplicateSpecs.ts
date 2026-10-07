@@ -11,6 +11,7 @@ export type CellIdentityDuplicateSpec = {
   fields: readonly CellIdentityFieldSpec[];
   requiredFields: readonly string[];
   duplicateLabel: string;
+  isUnknownWhenZero: boolean;
 };
 
 export type CellIdentityDuplicateKey = {
@@ -32,6 +33,7 @@ export const CELL_IDENTITY_DUPLICATE_SPECS: CellIdentityDuplicateSpec[] = [
     fields: [{ field: "lac", fallback: 0 }, { field: "cid" }],
     requiredFields: ["cid"],
     duplicateLabel: "LAC+CID",
+    isUnknownWhenZero: false,
   },
   {
     rat: "UMTS",
@@ -39,6 +41,7 @@ export const CELL_IDENTITY_DUPLICATE_SPECS: CellIdentityDuplicateSpec[] = [
     fields: [{ field: "rnc", fallback: 0 }, { field: "cid" }],
     requiredFields: ["cid"],
     duplicateLabel: "RNC+CID",
+    isUnknownWhenZero: true,
   },
   {
     rat: "LTE",
@@ -46,6 +49,7 @@ export const CELL_IDENTITY_DUPLICATE_SPECS: CellIdentityDuplicateSpec[] = [
     fields: [{ field: "enbid" }, { field: "clid" }],
     requiredFields: ["enbid", "clid"],
     duplicateLabel: "eNBID+CLID",
+    isUnknownWhenZero: true,
   },
 ];
 
@@ -54,9 +58,13 @@ export function getCellIdentityDuplicateSpec(rat: string | null | undefined): Ce
   return CELL_IDENTITY_DUPLICATE_SPECS.find((spec) => spec.rat === rat);
 }
 
+export function isUnknownCellIdentity(spec: CellIdentityDuplicateSpec, details: CellIdentityDuplicateDetails): boolean {
+  return spec.isUnknownWhenZero && spec.fields.every(({ field }) => details[field] === 0);
+}
+
 export function getCellIdentityDuplicateKey(source: CellIdentityDuplicateSource): CellIdentityDuplicateKey | undefined {
   const spec = getCellIdentityDuplicateSpec(source.rat);
-  if (!spec || !source.details) return undefined;
+  if (!spec || !source.details || isUnknownCellIdentity(spec, source.details)) return undefined;
 
   const values: Record<string, number> = {};
   for (const field of spec.fields) {

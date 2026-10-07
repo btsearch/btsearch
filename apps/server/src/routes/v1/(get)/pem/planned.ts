@@ -82,7 +82,7 @@ type ResBody = z.infer<(typeof schemaRoute.response)["200"]>;
 const MAP_CACHE = { freshTtlSeconds: 3600, staleTtlSeconds: 6 * 3600 };
 const PLANNED_CACHE = { freshTtlSeconds: 3600, staleTtlSeconds: 86400 };
 const PUBLISHED_CACHE = { freshTtlSeconds: 86400, staleTtlSeconds: 7 * 86400 };
-const CACHE_KEY_PREFIX = "pem:planned:v3";
+const CACHE_KEY_PREFIX = "pem:planned:v4";
 const si2pem = new SI2PEMClient();
 
 type ParsedWmsFeature = Omit<UnmatchedPEMItem, "id" | "region" | "operator" | "report_url"> & { operatorName: string };

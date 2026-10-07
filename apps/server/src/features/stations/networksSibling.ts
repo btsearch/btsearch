@@ -3,16 +3,7 @@ import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { and, eq, inArray } from "drizzle-orm";
 
 import db from "../../database/psql.js";
-
-function stripFirstDigit(enbid: number): number | null {
-  if (enbid <= 0) return null;
-  return enbid % 10 ** Math.floor(Math.log10(enbid));
-}
-
-function candidateEnbids(stripped: number): number[] {
-  const magnitude = 10 ** (Math.floor(Math.log10(stripped)) + 1);
-  return Array.from({ length: 9 }, (_, i) => stripped + (i + 1) * magnitude);
-}
+import { candidateEnbids } from "../analyzer/logic.js";
 
 export async function findSiblingStationIdByEnbid(
   stationId: number,
@@ -28,8 +19,8 @@ export async function findSiblingStationIdByEnbid(
     .innerJoin(cells, eq(cells.id, lteCells.cell_id))
     .where(eq(cells.station_id, stationId));
 
-  const stripped = [...new Set(currentLteCells.map(({ enbid }) => stripFirstDigit(enbid)).filter((value): value is number => value !== null))];
-  if (stripped.length === 0) return null;
+  const partnerEnbids = [...new Set(currentLteCells.filter(({ enbid }) => enbid > 0).flatMap(({ enbid }) => candidateEnbids(enbid)))];
+  if (partnerEnbids.length === 0) return null;
 
   const siblingOperator = await db.query.operators.findFirst({ where: { mnc: siblingMnc } });
   if (!siblingOperator) return null;
@@ -39,13 +30,7 @@ export async function findSiblingStationIdByEnbid(
     .from(lteCells)
     .innerJoin(cells, eq(cells.id, lteCells.cell_id))
     .innerJoin(stations, eq(stations.id, cells.station_id))
-    .where(
-      and(
-        eq(stations.location_id, locationId),
-        eq(stations.operator_id, siblingOperator.id),
-        inArray(lteCells.enbid, stripped.flatMap(candidateEnbids)),
-      ),
-    )
+    .where(and(eq(stations.location_id, locationId), eq(stations.operator_id, siblingOperator.id), inArray(lteCells.enbid, partnerEnbids)))
     .limit(1);
   return siblingRow?.stationId ?? null;
 }

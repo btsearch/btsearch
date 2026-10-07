@@ -7,6 +7,7 @@ import type { DbTx } from "../../../types/global.js";
 import type { AuditEntry, AuditOperationRow } from "../types.js";
 import { isSnapshotRecord as isRecord } from "./columns.js";
 import { getLocationPhotoMove } from "./strategies/locationPhotos.js";
+import { hasOperatorDetailChange } from "./strategies/reference.js";
 
 export type RevertReason =
   | "unsupported_entity"
@@ -78,7 +79,7 @@ export function getEntryRevertibility(
   if (entry.op === "update") {
     if (entry.old_values === null) return { revertible: false, reason: "missing_old_values" };
     if (entry.new_values === null) return { revertible: false, reason: "missing_new_values" };
-    if (snapshotsEqual(entry.old_values, entry.new_values)) return { revertible: false, reason: "no_changes" };
+    if (snapshotsEqual(entry.old_values, entry.new_values) && !hasOperatorDetailChange(entry)) return { revertible: false, reason: "no_changes" };
   }
   if (requiresDetails(entry)) return { revertible: false, reason: "missing_details" };
 

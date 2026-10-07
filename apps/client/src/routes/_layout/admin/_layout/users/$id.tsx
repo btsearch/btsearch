@@ -1,120 +1,182 @@
 import { ArrowLeft01Icon, UserRemove01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
+import { usePrefetchQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
-import { PageErrorState } from "@/components/ui/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DangerZoneCard } from "@/features/admin/users/components/DangerZoneCard";
-import { ManageUserCard } from "@/features/admin/users/components/ManageUserCard";
-import { SessionsCard } from "@/features/admin/users/components/SessionsCard";
-import { UserDetailHeader } from "@/features/admin/users/components/UserDetailHeader";
-import { UserInfoCard } from "@/features/admin/users/components/UserInfoCard";
-import type { AdminUser, Session } from "@/features/admin/users/types";
-import { API_BASE, fetchJson } from "@/lib/api";
-import { authClient } from "@/lib/auth/client";
+import { buttonVariants } from "@/components/ui/button";
+import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
+import { hasPasswordQueryOptions } from "@/features/admin/users/api/account";
+import { accountHistoryQueryOptions, userActivityQueryOptions } from "@/features/admin/users/api/activity";
+import { adminUserQueryOptions, userSessionsQueryOptions } from "@/features/admin/users/api/authAdmin";
+import { discardRemovedUserQueries } from "@/features/admin/users/api/queryKeys";
+import { AccountSection } from "@/features/admin/users/components/detail/accountSection";
+import { ActivitySection } from "@/features/admin/users/components/detail/activitySection";
+import { BanNotice } from "@/features/admin/users/components/detail/banNotice";
+import { ModerationSection } from "@/features/admin/users/components/detail/moderationSection";
+import { OwnAccountNotice } from "@/features/admin/users/components/detail/ownAccountNotice";
+import { RolesSection } from "@/features/admin/users/components/detail/rolesSection";
+import { SecuritySection } from "@/features/admin/users/components/detail/securitySection";
+import { UserDetailSkeleton } from "@/features/admin/users/components/detail/userDetailSkeleton";
+import { UserHero } from "@/features/admin/users/components/detail/userHero";
+import { parseUserId } from "@/features/admin/users/utils/userId";
+import { useNavMode } from "@/hooks/usePreferences";
+import { useSettledSession } from "@/hooks/useSettledSession";
+import { cn } from "@/lib/utils";
 
-function AdminUserDetailPage() {
-  const { id: userId } = Route.useParams();
-  const { t } = useTranslation("admin");
+const USER_LIST_PATH = "/admin/users";
+const TRAILING_SLASH = /\/$/;
+const BACK_LINK_CLASS = cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-1.5 text-muted-foreground");
 
-  const {
-    data: userData,
-    error,
-    isLoading,
-    isPaused,
-    isFetching,
-    refetch,
-  } = useQuery({
-    queryKey: ["admin", "user", userId],
-    queryFn: async () => {
-      const result = await authClient.admin.listUsers({
-        query: {
-          filterField: "id",
-          filterValue: userId,
-          filterOperator: "eq",
-          limit: 1,
-        },
-      });
-      if (result.error) throw result.error;
-      return (result.data?.users?.[0] as unknown as AdminUser | undefined) ?? null;
-    },
-    enabled: !!userId,
-  });
+function isUserListPreviousEntry(): boolean {
+  if (!("navigation" in window)) return false;
+  const { currentEntry } = window.navigation;
+  if (currentEntry === null || currentEntry.index < 1) return false;
 
-  const { data: hasPassword } = useQuery({
-    queryKey: ["admin", "user-has-password", userId],
-    queryFn: async () => {
-      const res = await fetchJson<{ data: { hasPassword: boolean } }>(`${API_BASE}/account/password?userId=${userId}`);
-      return res.data.hasPassword;
-    },
-    enabled: !!userId,
-  });
+  const previousUrl = window.navigation.entries().at(currentEntry.index - 1)?.url;
+  if (!previousUrl) return false;
+  return new URL(previousUrl).pathname.replace(TRAILING_SLASH, "") === USER_LIST_PATH;
+}
 
-  const { data: sessions } = useQuery({
-    queryKey: ["admin", "user-sessions", userId],
-    queryFn: async () => {
-      const result = await authClient.admin.listUserSessions({ userId });
-      if (result.error) throw result.error;
-      return (result.data as unknown as { sessions: Session[] }).sessions;
-    },
-    enabled: !!userId,
-  });
-
-  if (!userId) return <Navigate to="/admin/users" replace />;
-
-  if (isLoading || (isPaused && !userData)) {
-    return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
-          <div className="flex items-center gap-4">
-            <Skeleton className="size-16 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </div>
-          <Skeleton className="h-48 w-full rounded-xl" />
-          <Skeleton className="h-48 w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    const backButton = (
-      <Button variant={error ? "outline" : "default"} nativeButton={false} render={<Link to="/admin/users" />}>
-        <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
-        {t("common:actions.back")}
-      </Button>
-    );
-
-    return error ? (
-      <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} action={backButton} />
-    ) : (
-      <PageErrorState
-        tone="neutral"
-        icon={UserRemove01Icon}
-        title={t("common:error.userNotFound")}
-        description={t("common:error.userNotFoundDescription")}
-        action={backButton}
-      />
-    );
-  }
+function UserListLink({ className, children }: { className: string; children: ReactNode }) {
+  const router = useRouter();
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-4">
-        <UserDetailHeader user={userData} />
-        <UserInfoCard user={userData} />
-        <ManageUserCard user={userData} hasPassword={hasPassword} />
-        <SessionsCard userId={userId} sessions={sessions ?? []} />
-        <DangerZoneCard user={userData} />
+    <Link
+      to={USER_LIST_PATH}
+      activeOptions={{ exact: true }}
+      className={className}
+      onClick={(event) => {
+        const isModifiedClick = event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+        if (isModifiedClick || !isUserListPreviousEntry()) return;
+        event.preventDefault();
+        router.history.back();
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function BackButton({ variant }: { variant: "default" | "outline" }) {
+  const { t } = useTranslation("admin");
+
+  return (
+    <UserListLink className={buttonVariants({ variant })}>
+      <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+      {t("common:actions.back")}
+    </UserListLink>
+  );
+}
+
+function UserPageShell({ notice, children }: { notice?: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation("admin");
+  const navMode = useNavMode();
+
+  return (
+    <div className="@container custom-scrollbar flex-1 overflow-y-auto">
+      <div className={cn("w-full px-3 pt-5 sm:px-6 lg:px-8", navMode === "floating" ? "pb-32" : "pb-10")}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <UserListLink className={BACK_LINK_CLASS}>
+            <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+            {t("nav:items.users")}
+          </UserListLink>
+          {notice}
+        </div>
+        {children}
       </div>
     </div>
   );
+}
+
+function UserNotFound() {
+  const { t } = useTranslation("common");
+
+  return (
+    <PageErrorState
+      tone="neutral"
+      icon={UserRemove01Icon}
+      title={t("common:error.userNotFound")}
+      description={t("common:error.userNotFoundDescription")}
+      action={<BackButton variant="default" />}
+    />
+  );
+}
+
+function UserDetailPreload({ userId }: { userId: string }) {
+  usePrefetchQuery(userSessionsQueryOptions(userId));
+  usePrefetchQuery(hasPasswordQueryOptions(userId));
+  usePrefetchQuery(userActivityQueryOptions(userId));
+  usePrefetchQuery(accountHistoryQueryOptions(userId));
+
+  return null;
+}
+
+function UserDetail({ userId }: { userId: string }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: session } = useSettledSession();
+  const [mountedAt] = useState(Date.now);
+  const [isRemoved, setIsRemoved] = useState(false);
+  const {
+    data: user,
+    dataUpdatedAt,
+    isFetching,
+    isFetchedAfterMount,
+    isRefetchError,
+    refetch,
+  } = useQuery({ ...adminUserQueryOptions(userId), enabled: !isRemoved });
+
+  const isUserFresh = user !== undefined && dataUpdatedAt >= mountedAt;
+  const isUserPending = !isUserFresh && !isFetchedAfterMount;
+
+  function leaveRemovedUser() {
+    setIsRemoved(true);
+    void discardRemovedUserQueries(queryClient, userId);
+    if (isUserListPreviousEntry()) router.history.back();
+    else void router.navigate({ to: USER_LIST_PATH, replace: true });
+  }
+
+  if (isRemoved || isUserPending) {
+    return (
+      <UserPageShell>
+        {isRemoved ? null : <UserDetailPreload userId={userId} />}
+        <UserDetailSkeleton />
+      </UserPageShell>
+    );
+  }
+
+  if (!isUserFresh) return <PageErrorState onRetry={() => refetch()} isRetrying={isFetching} action={<BackButton variant="outline" />} />;
+
+  if (user === null) return <UserNotFound />;
+
+  const isSelf = session?.user.id === user.id;
+
+  return (
+    <UserPageShell notice={isRefetchError ? <StaleDataNotice onRetry={() => refetch()} isRetrying={isFetching} /> : null}>
+      <div className="flex flex-col gap-10 sm:gap-12">
+        <div className="flex flex-col gap-4">
+          <UserHero user={user} isSelf={isSelf} />
+          {user.isBanned ? <BanNotice user={user} /> : null}
+          {isSelf ? <OwnAccountNotice /> : null}
+        </div>
+        <AccountSection user={user} />
+        <RolesSection user={user} isSelf={isSelf} />
+        <SecuritySection user={user} isSelf={isSelf} />
+        <ActivitySection user={user} />
+        {isSelf ? null : <ModerationSection user={user} onRemoved={leaveRemovedUser} />}
+      </div>
+    </UserPageShell>
+  );
+}
+
+function AdminUserDetailPage() {
+  const { id } = Route.useParams();
+  const userId = parseUserId(id);
+
+  if (userId === undefined) return <UserNotFound />;
+  return <UserDetail key={userId} userId={userId} />;
 }
 
 export const Route = createFileRoute("/_layout/admin/_layout/users/$id")({
@@ -122,6 +184,7 @@ export const Route = createFileRoute("/_layout/admin/_layout/users/$id")({
   staticData: {
     titleKey: "breadcrumbs.userDetail",
     i18nNamespace: "admin",
+    mainClassName: "overflow-hidden max-md:pb-0",
     breadcrumbs: [
       { titleKey: "sections.admin", path: "/admin/users", i18nNamespace: "nav" },
       { titleKey: "items.users", path: "/admin/users", i18nNamespace: "nav" },

@@ -37,13 +37,14 @@
     "done": "Done",
     "loading": "Loading...",
     "copy": "Copy",
+    "copyField": "Copy {{field}}",
     "copied": "Copied!",
+    "copiedField": "Copied {{field}}!",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
     "saveChanges": "Save changes",
     "submit": "Submit",
     "submitting": "Submitting...",
-    "submitted": "Submitted!",
     "saving": "Saving...",
     "saved": "Saved",
     "approve": "Approve",
@@ -70,7 +71,9 @@
     "signOut": "Sign out",
     "signingOut": "Signing out...",
     "createStation": "Create station",
-    "selectStation": "Select a station"
+    "selectStation": "Select a station",
+    "add": "Add",
+    "hideFilters": "Hide filters"
   },
   "labels": {
     "pemSourceGenerated": "Generated",
@@ -98,7 +101,6 @@
     "standard": "Standard",
     "notes": "Notes",
     "address": "Address",
-    "extraAddress": "Extra address",
     "city": "City",
     "status": "Status",
     "type": "Type",
@@ -123,8 +125,6 @@
     "otherOperators_few": "{{count, number}} other operators",
     "otherOperators_many": "{{count, number}} other operators",
     "otherOperators_other": "{{count, number}} other operators",
-    "selected_one": "{{count, number}} selected",
-    "selected_other": "{{count, number}} selected",
     "search": "Search",
     "confirmed": "Confirmed",
     "yes": "Yes",
@@ -179,7 +179,8 @@
     "account": "Account",
     "aboutMe": "About me",
     "navigation": "Navigation",
-    "twoFactor": "Two-factor authentication"
+    "twoFactor": "Two-factor authentication",
+    "added": "Added"
   },
   "placeholder": {
     "search": "Search...",
@@ -260,7 +261,6 @@
     "required": "This field is required",
     "invalid": "Invalid value",
     "addressOwnWordForbidden": "Use the real address instead of variants of \"własna\", e.g. \"wieża T-Mobile\"",
-    "stationIdRequired": "Station ID is required",
     "invalidCode": "Invalid code. Try again"
   },
   "duplicateStation": {
@@ -302,6 +302,13 @@
     "signInRequired": {
       "title": "Sign in to continue",
       "description": "This part of the site is only available to signed-in users"
+    },
+    "maintenance": {
+      "title": "Maintenance in progress",
+      "description": "We're working on the site. Please check back in a little while",
+      "retry": "Check again",
+      "signIn": "Administrator sign-in",
+      "settings": "System settings"
     }
   },
   "toast": {
@@ -332,5 +339,43 @@
   "roles": {
     "editor": "Editor",
     "admin": "Administrator"
+  },
+  "impersonation": {
+    "start": "Sign in as",
+    "confirm": {
+      "title": "Sign in as {{name}}?",
+      "description": "You'll see the site the way this account sees it. Everything you do is recorded as an action of this account. The session lasts one hour"
+    },
+    "unavailable": {
+      "admin": "You cannot sign in as an administrator",
+      "banned": "A banned account cannot have a session"
+    },
+    "actingAs": "Acting as",
+    "sessionUntil": "session until {{time}}",
+    "stop": "Stop",
+    "stopHint": "Stop and return to your account"
+  },
+  "structure": {
+    "type": "Structure",
+    "owner": "Structure owner",
+    "note": "Structure note",
+    "types": {
+      "latticeTower": "Lattice tower",
+      "tubularTower": "Tubular tower",
+      "concreteTower": "Concrete tower",
+      "tower": "Tower",
+      "mast": "Mast",
+      "rooftopMast": "Rooftop mast",
+      "rooftop": "Rooftop",
+      "chimney": "Chimney",
+      "church": "Church",
+      "waterTower": "Water tower",
+      "silo": "Silo",
+      "pole": "Pole",
+      "mobileMast": "Mobile mast",
+      "tunnel": "Tunnel",
+      "indoor": "Indoor",
+      "other": "Other structure"
+    }
   }
 }

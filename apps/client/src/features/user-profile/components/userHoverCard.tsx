@@ -130,11 +130,12 @@ function ContactAction({ href, label, icon, external = false }: { href: string; 
 function ProfileCard({ profile, username, onNavigate }: { profile: UserProfile; username: string; onNavigate: () => void }) {
   const { t, i18n } = useTranslation("main");
   const { data: session } = authClient.useSession();
-  const { user, contact } = profile;
+  const user = profile;
+  const { contact } = profile;
   const identity = { username: user.username ?? username, name: user.name, image: user.image, role: user.role };
   const memberSince = new Date(user.createdAt).toLocaleDateString(i18n.language, { year: "numeric", month: "long", day: "numeric" });
-  const commentCount = profile.comments?.totalCount ?? 0;
-  const hunterRegionCount = profile.hunter?.regions.length ?? 0;
+  const commentCount = profile.comments?.total ?? 0;
+  const hunterRegionCount = profile.hunterRegionIds?.length ?? 0;
   const isOwner = session?.user.id === user.id;
   const isAdmin = session?.user.role === "admin";
 
@@ -220,11 +221,20 @@ type UserHoverCardProps = {
 
 export function UserHoverCard({ username, name, image, onNavigate }: UserHoverCardProps) {
   const { t } = useTranslation("common");
-  const { data: profile, error, isFetching, refetch } = useQuery(userProfileQueryOptions(username));
-  if (profile !== undefined) return <ProfileCard profile={profile} username={username} onNavigate={onNavigate} />;
-
+  const { data: session, isPending: isSessionPending, error: sessionError, refetch: refetchSession } = authClient.useSession();
+  const isViewerReady = !isSessionPending && !sessionError;
+  const {
+    data: profile,
+    error,
+    isFetching,
+    refetch,
+  } = useQuery({
+    ...userProfileQueryOptions(username, session?.user.id ?? null),
+    enabled: isViewerReady,
+  });
   const identity = { username, name, image, role: null };
-  if (error instanceof ApiResponseError && error.status === 404)
+  const loadError = sessionError ?? error;
+  if (isViewerReady && error instanceof ApiResponseError && error.status === 404)
     return (
       <>
         <div className={cn(HEADER_CLASS, roleWashClassName(null))}>
@@ -234,11 +244,13 @@ export function UserHoverCard({ username, name, image, onNavigate }: UserHoverCa
       </>
     );
 
+  if (isViewerReady && profile !== undefined) return <ProfileCard profile={profile} username={username} onNavigate={onNavigate} />;
+
   return (
     <>
       <ProfileHeaderLink identity={identity} onNavigate={onNavigate} />
-      {error ? (
-        <InlineError size="sm" onRetry={() => void refetch()} isRetrying={isFetching} className="m-1.5" />
+      {!isSessionPending && loadError ? (
+        <InlineError size="sm" onRetry={() => void (sessionError ? refetchSession() : refetch())} isRetrying={isFetching} className="m-1.5" />
       ) : (
         <div aria-busy="true">
           <div className="px-3 py-2.5">

@@ -7,7 +7,13 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export function CopyButton({ text, compact = false }: { text: string; compact?: boolean }) {
+type CopyButtonProps = {
+  text: string;
+  compact?: boolean;
+  fieldLabel?: string;
+};
+
+export function CopyButton({ text, compact = false, fieldLabel }: CopyButtonProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const [copied, setCopied] = useState(false);
 
@@ -20,7 +26,8 @@ export function CopyButton({ text, compact = false }: { text: string; compact?: 
       })
       .catch(() => toast.error(t("copyFailed")));
   };
-  const label = copied ? t("common:actions.copied") : t("common:actions.copy");
+  let label = t(copied ? "common:actions.copied" : "common:actions.copy");
+  if (fieldLabel) label = t(copied ? "common:actions.copiedField" : "common:actions.copyField", { field: fieldLabel });
 
   return (
     <Tooltip>

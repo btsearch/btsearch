@@ -1,5 +1,4 @@
 import { ukeOperators } from "@openbts/drizzle";
-import { ukeRadiolineResponseType } from "@openbts/proto/server";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -162,7 +161,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 const getUkeRadioLine: Route<IdParams, RadioLineResponse> = {
   url: "/uke/radiolines/:id",
   method: "GET",
-  config: { permissions: ["read:uke_radiolines"], allowGuestAccess: true, proto: ukeRadiolineResponseType },
+  config: { permissions: ["read:uke_radiolines"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

@@ -4,7 +4,7 @@ import type { RouteGenericInterface } from "fastify/types/route.js";
 
 import type { ReplyPayload } from "./fastify.interface.js";
 
-export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = unknown> = U extends void
+export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = unknown> = [U] extends [void]
   ? {
       url: string;
       method: string;
@@ -12,6 +12,7 @@ export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = u
       onRequest?: ((req: FastifyRequest, res: FastifyReply, done: (err?: Error) => void) => void)[];
       config?: FastifyContextConfig;
       schema?: FastifySchema;
+      bodyLimit?: number;
     }
   : {
       url: string;
@@ -20,6 +21,7 @@ export type Route<T extends RouteGenericInterface = RouteGenericInterface, U = u
       onRequest?: ((req: FastifyRequest, res: FastifyReply, done: (err?: Error) => void) => void)[];
       config?: FastifyContextConfig;
       schema?: FastifySchema;
+      bodyLimit?: number;
     };
 
 export type JSONBody<T = void> = RouteGenericInterface & {
@@ -30,7 +32,7 @@ export type EmptyResponse = RouteGenericInterface & {
   Reply: Record<string, never>;
 };
 
-type Response<T> = T extends { data: unknown } ? T : DataResponse<T>;
+type Response<T> = [T] extends [{ data: unknown }] ? T : DataResponse<T>;
 
 interface DataResponse<T> {
   data: T;

@@ -1,5 +1,6 @@
 import { AirportTowerIcon, Location01Icon, MapsIcon, Radar01Icon, SearchRemoveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import type { EmfMeasurement } from "@openbts/shared/contract";
 import { type ColumnDef, useTable } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
@@ -23,23 +24,18 @@ const MAP_HINT_CLASS_NAME =
   "inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground";
 const ROW_ACTION_CLASS_NAME = "relative z-10 text-muted-foreground group-hover:text-foreground";
 
-type PEMRow = {
-  station_id: string | null;
-  internal_station_id: number | null;
-  operator: { name: string } | null;
-  location: { latitude: number; longitude: number; city: string; address: string };
-};
+type PEMRow = Pick<EmfMeasurement, "siteId" | "stationId" | "operator" | "location">;
 
 function getPEMMapHref({ location }: Pick<PEMRow, "location">) {
   return `/#map=16.00/${location.latitude.toFixed(6)}/${location.longitude.toFixed(6)}~fp`;
 }
 
 function getPEMRowDescription(row: PEMRow, t: TFunction) {
-  return [row.operator?.name, row.station_id, row.location.city || t("table.unknownCity"), row.location.address].filter(Boolean).join(", ");
+  return [row.operator?.name, row.siteId, row.location.city || t("table.unknownCity"), row.location.address].filter(Boolean).join(", ");
 }
 
 export function getPEMRowContext(row: PEMRow, t: TFunction) {
-  return row.station_id ?? (row.location.city || t("table.unknownCity"));
+  return row.siteId ?? (row.location.city || t("table.unknownCity"));
 }
 
 type PEMStationLinkProps = {
@@ -117,7 +113,7 @@ type PEMLinksCellProps = {
 export function PEMLinksCell({ row, t, tCommon, onOpenStation, children }: PEMLinksCellProps) {
   return (
     <div className="flex items-center justify-end gap-1.5">
-      <PEMStationLink stationId={row.internal_station_id} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
+      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
       {children}
       <span aria-hidden="true" className={MAP_HINT_CLASS_NAME}>
         <HugeiconsIcon icon={MapsIcon} className="size-3.5" />
@@ -137,7 +133,7 @@ type PEMMobileRowActionsProps = {
 export function PEMMobileRowActions({ row, t, tCommon, onOpenStation }: PEMMobileRowActionsProps) {
   return (
     <div className="-my-0.5 flex shrink-0 items-center gap-1.5">
-      <PEMStationLink stationId={row.internal_station_id} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
+      <PEMStationLink stationId={row.stationId} context={getPEMRowContext(row, t)} t={t} onOpen={onOpenStation} />
       <a
         href={getPEMMapHref(row)}
         aria-label={`${tCommon("labels.map")}: ${getPEMRowDescription(row, t)}`}
@@ -156,7 +152,7 @@ export function PEMMobileRowActions({ row, t, tCommon, onOpenStation }: PEMMobil
 type PEMLocationCellProps = {
   city: string;
   regionName?: string | null;
-  address: string;
+  address: string | null;
   noAddressLabel: string;
 };
 
@@ -176,15 +172,15 @@ export function PEMLocationCell({ city, regionName, address, noAddressLabel }: P
 }
 
 type PEMStationCellProps = {
-  stationId: string | null;
-  operator: { name: string; mnc?: number | null } | null;
+  siteId: string | null;
+  operator: EmfMeasurement["operator"];
   subtitle?: string | null;
 };
 
-export function PEMStationCell({ stationId, operator, subtitle }: PEMStationCellProps) {
+export function PEMStationCell({ siteId, operator, subtitle }: PEMStationCellProps) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <PEMStationTitle stationId={stationId} operator={operator} />
+      <PEMStationTitle siteId={siteId} operator={operator} />
       {subtitle ? (
         <span title={subtitle} className={cn("truncate text-xs text-muted-foreground", operator ? "pl-5.5" : null)}>
           {subtitle}

@@ -2,10 +2,10 @@ import { Cancel01Icon, Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icon
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
-import type { SubmissionDetail } from "@/features/admin/submissions/types";
+import type { SubmissionRowStatus } from "@/features/admin/submissions/types";
 import { cn } from "@/lib/utils";
 
-type SubmissionStatus = SubmissionDetail["status"];
+type SubmissionStatus = SubmissionRowStatus;
 
 const SUBMISSION_STATUS_BADGE = {
   pending: {
@@ -36,8 +36,9 @@ export function SubmissionStatusBadge({ status, compact = false, className }: Su
   const config = SUBMISSION_STATUS_BADGE[status];
   const label = t(`status.${status}`);
 
-  if (compact)
+  if (compact) {
     return <HugeiconsIcon icon={config.icon} className={cn("size-3.5 shrink-0", config.iconClassName, className)} role="img" aria-label={label} />;
+  }
 
   return (
     <span

@@ -10,7 +10,7 @@ export function useRevertOperationMutation() {
   return useMutation({
     mutationFn: revertAuditOperation,
     onSuccess: (result) => {
-      const stationIds = [...new Set(result.affected_station_ids)];
+      const stationIds = [...new Set(result.affectedStationIds)];
       if (stationIds.length === 0) {
         invalidateAuditOperationQueries(queryClient);
         return;

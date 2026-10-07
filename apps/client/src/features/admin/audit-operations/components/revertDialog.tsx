@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { getRevertConflicts } from "../api";
 import { getEntityLabel } from "../labels";
 import { useRevertOperationMutation } from "../mutations";
-import type { RevertConflict } from "../types";
+import type { AuditRevertConflict } from "../types";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -48,15 +48,15 @@ function formatConflictValue(value: unknown): string {
   }
 }
 
-function identifyConflicts(conflicts: readonly RevertConflict[]): { conflict: RevertConflict; key: string }[] {
+function identifyConflicts(conflicts: readonly AuditRevertConflict[]): { conflict: AuditRevertConflict; key: string }[] {
   const occurrences = new Map<string, number>();
   return conflicts.map((conflict) => {
     const identity = JSON.stringify([
-      conflict.entry_id,
+      conflict.entryId,
       conflict.entity,
-      conflict.op,
-      conflict.record_id,
-      conflict.station_id,
+      conflict.action,
+      conflict.recordId,
+      conflict.stationId,
       conflict.kind,
       conflict.constraint,
       conflict.message,
@@ -69,19 +69,19 @@ function identifyConflicts(conflicts: readonly RevertConflict[]): { conflict: Re
   });
 }
 
-function ConflictItem({ conflict }: { conflict: RevertConflict }) {
+function ConflictItem({ conflict }: { conflict: AuditRevertConflict }) {
   const { t } = useTranslation("admin");
   return (
     <li className="rounded-lg border p-3">
       <div className="flex min-w-0 items-center gap-2 text-xs">
         <span className="font-medium">{getEntityLabel(t, conflict.entity)}</span>
-        {conflict.record_id ? <span className="truncate font-mono text-muted-foreground">#{conflict.record_id}</span> : null}
+        {conflict.recordId ? <span className="truncate font-mono text-muted-foreground">#{conflict.recordId}</span> : null}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{conflict.message}</p>
       {conflict.fields && conflict.fields.length > 0 ? (
         <div className="mt-2 space-y-1.5">
-          {conflict.fields.map((field) => (
-            <div key={field.field} className="min-w-0 text-xs">
+          {conflict.fields.map((field, position) => (
+            <div key={`${field.field}-${position}`} className="min-w-0 text-xs">
               <span className="font-mono text-muted-foreground">{field.field}</span>
               <div className="mt-1 flex min-w-0 items-center gap-1.5 font-mono">
                 <span className="min-w-0 rounded-sm bg-red-500/10 px-1 py-px text-red-700 break-all dark:text-red-300">
@@ -104,24 +104,21 @@ function ConflictItem({ conflict }: { conflict: RevertConflict }) {
 
 export function RevertOperationDialog({ operationId, entryIds, counts, open, onOpenChange, className }: RevertOperationDialogProps) {
   const { t } = useTranslation("admin");
-  const [conflicts, setConflicts] = useState<RevertConflict[]>([]);
+  const [conflicts, setConflicts] = useState<AuditRevertConflict[]>([]);
+  const [wasOpen, setWasOpen] = useState(open);
   const mutation = useRevertOperationMutation();
   const isEntryRevert = entryIds !== undefined;
   const hasConflicts = conflicts.length > 0;
   const identifiedConflicts = identifyConflicts(conflicts);
 
-  function closeDialog(): void {
-    setConflicts([]);
-    onOpenChange(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setConflicts([]);
   }
 
   function handleOpenChange(nextOpen: boolean): void {
-    if (nextOpen) {
-      onOpenChange(true);
-      return;
-    }
-    if (mutation.isPending) return;
-    closeDialog();
+    if (!nextOpen && mutation.isPending) return;
+    onOpenChange(nextOpen);
   }
 
   function submitRevert(force: boolean): void {
@@ -129,10 +126,10 @@ export function RevertOperationDialog({ operationId, entryIds, counts, open, onO
       { operationId, entryIds, force },
       {
         onSuccess: (result) => {
-          toast.success(t("auditLogs.revert.success", { count: result.reverted.length }), {
+          toast.success(t("auditLogs.revert.success", { count: result.revertedEntryIds.length }), {
             description: result.skipped.length > 0 ? t("auditLogs.revert.skipped", { count: result.skipped.length }) : undefined,
           });
-          closeDialog();
+          onOpenChange(false);
         },
         onError: (error) => {
           const nextConflicts = getRevertConflicts(error);
@@ -179,8 +176,15 @@ export function RevertOperationDialog({ operationId, entryIds, counts, open, onO
         ) : null}
 
         <AlertDialogFooter className="bg-muted/30">
-          <AlertDialogCancel disabled={mutation.isPending}>{t("common:actions.cancel")}</AlertDialogCancel>
-          <Button variant={hasConflicts ? "destructive" : "default"} disabled={mutation.isPending} onClick={() => submitRevert(hasConflicts)}>
+          <AlertDialogCancel className="cursor-pointer" disabled={mutation.isPending}>
+            {t("common:actions.cancel")}
+          </AlertDialogCancel>
+          <Button
+            variant={hasConflicts ? "destructive" : "default"}
+            className="cursor-pointer"
+            disabled={mutation.isPending}
+            onClick={() => submitRevert(hasConflicts)}
+          >
             {mutation.isPending ? <Spinner className="size-4" /> : null}
             {t(hasConflicts ? "auditLogs.revert.force" : "auditLogs.revert.confirm")}
           </Button>

@@ -1,5 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+import { formatV1Bounds, formatV2Bbox, readSnappedMapBox } from "../data/mapBox";
 
 type UseMapBoundsArgs = {
   map: MapLibreMap | null;
@@ -7,38 +9,46 @@ type UseMapBoundsArgs = {
   debounceMs?: number;
 };
 
-function formatBounds(map: MapLibreMap): string {
-  const b = map.getBounds();
-  const span = Math.max(b.getNorth() - b.getSouth(), 1e-7);
-  const step = 2 ** Math.floor(Math.log2(span / 64));
-  const snap = (value: number, up: boolean) => (up ? Math.ceil(value / step) : Math.floor(value / step)) * step;
-  return `${snap(b.getSouth(), false)},${snap(b.getWest(), false)},${snap(b.getNorth(), true)},${snap(b.getEast(), true)}`;
+type MapBoundsStrings = {
+  bounds: string;
+  bbox: string;
+};
+
+const NO_BOUNDS: MapBoundsStrings = { bounds: "", bbox: "" };
+
+function readBoundsStrings(map: MapLibreMap): MapBoundsStrings {
+  const box = readSnappedMapBox(map);
+  return { bounds: formatV1Bounds(box), bbox: formatV2Bbox(box) };
 }
 
 export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsArgs) {
-  const [bounds, setBounds] = useState("");
+  const [boundsStrings, setBoundsStrings] = useState(NO_BOUNDS);
   const [zoom, setZoom] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
+
+    let boundsTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const applyBounds = () => {
+      const next = readBoundsStrings(map);
+      setBoundsStrings((previous) => (previous.bounds === next.bounds ? previous : next));
+    };
 
     const initialFrame = requestAnimationFrame(() => {
       try {
         setIsMoving(map.isMoving());
         setZoom(map.getZoom());
-        setBounds(formatBounds(map));
+        applyBounds();
       } catch {}
     });
 
     const updateBounds = () => {
       setZoom(map.getZoom());
 
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        setBounds(formatBounds(map));
-      }, debounceMs);
+      clearTimeout(boundsTimer);
+      boundsTimer = setTimeout(applyBounds, debounceMs);
     };
 
     const onMoveStart = () => setIsMoving(true);
@@ -54,9 +64,9 @@ export function useMapBounds({ map, isLoaded, debounceMs = 300 }: UseMapBoundsAr
       map.off("movestart", onMoveStart);
       map.off("moveend", onMoveEnd);
       cancelAnimationFrame(initialFrame);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearTimeout(boundsTimer);
     };
   }, [map, isLoaded, debounceMs]);
 
-  return { bounds, zoom, isMoving: map !== null && isLoaded && isMoving };
+  return { bounds: boundsStrings.bounds, bbox: boundsStrings.bbox, zoom, isMoving: map !== null && isLoaded && isMoving };
 }

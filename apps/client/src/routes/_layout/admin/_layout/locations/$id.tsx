@@ -9,6 +9,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
+import type { Location, LocationUpdate } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -16,6 +17,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { ForbiddenState } from "@/components/auth/requireRole";
 import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import {
   AlertDialog,
@@ -38,21 +40,73 @@ import { useNavActionTarget } from "@/contexts/navActions";
 import { fetchLocationDetail } from "@/features/admin/locations/api";
 import { LocationPhotosSection } from "@/features/admin/locations/components/LocationPhotosSection";
 import { useDeleteLocationMutation, usePatchLocationMutation } from "@/features/admin/locations/mutations";
+import { structureOwnersQueryOptions } from "@/features/admin/reference/api/structureOwners";
+import { LocationStructureFields } from "@/features/shared/location/structureFields";
+import { buildStructureOwnerOptions } from "@/features/shared/location/structureOwners";
+import type { StructureDraft } from "@/features/shared/location/types";
+import { brandsQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import type { LocationRecord } from "@/features/station-details/station/types";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { LocationPicker } from "@/features/station-editing/components/location/locationPicker";
+import type { LocationPickerValue } from "@/features/station-editing/components/location/locationPicker";
+import { normalizeText } from "@/features/station-editing/model/changes";
 import { LocationStationList } from "@/features/stations/components/LocationStationList";
-import { LocationPicker } from "@/features/submissions/components/locationPicker";
-import type { ProposedLocationForm } from "@/features/submissions/types";
+import { canEditPlace, useEditorArea } from "@/features/stations/list/data/editorArea";
+import type { EditorArea } from "@/features/stations/list/data/editorArea";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useSaveShortcut } from "@/hooks/useSaveShortcut";
 import { useScrolled } from "@/hooks/useScrolled";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError, showApiError } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
+
+type LocationFormValues = LocationPickerValue & { structure: StructureDraft };
+
+function toLocationFormValues(location: Location): LocationFormValues {
+  return {
+    regionId: location.regionId,
+    city: location.city ?? "",
+    address: location.address ?? "",
+    longitude: location.longitude,
+    latitude: location.latitude,
+    structure: {
+      type: location.structure.type,
+      owner: location.structure.owner === null ? { kind: "unknown" } : { kind: "listed", ownerId: location.structure.owner.id },
+      note: location.structure.note ?? "",
+    },
+  };
+}
+
+function getStructureOwnerId(owner: StructureDraft["owner"]): number | null {
+  return owner.kind === "listed" ? owner.ownerId : null;
+}
+
+function buildLocationUpdate(form: LocationFormValues, location: Location): LocationUpdate {
+  const changes: LocationUpdate = {};
+  if (form.regionId !== null && form.regionId !== location.regionId) changes.regionId = form.regionId;
+  if (form.city !== (location.city ?? "")) changes.city = form.city || null;
+  if (form.address !== (location.address ?? "")) changes.address = form.address || null;
+  if (form.latitude !== null && form.longitude !== null && (form.latitude !== location.latitude || form.longitude !== location.longitude)) {
+    changes.latitude = form.latitude;
+    changes.longitude = form.longitude;
+  }
+
+  const structure: NonNullable<LocationUpdate["structure"]> = {};
+  if (form.structure.type !== location.structure.type) structure.type = form.structure.type;
+  const ownerId = getStructureOwnerId(form.structure.owner);
+  if (ownerId !== (location.structure.owner?.id ?? null)) structure.ownerId = ownerId;
+  const note = form.structure.note.trim() || null;
+  if (note !== location.structure.note) structure.note = note;
+  if (Object.keys(structure).length > 0) changes.structure = structure;
+  return changes;
+}
 
 function AdminLocationDetailPage() {
   const { id } = Route.useParams();
   const { t } = useTranslation("admin");
 
   const locationId = Number(id);
+  const { data: session } = useSettledSession();
 
   const {
     data: location,
@@ -62,12 +116,15 @@ function AdminLocationDetailPage() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["admin", "location", id],
-    queryFn: () => fetchLocationDetail(locationId),
-    enabled: !!id && !Number.isNaN(locationId),
+    queryKey: ["admin", "location", id, "v2", session?.user.id],
+    queryFn: ({ signal }) => fetchLocationDetail(locationId, signal),
+    enabled: !!session?.user.id && Number.isInteger(locationId) && locationId > 0,
   });
+  const { area, isError: hasAreaFailed, isRetrying: isRetryingArea, retry: retryArea } = useEditorArea();
 
-  if (isLoading || (isPaused && !location)) {
+  if (hasAreaFailed) return <PageErrorState onRetry={retryArea} isRetrying={isRetryingArea} />;
+
+  if (area === undefined || isLoading || (isPaused && !location)) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b bg-background px-4 py-2.5 flex items-center justify-between gap-4">
@@ -118,10 +175,12 @@ function AdminLocationDetailPage() {
     );
   }
 
-  return <LocationDetailForm key={location.id} location={location} />;
+  if (!canEditPlace(area, { countryCode: location.countryCode, regionId: location.regionId })) return <ForbiddenState />;
+
+  return <LocationDetailForm key={location.id} location={location} area={area} />;
 }
 
-function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typeof fetchLocationDetail> extends Promise<infer T> ? T : never> }) {
+function LocationDetailForm({ location, area }: { location: LocationRecord; area: EditorArea }) {
   const { t } = useTranslation("stations");
   const navigate = useNavigate();
   const navActionTarget = useNavActionTarget();
@@ -129,21 +188,25 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
   const isFloatingActionTarget = navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
   const isFloatingDesktopActionTarget = isFloatingActionTarget && !isMobile;
 
-  const [locationForm, setLocationForm] = useState<ProposedLocationForm>(() => ({
-    region_id: location.region?.id ?? null,
-    city: location.city ?? "",
-    address: location.address ?? "",
-    longitude: location.longitude ?? null,
-    latitude: location.latitude ?? null,
-  }));
+  const [locationForm, setLocationForm] = useState<LocationFormValues>(() => toLocationFormValues(location));
 
-  const patchMutation = usePatchLocationMutation(location.id);
+  const patchMutation = usePatchLocationMutation(location.id, location);
   const deleteMutation = useDeleteLocationMutation();
+  const { data: owners = [] } = useQuery(structureOwnersQueryOptions());
+  const { data: brands = [] } = useQuery(brandsQueryOptions());
+  const { data: operators = [] } = useQuery(operatorsQueryOptions());
+  const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const countryCode = regions.find((region) => region.id === locationForm.regionId)?.countryCode ?? location.countryCode;
+  const ownerOptions = buildStructureOwnerOptions({ owners, brands, operators, value: locationForm.structure.owner, countryCode, area });
+  const changes = useMemo(() => buildLocationUpdate(locationForm, location), [locationForm, location]);
 
   const { ref: headerRef, scrolled } = useScrolled();
 
-  const handleLocationChange = useCallback((patch: Partial<ProposedLocationForm>) => {
+  const handleLocationChange = useCallback((patch: Partial<LocationFormValues>) => {
     setLocationForm((prev) => ({ ...prev, ...patch }));
+  }, []);
+  const handleStructureChange = useCallback((patch: Partial<StructureDraft>) => {
+    setLocationForm((prev) => ({ ...prev, structure: { ...prev.structure, ...patch } }));
   }, []);
 
   const handleSave = () => {
@@ -152,29 +215,17 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
       return;
     }
 
-    patchMutation.mutate(
-      {
-        region_id: locationForm.region_id,
-        city: locationForm.city || null,
-        address: locationForm.address || null,
-        longitude: locationForm.longitude,
-        latitude: locationForm.latitude,
+    patchMutation.mutate(changes, {
+      onSuccess: (updated) => {
+        setLocationForm(toLocationFormValues(updated));
+        toast.success(t("toast.locationSaved"));
       },
-      {
-        onSuccess: () => toast.success(t("toast.locationSaved")),
-        onError: (error) => showApiError(error),
-      },
-    );
+      onError: (error) => showApiError(error),
+    });
   };
 
   const handleRevert = () => {
-    setLocationForm({
-      region_id: location.region?.id ?? null,
-      city: location.city ?? "",
-      address: location.address ?? "",
-      longitude: location.longitude ?? null,
-      latitude: location.latitude ?? null,
-    });
+    setLocationForm(toLocationFormValues(location));
   };
 
   const handleDelete = () => {
@@ -190,16 +241,25 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
   };
 
   const hasChanges = useMemo(() => {
-    if (locationForm.region_id !== (location.region?.id ?? null)) return true;
-    if (locationForm.city !== (location.city ?? "")) return true;
-    if (locationForm.address !== (location.address ?? "")) return true;
-    if (locationForm.longitude !== (location.longitude ?? null)) return true;
-    if (locationForm.latitude !== (location.latitude ?? null)) return true;
-    return false;
+    const saved = toLocationFormValues(location);
+    return (
+      locationForm.regionId !== saved.regionId ||
+      locationForm.city !== saved.city ||
+      locationForm.address !== saved.address ||
+      locationForm.longitude !== saved.longitude ||
+      locationForm.latitude !== saved.latitude ||
+      locationForm.structure.type !== saved.structure.type ||
+      getStructureOwnerId(locationForm.structure.owner) !== getStructureOwnerId(saved.structure.owner) ||
+      locationForm.structure.note !== saved.structure.note
+    );
   }, [locationForm, location]);
+  const coordinatesChanged = locationForm.latitude !== location.latitude || locationForm.longitude !== location.longitude;
+  const hasIncompleteCoordinates = coordinatesChanged && (locationForm.latitude === null || locationForm.longitude === null);
+  const hasMissingRegion = locationForm.regionId !== location.regionId && locationForm.regionId === null;
+  const canSave = Object.keys(changes).length > 0 && !hasIncompleteCoordinates && !hasMissingRegion && !patchMutation.isPending;
 
   useSaveShortcut({
-    canSave: hasChanges && !patchMutation.isPending,
+    canSave,
     onSave: handleSave,
   });
 
@@ -208,14 +268,16 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
   const operatorColors = useMemo(() => {
     const seen = new Set<number>();
     const colors: string[] = [];
-    for (const s of stations) {
-      if (s.operator && !seen.has(s.operator.mnc)) {
-        seen.add(s.operator.mnc);
-        colors.push(getOperatorColor(s.operator.mnc));
-      }
+    for (const station of stations) {
+      const operator = station.operator;
+      if (operator === null || seen.has(operator.id)) continue;
+      const brand = getOperatorBrand(operator, brands);
+      if (brand === null) continue;
+      seen.add(operator.id);
+      colors.push(brand.color);
     }
     return colors;
-  }, [stations]);
+  }, [stations, brands]);
 
   const headerTopStyle = useMemo(() => {
     if (operatorColors.length === 0) return undefined;
@@ -264,7 +326,7 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
                 variant="ghost"
                 size="sm"
                 onClick={handleRevert}
-                disabled={!hasChanges}
+                disabled={!hasChanges || patchMutation.isPending}
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
@@ -278,7 +340,7 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
               <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={!hasChanges || patchMutation.isPending}
+                disabled={!canSave}
                 className={cn("shadow-sm font-medium", !isFloatingActionTarget && "min-w-25 px-4")}
               >
                 {patchMutation.isPending ? <Spinner /> : <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />}
@@ -328,7 +390,33 @@ function LocationDetailForm({ location }: { location: NonNullable<ReturnType<typ
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col lg:flex-row gap-3 p-3">
           <div className="w-full lg:flex-1 space-y-2">
-            <LocationPicker location={locationForm} onLocationChange={handleLocationChange} />
+            <LocationPicker
+              value={locationForm}
+              onChange={handleLocationChange}
+              countryCode={countryCode}
+              isDisabled={patchMutation.isPending}
+              fieldLooks={{
+                latitude: { tone: coordinatesChanged ? "changed" : "plain" },
+                longitude: { tone: coordinatesChanged ? "changed" : "plain" },
+                region: { tone: locationForm.regionId !== location.regionId ? "changed" : "plain" },
+                city: { tone: normalizeText(locationForm.city) !== normalizeText(location.city ?? "") ? "changed" : "plain" },
+                address: { tone: normalizeText(locationForm.address) !== normalizeText(location.address ?? "") ? "changed" : "plain" },
+              }}
+            >
+              <div className="flex flex-col gap-3 border-t border-border/60 pt-3">
+                <LocationStructureFields
+                  value={locationForm.structure}
+                  onChange={handleStructureChange}
+                  ownerOptions={ownerOptions}
+                  isDisabled={patchMutation.isPending}
+                  presentations={{
+                    type: { tone: changes.structure?.type === undefined ? "plain" : "changed" },
+                    owner: { tone: changes.structure?.ownerId === undefined ? "plain" : "changed" },
+                    note: { tone: changes.structure?.note === undefined ? "plain" : "changed" },
+                  }}
+                />
+              </div>
+            </LocationPicker>
           </div>
 
           <div className="w-full lg:flex-1 space-y-2">

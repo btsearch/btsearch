@@ -98,11 +98,11 @@ function OwnerPrivateNotice() {
 
 export function ProfileHero({ profile, isOwner }: { profile: UserProfile; isOwner: boolean }) {
   const { t, i18n } = useTranslation("main");
-  const { user } = profile;
+  const user = profile;
   const memberSince = new Date(user.createdAt).toLocaleDateString(i18n.language, { year: "numeric", month: "long", day: "numeric" });
   const isPrivate = profile.visibility === "private";
-  const commentCount = profile.comments?.totalCount ?? 0;
-  const hunterRegionCount = profile.hunter?.regions.length ?? 0;
+  const commentCount = profile.comments?.total ?? 0;
+  const hunterRegionCount = profile.hunterRegionIds?.length ?? 0;
   const handle = user.username ? `@${user.username}` : null;
 
   return (

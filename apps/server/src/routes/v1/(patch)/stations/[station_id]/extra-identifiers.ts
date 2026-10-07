@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { stationParamScope } from "../../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
@@ -139,7 +140,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
 const updateStationExtraIdentificators: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/extra-identifiers",
   method: "PATCH",
-  config: { permissions: ["update:stations"] },
+  config: { permissions: ["update:stations"], scope: stationParamScope },
   schema: schemaRoute,
   handler,
 };

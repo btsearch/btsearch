@@ -4,15 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { fetchElevation, fetchPemReports } from "../api";
+import { fetchElevation } from "../api";
+import type { EmfSite } from "../station/emf/types";
 import { CopyButton } from "./copyButton";
 import { ExtraIdentificatorsDisplay, hasExtraIdentificators } from "./extraIdentificators";
 import { NavigationLinks } from "./navLinks";
 import { SI2PEMReportsMenu } from "./si2pemReportsMenu";
-import { StationInfoItem, StationInfoItemSkeleton } from "./stationInfoItem";
+import { StationInfoItem } from "./stationInfoItem";
 import { StationUplinkItem } from "./stationUplinkItem";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getLocationMapHash } from "@/features/map/mapLinks";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import type { ExtraIdentificator, Region, StationSource, StationUplink } from "@/types/station";
@@ -29,29 +31,17 @@ const stationInfoLinksClassName = "flex flex-wrap items-center gap-1.5 border-t 
 type StationInfoGridProps = {
   stationCode: string;
   operator: { name: string; mnc?: number | null };
-  location?: { id: number; latitude: number; longitude: number; region?: Region | null } | null;
-  showPemReports?: boolean;
+  location?: { id: number; latitude: number; longitude: number; city?: string | null; address?: string | null; region?: Region | null } | null;
+  emfSite?: EmfSite;
   uplink?: StationUplink;
   extraIdentificators?: ExtraIdentificator;
 };
 
-export function StationInfoGrid({ stationCode, operator, location, showPemReports = true, uplink, extraIdentificators }: StationInfoGridProps) {
+export function StationInfoGrid({ stationCode, operator, location, emfSite, uplink, extraIdentificators }: StationInfoGridProps) {
   const { t } = useTranslation(["stationDetails", "common"]);
   const { preferences } = usePreferences();
-  const isPemEnabled = showPemReports && !!stationCode && !!location && typeof operator.mnc === "number";
+  const reportedEmfSite = !!stationCode && !!location && typeof operator.mnc === "number" ? emfSite : undefined;
   const isElevationEnabled = !!location && preferences.showElevation;
-
-  const {
-    data: pemReports,
-    isPending: isPemPending,
-    refetch: refetchPemReports,
-  } = useQuery({
-    queryKey: ["station-pem", stationCode, location?.latitude, location?.longitude, operator.mnc],
-    queryFn: () => fetchPemReports(stationCode, location!.latitude, location!.longitude, operator.mnc!),
-    staleTime: 1000 * 60 * 60,
-    enabled: isPemEnabled,
-    retry: false,
-  });
 
   const { data: elevation, isPending: isElevationPending } = useQuery({
     queryKey: ["elevation", location?.latitude, location?.longitude],
@@ -70,7 +60,7 @@ export function StationInfoGrid({ stationCode, operator, location, showPemReport
             {preferences.navLinksDisplay === "inline" && (
               <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="inline" className="flex" />
             )}
-            <CopyButton text={`${location.latitude}, ${location.longitude}`} />
+            <CopyButton text={`${location.latitude}, ${location.longitude}`} fieldLabel={t("common:labels.coordinates")} />
           </StationInfoItem>
           <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />} label={t("common:labels.region")}>
             <span>{location.region?.name || "-"}</span>
@@ -85,19 +75,17 @@ export function StationInfoGrid({ stationCode, operator, location, showPemReport
       <div className={stationInfoGroupClassName}>
         <StationInfoItem icon={<HugeiconsIcon icon={Tag01Icon} className="size-4" />} label={t("common:labels.stationId")}>
           <span className="font-mono">{stationCode}</span>
-          <CopyButton text={stationCode} />
+          <CopyButton text={stationCode} fieldLabel={t("common:labels.stationId")} />
         </StationInfoItem>
         {uplink ? <StationUplinkItem uplink={uplink} /> : null}
-        {isPemEnabled ? (
+        {reportedEmfSite !== undefined ? (
           <StationInfoItem icon={<HugeiconsIcon icon={Radar01Icon} className="size-4" />} label={t("specs.pemReports")}>
             <SI2PEMReportsMenu
-              reports={pemReports}
-              isLoading={isPemPending}
-              onRetry={refetchPemReports}
-              latitude={location.latitude}
-              longitude={location.longitude}
+              site={reportedEmfSite}
+              siteId={stationCode}
               operatorName={operator.name}
               operatorMnc={operator.mnc}
+              place={{ city: location?.city ?? null, address: location?.address ?? null }}
             />
           </StationInfoItem>
         ) : null}
@@ -116,7 +104,6 @@ function useStationInfoLinks() {
   const isOnMap = useLocation({ select: ({ pathname }) => pathname === "/" || pathname.startsWith("/lists/") });
 
   return {
-    preferences,
     showMapLink: !isOnMap,
     navigationApps: preferences.navLinksDisplay === "buttons" ? preferences.navigationApps : [],
   };
@@ -131,7 +118,6 @@ export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCa
   const { t } = useTranslation("stationDetails");
   const { showMapLink, navigationApps } = useStationInfoLinks();
   const { location } = gridProps;
-  const mapFilter = source === "uke" ? "fu" : "f";
 
   return (
     <section className="@container">
@@ -145,7 +131,7 @@ export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCa
                   render={
                     <Link
                       to="/"
-                      hash={`map=16/${location.latitude}/${location.longitude}~${mapFilter}~L${location.id}`}
+                      hash={getLocationMapHash(location, source)}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       onClick={onClose}
                     />
@@ -158,37 +144,6 @@ export function StationInfoCard({ source, onClose, ...gridProps }: StationInfoCa
               </Tooltip>
             )}
             {navigationApps.length > 0 && <NavigationLinks latitude={location.latitude} longitude={location.longitude} displayMode="buttons" />}
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-export function StationInfoCardSkeleton() {
-  const { preferences, showMapLink, navigationApps } = useStationInfoLinks();
-  const hasInlineNavLinks = preferences.navLinksDisplay === "inline" && preferences.navigationApps.length > 0;
-
-  return (
-    <section className="@container">
-      <div className={stationInfoCardClassName}>
-        <div className={stationInfoGridClassName}>
-          <div className={stationInfoGroupClassName}>
-            <StationInfoItemSkeleton valueClassName="w-36" lineClassName={hasInlineNavLinks ? "h-6" : "h-5.5"} />
-            <StationInfoItemSkeleton valueClassName="w-24" />
-            {preferences.showElevation ? <StationInfoItemSkeleton valueClassName="w-12" /> : null}
-          </div>
-          <div className={stationInfoGroupClassName}>
-            <StationInfoItemSkeleton valueClassName="w-20" lineClassName="h-5.5" />
-            <StationInfoItemSkeleton valueClassName="w-20" />
-          </div>
-        </div>
-        {showMapLink || navigationApps.length > 0 ? (
-          <div className={stationInfoLinksClassName}>
-            {showMapLink ? <Skeleton className="h-6.5 w-28" /> : null}
-            {navigationApps.map((app) => (
-              <Skeleton key={app} className="h-6.5 w-24" />
-            ))}
           </div>
         ) : null}
       </div>

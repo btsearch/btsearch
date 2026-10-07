@@ -12,21 +12,21 @@ type SubmissionSearch = {
 };
 
 function SubmissionsPage() {
-  const { station: stationId, edit: editId, uke } = Route.useSearch();
-  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissionsEnabled");
+  const { station, edit, uke } = Route.useSearch();
+  const { hasLoadError, isDisabled, isRetrying, retry } = useFeatureGate("submissions");
 
   if (hasLoadError) return <PageErrorState onRetry={() => retry()} isRetrying={isRetrying} />;
   if (isDisabled) return <Navigate to="/" replace />;
 
+  const stationId = Number(station);
   return (
     <RequireAuth>
-      <main className="flex-1 overflow-y-auto p-4 max-md:pb-16">
-        <SubmissionForm
-          preloadStationId={stationId ? Number.parseInt(stationId, 10) : undefined}
-          editSubmissionId={editId ?? undefined}
-          preloadUkeStationId={uke}
-        />
-      </main>
+      <SubmissionForm
+        key={`${station}|${edit}|${uke}`}
+        stationId={Number.isSafeInteger(stationId) && stationId > 0 ? stationId : null}
+        submissionId={edit === undefined || edit === "" ? null : edit}
+        registerStationId={uke ?? null}
+      />
     </RequireAuth>
   );
 }

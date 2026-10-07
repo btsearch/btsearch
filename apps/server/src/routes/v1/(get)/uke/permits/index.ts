@@ -1,5 +1,4 @@
-import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { ukePermitsResponseType } from "@openbts/proto/server";
+import { operators, regions, ukeBands, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
@@ -8,13 +7,13 @@ import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
 const ukePermitsSchema = createSelectSchema(ukePermits).omit({ band_id: true, uke_station_id: true });
 const ukeLocationsSchema = createSelectSchema(ukeLocations).omit({ point: true, region_id: true });
 const ukeStationsSchema = createSelectSchema(ukeStations).omit({ operator_id: true, location_id: true });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 const sectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true });
@@ -65,7 +64,7 @@ const schemaRoute = {
     200: z.object({
       data: z.array(
         ukePermitsSchema.extend({
-          band: bandsSchema,
+          band: permitBandSchema,
           station: ukeStationsSchema.extend({
             operator: operatorsSchema,
             location: ukeLocationsSchema.extend({ region: regionsSchema }),
@@ -80,7 +79,7 @@ type ReqQuery = {
   Querystring: z.infer<typeof schemaRoute.querystring>;
 };
 type Permit = z.infer<typeof ukePermitsSchema> & {
-  band?: z.infer<typeof bandsSchema>;
+  band?: z.infer<typeof permitBandSchema>;
   station?: z.infer<typeof ukeStationsSchema> & {
     operator: z.infer<typeof operatorsSchema>;
     location: z.infer<typeof ukeLocationsSchema> & { region: z.infer<typeof regionsSchema> };
@@ -118,7 +117,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
     const [bandRows, boundaryLocations, operatorRow, operatorRows] = await Promise.all([
       bandValues
-        ? db.query.bands.findMany({
+        ? db.query.ukeBands.findMany({
             columns: { id: true },
             where: { value: { in: bandValues } },
           })
@@ -205,17 +204,19 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
             const ratConditions: SQL<unknown>[] = [];
             if (mappedRats.length) {
               ratConditions.push(
-                sql`(${bands.rat} IN (${sql.join(
+                sql`(${ukeBands.rat} IN (${sql.join(
                   mappedRats.map((r) => sql`${r}`),
                   sql`,`,
                 )}))`,
               );
             }
-            if (wantsGsm) ratConditions.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'commercial')`);
-            if (wantsGsmR) ratConditions.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'railway')`);
+            if (wantsGsm) ratConditions.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'commercial')`);
+            if (wantsGsmR) ratConditions.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'railway')`);
 
             if (ratConditions.length) {
-              conditions.push(sql`EXISTS (SELECT 1 FROM ${bands} WHERE ${bands.id} = ${fields.band_id} AND (${sql.join(ratConditions, sql` OR `)}))`);
+              conditions.push(
+                sql`EXISTS (SELECT 1 FROM ${ukeBands} WHERE ${ukeBands.id} = ${fields.band_id} AND (${sql.join(ratConditions, sql` OR `)}))`,
+              );
             }
           }
           return conditions.length > 0 ? (and(...conditions) ?? sql`true`) : sql`true`;
@@ -225,13 +226,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       offset,
     });
 
-    return res.send({ data: ukePermitsRes });
+    return res.send({ data: ukePermitsRes.map((permit) => ({ ...permit, band: toPermitBand(permit.band) })) });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      cause: error,
-    });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 
@@ -239,7 +237,7 @@ const getUkePermits: Route<ReqQuery, Permit[]> = {
   url: "/uke/permits",
   method: "GET",
   schema: schemaRoute,
-  config: { permissions: ["read:uke_permits"], allowGuestAccess: true, proto: ukePermitsResponseType },
+  config: { permissions: ["read:uke_permits"], allowGuestAccess: true },
   handler,
 };
 

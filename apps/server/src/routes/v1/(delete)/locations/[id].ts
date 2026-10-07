@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import { deleteLocationWithPhotos } from "../../../../features/locations/deleteWithPhotos.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -49,7 +50,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
 const deleteLocation: Route<IdParams, void> = {
   url: "/locations/:id",
   method: "DELETE",
-  config: { permissions: ["delete:locations"] },
+  config: { permissions: ["delete:locations"], scope: defineScope<IdParams>((req) => ({ locationIds: [req.params.id] })) },
   schema: schemaRoute,
   handler,
 };

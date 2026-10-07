@@ -1,14 +1,16 @@
 import { bands, cells, extraIdentificators, locations, lteCells, nrCells, operators, regions, stations } from "@openbts/drizzle";
-import { StationsResponseType } from "@openbts/proto/server";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { and, count, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { stationIdInLegacyCountry } from "../../../../features/countries/legacy.js";
 import { getUserListMembership, getVisibleUserList } from "../../../../features/lists/visibility.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
 import { buildStatusCondition, parseStationStatusParam } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -17,7 +19,7 @@ const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, lo
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
 const bandsSchema = createSelectSchema(bands);
 const regionSchema = createSelectSchema(regions);
-const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const operatorSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
 const cellResponseSchema = cellsSchema.extend({ band: bandsSchema });
@@ -111,7 +113,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   let listStationIds: number[] | undefined;
   if (listUuid) {
-    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    const list = await getVisibleUserList(req, listUuid);
     listStationIds = getUserListMembership(list).internal;
     if (!listStationIds.length) return res.send({ data: [], totalCount: 0 });
   }
@@ -154,6 +156,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
           columns: { id: true },
           where: {
             code: { in: regions },
+            countryCode: LEGACY_COUNTRY_CODE,
           },
         })
       : [],
@@ -172,7 +175,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const iotRequested = requestedRats.includes("iot");
 
   const buildStationConditions = (stationFields: typeof stations): ReturnType<typeof sql>[] => {
-    const conditions: ReturnType<typeof sql>[] = [buildStatusCondition(stationFields, selectedStatuses)];
+    const conditions: ReturnType<typeof sql>[] = [buildStatusCondition(stationFields, selectedStatuses), stationIdInLegacyCountry(stationFields.id)];
 
     if (listIdsArray) conditions.push(sql`${stationFields.id} = ANY(${listIdsArray})`);
     if (operatorIds.length) {
@@ -246,7 +249,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
             columns: { band_id: false, station_id: false },
             with: { band: true },
           },
-          location: { columns: { point: false, region_id: false }, with: { region: true } },
+          location: { columns: { point: false, region_id: false, ...HIDDEN_STRUCTURE_COLUMNS }, with: { region: true } },
           operator: true,
           extra_identificators: { columns: { station_id: false } },
         },
@@ -288,7 +291,7 @@ const getStations: Route<ReqQuery, ResponseBody> = {
   url: "/stations",
   method: "GET",
   schema: schemaRoute,
-  config: { permissions: ["read:stations"], allowGuestAccess: true, proto: StationsResponseType },
+  config: { permissions: ["read:stations"], allowGuestAccess: true },
   handler,
 };
 

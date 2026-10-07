@@ -1,113 +1,84 @@
-import { Cancel01Icon, FullSignalIcon, Location01Icon, Search01Icon, Tag01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon, FullSignalIcon, Globe02Icon, Location01Icon, Search01Icon, Tag01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { TFunction } from "i18next";
-import { Fragment, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxSeparator,
-} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
+import { QueueSwitch } from "@/components/ui/queue-switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPicker } from "@/features/admin/users/components/UserPicker";
-import { UserPickerPopover } from "@/features/admin/users/components/UserPickerPopover";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { cn, toggleValue } from "@/lib/utils";
-import type { Operator, Region } from "@/types/station";
+import { toV1SubmissionStatus, toV1SubmissionType } from "@/features/admin/submissions/api";
+import { SubmissionCountryFilter } from "@/features/admin/submissions/components/submissionCountryFilter";
+import { SubmissionOperatorFilter } from "@/features/admin/submissions/components/submissionOperatorFilter";
+import { SubmissionRegionFilter } from "@/features/admin/submissions/components/submissionRegionFilter";
+import type { SubmissionFilterScope } from "@/features/admin/submissions/submissionFilterScope";
+import type { SubmissionStatusFilter, SubmissionTypeFilter } from "@/features/admin/submissions/types";
+import { UserPicker } from "@/features/admin/users/picker/userPicker";
+import { UserPickerPopover } from "@/features/admin/users/picker/userPickerPopover";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
+import { cn } from "@/lib/utils";
 
-export type SubmissionStatusFilter = "all" | "pending" | "approved" | "rejected";
-export type SubmissionTypeFilter = "all" | "new" | "update" | "delete";
-
-const STATUS_FILTERS: SubmissionStatusFilter[] = ["all", "pending", "approved", "rejected"];
-const TYPE_FILTERS: SubmissionTypeFilter[] = ["all", "new", "update", "delete"];
+const STATUS_FILTERS: SubmissionStatusFilter[] = ["all", "pending", "accepted", "rejected"];
+const TYPE_FILTERS: SubmissionTypeFilter[] = ["all", "create", "update", "delete"];
 
 type SharedFilterProps = {
   statusFilter: SubmissionStatusFilter;
   typeFilter: SubmissionTypeFilter;
   selectedSubmitterIds: string[];
-  selectedOperators: Operator[];
-  selectedRegions: Region[];
-  operators: Operator[];
-  topOperatorCount: number;
-  hasOperatorGroupSeparator: boolean;
-  regions: Region[];
+  countryCodes: string[];
+  operatorIds: number[];
+  regionIds: number[];
+  scope: SubmissionFilterScope;
   searchInput: string;
   activeFilterCount: number;
   onStatusChange: (status: SubmissionStatusFilter) => void;
   onTypeChange: (type: SubmissionTypeFilter) => void;
   onSubmitterChange: (ids: string[]) => void;
-  onOperatorChange: (operators: Operator[]) => void;
-  onRegionChange: (regions: Region[]) => void;
+  onCountryChange: (countryCodes: string[]) => void;
+  onOperatorChange: (operatorIds: number[]) => void;
+  onRegionChange: (regionIds: number[]) => void;
   onSearchChange: (value: string) => void;
   onClearAll: () => void;
 };
 
-function statusLabel(status: SubmissionStatusFilter, t: TFunction) {
-  return status === "all" ? t("common:status.all", "All") : t(`common:status.${status}`);
+function statusLabel(filter: SubmissionStatusFilter, t: TFunction) {
+  if (filter === "all") return t("common:status.all");
+  const status = toV1SubmissionStatus(filter);
+  return t(`common:status.${status}`);
 }
 
-function typeLabel(type: SubmissionTypeFilter, t: TFunction) {
-  return type === "all" ? t("common:submissionType.all", "All") : t(`common:submissionType.${type}`);
+function typeLabel(filter: SubmissionTypeFilter, t: TFunction) {
+  if (filter === "all") return t("common:submissionType.all");
+  const type = toV1SubmissionType(filter);
+  return t(`common:submissionType.${type}`);
 }
 
 export function SubmissionsStatusQueue({ value, onChange }: { value: SubmissionStatusFilter; onChange: (value: SubmissionStatusFilter) => void }) {
-  const { t } = useTranslation(["submissions", "common"]);
+  const { t } = useTranslation(["submissions", "common", "main"]);
+  const options = STATUS_FILTERS.map((status) => ({ value: status, label: statusLabel(status, t) }));
 
-  return (
-    <div className="hidden items-center gap-1 md:flex" role="group" aria-label={t("table.statusQueue")}>
-      {STATUS_FILTERS.map((status) => (
-        <button
-          key={status}
-          type="button"
-          aria-pressed={value === status}
-          onClick={() => onChange(status)}
-          className={cn(
-            "h-8 rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            value === status ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          {statusLabel(status, t)}
-        </button>
-      ))}
-    </div>
-  );
+  return <QueueSwitch label={t("table.statusQueue")} value={value} options={options} onChange={onChange} className="hidden md:flex" />;
 }
 
 export function SubmissionsFilterToolbar({
   typeFilter,
   selectedSubmitterIds,
-  selectedOperators,
-  selectedRegions,
-  operators,
-  topOperatorCount,
-  hasOperatorGroupSeparator,
-  regions,
+  countryCodes,
+  operatorIds,
+  regionIds,
+  scope,
   searchInput,
   activeFilterCount,
   onTypeChange,
   onSubmitterChange,
+  onCountryChange,
   onOperatorChange,
   onRegionChange,
   onSearchChange,
   onClearAll,
 }: Omit<SharedFilterProps, "statusFilter" | "onStatusChange">) {
   const { t } = useTranslation(["submissions", "common"]);
-  const operatorChipsRef = useRef<HTMLDivElement>(null);
-  const regionChipsRef = useRef<HTMLDivElement>(null);
-  const visibleOperators = useMemo(() => selectedOperators.slice(0, 1), [selectedOperators]);
-  const visibleRegions = useMemo(() => selectedRegions.slice(0, 1), [selectedRegions]);
-  const hiddenOperatorCount = selectedOperators.length - visibleOperators.length;
-  const hiddenRegionCount = selectedRegions.length - visibleRegions.length;
 
   return (
     <div className="hidden flex-wrap items-end gap-2 md:flex">
@@ -119,6 +90,7 @@ export function SubmissionsFilterToolbar({
             className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
           />
           <Input
+            {...NO_AUTOFILL_PROPS}
             className="h-8 w-full pl-8 pr-8"
             placeholder={t("table.searchPlaceholder")}
             value={searchInput}
@@ -159,78 +131,17 @@ export function SubmissionsFilterToolbar({
       </div>
 
       <div className="flex w-44 flex-col gap-1">
+        <span className="text-xs font-medium text-muted-foreground">{t("main:filters.country")}</span>
+        <SubmissionCountryFilter countryCodes={countryCodes} options={scope.countries.options} onChange={onCountryChange} />
+      </div>
+      <div className="flex w-44 flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">{t("common:labels.operator")}</span>
-        <Combobox multiple value={selectedOperators} onValueChange={onOperatorChange} items={operators}>
-          <ComboboxChips
-            ref={operatorChipsRef}
-            className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5"
-          >
-            <HugeiconsIcon icon={FullSignalIcon} className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
-            {visibleOperators.map((operator) => (
-              <ComboboxChip key={operator.id} className="max-w-20 shrink-0">
-                <DialogOperatorName name={operator.name} mnc={operator.mnc} compact />
-              </ComboboxChip>
-            ))}
-            {hiddenOperatorCount > 0 ? (
-              <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
-                +{hiddenOperatorCount}
-              </ComboboxChip>
-            ) : null}
-            <ComboboxChipsInput
-              className={selectedOperators.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-              placeholder={selectedOperators.length === 0 ? t("common:labels.allOperators") : ""}
-            />
-          </ComboboxChips>
-          <ComboboxContent anchor={operatorChipsRef}>
-            <ComboboxList>
-              <ComboboxEmpty>-</ComboboxEmpty>
-              {operators.map((operator, index) => (
-                <Fragment key={operator.id}>
-                  {hasOperatorGroupSeparator && index === topOperatorCount ? <ComboboxSeparator /> : null}
-                  <ComboboxItem value={operator}>
-                    <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm leading-5 font-normal" />
-                  </ComboboxItem>
-                </Fragment>
-              ))}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <SubmissionOperatorFilter operatorIds={operatorIds} scope={scope} onChange={onOperatorChange} />
       </div>
 
       <div className="flex w-48 flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">{t("common:labels.region")}</span>
-        <Combobox multiple value={selectedRegions} onValueChange={onRegionChange} items={regions}>
-          <ComboboxChips
-            ref={regionChipsRef}
-            className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5"
-          >
-            <HugeiconsIcon icon={Location01Icon} className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
-            {visibleRegions.map((region) => (
-              <ComboboxChip key={region.id} className="max-w-28 shrink-0">
-                <span className="truncate">{region.name}</span>
-              </ComboboxChip>
-            ))}
-            {hiddenRegionCount > 0 ? (
-              <ComboboxChip showRemove={false} className="shrink-0 text-muted-foreground">
-                +{hiddenRegionCount}
-              </ComboboxChip>
-            ) : null}
-            <ComboboxChipsInput
-              className={selectedRegions.length === 0 ? "min-w-0" : "min-w-2 w-2 flex-none"}
-              placeholder={selectedRegions.length === 0 ? t("common:labels.allRegions") : ""}
-            />
-          </ComboboxChips>
-          <ComboboxContent anchor={regionChipsRef}>
-            <ComboboxList>
-              <ComboboxEmpty>-</ComboboxEmpty>
-              {regions.map((region) => (
-                <ComboboxItem key={region.id} value={region}>
-                  {region.name}
-                </ComboboxItem>
-              ))}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <SubmissionRegionFilter regionIds={regionIds} scope={scope} onChange={onRegionChange} />
       </div>
 
       {activeFilterCount > 0 ? (
@@ -250,21 +161,22 @@ export function SubmissionsMobileFilterRail({
   statusFilter,
   typeFilter,
   selectedSubmitterIds,
-  selectedOperators,
-  selectedRegions,
-  operators,
-  regions,
+  countryCodes,
+  operatorIds,
+  regionIds,
+  scope,
   searchInput,
   activeFilterCount,
   onStatusChange,
   onTypeChange,
   onSubmitterChange,
+  onCountryChange,
   onOperatorChange,
   onRegionChange,
   onSearchChange,
   onClearAll,
 }: SharedFilterProps) {
-  const { t } = useTranslation(["submissions", "common"]);
+  const { t } = useTranslation(["submissions", "common", "main"]);
   const hasSearch = searchInput.trim().length > 0;
 
   return (
@@ -296,6 +208,7 @@ export function SubmissionsMobileFilterRail({
             className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
+            {...NO_AUTOFILL_PROPS}
             className="h-9 w-full pl-8 pr-8"
             placeholder={t("table.searchPlaceholder")}
             value={searchInput}
@@ -334,70 +247,31 @@ export function SubmissionsMobileFilterRail({
         </div>
       </MobileFilterChip>
 
+      <MobileFilterChip active={countryCodes.length > 0} count={countryCodes.length} icon={Globe02Icon} label={t("main:filters.country")}>
+        <MobileFilterPanelTitle>{t("main:filters.country")}</MobileFilterPanelTitle>
+        <SubmissionCountryFilter countryCodes={countryCodes} options={scope.countries.options} onChange={onCountryChange} isInline />
+      </MobileFilterChip>
       <MobileFilterChip
         active={selectedSubmitterIds.length > 0}
         count={selectedSubmitterIds.length}
         icon={UserGroupIcon}
         label={t("detail.submitter")}
+        contentClassName="gap-0 p-0"
       >
-        <MobileFilterPanelTitle>{t("detail.submitter")}</MobileFilterPanelTitle>
+        <div className="px-2 pt-2.5">
+          <MobileFilterPanelTitle>{t("detail.submitter")}</MobileFilterPanelTitle>
+        </div>
         <UserPicker selectedUserIds={selectedSubmitterIds} onSelectionChange={onSubmitterChange} />
       </MobileFilterChip>
 
-      <MobileFilterChip
-        active={selectedOperators.length > 0}
-        count={selectedOperators.length}
-        icon={FullSignalIcon}
-        label={t("common:labels.operator")}
-      >
+      <MobileFilterChip active={operatorIds.length > 0} count={operatorIds.length} icon={FullSignalIcon} label={t("common:labels.operator")}>
         <MobileFilterPanelTitle>{t("common:labels.operator")}</MobileFilterPanelTitle>
-        <div className="grid gap-1">
-          {operators.map((operator) => {
-            const selected = selectedOperators.some((value) => value.id === operator.id);
-            return (
-              <button
-                key={operator.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onOperatorChange(toggleValue(selectedOperators, operator))}
-                className={cn(
-                  "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-                  selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-                )}
-              >
-                <DialogOperatorName
-                  name={operator.name}
-                  mnc={operator.mnc}
-                  compact
-                  labelClassName={cn("text-sm leading-5 font-normal", selected && "text-primary")}
-                />
-              </button>
-            );
-          })}
-        </div>
+        <SubmissionOperatorFilter operatorIds={operatorIds} scope={scope} onChange={onOperatorChange} isInline />
       </MobileFilterChip>
 
-      <MobileFilterChip active={selectedRegions.length > 0} count={selectedRegions.length} icon={Location01Icon} label={t("common:labels.region")}>
+      <MobileFilterChip active={regionIds.length > 0} count={regionIds.length} icon={Location01Icon} label={t("common:labels.region")}>
         <MobileFilterPanelTitle>{t("common:labels.region")}</MobileFilterPanelTitle>
-        <div className="grid max-h-64 gap-1 overflow-y-auto">
-          {regions.map((region) => {
-            const selected = selectedRegions.some((value) => value.id === region.id);
-            return (
-              <button
-                key={region.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onRegionChange(toggleValue(selectedRegions, region))}
-                className={cn(
-                  "flex h-8 items-center rounded-md px-2 text-left text-sm transition-colors",
-                  selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-                )}
-              >
-                <span className="min-w-0 flex-1 truncate">{region.name}</span>
-              </button>
-            );
-          })}
-        </div>
+        <SubmissionRegionFilter regionIds={regionIds} scope={scope} onChange={onRegionChange} isInline />
       </MobileFilterChip>
 
       {activeFilterCount > 0 ? (

@@ -2,33 +2,36 @@ import { useTranslation } from "react-i18next";
 
 import { StationIdentityCell } from "./stationIdentityCell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { SubmissionListItem } from "@/features/admin/submissions/types";
+import type { SubmissionListRow, SubmissionOperatorOption } from "@/features/admin/submissions/types";
 import { countCellOperations } from "@/features/admin/submissions/utils";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
 import type { CellOperation } from "@/features/submissions/types";
 import { UserLink } from "@/features/user-profile/components/userLink";
-import { formatFullDate, formatRelativeTime, resolveAvatarUrl } from "@/lib/format";
+import { formatFullDate, resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Operator } from "@/types/station";
 
-type GetOperatorById = (operatorId: number | null | undefined) => Operator | undefined;
+export type GetOperatorById = (operatorId: number | null) => SubmissionOperatorOption | undefined;
 
-export function getSubmissionStationId(submission: SubmissionListItem) {
-  return submission.station?.station_id ?? submission.proposedStation?.station_id ?? null;
-}
-
-export function SubmissionStationSummary({ submission, getOperatorById }: { submission: SubmissionListItem; getOperatorById: GetOperatorById }) {
+export function SubmissionStationSummary({
+  submission,
+  getOperatorById,
+  hasCountryTile,
+}: {
+  submission: SubmissionListRow;
+  getOperatorById: GetOperatorById;
+  hasCountryTile: boolean;
+}) {
   const { t } = useTranslation("common");
-  const station = submission.station;
-  const proposedStation = submission.proposedStation;
 
   return (
     <div className="min-w-0 space-y-1">
       <StationIdentityCell
-        stationId={station?.station_id ?? proposedStation?.station_id ?? null}
-        operator={getOperatorById(station?.operator_id ?? proposedStation?.operator_id)}
+        stationId={submission.siteId}
+        countryCode={hasCountryTile ? submission.countryCode : null}
+        operator={getOperatorById(submission.operatorId)}
         fallback={t("labels.newStation")}
       />
       <span className="block truncate font-mono text-[11px] text-muted-foreground" title={submission.id}>
@@ -58,7 +61,7 @@ export function SubmissionCellCounts({ cells }: { cells: readonly { operation: C
   );
 }
 
-export function SubmissionChangesSummary({ submission }: { submission: Pick<SubmissionListItem, "cells" | "type"> }) {
+export function SubmissionChangesSummary({ submission }: { submission: Pick<SubmissionListRow, "cells" | "type"> }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <SubmissionTypeBadge type={submission.type} />
@@ -67,7 +70,7 @@ export function SubmissionChangesSummary({ submission }: { submission: Pick<Subm
   );
 }
 
-export function SubmissionSubmitterSummary({ submission, linked = false }: { submission: SubmissionListItem; linked?: boolean }) {
+export function SubmissionSubmitterSummary({ submission, linked = false }: { submission: SubmissionListRow; linked?: boolean }) {
   const { t } = useTranslation("submissions");
   const submitter = submission.submitter;
 
@@ -93,8 +96,8 @@ export function SubmissionSubmitterSummary({ submission, linked = false }: { sub
   );
 }
 
-export function SubmissionTimestamp({ value, showLabel = false }: { value: string; showLabel?: boolean }) {
-  const { t: tCommon, i18n } = useTranslation("common");
+export function SubmissionTimestamp({ value }: { value: string }) {
+  const { i18n } = useTranslation("common");
   const exactDate = formatFullDate(value, i18n.language);
 
   return (
@@ -107,17 +110,16 @@ export function SubmissionTimestamp({ value, showLabel = false }: { value: strin
           />
         }
       >
-        {showLabel ? `${tCommon("labels.submitted")}: ` : null}
-        {formatRelativeTime(value, tCommon)}
+        <RelativeTime date={value} />
       </TooltipTrigger>
       <TooltipContent>{exactDate}</TooltipContent>
     </Tooltip>
   );
 }
 
-export function SubmissionStatusSummary({ submission, inline = false }: { submission: SubmissionListItem; inline?: boolean }) {
-  const { t: tCommon, i18n } = useTranslation("common");
-  const reviewedAt = submission.reviewed_at;
+export function SubmissionStatusSummary({ submission, inline = false }: { submission: SubmissionListRow; inline?: boolean }) {
+  const { i18n } = useTranslation("common");
+  const reviewedAt = submission.reviewedAt;
 
   return (
     <div className={cn("min-w-0", inline ? "flex items-center gap-2" : "space-y-1.5")}>
@@ -135,7 +137,7 @@ export function SubmissionStatusSummary({ submission, inline = false }: { submis
               />
             }
           >
-            {formatRelativeTime(reviewedAt, tCommon)}
+            <RelativeTime date={reviewedAt} />
           </TooltipTrigger>
           <TooltipContent>{formatFullDate(reviewedAt, i18n.language)}</TooltipContent>
         </Tooltip>

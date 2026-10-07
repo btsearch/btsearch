@@ -5,12 +5,23 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import postgres from "postgres";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.js";
-import { validateCellARFCNsForBands } from "../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency } from "../../../../features/cells/duplicateCheck.js";
-import { type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
-import { INSERT_OMIT, lteNullableFields, nrExtendFields, umtsNullableFields } from "../../../../features/cells/ratCellSchemas.js";
+import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicatesBatch } from "../../../../features/cells/duplicateCheck.js";
+import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetails, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
+import {
+  INSERT_OMIT,
+  gsmNullableFields,
+  lteNullableFields,
+  nrExtendFields,
+  refuseNsaFields,
+  umtsNullableFields,
+} from "../../../../features/cells/ratCellSchemas.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { syncStationsPermitsAssociations } from "../../../../features/stations/permitsAssociation.js";
 import { stationStatusForCellCount } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine, validateCellDuplicates } from "../../../../features/submissions/helpers.js";
@@ -27,13 +38,16 @@ const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
 const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
-const locationSchema = createSelectSchema(locations).omit({ point: true });
+const locationSchema = createSelectSchema(locations).omit({ point: true, ...STRUCTURE_COLUMNS });
 const operatorSchema = createSelectSchema(operators);
 const STATION_IDENTITY_CONSTRAINT = "stations_station_id_operator_unique";
-const baseCellsInsertSchema = createInsertSchema(cells).omit({ createdAt: true, updatedAt: true }).strict();
+const baseCellsInsertSchema = createInsertSchema(cells)
+  .omit({ createdAt: true, updatedAt: true })
+  .extend({ rat: z.enum(NORMAL_RATS) })
+  .strict();
 const gsmInsertSchema = createInsertSchema(gsmCells)
   .omit(INSERT_OMIT)
-  .extend({ lac: z.number().int().min(0).max(65535), cid: z.number().int().min(0).max(65535) });
+  .extend({ ...gsmNullableFields, lac: z.number().int().min(0).max(65535), cid: z.number().int().min(0).max(65535) });
 const umtsInsertSchema = createInsertSchema(umtsCells)
   .omit(INSERT_OMIT)
   .extend({ ...umtsNullableFields, rnc: z.number().int().min(0).max(65535), cid: z.number().int().min(0).max(65535) });
@@ -45,20 +59,7 @@ const lteInsertSchema = createInsertSchema(lteCells)
     clid: z.number().int().min(0).max(255),
     ...lteNullableFields,
   });
-const nrInsertSchema = createInsertSchema(nrCells)
-  .omit(INSERT_OMIT)
-  .extend(nrExtendFields)
-  .superRefine((data, ctx) => {
-    if (data.type === "nsa") {
-      for (const field of ["nrtac", "clid", "gnbid"] as const) {
-        if (data[field] !== null && data[field] !== undefined)
-          ctx.addIssue({ code: "custom", message: `${field} must not be set for NSA NR cells`, path: [field] });
-      }
-      if (data.supports_nr_redcap === true) {
-        ctx.addIssue({ code: "custom", message: "supports_nr_redcap must not be set for NSA NR cells", path: ["supports_nr_redcap"] });
-      }
-    }
-  });
+const nrInsertSchema = createInsertSchema(nrCells).omit(INSERT_OMIT).extend(nrExtendFields).superRefine(refuseNsaFields);
 const cellWithDetailsInsert = baseCellsInsertSchema
   .extend({ details: z.unknown().optional() })
   .superRefine(makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchema }));
@@ -110,7 +111,10 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     );
   }
 
-  await validateCellARFCNsForBands(cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details })));
+  await validateCellBandsInCountry(
+    cellsData.map((cell) => ({ rat: cell.rat, band_id: cell.band_id, details: cell.details })),
+    LEGACY_COUNTRY_CODE,
+  );
 
   try {
     const station = await runAuditedOperation(auditContextFromRequest(req), { kind: "station.create" }, async (tx, audit) => {
@@ -129,6 +133,8 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
       if (!newStation) throw new ErrorResponse("FAILED_TO_CREATE");
 
       if (cellsData.length > 0) {
+        const featuresByStation = await getStationCountryFeatures([newStation.id], tx);
+        const features = featuresByStation.get(newStation.id) ?? disabledCountryFeatures;
         const createdCells = await tx
           .insert(cells)
           .values(
@@ -145,7 +151,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
           createdCells.map(async (row, idx) => {
             const details = cellsData[idx]?.details;
             if (!details) return;
-            if (isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails);
+            if (isNormalRat(row.rat)) await insertRATCellDetails(tx, row.rat, row.id, details as RATInsertDetails, features);
           }),
         );
       }
@@ -156,7 +162,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
         },
         with: {
           cells: { with: { band: true, gsm: true, umts: true, lte: true, nr: true }, columns: { band_id: false } },
-          location: { columns: { point: false } },
+          location: { columns: { point: false, ...HIDDEN_STRUCTURE_COLUMNS } },
           operator: true,
         },
       });
@@ -229,7 +235,12 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createStation: Route<ReqBody, ResponseData> = {
   url: "/stations",
   method: "POST",
-  config: { permissions: ["create:stations"] },
+  config: {
+    permissions: ["create:stations"],
+    scope: defineScope<ReqBody>((req) => ({
+      placements: [{ locationId: req.body.location_id ?? null, operatorId: req.body.operator_id ?? null }],
+    })),
+  },
   schema: schemaRoute,
   handler,
 };

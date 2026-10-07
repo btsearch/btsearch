@@ -1,257 +1,73 @@
-import type { CellDetails } from "@/types/station";
+import type { Band } from "@/types/station";
 
 export const RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"] as const;
 
 export type RatType = (typeof RAT_ORDER)[number];
-type CellDetailKey = keyof NonNullable<CellDetails>;
-
-type RatIdentityDuplicateRule = {
-  fields: readonly string[];
-  messageKey: string;
-};
 
 type RatCellSpec = {
   value: RatType;
   label: string;
   gen: string;
-  detailKeys: readonly string[];
-  booleanDetailKeys?: readonly string[];
-  defaultDetails?: Record<string, unknown>;
-  sharedDetailFields?: readonly string[];
-  identityDuplicateRules?: readonly RatIdentityDuplicateRule[];
-  channelField?: string;
-  sortDetailField?: CellDetailKey;
-  defaultBandDuplex?: string;
-  defaultBandDuplexByValue?: Partial<Record<number, string>>;
-  siblingSyncField?: string;
-  showBandDuplex?: boolean;
-  supportsSectorPciSync?: boolean;
 };
 
-type RatBandChoice = {
-  rat: string;
-  value: number;
-  duplex: string | null;
+export type RatOption = {
+  value: string;
+  label: string;
+  gen: string | null;
 };
 
 export const RAT_CELL_SPECS: Record<RatType, RatCellSpec> = {
-  NR: {
-    value: "NR",
-    label: "NR",
-    gen: "5G",
-    detailKeys: ["type", "nrtac", "gnbid", "clid", "pci", "arfcn", "supports_nr_redcap"],
-    booleanDetailKeys: ["supports_nr_redcap"],
-    defaultDetails: { type: "nsa" },
-    sharedDetailFields: ["nrtac", "gnbid"],
-    channelField: "arfcn",
-    sortDetailField: "nci",
-    defaultBandDuplexByValue: {
-      700: "FDD",
-      2100: "FDD",
-      2600: "TDD",
-      3500: "TDD",
-    },
-    siblingSyncField: "nrtac",
-    supportsSectorPciSync: true,
-  },
-  LTE: {
-    value: "LTE",
-    label: "LTE",
-    gen: "4G",
-    detailKeys: ["tac", "enbid", "clid", "pci", "earfcn", "supports_iot"],
-    booleanDetailKeys: ["supports_iot"],
-    sharedDetailFields: ["tac", "enbid"],
-    identityDuplicateRules: [{ fields: ["enbid", "clid"], messageKey: "validation.enbidClidDuplicate" }],
-    channelField: "earfcn",
-    sortDetailField: "ecid",
-    defaultBandDuplexByValue: {
-      700: "FDD",
-      800: "FDD",
-      900: "FDD",
-      1800: "FDD",
-      2100: "FDD",
-    },
-    siblingSyncField: "tac",
-    supportsSectorPciSync: true,
-  },
-  UMTS: {
-    value: "UMTS",
-    label: "UMTS",
-    gen: "3G",
-    detailKeys: ["lac", "arfcn", "rnc", "cid"],
-    sharedDetailFields: ["lac", "rnc"],
-    identityDuplicateRules: [{ fields: ["cid"], messageKey: "validation.cidDuplicate" }],
-    channelField: "arfcn",
-    sortDetailField: "cid_long",
-    defaultBandDuplex: "FDD",
-    siblingSyncField: "lac",
-  },
-  GSM: {
-    value: "GSM",
-    label: "GSM",
-    gen: "2G",
-    detailKeys: ["lac", "cid", "e_gsm"],
-    booleanDetailKeys: ["e_gsm"],
-    sharedDetailFields: ["lac"],
-    identityDuplicateRules: [{ fields: ["cid"], messageKey: "validation.cidDuplicate" }],
-    sortDetailField: "cid",
-    siblingSyncField: "lac",
-    showBandDuplex: false,
-  },
+  NR: { value: "NR", label: "NR", gen: "5G" },
+  LTE: { value: "LTE", label: "LTE", gen: "4G" },
+  UMTS: { value: "UMTS", label: "UMTS", gen: "3G" },
+  GSM: { value: "GSM", label: "GSM", gen: "2G" },
 };
 
-export const RAT_OPTIONS: { value: RatType; label: string; gen: string }[] = RAT_ORDER.map((rat) => {
-  const { value, label, gen } = RAT_CELL_SPECS[rat];
-  return { value, label, gen };
-});
+const RAT_OPTIONS: RatCellSpec[] = RAT_ORDER.map((rat) => RAT_CELL_SPECS[rat]);
+
+const REGISTER_GENERATIONS: ReadonlyMap<string, string> = new Map([
+  ["CDMA", "3G"],
+  ["GSM-R", "2G"],
+  ["IOT", "NB"],
+]);
 
 export const EXTENDED_RAT_OPTIONS: { value: string; label: string; gen: string }[] = [...RAT_OPTIONS, { value: "IOT", label: "IoT", gen: "NB" }];
 
-export function getRatCellSpec(rat: string): RatCellSpec | undefined {
+function getRatCellSpec(rat: string): RatCellSpec | undefined {
   if (rat in RAT_CELL_SPECS) return RAT_CELL_SPECS[rat as RatType];
   return undefined;
 }
 
-export function getRatCellSpecs(): RatCellSpec[] {
-  return RAT_ORDER.map((rat) => RAT_CELL_SPECS[rat]);
+export function ratToGenLabel(rat: string): string | null {
+  return getRatCellSpec(rat)?.gen ?? REGISTER_GENERATIONS.get(rat) ?? null;
 }
 
-export function getCellDetailKeys(rat: string): readonly string[] {
-  return getRatCellSpec(rat)?.detailKeys ?? [];
+export function toRegisterRatOption(rat: string): RatOption {
+  if (rat === "IOT" || rat === "iot") return { value: "iot", label: "IoT", gen: ratToGenLabel("IOT") };
+  return { value: rat, label: rat, gen: ratToGenLabel(rat) };
 }
 
-export function getCellDetailDefaultValue(rat: string, key: string): unknown {
-  const spec = getRatCellSpec(rat);
-  if (spec?.defaultDetails && key in spec.defaultDetails) return spec.defaultDetails[key];
-  if (spec?.booleanDetailKeys?.includes(key)) return false;
-  return null;
-}
+export function listRegisterRatOptions(registerBands: readonly Pick<Band, "rat" | "variant">[]): RatOption[] {
+  const options = new Map<string, RatOption>();
 
-export function getSharedDetailFields(rat: string): string[] {
-  return [...(getRatCellSpec(rat)?.sharedDetailFields ?? [])];
-}
-
-export function getRatChannelField(rat: string): string | undefined {
-  return getRatCellSpec(rat)?.channelField;
-}
-
-export function getRatSortDetailField(rat: string): CellDetailKey | undefined {
-  return getRatCellSpec(rat)?.sortDetailField;
-}
-
-type SortableCellDetails = Partial<Record<CellDetailKey, unknown>> | null | undefined;
-
-function getNumericDetailValue(details: SortableCellDetails, field: CellDetailKey | undefined): number {
-  if (!field || !details) return 0;
-  const value = Number(details[field] ?? 0);
-  return Number.isFinite(value) ? value : 0;
-}
-
-function getLteSortValue(details: SortableCellDetails): number {
-  if (details?.ecid !== undefined && details.ecid !== null) return getNumericDetailValue(details, "ecid");
-  return getNumericDetailValue(details, "enbid") * 256 + getNumericDetailValue(details, "clid");
-}
-
-function getUmtsSortValue(details: SortableCellDetails): number {
-  if (details?.cid_long !== undefined && details.cid_long !== null) return getNumericDetailValue(details, "cid_long");
-  return getNumericDetailValue(details, "rnc") * 65536 + getNumericDetailValue(details, "cid");
-}
-
-function getNrStandaloneSortValue(details: SortableCellDetails): number {
-  if (details?.nci !== undefined && details.nci !== null) return getNumericDetailValue(details, "nci");
-  const gnbid = getNumericDetailValue(details, "gnbid");
-  const gnbidLength = gnbid.toString(2).length;
-  return gnbid * 2 ** (36 - gnbidLength) + getNumericDetailValue(details, "clid");
-}
-
-function compareNrTypes(detailsA: SortableCellDetails, detailsB: SortableCellDetails): number {
-  return Number(detailsA?.type !== "sa") - Number(detailsB?.type !== "sa");
-}
-
-export function compareRatCellDetails(rat: string, detailsA: SortableCellDetails, detailsB: SortableCellDetails): number {
-  if (rat === "NR") {
-    const typeOrder = compareNrTypes(detailsA, detailsB);
-    if (typeOrder !== 0) return typeOrder;
-    if (detailsA?.type !== "sa") return getNumericDetailValue(detailsA, "pci") - getNumericDetailValue(detailsB, "pci");
-    return getNrStandaloneSortValue(detailsA) - getNrStandaloneSortValue(detailsB);
+  for (const band of registerBands) {
+    const rat = band.rat === "GSM" && band.variant === "railway" ? "GSM-R" : band.rat;
+    const option = toRegisterRatOption(rat);
+    if (!options.has(option.value)) options.set(option.value, option);
   }
-  if (rat === "LTE") return getLteSortValue(detailsA) - getLteSortValue(detailsB);
-  if (rat === "UMTS") return getUmtsSortValue(detailsA) - getUmtsSortValue(detailsB);
 
-  const sortField = getRatSortDetailField(rat);
-  return getNumericDetailValue(detailsA, sortField) - getNumericDetailValue(detailsB, sortField);
+  return [...options.values()];
 }
 
-export function compareRatCells(rat: string, bandA: number, detailsA: SortableCellDetails, bandB: number, detailsB: SortableCellDetails): number {
-  if (rat === "NR") {
-    const typeOrder = compareNrTypes(detailsA, detailsB);
-    if (typeOrder !== 0) return typeOrder;
-  }
-  if (bandA !== bandB) return bandA - bandB;
-  return compareRatCellDetails(rat, detailsA, detailsB);
+export function compareRatsByName(left: string, right: string): number {
+  return left.localeCompare(right);
 }
 
-export function getRatDefaultBandDuplex(rat: string, bandValue?: number | null): string | undefined {
-  const spec = getRatCellSpec(rat);
-  if (bandValue !== undefined && bandValue !== null) return spec?.defaultBandDuplexByValue?.[bandValue] ?? spec?.defaultBandDuplex;
-  return spec?.defaultBandDuplex;
-}
-
-export function findPreferredRatBand<T extends RatBandChoice>(
-  bands: readonly T[],
-  rat: string,
-  bandValue?: number | null,
-  preferredDuplex?: string | null,
-  fallbackDuplex?: string | null,
-): T | undefined {
-  if (bandValue === null) return undefined;
-  const matchingBands = bands.filter((band) => band.rat === rat && (bandValue === undefined || band.value === bandValue));
-  if (matchingBands.length === 0) return undefined;
-  if (preferredDuplex !== undefined) {
-    const preferredBand = matchingBands.find((band) => band.duplex === preferredDuplex);
-    if (preferredBand) return preferredBand;
-  }
-  if (bandValue !== undefined) {
-    const defaultDuplex = getRatDefaultBandDuplex(rat, bandValue);
-    const defaultBand = defaultDuplex !== undefined ? matchingBands.find((band) => band.duplex === defaultDuplex) : undefined;
-    if (defaultBand) return defaultBand;
-  } else {
-    const defaultBand = matchingBands.find((band) => {
-      const defaultDuplex = getRatDefaultBandDuplex(rat, band.value);
-      return defaultDuplex !== undefined && band.duplex === defaultDuplex;
-    });
-    if (defaultBand) return defaultBand;
-  }
-  if (fallbackDuplex !== undefined) {
-    const fallbackBand = matchingBands.find((band) => band.duplex === fallbackDuplex);
-    if (fallbackBand) return fallbackBand;
-  }
-  if (bandValue === undefined) {
-    const defaultDuplex = getRatDefaultBandDuplex(rat);
-    const defaultBand = defaultDuplex !== undefined ? matchingBands.find((band) => band.duplex === defaultDuplex) : undefined;
-    if (defaultBand) return defaultBand;
-  }
-  return matchingBands[0];
-}
-
-export function getRatSiblingSyncField(rat: string): string | undefined {
-  return getRatCellSpec(rat)?.siblingSyncField;
-}
-
-export function getRatSectorColumnIndex(rat: string): number {
-  return getRatShowsBandDuplex(rat) ? 2 : 1;
-}
-
-export function getRatShowsBandDuplex(rat: string): boolean {
-  return getRatCellSpec(rat)?.showBandDuplex ?? true;
-}
-
-export function getRatSupportsSectorPciSync(rat: string): boolean {
-  return getRatCellSpec(rat)?.supportsSectorPciSync ?? false;
-}
-
-export function ratToGenLabel(rat: string): string {
-  if (rat === "CDMA") return "3G";
-  if (rat === "IOT") return "NB";
-  return getRatCellSpec(rat)?.gen ?? rat;
+export function toRegisterRatComparator(registerBands: readonly Pick<Band, "rat">[]): (left: string, right: string) => number {
+  const positions = new Map([...new Set(registerBands.map((band) => band.rat))].map((rat, index) => [rat, index]));
+  return (left, right) => {
+    const leftPosition = positions.get(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightPosition = positions.get(right) ?? Number.MAX_SAFE_INTEGER;
+    return leftPosition - rightPosition || compareRatsByName(left, right);
+  };
 }

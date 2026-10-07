@@ -16,6 +16,7 @@ import {
   WazeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { MAX_LOCATION_LIST_LIMIT, type PushTopics } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useId } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -41,16 +42,15 @@ import { InlineError } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { type PushPreferences, fetchPushPreferences, updatePushPreferences } from "@/features/notifications/api";
+import { fetchPushSubscription, pushSubscriptionKeys, updatePushTopics } from "@/features/notifications/api";
 import { usePushSubscription } from "@/features/notifications/usePushSubscription";
 import { OpenStreetMapIcon, OrganicMapsIcon, OsmAndIcon } from "@/features/station-details/components/navLinks";
 import { useCookieConsent } from "@/hooks/useCookieConsent";
 import { type NavMode, type NavigationApp, type UserPreferences, usePreferences } from "@/hooks/usePreferences";
-import { isGloballyHandledError } from "@/lib/api";
+import { isGloballyHandledError, isNotFound } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { cn, toggleValue } from "@/lib/utils";
-
-const PRIVILEGED_ROLES = new Set(["admin", "editor"]);
 
 type ThemeValue = ReturnType<typeof useTheme>["theme"];
 type UpdatePreferences = ReturnType<typeof usePreferences>["updatePreferences"];
@@ -386,42 +386,60 @@ function NotificationsCard() {
   const { t } = useTranslation("settings");
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
-  const { subscription, subscriptionId, permission, isSubscribing, subscribe, unsubscribe, isSupported } = usePushSubscription();
-  const queryKey = ["push-preferences", subscriptionId];
+  const { subscription, subscriptionId, permission, isSubscribing, subscribe, unsubscribe, forgetSubscription, isAvailable } = usePushSubscription();
+  const queryKey = pushSubscriptionKeys.topics(subscriptionId);
+
+  const readTopics = async (id: string, signal: AbortSignal): Promise<PushTopics | null> => {
+    try {
+      const { topics } = await fetchPushSubscription(id, signal);
+      return topics;
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+      await forgetSubscription();
+      return null;
+    }
+  };
 
   const {
-    data: pushPreferences,
+    data: pushTopics,
     isLoadingError,
     isFetching,
     refetch,
   } = useQuery({
     queryKey,
-    queryFn: () => (subscriptionId === null ? Promise.reject(new Error("Missing push subscription")) : fetchPushPreferences(subscriptionId)),
-    enabled: Boolean(session?.user) && subscriptionId !== null,
+    queryFn: ({ signal }) => (subscriptionId === null ? Promise.reject(new Error("Missing push subscription")) : readTopics(subscriptionId, signal)),
+    enabled: isAvailable && subscriptionId !== null,
   });
 
-  const { mutate: updatePush, isPending: isUpdatingPush } = useMutation({
-    mutationFn: (patch: Partial<PushPreferences>) =>
-      subscriptionId === null ? Promise.reject(new Error("Missing push subscription")) : updatePushPreferences(patch, subscriptionId),
-    onMutate: async (patch) => {
+  const { mutate: updateTopics, isPending: isUpdatingTopics } = useMutation({
+    mutationFn: (changes: Partial<PushTopics>) =>
+      subscriptionId === null ? Promise.reject(new Error("Missing push subscription")) : updatePushTopics(subscriptionId, changes),
+    onMutate: async (changes) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<PushPreferences>(queryKey);
-      if (previous !== undefined) queryClient.setQueryData<PushPreferences>(queryKey, { ...previous, ...patch });
+      const previous = queryClient.getQueryData<PushTopics | null>(queryKey);
+      if (previous !== undefined && previous !== null) queryClient.setQueryData<PushTopics | null>(queryKey, { ...previous, ...changes });
       return { previous };
     },
-    onError: (error, _patch, context) => {
+    onError: (error, _changes, context) => {
       queryClient.setQueryData(queryKey, context?.previous);
+      if (isNotFound(error)) {
+        void forgetSubscription();
+        return;
+      }
       if (isGloballyHandledError(error)) return;
       toast.error(t("preferences.notificationPrefsError"));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: async (_subscription, error) => {
+      if (isNotFound(error)) return;
+      await queryClient.invalidateQueries({ queryKey });
+    },
   });
 
-  if (!isSupported || !session?.user) return null;
+  if (!isAvailable || !session?.user) return null;
 
-  const isStaff = PRIVILEGED_ROLES.has(session.user.role ?? "user");
+  const isStaff = STAFF_ROLES.has(session.user.role ?? "user");
   const isSubscribed = subscription !== null;
-  const topicsDisabled = isUpdatingPush || pushPreferences === undefined;
+  const topicsDisabled = isUpdatingTopics || pushTopics === undefined || pushTopics === null;
   const topicRowClassName = "sm:pl-[4.125rem]";
 
   return (
@@ -454,35 +472,35 @@ function NotificationsCard() {
             <PreferenceSwitchRow
               title={t("preferences.ukeUpdates")}
               description={t("preferences.ukeUpdatesHint")}
-              checked={pushPreferences?.ukeUpdates ?? false}
+              checked={pushTopics?.officialDataUpdates ?? false}
               disabled={topicsDisabled}
-              onCheckedChange={(ukeUpdates) => updatePush({ ukeUpdates })}
+              onCheckedChange={(officialDataUpdates) => updateTopics({ officialDataUpdates })}
               className={topicRowClassName}
             />
             <PreferenceSwitchRow
               title={t("preferences.stationWatches")}
               description={t("preferences.stationWatchesHint")}
-              checked={pushPreferences?.stationWatches ?? true}
+              checked={pushTopics?.stationWatches ?? true}
               disabled={topicsDisabled}
-              onCheckedChange={(stationWatches) => updatePush({ stationWatches })}
+              onCheckedChange={(stationWatches) => updateTopics({ stationWatches })}
               className={topicRowClassName}
             />
             {isStaff ? (
               <PreferenceSwitchRow
                 title={t("preferences.newSubmissions")}
                 description={t("preferences.newSubmissionsHint")}
-                checked={pushPreferences?.newSubmission ?? true}
+                checked={pushTopics?.newSubmissions ?? true}
                 disabled={topicsDisabled}
-                onCheckedChange={(newSubmission) => updatePush({ newSubmission })}
+                onCheckedChange={(newSubmissions) => updateTopics({ newSubmissions })}
                 className={topicRowClassName}
               />
             ) : (
               <PreferenceSwitchRow
                 title={t("preferences.submissionUpdates")}
                 description={t("preferences.submissionUpdatesHint")}
-                checked={pushPreferences?.submissionUpdates ?? true}
+                checked={pushTopics?.submissionUpdates ?? true}
                 disabled={topicsDisabled}
-                onCheckedChange={(submissionUpdates) => updatePush({ submissionUpdates })}
+                onCheckedChange={(submissionUpdates) => updateTopics({ submissionUpdates })}
                 className={topicRowClassName}
               />
             )}
@@ -500,7 +518,7 @@ function AdConsentCard() {
   const { consent, accept, reject, reset } = useCookieConsent();
   const role = session?.user.role;
 
-  if (typeof role === "string" && PRIVILEGED_ROLES.has(role)) return null;
+  if (typeof role === "string" && STAFF_ROLES.has(role)) return null;
 
   return (
     <SettingsCard>
@@ -557,7 +575,7 @@ function MapCard({
           description={t("preferences.mapStationsLimitHint")}
           value={preferences.mapStationsLimit}
           min={10}
-          max={1000}
+          max={MAX_LOCATION_LIST_LIMIT}
           step={10}
           onValueChange={(mapStationsLimit) => updatePreferences({ mapStationsLimit })}
         />

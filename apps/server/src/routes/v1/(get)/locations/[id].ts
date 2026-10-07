@@ -1,5 +1,4 @@
 import { bands, cells, extraIdentificators, locations, operators, regions, stations } from "@openbts/drizzle";
-import { LocationResponseType } from "@openbts/proto/server";
 import { sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
@@ -7,6 +6,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
 import { buildStationFilterConditions, resolveStationFilter } from "../../../../features/stations/filter.js";
 import { findPhysicalStations, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
 import { parseStationStatusParam } from "../../../../features/stations/status.js";
@@ -14,7 +14,7 @@ import { parseUplinkTypesParam } from "../../../../features/stations/uplink.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationsSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const regionsSchema = createSelectSchema(regions);
 const stationsSchema = createSelectSchema(stations).omit({ operator_id: true, location_id: true });
 const cellsSchema = createSelectSchema(cells).omit({ band_id: true, station_id: true });
@@ -114,6 +114,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     columns: {
       point: false,
       region_id: false,
+      ...HIDDEN_STRUCTURE_COLUMNS,
     },
     with: {
       region: true,
@@ -150,7 +151,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getLocation: Route<ReqParams, ResponseData> = {
   url: "/locations/:id",
   method: "GET",
-  config: { permissions: ["read:locations"], allowGuestAccess: true, proto: LocationResponseType },
+  config: { permissions: ["read:locations"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

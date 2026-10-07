@@ -1,90 +1,78 @@
 import { calculateBearing } from "@openbts/shared/radiolinesUtils";
 import { ANTENNA_AZIMUTH_TOLERANCE_DEG, circularAzimuthDeltaDeg } from "@openbts/shared/terrainProfile";
 
-import type { TerrainProfileAntennaCandidate, TerrainProfileReceiver, TerrainProfileStationResult } from "./types";
+import type { GeoPoint, ReadyTerrainProfile, TerrainAntenna } from "./types";
 
-function normalizeAzimuth(azimuth: number | null) {
-  if (azimuth === null || azimuth === 360 || !Number.isFinite(azimuth)) return null;
-  return ((azimuth % 360) + 360) % 360;
+export type LabeledAntenna = {
+  antenna: TerrainAntenna;
+  label: string;
+};
+
+type AntennaChoices = {
+  offered: LabeledAntenna[];
+  folded: LabeledAntenna[];
+};
+
+type AntennaDescriber = (antenna: TerrainAntenna, withHeight: boolean) => string;
+
+const OMNIDIRECTIONAL_AZIMUTH = 360;
+
+export function isOmnidirectional(antenna: Pick<TerrainAntenna, "azimuth">): boolean {
+  return antenna.azimuth === OMNIDIRECTIONAL_AZIMUTH;
 }
 
-function isDirectionalCandidate(candidate: TerrainProfileAntennaCandidate) {
-  return normalizeAzimuth(candidate.antenna.azimuth) !== null;
+export function getDirectionalAzimuth(antenna: Pick<TerrainAntenna, "azimuth">): number | null {
+  return antenna.azimuth === null || isOmnidirectional(antenna) ? null : antenna.azimuth;
 }
 
-function isOmnidirectionalCandidate(candidate: TerrainProfileAntennaCandidate) {
-  return candidate.antenna.azimuth === 360;
+export function findSelectedAntenna(profile: ReadyTerrainProfile, selectedAntennaKey: string | null): TerrainAntenna {
+  return profile.candidates.find((candidate) => candidate.key === selectedAntennaKey) ?? profile.antenna;
 }
 
-function circularAzimuthDelta(azimuth: number | null, bearingDeg: number) {
-  const normalized = normalizeAzimuth(azimuth);
-  if (normalized === null || !Number.isFinite(bearingDeg)) return Number.POSITIVE_INFINITY;
-  return circularAzimuthDeltaDeg(normalized, bearingDeg);
+function isPointingTowards(antenna: TerrainAntenna, bearing: number): boolean {
+  const azimuth = getDirectionalAzimuth(antenna);
+  if (azimuth === null) return true;
+  if (!Number.isFinite(azimuth) || !Number.isFinite(bearing)) return false;
+  return circularAzimuthDeltaDeg(azimuth, bearing) <= ANTENNA_AZIMUTH_TOLERANCE_DEG;
 }
 
-function compareRankValues(a: number, b: number) {
-  if (a === b) return 0;
-  return a < b ? -1 : 1;
+function listUniqueAntennas(antennas: readonly TerrainAntenna[]): TerrainAntenna[] {
+  const byKey = new Map<string, TerrainAntenna>();
+  for (const antenna of antennas) if (!byKey.has(antenna.key)) byKey.set(antenna.key, antenna);
+  return [...byKey.values()];
 }
 
-function candidateBandFrequency(candidate: TerrainProfileAntennaCandidate) {
-  if (candidate.band !== null && candidate.band.value !== null && Number.isFinite(candidate.band.value)) return candidate.band.value;
-  return Number.POSITIVE_INFINITY;
-}
+function labelAntennas(antennas: readonly TerrainAntenna[], selectedKey: string | null, describeAntenna: AntennaDescriber): LabeledAntenna[] {
+  const shortLabels = antennas.map((antenna) => describeAntenna(antenna, false));
+  const labels = antennas.map((antenna, index) => {
+    const isAmbiguous = shortLabels.indexOf(shortLabels[index]) !== shortLabels.lastIndexOf(shortLabels[index]);
+    return isAmbiguous ? describeAntenna(antenna, true) : shortLabels[index];
+  });
 
-function candidateFrequency(candidate: TerrainProfileAntennaCandidate) {
-  return Number.isFinite(candidate.frequencyMHz) ? candidate.frequencyMHz : Number.POSITIVE_INFINITY;
-}
-
-function compareCandidates(a: TerrainProfileAntennaCandidate, b: TerrainProfileAntennaCandidate, bearingDeg: number) {
-  const deltaDifference = compareRankValues(circularAzimuthDelta(a.antenna.azimuth, bearingDeg), circularAzimuthDelta(b.antenna.azimuth, bearingDeg));
-  if (deltaDifference !== 0) return deltaDifference;
-
-  if (normalizeAzimuth(a.antenna.azimuth) === normalizeAzimuth(b.antenna.azimuth)) {
-    const bandDifference = compareRankValues(candidateBandFrequency(a), candidateBandFrequency(b));
-    if (bandDifference !== 0) return bandDifference;
-
-    const frequencyDifference = compareRankValues(candidateFrequency(a), candidateFrequency(b));
-    if (frequencyDifference !== 0) return frequencyDifference;
+  const indexByLabel = new Map<string, number>();
+  for (const [index, label] of labels.entries()) {
+    if (!indexByLabel.has(label) || antennas[index].key === selectedKey) indexByLabel.set(label, index);
   }
 
-  if (a.key === b.key) return 0;
-  return a.key < b.key ? -1 : 1;
+  const keptIndexes = [...indexByLabel.values()].sort((left, right) => left - right);
+  return keptIndexes.map((index) => ({ antenna: antennas[index], label: labels[index] }));
 }
 
-export function filterTerrainProfileCandidatesByBearing(
-  candidates: TerrainProfileAntennaCandidate[],
-  station: Pick<TerrainProfileStationResult, "latitude" | "longitude">,
-  receiver: TerrainProfileReceiver,
-) {
-  const bearingDeg = calculateBearing(station.latitude, station.longitude, receiver.latitude, receiver.longitude);
-  const inRange = candidates.filter(
-    (candidate) =>
-      candidate.antenna.azimuth === null ||
-      isOmnidirectionalCandidate(candidate) ||
-      circularAzimuthDelta(candidate.antenna.azimuth, bearingDeg) <= ANTENNA_AZIMUTH_TOLERANCE_DEG,
-  );
-  return inRange.length > 0 ? inRange : candidates;
+export function getReceiverBearing(station: GeoPoint, receiver: GeoPoint): number {
+  return calculateBearing(station.latitude, station.longitude, receiver.latitude, receiver.longitude);
 }
 
-export function selectTerrainProfileAntenna(
-  candidates: TerrainProfileAntennaCandidate[],
-  station: TerrainProfileStationResult,
-  receiver: TerrainProfileReceiver,
-) {
-  const bearingDeg = calculateBearing(station.latitude, station.longitude, receiver.latitude, receiver.longitude);
-  const directionalCandidates = candidates.filter(isDirectionalCandidate);
-  const omnidirectionalCandidates = candidates.filter(isOmnidirectionalCandidate);
+export function listAntennaChoices(
+  candidates: readonly TerrainAntenna[],
+  selected: TerrainAntenna,
+  bearing: number,
+  describeAntenna: AntennaDescriber,
+): AntennaChoices {
+  const antennas = listUniqueAntennas([...candidates, selected]);
+  const labeled = labelAntennas(antennas, selected.key, describeAntenna);
+  const pointing = labeled.filter(({ antenna }) => isPointingTowards(antenna, bearing));
+  if (pointing.length === 0) return { offered: labeled, folded: [] };
 
-  let rankedCandidates = candidates;
-  if (directionalCandidates.length > 0) rankedCandidates = directionalCandidates;
-  else if (omnidirectionalCandidates.length > 0) rankedCandidates = omnidirectionalCandidates;
-
-  let selectedCandidate: TerrainProfileAntennaCandidate | undefined;
-
-  for (const candidate of rankedCandidates) {
-    if (selectedCandidate === undefined || compareCandidates(candidate, selectedCandidate, bearingDeg) < 0) selectedCandidate = candidate;
-  }
-
-  return selectedCandidate;
+  const isOffered = ({ antenna }: LabeledAntenna) => antenna.key === selected.key || pointing.some((entry) => entry.antenna.key === antenna.key);
+  return { offered: labeled.filter(isOffered), folded: labeled.filter((entry) => !isOffered(entry)) };
 }

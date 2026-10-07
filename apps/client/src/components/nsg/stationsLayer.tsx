@@ -2,23 +2,38 @@ import { useQuery } from "@tanstack/react-query";
 import { memo, useMemo } from "react";
 
 import { useMap } from "@/components/ui/map";
-import { type LocationsResponse, fetchLocations } from "@/features/map/api";
-import { DEFAULT_FILTERS, StationsLayer as MapStationsLayer } from "@/features/map/components/stationsLayer";
+import { mapLocationsQueryOptions } from "@/features/map/api";
+import { StationsLayer as MapStationsLayer } from "@/features/map/components/stationsLayer";
+import { DEFAULT_MAP_FILTERS, type MapFilters } from "@/features/map/data/mapFilters";
+import { type MapLookups, findOperatorIdsByMncs, useMapLookups } from "@/features/map/data/mapLookups";
+import { useMapPoints } from "@/features/map/data/mapPoints";
 import { useMapBounds } from "@/features/map/hooks/useMapBounds";
 import { useMapQueryHousekeeping } from "@/features/map/hooks/useMapQueryHousekeeping";
 import { useStationPopupActions } from "@/features/map/hooks/useStationPopupActions";
 import type { MatchedStation } from "@/features/nsg-explorer/stations/correlation";
-import { mergeMatchedStationLocations } from "@/features/nsg-explorer/stations/locations";
+import { mergeMatchedStationPoints } from "@/features/nsg-explorer/stations/locations";
 import { createStationsQueryScope, isStationsQueryScope, retainStationsPlaceholder } from "@/features/nsg-explorer/stations/queryScope";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useSettings } from "@/hooks/useSettings";
-import { authClient } from "@/lib/auth/client";
-import type { StationFilters } from "@/types/station";
+import { useSettledSession } from "@/hooks/useSettledSession";
 
 const LOCATION_QUERY_FAMILIES = new Set(["locations"]);
 
 function isStationsLayerQuery(queryKey: readonly unknown[]): boolean {
   return isStationsQueryScope(queryKey.at(-1));
+}
+
+function buildOperatorFilters(operatorMncs: readonly number[], lookups: MapLookups | undefined, visible: boolean): MapFilters {
+  if (lookups === undefined) return { ...DEFAULT_MAP_FILTERS, showStations: visible };
+
+  const operatorIds = findOperatorIdsByMncs(lookups.operators, operatorMncs);
+  const countryCodes = new Set<string>();
+  for (const operatorId of operatorIds) {
+    const entry = lookups.operatorsById.get(operatorId);
+    if (entry !== undefined) countryCodes.add(entry.operator.countryCode);
+  }
+
+  return { ...DEFAULT_MAP_FILTERS, operatorIds, countryCodes: [...countryCodes], showStations: visible };
 }
 
 type StationsLayerProps = {
@@ -33,53 +48,49 @@ export const StationsLayer = memo(function StationsLayer({ operatorMncs, correla
   const { bounds, zoom, isMoving } = useMapBounds({ map, isLoaded });
   const { preferences } = usePreferences();
   const { data: runtimeSettings } = useSettings();
-  const { data: session } = authClient.useSession();
-  const showAddToList = !!session?.user && !!runtimeSettings?.enableUserLists;
+  const { data: session } = useSettledSession();
+  const { lookups } = useMapLookups();
+  const showAddToList = !!session?.user && !!runtimeSettings?.features.lists;
   const wantAzimuths = preferences.showAzimuths && zoom >= preferences.azimuthsMinZoom;
-  const filters = useMemo<StationFilters>(
-    () => ({ ...DEFAULT_FILTERS, operators: [...operatorMncs], showStations: visible }),
-    [operatorMncs, visible],
-  );
-  const queryScope = useMemo(() => createStationsQueryScope(correlationKey, operatorMncs), [correlationKey, operatorMncs]);
+  const filters = useMemo(() => buildOperatorFilters(operatorMncs, lookups, visible), [operatorMncs, lookups, visible]);
   useMapQueryHousekeeping({ bounds, isMoving, queryFamilies: LOCATION_QUERY_FAMILIES, isInScope: isStationsLayerQuery });
 
-  const { data: queriedLocationsResponse } = useQuery({
-    queryKey: ["locations", bounds, filters, preferences.mapStationsLimit, wantAzimuths, queryScope],
-    queryFn: ({ signal }) =>
-      fetchLocations(bounds, filters, preferences.mapStationsLimit, {
-        azimuths: wantAzimuths,
-        signal,
-      }),
-    enabled: visible && isLoaded && bounds.length > 0 && !isMoving && operatorMncs.length > 0,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60,
+  const queryScope = createStationsQueryScope(correlationKey, operatorMncs);
+  const { data: page } = useQuery({
+    ...mapLocationsQueryOptions({
+      bounds,
+      request: { filters, lookups, limit: preferences.mapStationsLimit, wantAzimuths },
+      scope: queryScope,
+    }),
+    enabled: visible && isLoaded && bounds !== "" && !isMoving && filters.operatorIds.length > 0,
     placeholderData: (previous, previousQuery) => retainStationsPlaceholder(previous, previousQuery?.queryKey, queryScope),
   });
-  const locationsResponse = useMemo<LocationsResponse>(() => {
-    const data = mergeMatchedStationLocations(queriedLocationsResponse?.data ?? [], stationSourceMatches);
-    return {
-      data,
-      totalCount: Math.max(queriedLocationsResponse?.totalCount ?? 0, data.length),
-    };
-  }, [queriedLocationsResponse, stationSourceMatches]);
+  const queriedPoints = useMapPoints(page, lookups);
+  const points = useMemo(
+    () => (lookups === undefined ? queriedPoints : mergeMatchedStationPoints(queriedPoints, stationSourceMatches, lookups)),
+    [queriedPoints, stationSourceMatches, lookups],
+  );
 
-  const { openLocations, popupActions, stationActions } = useStationPopupActions({
+  const { openLocations, popupContents, popupActions, stationActions } = useStationPopupActions({
     map,
     showAddToList,
     allowMultipleMapPopups: preferences.allowMultipleMapPopups,
     closeMapPopupsOnMapClick: preferences.closeMapPopupsOnMapClick,
-    detailsFilters: filters,
+    statusFilter: filters.status,
   });
 
   return (
-    <MapStationsLayer
-      filters={filters}
-      locationsResponse={locationsResponse}
-      zoom={zoom}
-      stationActions={stationActions}
-      popupActions={popupActions}
-      activePopupLocations={openLocations}
-      urlSyncEnabled={false}
-    />
+    <>
+      {popupContents}
+      <MapStationsLayer
+        filters={filters}
+        points={points}
+        wantAzimuths={wantAzimuths}
+        stationActions={stationActions}
+        popupActions={popupActions}
+        activePopupLocations={openLocations}
+        urlSyncEnabled={false}
+      />
+    </>
   );
 });

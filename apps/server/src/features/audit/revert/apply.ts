@@ -2,7 +2,7 @@ import { stations } from "@openbts/drizzle";
 import { DrizzleQueryError, inArray } from "drizzle-orm";
 import postgres from "postgres";
 
-import { DetailedErrorResponse } from "../../../errors.js";
+import { DetailedErrorResponse, FOREIGN_KEY_VIOLATION, UNIQUE_VIOLATION, isStillReferenced } from "../../../errors.js";
 import type { DbTx } from "../../../types/global.js";
 import type { AuditRecorder } from "../types.js";
 import { bumpIdentitySequences } from "./sequences.js";
@@ -24,6 +24,7 @@ export type AppliedRevertPlan = {
   skippedFields: RevertSkippedField[];
   affectedStationIds: number[];
   cellChanges: ApplyState["cellChanges"];
+  indirectlyRevertedEntryIds: ApplyState["indirectlyRevertedEntryIds"];
   stationOrLocationWritten: boolean;
 };
 
@@ -40,13 +41,19 @@ function postgresError(error: unknown): postgres.PostgresError | null {
 function databaseConflict(plan: PlannedEntry, error: unknown): RevertConflict | null {
   const cause = postgresError(error);
   if (cause === null) return null;
-  if (cause.code === "23505")
+  if (cause.code === UNIQUE_VIOLATION)
     return publicConflict(
       conflictFor(plan.entry, "unique_violation", "Restoring this change violates a unique constraint", "skip", {
         constraint: cause.constraint_name,
       }),
     );
-  if (cause.code === "23503")
+  if (isStillReferenced(cause))
+    return publicConflict(
+      conflictFor(plan.entry, "referenced", "Other records still use what this change would remove", "skip", {
+        constraint: cause.constraint_name,
+      }),
+    );
+  if (cause.code === FOREIGN_KEY_VIOLATION)
     return publicConflict(
       conflictFor(plan.entry, "fk_missing", "Restoring this change violates a foreign-key constraint", "skip", {
         constraint: cause.constraint_name,
@@ -124,6 +131,7 @@ export async function applyRevertPlan(tx: DbTx, audit: AuditRecorder, plans: rea
     skippedFields: finalizePlans.flatMap(appliedSkippedFields),
     affectedStationIds: [...state.affectedStationIds].sort((left, right) => left - right),
     cellChanges: state.cellChanges,
+    indirectlyRevertedEntryIds: state.indirectlyRevertedEntryIds,
     stationOrLocationWritten: state.stationOrLocationWritten,
   };
 }

@@ -6,15 +6,15 @@ import { useTranslation } from "react-i18next";
 
 import { MapLinkButton } from "@/components/app/errorScreens";
 import { PageErrorState, StaleDataNotice } from "@/components/ui/error-state";
-import { regionsQueryOptions } from "@/features/shared/queries";
+import { operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { ProfileComments } from "@/features/user-profile/components/profileComments";
 import { ProfileHero } from "@/features/user-profile/components/profileHero";
 import { PROFILE_GRID_CLASS, ProfileAbout, ProfileContact, ProfileHunter } from "@/features/user-profile/components/profileSections";
 import { EmptyProfile, PrivateProfileNotice, ProfileSkeleton } from "@/features/user-profile/components/profileStates";
 import { type UserProfile, userProfileQueryOptions } from "@/features/user-profile/queries";
 import { useNavMode } from "@/hooks/usePreferences";
-import { useSettledSession } from "@/hooks/useSettledSession";
 import { ApiResponseError } from "@/lib/api";
+import { authClient } from "@/lib/auth/client";
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 
@@ -28,16 +28,26 @@ function ProfileShell({ children }: { children: ReactNode }) {
   );
 }
 
-function ProfileBody({ profile, isOwner }: { profile: UserProfile; isOwner: boolean }) {
-  const { user, contact, contactHidden, hunter, comments } = profile;
-  const hasContent = Boolean(user.bio) || contactHidden || contact !== null || hunter !== null || (comments?.totalCount ?? 0) > 0;
+function ProfileBody({
+  profile,
+  isOwner,
+  username,
+  viewerId,
+}: {
+  profile: UserProfile;
+  isOwner: boolean;
+  username: string;
+  viewerId: string | null;
+}) {
+  const { bio, contact, isContactHidden, hunterRegionIds, comments } = profile;
+  const hasContent = Boolean(bio) || isContactHidden || contact !== null || hunterRegionIds !== null || (comments?.total ?? 0) > 0;
   if (!hasContent && !isOwner) return <EmptyProfile />;
 
   const sections = (
     <>
-      <ProfileAbout bio={user.bio} isOwner={isOwner} />
-      <ProfileContact contact={contact} contactHidden={contactHidden} isOwner={isOwner} />
-      {hunter ? <ProfileHunter regionIds={hunter.regions} /> : null}
+      <ProfileAbout bio={bio} isOwner={isOwner} />
+      <ProfileContact contact={contact} contactHidden={isContactHidden} isOwner={isOwner} />
+      {hunterRegionIds ? <ProfileHunter regionIds={hunterRegionIds} /> : null}
     </>
   );
 
@@ -46,7 +56,7 @@ function ProfileBody({ profile, isOwner }: { profile: UserProfile; isOwner: bool
   return (
     <div className={PROFILE_GRID_CLASS}>
       <div className="flex min-w-0 flex-col gap-8">{sections}</div>
-      <ProfileComments comments={comments.items} totalCount={comments.totalCount} />
+      <ProfileComments username={username} viewerId={viewerId} summary={comments} />
     </div>
   );
 }
@@ -54,8 +64,21 @@ function ProfileBody({ profile, isOwner }: { profile: UserProfile; isOwner: bool
 function UserProfilePage() {
   const { username } = Route.useParams();
   const { t } = useTranslation("main");
-  const { data: session, isPending: isSessionPending } = useSettledSession();
-  const { data: profile, error, isPending, isFetching, isRefetchError, refetch } = useQuery(userProfileQueryOptions(username));
+  const { data: session, isPending: isSessionPending, error: sessionError, refetch: refetchSession } = authClient.useSession();
+  const viewerId = session?.user.id ?? null;
+  const {
+    data: profile,
+    error,
+    isPending,
+    isFetching,
+    isRefetchError,
+    refetch,
+  } = useQuery({
+    ...userProfileQueryOptions(username, viewerId),
+    enabled: !isSessionPending && !sessionError,
+  });
+
+  if (sessionError && !isSessionPending) return <PageErrorState onRetry={() => void refetchSession()} />;
 
   if (isPending || isSessionPending)
     return (
@@ -64,28 +87,30 @@ function UserProfilePage() {
       </ProfileShell>
     );
 
-  if (profile === undefined) {
-    if (error instanceof ApiResponseError && error.status === 404)
-      return (
-        <PageErrorState
-          tone="neutral"
-          icon={UserRemove01Icon}
-          title={t("common:error.userNotFound")}
-          description={t("common:error.userNotFoundDescription")}
-          action={<MapLinkButton />}
-        />
-      );
-    return <PageErrorState onRetry={() => void refetch()} isRetrying={isFetching} />;
-  }
+  if (error instanceof ApiResponseError && error.status === 404)
+    return (
+      <PageErrorState
+        tone="neutral"
+        icon={UserRemove01Icon}
+        title={t("common:error.userNotFound")}
+        description={t("common:error.userNotFoundDescription")}
+        action={<MapLinkButton />}
+      />
+    );
+  if (profile === undefined) return <PageErrorState onRetry={() => void refetch()} isRetrying={isFetching} />;
 
-  const isOwner = session?.user.id === profile.user.id;
+  const isOwner = viewerId === profile.id;
 
   return (
     <ProfileShell>
       {isRefetchError ? <StaleDataNotice className="mb-4" onRetry={() => void refetch()} isRetrying={isFetching} /> : null}
-      <div key={profile.user.id} className="flex flex-col gap-8">
+      <div key={`${profile.id}:${viewerId}`} className="flex flex-col gap-8">
         <ProfileHero profile={profile} isOwner={isOwner} />
-        {profile.restricted ? <PrivateProfileNotice /> : <ProfileBody profile={profile} isOwner={isOwner} />}
+        {profile.isRestricted ? (
+          <PrivateProfileNotice />
+        ) : (
+          <ProfileBody profile={profile} isOwner={isOwner} username={username} viewerId={viewerId} />
+        )}
       </div>
     </ProfileShell>
   );
@@ -94,8 +119,15 @@ function UserProfilePage() {
 export const Route = createFileRoute("/_layout/users/$username")({
   component: UserProfilePage,
   loader: ({ params }) => {
-    void queryClient.prefetchQuery(userProfileQueryOptions(params.username));
+    void authClient
+      .getSession()
+      .then(({ data: session, error }) => {
+        if (error) return;
+        return queryClient.prefetchQuery(userProfileQueryOptions(params.username, session?.user.id ?? null));
+      })
+      .catch(() => undefined);
     void queryClient.prefetchQuery(regionsQueryOptions());
+    void queryClient.prefetchQuery(operatorsQueryOptions());
   },
   staticData: {
     titleKey: "userProfile.breadcrumb",

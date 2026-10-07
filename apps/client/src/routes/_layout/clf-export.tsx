@@ -7,18 +7,25 @@ import {
   CLF_DESCRIPTION_TEMPLATE_DEFAULTS,
   CLF_DESCRIPTION_TEMPLATE_LABELS,
   CLF_DESCRIPTION_TEMPLATE_MAX_LENGTH,
-  CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT,
   CLF_DESCRIPTION_TEMPLATE_PLACEHOLDERS_BY_RAT,
   CLF_DESCRIPTION_TEMPLATE_RATS,
-  DISPLAY_NR_SEPARATELY_PARAM,
   extractTemplatePlaceholders,
   normalizeCLFDescriptionTemplates,
   renderClfTemplatePreview,
 } from "@openbts/shared/clfExportTemplates";
+import {
+  type Band,
+  CELL_EXPORT_TEMPLATE_PARAMS,
+  CELL_RATS,
+  type CellExportQuery,
+  type Operator,
+  type Region,
+  UNKNOWN_BAND,
+} from "@openbts/shared/contract";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -27,16 +34,6 @@ import { FLOATING_NAV_ACTION_TARGET_ID } from "@/components/layout/floatingNav";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InlineError } from "@/components/ui/error-state";
 import { Label } from "@/components/ui/label";
@@ -45,47 +42,20 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavActionTarget } from "@/contexts/navActions";
-import { fetchBands, fetchOperators, fetchRegions } from "@/features/shared/api";
+import { chooseExportFile, downloadExport, isExportCancelled } from "@/features/clf-export/download";
+import { ClfOperatorSelector } from "@/features/clf-export/operatorSelector";
+import { bandsQueryOptions, countriesQueryOptions, operatorsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
 import { EXTENDED_RAT_OPTIONS } from "@/features/shared/rat";
 import { GenerationTag } from "@/features/shared/RatGenerationLabel";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
+import { toV1OperatorMnc } from "@/features/station-details/station/utils/stations";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { useIsMobile } from "@/hooks/useMobile";
 import { type CLFExportFormat, areCLFDescriptionTemplatesEqual, type clfExportFilters, usePreferences } from "@/hooks/usePreferences";
-import { API_BASE } from "@/lib/api";
-import { TOP4_MNCS } from "@/lib/cellular/operators";
-import { formatDuration } from "@/lib/format";
+import { API_V2_BASE } from "@/lib/api";
+import { authClient } from "@/lib/auth/client";
+import { formatDuration, formatFileSize } from "@/lib/format";
 import { buildStaticPageHead } from "@/lib/seo";
 import { cn, toggleValue } from "@/lib/utils";
-
-const FILE_EXTENSION_BY_FORMAT: Record<CLFExportFormat, string> = {
-  "2.0": "clf",
-  "2.1": "clf",
-  "3.0-dec": "clf",
-  "3.0-hex": "clf",
-  "4.0": "clf",
-  ntm: "ntm",
-  netmonitor: "csv",
-};
-
-async function downloadExport(url: string, format: CLFExportFormat): Promise<boolean> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return false;
-    const blob = await response.blob();
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `cells_export_${format}.${FILE_EXTENSION_BY_FORMAT[format]}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const FORMAT_OPTIONS = [
   { value: "2.0", label: "CLF v2.0" },
@@ -97,13 +67,34 @@ const FORMAT_OPTIONS = [
   { value: "netmonitor", label: "Netmonitor (.csv)" },
 ] as const;
 
-type FormValues = {
+type ExportDataset = {
+  countryCode: string;
+  operatorIds: number[] | undefined;
   operators: number[];
   regions: string[];
-  rat: string[];
   bands: number[];
+};
+
+type FormValues = {
+  dataset: ExportDataset;
+  rat: string[];
   format: CLFExportFormat;
   displayNRSeparately: boolean;
+};
+
+type ExportLookups = {
+  countryCode: string;
+  countryCodes: readonly string[];
+  isReady: boolean;
+  operators: readonly Operator[];
+  regions: readonly Region[];
+  bands: readonly Band[];
+};
+
+type ExportFilters = {
+  operatorIds: number[];
+  regionIds: number[];
+  bandIds: (number | typeof UNKNOWN_BAND)[];
 };
 
 const FORMAT_APP_BY_FORMAT: Record<CLFExportFormat, string> = {
@@ -180,26 +171,55 @@ type ExportActionsProps = {
   copiedApiUrl: boolean;
   elapsed: number;
   finalDuration: number | null;
+  isDisabled: boolean;
   isSubmitting: boolean;
+  receivedBytes: number;
+  onCancel: () => void;
   onCopyApiUrl?: () => void;
 };
 
-function ExportActions({ compact = false, copiedApiUrl, elapsed, finalDuration, isSubmitting, onCopyApiUrl }: ExportActionsProps) {
+function ExportActions({
+  compact = false,
+  copiedApiUrl,
+  elapsed,
+  finalDuration,
+  isDisabled,
+  isSubmitting,
+  receivedBytes,
+  onCancel,
+  onCopyApiUrl,
+}: ExportActionsProps) {
   const { t } = useTranslation(["clfExport", "common"]);
+  const progressLabel = [
+    t("form.elapsed", { duration: formatDuration(elapsed) }),
+    t("form.receivedBytes", { size: formatFileSize(receivedBytes) }),
+  ].join(" · ");
 
   if (compact)
     return (
-      <div className="inline-flex rounded-full border bg-background p-1 shadow-sm">
-        <Button type="submit" form="clf-export-form" disabled={isSubmitting} aria-busy={isSubmitting} className="shrink-0">
-          {isSubmitting ? <Spinner aria-hidden="true" /> : <HugeiconsIcon icon={Download04Icon} aria-hidden="true" />}
-          {isSubmitting ? t("form.exporting") : t("form.export")}
-        </Button>
+      <div className={cn("inline-flex flex-col border bg-background p-1 shadow-sm", isSubmitting ? "rounded-2xl" : "rounded-full")}>
+        <div className="inline-flex items-center">
+          <Button type="submit" form="clf-export-form" disabled={isDisabled || isSubmitting} aria-busy={isSubmitting} className="shrink-0">
+            {isSubmitting ? <Spinner aria-hidden="true" /> : <HugeiconsIcon icon={Download04Icon} aria-hidden="true" />}
+            {isSubmitting ? t("form.exporting") : t("form.export")}
+          </Button>
+          {isSubmitting ? (
+            <Button type="button" variant="ghost" className="shrink-0" onClick={onCancel}>
+              {t("common:actions.cancel")}
+            </Button>
+          ) : null}
+        </div>
+        {isSubmitting ? (
+          <p className="px-2 pt-1 pb-0.5 text-center text-xs text-muted-foreground tabular-nums" role="status">
+            {progressLabel}
+          </p>
+        ) : null}
       </div>
     );
 
   return (
     <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
-      <Button type="submit" form="clf-export-form" disabled={isSubmitting} aria-busy={isSubmitting} size="lg" className="w-full">
+      <Button type="submit" form="clf-export-form" disabled={isDisabled || isSubmitting} aria-busy={isSubmitting} size="lg" className="w-full">
         {isSubmitting ? (
           <Spinner data-icon="inline-start" aria-hidden="true" />
         ) : (
@@ -209,8 +229,13 @@ function ExportActions({ compact = false, copiedApiUrl, elapsed, finalDuration, 
       </Button>
       {isSubmitting ? (
         <p className="text-center text-xs text-muted-foreground tabular-nums" role="status">
-          {t("form.elapsed", { duration: formatDuration(elapsed) })}
+          {progressLabel}
         </p>
+      ) : null}
+      {isSubmitting ? (
+        <Button type="button" variant="ghost" className="w-full" onClick={onCancel}>
+          {t("common:actions.cancel")}
+        </Button>
       ) : null}
       {!isSubmitting && finalDuration !== null ? (
         <p className="text-center text-xs text-muted-foreground tabular-nums">
@@ -218,7 +243,7 @@ function ExportActions({ compact = false, copiedApiUrl, elapsed, finalDuration, 
         </p>
       ) : null}
       {onCopyApiUrl ? (
-        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={onCopyApiUrl}>
+        <Button type="button" variant="ghost" disabled={isDisabled} className="w-full text-muted-foreground" onClick={onCopyApiUrl}>
           <HugeiconsIcon icon={copiedApiUrl ? Tick02Icon : Copy01Icon} aria-hidden="true" />
           {copiedApiUrl ? t("common:actions.copied") : t("form.copyApiUrl")}
         </Button>
@@ -227,88 +252,174 @@ function ExportActions({ compact = false, copiedApiUrl, elapsed, finalDuration, 
   );
 }
 
-function buildExportUrl(values: FormValues, templateDrafts: CLFDescriptionTemplates) {
-  const params = new URLSearchParams();
-  params.set("format", values.format);
-  if (values.operators.length > 0) params.set("operators", values.operators.join(","));
-  if (values.regions.length > 0) params.set("regions", values.regions.join(","));
-  if (values.rat.length > 0) params.set("rat", values.rat.join(","));
-  if (values.bands.length > 0) params.set("bands", values.bands.join(","));
+function resolveOperatorIds(dataset: ExportDataset, operators: readonly Operator[]): number[] | null {
+  const operatorIds: number[] = [];
+  if (dataset.operatorIds !== undefined) {
+    for (const id of dataset.operatorIds) {
+      const operator = operators.find((operator) => operator.id === id && operator.countryCode === dataset.countryCode);
+      if (operator === undefined) return null;
+      operatorIds.push(id);
+    }
+    return operatorIds;
+  }
+  if (dataset.operators.length > 0 && dataset.countryCode !== "PL") return null;
+  for (const mnc of dataset.operators) {
+    const operator = operators.find((operator) => operator.countryCode === "PL" && toV1OperatorMnc(operator) === mnc);
+    if (operator === undefined) return null;
+    operatorIds.push(operator.id);
+  }
+  return operatorIds;
+}
+
+function resolveExportFilters(values: FormValues, lookups: ExportLookups): ExportFilters | null {
+  const dataset = values.dataset;
+  if (!lookups.isReady || dataset.countryCode !== lookups.countryCode || !lookups.countryCodes.includes(dataset.countryCode)) return null;
+  const operatorIds = resolveOperatorIds(dataset, lookups.operators);
+  if (operatorIds === null) return null;
+
+  const regionIds: number[] = [];
+  for (const code of dataset.regions) {
+    const region = lookups.regions.find((region) => region.countryCode === dataset.countryCode && region.code === code);
+    if (region === undefined) return null;
+    regionIds.push(region.id);
+  }
+
+  const bandIds = new Set<number | typeof UNKNOWN_BAND>();
+  for (const mhz of dataset.bands) {
+    if (mhz === 0) {
+      bandIds.add(UNKNOWN_BAND);
+      continue;
+    }
+    const matchingBands = lookups.bands.filter((band) => band.labelMhz === mhz);
+    if (matchingBands.length === 0) return null;
+    for (const band of matchingBands) bandIds.add(band.id);
+  }
+
+  return { operatorIds, regionIds, bandIds: [...bandIds] };
+}
+
+function buildExportUrl(values: FormValues, templateDrafts: CLFDescriptionTemplates, lookups: ExportLookups): string | null {
+  const filters = resolveExportFilters(values, lookups);
+  if (filters === null) return null;
+
+  const query: CellExportQuery = { format: values.format, countryCodes: [values.dataset.countryCode] };
+  if (filters.operatorIds.length > 0) query.operatorIds = filters.operatorIds;
+  if (filters.regionIds.length > 0) query.regionIds = filters.regionIds;
+  if (filters.bandIds.length > 0) query.bandIds = filters.bandIds;
+
+  const rats = CELL_RATS.filter((rat) => values.rat.includes(rat.toUpperCase()));
+  if (rats.length > 0) query.rats = rats;
+  if (values.rat.includes("IOT")) {
+    if (rats.length === 0) {
+      query.rats = ["lte", "nr"];
+      query.supportsIot = true;
+    } else query.includeIot = true;
+  }
 
   const templates = normalizeCLFDescriptionTemplates(templateDrafts);
   for (const rat of CLF_DESCRIPTION_TEMPLATE_RATS) {
     const template = templates[rat];
-    if (template) params.set(CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT[rat], template);
+    if (template) query[CELL_EXPORT_TEMPLATE_PARAMS[rat]] = template;
   }
 
-  if (values.format === "ntm" && values.displayNRSeparately) params.set(DISPLAY_NR_SEPARATELY_PARAM, "true");
+  if (values.format === "ntm" && values.displayNRSeparately) query.displayNrSeparately = true;
 
-  return `${API_BASE}/cells/export?${params.toString()}`;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) params.set(key, Array.isArray(value) ? value.join(",") : String(value));
+  return `${API_V2_BASE}/cells/export?${params.toString()}`;
 }
 
 const INITIAL_VALUES: FormValues = {
-  operators: [],
-  regions: [],
+  dataset: { countryCode: "PL", operatorIds: undefined, operators: [], regions: [], bands: [] },
   rat: [],
-  bands: [],
   format: "4.0",
   displayNRSeparately: false,
 };
 
+function formValuesFromPreferences(filters: clfExportFilters): FormValues {
+  return {
+    ...INITIAL_VALUES,
+    format: filters.format ?? INITIAL_VALUES.format,
+    displayNRSeparately: filters.displayNRSeparately ?? INITIAL_VALUES.displayNRSeparately,
+    dataset: {
+      countryCode: filters.countryCode ?? "PL",
+      operatorIds: filters.operatorIds,
+      operators: filters.operators ?? [],
+      regions: filters.regions ?? [],
+      bands: filters.bands ?? [],
+    },
+  };
+}
+
 function ClfExportPage() {
   const { t } = useTranslation("clfExport");
   const { preferences, updatePreferences, clfDescriptionTemplates, updateClfDescriptionTemplates } = usePreferences();
+  const { data: session, isPending: isSessionPending, error: sessionError, refetch: refetchSession } = authClient.useSession();
+  const viewerReady = !isSessionPending && !sessionError;
+  const viewerId = session?.user.id ?? null;
+  const countryCode = preferences.clfExportFilters.countryCode ?? "PL";
   const navActionTarget = useNavActionTarget();
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
   const hasFloatingMobileActions = isMobile && navActionTarget?.id === FLOATING_NAV_ACTION_TARGET_ID;
 
   const {
-    data: operators = [],
+    data: allOperators = [],
     isLoadingError: isOperatorsLoadError,
     isFetching: isOperatorsFetching,
     isLoading: isOperatorsLoading,
     refetch: refetchOperators,
-  } = useQuery({
-    queryKey: ["operators"],
-    queryFn: fetchOperators,
-    staleTime: 1000 * 60 * 30,
-  });
+  } = useQuery({ ...operatorsQueryOptions({ viewerId }), enabled: viewerReady });
 
   const {
-    data: regions = [],
+    data: countries = [],
+    isLoadingError: isCountriesLoadError,
+    isFetching: isCountriesFetching,
+    isLoading: isCountriesLoading,
+    refetch: refetchCountries,
+  } = useQuery({ ...countriesQueryOptions({ viewerId }), enabled: viewerReady });
+  const countryAvailable = viewerReady && countries.some((country) => country.code === countryCode);
+
+  const {
+    data: countryRegions = [],
     isLoadingError: isRegionsLoadError,
     isFetching: isRegionsFetching,
     isLoading: isRegionsLoading,
     refetch: refetchRegions,
-  } = useQuery({
-    queryKey: ["regions"],
-    queryFn: fetchRegions,
-    staleTime: 1000 * 60 * 30,
-  });
+  } = useQuery({ ...regionsQueryOptions({ countryCode, viewerId }), enabled: countryAvailable });
 
   const {
-    data: bands = [],
+    data: countryBands = [],
     isLoadingError: isBandsLoadError,
     isFetching: isBandsFetching,
     isLoading: isBandsLoading,
     refetch: refetchBands,
-  } = useQuery({
-    queryKey: ["bands"],
-    queryFn: fetchBands,
-    staleTime: 1000 * 60 * 30,
-  });
+  } = useQuery({ ...bandsQueryOptions({ countryCode, viewerId }), enabled: countryAvailable });
 
-  const uniqueBandValues = useMemo(() => [...new Set(bands.map((b) => b.value))].sort((a, b) => a - b), [bands]);
-  const sortedOperators = useMemo(() => operators.filter((op) => TOP4_MNCS.includes(op.mnc)), [operators]);
-  const operatorByMnc = useMemo(() => new Map(sortedOperators.map((operator) => [operator.mnc, operator])), [sortedOperators]);
+  const operatorsUnavailable = !viewerReady || isOperatorsLoading || isOperatorsLoadError || isCountriesLoading || isCountriesLoadError;
+  const regionsUnavailable = !countryAvailable || isRegionsLoading || isRegionsLoadError;
+  const bandsUnavailable = !countryAvailable || isBandsLoading || isBandsLoadError;
+  const regions = countryAvailable ? countryRegions : [];
+  const bands = countryAvailable ? countryBands : [];
+  const uniqueBandValues = bandsUnavailable
+    ? []
+    : [...new Set([0, ...bands.map((band) => band.labelMhz).filter((mhz) => mhz !== null)])].sort((a, b) => a - b);
+  const exportLookups: ExportLookups = {
+    countryCode,
+    countryCodes: countries.map((country) => country.code),
+    isReady: !operatorsUnavailable && !regionsUnavailable && !bandsUnavailable,
+    operators: allOperators,
+    regions,
+    bands,
+  };
 
-  const operatorChipsRef = useRef<HTMLDivElement>(null);
   const exportStartRef = useRef<number | null>(null);
+  const exportControllerRef = useRef<AbortController | null>(null);
   const exportIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const copiedApiUrlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const templateInputRefs = useRef<Partial<Record<CLFDescriptionTemplateRat, HTMLTextAreaElement | null>>>({});
   const [elapsed, setElapsed] = useState(0);
+  const [receivedBytes, setReceivedBytes] = useState(0);
   const [finalDuration, setFinalDuration] = useState<number | null>(null);
   const [templateDrafts, setTemplateDrafts] = useState<CLFDescriptionTemplates>(() => clfDescriptionTemplates);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -332,6 +443,8 @@ function ClfExportPage() {
 
   useEffect(() => {
     return () => {
+      exportControllerRef.current?.abort();
+      exportControllerRef.current = null;
       if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
       if (copiedApiUrlTimerRef.current) clearTimeout(copiedApiUrlTimerRef.current);
     };
@@ -372,26 +485,56 @@ function ClfExportPage() {
   }
 
   const form = useForm({
-    defaultValues: { ...INITIAL_VALUES, ...preferences.clfExportFilters },
+    defaultValues: formValuesFromPreferences(preferences.clfExportFilters),
     onSubmit: async ({ value }) => {
-      exportStartRef.current = Date.now();
-      setElapsed(0);
-      setFinalDuration(null);
-      exportIntervalRef.current = setInterval(() => {
-        if (exportStartRef.current) setElapsed(Date.now() - exportStartRef.current);
-      }, 500);
-
-      const url = buildExportUrl(value, templateDrafts);
-      const success = await downloadExport(url, value.format);
-      if (success) {
-        toast.success(t("exportSuccess"));
-      } else {
+      const url = buildExportUrl(value, templateDrafts, exportLookups);
+      if (url === null) {
         toast.error(t("exportError"));
+        return;
       }
 
+      exportControllerRef.current?.abort();
+      const controller = new AbortController();
+      exportControllerRef.current = controller;
       if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
       exportIntervalRef.current = null;
-      if (exportStartRef.current) setFinalDuration(Date.now() - exportStartRef.current);
+      exportStartRef.current = null;
+      setElapsed(0);
+      setReceivedBytes(0);
+      setFinalDuration(null);
+
+      try {
+        const destination = await chooseExportFile(value.format);
+        if (controller.signal.aborted) return;
+        exportStartRef.current = Date.now();
+        exportIntervalRef.current = setInterval(() => {
+          if (exportStartRef.current) setElapsed(Date.now() - exportStartRef.current);
+        }, 500);
+
+        const result = await downloadExport(url, value.format, {
+          controller,
+          destination,
+          onProgress: (bytes) => {
+            if (exportControllerRef.current === controller && !controller.signal.aborted) setReceivedBytes(bytes);
+          },
+        });
+        if (exportControllerRef.current !== controller) return;
+        if (result === "saved") {
+          toast.success(t("exportSuccess"));
+          if (exportStartRef.current !== null) setFinalDuration(Date.now() - exportStartRef.current);
+        } else if (result === "failed") toast.error(t("exportError"));
+      } catch (error) {
+        if (exportControllerRef.current === controller && !controller.signal.aborted && !isExportCancelled(error)) toast.error(t("exportError"));
+        controller.abort();
+      } finally {
+        if (exportControllerRef.current === controller) {
+          if (exportIntervalRef.current) clearInterval(exportIntervalRef.current);
+          exportIntervalRef.current = null;
+          exportStartRef.current = null;
+          exportControllerRef.current = null;
+          setReceivedBytes(0);
+        }
+      }
     },
   });
 
@@ -403,21 +546,35 @@ function ClfExportPage() {
     }
     lastSentFiltersRef.current = null;
     form.reset({
-      ...INITIAL_VALUES,
-      ...preferences.clfExportFilters,
+      ...formValuesFromPreferences(preferences.clfExportFilters),
       rat: form.state.values.rat,
     });
   }, [form, preferences.clfExportFilters]);
 
   function updateClfExportFilters(update: Partial<clfExportFilters>) {
-    const next = { ...preferences.clfExportFilters, ...update };
+    const dataset = form.state.values.dataset;
+    const operatorIds = exportLookups.isReady ? resolveOperatorIds(dataset, allOperators) : null;
+    if (operatorIds !== null && dataset.operatorIds === undefined) form.setFieldValue("dataset", { ...dataset, operatorIds, operators: [] });
+    const next = {
+      ...preferences.clfExportFilters,
+      countryCode: dataset.countryCode,
+      ...(operatorIds === null ? {} : { operatorIds, operators: [] }),
+      ...update,
+    };
     lastSentFiltersRef.current = next;
     updatePreferences({ clfExportFilters: next });
   }
 
   async function copyApiUrl() {
+    const url = buildExportUrl(form.state.values, templateDrafts, exportLookups);
+    if (url === null) {
+      setCopiedApiUrl(false);
+      toast.error(t("copyError"));
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(buildExportUrl(form.state.values, templateDrafts));
+      await navigator.clipboard.writeText(url);
       setCopiedApiUrl(true);
       toast.success(t("copySuccess"));
       if (copiedApiUrlTimerRef.current) clearTimeout(copiedApiUrlTimerRef.current);
@@ -428,9 +585,6 @@ function ClfExportPage() {
     }
   }
 
-  const operatorsUnavailable = isOperatorsLoading || isOperatorsLoadError;
-  const regionsUnavailable = isRegionsLoading || isRegionsLoadError;
-  const bandsUnavailable = isBandsLoading || isBandsLoadError;
   const editedTemplateCount = CLF_DESCRIPTION_TEMPLATE_RATS.filter((rat) => (templateDrafts[rat] ?? "").length > 0).length;
   let templateSaveLabel = t("templates.autoSave");
   if (templateSaveState === "saving") templateSaveLabel = t("common:actions.saving");
@@ -464,65 +618,47 @@ function ClfExportPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="clf-operators" className="text-sm font-semibold">
-                    {t("common:labels.operator")}
-                  </Label>
-                  <form.Field name="operators">
+                  {sessionError && !isSessionPending ? <InlineError size="sm" onRetry={() => void refetchSession()} /> : null}
+                  <form.Field name="dataset">
                     {(field) => (
-                      <Combobox
-                        multiple
+                      <ClfOperatorSelector
+                        countries={viewerReady ? countries : []}
+                        operators={viewerReady ? allOperators : []}
+                        countryCode={field.state.value.countryCode}
+                        operatorIds={viewerReady ? resolveOperatorIds(field.state.value, allOperators) : null}
                         disabled={operatorsUnavailable}
-                        value={field.state.value.map((mnc) => operatorByMnc.get(mnc)).filter((operator) => operator !== undefined)}
-                        onValueChange={(values) => {
-                          const operators = values.map((value) => value.mnc);
-                          field.handleChange(operators);
-                          updateClfExportFilters({ operators });
+                        onChange={(countryCode, operatorIds) => {
+                          const current = field.state.value;
+                          const dataset = {
+                            ...current,
+                            countryCode,
+                            operatorIds,
+                            operators: [],
+                            ...(countryCode === current.countryCode ? {} : { regions: [], bands: [] }),
+                          };
+                          field.handleChange(dataset);
+                          updateClfExportFilters(dataset);
                         }}
-                        items={sortedOperators}
-                      >
-                        <ComboboxChips
-                          ref={operatorChipsRef}
-                          className={cn("min-h-10 max-h-24 overflow-y-auto text-base md:text-sm", operatorsUnavailable && "opacity-60")}
-                        >
-                          {field.state.value.map((mnc) => {
-                            const operator = operatorByMnc.get(mnc);
-                            return operator ? (
-                              <ComboboxChip key={mnc} className="h-8 rounded-md px-2 text-base font-normal md:text-sm">
-                                <DialogOperatorName name={operator.name} mnc={mnc} compact labelClassName="text-base font-normal md:text-sm" />
-                              </ComboboxChip>
-                            ) : null;
-                          })}
-                          <ComboboxChipsInput
-                            id="clf-operators"
-                            aria-describedby="clf-operators-hint"
-                            disabled={operatorsUnavailable}
-                            className="h-8 text-base md:text-sm"
-                            placeholder={field.state.value.length === 0 ? t("common:placeholder.selectOperators") : ""}
-                          />
-                        </ComboboxChips>
-                        <ComboboxContent anchor={operatorChipsRef}>
-                          <ComboboxList>
-                            <ComboboxEmpty>{t("common:placeholder.noOperatorsFound")}</ComboboxEmpty>
-                            {sortedOperators.map((operator) => (
-                              <ComboboxItem key={operator.mnc} value={operator}>
-                                <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm font-normal" />
-                                <span className="ml-auto text-xs text-muted-foreground">{operator.mnc}</span>
-                              </ComboboxItem>
-                            ))}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
+                      />
                     )}
                   </form.Field>
-                  <p id="clf-operators-hint" className="text-xs text-muted-foreground">
-                    {t("form.operatorsHint")}
-                  </p>
                   <DataSourceNotice
-                    isError={isOperatorsLoadError}
+                    isError={viewerReady && isOperatorsLoadError}
                     isFetching={isOperatorsFetching}
-                    isLoading={isOperatorsLoading}
+                    isLoading={isSessionPending || isOperatorsLoading}
                     label={t("dataSources.operators")}
-                    onRetry={() => void refetchOperators()}
+                    onRetry={() => {
+                      if (viewerReady) void refetchOperators();
+                    }}
+                  />
+                  <DataSourceNotice
+                    isError={viewerReady && isCountriesLoadError}
+                    isFetching={isCountriesFetching}
+                    isLoading={isSessionPending || isCountriesLoading}
+                    label={t("dataSources.countries")}
+                    onRetry={() => {
+                      if (viewerReady) void refetchCountries();
+                    }}
                   />
                 </div>
 
@@ -530,7 +666,7 @@ function ClfExportPage() {
 
                 <fieldset className="space-y-2" disabled={regionsUnavailable}>
                   <legend className="text-sm font-semibold">{t("common:labels.region")}</legend>
-                  <form.Field name="regions">
+                  <form.Field name="dataset.regions">
                     {(field) => (
                       <div className={cn("flex flex-wrap gap-1", regionsUnavailable && "opacity-60")}>
                         {regions.map((region) => (
@@ -560,11 +696,13 @@ function ClfExportPage() {
                   </form.Field>
                 </fieldset>
                 <DataSourceNotice
-                  isError={isRegionsLoadError}
+                  isError={countryAvailable && isRegionsLoadError}
                   isFetching={isRegionsFetching}
                   isLoading={isRegionsLoading}
                   label={t("dataSources.regions")}
-                  onRetry={() => void refetchRegions()}
+                  onRetry={() => {
+                    if (countryAvailable) void refetchRegions();
+                  }}
                 />
 
                 <Separator />
@@ -603,7 +741,7 @@ function ClfExportPage() {
                 <fieldset className="space-y-2" disabled={bandsUnavailable}>
                   <legend className="text-sm font-semibold">{t("common:labels.band")} (MHz)</legend>
                   <p className="text-xs text-muted-foreground">{t("form.bandsHint")}</p>
-                  <form.Field name="bands">
+                  <form.Field name="dataset.bands">
                     {(field) => (
                       <div className={cn("flex flex-wrap gap-1", bandsUnavailable && "opacity-60")}>
                         {uniqueBandValues.map((band) => (
@@ -633,11 +771,13 @@ function ClfExportPage() {
                   </form.Field>
                 </fieldset>
                 <DataSourceNotice
-                  isError={isBandsLoadError}
+                  isError={countryAvailable && isBandsLoadError}
                   isFetching={isBandsFetching}
                   isLoading={isBandsLoading}
                   label={t("dataSources.bands")}
-                  onRetry={() => void refetchBands()}
+                  onRetry={() => {
+                    if (countryAvailable) void refetchBands();
+                  }}
                 />
               </section>
 
@@ -758,10 +898,20 @@ function ClfExportPage() {
                 </div>
 
                 <div className="lg:hidden">
-                  <Button type="button" variant="ghost" className="px-0 text-muted-foreground" onClick={() => void copyApiUrl()}>
-                    <HugeiconsIcon icon={copiedApiUrl ? Tick02Icon : Copy01Icon} aria-hidden="true" />
-                    {copiedApiUrl ? t("common:actions.copied") : t("form.copyApiUrl")}
-                  </Button>
+                  <form.Subscribe selector={(state) => resolveExportFilters(state.values, exportLookups) === null}>
+                    {(isDisabled) => (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={isDisabled}
+                        className="px-0 text-muted-foreground"
+                        onClick={() => void copyApiUrl()}
+                      >
+                        <HugeiconsIcon icon={copiedApiUrl ? Tick02Icon : Copy01Icon} aria-hidden="true" />
+                        {copiedApiUrl ? t("common:actions.copied") : t("form.copyApiUrl")}
+                      </Button>
+                    )}
+                  </form.Subscribe>
                 </div>
               </section>
             </form>
@@ -770,13 +920,16 @@ function ClfExportPage() {
           <div className="space-y-4">
             {isDesktop ? (
               <div>
-                <form.Subscribe selector={(state) => state.isSubmitting}>
-                  {(isSubmitting) => (
+                <form.Subscribe selector={(state) => [state.isSubmitting, resolveExportFilters(state.values, exportLookups) === null] as const}>
+                  {([isSubmitting, isDisabled]) => (
                     <ExportActions
                       copiedApiUrl={copiedApiUrl}
                       elapsed={elapsed}
                       finalDuration={finalDuration}
+                      isDisabled={isDisabled}
                       isSubmitting={isSubmitting}
+                      receivedBytes={receivedBytes}
+                      onCancel={() => exportControllerRef.current?.abort()}
                       onCopyApiUrl={() => void copyApiUrl()}
                     />
                   )}
@@ -886,10 +1039,19 @@ function ClfExportPage() {
         </div>
 
         {!isDesktop ? (
-          <form.Subscribe selector={(state) => state.isSubmitting}>
-            {(isSubmitting) => {
+          <form.Subscribe selector={(state) => [state.isSubmitting, resolveExportFilters(state.values, exportLookups) === null] as const}>
+            {([isSubmitting, isDisabled]) => {
               const controls = (
-                <ExportActions compact copiedApiUrl={copiedApiUrl} elapsed={elapsed} finalDuration={finalDuration} isSubmitting={isSubmitting} />
+                <ExportActions
+                  compact
+                  copiedApiUrl={copiedApiUrl}
+                  elapsed={elapsed}
+                  finalDuration={finalDuration}
+                  isDisabled={isDisabled}
+                  isSubmitting={isSubmitting}
+                  receivedBytes={receivedBytes}
+                  onCancel={() => exportControllerRef.current?.abort()}
+                />
               );
 
               return isMobile && hasFloatingMobileActions && navActionTarget ? (

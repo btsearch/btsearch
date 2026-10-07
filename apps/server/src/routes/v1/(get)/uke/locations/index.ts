@@ -1,15 +1,16 @@
-import { bands, operators, regions, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
-import { ukeLocationsResponseType } from "@openbts/proto/server";
+import { operators, regions, ukeBands, ukeLocations, ukePermitSectors, ukePermits, ukeStations } from "@openbts/drizzle";
 import { expandNetworksMncs } from "@openbts/shared/operatorUtils";
 import { type SQL, and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../constants.js";
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
 import { ErrorResponse } from "../../../../../errors.js";
 import { getUserListMembership, getVisibleUserList } from "../../../../../features/lists/visibility.js";
+import { permitBandSchema, toPermitBand } from "../../../../../features/permits/bands.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 
@@ -27,12 +28,11 @@ const ukeStationsSchema = createSelectSchema(ukeStations)
   .omit({ operator_id: true, location_id: true })
   .extend({ createdAt: z.iso.datetime({ offset: true }), updatedAt: z.iso.datetime({ offset: true }) });
 const ukePermitSectorsSchema = createSelectSchema(ukePermitSectors).omit({ permit_id: true });
-const bandsSchema = createSelectSchema(bands);
 const operatorsSchema = createSelectSchema(operators);
 const regionsSchema = createSelectSchema(regions);
 
 const stationPermitResponseSchema = ukePermitsSchema.extend({
-  band: bandsSchema.nullable(),
+  band: permitBandSchema.nullable(),
   sectors: z.array(ukePermitSectorsSchema).optional(),
 });
 
@@ -128,12 +128,12 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   let listUkeStationIds: number[] | undefined;
   if (listUuid) {
-    const list = await getVisibleUserList(listUuid, req.userSession?.user.id);
+    const list = await getVisibleUserList(req, listUuid);
     listUkeStationIds = getUserListMembership(list).uke;
     if (!listUkeStationIds.length) return res.send({ data: [], totalCount: 0 });
   }
 
-  const cacheKey = `uke:loc:${JSON.stringify({
+  const cacheKey = `uke:loc:v2:${JSON.stringify({
     bounds: bounds ?? null,
     limit,
     page,
@@ -168,16 +168,16 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const mappedRats: RatType[] = standardRats.map((r) => ratMap[r]).filter((r): r is RatType => r !== undefined);
 
   const bandConditions: SQL<unknown>[] = [];
-  if (bandValues?.length) bandConditions.push(inArray(bands.value, bandValues));
+  if (bandValues?.length) bandConditions.push(inArray(ukeBands.value, bandValues));
   if (mappedRats.length || wantsGsmR) {
     const ratConds: SQL<unknown>[] = [];
     if (mappedRats.length) {
       const wantsRegularGsm = mappedRats.includes("GSM");
       const nonGsmRats = mappedRats.filter((r) => r !== "GSM");
-      if (nonGsmRats.length) ratConds.push(inArray(bands.rat, nonGsmRats));
-      if (wantsRegularGsm) ratConds.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'commercial')`);
+      if (nonGsmRats.length) ratConds.push(inArray(ukeBands.rat, nonGsmRats));
+      if (wantsRegularGsm) ratConds.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'commercial')`);
     }
-    if (wantsGsmR) ratConds.push(sql`(${bands.rat} = 'GSM' AND ${bands.variant} = 'railway')`);
+    if (wantsGsmR) ratConds.push(sql`(${ukeBands.rat} = 'GSM' AND ${ukeBands.variant} = 'railway')`);
     if (ratConds.length) bandConditions.push(sql`(${sql.join(ratConds, sql` OR `)})`);
   }
   const hasBandFilters = bandConditions.length > 0;
@@ -185,8 +185,8 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const [eligibleBandRows, operatorRows, regionsRows] = await Promise.all([
     hasBandFilters
       ? db
-          .select({ id: bands.id })
-          .from(bands)
+          .select({ id: ukeBands.id })
+          .from(ukeBands)
           .where(and(...bandConditions))
       : [],
     expandedOperatorMncs?.length
@@ -198,7 +198,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     regionNames?.length
       ? db.query.regions.findMany({
           columns: { id: true },
-          where: { code: { in: regionNames } },
+          where: { code: { in: regionNames }, countryCode: LEGACY_COUNTRY_CODE },
         })
       : [],
   ]);
@@ -310,7 +310,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
       latitude: ukeLocations.latitude,
       createdAt: ukeLocations.createdAt,
       updatedAt: ukeLocations.updatedAt,
-      region: { id: regions.id, name: regions.name, code: regions.code },
+      region: { id: regions.id, name: regions.name, code: regions.code, countryCode: regions.countryCode, isoCode: regions.isoCode },
     };
     const rows = isUnfiltered
       ? await db
@@ -357,6 +357,10 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               full_name: operators.full_name,
               parent_id: operators.parent_id,
               mnc: operators.mnc,
+              countryCode: operators.countryCode,
+              brandId: operators.brandId,
+              shortCode: operators.shortCode,
+              sortPriority: operators.sortPriority,
             },
             permit: {
               id: ukePermits.id,
@@ -368,17 +372,16 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
               updatedAt: ukePermits.updatedAt,
             },
             band: {
-              id: bands.id,
-              value: bands.value,
-              rat: bands.rat,
-              name: bands.name,
-              duplex: bands.duplex,
-              variant: bands.variant,
+              id: ukeBands.id,
+              value: ukeBands.value,
+              rat: ukeBands.rat,
+              name: ukeBands.name,
+              variant: ukeBands.variant,
             },
           })
           .from(ukeStations)
           .innerJoin(ukePermits, permitJoinCondition)
-          .leftJoin(bands, eq(bands.id, ukePermits.band_id))
+          .leftJoin(ukeBands, eq(ukeBands.id, ukePermits.band_id))
           .leftJoin(operators, eq(operators.id, ukeStations.operator_id))
           .where(and(...hydrationConditions))
           .orderBy(ukeStations.id, ukePermits.id)
@@ -437,7 +440,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         source: row.permit.source,
         createdAt: row.permit.createdAt.toISOString(),
         updatedAt: row.permit.updatedAt.toISOString(),
-        band: row.band,
+        band: row.band ? toPermitBand(row.band) : null,
         ...(azimuths ? { sectors: sectorsByPermit.get(row.permit.id) ?? [] } : {}),
       };
       station.permits.push(permit);
@@ -461,17 +464,14 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     return res.send({ data, totalCount });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("INTERNAL_SERVER_ERROR", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      cause: error,
-    });
+    throw new ErrorResponse("INTERNAL_SERVER_ERROR", { cause: error });
   }
 }
 
 const getUkeLocations: Route<ReqQuery, ResponseBody> = {
   url: "/uke/locations",
   method: "GET",
-  config: { permissions: ["read:uke_permits"], allowGuestAccess: true, proto: ukeLocationsResponseType },
+  config: { permissions: ["read:uke_permits"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

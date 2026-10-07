@@ -28,7 +28,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { RegionCombobox } from "@/features/shared/filterPanel";
-import { regionsQueryOptions } from "@/features/shared/queries";
+import { regionsQueryOptions } from "@/features/shared/lookups";
 import { USER_PROFILE_QUERY_KEY } from "@/features/user-profile/queries";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
 import { API_BASE, fetchJson } from "@/lib/api";
@@ -351,7 +351,10 @@ function ProfileSkeleton() {
 export function ProfileSection({ user }: { user: SettingsUser }) {
   const { t } = useTranslation("settings");
   const { data: profile, isError, isFetching, refetch } = useQuery(accountProfileQueryOptions(user.id));
-  const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const { data: regions = [] } = useQuery({
+    ...regionsQueryOptions(),
+    select: (regions) => regions.filter((region) => region.countryCode === "PL"),
+  });
 
   return (
     <SettingsSection id={SETTINGS_SECTION_IDS.profile} title={t("sections.profile")}>

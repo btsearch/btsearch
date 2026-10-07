@@ -3,6 +3,7 @@ import { getNetworksSiblingMnc } from "@openbts/shared/operatorUtils";
 import { createHash } from "node:crypto";
 
 import { ErrorResponse } from "../../errors.js";
+import { stationIdInLegacyCountry } from "../countries/legacy.js";
 import type { AntennaCandidate, ResolvedTerrainStation, TerrainProfileRequest } from "./types.js";
 
 export type ResolvedStationWithFallbacks = {
@@ -24,9 +25,8 @@ type UkePermitWithDetails = {
   band: {
     id: number;
     name: string;
-    value: number | null;
+    value: number;
     rat: string;
-    duplex: "FDD" | "TDD" | null;
     variant: "commercial" | "railway";
   } | null;
   sectors: {
@@ -67,10 +67,9 @@ function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[]
           ? {
               id: permit.band.id,
               name: permit.band.name,
-              value: permit.band.value ?? null,
+              value: permit.band.value,
               rat: permit.band.rat,
-              duplex: permit.band.duplex ?? null,
-              variant: permit.band.variant ?? "",
+              variant: permit.band.variant,
             }
           : null,
         provenance: {
@@ -88,7 +87,7 @@ function buildUkeCandidates(permits: UkePermitWithDetails[]): AntennaCandidate[]
 
 async function resolveInternalStation(id: number): Promise<ResolvedStationWithFallbacks> {
   const station = await db.query.stations.findFirst({
-    where: { id },
+    where: { id, RAW: (fields) => stationIdInLegacyCountry(fields.id) },
     with: { location: true, operator: true },
   });
   if (!station?.location) throw new ErrorResponse("NOT_FOUND");
@@ -101,7 +100,7 @@ async function resolveInternalStation(id: number): Promise<ResolvedStationWithFa
       },
     },
   });
-  const permits = permitLinks.flatMap((link) => (link.permit ? [link.permit as UkePermitWithDetails] : []));
+  const permits = permitLinks.flatMap((link) => (link.permit ? [link.permit] : []));
   const operator = toStationOperator(station.operator);
 
   return {
@@ -141,7 +140,7 @@ async function resolveUkeStation(id: number): Promise<ResolvedStationWithFallbac
       operator,
     },
     locationId: station.location.id,
-    ukeCandidates: buildUkeCandidates(station.permits as UkePermitWithDetails[]),
+    ukeCandidates: buildUkeCandidates(station.permits),
   };
 }
 

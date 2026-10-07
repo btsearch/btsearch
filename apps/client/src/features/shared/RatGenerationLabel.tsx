@@ -30,7 +30,7 @@ type RatGenerationLabelProps = {
 
 export function RatGenerationLabel({ rat, className }: RatGenerationLabelProps) {
   const label = ratToGenLabel(rat);
-  if (label === rat) return null;
+  if (label === null) return null;
 
   return <GenerationTag className={className}>{label}</GenerationTag>;
 }

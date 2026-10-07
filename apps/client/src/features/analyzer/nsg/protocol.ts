@@ -6,4 +6,4 @@ export type NsgAnalyzerWorkerRequest = { type: "parse"; file: File };
 export type NsgAnalyzerWorkerResponse =
   | { type: "progress"; progress: NsgProgress }
   | { type: "complete"; result: NsgAnalyzerImport }
-  | { type: "error"; code: AnalyzerImportErrorCode; message: string };
+  | { type: "error"; code: AnalyzerImportErrorCode; message: string; cellCount: number | null };

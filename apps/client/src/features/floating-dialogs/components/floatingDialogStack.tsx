@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_DIALOG_FADE_MOTION, FLOATING_DIALOG_SCALE_MOTION } from "../animation";
-import type { FloatingDialogRect } from "../geometry";
+import { FLOATING_DIALOG_DESKTOP_MIN_WIDTH, type FloatingDialogRect, type FloatingDialogSize } from "../geometry";
 import { assertNever, getStationHistoryTriggerId, getTopDialog } from "../types";
 import type { FloatingDialogItem, FloatingDialogPanelFrameProps, StationDialogTarget, StationHistoryFloatingDialogItem } from "../types";
 import { FloatingDialogFrame } from "./floatingDialogFrame";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AntennaDialogFallback } from "@/features/station-details/station/emf/antennas/antennaDialogFallback";
 import type { TerrainProfileStationTarget } from "@/features/terrain-profile/types";
 import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ const SI2PEMAntennaDialogPanel = lazy(() =>
   import("@/features/station-details/components/si2pemAntennaDialog").then((module) => ({ default: module.SI2PEMAntennaDialogPanel })),
 );
 const StationHistoryDialogPanel = lazy(() =>
-  import("@/features/station-details/components/stationHistoryDialog").then((module) => ({ default: module.StationHistoryDialogPanel })),
+  import("@/features/station-details/station/history/stationHistoryDialogPanel").then((module) => ({ default: module.StationHistoryDialogPanel })),
 );
 
 type FloatingDialogStackProps = {
@@ -41,6 +42,8 @@ type FloatingDialogStackProps = {
 
 const MOBILE_PANEL_CLASS_NAMES = { className: "pointer-events-auto w-full", contentClassName: "border border-border/70" };
 const DESKTOP_PANEL_CLASS_NAMES = { className: "h-full", contentClassName: "h-full max-h-none border border-border/70" };
+const TERRAIN_PROFILE_MIN_HEIGHT = 240;
+const TERRAIN_PROFILE_MIN_SIZE: FloatingDialogSize = { width: FLOATING_DIALOG_DESKTOP_MIN_WIDTH, height: TERRAIN_PROFILE_MIN_HEIGHT };
 
 type DialogPanelProps = FloatingDialogPanelFrameProps & {
   isMobile: boolean;
@@ -105,6 +108,7 @@ function renderDialogPanelContent(
         <StationDetailsDialogPanel
           {...frameProps}
           stationId={dialog.id}
+          locationId={dialog.locationId}
           source={dialog.source}
           ukeStation={dialog.ukeStation}
           switchedFrom={dialog.switchedFrom}
@@ -118,14 +122,18 @@ function renderDialogPanelContent(
       return <RadioLineDetailsDialogPanel {...frameProps} link={dialog.link} />;
     case "si2pem-report":
       return (
-        <SI2PEMAntennaDialogPanel
-          {...frameProps}
-          report={dialog.report}
-          latitude={dialog.latitude}
-          longitude={dialog.longitude}
-          operatorName={dialog.operatorName}
-          operatorMnc={dialog.operatorMnc}
-        />
+        <Suspense fallback={<AntennaDialogFallback {...frameProps} />}>
+          <SI2PEMAntennaDialogPanel
+            key={dialog.openRequestId}
+            {...frameProps}
+            site={dialog.site}
+            siteId={dialog.siteId}
+            report={dialog.report}
+            operatorName={dialog.operatorName}
+            operatorMnc={dialog.operatorMnc}
+            place={dialog.place}
+          />
+        </Suspense>
       );
     case "station-history":
       return (
@@ -135,12 +143,18 @@ function renderDialogPanelContent(
           stationId={dialog.stationId}
           stationCode={dialog.stationCode}
           operatorName={dialog.operatorName}
-          operatorMnc={dialog.operatorMnc}
+          operatorBrandId={dialog.operatorBrandId}
         />
       );
+    case "terrain-profile":
+      return dialog.renderPanel(frameProps);
     default:
       return assertNever(dialog);
   }
+}
+
+function isShownOnPhones(dialog: FloatingDialogItem): boolean {
+  return dialog.kind !== "terrain-profile";
 }
 
 function MobileDialogBackdrop({ onClose }: { onClose: () => void }) {
@@ -220,7 +234,7 @@ function MobileFloatingDialog({ dialog, onClose, onSwitchStation, onStartTerrain
 
 export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, onSwitchStation, onStartTerrainProfile }: FloatingDialogStackProps) {
   const isMobile = useIsMobile();
-  const topDialog = getTopDialog(dialogs);
+  const topDialog = getTopDialog(isMobile ? dialogs.filter(isShownOnPhones) : dialogs);
   const previousTopDialogRef = useRef<FloatingDialogItem | undefined>(undefined);
 
   useEffect(() => {
@@ -263,7 +277,10 @@ export function FloatingDialogStack({ dialogs, onClose, onFocus, onRectChange, o
             rect={dialog.rect}
             zIndex={dialog.zIndex}
             contentKey={dialog.key}
-            fitHeightToContent={dialog.kind !== "si2pem-report" && dialog.kind !== "station-history"}
+            fitHeightToContent={dialog.kind !== "station-history"}
+            fitAnchor={dialog.kind === "terrain-profile" ? "bottom" : "center"}
+            minSize={dialog.kind === "terrain-profile" ? TERRAIN_PROFILE_MIN_SIZE : undefined}
+            isCollapsed={dialog.kind === "terrain-profile" && dialog.isCollapsed}
             onFocus={() => onFocus(dialog.key)}
             onRectChange={(rect) => onRectChange(dialog.key, rect)}
           >

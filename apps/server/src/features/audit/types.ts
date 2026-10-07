@@ -2,6 +2,7 @@ import type { AuditEntity, AuditOp, AuditOperationKind, AuditSource } from "@ope
 
 import type { Database } from "../../database/psql.js";
 import type { DbTx } from "../../types/global.js";
+import type { RevertReason } from "./revert/revertibility.js";
 
 export type AuditMetadata = Record<string, unknown>;
 
@@ -18,8 +19,10 @@ export type AuditEntryInput = {
 export type AuditRecorder = {
   operationId: number;
   tx: DbTx;
+  entryMetadata: AuditMetadata | null;
   log: (entry: AuditEntryInput) => Promise<void>;
   logMany: (entries: readonly AuditEntryInput[]) => Promise<void>;
+  withEntryMetadata: (metadata: AuditMetadata) => AuditRecorder;
 };
 
 export type AuditOperationSpec = {
@@ -57,6 +60,7 @@ export type AuditOperationSummary = {
   metadata: AuditMetadata | null;
   reverts_operation_id: number | null;
   reverted_by_operation_id: number | null;
+  country_code: string | null;
   entry_count: number;
   counts: AuditCount[];
   station_ids: number[];
@@ -87,11 +91,12 @@ export type AuditOperationRow = {
   metadata: AuditMetadata | null;
   reverts_operation_id: number | null;
   reverted_by_operation_id: number | null;
+  country_code: string | null;
   createdAt: Date;
 };
 
 export type AuditOperationWithEntries = AuditOperationSummary & {
-  entries: (AuditEntry & { revertible: boolean; revert_reason?: string })[];
+  entries: (AuditEntry & { revertible: boolean; revert_reason?: RevertReason })[];
   revertible: boolean;
   reverts: Pick<AuditOperationSummary, "id" | "kind" | "createdAt"> | null;
   reverted_by: Pick<AuditOperationSummary, "id" | "kind" | "createdAt"> | null;

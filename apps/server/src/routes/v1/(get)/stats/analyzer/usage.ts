@@ -5,6 +5,7 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import z from "zod";
 
 import redis from "../../../../../database/redis.ts";
+import { endOfToday } from "../../../../../features/stats/dates.ts";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.ts";
 
@@ -13,7 +14,7 @@ const CACHE_TTL = 86400;
 const schemaRoute = {
   querystring: z.object({
     from: z.coerce.date().optional().default(new Date(0)),
-    to: z.coerce.date().optional().default(new Date()),
+    to: z.coerce.date().optional().default(endOfToday),
     granularity: z.enum(["daily", "monthly"]).default("daily"),
   }),
   response: {

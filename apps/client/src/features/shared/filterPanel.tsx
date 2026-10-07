@@ -1,6 +1,7 @@
-import { ArrowDown01Icon, Cancel01Icon, FilterIcon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { type ComponentProps, type FocusEventHandler, type ReactNode, type Ref, useMemo, useRef, useState } from "react";
+import { Cancel01Icon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { type ComponentProps, type FocusEventHandler, type ReactNode, type Ref, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -14,40 +15,9 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import { MobileFilterChip, MobileFilterPanelTitle } from "@/components/ui/mobile-filter-chip";
-import { Checkbox } from "@/features/map/components/search-overlay/checkbox";
-import { DialogOperatorName } from "@/features/station-details/components/dialogOperatorName";
-import { partitionOperators } from "@/lib/cellular/operators";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
-import type { Operator, Region } from "@/types/station";
-
-export function FilterPanelShell({ search, children }: { search: ReactNode; children: ReactNode }) {
-  const { t } = useTranslation("common");
-
-  return (
-    <aside aria-label={t("labels.filters")} className="flex h-full w-72 shrink-0 flex-col border-r bg-muted/20">
-      <div className="relative z-20 shrink-0 px-3 pt-3">{search}</div>
-      <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="space-y-4 px-3 py-3">{children}</div>
-      </div>
-    </aside>
-  );
-}
-
-export function FilterPanelHeader({ activeFilterCount, onClearAll }: { activeFilterCount: number; onClearAll: () => void }) {
-  const { t } = useTranslation("common");
-
-  return (
-    <div className="flex items-center justify-between border-t pt-3">
-      <h2 className="text-sm font-semibold">{t("labels.filters")}</h2>
-      {activeFilterCount > 0 ? (
-        <button type="button" onClick={onClearAll} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-          {t("actions.clearAll")}
-        </button>
-      ) : null}
-    </div>
-  );
-}
+import type { Region } from "@/types/station";
 
 type FilterPanelSectionProps = {
   title: ReactNode;
@@ -81,32 +51,29 @@ export function FilterPanelSection({ title, hint, onClear, children }: FilterPan
   );
 }
 
-export function FilterPanelFooter({ children }: { children: ReactNode }) {
-  return (
-    <p className="border-t pt-3 text-xs text-muted-foreground" role="status">
-      {children}
-    </p>
-  );
-}
-
 const FACET_PILL_CLASS =
   "inline-flex h-7 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
 const FACET_PILL_ACTIVE_CLASS = "bg-primary text-primary-foreground";
 const FACET_PILL_INACTIVE_CLASS = "bg-foreground/5 text-foreground/80 hover:bg-foreground/10 hover:text-foreground";
+const FACET_PILL_QUIET_CLASS = "cursor-pointer bg-transparent text-muted-foreground tabular-nums hover:bg-foreground/5 hover:text-foreground";
+const FACET_PILL_OPEN_CLASS = "bg-foreground/10 text-foreground";
 
-export function sortBandsUnknownLast(values: readonly number[]): number[] {
-  const known = values.filter((value) => value !== 0).sort((left, right) => left - right);
-  return values.includes(0) ? [...known, 0] : known;
-}
+export const FILTER_COUNT_BADGE_CLASS = cn(
+  "inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5",
+  "text-[11px] font-semibold leading-none text-primary-foreground",
+);
+export const FILTER_CLEAR_ALL_CLASS = "min-w-0 cursor-pointer truncate text-xs text-muted-foreground transition-colors hover:text-foreground";
 
 export function FacetPill({
   active,
   onClick,
+  label,
   className,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  label?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -114,6 +81,7 @@ export function FacetPill({
     <button
       type="button"
       aria-pressed={active}
+      aria-label={label}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={cn(FACET_PILL_CLASS, active ? FACET_PILL_ACTIVE_CLASS : FACET_PILL_INACTIVE_CLASS, className)}
@@ -123,14 +91,107 @@ export function FacetPill({
   );
 }
 
-export function KbdHint({ children, className }: { children: ReactNode; className?: string }) {
+type FacetDisclosureTone = "quiet" | "filled";
+
+function getFacetDisclosureToneClass(tone: FacetDisclosureTone, expanded: boolean): string {
+  if (tone === "quiet") return FACET_PILL_QUIET_CLASS;
+  return expanded ? FACET_PILL_OPEN_CLASS : FACET_PILL_INACTIVE_CLASS;
+}
+
+export function FacetDisclosurePill({
+  expanded,
+  onClick,
+  label,
+  title,
+  tone = "quiet",
+  className,
+  children,
+}: {
+  expanded: boolean;
+  onClick: () => void;
+  label?: string;
+  title?: string;
+  tone?: FacetDisclosureTone;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <kbd
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={label}
+      title={title}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className={cn(FACET_PILL_CLASS, getFacetDisclosureToneClass(tone, expanded), className)}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TONE_FACET_PILL_INACTIVE_CLASS = "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground";
+const FACET_COUNTRY_MARK_CLASS = "inline-flex h-4 items-center rounded-[5px] px-1 font-sans text-[9px] font-bold tracking-[0.04em]";
+
+export function ToneFacetPill({
+  isActive,
+  icon,
+  activeClassName,
+  iconClassName,
+  label,
+  onClick,
+  children,
+}: {
+  isActive: boolean;
+  icon: IconSvgElement;
+  activeClassName: string;
+  iconClassName?: string;
+  label?: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={isActive}
+      aria-label={label}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className={cn(FACET_PILL_CLASS, isActive ? activeClassName : TONE_FACET_PILL_INACTIVE_CLASS)}
+    >
+      <HugeiconsIcon icon={icon} className={cn("size-3 shrink-0", isActive ? null : iconClassName)} />
+      {children}
+    </button>
+  );
+}
+
+export function FacetCount({ count, isActive }: { count: number; isActive: boolean }) {
+  const { i18n } = useTranslation();
+
+  return (
+    <span className={cn("font-normal tabular-nums", isActive ? "text-primary-foreground/75" : "text-muted-foreground")}>
+      {count.toLocaleString(i18n.language)}
+    </span>
+  );
+}
+
+export function FacetCountryMark({ countryCode, isActive }: { countryCode: string; isActive: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
       className={cn(
-        "hidden shrink-0 items-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-foreground md:inline-flex",
-        className,
+        FACET_COUNTRY_MARK_CLASS,
+        isActive ? "bg-primary-foreground/15 text-primary-foreground" : "bg-foreground/10 text-muted-foreground",
       )}
     >
+      {countryCode}
+    </span>
+  );
+}
+
+export function KbdHint({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="hidden shrink-0 items-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none text-foreground md:inline-flex">
       {children}
     </kbd>
   );
@@ -143,15 +204,33 @@ type FilterSearchShellProps = {
   overlay?: ReactNode;
   containerRef?: Ref<HTMLElement>;
   onBlur?: FocusEventHandler<HTMLElement>;
+  size?: FilterSearchSize;
   className?: string;
 };
 
-export function FilterSearchShell({ hasValue, onClear, children, overlay, containerRef, onBlur, className }: FilterSearchShellProps) {
+type FilterSearchSize = "default" | "sm";
+
+const FILTER_SEARCH_FIELD_CLASS = cn(
+  "flex w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent pl-3 pr-1.5 transition-colors",
+  "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30",
+);
+const FILTER_SEARCH_HEIGHT_CLASSES: Record<FilterSearchSize, string> = { default: "h-9", sm: "h-8" };
+
+export function FilterSearchShell({
+  hasValue,
+  onClear,
+  children,
+  overlay,
+  containerRef,
+  onBlur,
+  size = "default",
+  className,
+}: FilterSearchShellProps) {
   const { t } = useTranslation("common");
 
   return (
     <search ref={containerRef} onBlur={onBlur} className={cn("relative", className)}>
-      <div className="flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent pl-3 pr-1.5 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+      <div className={cn(FILTER_SEARCH_FIELD_CLASS, FILTER_SEARCH_HEIGHT_CLASSES[size])}>
         <HugeiconsIcon icon={Search01Icon} className="size-4 shrink-0 text-muted-foreground" />
         <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">{children}</div>
         {hasValue ? (
@@ -174,148 +253,11 @@ export function FilterSearchInput({ className, ...props }: ComponentProps<"input
   return (
     <input
       type="text"
-      autoComplete="off"
+      {...NO_AUTOFILL_PROPS}
       spellCheck={false}
       className={cn("h-full min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground", className)}
       {...props}
     />
-  );
-}
-
-type OperatorCheckboxGridProps = {
-  operators: Operator[];
-  selectedMncs: number[];
-  onToggle: (mnc: number) => void;
-  keybinds?: Record<number, string>;
-};
-
-export function OperatorCheckboxGrid({ operators, selectedMncs, onToggle, keybinds }: OperatorCheckboxGridProps) {
-  const { t } = useTranslation("common");
-  const [showOtherOperators, setShowOtherOperators] = useState(false);
-  const { top: topOperators, other: otherOperators } = useMemo(() => partitionOperators(operators), [operators]);
-  const selectedOtherOperatorCount = useMemo(
-    () => otherOperators.filter((operator) => selectedMncs.includes(operator.mnc)).length,
-    [otherOperators, selectedMncs],
-  );
-
-  const renderOperator = (operator: Operator) => {
-    const keybind = keybinds?.[operator.mnc];
-    return (
-      <Checkbox key={operator.mnc} checked={selectedMncs.includes(operator.mnc)} onChange={() => onToggle(operator.mnc)} className="min-w-0">
-        <DialogOperatorName name={operator.name} mnc={operator.mnc} compact labelClassName="text-sm leading-5 font-normal" />
-        {keybind ? <KbdHint className="ml-auto">{keybind}</KbdHint> : null}
-      </Checkbox>
-    );
-  };
-
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-1">{topOperators.map(renderOperator)}</div>
-      {otherOperators.length > 0 ? (
-        <div className="mt-1.5">
-          <button
-            type="button"
-            aria-expanded={showOtherOperators}
-            onClick={() => setShowOtherOperators((visible) => !visible)}
-            className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              className={cn("size-3.5 transition-transform motion-reduce:transition-none", showOtherOperators ? "rotate-180" : null)}
-            />
-            <span>
-              {t("labels.otherOperators", { count: otherOperators.length })}
-              {selectedOtherOperatorCount > 0 ? ` (${t("labels.selected", { count: selectedOtherOperatorCount })})` : null}
-            </span>
-          </button>
-          {showOtherOperators ? (
-            <div className="mt-1.5 grid grid-cols-2 gap-1 border-t border-border/50 pt-1.5">{otherOperators.map(renderOperator)}</div>
-          ) : null}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-type MobileOperatorFilterChipProps = {
-  operators: Operator[];
-  selectedMncs: number[];
-  onToggle: (mnc: number) => void;
-};
-
-export function MobileOperatorFilterChip({ operators, selectedMncs, onToggle }: MobileOperatorFilterChipProps) {
-  const { t } = useTranslation("common");
-  const { top: topOperators, other: otherOperators } = useMemo(() => partitionOperators(operators), [operators]);
-
-  return (
-    <MobileFilterChip active={selectedMncs.length > 0} count={selectedMncs.length} icon={FilterIcon} label={t("labels.operator")}>
-      <MobileFilterPanelTitle>{t("labels.operator")}</MobileFilterPanelTitle>
-      <div className="grid gap-1">
-        {[...topOperators, ...otherOperators].map((operator) => {
-          const selected = selectedMncs.includes(operator.mnc);
-          return (
-            <button
-              key={operator.mnc}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onToggle(operator.mnc)}
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-                selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-              )}
-            >
-              <DialogOperatorName
-                name={operator.name}
-                mnc={operator.mnc}
-                compact
-                labelClassName={cn("text-sm leading-5 font-normal", selected ? "text-primary" : null)}
-              />
-            </button>
-          );
-        })}
-      </div>
-    </MobileFilterChip>
-  );
-}
-
-type MobileRegionFilterChipProps = {
-  regions: Region[];
-  selectedRegions: number[];
-  onToggle: (regionId: number) => void;
-};
-
-export function MobileRegionFilterChip({ regions, selectedRegions, onToggle }: MobileRegionFilterChipProps) {
-  const { t } = useTranslation("common");
-  const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
-  const selectedRegionNames = useMemo(
-    () => selectedRegions.map((id) => regionById.get(id)?.name).filter((name): name is string => Boolean(name)),
-    [regionById, selectedRegions],
-  );
-
-  return (
-    <MobileFilterChip active={selectedRegions.length > 0} count={selectedRegions.length} icon={Location01Icon} label={t("labels.region")}>
-      <MobileFilterPanelTitle>{t("labels.region")}</MobileFilterPanelTitle>
-      <div className="grid max-h-64 gap-1 overflow-y-auto">
-        {regions.map((region) => {
-          const selected = selectedRegions.includes(region.id);
-          return (
-            <button
-              key={region.id}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onToggle(region.id)}
-              className={cn(
-                "flex h-8 items-center rounded-md px-2 text-left text-sm transition-colors",
-                selected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-              )}
-            >
-              <span className="min-w-0 flex-1 truncate">{region.name}</span>
-            </button>
-          );
-        })}
-      </div>
-      {selectedRegionNames.length > 0 ? <div className="px-1 text-xs text-muted-foreground">{selectedRegionNames.join(", ")}</div> : null}
-    </MobileFilterChip>
   );
 }
 
@@ -405,5 +347,28 @@ export function MobileFilterRailInline({ children }: { children: ReactNode }) {
         <div className="w-max">{children}</div>
       </div>
     </div>
+  );
+}
+
+type MobileFilterRailFloatingProps = {
+  target: HTMLElement;
+  hasEdgeFade?: boolean;
+  children: ReactNode;
+};
+
+const FLOATING_RAIL_CLASS = "w-[calc(100vw-1.5rem)] min-w-0 md:hidden";
+const FLOATING_RAIL_FADE_CLASS = cn(
+  "relative after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-10",
+  "after:bg-linear-to-l after:from-background after:to-transparent",
+);
+
+export function MobileFilterRailFloating({ target, hasEdgeFade = false, children }: MobileFilterRailFloatingProps) {
+  return createPortal(
+    <div className={cn(FLOATING_RAIL_CLASS, hasEdgeFade ? FLOATING_RAIL_FADE_CLASS : null)}>
+      <div className={cn("scrollbar-hide overflow-x-auto overflow-y-hidden", hasEdgeFade ? "pr-10" : null)}>
+        <div className={cn("w-max", hasEdgeFade ? null : "mx-auto")}>{children}</div>
+      </div>
+    </div>,
+    target,
   );
 }

@@ -12,9 +12,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { regionsQueryOptions } from "@/features/shared/queries";
+import { regionsQueryOptions } from "@/features/shared/lookups";
 import { UserLink } from "@/features/user-profile/components/userLink";
 import { API_BASE, fetchJson } from "@/lib/api";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { resolveAvatarUrl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ function HuntersFilterBar({
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             />
             <Input
+              {...NO_AUTOFILL_PROPS}
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={t("hunters.searchPlaceholder")}
@@ -231,7 +233,10 @@ function HuntersContent() {
   const [search, setSearch] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<SelectedRegion>("all");
   const { data: hunters, isLoading: huntersLoading, isError, isFetching, isRefetchError, refetch } = useHunters();
-  const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const { data: regions = [] } = useQuery({
+    ...regionsQueryOptions(),
+    select: (regions) => regions.filter((region) => region.countryCode === "PL"),
+  });
 
   const regionMap = useMemo(() => new Map(regions.map((region) => [region.id, region.name])), [regions]);
   const filteredHunters = useMemo(() => {

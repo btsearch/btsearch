@@ -33,6 +33,7 @@ type UseRadioLinesLayerArgs = {
   endpointsGeoJSON: GeoJsonSourceData;
   duplexLinks: DuplexRadioLink[];
   minZoom: number;
+  isPickingReceiver?: boolean;
   onFeatureClick: (links: DuplexRadioLink[], coordinates: [number, number]) => void;
 };
 
@@ -125,14 +126,23 @@ function getFeatureLinks(features: MapGeoJSONFeature[] | undefined, linkByRadioL
   return [...links];
 }
 
-export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJSON, duplexLinks, minZoom, onFeatureClick }: UseRadioLinesLayerArgs) {
+export function useRadioLinesLayer({
+  map,
+  isLoaded,
+  linesGeoJSON,
+  endpointsGeoJSON,
+  duplexLinks,
+  minZoom,
+  isPickingReceiver = false,
+  onFeatureClick,
+}: UseRadioLinesLayerArgs) {
   const linkByRadioLineId = useMemo(() => indexLinksByRadioLineId(duplexLinks), [duplexLinks]);
-  const stableRefs = useRef({ onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON });
+  const stableRefs = useRef({ onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON, isPickingReceiver });
   const tooltipRef = useRef<ActiveTooltip | null>(null);
 
   useEffect(() => {
-    stableRefs.current = { onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON };
-  }, [onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON]);
+    stableRefs.current = { onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON, isPickingReceiver };
+  }, [onFeatureClick, linkByRadioLineId, linesGeoJSON, endpointsGeoJSON, isPickingReceiver]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -168,6 +178,7 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
     };
 
     const handleClick = (e: MapLayerMouseEvent) => {
+      if (stableRefs.current.isPickingReceiver) return;
       if (isNearStation(e.point)) return;
 
       const links = getFeatureLinks(e.features, stableRefs.current.linkByRadioLineId);
@@ -182,7 +193,7 @@ export function useRadioLinesLayer({ map, isLoaded, linesGeoJSON, endpointsGeoJS
     };
 
     const handleMouseMove = (e: MapLayerMouseEvent) => {
-      if (isNearStation(e.point)) {
+      if (stableRefs.current.isPickingReceiver || isNearStation(e.point)) {
         tooltipRef.current = destroyTooltip(tooltipRef.current);
         return;
       }

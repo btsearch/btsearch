@@ -4,7 +4,8 @@
     "contribute": "Submissions",
     "admin": "Admin",
     "info": "Information",
-    "lists": "My lists"
+    "lists": "My lists",
+    "reference": "Reference data"
   },
   "items": {
     "mapView": "Map view",
@@ -25,7 +26,6 @@
     "lists": "Lists",
     "comments": "Comments",
     "auditLogs": "Audit logs",
-    "deletedEntries": "Deleted entries",
     "statistics": "Statistics",
     "about": "About",
     "contact": "Contact",
@@ -40,7 +40,13 @@
     "fundraiser": "Fundraiser",
     "spectrum": "Spectrum",
     "pem": "EMF measurements",
-    "hunters": "BTS hunters"
+    "hunters": "BTS hunters",
+    "countries": "Countries",
+    "operators": "Operators",
+    "brands": "Brands",
+    "bands": "Bands",
+    "structureOwners": "Structure owners",
+    "systemSettings": "System settings"
   },
   "floating": {
     "label": "Floating navigation",

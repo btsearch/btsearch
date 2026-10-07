@@ -1,9 +1,11 @@
-import { type BandVariant, bands, type ratEnum, regions, ukeLocations, ukeOperators } from "@openbts/drizzle";
-import { and, inArray, isNull, sql } from "drizzle-orm";
+import { type BandVariant, type ratEnum, regions, ukeBands, ukeLocations, ukeOperators } from "@openbts/drizzle";
+import { and, eq, or, sql } from "drizzle-orm";
 
-import { BATCH_SIZE } from "./config.js";
+import { BATCH_SIZE, COUNTRY_CODE } from "./config.js";
 import { db } from "./database.js";
-import { chunk, stripCompanySuffixForName } from "./utils.js";
+import { chunk, createLogger, stripCompanySuffixForName } from "./utils.js";
+
+const logger = createLogger("upserts");
 
 const UKE_OPERATOR_NAME_MAP: Record<string, string> = {
   p4: "Play",
@@ -18,14 +20,14 @@ export async function upsertRegions(items: { name: string; code: string }[]): Pr
   const unique = Array.from(new Map(items.filter((i) => i.name && i.code).map((i) => [i.name, i])).values());
   if (!unique.length) return new Map();
 
-  const existing = await db.query.regions.findMany({ where: { name: { in: unique.map((r) => r.name) } } });
+  const existing = await db.query.regions.findMany({ where: { name: { in: unique.map((r) => r.name) }, countryCode: COUNTRY_CODE } });
   const map = new Map<string, number>(existing.map((r) => [r.name, r.id]));
 
   const toInsert = unique.filter((r) => !map.has(r.name));
   if (toInsert.length) {
     const inserted = await db
       .insert(regions)
-      .values(toInsert.map((r) => ({ name: r.name, code: r.code })))
+      .values(toInsert.map((r) => ({ name: r.name, code: r.code, countryCode: COUNTRY_CODE })))
       .returning({ id: regions.id, name: regions.name });
     for (const r of inserted) map.set(r.name, r.id);
   }
@@ -48,43 +50,24 @@ export async function upsertBands(
 
   if (!unique.length) return new Map();
 
-  const existing = await db
-    .select()
-    .from(bands)
-    .where(
-      and(
-        inArray(
-          bands.rat,
-          unique.map((k) => k.rat),
-        ),
-        inArray(
-          bands.value,
-          unique.map((k) => k.value),
-        ),
-        inArray(
-          bands.variant,
-          unique.map((k) => k.variant),
-        ),
-        isNull(bands.duplex),
-      ),
-    );
+  const matchesAnyKey = or(...unique.map((k) => and(eq(ukeBands.rat, k.rat), eq(ukeBands.value, k.value), eq(ukeBands.variant, k.variant))));
+  const existing = await db.select().from(ukeBands).where(matchesAnyKey);
 
   const map = new Map<string, number>(existing.map((b) => [`${b.rat}:${b.value}:${b.variant}`, b.id]));
   const toInsert = unique.filter((k) => !map.has(`${k.rat}:${k.value}:${k.variant}`));
 
   if (toInsert.length) {
     const inserted = await db
-      .insert(bands)
+      .insert(ukeBands)
       .values(
         toInsert.map((b) => ({
           rat: b.rat,
           value: b.value,
-          duplex: null,
           name: b.variant === "railway" ? `GSM-R ${b.value}` : `${b.rat} ${b.value}`,
           variant: b.variant,
         })),
       )
-      .returning({ id: bands.id, rat: bands.rat, value: bands.value, variant: bands.variant });
+      .returning({ id: ukeBands.id, rat: ukeBands.rat, value: ukeBands.value, variant: ukeBands.variant });
     for (const r of inserted) map.set(`${r.rat}:${r.value}:${r.variant}`, r.id);
   }
 
@@ -102,7 +85,9 @@ export async function getOperators(rawNames: string[]): Promise<Map<string, numb
 
   const uniqueMappedNames = [...new Set(prepared.map((p) => p.mappedName))];
 
-  const existingOperators = uniqueMappedNames.length ? await db.query.operators.findMany({ where: { name: { in: uniqueMappedNames } } }) : [];
+  const existingOperators = uniqueMappedNames.length
+    ? await db.query.operators.findMany({ where: { name: { in: uniqueMappedNames }, countryCode: COUNTRY_CODE } })
+    : [];
 
   const operatorIdByName = new Map(existingOperators.map((op) => [op.name, op.id]));
 
@@ -136,9 +121,19 @@ export async function upsertUkeOperators(rawNames: string[]): Promise<Map<string
 
   const toInsert = values.filter((v) => !existingFullNames.has(v.full_name));
   if (toInsert.length) {
+    const brandedNamesakes = await db.query.ukeOperators.findMany({
+      where: { name: { in: toInsert.map((op) => op.name) }, brandId: { isNotNull: true } },
+      columns: { name: true, brandId: true },
+    });
+    const brandIdByName = new Map<string, number | null>();
+    for (const namesake of brandedNamesakes) {
+      const known = brandIdByName.get(namesake.name);
+      brandIdByName.set(namesake.name, known === undefined || known === namesake.brandId ? namesake.brandId : null);
+    }
+
     const inserted = await db
       .insert(ukeOperators)
-      .values(toInsert.map((op) => ({ name: op.name, full_name: op.full_name })))
+      .values(toInsert.map((op) => ({ name: op.name, full_name: op.full_name, brandId: brandIdByName.get(op.name) ?? null })))
       .returning({ id: ukeOperators.id, name: ukeOperators.name });
     for (const r of inserted) map.set(r.name, r.id);
   }
@@ -176,7 +171,12 @@ export async function upsertUkeLocations(
     for (const r of rows) map.set(`${r.longitude}:${r.latitude}`, r.id);
   }
 
-  const toInsert = uniq.filter((it) => !map.has(`${it.lon}:${it.lat}`));
+  const missing = uniq.filter((it) => !map.has(`${it.lon}:${it.lat}`));
+  const toInsert = missing.flatMap((loc) => {
+    const regionId = regionIds.get(loc.regionName);
+    return regionId === undefined ? [] : [{ ...loc, regionId }];
+  });
+  if (toInsert.length < missing.length) logger.warn(`Skipped ${missing.length - toInsert.length} new locations with an unknown region`);
   if (toInsert.length) {
     for (const group of chunk(toInsert, BATCH_SIZE)) {
       // eslint-disable-next-line no-await-in-loop
@@ -184,7 +184,7 @@ export async function upsertUkeLocations(
         .insert(ukeLocations)
         .values(
           group.map((loc) => ({
-            region_id: regionIds.get(loc.regionName) ?? 0,
+            region_id: loc.regionId,
             city: loc.city ?? undefined,
             address: loc.address ?? undefined,
             longitude: loc.lon,

@@ -1,34 +1,38 @@
 import { FILTER_KEYWORDS, FILTER_REGEX } from "./constants";
 import type { ParsedFilter } from "./types";
 
-const VALID_FILTER_KEYS = new Set(FILTER_KEYWORDS.map((f) => f.key.replace(":", "")));
+const VALID_FILTER_KEYS = new Set(FILTER_KEYWORDS.map((keyword) => keyword.key.replace(":", "")));
+const SPACE_RUN_PATTERN = /\s+/g;
+
+function collapseSpaces(text: string): string {
+  return text.replace(SPACE_RUN_PATTERN, " ").trim();
+}
 
 export function parseFilters(query: string): {
   filters: ParsedFilter[];
   remainingText: string;
 } {
   const filters: ParsedFilter[] = [];
-  let remainingText = query;
+  let remainingText = "";
+  let position = 0;
 
-  const matches = Array.from(query.matchAll(FILTER_REGEX));
+  for (const match of query.matchAll(FILTER_REGEX)) {
+    const [token = "", lead = "", raw = "", name = "", singleQuoted, doubleQuoted, bare = ""] = match;
+    const key = name.toLowerCase();
+    if (!VALID_FILTER_KEYS.has(key)) continue;
 
-  for (const match of matches) {
-    const key = match[1]?.toLowerCase();
-    if (!key || !VALID_FILTER_KEYS.has(key)) continue;
+    const value = (singleQuoted ?? doubleQuoted ?? bare).trim();
+    if (value === "") continue;
 
-    // Capture groups: [1]=key, [2]=single quote, [3]=double quote, [4]=unquoted value
-    const value = (match[2] ?? match[3] ?? match[4] ?? "").trim();
+    const tokenEnd = match.index + token.length;
+    const endsWithComma = token.length > lead.length + raw.length;
+    const isListStillTyped = endsWithComma && bare !== "" && query.slice(tokenEnd).trim() === "";
+    if (isListStillTyped) continue;
 
-    if (!value) continue;
-
-    filters.push({
-      key,
-      value,
-      raw: match[0],
-    });
-
-    remainingText = remainingText.replace(match[0], "").trim();
+    filters.push({ key, value, raw });
+    remainingText += query.slice(position, match.index + lead.length);
+    position = tokenEnd;
   }
 
-  return { filters, remainingText };
+  return { filters, remainingText: collapseSpaces(remainingText + query.slice(position)) };
 }

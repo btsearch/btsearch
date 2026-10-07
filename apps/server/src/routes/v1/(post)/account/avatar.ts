@@ -8,18 +8,14 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { deleteAvatarFile } from "../../../../features/users/avatarFile.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { decodeHeicToRaw, isHeic } from "../../../../utils/image.js";
+import { decodeHeicToRaw, isHeic, readUploadedFile, refusingUnreadableImage } from "../../../../utils/image.js";
+import { UPLOAD_DIR } from "../../../../utils/photoFiles.js";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024;
 const AVATAR_SIZE = 256;
-
-function isUploadedImage(image: string | null | undefined): boolean {
-  if (!image) return false;
-  return !image.startsWith("http") && image.endsWith(".webp");
-}
 
 const schemaRoute = {
   response: {
@@ -61,9 +57,8 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseB
       const filePath = path.join(UPLOAD_DIR, filename);
       savedPath = filePath;
 
-      const chunks: Buffer[] = [];
-      for await (const chunk of filePart.file) chunks.push(chunk as Buffer);
-      const inputBuffer = Buffer.concat(chunks);
+      const inputBuffer = await readUploadedFile(filePart.file);
+      if (filePart.file.truncated) throw new ErrorResponse("BAD_REQUEST", { message: "File too large (max 3 MB)" });
 
       const detected = await fileTypeFromBuffer(inputBuffer);
       if (!detected || !detected.mime.startsWith("image/")) throw new ErrorResponse("BAD_REQUEST", { message: "Only image files are allowed" });
@@ -71,16 +66,18 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseB
       let sharpInput: SharpInput;
       let sharpOptions: SharpOptions | undefined;
       if (isHeic(filePart.mimetype)) {
-        const { data, width, height } = await decodeHeicToRaw(inputBuffer);
+        const { data, width, height } = await refusingUnreadableImage(() => decodeHeicToRaw(inputBuffer));
         sharpInput = data;
         sharpOptions = { raw: { width, height, channels: 4 } };
       } else sharpInput = inputBuffer;
 
-      const outputBuffer = await sharp(sharpInput, sharpOptions)
-        .rotate()
-        .resize({ width: AVATAR_SIZE, height: AVATAR_SIZE, fit: "cover", position: "attention" })
-        .webp({ quality: 80 })
-        .toBuffer();
+      const outputBuffer = await refusingUnreadableImage(() =>
+        sharp(sharpInput, sharpOptions)
+          .rotate()
+          .resize({ width: AVATAR_SIZE, height: AVATAR_SIZE, fit: "cover", position: "attention" })
+          .webp({ quality: 80 })
+          .toBuffer(),
+      );
 
       await fs.writeFile(filePath, outputBuffer);
       newImageFilename = filename;
@@ -98,11 +95,7 @@ async function handler(req: FastifyRequest, res: ReplyPayload<JSONBody<ResponseB
 
   if (!newImageFilename) throw new ErrorResponse("BAD_REQUEST", { message: "No file provided" });
 
-  if (isUploadedImage(currentUser?.image)) {
-    try {
-      await fs.unlink(path.join(UPLOAD_DIR, currentUser!.image!));
-    } catch {}
-  }
+  if (currentUser?.image) await deleteAvatarFile(userId, currentUser.image);
 
   return res.send({ data: { image: newImageFilename } });
 }

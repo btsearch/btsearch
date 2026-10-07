@@ -1,11 +1,11 @@
-import { operators, stations } from "@openbts/drizzle";
-import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { removeOperator } from "../../../../features/operators/remove.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -21,17 +21,13 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   const operator = await db.query.operators.findFirst({
     where: {
       id: id,
+      countryCode: LEGACY_COUNTRY_CODE,
     },
   });
   if (!operator) throw new ErrorResponse("NOT_FOUND");
 
   try {
-    await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.delete" }, async (tx, audit) => {
-      const [station] = await tx.select({ id: stations.id }).from(stations).where(eq(stations.operator_id, id)).limit(1);
-      if (station) throw new ErrorResponse("CONFLICT", { message: "Cannot delete an operator that still has stations" });
-      await tx.delete(operators).where(eq(operators.id, id));
-      await audit.log({ entity: "operators", op: "delete", recordId: id, old: operator });
-    });
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "operator.delete" }, (tx, audit) => removeOperator(tx, audit, operator));
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });

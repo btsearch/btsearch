@@ -24,10 +24,8 @@ export function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
-export function formatRelativeTime(dateString: string, t: TFunction): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+export function formatRelativeTime(dateString: string, t: TFunction, now: number): string {
+  const diffMs = now - new Date(dateString).getTime();
   const diffSeconds = Math.floor(diffMs / 1000);
   const diffMinutes = Math.floor(diffSeconds / 60);
   const diffHours = Math.floor(diffMinutes / 60);
@@ -62,6 +60,12 @@ export function formatShortDate(dateString: string | null, locale: string): stri
     month: "short",
     day: "numeric",
   });
+}
+
+const SHORT_UTC_DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" };
+
+export function formatShortUtcDate(dateString: string | null, locale: string): string {
+  return dateString === null ? "-" : new Date(dateString).toLocaleDateString(locale, SHORT_UTC_DATE_FORMAT);
 }
 
 export function formatMonthYear(date: string | Date, locale: string, month: "short" | "long"): string {

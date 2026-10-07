@@ -14,12 +14,14 @@ import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { registerBandsQueryOptions } from "@/features/map/api";
+import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
 import { RatGenerationLabel } from "@/features/shared/RatGenerationLabel";
 import { isPermitExpired, isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import type { PhysicalStation, UkeStation, UkeStationPermit } from "@/types/station";
 
-function groupPermitsByRat(permits: UkeStationPermit[]): Map<string, UkeStationPermit[]> {
+function groupPermitsByRat(permits: UkeStationPermit[], compareRats: (left: string, right: string) => number): Map<string, UkeStationPermit[]> {
   const groups = new Map<string, UkeStationPermit[]>();
 
   for (const permit of permits) {
@@ -37,16 +39,7 @@ function groupPermitsByRat(permits: UkeStationPermit[]): Map<string, UkeStationP
     });
   }
 
-  const ratOrder = ["NR", "LTE", "UMTS", "CDMA", "GSM", "IOT", "OTHER"];
-  const sorted = new Map<string, UkeStationPermit[]>();
-  for (const rat of ratOrder) {
-    if (groups.has(rat)) {
-      const groupGet = groups.get(rat);
-      if (groupGet) sorted.set(rat, groupGet);
-    }
-  }
-
-  return sorted;
+  return new Map([...groups].sort(([left], [right]) => Number(left === "OTHER") - Number(right === "OTHER") || compareRats(left, right)));
 }
 
 type PermitsListProps = {
@@ -54,10 +47,12 @@ type PermitsListProps = {
   permits?: UkeStationPermit[];
   isExternalLoading?: boolean;
   physicalStation?: PhysicalStation;
+  permitHolderNote?: ReactNode;
 };
 
-export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation }: PermitsListProps) {
+export function PermitsList({ stationId, permits: externalPermits, isExternalLoading, physicalStation, permitHolderNote }: PermitsListProps) {
   const { t, i18n } = useTranslation(["stationDetails", "common"]);
+  const { data: compareRats = compareRatsByName } = useQuery({ ...registerBandsQueryOptions(), select: toRegisterRatComparator });
   const {
     data: fetchedPermits = [],
     isLoading,
@@ -68,7 +63,7 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
   } = useQuery(stationPermitsQueryOptions(externalPermits ? undefined : stationId));
 
   const permits = externalPermits ?? fetchedPermits;
-  const permitsByRat = useMemo(() => groupPermitsByRat(permits), [permits]);
+  const permitsByRat = useMemo(() => groupPermitsByRat(permits, compareRats), [permits, compareRats]);
   const ukeStations = useMemo(() => groupPermitsByUkeStation(fetchedPermits), [fetchedPermits]);
   const hasDeviceRegistryData = useMemo(() => permits.some((p) => p.source === "device_registry"), [permits]);
 
@@ -120,7 +115,7 @@ export function PermitsList({ stationId, permits: externalPermits, isExternalLoa
         <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
           <HugeiconsIcon icon={DocumentCodeIcon} className="size-8 mb-2 opacity-20" />
           <p className="text-sm">{t("permits.noPermits")}</p>
-          {physicalStation ? <PermitHolderNote station={physicalStation} /> : null}
+          {physicalStation ? <PermitHolderNote station={physicalStation} /> : permitHolderNote}
         </div>
       </>
     );
@@ -326,7 +321,7 @@ function CollapsiblePermitGroup({ rat, ratPermits, t, i18n, showAntennaData }: C
                             <TooltipTrigger>
                               <Badge
                                 variant="secondary"
-                                className="bg-green-500/10 text-green-600 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
+                                className="bg-green-500/10 text-green-800 dark:text-green-400 text-[11px] px-1.5 py-0 ml-auto cursor-help"
                               >
                                 {t("common:labels.new")}
                               </Badge>

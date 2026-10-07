@@ -20,13 +20,19 @@
     "pemReports": "EMF reports",
     "pemInstallationForm": "Filing form",
     "pemReportsEmpty": "No EMF reports in SI2PEM",
-    "pemReportsError": "Couldn't load the EMF reports"
+    "pemReportsError": "Couldn't load the EMF reports",
+    "region": "Region"
   },
   "sectors": {
     "suggestedCount": "Suggested azimuth count:",
     "empty": "No azimuths",
     "add": "Add azimuth",
-    "reorder": "Reorder {{label}}"
+    "reorder": "Reorder {{label}}",
+    "omnidirectional": "Omnidirectional",
+    "bandsOnSector": "Bands on the azimuth",
+    "noLinkedCells": "No cell of this station has an azimuth assigned",
+    "unlinkedCells_one": "{{count, number}} cell of this station has no azimuth assigned",
+    "unlinkedCells_other": "{{count, number}} cells of this station have no azimuth assigned"
   },
   "si2pemAntennaData": {
     "action": "Antennas",
@@ -36,11 +42,66 @@
     "errorDescription": "The selected SI2PEM report could not be downloaded, or its antenna table could not be parsed. Try again or open the source report",
     "emptyTitle": "No antenna data",
     "emptyDescription": "This report does not contain antenna rows that can be displayed",
-    "antennaNumber": "Antenna {{number}}",
     "unknownModel": "Unknown antenna model",
     "fields": {
       "tiltRange": "Tilt range",
       "measuredTilt": "Measured tilt"
+    },
+    "report": "Report",
+    "reportPosition": "{{position}} of {{total}}",
+    "changesSince": "Changes since {{date}}",
+    "showReportFrom": "Show the report from {{date}}",
+    "tableLabel": "Antennas from the report",
+    "antennaHeights": "Antenna heights",
+    "antennaCount_one": "{{count, number}} antenna",
+    "antennaCount_other": "{{count, number}} antennas",
+    "antennaCountOf_one": "{{shown, number}} of {{count, number}} antenna",
+    "antennaCountOf_other": "{{shown, number}} of {{count, number}} antennas",
+    "directionCount_one": "{{count, number}} direction",
+    "directionCount_other": "{{count, number}} directions",
+    "direction": "Direction {{direction}}",
+    "showAllDirections": "Show all directions",
+    "reportRow": "row {{row}}",
+    "reportRowTitle": "Row {{row}} of the report's table, page {{page}}",
+    "reportPage": "p. {{page}}",
+    "reportPageTitle": "Page {{page}} of the report",
+    "columns": {
+      "height": "Height",
+      "antenna": "Antenna",
+      "bands": "Bands (MHz)",
+      "tilt": "Tilt"
+    },
+    "groups": {
+      "omnidirectional": "Omnidirectional",
+      "undirected": "No direction"
+    },
+    "tilt": {
+      "between": "{{min}} to {{max}}°",
+      "fixed": "fixed"
+    },
+    "loading": {
+      "title": "Reading the antenna table from the report...",
+      "hint": "Opening a report for the first time takes longer."
+    },
+    "failure": {
+      "limitTitle": "Report read limit",
+      "limitDescription": "The limit of 15 report reads per 5 minutes has been used up. Try again in a moment.",
+      "unavailableTitle": "SI2PEM is not responding",
+      "unavailableDescription": "The report could not be downloaded from SI2PEM right now. Try again in a moment or open the source report."
+    },
+    "comparison": {
+      "newTag": "new",
+      "was": "was {{value}}",
+      "added_one": "{{count, number}} new antenna",
+      "added_other": "{{count, number}} new antennas",
+      "changed_one": "{{count, number}} changed",
+      "changed_other": "{{count, number}} changed",
+      "removed_one": "{{count, number}} removed",
+      "removed_other": "{{count, number}} removed",
+      "unchanged": "no changes",
+      "missing": "Not in this report: {{antennas}}",
+      "omnidirectional": "omnidirectional",
+      "failed": "The older report could not be read for comparison."
     }
   },
   "permits": {
@@ -59,7 +120,6 @@
     "sourceUke": "Source: Office of Electronic Communications (UKE)",
     "sourcePermits": "Permits",
     "sourceDeviceRegistry": "Device registry",
-    "sourceRadiolines": "Microwave links",
     "noPermits": "No UKE permits for this station",
     "permitHolder": "At this location, the permit is held by station",
     "ukeStation": "UKE station:",
@@ -95,17 +155,18 @@
     "inactiveStationTitle": "Station marked for deletion",
     "inactiveStationDescription": "This station is no longer active and is pending removal from the database",
     "detailsLoadErrorTitle": "Couldn't load the latest station details",
-    "detailsLoadErrorDescription": "Some information may be incomplete or out of date"
+    "detailsLoadErrorDescription": "Some information may be incomplete or out of date",
+    "atThisLocation": "At this location"
   },
   "comments": {
     "title": "Community comments",
     "unavailable": "Comments are currently unavailable",
     "noCommentsHint": "Be the first to share information about this station",
     "unknownAuthor": "Unknown user",
-    "file": "File",
     "addComment": "Add a comment",
     "placeholder": "Add a comment...",
     "addImages": "Add images",
+    "textRequired": "Add comment text to post these images",
     "removeImage": "Remove image {{number}}",
     "postComment": "Post comment",
     "postFailed": "Couldn't post the comment",
@@ -123,7 +184,11 @@
     "noPhotosHint": "Photos are added when submissions are approved",
     "main": "Main photo",
     "sortOldestFirst": "Oldest first",
-    "sortNewestFirst": "Newest first"
+    "sortNewestFirst": "Newest first",
+    "hidePanel": "Hide photo panel",
+    "showPanel": "Show photo panel",
+    "otherAtLocation": "Other photos from this location",
+    "otherAtLocationHint": "Added at other operators' stations"
   },
   "history": {
     "title": "Station change history",
@@ -152,7 +217,7 @@
       "openPhoto": "Open photo #{{id}} in a new tab",
       "photoPreviewAlt": "Preview of photo #{{id}}",
       "photoPreviewFailed": "Could not load the preview of photo #{{id}}",
-      "photoUnavailable": "Photo #{{id}} is no longer available"
+      "mainPhotoUnavailable": "Photo unavailable (main photo)"
     },
     "titles": {
       "station_create": "Station created",
@@ -176,10 +241,12 @@
       "photos_delete": "Photos removed"
     },
     "fields": {
-      "cell": "Cell",
-      "photo": "Photo",
       "mnoName": "MNO name",
       "uplinkModel": "Microwave link model"
+    },
+    "sources": {
+      "import": "Import",
+      "system": "System"
     }
   }
 }

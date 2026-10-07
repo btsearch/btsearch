@@ -4,7 +4,8 @@
     "contribute": "Zgłoszenia",
     "admin": "Admin",
     "info": "Informacje",
-    "lists": "Moje listy"
+    "lists": "Moje listy",
+    "reference": "Dane referencyjne"
   },
   "items": {
     "mapView": "Widok mapy",
@@ -15,7 +16,7 @@
     "submitStation": "Nowe zgłoszenie",
     "changelog": "Historia zmian",
     "mySubmissions": "Moje zgłoszenia",
-    "dashboard": "Dashboard",
+    "dashboard": "Pulpit",
     "users": "Użytkownicy",
     "stations": "Stacje",
     "submissions": "Zgłoszenia",
@@ -25,7 +26,6 @@
     "lists": "Listy",
     "comments": "Komentarze",
     "auditLogs": "Dziennik zdarzeń",
-    "deletedEntries": "Usunięte wpisy",
     "statistics": "Statystyki",
     "about": "O serwisie",
     "contact": "Kontakt",
@@ -40,7 +40,13 @@
     "fundraiser": "Zbiórka",
     "spectrum": "Pasma częstotliwości",
     "pem": "Pomiary PEM",
-    "hunters": "Łowcy BTS"
+    "hunters": "Łowcy BTS",
+    "countries": "Kraje",
+    "operators": "Operatorzy",
+    "brands": "Marki",
+    "bands": "Pasma",
+    "structureOwners": "Właściciele obiektów",
+    "systemSettings": "Ustawienia systemowe"
   },
   "floating": {
     "label": "Pływająca nawigacja",

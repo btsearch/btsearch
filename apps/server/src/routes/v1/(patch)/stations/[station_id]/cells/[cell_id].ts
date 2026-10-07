@@ -4,13 +4,29 @@ import { createSelectSchema, createUpdateSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../../../constants.js";
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { defineScope } from "../../../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.js";
-import { validateCellARFCNsForBands } from "../../../../../../features/cells/arfcnValidation.js";
-import { checkCellDuplicate, checkLTEClidConsistency, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
-import { type RATUpdateDetails, isNormalRat, updateRATCellDetailsReturning } from "../../../../../../features/cells/ratCellPersistence.js";
+import { validateCellBandsInCountry } from "../../../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicate, checkPciDuplicate } from "../../../../../../features/cells/duplicateCheck.js";
+import {
+  NORMAL_RATS,
+  type RATUpdateDetails,
+  isNormalRat,
+  updateRATCellDetailsReturning,
+} from "../../../../../../features/cells/ratCellPersistence.js";
+import {
+  assertCellUpdateFitsStoredRat,
+  assertCellUpdateSetsNoNsaFields,
+  gsmNullableFields,
+  refuseNsaFields,
+  umtsNullableFields,
+  withNsaFieldsCleared,
+} from "../../../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
@@ -21,7 +37,7 @@ const cellsUpdateSchema = createUpdateSchema(cells)
     createdAt: true,
     updatedAt: true,
   })
-  .extend({ rat: z.enum(["GSM", "CDMA", "UMTS", "LTE", "NR"]).optional() })
+  .extend({ rat: z.enum(NORMAL_RATS).optional() })
   .strict();
 const cellsSelectSchema = createSelectSchema(cells);
 const gsmCellsSelectSchema = createSelectSchema(gsmCells).omit({ cell_id: true }).strict();
@@ -30,14 +46,13 @@ const lteCellsSelectSchema = createSelectSchema(lteCells).omit({ cell_id: true }
 const nrCellsSelectSchema = createSelectSchema(nrCells).omit({ cell_id: true }).strict();
 const cellDetailsSchema = z.union([gsmCellsSelectSchema, umtsCellsSelectSchema, lteCellsSelectSchema, nrCellsSelectSchema]).optional();
 const gsmCellsUpdateSchema = createUpdateSchema(gsmCells)
-  .extend({ lac: z.number().int().min(0).max(65535).optional(), cid: z.number().int().min(0).max(65535).optional() })
+  .extend({ ...gsmNullableFields, lac: z.number().int().min(0).max(65535).optional(), cid: z.number().int().min(0).max(65535).optional() })
   .strict();
 const umtsCellsUpdateSchema = createUpdateSchema(umtsCells)
   .extend({
-    lac: z.number().int().min(0).max(65535).nullable().optional(),
+    ...umtsNullableFields,
     rnc: z.number().int().min(0).max(65535).optional(),
     cid: z.number().int().min(0).max(65535).optional(),
-    arfcn: z.number().int().min(0).max(16383).nullable().optional(),
   })
   .strict();
 const lteCellsUpdateSchema = createUpdateSchema(lteCells)
@@ -52,23 +67,13 @@ const lteCellsUpdateSchema = createUpdateSchema(lteCells)
 const nrCellsUpdateSchema = createUpdateSchema(nrCells)
   .extend({
     nrtac: z.number().int().min(0).max(16777215).nullable().optional(),
-    gnbid: z.number().int().min(0).max(4294967295).nullable().optional(),
+    gnbid: z.number().int().min(0).max(2147483647).nullable().optional(),
     clid: z.number().int().min(0).max(16383).nullable().optional(),
     pci: z.number().int().min(0).max(1007).nullable().optional(),
     arfcn: z.number().int().min(0).max(3279165).nullable().optional(),
   })
   .strict()
-  .superRefine((data, ctx) => {
-    if (data.type === "nsa") {
-      for (const field of ["nrtac", "clid", "gnbid"] as const) {
-        if (data[field] !== null && data[field] !== undefined)
-          ctx.addIssue({ code: "custom", message: `${field} must not be set for NSA NR cells`, path: [field] });
-      }
-      if (data.supports_nr_redcap === true) {
-        ctx.addIssue({ code: "custom", message: "supports_nr_redcap must not be set for NSA NR cells", path: ["supports_nr_redcap"] });
-      }
-    }
-  });
+  .superRefine(refuseNsaFields);
 const requestSchema = cellsUpdateSchema
   .extend({ details: z.unknown().optional() })
   .superRefine(makeDetailsRatRefine({ GSM: gsmCellsUpdateSchema, UMTS: umtsCellsUpdateSchema, LTE: lteCellsUpdateSchema, NR: nrCellsUpdateSchema }));
@@ -108,6 +113,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     with: { lte: true, nr: true },
   });
   if (!cell) throw new ErrorResponse("NOT_FOUND");
+  assertCellUpdateFitsStoredRat(cell, req.body);
 
   if (req.body.details) {
     const lteDetails = req.body.details as z.infer<typeof lteCellsUpdateSchema> | undefined;
@@ -117,19 +123,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     // await checkLTEClidConsistency(station_id, [{ rat: cell.rat, details: identityDetails, excludeCellId: cell_id }]);
   }
 
-  if (req.body.details && cell.rat === "NR") {
-    const nrDetails = req.body.details as z.infer<typeof nrCellsUpdateSchema>;
-    if (nrDetails.type === undefined && cell.nr?.type === "nsa") {
-      for (const field of ["nrtac", "clid", "gnbid"] as const) {
-        if (nrDetails[field] !== null && nrDetails[field] !== undefined) {
-          throw new ErrorResponse("BAD_REQUEST", { message: `${field} must not be set for NSA NR cells` });
-        }
-      }
-      if (nrDetails.supports_nr_redcap === true) {
-        throw new ErrorResponse("BAD_REQUEST", { message: "supports_nr_redcap must not be set for NSA NR cells" });
-      }
-    }
-  }
+  assertCellUpdateSetsNoNsaFields(cell, req.body);
 
   if (req.body.details || req.body.band_id !== undefined) {
     const effectiveBandId = req.body.band_id ?? cell.band_id;
@@ -161,7 +155,7 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
         : cell.rat === "NR"
           ? { arfcn: nrDetails?.arfcn !== undefined ? nrDetails.arfcn : cell.nr?.arfcn }
           : req.body.details;
-    await validateCellARFCNsForBands([{ rat: cell.rat, band_id: effectiveBandId, details: effectiveDetails }]);
+    await validateCellBandsInCountry([{ rat: req.body.rat ?? cell.rat, band_id: effectiveBandId, details: effectiveDetails }], LEGACY_COUNTRY_CODE);
   }
 
   try {
@@ -181,7 +175,15 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
       if (!saved) throw new ErrorResponse("FAILED_TO_UPDATE");
 
       if (details && isNormalRat(saved.rat)) {
-        const existing = await updateRATCellDetailsReturning(tx, saved.rat, cell_id, details as RATUpdateDetails);
+        const featuresByStation = await getStationCountryFeatures([saved.station_id], tx);
+        const features = featuresByStation.get(saved.station_id) ?? disabledCountryFeatures;
+        const existing = await updateRATCellDetailsReturning(
+          tx,
+          saved.rat,
+          cell_id,
+          withNsaFieldsCleared(saved, details as RATUpdateDetails),
+          features,
+        );
         if (!existing)
           throw new ErrorResponse("FAILED_TO_UPDATE", {
             message: `This cell has no ${saved.rat} data assigned. Try removing the cell first and re-adding it with the actual data`,
@@ -216,7 +218,12 @@ const updateCell: Route<RequestData, ResponseData> = {
   url: "/stations/:station_id/cells/:cell_id",
   method: "PATCH",
   schema: schemaRoute,
-  config: { permissions: ["update:cells"] },
+  config: {
+    permissions: ["update:cells"],
+    scope: defineScope<RequestData>((req) => ({
+      stationIds: req.body.station_id === undefined ? [req.params.station_id] : [req.params.station_id, req.body.station_id],
+    })),
+  },
   handler,
 };
 

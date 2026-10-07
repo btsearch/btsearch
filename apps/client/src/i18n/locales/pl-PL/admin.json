@@ -5,21 +5,9 @@
     "editLocation": "Edytuj lokalizację"
   },
   "dashboard": {
-    "thisWeek": "w tym tygodniu",
-    "toReview_one": "zgłoszenie do przejrzenia",
-    "toReview_few": "zgłoszenia do przejrzenia",
-    "toReview_many": "zgłoszeń do przejrzenia",
-    "toReview_other": "zgłoszeń do przejrzenia",
-    "toModerate_one": "komentarz do moderacji",
-    "toModerate_few": "komentarze do moderacji",
-    "toModerate_many": "komentarzy do moderacji",
-    "toModerate_other": "komentarzy do moderacji",
     "queueClear": "Kolejka jest pusta",
     "allSubmissions": "Wszystkie zgłoszenia",
     "allComments": "Wszystkie komentarze",
-    "databaseStats": "Statystyki bazy danych",
-    "dataFreshness": "Aktualność danych",
-    "freshnessFresh": "Aktualne",
     "freshnessStale": "Wymaga aktualizacji",
     "noCommentsToModerate": "Brak komentarzy do moderacji",
     "openImportPage": "Otwórz stronę importu",
@@ -34,6 +22,24 @@
       "cleanup": "Czyszczenie",
       "snapshot": "Snapshot",
       "refresh_statistics": "Odświeżenie statystyk"
+    },
+    "area": "Twój obszar: {{area}}",
+    "noArea": "Nie masz przydzielonego obszaru",
+    "commentQueueOff": "Kolejka komentarzy jest wyłączona",
+    "openSubmission": "Otwórz zgłoszenie: {{label}}",
+    "openOperation": "Otwórz operację: {{label}}",
+    "changes_one": "{{count, number}} zmiana",
+    "changes_few": "{{count, number}} zmiany",
+    "changes_many": "{{count, number}} zmian",
+    "changes_other": "{{count, number}} zmian",
+    "stats": {
+      "activeStations": "Stacje aktywne",
+      "awaitingCellsStations": "Stacje oczekujące na komórki",
+      "inactiveStations": "Stacje nieaktywne",
+      "registerPermits": "Pozwolenia w rejestrze",
+      "registerMicrowaveLinks": "Radiolinie w rejestrze",
+      "permitsImported": "Pozwolenia zaimportowano",
+      "microwaveLinksImported": "Radiolinie zaimportowano"
     }
   },
   "comments": {
@@ -47,105 +53,584 @@
       "approved": "Zatwierdzone"
     },
     "approveSuccess": "Komentarz zatwierdzony",
-    "approveError": "Nie udało się zatwierdzić komentarza",
     "deleteTitle": "Usuń komentarz",
     "deleteDesc": "Czy na pewno chcesz usunąć ten komentarz? Spowoduje to również usunięcie wszystkich załączników. Tej operacji nie można cofnąć",
     "deleteSuccess": "Komentarz usunięty",
-    "deleteError": "Nie udało się usunąć komentarza",
-    "editTitle": "Edytuj komentarz",
     "editSuccess": "Komentarz zaktualizowany",
-    "editError": "Nie udało się zaktualizować komentarza"
+    "status": {
+      "pending": "Oczekuje",
+      "approved": "Zatwierdzony"
+    },
+    "edited": "edytowano {{date}}",
+    "showFullText": "Pokaż całość",
+    "morePhotos": "Jeszcze {{number}}",
+    "sendBackSuccess": "Komentarz cofnięty do oczekujących",
+    "description": "Moderacja komentarzy do stacji",
+    "searchPlaceholder": "Treść komentarza lub ID stacji",
+    "queueLabel": "Kolejka komentarzy",
+    "reviewOff": "Kolejka komentarzy jest wyłączona - nowe komentarze są widoczne od razu",
+    "sendBack": "Cofnij do oczekujących",
+    "options": "Opcje komentarza",
+    "openStation": "Otwórz stację",
+    "sheet": {
+      "title": "Komentarz",
+      "textLabel": "Treść komentarza"
+    },
+    "empty": {
+      "queueDescription": "Nie ma komentarzy do zatwierdzenia",
+      "noMatchTitle": "Brak pasujących komentarzy"
+    }
   },
   "settings": {
     "title": "Ustawienia systemowe",
-    "subtitle": "Zarządzaj konfiguracją systemu",
     "errorTitle": "Nie udało się załadować ustawień",
     "errorDescription": "Wystąpił problem podczas ładowania ustawień systemowych",
-    "authentication": "Uwierzytelnianie",
-    "authenticationDesc": "Kontroluj dostęp i wymagania uwierzytelniania",
-    "enforceAuth": "Wymuś uwierzytelnianie dla wszystkich endpointów",
-    "enforceAuthDesc": "Wymagaj uwierzytelniania dla wszystkich endpointów API",
-    "allowedRoutes": "Dozwolone endpointy API bez uwierzytelniania",
-    "allowedRoutesDesc": "Endpointy API, które omijają uwierzytelnianie (naciśnij Enter, aby dodać)",
-    "disabledRoutes": "Wyłączone endpointy API",
-    "disabledRoutesDesc": "Endpointy API, które są całkowicie wyłączone (naciśnij Enter, aby dodać)",
     "comments": "Komentarze do stacji",
-    "commentsDesc": "Pozwól użytkownikom komentować stacje",
-    "enableComments": "Włącz komentarze",
-    "commentsEnabled": "Użytkownicy mogą komentować stacje",
     "commentsDisabled": "Komentarze są wyłączone",
     "commentQueue": "Kolejka komentarzy",
-    "commentQueueEnabled": "Komentarze wymagają zatwierdzenia przed wyświetleniem",
-    "commentQueueDisabled": "Komentarze są publikowane natychmiast",
-    "submissionsDesc": "Pozwól użytkownikom zgłaszać nowe stacje",
-    "enableSubmissions": "Włącz zgłoszenia",
-    "submissionsEnabled": "Użytkownicy mogą zgłaszać stacje",
     "submissionsDisabled": "Zgłoszenia są wyłączone",
-    "photosDesc": "Pozwól użytkownikom przesyłać zdjęcia wraz ze zgłoszeniami",
-    "enablePhotos": "Włącz zdjęcia",
-    "photosEnabled": "Użytkownicy mogą przesyłać zdjęcia stacji",
-    "photosDisabled": "Przesyłanie zdjęć jest wyłączone",
-    "cleanupTitle": "Czyszczenie danych zgłoszeń",
-    "cleanupDesc": "Usuwa dane proponowane (komórki, stacje, lokalizacje) ze zgłoszeń starszych niż 1 miesiąc. Same rekordy zgłoszeń są zachowane",
-    "cleanupRun": "Uruchom czyszczenie",
-    "cleanupSuccess": "Wyczyszczono dane proponowane z {{count}} zgłoszenia(ń)",
-    "cleanupError": "Nie udało się uruchomić czyszczenia",
-    "cleanupPhotosTitle": "Czyszczenie zdjęć odrzuconych zgłoszeń",
-    "cleanupPhotosDesc": "Usuwa pliki i rekordy zdjęć przesłanych do odrzuconych zgłoszeń, które nie zostały przypisane do żadnej stacji",
-    "cleanupPhotosSuccess": "Usunięto {{count}} osierocone(ych) zdjęcie(ć) z odrzuconych zgłoszeń",
-    "cleanupPhotosError": "Nie udało się uruchomić czyszczenia zdjęć",
     "announcement": "Ogłoszenie",
-    "announcementDesc": "Wyświetl baner z ogłoszeniem dla wszystkich użytkowników",
     "announcementMessage": "Wiadomość",
     "announcementMessagePlaceholder": "Wpisz treść ogłoszenia...",
     "announcementTypeInfo": "Informacja",
     "announcementTypeWarning": "Ostrzeżenie",
     "announcementTypeError": "Błąd",
-    "enableAnnouncement": "Włącz ogłoszenie",
-    "announcementEnabled": "Ogłoszenie jest widoczne dla wszystkich użytkowników",
-    "announcementDisabled": "Ogłoszenie jest ukryte",
     "userLists": "Listy użytkowników",
-    "userListsDesc": "Pozwól użytkownikom tworzyć i udostępniać listy stacji",
-    "enableUserLists": "Włącz listy użytkowników",
-    "userListsEnabled": "Użytkownicy mogą tworzyć i udostępniać listy",
-    "userListsDisabled": "Listy użytkowników są wyłączone"
+    "lead": "Przełączniki i listy tras zapisują się od razu. Każda zmiana trafia do <auditLog>dziennika zdarzeń</auditLog>",
+    "sections": {
+      "maintenance": "Przerwa techniczna",
+      "access": "Dostęp",
+      "features": "Funkcje",
+      "cleanup": "Porządki"
+    },
+    "errors": {
+      "conflict": "Inna zmiana ustawień jest właśnie zapisywana. Spróbuj ponownie za chwilę"
+    },
+    "maintenance": {
+      "title": "Tryb przerwy technicznej",
+      "description": "Odwiedzający zobaczą stronę przerwy technicznej i stracą dostęp do API",
+      "note": "Administratorzy zachowują dostęp do serwisu i API, w tym do tych ustawień",
+      "preview": "Podgląd strony",
+      "confirm": {
+        "title": "Włączyć przerwę techniczną?",
+        "description": "Serwis i API będą niedostępne dla wszystkich poza administratorami, dopóki nie wyłączysz przerwy technicznej",
+        "action": "Włącz"
+      }
+    },
+    "signIn": {
+      "title": "Wymagane logowanie",
+      "description": "Bez zalogowania nie działa ani serwis, ani API. Klucze publiczne (pk_...) też przestają działać",
+      "note": "Wpis <mono>/api/v1/auth</mono> utrzymuje rejestrację i reset hasła. Logowanie i odczyt tych ustawień są zawsze otwarte",
+      "confirm": {
+        "title": "Wymagać logowania?",
+        "description": "Goście stracą dostęp do serwisu i API, poza trasami otwartymi dla gości. Zalogowani nie zauważą zmiany",
+        "action": "Wymagaj logowania"
+      }
+    },
+    "routes": {
+      "remove": "Usuń {{route}}",
+      "open": {
+        "title": "Trasy otwarte dla gości",
+        "description": "Zostają dostępne bez konta. Własne reguły trasy nadal obowiązują",
+        "inactive": "Lista działa tylko przy wymaganym logowaniu",
+        "empty": "Żadna trasa nie jest otwarta",
+        "fieldLabel": "Nowa trasa otwarta dla gości",
+        "help": "Początek trasy, np. <mono>/api/v2/stations</mono>"
+      },
+      "disabled": {
+        "title": "Wyłączone trasy API",
+        "description": "Każde żądanie dostaje odpowiedź 403 - także od administratorów",
+        "empty": "Żadna trasa nie jest wyłączona",
+        "fieldLabel": "Nowa wyłączona trasa",
+        "help": "Początek trasy tak, jak rejestruje ją serwer, np. <mono>/api/v2/stations/:id/comments</mono>",
+        "note": "Nie da się wyłączyć logowania, ustawień ani kontroli stanu serwera",
+        "confirm": {
+          "title": "Wyłączyć trasę?",
+          "description": "Żądania do tras zaczynających się od <mono>{{route}}</mono> dostaną odpowiedź 403, także od administratorów",
+          "action": "Wyłącz trasę"
+        }
+      },
+      "errors": {
+        "empty": "Wpisz początek trasy",
+        "format": "Trasa musi zaczynać się od /api/v1/ albo /api/v2/",
+        "tooLong": "Wpis może mieć najwyżej {{max, number}} znaków",
+        "duplicate": "Ten wpis jest już na liście",
+        "limit": "Lista może mieć najwyżej {{max, number}} wpisów",
+        "unknownRoute": "Żadna trasa nie zaczyna się od {{value}}",
+        "lockout": "Ten wpis wyłączyłby logowanie, ustawienia albo kontrolę stanu serwera",
+        "lockoutNamed": "Wpis {{value}} wyłączyłby logowanie, ustawienia albo kontrolę stanu serwera",
+        "refused": "Serwer odrzucił tę zmianę"
+      }
+    },
+    "features": {
+      "submissions": {
+        "description": "Wysyłanie, przeglądanie i rozpatrywanie zgłoszeń. Każdy kraj otwiera je osobno na swojej stronie",
+        "confirm": {
+          "title": "Wyłączyć zgłoszenia?",
+          "description": "Nikt nie wyśle ani nie rozpatrzy zgłoszenia, także redakcja. Oczekujące zgłoszenia zostają w bazie",
+          "action": "Wyłącz zgłoszenia"
+        }
+      },
+      "photoUploads": {
+        "title": "Zdjęcia w zgłoszeniach",
+        "description": "Do zgłoszenia można dołączyć zdjęcia",
+        "waiting": "Zacznie działać po włączeniu zgłoszeń"
+      },
+      "lists": {
+        "description": "Tworzenie i udostępnianie list stacji"
+      },
+      "comments": {
+        "description": "Czytanie i pisanie komentarzy",
+        "note": "Moderowanie i usuwanie komentarzy działa także wtedy, gdy komentarze są wyłączone"
+      },
+      "commentReview": {
+        "description": "Nowe komentarze czekają na zatwierdzenie, chyba że pisze je moderator",
+        "waiting": "Zacznie działać po włączeniu komentarzy"
+      }
+    },
+    "announcementForm": {
+      "description": "Pasek nad każdą stroną serwisu. Odwiedzający może go zamknąć; po zmianie treści zobaczy go znowu",
+      "visible": "Widoczne",
+      "hidden": "Ukryte",
+      "preview": "Podgląd",
+      "previewEmpty": "Bez wiadomości pasek się nie pokaże",
+      "linksHint": "Adresy stron stają się linkami",
+      "show": "Pokaż ogłoszenie",
+      "showHint": "Pasek zobaczy każdy odwiedzający",
+      "unsaved": "Niezapisane zmiany",
+      "messageRequired": "Wpisz wiadomość, aby pokazać ogłoszenie",
+      "revert": "Cofnij"
+    },
+    "photoCleanup": {
+      "title": "Zdjęcia odrzuconych zgłoszeń",
+      "description": "Serwer usuwa je sam po 30 dniach od odrzucenia. Tutaj usuniesz je od razu. Zdjęcia używane przez lokalizację zostają",
+      "run": "Usuń teraz",
+      "runMore": "Usuń kolejne",
+      "confirm": {
+        "title": "Usunąć zdjęcia odrzuconych zgłoszeń?",
+        "description": "Pliki znikną na stałe. Zdjęcia używane przez lokalizację zostają",
+        "action": "Usuń zdjęcia"
+      },
+      "photoCount_one": "{{count, number}} zdjęcie",
+      "photoCount_few": "{{count, number}} zdjęcia",
+      "photoCount_many": "{{count, number}} zdjęć",
+      "photoCount_other": "{{count, number}} zdjęcia",
+      "submissionCount_one": "{{count, number}} zgłoszenia",
+      "submissionCount_few": "{{count, number}} zgłoszeń",
+      "submissionCount_many": "{{count, number}} zgłoszeń",
+      "submissionCount_other": "{{count, number}} zgłoszenia",
+      "resultDone": "Usunięto {{photos}} z {{submissions}}. Nic więcej nie zostało",
+      "resultMore": "Usunięto {{photos}} z {{submissions}}. Zostały kolejne do usunięcia",
+      "nothing": "Nie było nic do usunięcia"
+    }
   },
   "users": {
     "picker": {
       "searchPlaceholder": "Szukaj użytkowników...",
       "noUsers": "Nie znaleziono użytkowników",
-      "noMatch": "Brak użytkowników pasujących do \"{{search}}\"",
-      "error": "Nie udało się załadować użytkowników",
+      "error": "Nie udało się wczytać użytkowników",
       "selected_one": "{{count, number}} użytkownik",
       "selected_few": "{{count, number}} użytkownicy",
       "selected_many": "{{count, number}} użytkowników",
       "selected_other": "{{count, number}} użytkowników",
-      "allUsers": "Wszyscy użytkownicy"
+      "allUsers": "Wszyscy użytkownicy",
+      "searchLabel": "Szukaj użytkowników",
+      "clearSearch": "Wyczyść wyszukiwanie",
+      "clearSelection": "Wyczyść wybór",
+      "groups": {
+        "selected": "Wybrani",
+        "suggestions": "Podpowiedzi",
+        "results": "Wyniki"
+      },
+      "typeHint": "Wpisz co najmniej 2 znaki nazwy albo nazwy użytkownika",
+      "noUsersHint": "Sprawdź pisownię albo wpisz mniej znaków",
+      "selectedCount": "Wybrano: {{count, number}}",
+      "unknownUser": "Nieznany użytkownik"
     },
     "table": {
       "role": "Rola"
     },
     "filters": {
-      "allRoles": "Wszystkie role",
       "roleUser": "Użytkownik",
-      "active": "Aktywny",
-      "banned": "Zbanowany"
+      "active": "Aktywny"
+    },
+    "shared": {
+      "you": "(Ty)",
+      "grantRoles": {
+        "maintainer": "Opiekun kraju"
+      },
+      "grantScope": {
+        "wholeCountry": "Cały kraj"
+      },
+      "inline": {
+        "maintainer": "opiekun kraju",
+        "wholeCountry": "cały kraj",
+        "allCountries": "wszystkie kraje"
+      },
+      "status": {
+        "banned": "Zablokowany"
+      },
+      "ban": {
+        "durations": {
+          "day": "1 dzień",
+          "week": "7 dni",
+          "month": "30 dni",
+          "permanent": "Bezterminowo"
+        },
+        "until": "do {{date}}",
+        "untilSentence": "Do {{date}}",
+        "permanent": "bezterminowo",
+        "reason": "Powód: {{reason}}",
+        "noReason": "nie podano",
+        "summary": "{{reason}}. {{until}}"
+      },
+      "errors": {
+        "cannotBanYourself": "Nie możesz zablokować własnego konta",
+        "cannotRemoveYourself": "Nie możesz usunąć własnego konta",
+        "emailInUse": "Ten adres e-mail jest już używany przez inne konto",
+        "invalidEmail": "Nieprawidłowy adres e-mail",
+        "passwordTooLong": "Hasło może mieć najwyżej 128 znaków"
+      }
+    },
+    "detail": {
+      "hero": {
+        "allCountries": "Dostęp we wszystkich krajach",
+        "grantCountries_one": "Uprawnienia w {{count, number}} kraju",
+        "grantCountries_few": "Uprawnienia w {{count, number}} krajach",
+        "grantCountries_many": "Uprawnienia w {{count, number}} krajach",
+        "grantCountries_other": "Uprawnienia w {{count, number}} kraju",
+        "sessions_one": "{{count, number}} aktywna sesja",
+        "sessions_few": "{{count, number}} aktywne sesje",
+        "sessions_many": "{{count, number}} aktywnych sesji",
+        "sessions_other": "{{count, number}} aktywnej sesji",
+        "emailUnverified": "E-mail niezweryfikowany",
+        "banned": "Zablokowane {{until}}"
+      },
+      "account": {
+        "data": {
+          "description": "Nazwa, nazwa użytkownika i opis widoczne na profilu",
+          "avatar": {
+            "uploaded": "Przesłane przez użytkownika",
+            "external": "Z konta zewnętrznego",
+            "none": "Brak zdjęcia - widoczne są inicjały",
+            "remove": "Usuń zdjęcie",
+            "removeConfirmDescription": "Zamiast zdjęcia konta {{name}} będą widoczne inicjały"
+          },
+          "changedOnly": "Wysyłane są tylko zmienione pola"
+        },
+        "email": {
+          "description": "Adres do logowania i powiadomień",
+          "changeHint": "Nowy adres wymaga ponownej weryfikacji",
+          "sameAddress": "To jest obecny adres tego konta",
+          "changeSuccess": "Adres e-mail zmieniony",
+          "resendIn": "Wyślij ponownie za {{seconds}} s",
+          "markVerified": "Oznacz jako zweryfikowany",
+          "markVerifiedSuccess": "Adres e-mail oznaczony jako zweryfikowany"
+        },
+        "details": {
+          "copyId": "Kopiuj ID",
+          "profile": "Profil",
+          "visibility": {
+            "public": "Publiczny",
+            "private": "Prywatny"
+          }
+        }
+      },
+      "moderation": {
+        "title": "Moderacja",
+        "ban": {
+          "title": "Zablokuj konto",
+          "description": "Wylogowuje ze wszystkich urządzeń i nie pozwala się zalogować przez wybrany czas",
+          "action": "Zablokuj",
+          "banned": "Konto zablokowane",
+          "change": "Zmień",
+          "unban": "Odblokuj",
+          "unbanSuccess": "Konto odblokowane"
+        },
+        "banDialog": {
+          "description": "Konto {{name}} zostanie wylogowane ze wszystkich urządzeń i nie zaloguje się do końca blokady",
+          "changeTitle": "Zmień blokadę",
+          "changeDescription": "Nowy powód i czas trwania zastąpią obecną blokadę konta {{name}}. Czas liczy się od teraz",
+          "reason": "Powód",
+          "reasonHint": "Widoczny dla administratorów w historii konta",
+          "duration": "Czas trwania",
+          "expiresAt": "Blokada wygaśnie {{date}}",
+          "noExpiry": "Blokada obowiązuje do odblokowania konta",
+          "changeSuccess": "Blokada zmieniona"
+        },
+        "notice": {
+          "title": "Konto zablokowane {{until}}",
+          "bannedBy": "Zablokowane przez <user>{{name}}</user> {{date}}",
+          "bannedOn": "Zablokowane {{date}}"
+        },
+        "delete": {
+          "description": "Usuwa konto wraz z komentarzami i listami. Zgłoszenia i zdjęcia zostają bez autora",
+          "confirmTitle": "Usunąć konto {{name}}?",
+          "confirmDescription": "Konto, komentarze, listy i obserwowane stacje zostaną trwale usunięte. Zgłoszenia i zdjęcia zostaną bez autora. Tej operacji nie można cofnąć",
+          "success": "Konto usunięte"
+        }
+      },
+      "states": {
+        "ownAccount": {
+          "title": "To Twoje konto",
+          "description": "Rolę, blokadę i usunięcie własnego konta zmienia inny administrator. Dane i hasło zmienisz w ustawieniach"
+        }
+      },
+      "roles": {
+        "title": "Rola i uprawnienia",
+        "roleCard": {
+          "description": "Decyduje o tym, co konto może robić w serwisie",
+          "note": "Rolę redaktora nadaje pierwsze uprawnienie w kraju, a usunięcie ostatniego ją odbiera",
+          "lockedNote": "Własnej roli nie można zmienić"
+        },
+        "options": {
+          "user": "Zgłasza zmiany, komentuje i dodaje zdjęcia",
+          "editor": "Edytuje dane i rozpatruje zgłoszenia w nadanych krajach",
+          "admin": "Ma pełny dostęp we wszystkich krajach i zarządza użytkownikami"
+        },
+        "confirm": {
+          "grantLabel": "Nadaj rolę",
+          "revokeLabel": "Odbierz rolę",
+          "promoteAdmin": {
+            "title": "Nadać rolę administratora?",
+            "description": "Konto {{name}} otrzyma pełny dostęp we wszystkich krajach",
+            "descriptionWithGrants_one": "Konto {{name}} otrzyma pełny dostęp we wszystkich krajach. Uprawnienia w {{count, number}} kraju zostaną usunięte, bo administrator ich nie potrzebuje",
+            "descriptionWithGrants_few": "Konto {{name}} otrzyma pełny dostęp we wszystkich krajach. Uprawnienia w {{count, number}} krajach zostaną usunięte, bo administrator ich nie potrzebuje",
+            "descriptionWithGrants_many": "Konto {{name}} otrzyma pełny dostęp we wszystkich krajach. Uprawnienia w {{count, number}} krajach zostaną usunięte, bo administrator ich nie potrzebuje",
+            "descriptionWithGrants_other": "Konto {{name}} otrzyma pełny dostęp we wszystkich krajach. Uprawnienia w {{count, number}} kraju zostaną usunięte, bo administrator ich nie potrzebuje"
+          },
+          "demoteAdmin": {
+            "title": "Odebrać rolę administratora?",
+            "toEditor": "Konto {{name}} straci pełny dostęp i zostanie redaktorem z domyślnym uprawnieniem. Jego zakres zmienisz w karcie Uprawnienia w krajach",
+            "toUser": "Konto {{name}} straci pełny dostęp i wróci do roli użytkownika"
+          },
+          "demoteEditor": {
+            "title": "Odebrać rolę redaktora?",
+            "description": "Konto {{name}} straci wszystkie uprawnienia w krajach i wróci do roli użytkownika",
+            "descriptionWithGrants_one": "Usunięte zostaną uprawnienia w {{count, number}} kraju: {{countries}}. Konto wróci do roli użytkownika",
+            "descriptionWithGrants_few": "Usunięte zostaną uprawnienia w {{count, number}} krajach: {{countries}}. Konto wróci do roli użytkownika",
+            "descriptionWithGrants_many": "Usunięte zostaną uprawnienia w {{count, number}} krajach: {{countries}}. Konto wróci do roli użytkownika",
+            "descriptionWithGrants_other": "Usunięte zostaną uprawnienia w {{count, number}} kraju: {{countries}}. Konto wróci do roli użytkownika"
+          }
+        },
+        "changeSuccess": "Rola zmieniona"
+      },
+      "grants": {
+        "title": "Uprawnienia w krajach",
+        "description": "Kraje i regiony, w których konto edytuje dane",
+        "add": "Dodaj",
+        "addGrant": "Dodaj uprawnienie",
+        "maintainerNote": "Opiekun kraju zarządza redaktorami swojego kraju i ma wgląd w jego dziennik zdarzeń",
+        "loadFailed": "Nie udało się wczytać uprawnień",
+        "empty": {
+          "title": "Brak uprawnień",
+          "userDescription": "Dodaj uprawnienie w kraju, a konto zostanie redaktorem",
+          "editorDescription": "Konto ma rolę redaktora, ale nie może edytować danych w żadnym kraju"
+        },
+        "admin": {
+          "title": "Administrator edytuje dane we wszystkich krajach",
+          "description": "Uprawnienia w krajach nie są mu potrzebne"
+        },
+        "grantedBy": "Nadane przez <user>{{name}}</user>",
+        "grantedOn": "Nadane {{date}}",
+        "changeScope": "Zmień zakres",
+        "removeGrant": "Usuń uprawnienie",
+        "remove": {
+          "title": "Usunąć uprawnienie?",
+          "description": "Konto {{name}} straci uprawnienie: {{country}}, {{role}}",
+          "lastDescription": "To ostatnie uprawnienie tego konta. Po usunięciu konto {{name}} wróci do roli użytkownika",
+          "success": "Uprawnienie usunięte"
+        },
+        "dialog": {
+          "addDescription": "Konto {{name}} będzie mogło edytować dane w wybranym kraju",
+          "addSuccess": "Uprawnienie dodane",
+          "country": "Kraj",
+          "countryPlaceholder": "Wybierz kraj",
+          "countriesLoadFailed": "Nie udało się wczytać krajów",
+          "noCountries": "Konto ma już to uprawnienie w każdym kraju",
+          "role": "Rola w kraju",
+          "roleHints": {
+            "editor": "Edytuje dane i rozpatruje zgłoszenia w wybranym zakresie",
+            "maintainer": "Edytuje dane w całym kraju, zarządza jego redaktorami i ma wgląd w jego dziennik zdarzeń"
+          },
+          "scope": "Zakres",
+          "scopeRegions": "Wybrane regiony",
+          "maintainerScopeHint": "Opiekun kraju zawsze obejmuje cały kraj",
+          "regions": "Regiony",
+          "regionsPlaceholder": "Dodaj region...",
+          "regionsHint": "Wybierz co najmniej jeden region",
+          "regionsNeedCountry": "Najpierw wybierz kraj",
+          "regionsLoadFailed": "Nie udało się wczytać regionów",
+          "fixedNote": "Kraju i roli nie da się zmienić. Usuń uprawnienie i dodaj nowe",
+          "editSuccess": "Zakres zmieniony"
+        }
+      },
+      "security": {
+        "signIn": {
+          "title": "Logowanie",
+          "description": "Hasło i weryfikacja dwuetapowa"
+        },
+        "password": {
+          "set": "Konto ma ustawione hasło",
+          "missing": "Konto nie ma hasła - logowanie odbywa się kluczem dostępu lub kontem zewnętrznym",
+          "setNew": "Ustaw nowe",
+          "loadFailed": "Nie udało się sprawdzić, czy konto ma hasło",
+          "dialogDescription": "Nowe hasło do konta {{name}}",
+          "sessionsNote": "Urządzenia, na których konto jest zalogowane, pozostaną zalogowane"
+        },
+        "twoFactor": {
+          "enabled": "Jest włączona na tym koncie",
+          "disabled": "Nie została włączona na tym koncie"
+        },
+        "requireTwoFactor": {
+          "title": "Wymagaj weryfikacji dwuetapowej",
+          "description": "Bez niej konto nie skorzysta z serwisu, dopóki jej nie włączy",
+          "needsPassword": "Najpierw ustaw hasło - bez niego konto nie włączy weryfikacji dwuetapowej",
+          "enabledToast": "Weryfikacja dwuetapowa jest teraz wymagana",
+          "disabledToast": "Weryfikacja dwuetapowa nie jest już wymagana"
+        },
+        "sessions": {
+          "description": "Urządzenia, na których konto jest zalogowane",
+          "revokeAll": "Unieważnij wszystkie",
+          "revoke": "Unieważnij sesję",
+          "count_one": "{{count, number}} sesja",
+          "count_few": "{{count, number}} sesje",
+          "count_many": "{{count, number}} sesji",
+          "count_other": "{{count, number}} sesji",
+          "expires": "Wygasa {{time}}",
+          "expiresAt": "Wygasa o {{time}}",
+          "openedBy": "Otwarta przez <user>{{name}}</user> o {{time}}",
+          "openedAt": "Otwarta o {{time}}",
+          "adminSession": "Sesja administratora",
+          "empty": {
+            "title": "Brak aktywnych sesji",
+            "description": "Konto nie jest zalogowane na żadnym urządzeniu",
+            "bannedDescription": "Blokada wylogowała konto ze wszystkich urządzeń"
+          },
+          "revokeAllConfirm": {
+            "title": "Unieważnić wszystkie sesje?",
+            "description": "Konto {{name}} zostanie wylogowane ze wszystkich urządzeń"
+          },
+          "revokeAllSuccess": "Wszystkie sesje unieważnione"
+        }
+      },
+      "activity": {
+        "title": "Aktywność",
+        "contribution": {
+          "title": "Wkład",
+          "description": "Otwiera listę z filtrem ustawionym na to konto",
+          "loadFailed": "Nie udało się wczytać aktywności konta",
+          "submissions": {
+            "pending_one": "{{count, number}} oczekujące",
+            "pending_few": "{{count, number}} oczekujące",
+            "pending_many": "{{count, number}} oczekujących",
+            "pending_other": "{{count, number}} oczekującego",
+            "accepted_one": "{{count, number}} zatwierdzone",
+            "accepted_few": "{{count, number}} zatwierdzone",
+            "accepted_many": "{{count, number}} zatwierdzonych",
+            "accepted_other": "{{count, number}} zatwierdzonego",
+            "rejected_one": "{{count, number}} odrzucone",
+            "rejected_few": "{{count, number}} odrzucone",
+            "rejected_many": "{{count, number}} odrzuconych",
+            "rejected_other": "{{count, number}} odrzuconego"
+          },
+          "comments": {
+            "pending_one": "{{count, number}} oczekujący",
+            "pending_few": "{{count, number}} oczekujące",
+            "pending_many": "{{count, number}} oczekujących",
+            "pending_other": "{{count, number}} oczekującego",
+            "approved_one": "{{count, number}} zatwierdzony",
+            "approved_few": "{{count, number}} zatwierdzone",
+            "approved_many": "{{count, number}} zatwierdzonych",
+            "approved_other": "{{count, number}} zatwierdzonego"
+          },
+          "auditOperations": {
+            "title": "Operacje w dzienniku zdarzeń",
+            "description": "Zmiany, których autorem lub wykonawcą jest to konto"
+          }
+        },
+        "history": {
+          "title": "Historia konta",
+          "description": "Zmiany roli, blokady i danych logowania",
+          "loadFailed": "Nie udało się wczytać historii konta",
+          "emptyDescription": "Zmiany roli, blokady, adresu e-mail i hasła pojawią się tutaj",
+          "banExpired": "Blokada wygasła",
+          "banDetails": "{{reason}}, {{until}}"
+        }
+      }
+    },
+    "list": {
+      "description": "Konta, role i uprawnienia redaktorów w krajach",
+      "searchPlaceholder": "Nazwa, nazwa użytkownika lub e-mail",
+      "status": {
+        "all": "Wszyscy",
+        "active": "Aktywni",
+        "banned": "Zablokowani"
+      },
+      "columns": {
+        "user": "Użytkownik"
+      },
+      "empty": {
+        "title": "Brak pasujących kont",
+        "description": "Zmień wyszukiwane hasło albo filtry"
+      }
     }
   },
   "lists": {
     "table": {
       "createdBy": "Utworzono przez",
-      "visibility": "Widoczność",
-      "empty": "Nie znaleziono list",
-      "emptyHint": "Brak list pasujących do wyszukiwania"
+      "visibility": "Widoczność"
     },
     "confirmDeleteTitle": "Usuń listę",
     "confirmDeleteDesc": "Czy na pewno chcesz usunąć \"{{name}}\"? Tej operacji nie można cofnąć",
     "deleteSuccess": "Lista została usunięta",
-    "deleteError": "Nie udało się usunąć listy"
+    "description": "Listy stacji i radiolinii utworzone przez użytkowników",
+    "searchPlaceholder": "Nazwa listy",
+    "owner": "Właściciel",
+    "visibilityFilter": {
+      "public": "Publiczne",
+      "private": "Prywatne"
+    },
+    "stationsPlusOfficial": "{{stations}} + {{officialSites, number}} UKE",
+    "stationsTip": {
+      "database_one": "{{count, number}} stacja z bazy",
+      "database_few": "{{count, number}} stacje z bazy",
+      "database_many": "{{count, number}} stacji z bazy",
+      "database_other": "{{count, number}} stacji z bazy",
+      "official_one": "{{count, number}} stacja z rejestru UKE",
+      "official_few": "{{count, number}} stacje z rejestru UKE",
+      "official_many": "{{count, number}} stacji z rejestru UKE",
+      "official_other": "{{count, number}} stacji z rejestru UKE",
+      "both": "{{database}} i {{official}}"
+    },
+    "contents": {
+      "officialSites_one": "{{count, number}} stacja UKE",
+      "officialSites_few": "{{count, number}} stacje UKE",
+      "officialSites_many": "{{count, number}} stacji UKE",
+      "officialSites_other": "{{count, number}} stacji UKE"
+    },
+    "menu": {
+      "openOnMap": "Otwórz na mapie",
+      "rename": "Zmień nazwę i opis",
+      "ownerAdminProfile": "Profil właściciela w panelu"
+    },
+    "edit": {
+      "ownerLine": "Lista użytkownika {{name}}",
+      "nameTaken": "Właściciel ma już listę o tej nazwie"
+    },
+    "empty": {
+      "title": "Nie ma jeszcze żadnych list",
+      "description": "Listy utworzone przez użytkowników pojawią się tutaj"
+    },
+    "off": {
+      "title": "Listy są wyłączone",
+      "description": "Dopóki listy są wyłączone, nie można ich przeglądać, zmieniać ani usuwać"
+    }
   },
   "locations": {
-    "searchPlaceholder": "Szukaj po mieście lub adresie..."
+    "list": {
+      "searchPlaceholder": "Szukaj po mieście, adresie lub ID stacji..."
+    }
   },
   "ukeImport": {
     "subtitle": "Importuj dane z UKE (Urząd Komunikacji Elektronicznej)",
@@ -233,7 +718,8 @@
       "kindsCount_few": "{{count, number}} operacje",
       "kindsCount_many": "{{count, number}} operacji",
       "kindsCount_other": "{{count, number}} operacji",
-      "recordId": "ID rekordu"
+      "recordId": "ID rekordu",
+      "allCountries": "Wszystkie kraje"
     },
     "empty": {
       "title": "Nie znaleziono logów",
@@ -258,14 +744,19 @@
       "submission": "Zgłoszenia",
       "comment": "Komentarze",
       "operator": "Operatorzy",
+      "brand": "Marki",
       "band": "Pasma",
       "region": "Województwa",
+      "country": "Kraje",
+      "grant": "Uprawnienia redaktorów",
+      "user": "Użytkownicy",
       "list": "Listy użytkowników",
       "settings": "Ustawienia",
       "uke": "Import UKE",
       "analyzer": "Analizator",
       "system": "System",
-      "revert": "Cofnięcia"
+      "revert": "Cofnięcia",
+      "structure_owner": "Właściciele obiektów"
     },
     "kinds": {
       "station": {
@@ -307,6 +798,11 @@
         "update": "Aktualizacja operatora",
         "delete": "Usunięcie operatora"
       },
+      "brand": {
+        "create": "Utworzenie marki",
+        "update": "Aktualizacja marki",
+        "delete": "Usunięcie marki"
+      },
       "band": {
         "create": "Utworzenie pasma",
         "update": "Aktualizacja pasma",
@@ -316,6 +812,25 @@
         "create": "Utworzenie województwa",
         "update": "Aktualizacja województwa",
         "delete": "Usunięcie województwa"
+      },
+      "country": {
+        "create": "Utworzenie kraju",
+        "update": "Aktualizacja kraju",
+        "delete": "Usunięcie kraju",
+        "bands": "Plan pasm kraju"
+      },
+      "grant": {
+        "create": "Nadanie uprawnień redaktora",
+        "update": "Zmiana uprawnień redaktora",
+        "delete": "Odebranie uprawnień redaktora"
+      },
+      "user": {
+        "role": "Zmiana roli użytkownika",
+        "ban": "Zablokowanie użytkownika",
+        "unban": "Odblokowanie użytkownika",
+        "delete": "Usunięcie użytkownika",
+        "email": "Zmiana adresu e-mail użytkownika",
+        "password": "Zmiana hasła użytkownika"
       },
       "list": {
         "create": "Utworzenie listy",
@@ -332,7 +847,12 @@
         "inactive_cleanup": "Czyszczenie nieaktywnych stacji",
         "submission_cleanup": "Czyszczenie zgłoszeń"
       },
-      "revert": "Cofnięcie zmian"
+      "revert": "Cofnięcie zmian",
+      "structure_owner": {
+        "create": "Utworzenie właściciela obiektów",
+        "update": "Aktualizacja właściciela obiektów",
+        "delete": "Usunięcie właściciela obiektów"
+      }
     },
     "entities": {
       "stations": "Stacje",
@@ -347,10 +867,16 @@
       "submissions": "Zgłoszenia",
       "submission_photos": "Zdjęcia zgłoszeń",
       "operators": "Operatorzy",
+      "brands": "Marki",
       "bands": "Pasma",
       "regions": "Województwa",
+      "countries": "Kraje",
+      "country_bands": "Plan pasm",
+      "role_grants": "Uprawnienia redaktorów",
+      "users": "Użytkownicy",
       "user_lists": "Listy użytkowników",
-      "settings": "Ustawienia"
+      "settings": "Ustawienia",
+      "structure_owners": "Właściciele obiektów"
     },
     "ops": {
       "create": "Utworzenie",
@@ -406,6 +932,10 @@
       "operators_few": "{{count, number}} operatorzy",
       "operators_many": "{{count, number}} operatorów",
       "operators_other": "{{count, number}} operatorów",
+      "brands_one": "{{count, number}} marka",
+      "brands_few": "{{count, number}} marki",
+      "brands_many": "{{count, number}} marek",
+      "brands_other": "{{count, number}} marek",
       "bands_one": "{{count, number}} pasmo",
       "bands_few": "{{count, number}} pasma",
       "bands_many": "{{count, number}} pasm",
@@ -414,6 +944,22 @@
       "regions_few": "{{count, number}} województwa",
       "regions_many": "{{count, number}} województw",
       "regions_other": "{{count, number}} województw",
+      "countries_one": "{{count, number}} kraj",
+      "countries_few": "{{count, number}} kraje",
+      "countries_many": "{{count, number}} krajów",
+      "countries_other": "{{count, number}} krajów",
+      "country_bands_one": "{{count, number}} zmiana planu pasm",
+      "country_bands_few": "{{count, number}} zmiany planu pasm",
+      "country_bands_many": "{{count, number}} zmian planu pasm",
+      "country_bands_other": "{{count, number}} zmian planu pasm",
+      "role_grants_one": "{{count, number}} zmiana uprawnień redaktora",
+      "role_grants_few": "{{count, number}} zmiany uprawnień redaktora",
+      "role_grants_many": "{{count, number}} zmian uprawnień redaktora",
+      "role_grants_other": "{{count, number}} zmian uprawnień redaktora",
+      "users_one": "{{count, number}} użytkownik",
+      "users_few": "{{count, number}} użytkowników",
+      "users_many": "{{count, number}} użytkowników",
+      "users_other": "{{count, number}} użytkowników",
       "user_lists_one": "{{count, number}} lista użytkownika",
       "user_lists_few": "{{count, number}} listy użytkownika",
       "user_lists_many": "{{count, number}} list użytkownika",
@@ -422,7 +968,11 @@
       "settings_few": "{{count, number}} ustawienia",
       "settings_many": "{{count, number}} ustawień",
       "settings_other": "{{count, number}} ustawień",
-      "other": "{{count, number}} × {{entity}}"
+      "other": "{{count, number}} x {{entity}}",
+      "structure_owners_one": "{{count, number}} właściciel obiektów",
+      "structure_owners_few": "{{count, number}} właścicieli obiektów",
+      "structure_owners_many": "{{count, number}} właścicieli obiektów",
+      "structure_owners_other": "{{count, number}} właścicieli obiektów"
     },
     "revert": {
       "action": "Cofnij operację",
@@ -461,6 +1011,835 @@
         "missingOldValues": "Poprzednie wartości nie zostały zapisane",
         "missingNewValues": "Nowe wartości nie zostały zapisane",
         "missingDetails": "Wymagane szczegóły rekordu nie zostały zapisane"
+      }
+    }
+  },
+  "reference": {
+    "errors": {
+      "country": {
+        "exists": "Ten kraj już istnieje",
+        "inUse": "Kraj ma jeszcze regiony, operatorów, właścicieli obiektów albo uprawnienia redaktorów",
+        "notFound": "Ten kraj nie istnieje",
+        "codeFormat": "Kod kraju to dwie wielkie litery",
+        "viewNorthBelowSouth": "Północ musi być większa niż południe"
+      },
+      "bandPlan": {
+        "bandInUse": "Tego pasma używają jeszcze komórki w tym kraju"
+      },
+      "region": {
+        "taken": "W tym kraju jest już region o tym kodzie albo tej nazwie",
+        "isoCodeTaken": "Ten kod ISO ma już inny region",
+        "isoCodePrefix": "Kod ISO musi zaczynać się od {{value}}",
+        "isoCodeFormat": "Kod ISO to kod kraju, myślnik i od 1 do 3 liter albo cyfr, na przykład PL-14",
+        "hasLocations": "Do tego regionu należą jeszcze lokalizacje, także te z rejestru pozwoleń albo ze zgłoszeń",
+        "hasGrants": "Jedno z uprawnień redaktorów jest ograniczone do tego regionu"
+      },
+      "band": {
+        "codeUnknown": "Tego kodu nie ma w katalogu 3GPP",
+        "uplinkOnly": "Pasmo, które ma tylko uplink, nie może mieć komórek",
+        "otherTechnology": "Technologii pasma nie da się zmienić. Wybierz kod tej samej technologii",
+        "exists": "To pasmo już istnieje jako {{value}}",
+        "nameTaken": "Ta nazwa pasma jest już zajęta",
+        "inUse": "Tego pasma używają jeszcze komórki albo zgłoszenia"
+      },
+      "brand": {
+        "slugTaken": "Marka o tym slugu już istnieje",
+        "inUse": "Tej marki używają jeszcze operatorzy, operatorzy radiolinii albo właściciele obiektów",
+        "notFound": "Ta marka już nie istnieje",
+        "slugFormat": "Slug to małe litery i cyfry, słowa rozdzielone myślnikiem",
+        "colorFormat": "Kolor zapisuje się jako #RRGGBB"
+      },
+      "logo": {
+        "notSent": "Serwer nie dostał pliku z logo",
+        "tooLarge": "Plik z logo jest za duży",
+        "type": "Logo musi być plikiem SVG, PNG albo WebP",
+        "svgSize": "Logo SVG musi mieć viewBox albo szerokość i wysokość w pikselach",
+        "tooLow": "Logo musi mieć co najmniej {{value}} px wysokości"
+      },
+      "operator": {
+        "nameTaken": "W tym kraju jest już operator o tej nazwie",
+        "notFound": "Ten operator już nie istnieje",
+        "hasStations": "Operator ma jeszcze stacje",
+        "hasOfficialSites": "Operator ma jeszcze wpisy w rejestrze pozwoleń",
+        "hasMembers": "Ta wspólna sieć ma jeszcze członków",
+        "inPendingSubmission": "Tego operatora wskazuje jeszcze oczekujące zgłoszenie"
+      },
+      "plmn": {
+        "taken": "Jeden z tych kodów PLMN należy już do innego operatora",
+        "format": "Kod PLMN to trzycyfrowy MCC i dwu- albo trzycyfrowy MNC",
+        "repeated": "Każdy kod PLMN może wystąpić tylko raz",
+        "severalPrimary": "Operator ma najwyżej jeden kod główny"
+      },
+      "link": {
+        "notFound": "Wybrana wspólna sieć już nie istnieje",
+        "otherCountry": "Wspólna sieć musi być operatorem z tego samego kraju",
+        "self": "Operator nie może być członkiem samego siebie",
+        "isMember": "Wybrana sieć jest już członkiem tego operatora",
+        "repeated": "Każda wspólna sieć może wystąpić tylko raz"
+      },
+      "owner": {
+        "operatorOtherCountry": "Operator jest z innego kraju niż właściciel obiektów",
+        "nameTaken": "W tym kraju jest już właściciel obiektów o tej nazwie",
+        "nameTakenWithoutCountry": "Właściciel obiektów o tej nazwie i bez kraju już istnieje",
+        "operatorTaken": "Ten operator ma już wpis wśród właścicieli obiektów",
+        "usedInOtherCountries": "Tego właściciela używają lokalizacje w innych krajach, więc nie można przypisać go do jednego kraju",
+        "hasLocations": "Tego właściciela używają jeszcze lokalizacje",
+        "inPendingSubmission": "Tego właściciela wskazuje jeszcze oczekujące zgłoszenie"
+      },
+      "team": {
+        "maintainerAdminOnly": "Opiekuna powołuje i odwołuje tylko administrator",
+        "otherCountry": "Redaktorami tego kraju zarządza tylko jego opiekun albo administrator",
+        "grantExists": "To konto ma już takie uprawnienie w tym kraju",
+        "grantForAdministrator": "Administrator ma już dostęp we wszystkich krajach",
+        "regionsOtherCountry": "Każdy region musi należeć do kraju, którego dotyczy uprawnienie"
+      },
+      "general": {
+        "recordInUse": "Nie można usunąć wpisu, którego używają jeszcze inne dane",
+        "duplicate": "Taki wpis już istnieje",
+        "notFound": "Ten wpis już nie istnieje",
+        "forbidden": "Nie masz uprawnień do tej operacji",
+        "invalid": "Serwer odrzucił te dane jako nieprawidłowe"
+      }
+    },
+    "country": {
+      "regions": {
+        "title": "Regiony",
+        "description": "Jednostki podziału kraju. Każda lokalizacja należy do jednego regionu",
+        "add": "Dodaj region",
+        "loadFailed": "Nie udało się wczytać regionów",
+        "outlineNote": "Lokalizacja trafia do regionu, w którego obrysie leży. Obrysy wgrywa skrypt importu na podstawie kodu ISO, nie ten panel",
+        "columns": {
+          "code": "Kod",
+          "isoCode": "Kod ISO",
+          "activeStations": "Aktywne stacje",
+          "locations": "Lokalizacje"
+        },
+        "editRegion": "Edytuj region {{name}}",
+        "deleteRegion": "Usuń region {{name}}",
+        "rowActions": "Działania: {{name}}",
+        "stations_one": "stacja",
+        "stations_few": "stacje",
+        "stations_many": "stacji",
+        "stations_other": "stacji",
+        "showRest_one": "Pokaż pozostały region",
+        "showRest_few": "Pokaż pozostałe {{count, number}}",
+        "showRest_many": "Pokaż pozostałe {{count, number}}",
+        "showRest_other": "Pokaż pozostałe {{count, number}}",
+        "empty": {
+          "title": "Ten kraj nie ma jeszcze regionów",
+          "description": "Dodaj pierwszy region, żeby można było tworzyć lokalizacje",
+          "readOnlyDescription": "Regiony dodaje administrator"
+        },
+        "dialog": {
+          "addDescription": "Nowy region w kraju {{country}}",
+          "editTitle": "Edytuj region",
+          "editDescription": "Region w kraju {{country}}",
+          "codeHint": "Od 1 do 3 znaków",
+          "isoCodeHint": "Opcjonalny",
+          "isoCodeInvalid": "Od 1 do 3 liter (A-Z) albo cyfr",
+          "isoCodeNote": "Po kodzie ISO import granic rozpoznaje, do którego regionu należy obrys",
+          "addSuccess": "Region dodany",
+          "saveSuccess": "Region zapisany",
+          "saveFailed": "Nie udało się zapisać regionu"
+        },
+        "remove": {
+          "title": "Usunąć region?",
+          "description": "Region {{name}} zniknie razem ze swoim obrysem. Zmianę można cofnąć w dzienniku zdarzeń, ale obrys trzeba będzie wgrać ponownie",
+          "confirm": "Usuń region",
+          "success": "Region usunięty",
+          "failed": "Nie udało się usunąć regionu",
+          "refusedTitle": "Nie można usunąć regionu"
+        }
+      },
+      "bandPlan": {
+        "title": "Plan pasm",
+        "description": "Pasma, na których stacje w tym kraju mogą mieć komórki. Kliknięcie od razu dodaje pasmo do planu albo je z niego usuwa",
+        "descriptionTouch": "Pasma, na których stacje w tym kraju mogą mieć komórki. Dotknięcie od razu dodaje pasmo albo je usuwa",
+        "descriptionReadOnly": "Pasma, na których stacje w tym kraju mogą mieć komórki",
+        "planCount": "{{inPlan}} z {{total}}",
+        "note": "Pasmo, na którym w tym kraju są komórki, zostaje w planie",
+        "add": "Dodaj do planu",
+        "remove": "Usuń z planu",
+        "locked_one": "{{count, number}} komórka w tym kraju - pasmo zostaje w planie",
+        "locked_few": "{{count, number}} komórki w tym kraju - pasmo zostaje w planie",
+        "locked_many": "{{count, number}} komórek w tym kraju - pasmo zostaje w planie",
+        "locked_other": "{{count, number}} komórki w tym kraju - pasmo zostaje w planie",
+        "loadFailed": "Nie udało się wczytać planu pasm",
+        "addFailed": "Nie udało się dodać pasma do planu",
+        "removeFailed": "Nie udało się usunąć pasma z planu",
+        "empty": {
+          "title": "Plan pasm jest pusty",
+          "description": "Dopóki plan pasm jest pusty, stacje w tym kraju nie przyjmą żadnej komórki"
+        },
+        "noBands": {
+          "title": "Nie ma jeszcze żadnych pasm",
+          "description": "Dodaj pasma na stronie Pasma, a potem włącz je do planu tego kraju",
+          "readOnlyDescription": "Pasma dodaje administrator"
+        }
+      },
+      "networks": {
+        "title": "Operatorzy i obiekty",
+        "operators": {
+          "description": "Sieci działające w tym kraju",
+          "add": "Dodaj operatora",
+          "loadFailed": "Nie udało się wczytać operatorów",
+          "primaryPlmn": "Główny kod PLMN: {{plmn}}",
+          "empty": {
+            "title": "Ten kraj nie ma jeszcze operatorów",
+            "description": "Dodaj pierwszego operatora, żeby można było tworzyć stacje",
+            "readOnlyDescription": "Stacje można tworzyć dopiero wtedy, gdy administrator doda operatora"
+          }
+        },
+        "owners": {
+          "description": "Firmy, do których należą wieże i maszty",
+          "add": "Dodaj właściciela",
+          "loadFailed": "Nie udało się wczytać właścicieli obiektów",
+          "all": "Wszyscy właściciele ({{total, number}})",
+          "empty": {
+            "title": "Ten kraj nie ma jeszcze właścicieli obiektów",
+            "description": "Dodaj pierwszego właściciela, żeby można było wybierać go przy lokalizacjach",
+            "readOnlyDescription": "Właścicieli obiektów dodaje administrator"
+          }
+        }
+      },
+      "team": {
+        "title": "Zespół",
+        "loadFailed": "Nie udało się wczytać zespołu",
+        "maintainers": {
+          "title": "Opiekunowie kraju",
+          "description": "Nadają i odbierają uprawnienia redaktorom tego kraju, czytają jego dziennik zdarzeń",
+          "add": "Dodaj opiekuna",
+          "note": "Opiekuna powołuje i odwołuje tylko administrator. Administratorzy mają dostęp do każdego kraju i nie ma ich na tych listach",
+          "grantedBy": "Nadane przez <user>{{name}}</user>, {{date}}",
+          "remove": "Odwołaj opiekuna: {{name}}",
+          "empty": {
+            "title": "Ten kraj nie ma opiekuna",
+            "description": "Redaktorami zarządzają administratorzy"
+          }
+        },
+        "editors": {
+          "title": "Redaktorzy",
+          "description": "Edytują stacje i rozpatrują zgłoszenia w całym kraju albo w wybranych regionach",
+          "add": "Dodaj redaktora",
+          "changeScope": "Zmień zakres: {{name}}",
+          "remove": "Odbierz uprawnienie: {{name}}",
+          "empty": {
+            "title": "Ten kraj nie ma jeszcze redaktorów",
+            "description": "Dane w tym kraju edytują tylko jego opiekunowie i administratorzy"
+          }
+        },
+        "dialog": {
+          "editorDescription": "Nowy redaktor w kraju {{country}}",
+          "maintainerDescription": "Nowy opiekun kraju {{country}}",
+          "person": "Osoba",
+          "chosenPerson": "Wybrano: {{name}}",
+          "alreadyHolds": "Ma już to uprawnienie",
+          "noRegions": "Ten kraj nie ma jeszcze regionów",
+          "addFailed": "Nie udało się dodać uprawnienia"
+        },
+        "scope": {
+          "saveFailed": "Nie udało się zmienić zakresu"
+        },
+        "remove": {
+          "editorTitle": "Odebrać uprawnienie redaktora?",
+          "editorConfirm": "Odbierz uprawnienie",
+          "maintainerTitle": "Odwołać opiekuna kraju?",
+          "maintainerConfirm": "Odwołaj opiekuna",
+          "description": "Konto {{name}} straci uprawnienie: {{country}}, {{role}}. Jeśli to ostatnie uprawnienie tego konta, wróci ono do roli użytkownika",
+          "failed": "Nie udało się odebrać uprawnienia"
+        }
+      },
+      "hero": {
+        "countryCode": "Kod kraju {{code}}",
+        "stats": {
+          "activeStations_one": "aktywna stacja",
+          "activeStations_few": "aktywne stacje",
+          "activeStations_many": "aktywnych stacji",
+          "activeStations_other": "aktywnej stacji",
+          "cells_one": "komórka",
+          "cells_few": "komórki",
+          "cells_many": "komórek",
+          "cells_other": "komórki",
+          "locations_one": "lokalizacja",
+          "locations_few": "lokalizacje",
+          "locations_many": "lokalizacji",
+          "locations_other": "lokalizacji",
+          "regions_one": "region",
+          "regions_few": "regiony",
+          "regions_many": "regionów",
+          "regions_other": "regionu",
+          "operators_one": "operator",
+          "operators_few": "operatorów",
+          "operators_many": "operatorów",
+          "operators_other": "operatora",
+          "bandPlan_one": "pasmo w planie",
+          "bandPlan_few": "pasma w planie",
+          "bandPlan_many": "pasm w planie",
+          "bandPlan_other": "pasma w planie"
+        }
+      },
+      "general": {
+        "title": "Ogólne",
+        "readOnlyNote": "Te ustawienia zmienia tylko administrator",
+        "features": {
+          "title": "Dane i zgłoszenia",
+          "description": "Jakie szczegóły można zgłaszać i wyświetlać w tym kraju",
+          "structureOwnerProposals": {
+            "title": "Zezwalaj na nowe nazwy właścicieli konstrukcji",
+            "description": "Zgłaszający mogą zaproponować nowego właściciela. Istniejących właścicieli nadal można wybrać"
+          },
+          "psc": {
+            "title": "UMTS PSC",
+            "description": "Zbieraj i wyświetlaj kody PSC komórek UMTS"
+          },
+          "bsic": {
+            "title": "GSM BSIC",
+            "description": "Zbieraj i wyświetlaj kody BSIC komórek GSM"
+          },
+          "note": "Każde ustawienie jest niezależne i zapisuje się od razu. Wyłączenie PSC lub BSIC ukrywa istniejące wartości bez ich usuwania",
+          "savedToast": "Ustawienia danych kraju zapisane",
+          "saveFailed": "Nie udało się zapisać ustawień danych kraju"
+        },
+        "availability": {
+          "title": "Dostępność",
+          "description": "Kto widzi kraj i czy można wysyłać do niego zgłoszenia",
+          "visible": {
+            "title": "Kraj widoczny",
+            "description": "Ukryty kraj i jego stacje widzą tylko administratorzy oraz redaktorzy z uprawnieniami w tym kraju"
+          },
+          "contributions": {
+            "description": "Przy zamkniętych nikt nie wyśle zgłoszenia dla tego kraju. Redaktorzy edytują dane jak zwykle"
+          },
+          "note": "Oba ustawienia są niezależne i zapisują się od razu. Nowy kraj zaczyna jako ukryty, z zamkniętymi zgłoszeniami",
+          "hideConfirm": {
+            "title": "Ukryć kraj?",
+            "description": "Kraj {{name}} oraz jego stacje, lokalizacje i statystyki znikną z serwisu dla wszystkich poza administratorami i redaktorami z uprawnieniami w tym kraju. Edycja działa dalej",
+            "confirm": "Ukryj kraj"
+          },
+          "shownToast": "Kraj jest teraz widoczny",
+          "hiddenToast": "Kraj jest teraz ukryty",
+          "openedToast": "Zgłoszenia są teraz otwarte",
+          "closedToast": "Zgłoszenia są teraz zamknięte",
+          "saveFailed": "Nie udało się zapisać dostępności kraju"
+        },
+        "defaultView": {
+          "title": "Domyślny widok mapy",
+          "description": "Obszar, który mapa pokazuje po wybraniu tego kraju",
+          "setFromMap": "Ustaw z mapy",
+          "edges": {
+            "west": "Zachód",
+            "east": "Wschód",
+            "south": "Południe",
+            "north": "Północ"
+          },
+          "longitudeRange": "Podaj liczbę od -180 do 180",
+          "latitudeRange": "Podaj liczbę od -90 do 90",
+          "remove": "Usuń widok",
+          "save": "Zapisz widok",
+          "notSet": "Nie ustawiono",
+          "notSetDescription": "Dla tego kraju nie zapisano obszaru mapy",
+          "saveSuccess": "Domyślny widok zapisany",
+          "removeSuccess": "Domyślny widok usunięty",
+          "saveFailed": "Nie udało się zapisać domyślnego widoku",
+          "preview": {
+            "label": "Podgląd domyślnego widoku mapy",
+            "empty": "Wpisz cztery współrzędne albo ustaw widok z mapy",
+            "unavailable": "Tego obszaru nie da się pokazać na podglądzie",
+            "failed": "Nie udało się wczytać mapy"
+          },
+          "mapDialog": {
+            "title": "Ustaw widok z mapy",
+            "description": "Przesuń i przybliż mapę tak, żeby było widać cały kraj. Widoczny obszar trafi do pól widoku",
+            "confirm": "Użyj tego widoku"
+          }
+        },
+        "preparation": {
+          "title": "Kraj jest ukryty",
+          "description": "Widzą go tylko administratorzy i redaktorzy z uprawnieniami w tym kraju",
+          "show": "Pokaż kraj",
+          "loadFailed": "Nie udało się wczytać tych danych",
+          "planEmpty": "Pusty - stacje nie przyjmą komórek",
+          "addBands": "Dodaj pasma",
+          "viewSet": "Ustawiony",
+          "setView": "Ustaw",
+          "noMaintainer": "Brak - redaktorami zarządzają administratorzy"
+        }
+      },
+      "closing": {
+        "title": "Historia i usuwanie",
+        "audit": {
+          "title": "Dziennik zdarzeń",
+          "description": "Zmiany regionów, operatorów, planu pasm i uprawnień zapisują się w dzienniku zdarzeń",
+          "open": "Otwórz"
+        },
+        "delete": {
+          "title": "Usuń kraj",
+          "description": "Możliwe dopiero, gdy kraj nie ma regionów, operatorów, właścicieli obiektów ani uprawnień redaktorów",
+          "confirmTitle": "Usunąć kraj?",
+          "confirmDescription": "Kraj {{name}} zniknie razem z planem pasm i historią statystyk. Tej zmiany nie da się cofnąć",
+          "success": "Kraj usunięty",
+          "failed": "Nie udało się usunąć kraju",
+          "refusedTitle": "Nie można usunąć kraju",
+          "refusedDescription": "Kraj {{name}} ma jeszcze dane. Usuń je albo przenieś, a potem spróbuj ponownie"
+        }
+      },
+      "states": {
+        "notFound": {
+          "title": "Nie znaleziono kraju",
+          "description": "Ten kraj nie istnieje albo został usunięty"
+        }
+      }
+    },
+    "bands": {
+      "actions": {
+        "add": "Dodaj pasmo",
+        "edit": "Edytuj pasmo",
+        "delete": "Usuń pasmo",
+        "menu": "Działania: {{name}}"
+      },
+      "variants": {
+        "commercial": "Komercyjne",
+        "railway": "Kolejowe"
+      },
+      "code": {
+        "with": "Z kodem",
+        "without": "Bez kodu",
+        "none": "Bez kodu 3GPP"
+      },
+      "fields": {
+        "code": "Kod 3GPP",
+        "technology": "Technologia",
+        "duplex": "Duplex",
+        "range": "Zakres",
+        "labelMhz": "Etykieta w MHz",
+        "variant": "Wariant"
+      },
+      "columns": {
+        "plans": "W planach"
+      },
+      "cellsNoun_one": "komórka",
+      "cellsNoun_few": "komórki",
+      "cellsNoun_many": "komórek",
+      "cellsNoun_other": "komórki",
+      "list": {
+        "description": "Pasma, na których mogą być komórki, wspólne dla wszystkich krajów",
+        "searchPlaceholder": "Nazwa albo kod 3GPP",
+        "shownCount_one": "{{shown, number}} z {{count, number}} pasma",
+        "shownCount_few": "{{shown, number}} z {{count, number}} pasm",
+        "shownCount_many": "{{shown, number}} z {{count, number}} pasm",
+        "shownCount_other": "{{shown, number}} z {{count, number}} pasma",
+        "detailsFailed": "Nie udało się wczytać planów pasm albo liczby komórek",
+        "noMatches": "Brak pasujących pasm",
+        "noBands": "Nie ma jeszcze żadnego pasma",
+        "noBandsHint": "Dodaj pierwsze pasmo z katalogu 3GPP"
+      },
+      "picker": {
+        "placeholder": "Wybierz kod z katalogu",
+        "placeholderOfRat": "Wybierz kod pasma {{rat}}",
+        "catalog": "Katalog 3GPP",
+        "search": "Szukaj w katalogu 3GPP",
+        "searchPlaceholder": "Na przykład B3, LTE albo 1800",
+        "noMatches": "Brak pasujących kodów",
+        "exists": "Już istnieje jako {{name}}",
+        "cannotHoldCells": "Nie może mieć komórek",
+        "downlinkOnly": "{{band}}, tylko downlink",
+        "uplinkOnly": "{{band}}, tylko uplink",
+        "uplinkNote": "Pasm, które mają tylko uplink, nie da się dodać - nie mogą mieć komórek",
+        "loading": "Wczytywanie katalogu 3GPP...",
+        "loadFailed": "Nie udało się wczytać katalogu 3GPP"
+      },
+      "dialog": {
+        "addDescription": "Pasmo powstaje z kodu w katalogu 3GPP. Technologia, duplex i zakresy wynikają z kodu",
+        "codelessNotice": "To pasmo nie ma kodu 3GPP, więc nie zna swoich zakresów. Nadanego kodu nie da się potem usunąć",
+        "technologyFixed": "Technologii pasma nie da się zmienić",
+        "nameLength": "{{length}} z {{max}} znaków",
+        "labelFromCatalog": "Z katalogu, można zmienić",
+        "labelInvalid": "Liczba całkowita od 1 do {{max}}",
+        "plans": "Dodaj do planu pasm",
+        "plansHint": "Nowe pasmo nie należy do żadnego planu, dopóki go nie dodasz",
+        "created": "Pasmo dodane",
+        "createdOutsidePlans": "Pasmo dodane, ale nie do wszystkich planów",
+        "plansFailed": "Nie udało się dodać go do planu pasm w krajach: {{countries}}",
+        "createFailed": "Nie udało się dodać pasma",
+        "saved": "Pasmo zapisane",
+        "saveFailed": "Nie udało się zapisać pasma"
+      },
+      "removal": {
+        "title": "Usunąć pasmo?",
+        "description": "Pasmo {{name}} zniknie z bazy i z planów pasm wszystkich krajów. Zmianę można cofnąć w dzienniku zdarzeń",
+        "success": "Pasmo usunięte",
+        "failed": "Nie udało się usunąć pasma",
+        "refusedTitle": "Nie można usunąć pasma",
+        "refusedDescription": "{{reason}}. Pasmo {{name}} zostaje w bazie"
+      }
+    },
+    "operators": {
+      "description": "Sieci komórkowe, ich marki, kody PLMN i wspólne sieci",
+      "add": "Dodaj operatora",
+      "searchPlaceholder": "Nazwa, skrót lub kod PLMN",
+      "columns": {
+        "plmn": "Kod PLMN",
+        "sharedNetwork": "Wspólna sieć",
+        "position": "Kolejność",
+        "activeStations": "Aktywne stacje"
+      },
+      "count_one": "{{count, number}} operator",
+      "count_few": "{{count, number}} operatorów",
+      "count_many": "{{count, number}} operatorów",
+      "count_other": "{{count, number}} operatora",
+      "countFiltered_one": "{{shown, number}} z {{count, number}} operatora",
+      "countFiltered_few": "{{shown, number}} z {{count, number}} operatorów",
+      "countFiltered_many": "{{shown, number}} z {{count, number}} operatorów",
+      "countFiltered_other": "{{shown, number}} z {{count, number}} operatora",
+      "mobile": {
+        "noPlmn": "Bez kodu PLMN",
+        "stations_one": "stacja",
+        "stations_few": "stacje",
+        "stations_many": "stacji",
+        "stations_other": "stacji"
+      },
+      "empty": {
+        "noMatch": "Brak pasujących operatorów",
+        "none": "Nie ma jeszcze żadnego operatora",
+        "country": "Ten kraj nie ma jeszcze operatorów",
+        "addFirst": "Dodaj pierwszego operatora, żeby można było tworzyć stacje"
+      },
+      "brandsLoadFailed": "Nie udało się wczytać marek",
+      "stationsLoadFailed": "Nie udało się wczytać liczby stacji"
+    },
+    "operator": {
+      "notFound": {
+        "title": "Nie znaleziono operatora",
+        "description": "Ten operator nie istnieje lub został usunięty"
+      },
+      "actions": {
+        "open": "Otwórz"
+      },
+      "fields": {
+        "legalName": "Nazwa firmy",
+        "shortCode": "Skrót",
+        "brand": "Marka",
+        "listPosition": "Miejsce na listach"
+      },
+      "noBrand": "Bez marki",
+      "hero": {
+        "stations": "Stacje operatora",
+        "stats": {
+          "activeStations_one": "aktywna stacja",
+          "activeStations_few": "aktywne stacje",
+          "activeStations_many": "aktywnych stacji",
+          "activeStations_other": "aktywnej stacji",
+          "listPosition": "miejsce na listach",
+          "listPositionValue": "{{position}}.",
+          "plmns_one": "kod PLMN",
+          "plmns_few": "kody PLMN",
+          "plmns_many": "kodów PLMN",
+          "plmns_other": "kodu PLMN",
+          "sharedNetworks_one": "wspólna sieć",
+          "sharedNetworks_few": "wspólne sieci",
+          "sharedNetworks_many": "wspólnych sieci",
+          "sharedNetworks_other": "wspólnej sieci",
+          "members_one": "członek",
+          "members_few": "członków",
+          "members_many": "członków",
+          "members_other": "członka"
+        }
+      },
+      "sections": {
+        "details": "Dane",
+        "network": "Sieć",
+        "usage": "Użycie i usuwanie"
+      },
+      "details": {
+        "title": "Dane operatora",
+        "description": "Nazwy widoczne w serwisie, marka i miejsce na listach",
+        "nameHint": "Jedna nazwa na kraj",
+        "shortCodeHint": "Do 16 znaków, do ciasnych miejsc",
+        "brandHint": "Logo i kolor operatora pochodzą z marki",
+        "countryHint": "Kraju nie da się zmienić po utworzeniu",
+        "listPositionHint": "Od 1, niższa liczba to wyższe miejsce. Puste pole: operator poza główną listą",
+        "listPositionInvalid": "Podaj liczbę całkowitą od 1 do 1000",
+        "saved": "Dane operatora zapisane",
+        "saveFailed": "Nie udało się zapisać danych operatora"
+      },
+      "plmn": {
+        "title": "Kody PLMN",
+        "description": "Kody MCC i MNC, pod którymi sieć nadaje",
+        "add": "Dodaj kod",
+        "edit": "Edytuj kod {{plmn}}",
+        "remove": "Usuń kod {{plmn}}",
+        "note": "Operator ma najwyżej jeden kod główny. Każdy kod należy do jednego operatora, we wszystkich krajach",
+        "roles": {
+          "primary": "Główny",
+          "secondary": "Dodatkowy"
+        },
+        "empty": {
+          "title": "Brak kodów PLMN",
+          "description": "Dodaj kod MCC i MNC, pod którym sieć nadaje"
+        },
+        "dialog": {
+          "addTitle": "Dodaj kod PLMN",
+          "editTitle": "Edytuj kod PLMN",
+          "description": "Operator {{name}}",
+          "mccHint": "3 cyfry",
+          "mncHint": "2 albo 3 cyfry",
+          "roleHint": "Operator ma najwyżej jeden kod główny",
+          "primaryMoves": "Dotychczasowy kod główny {{plmn}} stanie się dodatkowym",
+          "takenBy": "Kod {{plmn}} należy już do operatora {{name}}",
+          "alreadyAdded": "Operator ma już kod {{plmn}}",
+          "incomplete": "Podaj MCC i MNC",
+          "mccFormat": "MCC to trzy cyfry, pierwsza inna niż 0",
+          "mncFormat": "MNC to dwie albo trzy cyfry",
+          "added": "Kod PLMN dodany",
+          "saved": "Kod PLMN zapisany",
+          "saveFailed": "Nie udało się zapisać kodu PLMN"
+        },
+        "removeDialog": {
+          "title": "Usunąć kod PLMN?",
+          "description": "Kod {{plmn}} przestanie należeć do operatora {{name}}",
+          "primaryDescription": "Kod {{plmn}} jest kodem głównym operatora {{name}}. Po usunięciu operator nie będzie miał kodu głównego",
+          "confirm": "Usuń kod",
+          "success": "Kod PLMN usunięty",
+          "failed": "Nie udało się usunąć kodu PLMN"
+        }
+      },
+      "networks": {
+        "title": "Wspólne sieci",
+        "description": "Sieci budowane razem z innymi operatorami tego kraju",
+        "add": "Dodaj sieć",
+        "note": "Filtr stacji po wspólnej sieci pokazuje też stacje jej członków",
+        "members": "Członkowie: {{names}}",
+        "remove": "Usuń wspólną sieć: {{name}}",
+        "loadFailed": "Nie udało się wczytać operatorów",
+        "empty": {
+          "title": "Brak wspólnych sieci",
+          "description": "Operator nie jest członkiem żadnej wspólnej sieci"
+        },
+        "removeDialog": {
+          "title": "Usunąć ze wspólnej sieci?",
+          "description": "Operator {{member}} przestanie być członkiem sieci {{network}}",
+          "success": "Usunięto ze wspólnej sieci",
+          "failed": "Nie udało się usunąć ze wspólnej sieci"
+        }
+      },
+      "members": {
+        "title": "Członkowie",
+        "description": "Operatorzy, którzy współtworzą tę sieć",
+        "add": "Dodaj członka",
+        "note": "Sieci z członkami nie da się usunąć",
+        "remove": "Usuń członka: {{name}}"
+      },
+      "linkDialog": {
+        "networkTitle": "Dodaj wspólną sieć",
+        "networkDescription": "{{name}} zostanie członkiem wybranej sieci",
+        "networkField": "Wspólna sieć",
+        "networkPlaceholder": "Wybierz sieć",
+        "memberDescription": "Wybrany operator zostanie członkiem sieci {{name}}",
+        "hint": "Do wyboru są operatorzy z tego samego kraju",
+        "noChoices": "W tym kraju nie ma operatorów, których można dodać",
+        "success": "Dodano do wspólnej sieci",
+        "failed": "Nie udało się dodać do wspólnej sieci"
+      },
+      "usage": {
+        "title": "Gdzie występuje",
+        "description": "Dane, które wskazują tego operatora",
+        "stationsLink": "Lista stacji tego operatora",
+        "owner": {
+          "title": "Właściciel obiektów",
+          "none": "Operator nie ma wpisu wśród właścicieli obiektów",
+          "loadFailed": "Nie udało się wczytać właścicieli obiektów"
+        }
+      },
+      "audit": {
+        "description": "Zmiany tego operatora, z możliwością cofnięcia"
+      },
+      "delete": {
+        "title": "Usuń operatora",
+        "description": "Możliwe dopiero, gdy operator nie ma stacji, pozwoleń ani oczekujących zgłoszeń",
+        "hasStations_one": "Nie można usunąć operatora, który ma {{count, number}} aktywną stację",
+        "hasStations_few": "Nie można usunąć operatora, który ma {{count, number}} aktywne stacje",
+        "hasStations_many": "Nie można usunąć operatora, który ma {{count, number}} aktywnych stacji",
+        "hasStations_other": "Nie można usunąć operatora, który ma {{count, number}} aktywnej stacji",
+        "hasMembers_one": "Nie można usunąć wspólnej sieci, która ma {{count, number}} członka",
+        "hasMembers_few": "Nie można usunąć wspólnej sieci, która ma {{count, number}} członków",
+        "hasMembers_many": "Nie można usunąć wspólnej sieci, która ma {{count, number}} członków",
+        "hasMembers_other": "Nie można usunąć wspólnej sieci, która ma {{count, number}} członka",
+        "confirmTitle": "Usunąć operatora?",
+        "confirmDescription": "Operator {{name}} zniknie razem z kodami PLMN i przynależnością do wspólnych sieci. Zmianę można cofnąć w dzienniku zdarzeń",
+        "refusedTitle": "Nie można usunąć operatora",
+        "success": "Operator usunięty",
+        "failed": "Nie udało się usunąć operatora"
+      },
+      "create": {
+        "description": "Po dodaniu otworzy się strona operatora z kodami PLMN i wspólnymi sieciami",
+        "countryHint": "Nie da się go potem zmienić",
+        "shortCodeHint": "Opcjonalny, do 16 znaków",
+        "plmnIncomplete": "Podaj MCC i MNC albo zostaw oba pola puste",
+        "success": "Operator dodany",
+        "failed": "Nie udało się dodać operatora"
+      }
+    },
+    "brands": {
+      "brand": "Marka",
+      "description": "Logo i kolor, którymi serwis oznacza operatorów i właścicieli obiektów",
+      "add": "Dodaj markę",
+      "edit": "Edytuj markę",
+      "delete": "Usuń markę",
+      "fields": {
+        "slug": "Slug",
+        "color": "Kolor",
+        "logo": "Logo"
+      },
+      "list": {
+        "noLogo": "Brak logo",
+        "usageLoadFailed": "Nie udało się wczytać operatorów i właścicieli obiektów",
+        "empty": {
+          "title": "Nie ma jeszcze żadnej marki",
+          "description": "Dodaj pierwszą markę, żeby nadać operatorom logo i kolor"
+        }
+      },
+      "dialog": {
+        "addDescription": "Markę można potem przypisać operatorom i właścicielom obiektów",
+        "editDescription": "Zmiana od razu obejmuje operatorów i właścicieli obiektów tej marki",
+        "newBrand": "Nowa marka",
+        "slugPreview": "slug",
+        "slugPlaceholder": "np. t-mobile",
+        "slugHint": "Małe litery i cyfry, słowa rozdzielone myślnikiem",
+        "pickColor": "Wybierz kolor",
+        "colorValue": "Kolor w zapisie #RRGGBB",
+        "presetColors": "Gotowe kolory",
+        "colorHint": "Kolor operatora na mapie, wykresach i w nagłówkach"
+      },
+      "logo": {
+        "drop": "Przeciągnij plik z logo albo wybierz go z dysku",
+        "dropNow": "Upuść plik, żeby wgrać logo",
+        "choose": "Wybierz plik",
+        "chooseAnother": "Wybierz inny plik",
+        "uploadNew": "Wgraj nowe",
+        "remove": "Usuń logo",
+        "previewHint": "Podgląd na ciemnym i jasnym tle",
+        "rules": "SVG, PNG albo WebP, do 512 KB. PNG i WebP co najmniej 48 px wysokości",
+        "uploading": "Wgrywanie logo...",
+        "uploaded": "Logo wgrane",
+        "removed": "Logo usunięte",
+        "uploadFailed": "Nie udało się wgrać logo",
+        "removeFailed": "Nie udało się usunąć logo",
+        "createdWithoutLogo": "Marka została dodana, ale bez logo"
+      },
+      "toasts": {
+        "created": "Marka dodana",
+        "saved": "Marka zapisana",
+        "deleted": "Marka usunięta"
+      },
+      "errors": {
+        "createFailed": "Nie udało się dodać marki",
+        "saveFailed": "Nie udało się zapisać marki",
+        "deleteFailed": "Nie udało się usunąć marki"
+      },
+      "deleteConfirm": {
+        "title": "Usunąć markę?",
+        "description": "Marka {{name}} zniknie razem z logo. Tej zmiany nie da się cofnąć"
+      },
+      "deleteRefused": {
+        "title": "Nie można usunąć marki"
+      }
+    },
+    "owners": {
+      "owner": "Właściciel",
+      "description": "Firmy, do których należą wieże, maszty i inne obiekty pod stacjami",
+      "add": "Dodaj właściciela",
+      "noCountry": "Bez kraju",
+      "notAnOperator": "Nie jest operatorem",
+      "list": {
+        "searchPlaceholder": "Nazwa właściciela",
+        "edit": "Edytuj: {{name}}",
+        "delete": "Usuń: {{name}}",
+        "count_one": "{{count, number}} właściciel",
+        "count_few": "{{count, number}} właścicieli",
+        "count_many": "{{count, number}} właścicieli",
+        "count_other": "{{count, number}} właściciela",
+        "countFiltered_one": "{{shown, number}} z {{count, number}} właściciela",
+        "countFiltered_few": "{{shown, number}} z {{count, number}} właścicieli",
+        "countFiltered_many": "{{shown, number}} z {{count, number}} właścicieli",
+        "countFiltered_other": "{{shown, number}} z {{count, number}} właściciela",
+        "lookupsLoadFailed": "Nie udało się wczytać marek i operatorów",
+        "noMatches": "Brak pasujących właścicieli",
+        "empty": {
+          "title": "Nie ma jeszcze żadnego właściciela obiektów",
+          "description": "Dodaj pierwszego właściciela, żeby można go było wybrać przy lokalizacji"
+        }
+      },
+      "dialog": {
+        "addTitle": "Dodaj właściciela obiektów",
+        "editTitle": "Edytuj właściciela obiektów",
+        "addDescription": "Właściciela wybiera się potem przy lokalizacji, obok rodzaju obiektu",
+        "editDescription": "Zmiana od razu obejmuje lokalizacje tego właściciela",
+        "countryHint": "Bez kraju właściciel pasuje do lokalizacji w każdym kraju",
+        "operatorHint": "Jeden wpis na operatora",
+        "operatorTaken": "ma już wpis",
+        "choicesLoadFailed": "Nie udało się wczytać listy",
+        "addForCountryDescription": "Zostanie dodany dla kraju {{country}} i od razu wybrany przy tej lokalizacji",
+        "adminFieldsHint": "Markę i operatora ustawia administrator"
+      },
+      "toasts": {
+        "created": "Właściciel dodany",
+        "saved": "Właściciel zapisany",
+        "deleted": "Właściciel usunięty"
+      },
+      "errors": {
+        "createFailed": "Nie udało się dodać właściciela obiektów",
+        "saveFailed": "Nie udało się zapisać właściciela obiektów",
+        "deleteFailed": "Nie udało się usunąć właściciela obiektów"
+      },
+      "deleteConfirm": {
+        "title": "Usunąć właściciela obiektów?",
+        "description": "Właściciel {{name}} zniknie z listy. Tej zmiany nie da się cofnąć",
+        "confirm": "Usuń właściciela"
+      },
+      "deleteRefused": {
+        "title": "Nie można usunąć właściciela obiektów"
+      }
+    },
+    "countries": {
+      "description": "Widoczność krajów, przyjmowanie zgłoszeń, regiony, plany pasm i zespoły",
+      "add": "Dodaj kraj",
+      "detailTitle": "Szczegóły kraju",
+      "detailsLoadFailed": "Nie udało się wczytać części danych",
+      "none": "Brak",
+      "emptyPlan": "Pusty",
+      "visibility": {
+        "visible": "Widoczny",
+        "hidden": "Ukryty"
+      },
+      "contributions": {
+        "open": "Otwarte",
+        "closed": "Zamknięte",
+        "openLong": "Zgłoszenia otwarte",
+        "closedLong": "Zgłoszenia zamknięte"
+      },
+      "team": {
+        "maintainers_one": "{{count, number}} opiekun",
+        "maintainers_few": "{{count, number}} opiekunów",
+        "maintainers_many": "{{count, number}} opiekunów",
+        "maintainers_other": "{{count, number}} opiekuna",
+        "editors_one": "{{count, number}} redaktor",
+        "editors_few": "{{count, number}} redaktorów",
+        "editors_many": "{{count, number}} redaktorów",
+        "editors_other": "{{count, number}} redaktora"
+      },
+      "empty": {
+        "title": "Brak krajów",
+        "description": "Dodaj pierwszy kraj, a potem jego regiony, operatorów i plan pasm"
+      },
+      "addDialog": {
+        "description": "Kraj powstaje pusty: bez regionów, operatorów i planu pasm",
+        "codeHint": "Kodu kraju nie da się później zmienić",
+        "startsHidden": "Zaczyna jako ukryty, z zamkniętymi zgłoszeniami",
+        "emptyPlanNote": "Dopóki plan pasm jest pusty, stacje w tym kraju nie przyjmą żadnej komórki",
+        "searchLabel": "Szukaj kraju",
+        "noMatches": "Nie znaleziono krajów",
+        "success": "Kraj dodany",
+        "failed": "Nie udało się dodać kraju"
       }
     }
   }

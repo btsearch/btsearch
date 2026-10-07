@@ -31,11 +31,11 @@ export const CLF_DESCRIPTION_TEMPLATE_PARAM_BY_RAT = {
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_TEMPLATE_DEFAULTS = {
-  GSM: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} | {cell_type} [{station_id} {gsm_band}]",
-  UMTS: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} | {cell_type} [{station_id} {umts_band} {umts_rnc}:{umts_cid}]",
-  LTE: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} | {cell_type} [{station_id} L{lte_band_value}:{lte_enbid}:{lte_clid} {nr_band}:{nr_pcis}]",
-  NR_NSA: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} | {cell_type} [{station_id} NR{nr_band_value}:{nr_pci}]",
-  NR: "{unconfirmed_prefix} {sector_prefix} {location} - {notes} | {cell_type} [{station_id} NR{nr_band_value}:{nr_gnbid}:{nr_clid}]",
+  GSM: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
+  UMTS: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
+  LTE: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type} [5G {nr_band}:{nr_pcis}]",
+  NR_NSA: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
+  NR: "{unconfirmed_prefix} [{station_id}] {location}, {structure} - {structure_note} | {notes} | {sector_tag} {cell_type}",
 } as const satisfies Record<CLFDescriptionTemplateRat, string>;
 
 export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
@@ -48,6 +48,10 @@ export const CLF_DESCRIPTION_COMMON_TEMPLATE_PLACEHOLDERS = [
   "location",
   "city",
   "address",
+  "structure",
+  "structure_type",
+  "structure_owner",
+  "structure_note",
   "cell_type",
   "uplink",
   "notes",
@@ -96,6 +100,10 @@ const CLF_DESCRIPTION_COMMON_TEMPLATE_PREVIEW_VALUES = {
   location: "Warszawa - Targówek, ul. Bazyliańska 18",
   city: "Warszawa - Targówek",
   address: "ul. Bazyliańska 18",
+  structure: "maszt na dachu (Emitel)",
+  structure_type: "maszt na dachu",
+  structure_owner: "Emitel",
+  structure_note: "blok mieszkalny, 11 pięter",
   cell_type: "pico",
   uplink: "fiber",
   notes: "dach bloku mieszkalnego",
@@ -263,6 +271,21 @@ function renderCLFTokens(tokens: CLFTemplateToken[]): string {
 
 export function renderCLFDescriptionTemplate(template: string, getValue: (key: string) => string): string {
   return renderCLFTokens(tokenizeCLFTemplate(template, getValue));
+}
+
+export type CLFDescriptionTemplateRenderer = (getValue: (key: string) => string) => string;
+
+function resolveCLFTemplateTokens(tokens: CLFTemplateToken[], getValue: (key: string) => string): CLFTemplateToken[] {
+  return tokens.map((token) => {
+    if (token.type === "literal") return token;
+    if (token.type === "value") return { type: "value", text: getValue(token.text) };
+    return { type: "group", tokens: resolveCLFTemplateTokens(token.tokens, getValue) };
+  });
+}
+
+export function compileCLFDescriptionTemplate(template: string): CLFDescriptionTemplateRenderer {
+  const tokens = tokenizeCLFTemplate(template, (key) => key);
+  return (getValue) => renderCLFTokens(resolveCLFTemplateTokens(tokens, getValue));
 }
 
 export function normalizeCLFDescriptionTemplates(templates: CLFDescriptionTemplates): CLFDescriptionTemplates {

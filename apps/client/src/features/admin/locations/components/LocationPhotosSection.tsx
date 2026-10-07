@@ -1,23 +1,40 @@
-import { PhotosSection } from "@/components/photos/photosSection";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { type PhotoChanges, PhotosSection } from "@/components/photos/photosSection";
 import {
-  deleteLocationPhoto,
-  fetchLocationPhotos,
-  updateLocationPhotoNote,
-  updateLocationPhotoTakenAt,
-  uploadLocationPhotos,
-} from "@/features/station-details/api";
+  deleteLocationPhotoRecord,
+  fetchLocationPhotoRecords,
+  invalidateStationPhotoLists,
+  stationWindowKeys,
+  updateLocationPhotoRecord,
+  uploadLocationPhotoRecords,
+} from "@/features/station-details/station/api";
+import type { PhotoRecord } from "@/features/station-details/station/types";
 
 type Props = { locationId: number };
 
 export function LocationPhotosSection({ locationId }: Props) {
+  const queryClient = useQueryClient();
+
+  async function deletePhoto(photo: PhotoRecord) {
+    await deleteLocationPhotoRecord(locationId, photo.id);
+    void invalidateStationPhotoLists(queryClient, photo);
+  }
+
+  async function updatePhoto(photo: PhotoRecord, changes: PhotoChanges) {
+    await updateLocationPhotoRecord(locationId, photo.id, changes);
+    void invalidateStationPhotoLists(queryClient, photo);
+  }
+
   return (
     <PhotosSection
-      queryKey={["location-photos", locationId]}
-      fetchFn={() => fetchLocationPhotos(locationId)}
-      deleteFn={(id) => deleteLocationPhoto(locationId, id)}
-      updateNoteFn={(id, note) => updateLocationPhotoNote(locationId, id, note)}
-      updateTakenAtFn={(id, takenAt) => updateLocationPhotoTakenAt(locationId, id, takenAt)}
-      uploadFn={(files, onProgress) => uploadLocationPhotos(locationId, files, undefined, onProgress)}
+      queryKey={stationWindowKeys.locationPhotos(locationId)}
+      invalidateKey={["location-photos", locationId]}
+      fetchFn={() => fetchLocationPhotoRecords(locationId)}
+      toPhoto={(photo) => photo}
+      deleteFn={deletePhoto}
+      updateFn={updatePhoto}
+      uploadFn={(files, onProgress) => uploadLocationPhotoRecords(locationId, files, { onProgress })}
     />
   );
 }

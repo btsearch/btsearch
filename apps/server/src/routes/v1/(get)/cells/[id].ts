@@ -6,6 +6,8 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
+import { toLegacyCellDetails } from "../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -62,9 +64,11 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
   if (!cell) throw new ErrorResponse("NOT_FOUND");
 
   const { gsm, umts, lte, nr, ...rest } = cell as CellWithRat;
+  const featuresByStation = await getStationCountryFeatures([rest.station_id]);
+  const features = featuresByStation.get(rest.station_id) ?? disabledCountryFeatures;
   const mapped: ResponseData = {
     ...rest,
-    details: gsm ?? umts ?? lte ?? nr ?? null,
+    details: toLegacyCellDetails({ gsm, umts, lte, nr }, features),
   };
 
   return res.send({ data: mapped });

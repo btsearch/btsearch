@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshots, runAuditedOperation } from "../../../../features/audit/index.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
 import { assertCanDeleteCells } from "../../../../features/stations/status.js";
@@ -82,7 +83,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<EmptyResp
 const deleteCellsBatch: Route<ReqBody, void> = {
   url: "/cells",
   method: "DELETE",
-  config: { permissions: ["delete:cells"] },
+  config: { permissions: ["delete:cells"], scope: defineScope<ReqBody>((req) => ({ cellIds: req.body.ids })) },
   schema: schemaRoute,
   handler,
 };

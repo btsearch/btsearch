@@ -1,39 +1,41 @@
 import { Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import type { EmfMeasurement } from "@openbts/shared/contract";
+import { type ReactNode, useContext } from "react";
 
-import type { PlannedStatus } from "../api";
+import { type MeasurementTabRow, isInactiveSite } from "../api";
+import { OperatorBrandCatalogContext } from "@/features/shared/operatorBrandCatalog";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
-import { formatShortDate } from "@/lib/format";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { formatShortUtcDate } from "@/lib/format";
 
-export type MeasurementSummaryData = {
-  station_id: string | null;
-  operator: { name: string; mnc?: number | null } | null;
-  region: { name: string } | null;
-  location: { city: string; address: string };
-  status: PlannedStatus;
-  disabled_date?: string | null;
-  date: { from: string | null; to: string | null } | null;
-  lab: { name: string } | null;
-};
+export function getMeasurementDate(measurement: MeasurementTabRow, locale: string) {
+  if (isInactiveSite(measurement)) return formatShortUtcDate(measurement.disabledOn, locale);
+  if (measurement.startsOn === null || measurement.endsOn === null) return "-";
 
-export function getMeasurementDate(measurement: Pick<MeasurementSummaryData, "status" | "disabled_date" | "date">, locale: string) {
-  if (measurement.status === "INACTIVE") return measurement.disabled_date ? formatShortDate(measurement.disabled_date, locale) : "-";
-
-  const from = measurement.date?.from ? formatShortDate(measurement.date.from, locale) : "-";
-  const to = measurement.date?.to ? formatShortDate(measurement.date.to, locale) : "-";
+  const from = formatShortUtcDate(measurement.startsOn, locale);
+  const to = formatShortUtcDate(measurement.endsOn, locale);
   return from === to ? from : `${from}-${to}`;
 }
 
+export function getLaboratoryName(measurement: MeasurementTabRow) {
+  return isInactiveSite(measurement) ? null : (measurement.laboratory?.name ?? null);
+}
+
 type PEMStationTitleProps = {
-  stationId: string | null;
-  operator: { name: string; mnc?: number | null } | null;
+  siteId: string | null;
+  operator: EmfMeasurement["operator"];
 };
 
-export function PEMStationTitle({ stationId, operator }: PEMStationTitleProps) {
+export function PEMStationTitle({ siteId, operator }: PEMStationTitleProps) {
+  const { brands } = useContext(OperatorBrandCatalogContext);
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <StationTitle stationId={stationId ?? "-"} operator={operator ?? undefined} stationIdClassName="underline-offset-2 group-hover:underline" />
+      <StationTitle
+        stationId={siteId ?? "-"}
+        operator={operator ? { name: operator.name, brand: getOperatorBrand(operator, brands) } : undefined}
+        stationIdClassName="underline-offset-2 group-hover:underline"
+      />
     </div>
   );
 }
@@ -41,17 +43,17 @@ export function PEMStationTitle({ stationId, operator }: PEMStationTitleProps) {
 type PEMRecordSummaryProps = PEMStationTitleProps & {
   city: string;
   regionName?: string | null;
-  address: string;
+  address: string | null;
   noAddressLabel: string;
   action?: ReactNode;
   footer: ReactNode;
 };
 
-export function PEMRecordSummary({ stationId, operator, city, regionName, address, noAddressLabel, action, footer }: PEMRecordSummaryProps) {
+export function PEMRecordSummary({ siteId, operator, city, regionName, address, noAddressLabel, action, footer }: PEMRecordSummaryProps) {
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <PEMStationTitle stationId={stationId} operator={operator} />
+        <PEMStationTitle siteId={siteId} operator={operator} />
         {action}
       </div>
 
@@ -72,7 +74,7 @@ export function PEMRecordSummary({ stationId, operator, city, regionName, addres
 }
 
 type MeasurementSummaryProps = {
-  measurement: MeasurementSummaryData;
+  measurement: MeasurementTabRow;
   locale: string;
   unknownCityLabel: string;
   noAddressLabel: string;
@@ -81,7 +83,7 @@ type MeasurementSummaryProps = {
 };
 
 export function MeasurementSummary({ measurement, locale, unknownCityLabel, noAddressLabel, action, footerAction }: MeasurementSummaryProps) {
-  const labName = measurement.lab?.name;
+  const labName = getLaboratoryName(measurement);
   const lab = labName ? (
     <div className="flex min-w-0">
       <span className="truncate">{labName}</span>
@@ -90,7 +92,7 @@ export function MeasurementSummary({ measurement, locale, unknownCityLabel, noAd
 
   return (
     <PEMRecordSummary
-      stationId={measurement.station_id}
+      siteId={measurement.siteId}
       operator={measurement.operator}
       city={measurement.location.city || unknownCityLabel}
       regionName={measurement.region?.name}

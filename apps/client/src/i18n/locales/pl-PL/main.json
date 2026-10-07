@@ -10,7 +10,8 @@
     "noResultsHint": "Spróbuj innych słów kluczowych lub filtrów",
     "errorTitle": "Nie udało się wczytać wyników",
     "partialError": "Nie udało się wczytać części źródeł wyników",
-    "showingTop": "Pokazano <num>{{shown, number}}</num> z <num>{{total, number}}</num> stacji"
+    "showingTop": "Pokazano <num>{{shown, number}}</num> z <num>{{total, number}}</num> stacji",
+    "queryRejected": "Zapytanie zawiera błąd. Sprawdź wpisane filtry."
   },
   "autocomplete": {
     "availableFilters": "Dostępne filtry",
@@ -44,7 +45,7 @@
       "address": "Adres",
       "region": "Kod województwa (np. MAZ, SL, WP)",
       "band": "Częstotliwość w MHz (np. 800, 1800, 2100)",
-      "duplex": "Tryb dupleksu pasma (FDD, TDD, null/false)",
+      "duplex": "Tryb duplex pasma (FDD, TDD, null/false)",
       "rat": "Standard (GSM, UMTS, LTE, NR)",
       "isConfirmed": "Stan potwierdzenia (true, false)",
       "cellNotes": "Notatki komórki",
@@ -72,7 +73,9 @@
       "supportsNrRedcap": "Obsługuje RedCap (true, false)",
       "networksId": "Identyfikator NetWorks",
       "networksName": "Nazwa NetWorks",
-      "mnoName": "Nazwa MNO"
+      "mnoName": "Nazwa MNO",
+      "plmn": "Dowolny kod PLMN operatora (MCC i MNC razem, 5 lub 6 cyfr)",
+      "country": "Dwuliterowy kod kraju (ISO 3166-1)"
     }
   },
   "searchResults": {
@@ -124,9 +127,7 @@
     "dismiss": "Ukryj reklamę"
   },
   "stats": {
-    "internalData": "Wewnętrzna baza",
-    "stations": "Liczba stacji",
-    "permits": "Liczba pozwoleń"
+    "internalData": "Wewnętrzna baza"
   },
   "filters": {
     "dataSource": "Źródło danych",
@@ -139,13 +140,6 @@
     "recentDaysValue_few": "{{count, number}} dni",
     "recentDaysValue_many": "{{count, number}} dni",
     "recentDaysValue_other": "{{count, number}} dni",
-    "showingStationsOfTotal": "Pobrano {{count, number}} z {{total, number}} stacji",
-    "showingLocationsOfTotal": "Pobrano {{count, number}} z {{total, number}} lokalizacji",
-    "showingLocations_one": "Pobrano {{count, number}} lokalizację",
-    "showingLocations_few": "Pobrano {{count, number}} lokalizacje",
-    "showingLocations_many": "Pobrano {{count, number}} lokalizacji",
-    "showingLocations_other": "Pobrano {{count, number}} lokalizacji",
-    "showingStations": "Pobrano {{count, number}} stacji",
     "layers": "Warstwy",
     "operator": "Operator BTS",
     "showPlannedPem": "Planowane PEM",
@@ -157,11 +151,49 @@
     "date": {
       "createdAt": "Utworzone",
       "updatedAt": "Zaktualizowane"
-    }
+    },
+    "country": "Kraj",
+    "registerOnly": "Pozwolenia UKE obejmują tylko Polskę.",
+    "offScreen": "poza widokiem",
+    "collapse": "Zwiń",
+    "collapseOperators": "Zwiń listę operatorów",
+    "registerLayerOnly": "Dane tylko dla Polski",
+    "registerLayersNote": "Radiolinie i planowane PEM obejmują tylko Polskę.",
+    "registerLayersUnavailable": "Radiolinie i planowane PEM są dostępne tylko w Polsce.",
+    "bandMhz": "{{value}} MHz",
+    "bandOnlyIn": "{{value}} MHz, tylko {{country}}",
+    "unknownBand": "Nieznane pasmo",
+    "radiolinesLayerNote": "Radiolinie obejmują tylko Polskę.",
+    "radiolinesLayerUnavailable": "Radiolinie są dostępne tylko w Polsce.",
+    "otherCountries_one": "{{count, number}} inny kraj",
+    "otherCountries_few": "{{count, number}} inne kraje",
+    "otherCountries_many": "{{count, number}} innych krajów",
+    "otherCountries_other": "{{count, number}} innego kraju",
+    "collapseCountries": "Zwiń listę krajów",
+    "countrySelectedOperators": "{{country}}, wybrani operatorzy: {{count, number}}",
+    "bandGhzOnlyIn": "{{value}}, tylko {{country}}",
+    "addCountry": "Dodaj kraj...",
+    "countriesShown_one": "{{shown, number}} z {{count, number}} kraju",
+    "countriesShown_few": "{{shown, number}} z {{count, number}} krajów",
+    "countriesShown_many": "{{shown, number}} z {{count, number}} krajów",
+    "countriesShown_other": "{{shown, number}} z {{count, number}} kraju",
+    "pickCountryForOperators": "Wybierz kraj, aby filtrować po operatorze",
+    "allRegions": "Wszystkie regiony",
+    "noRegionsFound": "Nie znaleziono regionów",
+    "otherStructureTypes_one": "{{count, number}} inny typ obiektu",
+    "otherStructureTypes_few": "{{count, number}} inne typy obiektów",
+    "otherStructureTypes_many": "{{count, number}} innych typów obiektów",
+    "otherStructureTypes_other": "{{count, number}} innego typu obiektu",
+    "collapseStructureTypes": "Zwiń listę typów obiektów",
+    "allStructureOwners": "Wszyscy właściciele",
+    "withoutStations": "Bez stacji",
+    "missingData": "Braki",
+    "withoutPhotos": "Bez zdjęć",
+    "withoutStructure": "Bez obiektu",
+    "unconfirmed": "Niepotwierdzone"
   },
   "unknownOperator": "Nieznany operator",
   "photos": {
-    "subtitle": "Aktualna galeria zdjęć wybranych dla opublikowanych stacji bazowych",
     "loadedCount": "Pokazano {{count, number}} z {{total, number}} zdjęć",
     "loadingMore": "Ładowanie kolejnych zdjęć...",
     "emptyTitle": "Brak zdjęć stacji",
@@ -170,17 +202,18 @@
     "filteredEmptySubtitle": "Wyczyść filtry albo rozszerz wyszukiwanie, aby zobaczyć więcej zdjęć stacji",
     "errorSubtitle": "Odśwież galerię albo spróbuj ponownie za chwilę",
     "loadMoreError": "Nie udało się wczytać kolejnych zdjęć",
-    "searchPlaceholder": "Szukaj stacji, miasta, adresu, województwa, notatki...",
     "mainOnly": "Tylko główne",
     "allLoaded": "Załadowano wszystkie pasujące zdjęcia",
     "stationPhotoCount_one": "{{count, number}} zdjęcie",
     "stationPhotoCount_few": "{{count, number}} zdjęcia",
     "stationPhotoCount_many": "{{count, number}} zdjęć",
     "stationPhotoCount_other": "{{count, number}} zdjęć",
-    "viewStation": "Zobacz stację",
     "scrollTop": "Przewiń do góry",
-    "unknownUser": "nieznany",
-    "mainPhoto": "Główne zdjęcie stacji"
+    "mainPhoto": "Główne zdjęcie stacji",
+    "locationNumber": "Lokalizacja #{{id}}",
+    "title": "Zdjęcia stacji bazowych",
+    "searchFieldPlaceholder": "Szukaj po ID stacji, mieście, adresie lub notatce...",
+    "recentUploadsOnly": "Dodane w ostatnich 7 dniach"
   },
   "radiolines": {
     "txSide": "Strona wysyłająca (TX)",

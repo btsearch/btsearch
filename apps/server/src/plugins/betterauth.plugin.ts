@@ -4,11 +4,13 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { hash, verify } from "@node-rs/argon2";
 import * as schema from "@openbts/drizzle";
+import { USER_ROLES } from "@openbts/shared/contract";
 import { type GenericEndpointContext, betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { fromNodeHeaders } from "better-auth/node";
 import { admin, jwt, lastLoginMethod, multiSession, twoFactor, username } from "better-auth/plugins";
 import type { FastifyRequest } from "fastify";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import { baseUrl } from "../config.js";
 import { APP_NAME, ARGON2_OPTIONS } from "../constants.js";
@@ -16,11 +18,19 @@ import { db } from "../database/psql.js";
 import { redis } from "../database/redis.js";
 import type { UserRole } from "../interfaces/auth.interface.js";
 import { getAuthEmailRecipient, sendPasswordResetEmail, sendVerificationEmail } from "../lib/mail.js";
+import { withRedisDeadline } from "../lib/redisDeadline.js";
 import { isDisposableEmail, isDisposableEmailBlocklistReady } from "./auth/disposableEmailBlocklist.js";
-import { afterAuthHook, beforeAuthHook, releaseVerificationResendCooldown } from "./auth/hooks.js";
-import { accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
-import type { PermissionObject } from "./auth/permissions.js";
-import { OAUTH_SCOPES } from "./auth/scopes.js";
+import {
+  afterAuthHook,
+  assertSocialSignUpWithinLimit,
+  auditLiftedBan,
+  beforeAuthHook,
+  countSignUp,
+  releaseVerificationResendCooldown,
+  rememberLiftedBan,
+} from "./auth/hooks.js";
+import { API_KEY_PERMISSIONS, accessControl, adminRole, editorRole, userRole } from "./auth/permissions.js";
+import { OAUTH_SCOPES, OAUTH_USER_SCOPES } from "./auth/scopes.js";
 
 export function mapHeaders(headers: { [s: string]: unknown } | ArrayLike<unknown>) {
   const entries = Object.entries(headers);
@@ -32,6 +42,36 @@ export function mapHeaders(headers: { [s: string]: unknown } | ArrayLike<unknown
 }
 
 const TRUSTED_ORIGIN = process.env.NODE_ENV === "production" ? baseUrl : "https://localhost";
+const KEYS_WITHOUT_DATABASE_COPY = ["active-sessions-", "verification:"];
+const STORED_ROLES: ReadonlySet<unknown> = new Set(USER_ROLES);
+const NAME_MAX_LENGTH = 100;
+const CONTROL_CHARACTER = /\p{Cc}/u;
+
+function assertSingleRole(data: object): void {
+  if (!("role" in data) || data.role === undefined || STORED_ROLES.has(data.role)) return;
+  throw new APIError("BAD_REQUEST", { message: `The role must be one of ${USER_ROLES.join(", ")}` });
+}
+
+function assertNameFits(data: object): void {
+  if (!("name" in data) || typeof data.name !== "string") return;
+
+  if (data.name.length > NAME_MAX_LENGTH) throw new APIError("BAD_REQUEST", { message: `The name can have at most ${NAME_MAX_LENGTH} characters` });
+  if (CONTROL_CHARACTER.test(data.name)) throw new APIError("BAD_REQUEST", { message: "The name cannot contain control characters" });
+}
+
+const sessionLookups = new AsyncLocalStorage<true>();
+
+export function asSessionLookup<T>(lookup: () => Promise<T>): Promise<T> {
+  return sessionLookups.run(true, lookup);
+}
+
+function readStoredAuthValue(key: string): Promise<string | null> {
+  const storedKey = `auth:${key}`;
+  const canFallBackToDatabase = sessionLookups.getStore() === true && !KEYS_WITHOUT_DATABASE_COPY.some((prefix) => key.startsWith(prefix));
+  if (!canFallBackToDatabase) return redis.get(storedKey);
+  if (!redis.isReady) return Promise.resolve(null);
+  return withRedisDeadline(redis.get(storedKey)).catch(() => null);
+}
 
 const DISALLOWED_CHARACTERS = [
   "@",
@@ -149,10 +189,26 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
+        before: async (user, ctx) => {
+          assertSingleRole(user);
+          assertNameFits(user);
           if (!isDisposableEmailBlocklistReady())
             throw new APIError("SERVICE_UNAVAILABLE", { message: "Registration is temporarily unavailable. Please try again later" });
           if (isDisposableEmail(user.email)) throw new APIError("BAD_REQUEST", { message: "Disposable email addresses are not allowed" });
+          await assertSocialSignUpWithinLimit(ctx);
+        },
+        after: async (_user, ctx) => {
+          await countSignUp(ctx);
+        },
+      },
+      update: {
+        before: async (data, ctx) => {
+          assertSingleRole(data);
+          assertNameFits(data);
+          rememberLiftedBan(data, ctx);
+        },
+        after: async (user, ctx) => {
+          await auditLiftedBan(user, ctx);
         },
       },
     },
@@ -208,17 +264,7 @@ export const auth = betterAuth({
       enableMetadata: true,
       defaultPrefix: "sk_",
       permissions: {
-        defaultPermissions: async (_referenceId: string, _ctx: GenericEndpointContext) => {
-          return {
-            cells: ["read"],
-            stations: ["read"],
-            operators: ["read"],
-            locations: ["read"],
-            bands: ["read"],
-            uke_permits: ["read"],
-            uke_radiolines: ["read"],
-          } satisfies PermissionObject;
-        },
+        defaultPermissions: async (_referenceId: string, _ctx: GenericEndpointContext) => API_KEY_PERMISSIONS,
       },
       rateLimit: {
         enabled: false,
@@ -231,8 +277,8 @@ export const auth = betterAuth({
       loginPage: `${TRUSTED_ORIGIN}/`,
       consentPage: `${TRUSTED_ORIGIN}/`,
       scopes: OAUTH_SCOPES,
-      clientRegistrationDefaultScopes: OAUTH_SCOPES,
-      clientRegistrationAllowedScopes: OAUTH_SCOPES,
+      clientRegistrationDefaultScopes: OAUTH_USER_SCOPES,
+      clientRegistrationAllowedScopes: OAUTH_USER_SCOPES,
       refreshTokenReuseInterval: 30,
       prefix: {
         opaqueAccessToken: "oat_",
@@ -277,7 +323,7 @@ export const auth = betterAuth({
   },
   secondaryStorage: {
     get: async (key) => {
-      const value = await redis.get(`auth:${key}`);
+      const value = await readStoredAuthValue(key);
       return value ? value : null;
     },
     getAndDelete: async (key) => {
@@ -303,7 +349,7 @@ export const auth = betterAuth({
 });
 
 export function getCurrentUser(req: FastifyRequest) {
-  return auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+  return asSessionLookup(() => auth.api.getSession({ headers: fromNodeHeaders(req.headers) }));
 }
 
 export function verifyApiKey(key: string, requiredPermissions?: Record<string, string[]>) {

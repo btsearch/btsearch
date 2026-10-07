@@ -23,6 +23,8 @@ export const PERMIT_FILE_OPERATOR_MAP: Record<string, string> = {
 
 export const KMZ_OUTPUT_DIR = process.env.KMZ_OUTPUT_DIR ?? "kmz_output";
 
+export const COUNTRY_CODE = "PL";
+
 export const BATCH_SIZE = 1000;
 export const KMZ_BATCH_SIZE = 10000;
 

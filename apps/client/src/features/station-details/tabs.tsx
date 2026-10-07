@@ -3,8 +3,8 @@ import { CompassIcon, Image01Icon, Message01Icon, SignalFull02Icon } from "@huge
 export type TabId = "specs" | "sectors" | "comments" | "photos";
 
 export const TAB_OPTIONS = [
-  { id: "specs", label: "Specifications", icon: SignalFull02Icon },
-  { id: "sectors", label: "Azimuths", icon: CompassIcon },
-  { id: "comments", label: "Comments", icon: Message01Icon },
-  { id: "photos", label: "Photos", icon: Image01Icon },
+  { id: "specs", labelKey: "stationDetails:tabs.specs", icon: SignalFull02Icon },
+  { id: "sectors", labelKey: "stationDetails:tabs.sectors", icon: CompassIcon },
+  { id: "comments", labelKey: "stationDetails:tabs.comments", icon: Message01Icon },
+  { id: "photos", labelKey: "stationDetails:tabs.photos", icon: Image01Icon },
 ] as const;

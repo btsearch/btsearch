@@ -1,8 +1,6 @@
 {
   "header": {
     "deleteStation": "Usuń stację",
-    "confirmDelete": "Czy na pewno chcesz usunąć stację?",
-    "confirmDeleteDesc": "Po usunięciu, stacja zostanie oznaczona jako nieaktywna i nie będzie już widoczna na mapie ani w wynikach wyszukiwania",
     "deleteLocation": "Usuń lokalizację",
     "confirmDeleteLocation": "Czy na pewno chcesz usunąć tę lokalizację?",
     "confirmDeleteLocationDesc": "Tej operacji nie można cofnąć. Lokalizacja i jej dane zostaną trwale usunięte"
@@ -11,9 +9,7 @@
     "newStation": "Utwórz nową stację"
   },
   "database": {
-    "title": "Baza stacji bazowych",
-    "description": "Przeszukuj bazę stacji bazowych po ID stacji, Cell ID, eNB ID, mieście lub adresie. Wyniki możesz zawęzić według operatora, województwa, technologii, pasma i statusu",
-    "searchPlaceholder": "Szukaj po ID stacji, mieście lub adresie..."
+    "title": "Baza stacji bazowych"
   },
   "status": {
     "published": "Aktywna",
@@ -47,8 +43,6 @@
     "addRemainingCells": "Dodaj brakujące komórki",
     "confirmCells": "Potwierdź komórki",
     "syncSectorsByPci": "Wpisz azymuty po PCI",
-    "noRats": "Brak komórek. Wybierz technologię radiową powyżej, aby dodać komórki",
-    "pendingReadOnly": "Nie można modyfikować komórek, gdy stacja ma status oczekujący. Zmień status na opublikowany, aby edytować komórki",
     "noStationCells": "Nie znaleziono komórek dla tej stacji",
     "noCells": "Brak komórek. Kliknij \"Dodaj komórkę\", aby dodać",
     "diffAdded": "nowe",
@@ -70,26 +64,364 @@
     "unknownBand": "Nieznane"
   },
   "inactiveBanner": {
-    "title": "Stacja nieaktywna",
-    "description": "Niewidoczna na mapie. Oczekuje na usunięcie z bazy danych"
-  },
-  "pendingBanner": {
-    "title": "Stacja oczekująca",
-    "description": "Widoczna publicznie bez komórek. Zmień status na opublikowany, aby edytować komórki"
+    "title": "Stacja nieaktywna"
   },
   "toast": {
     "locationSaved": "Lokalizacja została zapisana",
     "locationDeleted": "Lokalizacja została usunięta",
-    "deleted": "Stacja została usunięta",
     "created": "Stacja została utworzona",
-    "operatorRequired": "Operator jest wymagany",
-    "locationRequired": "Lokalizacja jest wymagana",
-    "sectorAzimuthsRequired": "Uzupełnij azymuty (0-360)",
     "saved": "Stacja została zapisana",
-    "refreshFailed": "Stacja została zapisana, ale nie udało się wczytać jej najnowszych danych",
-    "noBands": "Brak dostępnych pasm dla {{rat}}",
-    "duplicateCid": "Znaleziono duplikat CID w komórkach {{rat}}",
-    "duplicateEnbidClid": "Znaleziono duplikat eNBID+CLID w komórkach LTE",
     "photoUploadFailed": "Stacja utworzona, ale przesyłanie zdjęć nie powiodło się"
+  },
+  "list": {
+    "byRelevance": "według trafności",
+    "unconfirmed": "Niepotwierdzona",
+    "matched": "Dopasowanie",
+    "cellsOfRat_one": "{{count, number}} komórka {{rat}}",
+    "cellsOfRat_few": "{{count, number}} komórki {{rat}}",
+    "cellsOfRat_many": "{{count, number}} komórek {{rat}}",
+    "cellsOfRat_other": "{{count, number}} komórki {{rat}}",
+    "searchPlaceholder": "Szukaj po ID stacji, numerze komórki, mieście lub adresie...",
+    "searchPlaceholderShort": "Szukaj po ID stacji, mieście..."
+  },
+  "edit": {
+    "groups": {
+      "general": "Zapis"
+    },
+    "cellName": {
+      "noClid": "bez CLID",
+      "noCid": "bez CID",
+      "noAzimuth": "bez azymutu"
+    },
+    "marks": {
+      "submitted": "Ze zgłoszenia",
+      "databaseValue": "Wartość w bazie",
+      "submittedValue": "Wartość ze zgłoszenia"
+    },
+    "changes": {
+      "stationConfirmed": "Oznaczona jako potwierdzona",
+      "stationUnconfirmed": "Oznaczona jako niepotwierdzona",
+      "stationMoved": "Stacja przeniesiona o {{distance}}, do nowej lokalizacji",
+      "stationMovedToExisting": "Stacja przeniesiona o {{distance}}, do istniejącej lokalizacji",
+      "locationMoved": "Cała lokalizacja przesunięta o {{distance}}",
+      "proposedOwner": "{{name}} (nowy)",
+      "sectorAdded": "Nowy azymut {{degrees}}°",
+      "sectorAddedOmni": "Nowy azymut dookólny",
+      "sectorAddedEmpty": "Nowy azymut bez wartości",
+      "sectorRemoved": "Usunięty azymut {{degrees}}°",
+      "sectorRemovedOmni": "Usunięty azymut dookólny",
+      "areaCodeAll": "{{field}} wszystkich komórek",
+      "areaCodeMixed": "różne wartości",
+      "cellAdded": "Nowa komórka {{band}}",
+      "cellRemoved": "Usunięta komórka {{band}}",
+      "cellRestored": "Przywrócona komórka {{band}}",
+      "cellConfirmed": "potwierdzona",
+      "cellUnconfirmed": "niepotwierdzona",
+      "flagOn": "{{flag}} włączone",
+      "flagOff": "{{flag}} wyłączone",
+      "fields": {
+        "band": "pasmo",
+        "azimuth": "azymut",
+        "cellType": "rodzaj",
+        "note": "notatka",
+        "mode": "tryb"
+      },
+      "photosAdded_one": "{{count, number}} nowe zdjęcie",
+      "photosAdded_few": "{{count, number}} nowe zdjęcia",
+      "photosAdded_many": "{{count, number}} nowych zdjęć",
+      "photosAdded_other": "{{count, number}} nowego zdjęcia",
+      "photosShown_one": "Stacja pokaże {{count, number}} zdjęcie więcej",
+      "photosShown_few": "Stacja pokaże {{count, number}} zdjęcia więcej",
+      "photosShown_many": "Stacja pokaże {{count, number}} zdjęć więcej",
+      "photosShown_other": "Stacja pokaże {{count, number}} zdjęcia więcej",
+      "photosHidden_one": "Stacja przestanie pokazywać {{count, number}} zdjęcie",
+      "photosHidden_few": "Stacja przestanie pokazywać {{count, number}} zdjęcia",
+      "photosHidden_many": "Stacja przestanie pokazywać {{count, number}} zdjęć",
+      "photosHidden_other": "Stacja przestanie pokazywać {{count, number}} zdjęcia",
+      "mainPhoto": "Nowe zdjęcie główne"
+    },
+    "errors": {
+      "siteIdRequired": "ID stacji: wymagane",
+      "siteIdTooLong": "ID stacji: najwyżej {{max}} znaków",
+      "operatorRequired": "Operator: wymagany",
+      "networksIdInvalid": "N! ID: najwyżej {{max}} cyfr, bez innych znaków",
+      "identifierTooLong": "Nazwa: najwyżej {{max}} znaków",
+      "backhaulMediumRequired": "Uplink: wybierz typ, zanim podasz przepustowość",
+      "backhaulSpeedRange": "Przepustowość: wartość od 1 do {{max}}",
+      "backhaulModelTooLong": "Model: najwyżej {{max}} znaków",
+      "coordinatesRequired": "Współrzędne: wymagane",
+      "coordinatesIncomplete": "Współrzędne: podaj szerokość i długość",
+      "latitudeRange": "Szerokość geograficzna: wartość od -90 do 90",
+      "longitudeRange": "Długość geograficzna: wartość od -180 do 180",
+      "cityTooLong": "Miasto: najwyżej {{max}} znaków",
+      "structureNoteTooLong": "Opis obiektu: najwyżej {{max}} znaków",
+      "ownerNameLength": "Właściciel obiektu: nazwa od 1 do {{max}} znaków",
+      "ownerMustBeListed": "Właściciel obiektu: wybierz z listy albo dodaj nowego",
+      "azimuthEmpty": "Wpisz azymut albo usuń puste pole",
+      "azimuthRange": "Azymut od 0 do 359 (360 = dookólny)",
+      "azimuthDuplicate": "Azymut {{degrees}}° powtarza się",
+      "tooManyAzimuths": "Najwyżej {{max}} azymutów na stacji",
+      "required": "{{field}}: wymagane",
+      "range": "{{field}}: wartość od 0 do {{max}}",
+      "gnbidLengthRange": "Długość gNBID: liczba całkowita od {{min}} do {{max}} bitów",
+      "bandRequired": "Pasmo: wymagane",
+      "modeRequired": "Tryb: wymagany",
+      "nsaField": "{{field}}: komórka NSA nie ma tego pola",
+      "codeDisabled": "{{field}}: to pole jest wyłączone",
+      "cellIdentityDuplicate": "{{fields}} powtarza się w tej stacji",
+      "pciDuplicate": "PCI {{pci}} powtarza się w tym paśmie",
+      "channelBandMismatch": "{{field}}: kanał nie pasuje do pasma",
+      "bandNotInPlan": "Pasmo: nie ma go w planie pasm tego kraju",
+      "tooManyCellChanges": "Najwyżej {{max}} zmian komórek w jednym zapisie",
+      "noteTooLong": "Notatka: najwyżej {{max}} znaków",
+      "tooManyUploads": "Najwyżej {{max}} nowych zdjęć w zgłoszeniu",
+      "tooManyPicks": "Najwyżej {{max}} wybranych zdjęć",
+      "mainPhotoNotPicked": "Zdjęcie główne musi być wśród wybranych"
+    },
+    "refusals": {
+      "unknown": "Serwer odrzucił zapis: {{message}}",
+      "invalidField": "Serwer odrzucił tę wartość: {{message}}",
+      "sectorGone": "Azymut z tej zmiany nie należy już do stacji",
+      "cellGone": "Tej komórki nie ma już na stacji",
+      "fieldNotForRat": "{{field}}: to pole nie dotyczy komórek {{rat}}",
+      "cellNotEditable": "Tej komórki nie można zmienić zgłoszeniem",
+      "unknownTogether": "Komórka ze znanym {{node}} musi mieć {{cell}}",
+      "operatorGone": "Wybrany operator nie istnieje",
+      "regionGone": "Wybrany region nie istnieje",
+      "bandGone": "Wybrane pasmo nie istnieje",
+      "regionUnknown": "Nie udało się ustalić regionu ze współrzędnych - wybierz go ręcznie",
+      "ownerGone": "Wybrany właściciel obiektu nie istnieje",
+      "ownerOtherCountry": "Ten właściciel obiektu należy do innego kraju niż lokalizacja",
+      "locationIncomplete": "Lokalizacja wymaga współrzędnych i regionu",
+      "siteIdTaken": "Ten operator ma już stację o tym ID",
+      "alreadyAtLocation": "Stacja o tym ID jest już dokładnie w tym miejscu",
+      "azimuthsNotUnique": "Azymuty na stacji muszą być różne",
+      "sectorHasCells": "Nie można usunąć azymutu, do którego są przypisane komórki",
+      "cellSectorInvalid": "Komórka wskazuje azymut, którego nie ma na tej stacji",
+      "sectorsRefused": "Serwer odrzucił zmiany azymutów: {{message}}",
+      "bandWrongRat": "Pasmo: nie pasuje do technologii komórki",
+      "cellIdentityTaken": "{{fields}} {{values}}: operator ma już taką komórkę",
+      "pciTaken": "PCI {{pci}}: stacja ma już taką komórkę w tym paśmie",
+      "cellListedTwice": "Ta sama komórka jest zmieniana dwa razy",
+      "noChanges": "Serwer nie wykrył żadnych zmian",
+      "cellMoved": "Ta komórka jest teraz na innej stacji",
+      "cellRatChanged": "Technologii komórki nie można zmienić",
+      "identifiersNotTaken": "Stacje tego operatora nie mają tych identyfikatorów",
+      "alreadyReviewed": "To zgłoszenie zostało już rozpatrzone",
+      "stationGone": "Stacja nie istnieje albo jest nieaktywna",
+      "countryClosed": "Ten kraj nie przyjmuje teraz zgłoszeń",
+      "outsideGrant": "Twoje uprawnienia redaktora nie obejmują tego regionu",
+      "forbidden": "Nie masz uprawnień do tej operacji",
+      "featureDisabled": "Ta funkcja jest wyłączona",
+      "duplicateEntry": "Taki wpis już istnieje",
+      "photosGone": "Jedno z wybranych zdjęć już nie istnieje",
+      "photosOtherLocation": "Jedno z wybranych zdjęć nie należy do lokalizacji tej stacji",
+      "photosNotShown": "Stacja nie pokazuje jednego ze zdjęć do usunięcia",
+      "deleteOnlyNote": "Zgłoszenie usunięcia stacji może mieć tylko notatkę"
+    },
+    "frame": {
+      "tabs": "Części stacji",
+      "errorCount_one": "{{count, number}} błąd",
+      "errorCount_few": "{{count, number}} błędy",
+      "errorCount_many": "{{count, number}} błędów",
+      "errorCount_other": "{{count, number}} błędu",
+      "errorsTitle": "Popraw przed zapisaniem",
+      "changeCount_one": "{{count, number}} zmiana",
+      "changeCount_few": "{{count, number}} zmiany",
+      "changeCount_many": "{{count, number}} zmian",
+      "changeCount_other": "{{count, number}} zmiany",
+      "changesTitle": "Zmiany do zapisania",
+      "ownCorrection": "Twoja poprawka"
+    },
+    "stationCard": {
+      "networksIdPlaceholder": "np. 12345"
+    },
+    "azimuths": {
+      "cellsOnAzimuth_one": "{{count, number}} komórka na tym azymucie",
+      "cellsOnAzimuth_few": "{{count, number}} komórki na tym azymucie",
+      "cellsOnAzimuth_many": "{{count, number}} komórek na tym azymucie",
+      "cellsOnAzimuth_other": "{{count, number}} komórki na tym azymucie",
+      "remove": "Usuń azymut {{value}}",
+      "summaryEdit": "Edytuj azymuty",
+      "sources": {
+        "emfHint": "Ostatnie sprawozdanie przy tych współrzędnych",
+        "registerHint": "Sektory z pozwoleń tej stacji",
+        "partner": "Stacja {{brand}}",
+        "partnerHint": "Stacja partnera w tym samym miejscu",
+        "note": "Przed zmianą zobaczysz, co zostanie dodane i zmienione"
+      },
+      "preview": {
+        "emfTitle": "Azymuty ze sprawozdania PEM",
+        "registerTitle": "Azymuty z pozwoleń UKE",
+        "partnerTitle": "Azymuty ze stacji {{brand}}",
+        "reportDate": "Sprawozdanie z {{date}}",
+        "latestReport": "Najnowsze sprawozdanie",
+        "sectorAntennas_one": "{{count, number}} antena sektorowa",
+        "sectorAntennas_few": "{{count, number}} anteny sektorowe",
+        "sectorAntennas_many": "{{count, number}} anten sektorowych",
+        "sectorAntennas_other": "{{count, number}} anteny sektorowej",
+        "changed": "zmiana",
+        "changedWithCells_one": "zmiana, {{count, number}} komórka zostaje przypisana",
+        "changedWithCells_few": "zmiana, {{count, number}} komórki zostają przypisane",
+        "changedWithCells_many": "zmiana, {{count, number}} komórek zostaje przypisanych",
+        "changedWithCells_other": "zmiana, {{count, number}} komórki zostają przypisane",
+        "added": "nowy azymut",
+        "apply_one": "Zastosuj {{count, number}} zmianę",
+        "apply_few": "Zastosuj {{count, number}} zmiany",
+        "apply_many": "Zastosuj {{count, number}} zmian",
+        "apply_other": "Zastosuj {{count, number}} zmiany"
+      }
+    },
+    "historyCard": {
+      "title": "Historia",
+      "openAll": "Cała historia",
+      "afterSubmission": "Zmiana po wysłaniu zgłoszenia"
+    },
+    "location": {
+      "regionFromCoordinates": "ustalone ze współrzędnych",
+      "regionFromCoordinatesHint": "Serwer ustala województwo ze współrzędnych",
+      "movedTitle": "Nowe położenie, {{distance}} dalej",
+      "moveQuestion": "co przenieść?",
+      "moveLabel": "Co przenieść",
+      "moveStation": "Tylko tę stację",
+      "moveLocation": "Całą lokalizację",
+      "stationToNew": "Ta stacja przejdzie do nowej lokalizacji. Pozostałe stacje i zdjęcia miejsca zostają",
+      "stationToExisting": "Ta stacja przejdzie do istniejącej lokalizacji. Pozostałe stacje i zdjęcia miejsca zostają",
+      "stationAloneToNew": "Ta stacja przejdzie do nowej lokalizacji razem ze zdjęciami. Dotychczasowe miejsce zostanie usunięte",
+      "stationAloneToExisting": "Ta stacja przejdzie do istniejącej lokalizacji razem ze zdjęciami. Dotychczasowe miejsce zostanie usunięte",
+      "locationWithStations_one": "Miejsce przesunie się razem z {{count, number}} stacją i zdjęciami",
+      "locationWithStations_few": "Miejsce przesunie się razem z {{count, number}} stacjami i zdjęciami",
+      "locationWithStations_many": "Miejsce przesunie się razem z {{count, number}} stacjami i zdjęciami",
+      "locationWithStations_other": "Miejsce przesunie się razem z {{count, number}} stacjami i zdjęciami",
+      "locationAlone": "Miejsce przesunie się razem ze zdjęciami",
+      "mergeWithStations_one": "Miejsce połączy się z lokalizacją, która już tam jest, razem z {{count, number}} stacją i zdjęciami",
+      "mergeWithStations_few": "Miejsce połączy się z lokalizacją, która już tam jest, razem z {{count, number}} stacjami i zdjęciami",
+      "mergeWithStations_many": "Miejsce połączy się z lokalizacją, która już tam jest, razem z {{count, number}} stacjami i zdjęciami",
+      "mergeWithStations_other": "Miejsce połączy się z lokalizacją, która już tam jest, razem z {{count, number}} stacjami i zdjęciami",
+      "mergeAlone": "Miejsce połączy się z lokalizacją, która już tam jest, razem ze zdjęciami",
+      "structureNotePlaceholder": "np. komin elektrociepłowni",
+      "sharedByStations": "Miasto, adres i obiekt należą do miejsca: są wspólne dla {{total, number}} stacji",
+      "stationsHere": "Stacje w tym miejscu"
+    },
+    "owner": {
+      "newTag": "nowy",
+      "search": "Szukaj właściciela",
+      "addNamed": "Dodaj \"{{name}}\"",
+      "propose": "Zaproponuj właściciela",
+      "proposeNamed": "Zaproponuj \"{{name}}\"",
+      "proposedHint": "Tego właściciela nie ma jeszcze na liście. Redaktor doda go, gdy zatwierdzi zgłoszenie",
+      "proposeTitle": "Zaproponuj właściciela obiektów",
+      "proposeDescription": "Redaktor sprawdzi nazwę, gdy będzie rozpatrywał zgłoszenie",
+      "proposeSubmit": "Zaproponuj"
+    },
+    "cells": {
+      "cardLabel": "Komórki {{rat}}",
+      "note": "Notatka",
+      "addNote": "Dodaj notatkę",
+      "resetUnavailableCodes": "Wyczyść niedostępne kody",
+      "savedCodesUnchanged": "Zapisane kody pozostają bez zmian",
+      "duplicate": "Duplikuj",
+      "refuseDeletion": "Odrzuć usunięcie",
+      "newSector": "Nowy...",
+      "columns": {
+        "mode": "Tryb",
+        "gnbidLength": "Bity gNBID",
+        "cellType": "Rodzaj"
+      },
+      "hints": {
+        "sector": "Sektor anteny, do którego należy komórka",
+        "mode": "NSA (Non-Standalone) albo SA (Standalone)",
+        "gnbidLength": "Długość gNBID: 22–32 bity. Pozostałe bity 36-bitowego NCI zawierają CLID",
+        "clid": "Cell ID w stacji bazowej",
+        "channel": "Kanał downlink",
+        "eci": "E-UTRAN Cell Identifier · wyliczane: eNBID x 256 + CLID",
+        "longCid": "Wyliczane: RNC x 65536 + CID",
+        "nci": "NR Cell Identity · wyliczane z gNBID i CLID",
+        "iot": "NB-IoT lub LTE-M",
+        "eGsm": "Rozszerzone pasmo GSM 900",
+        "redCap": "Reduced Capability NR, tylko komórki SA",
+        "saOnly": "Tylko dla komórek SA"
+      },
+      "areaCode": {
+        "sharedHint": "Jedna wartość dla wszystkich komórek {{rat}} tej stacji",
+        "sharedLabel": "{{field}} wszystkich komórek {{rat}}",
+        "mixed_one": "{{field}}: {{count, number}} wartość",
+        "mixed_few": "{{field}}: {{count, number}} różne wartości",
+        "mixed_many": "{{field}}: {{count, number}} różnych wartości",
+        "mixed_other": "{{field}}: {{count, number}} różnej wartości",
+        "unify": "Ujednolić",
+        "unifyHint": "Wszystkie komórki {{rat}} dostaną {{field}} {{value}}"
+      },
+      "tools": {
+        "button": "Narzędzia",
+        "fillChannelsHint": "Uzupełnia puste pola według pasma i operatora",
+        "addMissingCellsHint": "Dopełnia sektory w każdym paśmie",
+        "assignSectorsHint": "Komórki bez azymutu biorą go od komórki z tym samym PCI",
+        "assignSectorsHintNr": "NSA bierze azymut od komórki LTE z tym samym PCI"
+      },
+      "unchanged": {
+        "show_one": "Pokaż {{count, number}} komórkę bez zmian",
+        "show_few": "Pokaż {{count, number}} komórki bez zmian",
+        "show_many": "Pokaż {{count, number}} komórek bez zmian",
+        "show_other": "Pokaż {{count, number}} komórki bez zmian",
+        "hide": "Ukryj komórki bez zmian"
+      },
+      "empty": {
+        "title": "Stacja nie ma jeszcze komórek",
+        "description": "Wybierz technologię, a pojawi się jej tabela z pierwszym wierszem",
+        "addTechnology": "Dodaj technologię"
+      },
+      "shortcuts": {
+        "button": "Skróty",
+        "title": "Skróty w tabelach komórek",
+        "nextRow": "to samo pole w następnej komórce",
+        "rowUpDown": "to samo pole wiersz wyżej lub niżej",
+        "fieldLeftRight": "poprzednie lub następne pole wiersza",
+        "newRow": "nowa komórka pod bieżącą",
+        "duplicate": "duplikat bieżącej komórki",
+        "save": "zapis"
+      },
+      "legend": {
+        "wasInDatabase": "było w bazie"
+      },
+      "sheet": {
+        "title": "{{rat}} · komórka {{position}} z {{total}}",
+        "computed": "{{name}} - wyliczane z {{node}} i {{cell}}",
+        "previous": "Poprzednia komórka",
+        "next": "Następna komórka"
+      }
+    },
+    "editor": {
+      "saveFirst": "Najpierw zapisz albo cofnij zmiany",
+      "revertShort": "Cofnij",
+      "restore": "Przywróć stację",
+      "delete": {
+        "title": "Usunąć stację?",
+        "description": "Stacja zostanie oznaczona jako nieaktywna i zniknie z mapy. Komórki, zdjęcia i historia zostają. Po 6 miesiącach bez zmian serwer usunie ją na stałe - do tego czasu można ją przywrócić"
+      },
+      "inactiveStrip": {
+        "description": "nie widać jej na mapie. Po 6 miesiącach bez zmian serwer usunie ją razem z komórkami"
+      },
+      "awaitingStrip": {
+        "title": "Stacja czeka na komórki",
+        "description": "jest widoczna publicznie. Stanie się aktywna po zapisaniu pierwszej komórki"
+      },
+      "toast": {
+        "deactivated": "Stacja została oznaczona jako nieaktywna",
+        "restored": "Stacja została przywrócona"
+      },
+      "saveRefused": {
+        "title": "Nie zapisano - nic się nie zmieniło",
+        "fields_one": "Serwer odrzucił {{count, number}} pole. Zaznaczyliśmy je na stronie",
+        "fields_few": "Serwer odrzucił {{count, number}} pola. Zaznaczyliśmy je na stronie",
+        "fields_many": "Serwer odrzucił {{count, number}} pól. Zaznaczyliśmy je na stronie",
+        "fields_other": "Serwer odrzucił {{count, number}} pola. Zaznaczyliśmy je na stronie",
+        "fieldsInTable_one": "Serwer odrzucił {{count, number}} pole. Zaznaczyliśmy je w tabeli {{table}}",
+        "fieldsInTable_few": "Serwer odrzucił {{count, number}} pola. Zaznaczyliśmy je w tabeli {{table}}",
+        "fieldsInTable_many": "Serwer odrzucił {{count, number}} pól. Zaznaczyliśmy je w tabeli {{table}}",
+        "fieldsInTable_other": "Serwer odrzucił {{count, number}} pola. Zaznaczyliśmy je w tabeli {{table}}",
+        "show": "Pokaż"
+      }
+    }
   }
 }

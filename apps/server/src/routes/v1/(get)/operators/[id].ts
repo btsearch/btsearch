@@ -3,6 +3,7 @@ import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -27,6 +28,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
   const operator = await db.query.operators.findFirst({
     where: {
       id: id,
+      countryCode: LEGACY_COUNTRY_CODE,
     },
   });
   if (!operator) throw new ErrorResponse("NOT_FOUND");

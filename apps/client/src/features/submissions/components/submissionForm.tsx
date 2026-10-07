@@ -1,455 +1,271 @@
-import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, SearchRemoveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useSelector } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type SearchStation, fetchSiblingSectors } from "../api";
-import type { ProposedCellForm, ProposedLocationForm, ProposedStationForm, RatType, SubmissionMode } from "../types";
-import { ActionSelector } from "./actionSelector";
-import { CellsSection } from "./cellsSection";
-import { ExtraIdentificatorsSection } from "./extraIdentificatorsSection";
-import { LocationPicker } from "./locationPicker";
-import { NewStationForm } from "./newStationForm";
-import { RatSelector } from "./ratSelector";
-import { StationSelector } from "./stationSelector";
-import { SubmissionPhotosPanel } from "./submissionPhotosPanel";
-import { SubmitSection } from "./submitSection";
-import { type FormValues, useSubmissionForm } from "./useSubmissionForm";
+import type { SubmissionMode } from "../types";
+import type { TargetStation } from "./stationSelector";
+import { LoadingPanel, SubmissionFormPage, SubmissionPendingPage } from "./submissionFormPage";
+import { TargetCard, type TargetControls } from "./targetCard";
+import type { SubmissionSeed } from "./useSubmissionForm";
 import { EmptyPanel } from "@/components/content/emptyPanel";
-import { SectorsPanel, ukePermitsToAzimuthSectors } from "@/features/admin/stations/components/sectorsEditor";
-import { fetchUkePermitsByStationId } from "@/features/map/api";
-import { fetchSI2PEMAzimuths } from "@/features/shared/api";
-import { operatorsQueryOptions } from "@/features/shared/queries";
-import { deriveSectorPanelState } from "@/features/shared/sectorPanelState";
-import OrangeIcon from "@/features/station-details/components/logos/orange.svg?react";
-import TMobileIcon from "@/features/station-details/components/logos/t-mobile.svg?react";
-import { useSettings } from "@/hooks/useSettings";
-import { ORANGE_MNC, TMOBILE_MNC, getMnoBrand, getNetworksSiblingMnc, isNetworksPartnerMnc } from "@/lib/cellular/operators";
-import { shallowEqual } from "@/lib/shallowEqual";
-import type { SectorDraft } from "@/types/station";
+import { Button } from "@/components/ui/button";
+import { ErrorState, InlineError, PageErrorState } from "@/components/ui/error-state";
+import { registerStationPermitsQueryOptions } from "@/features/admin/stations/queries";
+import { groupPermitsByStation } from "@/features/map/utils";
+import { stationRecordQueryOptions } from "@/features/station-details/station/api";
+import { retryEditLookups, useEditReference } from "@/features/station-editing/data/lookups";
+import { submissionQueryOptions } from "@/features/station-editing/data/submissions";
+import { pickFreshData } from "@/features/station-editing/hooks/useStationDraft";
+import { REGISTER_PREFILL_RULES, toRegisterStationDraft } from "@/features/station-editing/model/registerPrefill";
+import { isNotFound } from "@/lib/api";
 
-export interface SubmissionFormProps {
-  preloadStationId?: number;
-  editSubmissionId?: string;
-  preloadUkeStationId?: string;
-}
-
-function hasCompleteLocation(location: ProposedLocationForm): boolean {
-  return location.latitude !== null && location.longitude !== null && location.region_id !== null;
-}
-
-type StationTarget = Pick<FormValues, "mode" | "action" | "selectedStation" | "location">;
-
-function canEditStation({ mode, action, selectedStation, location }: StationTarget): boolean {
-  if (mode === "new") return hasCompleteLocation(location);
-  return selectedStation !== null && action !== "delete";
-}
-
-type SubmissionSectorsPanelFieldsProps = {
-  mode: SubmissionMode;
-  selectedStation: SearchStation | null;
-  newStation: ProposedStationForm;
-  selectedRats: RatType[];
-  location: ProposedLocationForm;
-  cells: ProposedCellForm[];
-  sectors: SectorDraft[];
-  mncById: ReadonlyMap<number, number>;
-  onSectorsChange: (sectors: SectorDraft[]) => void;
+type SubmissionFormProps = {
+  stationId: number | null;
+  submissionId: string | null;
+  registerStationId: string | null;
 };
 
-function SubmissionSectorsPanelFields({
-  mode,
-  selectedStation,
-  newStation,
-  selectedRats,
-  location,
-  cells,
-  sectors,
-  mncById,
-  onSectorsChange,
-}: SubmissionSectorsPanelFieldsProps) {
-  const sectorCells = useMemo(() => cells.filter((cell) => selectedRats.includes(cell.rat)), [cells, selectedRats]);
-  const { derivedSectorCount, assignedSectorLocalIds } = useMemo(() => deriveSectorPanelState(sectorCells), [sectorCells]);
-  const selectedStationId = selectedStation?.id;
-  const operatorMnc = selectedStation?.operator?.mnc;
-  const siblingMnc = getNetworksSiblingMnc(operatorMnc) ?? TMOBILE_MNC;
-  const siblingBrand = getMnoBrand(siblingMnc);
-  const SiblingLogo = siblingMnc === ORANGE_MNC ? OrangeIcon : TMobileIcon;
-  const canFetchSiblingSectors = mode === "existing" && isNetworksPartnerMnc(operatorMnc);
-  const stationId = mode === "existing" ? selectedStation?.station_id : newStation.station_id;
-  const ukeOperatorMnc = mode === "existing" ? operatorMnc : (mncById.get(newStation.operator_id ?? -1) ?? null);
-  const trimmedStationId = stationId?.trim() ?? "";
-  const { latitude, longitude } = location;
+type FreshSubmissionFormProps = Pick<SubmissionFormProps, "stationId" | "registerStationId">;
 
-  const siblingSectorsIcon = useMemo(() => <SiblingLogo className="h-3.5 w-auto shrink-0" />, [SiblingLogo]);
+type StoredSubmissionFormProps = {
+  submissionId: string;
+};
 
-  const fetchSiblingAzimuthSectors = useCallback(async () => {
-    if (!selectedStationId) return [];
-    const { data } = await fetchSiblingSectors(selectedStationId);
-    return data;
-  }, [selectedStationId]);
+type FormTarget = {
+  mode: SubmissionMode;
+  stationId: number | null;
+  summary: TargetStation | null;
+  note: string;
+  round: number;
+};
 
-  const fetchUkeAzimuthSectors = useCallback(async () => {
-    if (!trimmedStationId || !ukeOperatorMnc) return [];
-    return ukePermitsToAzimuthSectors(await fetchUkePermitsByStationId(trimmedStationId, ukeOperatorMnc));
-  }, [trimmedStationId, ukeOperatorMnc]);
+type TargetFormProps = {
+  controls: TargetControls;
+  onAgain: () => void;
+};
 
-  const fetchSI2PEMAzimuthSectors = useCallback(async () => {
-    if (!trimmedStationId || latitude === null || longitude === null) return [];
-    return (await fetchSI2PEMAzimuths(trimmedStationId, latitude, longitude)).map((azimuth) => ({ azimuth }));
-  }, [latitude, longitude, trimmedStationId]);
+type RegisterStationFormProps = TargetFormProps & {
+  registerStationId: string;
+};
 
-  const siblingSectors = useMemo(
-    () =>
-      canFetchSiblingSectors && selectedStationId
-        ? {
-            brand: siblingBrand,
-            icon: siblingSectorsIcon,
-            onFetch: fetchSiblingAzimuthSectors,
-          }
-        : undefined,
-    [canFetchSiblingSectors, fetchSiblingAzimuthSectors, selectedStationId, siblingBrand, siblingSectorsIcon],
+type ExistingStationFormProps = TargetFormProps & {
+  stationId: number;
+  summary: TargetStation | null;
+  note: string;
+  focusesModeSwitch: boolean;
+  onNoteChange: (note: string) => void;
+};
+
+const NO_STATION_ID = 0;
+const INACTIVE_STATUS = "inactive";
+const EMPTY_SEED: SubmissionSeed = { station: null, submission: null, prefill: null, note: "" };
+
+function useFirstLoaded<Value>(value: Value | null): Value | null {
+  const [firstValue, setFirstValue] = useState(value);
+
+  if (firstValue === null && value !== null) setFirstValue(value);
+  return firstValue ?? value;
+}
+
+function RegisterStationForm({ registerStationId, controls, onAgain }: RegisterStationFormProps) {
+  const queryClient = useQueryClient();
+  const reference = useEditReference();
+  const { data: permits, isLoadingError, isFetching, refetch } = useQuery(registerStationPermitsQueryOptions(registerStationId));
+  const target = <TargetCard mode="new" station={null} controls={controls} />;
+
+  if (isLoadingError) return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => refetch()} isRetrying={isFetching} />} />;
+  if (reference.hasFailed) {
+    return <SubmissionPendingPage target={target} cells={<ErrorState onRetry={() => retryEditLookups(queryClient, null, reference)} />} />;
+  }
+  if (permits === undefined || !reference.isReady) return <SubmissionPendingPage target={target} cells={<LoadingPanel />} />;
+
+  const registerStation = groupPermitsByStation(permits).at(0);
+  const prefill = registerStation === undefined ? null : toRegisterStationDraft(registerStation, reference, REGISTER_PREFILL_RULES.form);
+  return <SubmissionFormPage seed={{ ...EMPTY_SEED, prefill }} controls={controls} onAgain={onAgain} />;
+}
+
+function ExistingStationForm({ stationId, summary, note, controls, focusesModeSwitch, onNoteChange, onAgain }: ExistingStationFormProps) {
+  const { t } = useTranslation(["stations", "stationDetails", "common"]);
+  const [openedAt] = useState(Date.now);
+  const { data, dataUpdatedAt, error, isFetching, isFetchedAfterMount, refetch } = useQuery({
+    ...stationRecordQueryOptions(stationId),
+    staleTime: 0,
+  });
+  const record = pickFreshData(data, dataUpdatedAt, openedAt);
+  const station = useFirstLoaded(record !== null && record.status !== INACTIVE_STATUS ? record : null);
+
+  if (station !== null) {
+    const seed: SubmissionSeed = { station, submission: null, prefill: null, note };
+    return <SubmissionFormPage seed={seed} controls={controls} focusesModeSwitch={focusesModeSwitch} onNoteChange={onNoteChange} onAgain={onAgain} />;
+  }
+
+  const isLoading = record === null && !isFetchedAfterMount;
+  const isGone = record !== null || isNotFound(error);
+  const clearButton = (
+    <Button type="button" variant="ghost" size="sm" onClick={controls.onStationClear} className="cursor-pointer">
+      {t("common:actions.clear")}
+    </Button>
+  );
+  const loadError = isGone ? (
+    <InlineError title={t("edit.refusals.stationGone")} action={clearButton} />
+  ) : (
+    <InlineError title={t("stationDetails:page.stationUnavailableTitle")} onRetry={() => refetch()} isRetrying={isFetching} action={clearButton} />
   );
 
-  const azimuthSources = useMemo(() => {
-    if (!trimmedStationId) return undefined;
-    return {
-      ...(latitude !== null && longitude !== null ? { si2pem: { onFetch: fetchSI2PEMAzimuthSectors } } : {}),
-      ...(ukeOperatorMnc ? { uke: { onFetch: fetchUkeAzimuthSectors } } : {}),
-    };
-  }, [fetchSI2PEMAzimuthSectors, fetchUkeAzimuthSectors, latitude, longitude, trimmedStationId, ukeOperatorMnc]);
-
   return (
-    <SectorsPanel
-      sectors={sectors}
-      onChange={onSectorsChange}
-      derivedSectorCount={derivedSectorCount}
-      assignedSectorLocalIds={assignedSectorLocalIds}
-      siblingSectors={siblingSectors}
-      azimuthSources={azimuthSources}
+    <SubmissionPendingPage
+      target={
+        <TargetCard
+          mode="existing"
+          station={summary}
+          controls={controls}
+          isStationLoading={isLoading}
+          stationError={isLoading ? null : loadError}
+          focusesModeSwitch={focusesModeSwitch}
+        />
+      }
+      cells={isLoading ? <LoadingPanel /> : <EmptyPanel>{t("common:actions.selectStation")}</EmptyPanel>}
     />
   );
 }
 
-type SubmissionFormApi = ReturnType<typeof useSubmissionForm>["form"];
+function FreshSubmissionForm({ stationId, registerStationId }: FreshSubmissionFormProps) {
+  const { t } = useTranslation("common");
+  const typedNote = useRef("");
+  const [target, setTarget] = useState<FormTarget>({ mode: stationId === null ? "new" : "existing", stationId, summary: null, note: "", round: 0 });
 
-function FormSlice<TSlice extends Record<string, unknown>>({
-  form,
-  select,
-  children,
-}: {
-  form: SubmissionFormApi;
-  select: (state: SubmissionFormApi["state"]) => TSlice;
-  children: (slice: TSlice) => ReactNode;
-}) {
-  const slice = useSelector(form.store, select, { compare: shallowEqual });
-  return children(slice);
-}
-
-export function SubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId }: SubmissionFormProps) {
-  const { t } = useTranslation(["submissions", "common", "stationDetails"]);
-  const { data: settings } = useSettings();
-  const { data: operators = [] } = useQuery(operatorsQueryOptions());
-  const mncById = useMemo(() => new Map(operators.map((o) => [o.id, o.mnc])), [operators]);
-  const {
-    form,
-    mutation,
-    isEditMode,
-    cellErrors,
-    formErrors,
-    hasChanges,
-    photoDraft,
-    handlers: {
-      handleModeChange,
-      handleActionChange,
-      loadStation,
-      handleUkeStationSelect,
-      handleCellsChange,
-      handleRatsChange,
-      handleLocationChange,
-      handleUplinkTypeChange,
-    },
-  } = useSubmissionForm({ preloadStationId, editSubmissionId, preloadUkeStationId });
-
-  const stationFieldHandlers = {
-    onStationChange: (station: ProposedStationForm) => form.setFieldValue("newStation", station),
-    onUplinkTypeChange: handleUplinkTypeChange,
-    onUplinkSpeedChange: (value: number | null) => form.setFieldValue("uplinkSpeed", value),
-    onUplinkModelChange: (value: string) => form.setFieldValue("uplinkModel", value),
-  };
-
-  function handleFormSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    void form.handleSubmit();
+  function openTarget(mode: SubmissionMode, station: TargetStation | null, note: string) {
+    typedNote.current = note;
+    setTarget((current) => ({ mode, stationId: station?.id ?? null, summary: station, note, round: current.round + 1 }));
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key !== "Enter") return;
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    const tagName = target.tagName;
-    if (tagName === "INPUT" || tagName === "SELECT") e.preventDefault();
+  function keepTypedNote(note: string) {
+    typedNote.current = note;
+  }
+
+  function startAgain() {
+    openTarget("new", null, "");
+  }
+
+  const controls: TargetControls = {
+    onModeChange: (mode) => {
+      if (mode !== target.mode) openTarget(mode, null, "");
+    },
+    onStationPick: (station) => openTarget("existing", station, typedNote.current),
+    onStationClear: () => openTarget("existing", null, typedNote.current),
+  };
+  const focusesModeSwitch = target.round > 0;
+
+  if (target.mode === "new" && target.round === 0 && registerStationId !== null) {
+    return <RegisterStationForm registerStationId={registerStationId} controls={controls} onAgain={startAgain} />;
+  }
+  if (target.mode === "new") {
+    return <SubmissionFormPage key={target.round} seed={EMPTY_SEED} controls={controls} focusesModeSwitch={focusesModeSwitch} onAgain={startAgain} />;
+  }
+  if (target.stationId === null) {
+    return (
+      <SubmissionPendingPage
+        target={<TargetCard mode="existing" station={null} controls={controls} focusesModeSwitch={focusesModeSwitch} />}
+        cells={<EmptyPanel>{t("actions.selectStation")}</EmptyPanel>}
+      />
+    );
+  }
+  return (
+    <ExistingStationForm
+      key={`${target.stationId}:${target.round}`}
+      stationId={target.stationId}
+      summary={target.summary}
+      note={target.note}
+      controls={controls}
+      focusesModeSwitch={focusesModeSwitch}
+      onNoteChange={keepTypedNote}
+      onAgain={startAgain}
+    />
+  );
+}
+
+function StoredSubmissionForm({ submissionId }: StoredSubmissionFormProps) {
+  const { t } = useTranslation(["submissions", "stationDetails", "nav"]);
+  const [openedAt] = useState(Date.now);
+  const submissionQuery = useQuery({ ...submissionQueryOptions(submissionId), staleTime: 0 });
+  const knownSubmission = submissionQuery.data;
+  const submission = pickFreshData(knownSubmission, submissionQuery.dataUpdatedAt, openedAt);
+  const stationId = knownSubmission === undefined || knownSubmission.action === "create" ? null : knownSubmission.stationId;
+  const stationQuery = useQuery({ ...stationRecordQueryOptions(stationId ?? NO_STATION_ID), enabled: stationId !== null, staleTime: 0 });
+  const station = pickFreshData(stationQuery.data, stationQuery.dataUpdatedAt, openedAt);
+  const loadedSeed: SubmissionSeed | null =
+    submission !== null && (stationId === null || station !== null) ? { station, submission, prefill: null, note: "" } : null;
+  const seed = useFirstLoaded(loadedSeed);
+
+  if (seed !== null) return <SubmissionFormPage seed={seed} controls={null} onAgain={null} />;
+
+  const hasSubmissionFailed = submission === null && submissionQuery.isFetchedAfterMount;
+  const hasStationFailed = submission !== null && stationQuery.isFetchedAfterMount;
+  const backButton = (
+    <Button variant="outline" nativeButton={false} render={<Link to="/account/submissions" />}>
+      <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+      {t("nav:items.mySubmissions")}
+    </Button>
+  );
+
+  if (hasSubmissionFailed && isNotFound(submissionQuery.error)) {
+    return (
+      <PageErrorState
+        tone="neutral"
+        icon={SearchRemoveIcon}
+        title={t("detail.notFoundTitle")}
+        description={t("detail.notFoundDescription")}
+        action={backButton}
+      />
+    );
+  }
+  if (hasSubmissionFailed) {
+    return <PageErrorState onRetry={() => submissionQuery.refetch()} isRetrying={submissionQuery.isFetching} action={backButton} />;
+  }
+  if (hasStationFailed && isNotFound(stationQuery.error)) {
+    return (
+      <PageErrorState
+        tone="neutral"
+        icon={SearchRemoveIcon}
+        title={t("stationDetails:page.stationNotFoundTitle")}
+        description={t("stationDetails:page.stationNotFoundDescription")}
+        action={backButton}
+      />
+    );
+  }
+  if (hasStationFailed) {
+    return (
+      <PageErrorState
+        title={t("stationDetails:page.stationUnavailableTitle")}
+        onRetry={() => stationQuery.refetch()}
+        isRetrying={stationQuery.isFetching}
+        action={backButton}
+      />
+    );
   }
 
   return (
-    <form onSubmit={handleFormSubmit} onKeyDown={handleKeyDown} className="flex flex-wrap gap-4 min-h-full">
-      <div className="flex-[1.5_0_300px] min-w-0 space-y-4">
-        {isEditMode && (
-          <div className="rounded-xl border bg-muted/50 px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <HugeiconsIcon icon={PencilEdit02Icon} className="size-4 text-muted-foreground shrink-0" />
-              <p className="text-sm text-foreground/80">{t("form.editingBanner")}</p>
-            </div>
-            <span className="font-mono text-sm font-semibold text-foreground bg-background border px-2 py-0.5 rounded-md shrink-0">
-              #{editSubmissionId}
-            </span>
-          </div>
-        )}
-
-        <div className="relative rounded-xl border">
-          <FormSlice form={form} select={(s) => ({ mode: s.values.mode, selectedStation: s.values.selectedStation })}>
-            {({ mode, selectedStation }) => (
-              <StationSelector mode={mode} selectedStation={selectedStation} onModeChange={handleModeChange} onStationSelect={loadStation} />
-            )}
-          </FormSlice>
-
-          <FormSlice form={form} select={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation })}>
-            {({ mode, action, selectedStation }) => {
-              if (mode !== "existing" || !selectedStation) return null;
-              return <ActionSelector action={action} onActionChange={handleActionChange} />;
-            }}
-          </FormSlice>
-        </div>
-
-        <FormSlice
-          form={form}
-          select={(s) => ({ mode: s.values.mode, action: s.values.action, selectedStation: s.values.selectedStation, location: s.values.location })}
-        >
-          {({ mode, action, selectedStation, location }) => {
-            if (mode === "existing" && action === "delete") return null;
-            if (mode === "existing" && !selectedStation) return null;
-
-            return (
-              <LocationPicker
-                location={location}
-                azimuthStationId={mode === "existing" ? selectedStation?.id : undefined}
-                errors={formErrors.location}
-                onLocationChange={handleLocationChange}
-                onUkeStationSelect={mode === "new" ? handleUkeStationSelect : undefined}
-                currentLocation={mode === "existing" ? selectedStation?.location : undefined}
-                existingLocationMatch={mode === "new" && !isEditMode ? "select" : "compare"}
-              />
-            );
-          }}
-        </FormSlice>
-
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            mode: s.values.mode,
-            newStation: s.values.newStation,
-            location: s.values.location,
-            uplinkType: s.values.uplinkType,
-            uplinkSpeed: s.values.uplinkSpeed,
-            uplinkModel: s.values.uplinkModel,
-          })}
-        >
-          {({ mode, newStation, location, uplinkType, uplinkSpeed, uplinkModel }) => {
-            if (mode !== "new") return null;
-            if (!hasCompleteLocation(location)) return null;
-
-            return (
-              <NewStationForm
-                {...stationFieldHandlers}
-                station={newStation}
-                errors={formErrors.station}
-                checkExisting
-                uplinkType={uplinkType}
-                uplinkSpeed={uplinkSpeed}
-                uplinkModel={uplinkModel}
-              />
-            );
-          }}
-        </FormSlice>
-
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            mode: s.values.mode,
-            action: s.values.action,
-            selectedStation: s.values.selectedStation,
-            newStation: s.values.newStation,
-            networksId: s.values.networksId,
-            networksName: s.values.networksName,
-            mnoName: s.values.mnoName,
-            uplinkType: s.values.uplinkType,
-            uplinkSpeed: s.values.uplinkSpeed,
-            uplinkModel: s.values.uplinkModel,
-          })}
-        >
-          {({ mode, action, selectedStation, newStation, networksId, networksName, mnoName, uplinkType, uplinkSpeed, uplinkModel }) => {
-            if (mode !== "existing" || !selectedStation || action === "delete") return null;
-            return (
-              <>
-                <NewStationForm
-                  {...stationFieldHandlers}
-                  station={newStation}
-                  hideExtraIdentifiers
-                  uplinkType={uplinkType}
-                  uplinkSpeed={uplinkSpeed}
-                  uplinkModel={uplinkModel}
-                />
-                <ExtraIdentificatorsSection
-                  selectedStation={selectedStation}
-                  networksId={networksId}
-                  networksName={networksName}
-                  mnoName={mnoName}
-                  onNetworksIdChange={(value) => form.setFieldValue("networksId", value)}
-                  onNetworksNameChange={(value) => form.setFieldValue("networksName", value)}
-                  onMnoNameChange={(value) => form.setFieldValue("mnoName", value)}
-                />
-              </>
-            );
-          }}
-        </FormSlice>
-
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            mode: s.values.mode,
-            action: s.values.action,
-            selectedStation: s.values.selectedStation,
-            newStation: s.values.newStation,
-            selectedRats: s.values.selectedRats,
-            location: s.values.location,
-            cells: s.values.cells,
-            sectors: s.values.sectors,
-          })}
-        >
-          {({ mode, action, selectedStation, newStation, selectedRats, location, cells, sectors }) => {
-            if (!canEditStation({ mode, action, selectedStation, location })) return null;
-
-            return (
-              <SubmissionSectorsPanelFields
-                mode={mode}
-                selectedStation={selectedStation}
-                newStation={newStation}
-                selectedRats={selectedRats}
-                location={location}
-                cells={cells}
-                sectors={sectors}
-                mncById={mncById}
-                onSectorsChange={(nextSectors) => form.setFieldValue("sectors", nextSectors)}
-              />
-            );
-          }}
-        </FormSlice>
-
-        {settings?.photosEnabled && (
-          <FormSlice
-            form={form}
-            select={(s) => ({
-              mode: s.values.mode,
-              selectedStation: s.values.selectedStation,
-              location: s.values.location,
-              action: s.values.action,
-            })}
-          >
-            {({ mode, selectedStation, location, action }) => (
-              <SubmissionPhotosPanel
-                {...photoDraft}
-                mode={mode}
-                action={action}
-                selectedStation={selectedStation}
-                location={location}
-                editSubmissionId={editSubmissionId}
-              />
-            )}
-          </FormSlice>
-        )}
-
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            mode: s.values.mode,
-            action: s.values.action,
-            selectedStation: s.values.selectedStation,
-            selectedRats: s.values.selectedRats,
-            location: s.values.location,
-          })}
-        >
-          {({ mode, action, selectedStation, selectedRats, location }) => {
-            if (!canEditStation({ mode, action, selectedStation, location })) return null;
-
-            return <RatSelector selectedRats={selectedRats} onRatsChange={handleRatsChange} />;
-          }}
-        </FormSlice>
-
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            mode: s.values.mode,
-            action: s.values.action,
-            selectedStation: s.values.selectedStation,
-            submitterNote: s.values.submitterNote,
-            canSubmit: s.canSubmit,
-            isSubmitting: s.isSubmitting,
-          })}
-        >
-          {({ mode, action, selectedStation, submitterNote, canSubmit, isSubmitting }) => (
-            <SubmitSection
-              mode={mode}
-              action={action}
-              selectedStation={selectedStation}
-              submitterNote={submitterNote}
-              onSubmitterNoteChange={(note) => form.setFieldValue("submitterNote", note)}
-              canSubmit={canSubmit && hasChanges && (mode === "new" || selectedStation !== null)}
-              isSubmitting={isSubmitting}
-              isPending={mutation.isPending}
-              isSuccess={mutation.isSuccess}
-              isEditMode={isEditMode}
-              hasChanges={hasChanges}
-            />
-          )}
-        </FormSlice>
-      </div>
-
-      <div className="flex-[3_0_500px] min-w-0 max-md:flex-[1_1_100%]">
-        <FormSlice
-          form={form}
-          select={(s) => ({
-            selectedRats: s.values.selectedRats,
-            cells: s.values.cells,
-            originalCells: s.values.originalCells,
-            sectors: s.values.sectors,
-            mode: s.values.mode,
-            action: s.values.action,
-            operatorId: s.values.newStation.operator_id,
-          })}
-        >
-          {({ selectedRats, cells, originalCells, sectors, mode, action, operatorId }) => {
-            if (mode === "existing" && action === "delete") return <EmptyPanel>{t("deleteStation.warning")}</EmptyPanel>;
-
-            const operatorMnc = mncById.get(operatorId ?? -1) ?? null;
-
-            return (
-              <CellsSection
-                selectedRats={selectedRats}
-                cells={cells}
-                originalCells={originalCells}
-                sectors={sectors}
-                isNewStation={mode === "new"}
-                cellErrors={cellErrors}
-                onCellsChange={handleCellsChange}
-                operatorMnc={operatorMnc}
-              />
-            );
-          }}
-        </FormSlice>
-      </div>
-    </form>
+    <SubmissionPendingPage
+      target={
+        <TargetCard
+          mode={knownSubmission?.action === "create" ? "new" : "existing"}
+          station={null}
+          controls={null}
+          editedSubmissionId={submissionId}
+          isStationLoading
+        />
+      }
+      cells={<LoadingPanel />}
+    />
   );
+}
+
+export function SubmissionForm({ stationId, submissionId, registerStationId }: SubmissionFormProps) {
+  useEditReference();
+
+  if (submissionId !== null) return <StoredSubmissionForm submissionId={submissionId} />;
+  return <FreshSubmissionForm stationId={stationId} registerStationId={registerStationId} />;
 }

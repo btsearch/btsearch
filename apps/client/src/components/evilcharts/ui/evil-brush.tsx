@@ -38,7 +38,7 @@ interface EvilBrushRange {
 interface EvilBrushProps {
   /** Full dataset – always rendered in the miniature chart */
   data: Record<string, unknown>[];
-  /** Chart config with colour definitions */
+  /** Chart config with color definitions */
   chartConfig: ChartConfig;
   /** Data keys to plot (default: all keys from chartConfig) */
   dataKeys?: string[];

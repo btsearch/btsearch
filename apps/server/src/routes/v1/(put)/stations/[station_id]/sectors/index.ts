@@ -6,6 +6,7 @@ import type { FastifyRequest } from "fastify";
 import z from "zod";
 
 import { ErrorResponse } from "../../../../../../errors.ts";
+import { stationParamScope } from "../../../../../../features/access/scope.ts";
 import { auditContextFromRequest, loadSectorSnapshot, runAuditedOperation } from "../../../../../../features/audit/index.ts";
 import { moveSectorsOutOfTheWay } from "../../../../../../features/stations/sectorAzimuths.ts";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.ts";
@@ -123,7 +124,7 @@ async function handler(req: FastifyRequest<ReqBodyParams>, res: ReplyPayload<JSO
 const putSectors: Route<ReqBodyParams, ResBody> = {
   url: "/stations/:station_id/sectors",
   method: "PUT",
-  config: { permissions: ["update:stations"] },
+  config: { permissions: ["update:stations"], scope: stationParamScope },
   schema: schemaRoute,
   handler,
 };

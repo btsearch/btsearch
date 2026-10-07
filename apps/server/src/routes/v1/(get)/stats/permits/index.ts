@@ -1,10 +1,11 @@
-import { bands, cells, operators, stations, ukePermits, ukeStations } from "@openbts/drizzle";
-import { count, countDistinct, eq } from "drizzle-orm";
+import { bands, cells, operators, stations, ukeBands, ukePermits, ukeStations } from "@openbts/drizzle";
+import { and, count, countDistinct, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import redis from "../../../../../database/redis.js";
+import { stationIdInLegacyCountry } from "../../../../../features/countries/legacy.js";
 import {
   type StatsOperator,
   type StatsResponse,
@@ -79,7 +80,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   if (cached) return res.send(JSON.parse(cached));
 
   const ukeWhere = operator_id ? eq(ukeStations.operator_id, operator_id) : undefined;
-  const stationWhere = operator_id ? eq(stations.operator_id, operator_id) : undefined;
+  const stationWhere = and(operator_id ? eq(stations.operator_id, operator_id) : undefined, stationIdInLegacyCountry(stations.id));
 
   const [ukeRows, internalRows] = await Promise.all([
     db
@@ -87,18 +88,18 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
         operator_id: operators.id,
         operator_name: operators.name,
         operator_mnc: operators.mnc,
-        band_id: bands.id,
-        band_name: bands.name,
-        band_rat: bands.rat,
+        band_id: ukeBands.id,
+        band_name: ukeBands.name,
+        band_rat: ukeBands.rat,
         unique_stations: countDistinct(ukePermits.uke_station_id),
         permits_count: count(),
       })
       .from(ukePermits)
       .innerJoin(ukeStations, eq(ukePermits.uke_station_id, ukeStations.id))
       .innerJoin(operators, eq(ukeStations.operator_id, operators.id))
-      .innerJoin(bands, eq(ukePermits.band_id, bands.id))
+      .innerJoin(ukeBands, eq(ukePermits.band_id, ukeBands.id))
       .where(ukeWhere)
-      .groupBy(operators.id, operators.name, operators.mnc, bands.id, bands.name, bands.rat),
+      .groupBy(operators.id, operators.name, operators.mnc, ukeBands.id, ukeBands.name, ukeBands.rat),
 
     db
       .select({

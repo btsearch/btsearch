@@ -1,4 +1,4 @@
-import { mapNsgAnalyzerCell } from "./cellAdapter";
+import { mapNsgAnalyzerCell, mapNsgNrCell, readNsgCellPlmn } from "./cellAdapter";
 import { ANALYZER_MAX_CELLS, AnalyzerImportError } from "@/lib/analyzer/analyzerImport";
 import type { ParsedRow } from "@/lib/analyzer/analyzerParsers";
 import { formatNsgTimestamp, parseNsg } from "@/lib/nsg-parser";
@@ -36,11 +36,11 @@ export async function parseNsgAnalyzerStream(
       allowIncompleteFinalRecord: true,
       onCell(cell) {
         counts.totalCells++;
-        if (cell.rat !== "LTE" && cell.rat !== "GSM" && cell.rat !== "UMTS" && cell.rat !== "WCDMA") {
+        if (cell.rat !== "LTE" && cell.rat !== "GSM" && cell.rat !== "UMTS" && cell.rat !== "WCDMA" && cell.rat !== "NR") {
           counts.unsupportedCells++;
           return;
         }
-        const mapped = mapNsgAnalyzerCell(cell);
+        const mapped = cell.rat === "NR" ? mapNsgNrCell(cell) : mapNsgAnalyzerCell(cell);
         if (mapped === null) {
           counts.invalidCells++;
           return;
@@ -48,7 +48,10 @@ export async function parseNsgAnalyzerStream(
         const key = JSON.stringify(mapped);
         if (rows.has(key)) counts.duplicateCells++;
         else if (rows.size === ANALYZER_MAX_CELLS) throw new AnalyzerCellLimitError();
-        rows.set(key, { ...mapped, description: "NSG", rawLine: `NSG ${formatNsgTimestamp(cell.timestampUs)} ${key}` });
+        const row: ParsedRow = { ...mapped, description: "NSG", rawLine: `NSG ${formatNsgTimestamp(cell.timestampUs)} ${key}` };
+        const plmn = readNsgCellPlmn(cell);
+        if (plmn !== null) row.plmn = plmn;
+        rows.set(key, row);
       },
     },
   );

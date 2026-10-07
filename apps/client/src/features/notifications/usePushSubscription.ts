@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { subscribeToPush, unsubscribeFromPush } from "./api";
+import { deletePushSubscription, registerPushSubscription } from "./api";
+import { useSettledSession } from "@/hooks/useSettledSession";
+import { authClient } from "@/lib/auth/client";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 const STORAGE_KEY = "push_subscription_id";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SERVICE_WORKER_URL = "/sw.js";
+
+type SessionSnapshot = { session: { impersonatedBy?: string | null } } | null | undefined;
+
+let settledPushAccess: boolean | undefined;
 
 function getStoredId(): string | null {
   try {
@@ -47,7 +53,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
-async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
+async function ensureServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
   const existing = await navigator.serviceWorker.getRegistration();
   if (existing) return existing;
 
@@ -55,24 +61,63 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
   return navigator.serviceWorker.ready;
 }
 
+async function findBrowserSubscription(): Promise<PushSubscription | null> {
+  const registration = await navigator.serviceWorker.getRegistration();
+  const subscription = await registration?.pushManager.getSubscription();
+  return subscription ?? null;
+}
+
+function hasPushAccess(session: SessionSnapshot): boolean {
+  if (session === null || session === undefined) return false;
+  return !session.session.impersonatedBy;
+}
+
+function rememberPushAccess(hasAccess: boolean): void {
+  settledPushAccess = hasAccess;
+}
+
+async function resolvePushAccess(): Promise<boolean> {
+  if (settledPushAccess !== undefined) return settledPushAccess;
+
+  const { data: session } = await authClient.getSession();
+  return hasPushAccess(session);
+}
+
+export async function removePushRegistrationOnSignOut(): Promise<void> {
+  if (!isPushSupported()) return;
+
+  try {
+    const subscriptionId = getStoredId();
+    const browserSubscription = await findBrowserSubscription();
+    if (subscriptionId === null && browserSubscription === null) return;
+    if (!(await resolvePushAccess())) return;
+
+    const serverRemoval = subscriptionId === null ? Promise.resolve() : deletePushSubscription(subscriptionId);
+    await Promise.allSettled([serverRemoval, browserSubscription?.unsubscribe()]);
+    removeStoredId();
+  } catch {}
+}
+
 export function usePushSubscription() {
   const { t } = useTranslation("notifications");
+  const { data: session, isPending: isSessionPending } = useSettledSession();
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(getStoredId);
   const [permission, setPermission] = useState<NotificationPermission>(() => (isPushSupported() ? Notification.permission : "default"));
   const [isSubscribing, setIsSubscribing] = useState(false);
   const syncing = useRef(false);
-  const subscriptionRef = useRef(subscription);
+  const hasAccess = hasPushAccess(session);
+  const isAvailable = hasAccess && isPushSupported();
 
   useEffect(() => {
-    subscriptionRef.current = subscription;
-  }, [subscription]);
+    if (!isSessionPending) rememberPushAccess(hasAccess);
+  }, [hasAccess, isSessionPending]);
 
   useEffect(() => {
-    if (!isPushSupported()) return;
+    if (!isAvailable) return;
 
     let cancelled = false;
-    getPushRegistration()
+    ensureServiceWorkerRegistration()
       .then((reg) => reg.pushManager.getSubscription())
       .then(async (sub) => {
         if (cancelled) return;
@@ -80,7 +125,7 @@ export function usePushSubscription() {
         if (sub && !getStoredId() && !syncing.current) {
           syncing.current = true;
           try {
-            const id = await subscribeToPush(sub);
+            const { id } = await registerPushSubscription(sub);
             if (cancelled) return;
             setStoredId(id);
             setSubscriptionId(id);
@@ -96,13 +141,14 @@ export function usePushSubscription() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAvailable]);
 
-  const subscribe = useCallback(async () => {
+  const subscribe = async () => {
     if (!isPushSupported()) {
       toast.error(t("pushUnsupported"));
       return;
     }
+    if (!isAvailable) return;
 
     setIsSubscribing(true);
     try {
@@ -120,7 +166,7 @@ export function usePushSubscription() {
         return;
       }
 
-      const reg = await getPushRegistration();
+      const reg = await ensureServiceWorkerRegistration();
       const existing = await reg.pushManager.getSubscription();
 
       let sub = existing;
@@ -142,7 +188,7 @@ export function usePushSubscription() {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
       }
-      const id = await subscribeToPush(sub);
+      const { id } = await registerPushSubscription(sub);
       setStoredId(id);
       setSubscription(sub);
       setSubscriptionId(id);
@@ -152,23 +198,32 @@ export function usePushSubscription() {
     } finally {
       setIsSubscribing(false);
     }
-  }, [t]);
+  };
 
-  const unsubscribe = useCallback(async () => {
-    const sub = subscriptionRef.current;
-    if (!sub) return;
+  const unsubscribe = async () => {
+    if (!subscription || !isAvailable) return;
     try {
-      await unsubscribeFromPush(sub.endpoint);
-      await sub.unsubscribe();
+      const id = getStoredId() ?? (await registerPushSubscription(subscription)).id;
+      await deletePushSubscription(id);
+      await subscription.unsubscribe();
       removeStoredId();
       setSubscription(null);
       setSubscriptionId(null);
     } catch {
       toast.error(t("pushDisableFailed"));
     }
-  }, [t]);
+  };
 
-  const isSupported = isPushSupported();
+  const forgetSubscription = async () => {
+    if (!isAvailable) return;
+    try {
+      const browserSubscription = await findBrowserSubscription();
+      await browserSubscription?.unsubscribe();
+    } catch {}
+    removeStoredId();
+    setSubscription(null);
+    setSubscriptionId(null);
+  };
 
-  return { subscription, subscriptionId, permission, isSubscribing, subscribe, unsubscribe, isSupported };
+  return { subscription, subscriptionId, permission, isSubscribing, subscribe, unsubscribe, forgetSubscription, isAvailable };
 }

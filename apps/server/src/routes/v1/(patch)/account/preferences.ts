@@ -1,5 +1,5 @@
 import { type CloudPreferences, users } from "@openbts/drizzle";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
@@ -7,7 +7,12 @@ import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
-import { cloudPreferencesPatchSchema, cloudPreferencesSchema, normalizeCloudPreferences } from "../../../../lib/accountPreferences.js";
+import {
+  MAX_CLOUD_PREFERENCES_BYTES,
+  cloudPreferencesPatchSchema,
+  cloudPreferencesSchema,
+  normalizeCloudPreferences,
+} from "../../../../lib/accountPreferences.js";
 
 const schemaRoute = {
   body: cloudPreferencesPatchSchema,
@@ -38,15 +43,19 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return res.send({ data: normalizeCloudPreferences(user.cloudPreferences) });
   }
 
-  const currentPreferences = sql`coalesce(${users.cloudPreferences}, '{}'::jsonb)`;
+  const merged = sql`coalesce(${users.cloudPreferences}, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`;
 
   const [updated] = await db
     .update(users)
-    .set({ cloudPreferences: sql`${currentPreferences} || ${JSON.stringify(patch)}::jsonb` })
-    .where(eq(users.id, session.user.id))
+    .set({ cloudPreferences: merged })
+    .where(and(eq(users.id, session.user.id), sql`octet_length((${merged})::text) <= ${MAX_CLOUD_PREFERENCES_BYTES}`))
     .returning({ cloudPreferences: users.cloudPreferences });
 
-  if (!updated) throw new ErrorResponse("NOT_FOUND");
+  if (!updated) {
+    const user = await db.query.users.findFirst({ where: { id: session.user.id }, columns: { id: true } });
+    if (!user) throw new ErrorResponse("NOT_FOUND");
+    throw new ErrorResponse("BAD_REQUEST", { message: "Preferences are too large" });
+  }
 
   return res.send({ data: normalizeCloudPreferences(updated.cloudPreferences) });
 }

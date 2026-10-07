@@ -2,14 +2,20 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { fetchAuditOperation, fetchAuditOperations } from "./api";
-import type { AuditOperationFilters } from "./types";
+import type { AuditOperationQuery } from "./types";
 
 const AUDIT_OPERATIONS_KEY = ["admin", "audit-operations"] as const;
 
-export function auditOperationsQueryOptions(filters: AuditOperationFilters) {
+export const auditOperationKeys = {
+  all: () => AUDIT_OPERATIONS_KEY,
+  list: (query: AuditOperationQuery) => [...AUDIT_OPERATIONS_KEY, "v2", query] as const,
+  detail: (id: number) => [...AUDIT_OPERATIONS_KEY, "v2", "detail", id] as const,
+};
+
+export function auditOperationsQueryOptions(query: AuditOperationQuery) {
   return queryOptions({
-    queryKey: [...AUDIT_OPERATIONS_KEY, filters] as const,
-    queryFn: ({ signal }) => fetchAuditOperations(filters, signal),
+    queryKey: auditOperationKeys.list(query),
+    queryFn: ({ signal }) => fetchAuditOperations(query, signal),
     placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: "always" as const,
@@ -18,15 +24,14 @@ export function auditOperationsQueryOptions(filters: AuditOperationFilters) {
 
 export function auditOperationQueryOptions(id: number) {
   return queryOptions({
-    queryKey: [...AUDIT_OPERATIONS_KEY, "detail", id] as const,
+    queryKey: auditOperationKeys.detail(id),
     queryFn: ({ signal }) => fetchAuditOperation(id, signal),
   });
 }
 
 export function invalidateAuditOperationQueries(queryClient: QueryClient): void {
   void Promise.all([
-    queryClient.invalidateQueries({ queryKey: AUDIT_OPERATIONS_KEY }),
-    queryClient.invalidateQueries({ queryKey: ["admin", "dashboard", "audit-operations"] }),
+    queryClient.invalidateQueries({ queryKey: auditOperationKeys.all() }),
     queryClient.invalidateQueries({ queryKey: ["station-history"] }),
   ]);
 }

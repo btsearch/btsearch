@@ -1,6 +1,8 @@
 import type { FastifyRequest } from "fastify";
 import { createHash } from "node:crypto";
 
+const ACCEPT_SENT = "sent";
+
 interface BrowserProperties {
   userAgent: string;
   language: string;
@@ -60,7 +62,7 @@ export function generateFingerprintFromWebRequest(req: Request): string | null {
       userAgent: get("user-agent"),
       language: get("accept-language"),
       platform: get("sec-ch-ua-platform"),
-      acceptHeaders: get("accept"),
+      acceptHeaders: get("accept") === "unknown" ? "unknown" : ACCEPT_SENT,
       acceptEncoding: get("accept-encoding"),
       secChUa: get("sec-ch-ua"),
       dnt: get("dnt"),

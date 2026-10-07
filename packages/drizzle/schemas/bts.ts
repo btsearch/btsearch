@@ -3,7 +3,9 @@ import {
   type AnyPgColumn,
   bigint,
   boolean,
+  char,
   check,
+  customType,
   date,
   doublePrecision,
   geometry,
@@ -13,6 +15,7 @@ import {
   pgEnum,
   pgSchema,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -21,7 +24,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const UKEPermissionType = pgEnum("uke_permission_type", ["zmP", "P"]);
-export const DuplexType = pgEnum("duplex", ["FDD", "TDD"]);
+export const DuplexType = pgEnum("duplex", ["FDD", "TDD", "SDL"]);
 export const ratEnum = pgEnum("rat", ["GSM", "CDMA", "UMTS", "LTE", "NR", "IOT"]);
 export const BandVariant = pgEnum("band_variant", ["commercial", "railway"]);
 export const StationStatus = pgEnum("station_status", ["published", "inactive", "pending"]);
@@ -29,8 +32,76 @@ export const PermitsSource = pgEnum("permits_source", ["permits", "device_regist
 export const NRType = pgEnum("nr_type", ["nsa", "sa"]);
 export const CellType = pgEnum("cell_type", ["MACROCELL", "MICROCELL", "PICOCELL", "FEMTOCELL"]);
 export const UplinkType = pgEnum("uplink_type", ["fiber", "microwave", "satellite"]);
+export const ContributionMode = pgEnum("contribution_mode", ["closed", "open"]);
+export const PlmnRole = pgEnum("plmn_role", ["primary", "secondary"]);
+export const OperatorLinkKind = pgEnum("operator_link_kind", ["jv_member"]);
+export const StructureType = pgEnum("structure_type", [
+  "lattice_tower",
+  "tubular_tower",
+  "concrete_tower",
+  "tower",
+  "mast",
+  "rooftop_mast",
+  "rooftop",
+  "chimney",
+  "church",
+  "water_tower",
+  "silo",
+  "pole",
+  "mobile_mast",
+  "tunnel",
+  "indoor",
+  "other",
+]);
 export const UkeSchema = pgSchema("uke");
 export const StatisticsSchema = pgSchema("statistics");
+
+const multiPolygon = customType<{ data: string }>({ dataType: () => "geometry(MultiPolygon, 4326)" });
+const polygon = customType<{ data: string }>({ dataType: () => "geometry(Polygon, 4326)" });
+
+export const countries = pgTable(
+  "countries",
+  {
+    code: char("code", { length: 2 }).primaryKey(),
+    isVisible: boolean("is_visible").notNull().default(false),
+    contributions: ContributionMode("contributions").notNull().default("closed"),
+    structureOwnerProposals: boolean("structure_owner_proposals").notNull().default(true),
+    psc: boolean("psc").notNull().default(false),
+    bsic: boolean("bsic").notNull().default(false),
+    viewWest: doublePrecision("view_west"),
+    viewSouth: doublePrecision("view_south"),
+    viewEast: doublePrecision("view_east"),
+    viewNorth: doublePrecision("view_north"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("countries_code_format", sql`${t.code} ~ '^[A-Z]{2}$'`),
+    check("countries_view_complete", sql`num_nulls(${t.viewWest}, ${t.viewSouth}, ${t.viewEast}, ${t.viewNorth}) IN (0, 4)`),
+    check("countries_view_south_north", sql`${t.viewSouth} < ${t.viewNorth}`),
+  ],
+);
+
+export const brands = pgTable(
+  "brands",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    slug: varchar("slug", { length: 64 }).notNull().unique(),
+    name: varchar("name", { length: 100 }).notNull(),
+    color: char("color", { length: 7 }).notNull(),
+    logoFile: varchar("logo_file", { length: 48 }),
+    logoWidth: integer("logo_width"),
+    logoHeight: integer("logo_height"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("brands_slug_format", sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    check("brands_color_format", sql`${t.color} ~ '^#[0-9A-F]{6}$'`),
+    check("brands_logo_file_format", sql`${t.logoFile} ~ '^[0-9a-f-]{36}[.](svg|webp)$'`),
+    check("brands_logo_complete", sql`num_nulls(${t.logoFile}, ${t.logoWidth}, ${t.logoHeight}) IN (0, 3)`),
+  ],
+);
 
 /**
  * Operator table
@@ -43,12 +114,95 @@ export const operators = pgTable(
   "operators",
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-    name: varchar("name", { length: 100 }).notNull().unique(),
+    name: varchar("name", { length: 100 }).notNull(),
     full_name: varchar("full_name", { length: 250 }).notNull(),
     parent_id: integer("parent_id").references((): AnyPgColumn => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
     mnc: integer("mnc").unique(),
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .default("PL")
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    brandId: integer("brand_id").references(() => brands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    shortCode: varchar("short_code", { length: 16 }),
+    sortPriority: integer("sort_priority"),
   },
-  (t) => [index("operator_parent_id_idx").on(t.parent_id)],
+  (t) => [
+    index("operator_parent_id_idx").on(t.parent_id),
+    index("operators_brand_id_idx").on(t.brandId),
+    unique("operators_country_name_unique").on(t.countryCode, t.name),
+    check("operators_short_code_not_blank", sql`btrim(${t.shortCode}) <> ''`),
+    check("operators_sort_priority_positive", sql`${t.sortPriority} > 0`),
+  ],
+);
+
+export const plmns = pgTable(
+  "plmns",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    mcc: char("mcc", { length: 3 }).notNull(),
+    mnc: varchar("mnc", { length: 3 }).notNull(),
+    code: varchar("code", { length: 6 })
+      .notNull()
+      .generatedAlwaysAs((): SQL => sql`${plmns.mcc} || ${plmns.mnc}`),
+    operatorId: integer("operator_id")
+      .notNull()
+      .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    role: PlmnRole("role").notNull().default("secondary"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("plmns_code_unique").on(t.code),
+    uniqueIndex("plmns_operator_primary_unique")
+      .on(t.operatorId)
+      .where(sql`${t.role} = 'primary'`),
+    index("plmns_operator_id_idx").on(t.operatorId),
+    check("plmns_mcc_format", sql`${t.mcc} ~ '^[0-9]{3}$'`),
+    check("plmns_mnc_format", sql`${t.mnc} ~ '^[0-9]{2,3}$'`),
+  ],
+);
+
+export const operatorLinks = pgTable(
+  "operator_links",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    operatorId: integer("operator_id")
+      .notNull()
+      .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    relatedOperatorId: integer("related_operator_id")
+      .notNull()
+      .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    kind: OperatorLinkKind("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("operator_links_unique").on(t.operatorId, t.relatedOperatorId, t.kind),
+    index("operator_links_related_operator_id_idx").on(t.relatedOperatorId),
+    check("operator_links_not_self", sql`${t.operatorId} <> ${t.relatedOperatorId}`),
+  ],
+);
+
+export const structureOwners = pgTable(
+  "structure_owners",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    countryCode: char("country_code", { length: 2 }).references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    brandId: integer("brand_id").references(() => brands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    operatorId: integer("operator_id").references(() => operators.id, { onDelete: "set null", onUpdate: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("structure_owners_country_name_unique")
+      .on(t.countryCode, sql`lower(${t.name})`)
+      .where(sql`${t.countryCode} IS NOT NULL`),
+    uniqueIndex("structure_owners_global_name_unique")
+      .on(sql`lower(${t.name})`)
+      .where(sql`${t.countryCode} IS NULL`),
+    unique("structure_owners_operator_unique").on(t.operatorId),
+    index("structure_owners_brand_id_idx").on(t.brandId),
+  ],
 );
 
 /**
@@ -56,11 +210,45 @@ export const operators = pgTable(
  * @example
  * { id: 1, name: "Mazowieckie" }
  */
-export const regions = pgTable("regions", {
-  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-  name: varchar("name", { length: 100 }).notNull().unique(),
-  code: varchar("code", { length: 3 }).notNull().unique(),
+export const regions = pgTable(
+  "regions",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    code: varchar("code", { length: 3 }).notNull(),
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .default("PL")
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    isoCode: varchar("iso_code", { length: 6 }).unique(),
+  },
+  (t) => [
+    unique("regions_country_name_unique").on(t.countryCode, t.name),
+    unique("regions_country_code_unique").on(t.countryCode, t.code),
+    check("regions_iso_code_format", sql`${t.isoCode} ~ '^[A-Z]{2}-[A-Z0-9]{1,3}$'`),
+  ],
+);
+
+export const regionBoundaries = pgTable("region_boundaries", {
+  regionId: integer("region_id")
+    .primaryKey()
+    .references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  geom: multiPolygon("geom").notNull(),
+  source: varchar("source", { length: 200 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const regionLookup = pgTable(
+  "region_lookup",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regionBoundaries.regionId, { onDelete: "cascade", onUpdate: "cascade" }),
+    geom: polygon("geom").notNull(),
+  },
+  (t) => [index("region_lookup_geom_gist").using("gist", t.geom), index("region_lookup_region_id_idx").on(t.regionId)],
+);
 
 /**
  * Locations table (GPS coordinates)
@@ -72,10 +260,13 @@ export const locations = pgTable(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     region_id: integer("region_id")
-      .references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
     city: varchar("city", { length: 100 }),
     address: text("address"),
+    structure_type: StructureType("structure_type"),
+    structure_owner_id: integer("structure_owner_id").references(() => structureOwners.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    structure_note: varchar("structure_note", { length: 150 }),
     longitude: doublePrecision("longitude").notNull(),
     latitude: doublePrecision("latitude").notNull(),
     point: geometry("point", { type: "point", mode: "xy", srid: 4326 })
@@ -88,10 +279,13 @@ export const locations = pgTable(
     check("locations_latitude_range", sql`${t.latitude} BETWEEN -90 AND 90`),
     check("locations_longitude_range", sql`${t.longitude} BETWEEN -180 AND 180`),
     index("locations_region_id_idx").on(t.region_id),
+    index("locations_structure_owner_id_idx").on(t.structure_owner_id),
     index("locations_point_gist").using("gist", t.point),
     index("locations_idx").on(t.id),
     index("locations_created_at_idx").on(t.createdAt),
     index("locations_updated_at_idx").on(t.updatedAt),
+    index("locations_city_fold_trgm_idx").using("gin", sql`fold_text(${t.city}) gin_trgm_ops`),
+    index("locations_address_fold_trgm_idx").using("gin", sql`fold_text(${t.address}) gin_trgm_ops`),
     unique("locations_lonlat_unique").on(t.longitude, t.latitude),
   ],
 );
@@ -106,7 +300,7 @@ export const ukeLocations = UkeSchema.table(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     region_id: integer("region_id")
-      .references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
     city: varchar("city", { length: 100 }),
     address: text("address"),
@@ -240,6 +434,7 @@ export const extraIdentificators = pgTable(
     index("extra_identificators_station_idx").on(t.station_id),
     index("extra_identificators_networks_id_trgm_idx").using("gin", sql`(${t.networks_id}::text) gin_trgm_ops`),
     index("extra_identificators_networks_name_trgm_idx").using("gin", sql`(${t.networks_name}) gin_trgm_ops`),
+    index("extra_identificators_mno_name_trgm_idx").using("gin", sql`(${t.mno_name}) gin_trgm_ops`),
     unique("extra_identificators_networks_id_unique").on(t.station_id, t.networks_id).nullsNotDistinct(),
   ],
 );
@@ -278,9 +473,18 @@ export const ukeStations = UkeSchema.table(
   ],
 );
 
-/**
- * UKE permits table
- */
+export const ukeBands = UkeSchema.table(
+  "uke_bands",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    rat: ratEnum("rat").notNull(),
+    value: integer("value").notNull(),
+    variant: BandVariant("variant").notNull().default("commercial"),
+    name: varchar("name", { length: 15 }).notNull(),
+  },
+  (t) => [unique("uke_bands_rat_value_variant_unique").on(t.rat, t.value, t.variant), unique("uke_bands_name_unique").on(t.name)],
+);
+
 export const ukePermits = UkeSchema.table(
   "uke_permits",
   {
@@ -292,7 +496,7 @@ export const ukePermits = UkeSchema.table(
     decision_type: UKEPermissionType("decision_type").notNull(),
     expiry_date: timestamp({ withTimezone: true }).notNull(),
     band_id: integer("band_id")
-      .references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
     source: PermitsSource("source").notNull().default("permits"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -346,7 +550,7 @@ export const cells = pgTable(
       .references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
     band_id: integer("band_id")
-      .references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" })
       .notNull(),
     rat: ratEnum("rat").notNull(),
     type: CellType("type"),
@@ -356,7 +560,15 @@ export const cells = pgTable(
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("cells_station_band_rat_idx").on(t.station_id, t.band_id, t.rat), index("cells_station_rat_idx").on(t.station_id, t.rat)],
+  (t) => [
+    index("cells_station_band_rat_idx").on(t.station_id, t.band_id, t.rat),
+    index("cells_station_rat_idx").on(t.station_id, t.rat),
+    index("cells_created_at_idx").on(t.createdAt, t.id),
+    index("cells_updated_at_idx").on(t.updatedAt, t.id),
+    index("cells_sector_id_idx")
+      .on(t.sector_id)
+      .where(sql`${t.sector_id} IS NOT NULL`),
+  ],
 );
 
 export const gsmCells = pgTable(
@@ -369,12 +581,14 @@ export const gsmCells = pgTable(
     lac: integer("lac").notNull(),
     cid: integer("cid").notNull(),
     e_gsm: boolean("e_gsm").default(false),
+    bsic: integer("bsic"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("gsm_lac_check", sql`${t.lac} BETWEEN 0 AND 65535`),
     check("gsm_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
+    check("gsm_bsic_check", sql`${t.bsic} BETWEEN 0 AND 63`),
     unique("gsm_cells_lac_cid_unique").on(t.cell_id, t.lac, t.cid),
     index("gsm_cells_cid_idx").on(t.cid),
     index("gsm_cells_cid_trgm_idx").using("gin", sql`(${t.cid}::text) gin_trgm_ops`),
@@ -395,6 +609,7 @@ export const umtsCells = pgTable(
     cid_long: integer("cid_long")
       .notNull()
       .generatedAlwaysAs((): SQL => sql`(${umtsCells.rnc} * 65536) + ${umtsCells.cid}`),
+    psc: integer("psc"),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -403,6 +618,7 @@ export const umtsCells = pgTable(
     check("umts_rnc_check", sql`${t.rnc} BETWEEN 0 AND 65535`),
     check("umts_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
     check("umts_arfcn_check", sql`${t.arfcn} BETWEEN 0 AND 16383`),
+    check("umts_psc_check", sql`${t.psc} BETWEEN 0 AND 511`),
     unique("umts_cells_rnc_cid_unique").on(t.cell_id, t.rnc, t.cid),
     index("umts_cells_cid_idx").on(t.cid),
     index("umts_cells_cid_trgm_idx").using("gin", sql`(${t.cid}::text) gin_trgm_ops`),
@@ -493,13 +709,35 @@ export const bands = pgTable(
     name: varchar("name", { length: 15 }).notNull(),
     duplex: DuplexType("duplex"),
     variant: BandVariant("variant").notNull().default("commercial"),
+    code: varchar("code", { length: 16 }),
   },
   (t) => [
-    unique("bands_rat_value_unique").on(t.rat, t.value, t.duplex, t.variant).nullsNotDistinct(),
+    unique("bands_rat_value_unique").on(t.rat, t.value, t.duplex, t.variant, t.code).nullsNotDistinct(),
     unique("bands_name_unique").on(t.name),
+    uniqueIndex("bands_code_variant_unique")
+      .on(t.code, t.variant)
+      .where(sql`${t.code} IS NOT NULL`),
     index("bands_value_idx").on(t.value),
     index("bands_rat_idx").on(t.rat),
+    check(
+      "bands_real_band_check",
+      sql`${t.rat} IN ('GSM', 'UMTS', 'LTE', 'NR') AND (${t.rat} = 'GSM' OR ${t.duplex} IS NOT NULL OR ${t.value} IS NOT DISTINCT FROM 0)`,
+    ),
   ],
+);
+
+export const countryBands = pgTable(
+  "country_bands",
+  {
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
+    bandId: integer("band_id")
+      .notNull()
+      .references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.countryCode, t.bandId] }), index("country_bands_band_id_idx").on(t.bandId)],
 );
 
 /**
@@ -538,6 +776,7 @@ export const ukeOperators = UkeSchema.table("uke_operators", {
   id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   name: varchar("full_name", { length: 150 }).notNull(),
   full_name: varchar("name", { length: 250 }).notNull().unique(),
+  brandId: integer("brand_id").references(() => brands.id, { onDelete: "restrict", onUpdate: "cascade" }),
 });
 
 /**
@@ -627,7 +866,7 @@ export const statsSnapshots = StatisticsSchema.table(
     operator_id: integer("operator_id")
       .references(() => operators.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    band_id: integer("band_id").references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    band_id: integer("band_id").references(() => ukeBands.id, { onDelete: "restrict", onUpdate: "cascade" }),
     unique_stations_count: integer("unique_stations_count").notNull(),
     permits_count: integer("permits_count").notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -653,6 +892,10 @@ export const contributionSnapshots = StatisticsSchema.table(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     snapshot_date: timestamp("snapshot_date", { withTimezone: true }).notNull(),
+    countryCode: char("country_code", { length: 2 })
+      .notNull()
+      .default("PL")
+      .references(() => countries.code, { onDelete: "restrict", onUpdate: "cascade" }),
     totalStations: integer("total_stations").notNull().default(0),
     totalSectors: integer("total_sectors").notNull().default(0),
     totalExtraIds: integer("total_extra_ids").notNull().default(0),
@@ -660,7 +903,7 @@ export const contributionSnapshots = StatisticsSchema.table(
     totalCellsWithPCI: integer("total_cells_with_pci").notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique("contribution_snapshots_date_unique").on(t.snapshot_date), index("contribution_snapshots_date_idx").on(t.snapshot_date)],
+  (t) => [unique("contribution_snapshots_date_country_unique").on(t.snapshot_date, t.countryCode)],
 );
 
 export const deletedEntries = pgTable(

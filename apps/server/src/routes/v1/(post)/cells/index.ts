@@ -4,36 +4,34 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
+import { LEGACY_COUNTRY_CODE } from "../../../../constants.js";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, loadCellSnapshot, runAuditedOperation } from "../../../../features/audit/index.js";
-import { validateCellARFCNsForBands } from "../../../../features/cells/arfcnValidation.js";
-import {
-  checkCellDuplicate,
-  checkLTEClidConsistency,
-  checkPciDuplicate,
-  getOperatorIdForStation,
-} from "../../../../features/cells/duplicateCheck.js";
-import { type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
+import { validateCellBandsInCountry } from "../../../../features/cells/arfcnValidation.js";
+import { checkCellDuplicate, checkPciDuplicate, getOperatorIdForStation } from "../../../../features/cells/duplicateCheck.js";
+import { NORMAL_RATS, type RATInsertDetails, insertRATCellDetailsReturning, isNormalRat } from "../../../../features/cells/ratCellPersistence.js";
 import { normalRatInsertSchemaMap } from "../../../../features/cells/ratCellSchemas.js";
 import { queueStationCellsChangedNotification } from "../../../../features/notifications/stationCellChanges.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { assertCanMutateStationCells } from "../../../../features/stations/status.js";
 import { makeDetailsRatRefine } from "../../../../features/submissions/helpers.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
 const cellsSelectSchema = createSelectSchema(cells);
-const gsmCellsSchema = createSelectSchema(gsmCells);
-const umtsCellsSchema = createSelectSchema(umtsCells);
-const lteCellsSchema = createSelectSchema(lteCells);
-const nrCellsSchema = createSelectSchema(nrCells);
+const gsmCellsSchema = createSelectSchema(gsmCells).omit({ cell_id: true });
+const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
+const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
+const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
 const cellsInsertSchema = createInsertSchema(cells)
   .omit({
     createdAt: true,
     updatedAt: true,
   })
-  .extend({ rat: z.enum(["GSM", "CDMA", "UMTS", "LTE", "NR"]) })
+  .extend({ rat: z.enum(NORMAL_RATS) })
   .strict();
 
 const requestSchema = cellsInsertSchema.extend({ details: z.unknown().optional() }).superRefine(makeDetailsRatRefine(normalRatInsertSchemaMap));
@@ -70,15 +68,17 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
       });
     }
 
-    await validateCellARFCNsForBands([{ rat: req.body.rat, band_id: req.body.band_id, details: req.body.details }]);
+    await validateCellBandsInCountry([{ rat: req.body.rat, band_id: req.body.band_id, details: req.body.details }], LEGACY_COUNTRY_CODE);
 
     const { details: requestedDetails, ...cellData } = req.body;
     const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "cells.create" }, async (tx, audit) => {
       const [inserted] = await tx.insert(cells).values(cellData).returning();
       if (!inserted) throw new ErrorResponse("FAILED_TO_CREATE");
+      const featuresByStation = await getStationCountryFeatures([inserted.station_id], tx);
+      const features = featuresByStation.get(inserted.station_id) ?? disabledCountryFeatures;
 
       if (requestedDetails && isNormalRat(inserted.rat))
-        await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails);
+        await insertRATCellDetailsReturning(tx, inserted.rat, inserted.id, requestedDetails as RATInsertDetails, features);
 
       const snapshot = await loadCellSnapshot(tx, inserted.id);
       if (!snapshot) throw new ErrorResponse("FAILED_TO_CREATE");
@@ -107,7 +107,7 @@ async function handler(req: FastifyRequest<ReqWithDetails>, res: ReplyPayload<JS
 const createCell: Route<ReqWithDetails, ResponseData> = {
   url: "/cells",
   method: "POST",
-  config: { permissions: ["create:cells"] },
+  config: { permissions: ["create:cells"], scope: defineScope<ReqWithDetails>((req) => ({ stationIds: [req.body.station_id] })) },
   schema: schemaRoute,
   handler,
 };

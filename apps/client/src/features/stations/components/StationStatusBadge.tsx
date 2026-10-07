@@ -11,7 +11,7 @@ type StationStatusBadgeProps = {
   statusChangedAt?: string;
 };
 
-const statusClassName: Record<StationStatus, string> = {
+export const STATION_STATUS_TEXT_CLASSES: Record<StationStatus, string> = {
   published: "text-emerald-600 dark:text-emerald-400",
   pending: "text-yellow-800 dark:text-yellow-300",
   inactive: "text-red-700 dark:text-red-300",
@@ -24,7 +24,11 @@ export function StationStatusBadge({ status, className, statusChangedAt }: Stati
   return (
     <Tooltip>
       <TooltipTrigger
-        render={<span className={cn("inline-flex w-fit text-[11px] font-semibold leading-none cursor-help", statusClassName[status], className)} />}
+        render={
+          <span
+            className={cn("inline-flex w-fit text-[11px] font-semibold leading-none cursor-help", STATION_STATUS_TEXT_CLASSES[status], className)}
+          />
+        }
       >
         {t(`status.${status}`)}
       </TooltipTrigger>

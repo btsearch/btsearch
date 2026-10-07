@@ -3,21 +3,19 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  "@bufbuild/buf": true
   "@swc/core": true
   bufferutil: true
   core-js: true
   esbuild: true
   exifreader: true
   msw: true
-  protobufjs: true
   sharp: true
 
 resolutionMode: "highest"
 minimumReleaseAge: 1440
 minimumReleaseAgeIgnoreMissingTime: true
 minimumReleaseAgeExclude:
-  - si2pem-reader@0.4.3
+  - si2pem-reader@0.4.4
   - "@btsearch/rf-engine@0.1.5"
   - "@btsearch/rf-engine-win32-x64-msvc@0.1.5"
   - "@btsearch/rf-engine-darwin-x64@0.1.5"

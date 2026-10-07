@@ -6,7 +6,6 @@ import plPLAuth from "./locales/pl-PL/auth.json";
 import plPLCellAnalyzer from "./locales/pl-PL/cellAnalyzer.json";
 import plPLClfExport from "./locales/pl-PL/clfExport.json";
 import plPLCommon from "./locales/pl-PL/common.json";
-import plPLDeletedEntries from "./locales/pl-PL/deletedEntries.json";
 import plPLKMZ from "./locales/pl-PL/kmz.json";
 import plPLLightbox from "./locales/pl-PL/lightbox.json";
 import plPLLists from "./locales/pl-PL/lists.json";
@@ -37,7 +36,6 @@ export const resources = {
     auth: plPLAuth,
     settings: plPLSettings,
     admin: plPLAdmin,
-    deletedEntries: plPLDeletedEntries,
     statistics: plPLStatistics,
     notifications: plPLNotifications,
     lists: plPLLists,

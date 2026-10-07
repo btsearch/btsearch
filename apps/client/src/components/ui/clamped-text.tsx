@@ -6,17 +6,21 @@ import { cn } from "@/lib/utils";
 const LINE_CLAMP = {
   2: "line-clamp-2",
   3: "line-clamp-3",
+  4: "line-clamp-4",
+  6: "line-clamp-6",
 } as const;
 
 type ClampedTextProps = {
   text: string;
   lines: keyof typeof LINE_CLAMP;
+  canExpand?: boolean;
+  expandLabel?: string;
   className?: string;
   toggleClassName?: string;
   onExpand?: () => void;
 };
 
-export function ClampedText({ text, lines, className, toggleClassName, onExpand }: ClampedTextProps) {
+export function ClampedText({ text, lines, canExpand = true, expandLabel, className, toggleClassName, onExpand }: ClampedTextProps) {
   const { t } = useTranslation("common");
   const textRef = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -24,17 +28,17 @@ export function ClampedText({ text, lines, className, toggleClassName, onExpand 
 
   useLayoutEffect(() => {
     const element = textRef.current;
-    if (element === null || expanded) return;
+    if (element === null || expanded || !canExpand) return;
     const measure = () => setOverflowing(element.scrollHeight > element.clientHeight + 1);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [expanded, text]);
+  }, [canExpand, expanded, text]);
 
   const toggle = () => {
     if (!expanded) onExpand?.();
-    setExpanded(!expanded);
+    setExpanded((current) => !current);
   };
 
   return (
@@ -42,7 +46,7 @@ export function ClampedText({ text, lines, className, toggleClassName, onExpand 
       <p ref={textRef} className={cn("whitespace-pre-line wrap-break-word", !expanded && LINE_CLAMP[lines], className)}>
         {text}
       </p>
-      {overflowing ? (
+      {canExpand && overflowing ? (
         <button
           type="button"
           aria-expanded={expanded}
@@ -52,7 +56,7 @@ export function ClampedText({ text, lines, className, toggleClassName, onExpand 
           )}
           onClick={toggle}
         >
-          {expanded ? t("actions.showLess") : t("actions.showMore")}
+          {expanded ? t("actions.showLess") : (expandLabel ?? t("actions.showMore"))}
         </button>
       ) : null}
     </>

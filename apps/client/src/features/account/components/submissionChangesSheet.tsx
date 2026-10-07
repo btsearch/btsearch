@@ -1,60 +1,193 @@
 import { AirportTowerIcon, Delete02Icon, Location01Icon, SignalFull02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type {
+  BackhaulMedium,
+  Band,
+  CellChange,
+  LocationChange,
+  Operator,
+  Region,
+  SectorChange,
+  StationChange,
+  StationIdentifierKind,
+  StructureOwner,
+  Submission,
+  SubmissionAction,
+} from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ErrorState, StaleDataNotice } from "@/components/ui/error-state";
+import { StaleDataNotice } from "@/components/ui/error-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { structureOwnersQueryOptions } from "@/features/admin/reference/api/structureOwners";
+import { toV1CellOperation, toV1SubmissionStatus, toV1SubmissionType } from "@/features/admin/submissions/api";
 import { SubmissionCellCounts } from "@/features/admin/submissions/components/submissionListParts";
 import { SubmissionLocationPhotoSelectionsSection } from "@/features/admin/submissions/components/submissionLocationPhotoSelectionsSection";
 import { SubmissionPhotosSection } from "@/features/admin/submissions/components/submissionPhotosSection";
-import type { ProposedCell, SubmissionDetail, SubmissionRow } from "@/features/admin/submissions/types";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
-import { CELL_TYPE_LABELS } from "@/features/shared/cellTypes";
-import { bandsQueryOptions, regionsQueryOptions } from "@/features/shared/queries";
-import { getRatDetailFieldLabel, getRatDetailFields } from "@/features/shared/ratCellFields";
+import { bandsQueryOptions, regionsQueryOptions } from "@/features/shared/lookups";
+import { getBandDuplexMark, getBandLabel, isBandLabelInGhz } from "@/features/station-details/station/utils/bands";
+import { getStructureTypeKey } from "@/features/station-details/station/utils/structure";
+import { submissionQueryOptions } from "@/features/station-editing/data/submissions";
+import { RAT_FIELDS } from "@/features/station-editing/model/ratFields";
 import { SubmissionCellOperationBadge } from "@/features/submissions/components/submissionCellOperationBadge";
 import { SubmissionStatusBadge } from "@/features/submissions/components/submissionStatusBadge";
 import { SubmissionTypeBadge } from "@/features/submissions/components/submissionTypeBadge";
-import { submissionDetailQueryOptions } from "@/features/submissions/queries";
-import { getProposedLocationChanges, getProposedStationChanges } from "@/features/submissions/utils/proposalChanges";
+import { useSettledSession } from "@/hooks/useSettledSession";
 import { formatFullDate } from "@/lib/format";
-import { uplinkTypeKey } from "@/lib/format/uplink";
 import { cn } from "@/lib/utils";
-import type { Band, Operator } from "@/types/station";
 
-type CellOperation = ProposedCell["operation"];
+type SheetTranslate = TFunction<["submissions", "common", "stations", "stationDetails"]>;
 
 type SubmissionChangesSheetProps = {
-  submission: SubmissionRow | null;
-  operators: Operator[];
+  submission: Submission;
+  listUpdatedAt: number;
+  operators: readonly Operator[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-const OPERATION_ORDER: CellOperation[] = ["add", "update", "delete"];
+type StoredChangesProps = {
+  submission: Submission;
+  operators: readonly Operator[];
+};
 
-const OPERATION_RAIL_CLASS = {
-  add: "before:bg-emerald-500",
+type ChangePair = {
+  label: string;
+  value: string;
+};
+
+type DetailPairProps = ChangePair & {
+  className?: string;
+};
+
+type CellChangeItemProps = {
+  cell: CellChange;
+  band: Band | undefined;
+  sectorText: string | null;
+};
+
+const ACTION_ORDER: readonly SubmissionAction[] = ["create", "update", "delete"];
+const OPERATION_RAIL_CLASSES: Record<SubmissionAction, string> = {
+  create: "before:bg-emerald-500",
   update: "before:bg-amber-500",
   delete: "before:bg-destructive",
-} satisfies Record<CellOperation, string>;
+};
+const IDENTIFIER_ORDER: readonly StationIdentifierKind[] = ["networksId", "networksName", "operatorName"];
+const MEDIUM_KEYS: Record<BackhaulMedium, string> = {
+  fiber: "common:labels.uplinkFiber",
+  microwave: "common:labels.uplinkMicrowave",
+  satellite: "common:labels.uplinkSatellite",
+};
+const EMPTY_VALUE = "-";
+const FALLBACK_OPERATOR_BRAND = "MNO";
+const COORDINATE_DIGITS = 6;
 
-function formatCellValue(value: unknown, t: TFunction<["submissions", "common"]>): string {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "boolean") return t(value ? "common:labels.yes" : "common:labels.no");
-  if (typeof value === "string" && (value === "nsa" || value === "sa")) return value.toUpperCase();
-  if (Array.isArray(value)) return value.map((item) => formatCellValue(item, t)).join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  if (typeof value === "number" || typeof value === "bigint") return value.toString();
-  if (typeof value === "string") return value;
-  return "-";
+function formatAzimuth(azimuth: number | null, t: SheetTranslate): string {
+  return azimuth === null ? t("stationDetails:sectors.omnidirectional") : `${azimuth}°`;
 }
 
-function DetailPair({ label, value, className }: { label: string; value: string; className?: string }) {
+function getIdentifierLabel(kind: StationIdentifierKind, operator: Operator | undefined, t: SheetTranslate): string {
+  if (kind === "networksId") return t("common:labels.networksId");
+  if (kind === "networksName") return t("common:labels.networksName");
+  return t("common:labels.mnoName", { brand: operator?.name ?? FALLBACK_OPERATOR_BRAND });
+}
+
+function listStationPairs(change: StationChange | null, operator: Operator | undefined, t: SheetTranslate): ChangePair[] {
+  if (change === null) return [];
+
+  const { backhaul } = change;
+  const pairs: ChangePair[] = [];
+  if (change.siteId !== undefined) pairs.push({ label: t("common:labels.stationId"), value: change.siteId });
+  if (change.operatorId !== undefined) pairs.push({ label: t("common:labels.operator"), value: operator?.name ?? `#${change.operatorId}` });
+  for (const kind of IDENTIFIER_ORDER) {
+    const identifier = change.identifiers?.find((entry) => entry.kind === kind);
+    if (identifier !== undefined) pairs.push({ label: getIdentifierLabel(kind, operator, t), value: identifier.value ?? EMPTY_VALUE });
+  }
+  if (backhaul === null) pairs.push({ label: t("common:labels.uplinkType"), value: EMPTY_VALUE });
+  if (backhaul?.medium !== undefined) pairs.push({ label: t("common:labels.uplinkType"), value: t(MEDIUM_KEYS[backhaul.medium]) });
+  if (backhaul?.speedMbps !== undefined) {
+    pairs.push({ label: t("common:labels.uplinkSpeed"), value: backhaul.speedMbps === null ? EMPTY_VALUE : String(backhaul.speedMbps) });
+  }
+  if (backhaul?.model !== undefined) pairs.push({ label: t("common:labels.uplinkModel"), value: backhaul.model || EMPTY_VALUE });
+  if (change.notes !== undefined) pairs.push({ label: t("common:labels.notes"), value: change.notes || EMPTY_VALUE });
+  return pairs;
+}
+
+function describeOwner(structure: NonNullable<LocationChange["structure"]>, owners: readonly StructureOwner[] | undefined): string {
+  if (structure.ownerName) return structure.ownerName;
+  if (structure.ownerId === null || structure.ownerId === undefined) return EMPTY_VALUE;
+  return owners?.find((owner) => owner.id === structure.ownerId)?.name ?? `#${structure.ownerId}`;
+}
+
+function listLocationPairs(
+  change: LocationChange | null,
+  regions: readonly Region[] | undefined,
+  owners: readonly StructureOwner[] | undefined,
+  t: SheetTranslate,
+): ChangePair[] {
+  if (change === null) return [];
+
+  const { regionId, latitude, longitude, structure } = change;
+  const pairs: ChangePair[] = [];
+  if (regionId !== undefined) {
+    pairs.push({ label: t("common:labels.region"), value: regions?.find((region) => region.id === regionId)?.name ?? `#${regionId}` });
+  }
+  if (change.city !== undefined) pairs.push({ label: t("common:labels.city"), value: change.city || EMPTY_VALUE });
+  if (change.address !== undefined) pairs.push({ label: t("common:labels.address"), value: change.address || EMPTY_VALUE });
+  if (latitude !== undefined && longitude !== undefined) {
+    pairs.push({ label: t("common:labels.coordinates"), value: `${latitude.toFixed(COORDINATE_DIGITS)}, ${longitude.toFixed(COORDINATE_DIGITS)}` });
+  }
+  if (structure?.type !== undefined) {
+    pairs.push({ label: t("common:structure.type"), value: structure.type === null ? EMPTY_VALUE : t(getStructureTypeKey(structure.type)) });
+  }
+  if (structure !== undefined && (structure.ownerId !== undefined || structure.ownerName !== undefined)) {
+    pairs.push({ label: t("common:structure.owner"), value: describeOwner(structure, owners) });
+  }
+  if (structure?.note !== undefined) pairs.push({ label: t("common:structure.note"), value: structure.note || EMPTY_VALUE });
+  return pairs;
+}
+
+function getBandText(band: Band | undefined, bandId: number | null, language: string): string {
+  if (band === undefined) return bandId === null ? EMPTY_VALUE : `#${bandId}`;
+
+  const label = band.labelMhz === null || isBandLabelInGhz(band.labelMhz) ? (getBandLabel(band, language) ?? EMPTY_VALUE) : `${band.labelMhz} MHz`;
+  const duplex = band.rat === "lte" || band.rat === "nr" ? getBandDuplexMark(band) : null;
+  return duplex === null ? label : `${label} · ${duplex}`;
+}
+
+function findSectorText(cell: CellChange, sectors: readonly SectorChange[], t: SheetTranslate): string | null {
+  const keyedIndex = cell.sectorKey === null ? -1 : sectors.findIndex((sector) => sector.key === cell.sectorKey);
+  const keyed = keyedIndex === -1 ? undefined : sectors[keyedIndex];
+  if (keyed !== undefined) {
+    const azimuth = formatAzimuth(keyed.azimuth, t);
+    return keyed.action === null ? `A${keyedIndex + 1} · ${azimuth}` : azimuth;
+  }
+  if (cell.sectorId === null) return null;
+
+  const updated = sectors.find((sector) => sector.action === "update" && sector.id === cell.sectorId);
+  return updated === undefined ? t("submissions:changesSheet.sectorId", { id: cell.sectorId }) : formatAzimuth(updated.azimuth, t);
+}
+
+function listRadioPairs(cell: CellChange, t: SheetTranslate): ChangePair[] {
+  if (cell.rat === null) return [];
+
+  const spec = RAT_FIELDS[cell.rat];
+  const pairs: ChangePair[] = [];
+  if (cell.mode !== undefined) pairs.push({ label: t("stations:edit.cells.columns.mode"), value: cell.mode.toUpperCase() });
+  for (const { field, label } of spec.numbers) {
+    const value = cell[field];
+    if (value !== null && value !== undefined) pairs.push({ label, value: String(value) });
+  }
+  for (const { field, label } of spec.flags) {
+    const isOn = cell[field];
+    if (isOn !== undefined) pairs.push({ label, value: t(isOn ? "common:labels.yes" : "common:labels.no") });
+  }
+  return pairs;
+}
+
+function DetailPair({ label, value, className }: DetailPairProps) {
   return (
     <div className={cn("min-w-0 space-y-0.5", className)}>
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
@@ -63,7 +196,7 @@ function DetailPair({ label, value, className }: { label: string; value: string;
   );
 }
 
-function CellDetailPair({ label, value, className }: { label: string; value: string; className?: string }) {
+function CellDetailPair({ label, value, className }: DetailPairProps) {
   return (
     <div className={cn("flex min-w-0 items-baseline gap-1.5", className)}>
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
@@ -72,17 +205,23 @@ function CellDetailPair({ label, value, className }: { label: string; value: str
   );
 }
 
-function StationChanges({ submission, operators }: { submission: SubmissionDetail; operators: Operator[] }) {
-  const { t } = useTranslation(["submissions", "common"]);
-  const operatorById = useMemo(() => new Map(operators.map((operator) => [operator.id, operator])), [operators]);
-  const stationChanges = getProposedStationChanges(submission.proposedStation);
-  const locationChanges = getProposedLocationChanges(submission.proposedLocation);
-  const { data: regions = [] } = useQuery({ ...regionsQueryOptions(), enabled: typeof locationChanges.region_id === "number" });
-  const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
-  const operatorId = stationChanges.operator_id ?? submission.station?.operator_id;
-  const operator = typeof operatorId === "number" ? operatorById.get(operatorId) : undefined;
+function StationChanges({ submission, operators }: StoredChangesProps) {
+  const { t } = useTranslation(["submissions", "common", "stations", "stationDetails"]);
+  const { data: session, isPending: isSessionPending, error: sessionError } = useSettledSession();
+  const viewerReady = !isSessionPending && !sessionError;
+  const { changes, station } = submission;
+  const { sectors } = changes;
+  const structure = changes.location?.structure;
+  const { data: regionData } = useQuery({
+    ...regionsQueryOptions({ viewerId: session?.user.id ?? null }),
+    enabled: viewerReady && changes.location?.regionId !== undefined,
+  });
+  const regions = viewerReady ? regionData : undefined;
+  const { data: owners } = useQuery({ ...structureOwnersQueryOptions(), enabled: typeof structure?.ownerId === "number" });
+  const operatorId = changes.station?.operatorId ?? station?.operatorId ?? null;
+  const operator = operators.find((candidate) => candidate.id === operatorId);
 
-  if (submission.type === "delete") {
+  if (submission.action === "delete") {
     return (
       <section className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-3">
         <div className="flex items-start gap-3">
@@ -92,7 +231,7 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
           <div className="min-w-0">
             <h3 className="font-medium text-rose-800 dark:text-rose-200">{t("changesSheet.stationDelete")}</h3>
             <p className="mt-0.5 text-sm text-rose-800/80 dark:text-rose-200/80">
-              {t("deletionBanner", { stationId: submission.station?.station_id ?? submission.station_id })}
+              {t("deletionBanner", { stationId: station?.siteId ?? submission.stationId })}
             </p>
           </div>
         </div>
@@ -100,55 +239,17 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
     );
   }
 
-  const stationFields: { label: string; value: string }[] = [];
-  if (typeof stationChanges.station_id === "string") stationFields.push({ label: t("common:labels.stationId"), value: stationChanges.station_id });
-  if (typeof stationChanges.operator_id === "number")
-    stationFields.push({ label: t("common:labels.operator"), value: operator?.name ?? `#${stationChanges.operator_id}` });
-  if (stationChanges.networks_id !== undefined)
-    stationFields.push({
-      label: t("common:labels.networksId"),
-      value: stationChanges.networks_id === null ? "-" : String(stationChanges.networks_id),
-    });
-  if (stationChanges.networks_name !== undefined)
-    stationFields.push({ label: t("common:labels.networksName"), value: stationChanges.networks_name || "-" });
-  if (stationChanges.mno_name !== undefined)
-    stationFields.push({ label: t("common:labels.mnoName", { brand: operator?.name ?? "MNO" }), value: stationChanges.mno_name || "-" });
-  if (stationChanges.uplink_type !== undefined)
-    stationFields.push({
-      label: t("common:labels.uplinkType"),
-      value: stationChanges.uplink_type ? t(`common:labels.${uplinkTypeKey(stationChanges.uplink_type)}`) : "-",
-    });
-  if (stationChanges.uplink_speed !== undefined)
-    stationFields.push({
-      label: t("common:labels.uplinkSpeed"),
-      value: stationChanges.uplink_speed === null ? "-" : String(stationChanges.uplink_speed),
-    });
-  if (stationChanges.uplink_model !== undefined)
-    stationFields.push({ label: t("common:labels.uplinkModel"), value: stationChanges.uplink_model || "-" });
-  if (typeof stationChanges.notes === "string") stationFields.push({ label: t("common:labels.notes"), value: stationChanges.notes || "-" });
+  const stationFields = listStationPairs(changes.station, operator, t);
+  const locationFields = listLocationPairs(changes.location, regions, owners, t);
+  if (stationFields.length === 0 && locationFields.length === 0 && sectors.length === 0) return null;
 
-  const locationFields: { label: string; value: string }[] = [];
-  if (typeof locationChanges.region_id === "number")
-    locationFields.push({
-      label: t("common:labels.region"),
-      value: regionById.get(locationChanges.region_id)?.name ?? `#${locationChanges.region_id}`,
-    });
-  if (locationChanges.city !== undefined) locationFields.push({ label: t("common:labels.city"), value: locationChanges.city || "-" });
-  if (locationChanges.address !== undefined) locationFields.push({ label: t("common:labels.address"), value: locationChanges.address || "-" });
-  if (typeof locationChanges.latitude === "number" && typeof locationChanges.longitude === "number")
-    locationFields.push({
-      label: t("common:labels.coordinates"),
-      value: `${locationChanges.latitude.toFixed(6)}, ${locationChanges.longitude.toFixed(6)}`,
-    });
-
-  if (stationFields.length === 0 && locationFields.length === 0 && submission.sectors.length === 0) return null;
-  const isLegacySectorList = submission.sectors.some((sector) => sector.operation === null);
+  const isCompleteSectorList = sectors.some((sector) => sector.action === null);
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
       <header className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
         <HugeiconsIcon icon={AirportTowerIcon} className="size-4 text-muted-foreground" aria-hidden="true" />
-        <h3 className="font-medium">{t(submission.type === "new" ? "changesSheet.stationAdd" : "changesSheet.stationUpdate")}</h3>
+        <h3 className="font-medium">{submission.action === "create" ? t("changesSheet.stationAdd") : t("changesSheet.stationUpdate")}</h3>
       </header>
 
       <div className="divide-y divide-border/60">
@@ -174,26 +275,26 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
           </div>
         ) : null}
 
-        {submission.sectors.length > 0 ? (
+        {sectors.length > 0 ? (
           <div className="px-3 py-3">
             <h4 className="text-sm font-medium">{t("changesSheet.sectors")}</h4>
-            {isLegacySectorList ? (
+            {isCompleteSectorList ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {submission.sectors.map((sector, index) => (
-                  <span key={sector.id} className="rounded-md bg-muted px-2 py-1 font-mono text-xs tabular-nums">
-                    A{index + 1} · {sector.azimuth}°
+                {sectors.map((sector, index) => (
+                  <span key={sector.key} className="rounded-md bg-muted px-2 py-1 font-mono text-xs tabular-nums">
+                    A{index + 1} · {formatAzimuth(sector.azimuth, t)}
                   </span>
                 ))}
               </div>
             ) : (
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
-                {OPERATION_ORDER.flatMap((operation) =>
-                  submission.sectors
-                    .filter((sector) => sector.operation === operation)
+                {ACTION_ORDER.flatMap((action) =>
+                  sectors
+                    .filter((sector) => sector.action === action)
                     .map((sector) => (
-                      <span key={sector.id} className="inline-flex items-center gap-1.5">
-                        <SubmissionCellOperationBadge operation={operation} />
-                        <span className="font-mono text-xs tabular-nums">{sector.azimuth}°</span>
+                      <span key={sector.key} className="inline-flex items-center gap-1.5">
+                        <SubmissionCellOperationBadge operation={toV1CellOperation(action)} />
+                        <span className="font-mono text-xs tabular-nums">{formatAzimuth(sector.azimuth, t)}</span>
                       </span>
                     )),
                 )}
@@ -206,50 +307,34 @@ function StationChanges({ submission, operators }: { submission: SubmissionDetai
   );
 }
 
-function getBandLabel(cell: ProposedCell, band: Band | undefined): string {
-  if (band) return `${band.value} MHz${band.duplex ? ` · ${band.duplex}` : ""}`;
-  if (cell.band_id !== null) return `#${cell.band_id}`;
-  return "-";
-}
-
-function CellChangeItem({ cell, band, sectorLabel }: { cell: ProposedCell; band: Band | undefined; sectorLabel: string | null }) {
-  const { t } = useTranslation(["submissions", "common", "stations"]);
-  const details = cell.details ?? {};
-  const configuredFields = getRatDetailFields(cell.rat).filter((field) => details[field.key] !== null && details[field.key] !== undefined);
-  const configuredKeys = new Set(configuredFields.map((field) => field.key));
-  const extraFields = Object.keys(details).filter((key) => !configuredKeys.has(key) && details[key] !== null && details[key] !== undefined);
-  const bandLabel = getBandLabel(cell, band);
+function CellChangeItem({ cell, band, sectorText }: CellChangeItemProps) {
+  const { t, i18n } = useTranslation(["submissions", "common", "stations", "stationDetails"]);
 
   return (
     <li
       className={cn(
         "relative px-3 py-2.5",
         "before:absolute before:inset-y-2 before:left-0 before:w-px before:content-['']",
-        OPERATION_RAIL_CLASS[cell.operation],
+        OPERATION_RAIL_CLASSES[cell.action],
       )}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <SubmissionCellOperationBadge operation={cell.operation} />
-        <TechnologySummary bands={[cell.rat]} className="mt-0 pl-0" />
-        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{bandLabel}</span>
-        {cell.target_cell_id !== null ? (
-          <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">
-            {t("changesSheet.cellId", { id: cell.target_cell_id })}
-          </span>
-        ) : null}
+        <SubmissionCellOperationBadge operation={toV1CellOperation(cell.action)} />
+        {cell.rat === null ? null : <TechnologySummary bands={[RAT_FIELDS[cell.rat].name]} className="mt-0 pl-0" />}
+        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{getBandText(band, cell.bandId, i18n.language)}</span>
+        {cell.id === null ? null : (
+          <span className="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground">{t("changesSheet.cellId", { id: cell.id })}</span>
+        )}
       </div>
 
-      {cell.operation === "delete" && Object.keys(details).length === 0 ? (
+      {cell.action === "delete" ? (
         <p className="mt-2 text-sm text-muted-foreground">{t("changesSheet.deletedCell")}</p>
       ) : (
         <dl className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-5 gap-y-2">
-          {sectorLabel ? <CellDetailPair label={t("changesSheet.sector")} value={sectorLabel} /> : null}
-          {cell.type ? <CellDetailPair label={t("common:labels.cellType")} value={CELL_TYPE_LABELS[cell.type]} /> : null}
-          {configuredFields.map((field) => (
-            <CellDetailPair key={field.key} label={field.label} value={formatCellValue(details[field.key], t)} />
-          ))}
-          {extraFields.map((key) => (
-            <CellDetailPair key={key} label={getRatDetailFieldLabel(cell.rat, key)} value={formatCellValue(details[key], t)} />
+          {sectorText === null ? null : <CellDetailPair label={t("changesSheet.sector")} value={sectorText} />}
+          {cell.cellType === null ? null : <CellDetailPair label={t("common:labels.cellType")} value={cell.cellType} />}
+          {listRadioPairs(cell, t).map((pair) => (
+            <CellDetailPair key={pair.label} label={pair.label} value={pair.value} />
           ))}
           {cell.notes ? <CellDetailPair label={t("common:labels.notes")} value={cell.notes} className="basis-full" /> : null}
         </dl>
@@ -258,30 +343,12 @@ function CellChangeItem({ cell, band, sectorLabel }: { cell: ProposedCell; band:
   );
 }
 
-function CellChanges({ submission }: { submission: SubmissionDetail }) {
-  const { t } = useTranslation("submissions");
-  const { data: bands = [] } = useQuery({ ...bandsQueryOptions(), enabled: submission.cells.length > 0 });
-  const bandById = useMemo(() => new Map(bands.map((band) => [band.id, band])), [bands]);
-  const sectorLabelByLocalId = useMemo(
-    () =>
-      new Map(
-        submission.sectors.map(
-          (sector, index) => [sector.local_id, sector.operation === null ? `A${index + 1} · ${sector.azimuth}°` : `${sector.azimuth}°`] as const,
-        ),
-      ),
-    [submission.sectors],
-  );
-  const sectorLabelByTargetId = useMemo(
-    () =>
-      new Map(
-        submission.sectors.flatMap((sector) =>
-          sector.operation === "update" && sector.target_sector_id !== null ? [[sector.target_sector_id, `${sector.azimuth}°`] as const] : [],
-        ),
-      ),
-    [submission.sectors],
-  );
+function CellChanges({ submission }: Pick<StoredChangesProps, "submission">) {
+  const { t } = useTranslation(["submissions", "common", "stations", "stationDetails"]);
+  const { cells, sectors } = submission.changes;
+  const { data: bands } = useQuery({ ...bandsQueryOptions(), enabled: cells.length > 0 });
 
-  if (submission.cells.length === 0) return null;
+  if (cells.length === 0) return null;
 
   return (
     <section className="@container overflow-hidden rounded-xl border bg-card">
@@ -290,82 +357,70 @@ function CellChanges({ submission }: { submission: SubmissionDetail }) {
           <HugeiconsIcon icon={SignalFull02Icon} className="size-4 text-muted-foreground" aria-hidden="true" />
           <h3 className="font-medium">{t("changesSheet.cells")}</h3>
         </div>
-        <SubmissionCellCounts cells={submission.cells} />
+        <SubmissionCellCounts cells={cells.map((cell) => ({ operation: toV1CellOperation(cell.action) }))} />
       </header>
       <ul className="divide-y divide-border/60">
-        {OPERATION_ORDER.flatMap((operation) =>
-          submission.cells
-            .filter((cell) => cell.operation === operation)
-            .map((cell) => {
-              const sectorLabel =
-                (cell.sector_local_id ? sectorLabelByLocalId.get(cell.sector_local_id) : undefined) ??
-                (cell.target_sector_id !== null
-                  ? (sectorLabelByTargetId.get(cell.target_sector_id) ?? t("changesSheet.sectorId", { id: cell.target_sector_id }))
-                  : null);
-              return (
-                <CellChangeItem
-                  key={cell.id}
-                  cell={cell}
-                  band={cell.band_id !== null ? bandById.get(cell.band_id) : undefined}
-                  sectorLabel={sectorLabel}
-                />
-              );
-            }),
+        {ACTION_ORDER.flatMap((action) =>
+          cells
+            .filter((cell) => cell.action === action)
+            .map((cell) => (
+              <CellChangeItem
+                key={cell.changeId}
+                cell={cell}
+                band={bands?.find((band) => band.id === cell.bandId)}
+                sectorText={findSectorText(cell, sectors, t)}
+              />
+            )),
         )}
       </ul>
     </section>
   );
 }
 
-function SubmissionContext({ submission }: { submission: SubmissionDetail }) {
+function SubmissionContext({ submission }: Pick<StoredChangesProps, "submission">) {
   const { t } = useTranslation("submissions");
-  if (!submission.submitter_note && !submission.review_notes) return null;
+  const { note, reviewNote } = submission;
+  if (!note && !reviewNote) return null;
 
   return (
     <section className="space-y-3">
-      {submission.submitter_note ? (
+      {note ? (
         <div className="rounded-lg bg-muted/50 px-3 py-2.5">
           <h3 className="text-xs font-medium text-muted-foreground">{t("detail.submitterNotes")}</h3>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{submission.submitter_note}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{note}</p>
         </div>
       ) : null}
-      {submission.review_notes ? (
+      {reviewNote ? (
         <div className="rounded-lg bg-muted/50 px-3 py-2.5">
           <h3 className="text-xs font-medium text-muted-foreground">{t("detail.reviewerResponse")}</h3>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{submission.review_notes}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{reviewNote}</p>
         </div>
       ) : null}
     </section>
   );
 }
 
-function ChangesSheetSkeleton() {
+export function SubmissionStoredChanges({ submission, operators }: StoredChangesProps) {
   return (
-    <div className="space-y-5 px-4 pb-5">
-      <Skeleton className="h-12 rounded-lg" />
-      <div className="space-y-2">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-28 rounded-lg" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-32 rounded-lg" />
-        <Skeleton className="h-32 rounded-lg" />
-      </div>
-    </div>
+    <>
+      <StationChanges submission={submission} operators={operators} />
+      <CellChanges submission={submission} />
+    </>
   );
 }
 
-export function SubmissionChangesSheet({ submission, operators, open, onOpenChange }: SubmissionChangesSheetProps) {
+export function SubmissionChangesSheet({ submission, listUpdatedAt, operators, open, onOpenChange }: SubmissionChangesSheetProps) {
   const { t, i18n } = useTranslation(["submissions", "common"]);
-  const submissionId = submission?.id ?? "";
   const detailQuery = useQuery({
-    ...submissionDetailQueryOptions(submissionId),
-    enabled: open && submission !== null,
+    ...submissionQueryOptions(submission.id),
+    enabled: open,
+    initialData: submission,
+    initialDataUpdatedAt: listUpdatedAt,
   });
-
-  const displayedSubmission = detailQuery.data ?? submission;
-  const stationId = displayedSubmission?.station?.station_id ?? displayedSubmission?.proposedStation?.station_id ?? t("common:labels.newStation");
+  const detail = detailQuery.data ?? submission;
+  const shown = detailQuery.dataUpdatedAt >= listUpdatedAt ? detail : submission;
+  const siteId = shown.station?.siteId ?? shown.changes.station?.siteId ?? t("common:labels.newStation");
+  const { photos } = shown.changes;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -373,45 +428,25 @@ export function SubmissionChangesSheet({ submission, operators, open, onOpenChan
         <SheetHeader className="border-b pr-12">
           <SheetTitle>{t("changesSheet.title")}</SheetTitle>
           <SheetDescription>
-            {stationId}
-            {displayedSubmission ? ` · ${formatFullDate(displayedSubmission.createdAt, i18n.language)}` : ""}
+            {siteId} · {formatFullDate(shown.createdAt, i18n.language)}
           </SheetDescription>
-          {displayedSubmission ? (
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <SubmissionTypeBadge type={displayedSubmission.type} />
-              <SubmissionStatusBadge status={displayedSubmission.status} />
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <SubmissionTypeBadge type={toV1SubmissionType(shown.action)} />
+            <SubmissionStatusBadge status={toV1SubmissionStatus(shown.status)} />
+          </div>
         </SheetHeader>
 
-        {detailQuery.isLoading && submission ? <ChangesSheetSkeleton /> : null}
-
-        {detailQuery.isLoadingError ? (
-          <ErrorState
-            className="m-4 flex-1"
-            title={t("changesSheet.loadError")}
-            onRetry={() => detailQuery.refetch()}
-            isRetrying={detailQuery.isFetching}
-          />
-        ) : null}
-
-        {detailQuery.data ? (
-          <div className="space-y-6 px-4 py-4 pb-8">
-            {detailQuery.isRefetchError ? (
-              <div className="flex justify-center">
-                <StaleDataNotice onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />
-              </div>
-            ) : null}
-            <StationChanges submission={detailQuery.data} operators={operators} />
-            <CellChanges submission={detailQuery.data} />
-            <SubmissionLocationPhotoSelectionsSection
-              photos={detailQuery.data.locationPhotoSelections}
-              removalPhotos={detailQuery.data.locationPhotoRemovalSelections}
-            />
-            <SubmissionPhotosSection submissionId={detailQuery.data.id} readOnly pendingPhotos={detailQuery.data.pending_photos ?? undefined} />
-            <SubmissionContext submission={detailQuery.data} />
-          </div>
-        ) : null}
+        <div className="space-y-6 px-4 py-4 pb-8">
+          {detailQuery.isRefetchError ? (
+            <div className="flex justify-center">
+              <StaleDataNotice onRetry={() => detailQuery.refetch()} isRetrying={detailQuery.isFetching} />
+            </div>
+          ) : null}
+          <SubmissionStoredChanges submission={shown} operators={operators} />
+          <SubmissionLocationPhotoSelectionsSection photos={photos.selected} removalPhotos={photos.removed} />
+          <SubmissionPhotosSection submissionId={shown.id} missingCount={Math.max(photos.announcedCount - photos.uploadedCount, 0)} />
+          <SubmissionContext submission={shown} />
+        </div>
       </SheetContent>
     </Sheet>
   );

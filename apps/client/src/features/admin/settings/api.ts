@@ -1,49 +1,11 @@
-import { API_BASE, fetchJson } from "@/lib/api";
+import type { RejectedPhotoRemoval, Settings, SettingsUpdate } from "@openbts/shared/contract";
 
-export interface Announcement {
-  message: string;
-  enabled: boolean;
-  type: "info" | "warning" | "error";
+import { JSON_HEADERS, fetchV2Data } from "@/lib/api";
+
+export function updateSiteSettings(update: SettingsUpdate): Promise<Settings> {
+  return fetchV2Data<Settings>("settings", { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(update) });
 }
 
-export interface RuntimeSettings {
-  enforceAuthForAllRoutes: boolean;
-  allowedUnauthenticatedRoutes: string[];
-  disabledRoutes: string[];
-  enableStationComments: boolean;
-  commentQueueEnabled: boolean;
-  submissionsEnabled: boolean;
-  enableUserLists: boolean;
-  photosEnabled: boolean;
-  announcement: Announcement;
-}
-
-export type SettingsPatch = Partial<RuntimeSettings>;
-
-export async function fetchSettings(): Promise<RuntimeSettings> {
-  const res = await fetchJson<{ data: RuntimeSettings }>(`${API_BASE}/settings`);
-  return res.data;
-}
-
-export async function patchSettings(patch: SettingsPatch): Promise<RuntimeSettings> {
-  const res = await fetchJson<{ data: RuntimeSettings }>(`${API_BASE}/settings`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  return res.data;
-}
-
-export async function cleanupSubmissions(): Promise<{ cleaned: number }> {
-  const res = await fetchJson<{ data: { cleaned: number } }>(`${API_BASE}/submissions/cleanup`, {
-    method: "POST",
-  });
-  return res.data;
-}
-
-export async function cleanupRejectedPhotos(): Promise<{ deleted: number }> {
-  const res = await fetchJson<{ data: { deleted: number } }>(`${API_BASE}/submissions/cleanup-photos`, {
-    method: "POST",
-  });
-  return res.data;
+export function removeRejectedSubmissionPhotos(): Promise<RejectedPhotoRemoval> {
+  return fetchV2Data<RejectedPhotoRemoval>("submissions/rejected-photos", { method: "DELETE" });
 }

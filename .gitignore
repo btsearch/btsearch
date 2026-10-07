@@ -26,6 +26,3 @@ logs/
 .agents
 .claude
 Caddyfile*
-
-tests/
-docs-new/

@@ -1,4 +1,4 @@
-import { stationComments, type users } from "@openbts/drizzle";
+import { stationComments } from "@openbts/drizzle";
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
@@ -6,12 +6,13 @@ import { z } from "zod/v4";
 import { STAFF_ROLES } from "../../../../../constants.js";
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { stationIdInLegacyCountry } from "../../../../../features/countries/legacy.js";
+import { normalizeContact } from "../../../../../features/users/profile.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../../lib/runtimeSettings.js";
 
 const COMMENTS_LIMIT = 50;
-const INSTAGRAM_HANDLE_PREFIX = /^@/;
 
 const profileUserSchema = z.object({
   id: z.string(),
@@ -65,23 +66,16 @@ const schemaRoute = {
 
 type ReqParams = { Params: z.infer<typeof schemaRoute.params> };
 type ProfileData = z.infer<typeof profileSchema>;
-type Contact = z.infer<typeof contactSchema>;
 type ProfileComments = z.infer<typeof commentsSchema>;
 
-function normalizeContact(contactInfo: (typeof users.$inferSelect)["contactInfo"]): Contact | null {
-  const instagram = contactInfo?.instagram?.trim().replace(INSTAGRAM_HANDLE_PREFIX, "") || null;
-  const facebookUrl = contactInfo?.facebook?.trim() ?? "";
-  const facebook = facebookUrl.startsWith("https://") ? facebookUrl : null;
-  const email = contactInfo?.email?.trim() || null;
-  return instagram || facebook || email ? { instagram, facebook, email } : null;
-}
-
 async function findApprovedComments(userId: string): Promise<ProfileComments> {
+  const approved = and(eq(stationComments.user_id, userId), eq(stationComments.status, "approved"));
   const [totalCount, comments] = await Promise.all([
-    db.$count(stationComments, and(eq(stationComments.user_id, userId), eq(stationComments.status, "approved"))),
+    db.$count(stationComments, and(approved, stationIdInLegacyCountry(stationComments.station_id))),
     db.query.stationComments.findMany({
       where: {
         AND: [{ user_id: { eq: userId } }, { status: { eq: "approved" } }],
+        RAW: (fields) => stationIdInLegacyCountry(fields.station_id),
       },
       columns: { id: true, content: true, createdAt: true, station_id: true },
       orderBy: { createdAt: "desc" },

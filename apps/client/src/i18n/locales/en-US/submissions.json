@@ -36,13 +36,6 @@
     "reject": "Reject submission",
     "approve": "Approve submission"
   },
-  "rejectApproveCard": {
-    "confirmReject": "Are you sure you want to reject this submission?",
-    "confirmRejectDesc": "This can't be undone. The station won't be added to the database",
-    "confirmApprove": "Are you sure you want to approve this submission?",
-    "confirmApproveDesc": "This can't be undone. The station will be added to the database and the submission marked as approved",
-    "confirmApproveUnsaved": "You have unsaved changes. Save them before approving, or they'll be lost"
-  },
   "deletionBanner": "This submission requests deletion of station {{stationId}}. If approved, the station will be marked as inactive",
   "adminTitle": "Submission management",
   "adminDescription": "Manage submissions regarding base stations",
@@ -61,48 +54,28 @@
   },
   "ratSelector": {
     "title": "Radio technologies",
-    "description": "Select radio technologies (RAT) available at this station",
-    "noSelection": "Select at least one technology to add cells",
-    "iotHint": "IoT cells can be marked in LTE and NR tables as IoT (NB-IoT/LTE-M) and RedCap respectively"
+    "iotHint": "IoT cells can be marked in LTE and NR tables as IoT (NB-IoT/LTE-M) and RedCap respectively",
+    "intro": "Select radio technologies (RAT) available at this station. A technology that has cells cannot be switched off here: remove its cells in the table"
   },
   "deleteStation": {
     "warning": "This station will be flagged for deletion and reviewed by a moderator",
     "reasonPlaceholder": "Why should this station be deleted?"
   },
   "validation": {
-    "pendingStationPhotoRequired": "Add at least one photo when submitting a new station without cells",
-    "stationIdTooShort": "Station ID must be at least 2 characters",
-    "operatorRequired": "Select an operator",
-    "latitudeRequired": "Latitude is required",
-    "latitudeInvalid": "Latitude must be between -90 and 90",
-    "longitudeRequired": "Longitude is required",
-    "longitudeInvalid": "Longitude must be between -180 and 180",
-    "regionRequired": "Select a region",
-    "bandRequired": "Band is required",
-    "lacRequired": "LAC is required",
-    "rncRequired": "RNC is required",
-    "enbidRequired": "eNBID is required",
-    "clidRequired": "CLID is required",
-    "clidRangeInvalid": "CLID must be between 0 and 255",
-    "pciRequired": "PCI is required",
-    "pciRangeInvalid": "PCI must be between 0 and 503",
-    "nciRequired": "NCI is required",
-    "gnbidRequired": "gNBID is required",
-    "mustBePositive": "Value cannot be negative",
-    "typeRequired": "Type (NSA/SA) is required",
-    "typeInvalid": "Type must be NSA or SA",
-    "cidDuplicate": "CID must be unique within the same RAT",
-    "enbidClidDuplicate": "eNBID+CLID combination must be unique within LTE cells",
-    "arfcnBandMismatch": "ARFCN does not match the selected band"
+    "pendingStationPhotoRequired": "Add at least one photo when submitting a new station without cells"
   },
   "form": {
-    "summary": "Change note",
     "summaryPlaceholder": "Describe what you changed (optional)...",
     "editingBanner": "Editing submission",
-    "noChanges": "No changes detected - edit a field or add a note to enable the update button"
+    "noteLabel": "Note for the editor",
+    "changesToSend_one": "{{count, number}} change to send",
+    "changesToSend_other": "{{count, number}} changes to send",
+    "nothingChanged": "No changes detected",
+    "sentDescription": "You will get a notification when an editor reviews it. Until then you can still edit it",
+    "sendAnother": "Submit another change",
+    "targetSwitch": "New or existing station"
   },
   "table": {
-    "cells": "Cell count",
     "cellCountsLabel": "Cells - added: {{added}}, updated: {{updated}}, deleted: {{deleted}}",
     "cellCountsLegend": "Added / updated / deleted cells",
     "review": "Review",
@@ -139,6 +112,7 @@
     "cancelRemoval": "Cancel removal",
     "hint": "Up to {{max}} photos, max {{size}} each",
     "sending": "Sending photo {{current}} / {{total}}",
+    "uploading": "Uploading photos",
     "uploaded": "Photos uploaded",
     "deleted": "Photo deleted",
     "uploadFailed": "Failed to upload photos",
@@ -158,14 +132,15 @@
     "selectionSaved": "Photo selection saved",
     "selectionFailed": "Failed to save photo selection",
     "emptyLocation": "No photos at this location yet",
-    "uploadBelow": "Upload new photos below",
     "locationPhotos": "Existing location photos",
     "uploadedPhotos": "New photos for this submission",
     "selectedLocationPhotos": "Photos selected by submitter",
     "removalSelections": "Photos to remove",
     "pendingCount_one": "{{count, number}} photo may still be uploading",
     "pendingCount_other": "{{count, number}} photos may still be uploading",
-    "pendingHint": "They should appear here in a few seconds or minutes"
+    "pendingHint": "They should appear here in a few seconds or minutes",
+    "limitsHint": "Up to {{max}} photos, max {{size}} each. At least 640 x 480 px",
+    "currentMain": "Current main photo"
   },
   "mySubmissions": {
     "reviewedBy": "Reviewed by",
@@ -182,65 +157,38 @@
     "stationAdd": "New station details",
     "stationUpdate": "Station changes",
     "stationDelete": "Station to delete",
-    "sectors": "Sector layout",
+    "sectors": "Azimuth layout",
     "cells": "Cell changes",
     "cellId": "Cell #{{id}}",
-    "sector": "Sector",
-    "sectorId": "Sector #{{id}}",
-    "deletedCell": "This cell is marked for removal from the station",
-    "loadError": "Couldn't load the submitted changes"
+    "sector": "Azimuth",
+    "sectorId": "Azimuth #{{id}}",
+    "deletedCell": "This cell is marked for removal from the station"
   },
   "batch": {
-    "cellCount_one": "{{count, number}} cell change",
-    "cellCount_other": "{{count, number}} cell changes",
-    "includedCellCount": "Included {{included}} of {{total}} cell changes",
-    "fromAnalyzerTitle": "Submission from analyzer",
-    "fromAnalyzerDescription": "Review the detected station and cell changes, resolve any issues, then send them for verification",
-    "sourceFile": "Source file",
-    "unknownFile": "Analyzer import",
-    "parsedRowCount_one": "{{count, number}} row analyzed",
-    "parsedRowCount_other": "{{count, number}} rows analyzed",
-    "reviewChanges": "Review changes",
-    "submitterNote": "Submitter note",
-    "submitterNotePlaceholder": "Add a note for the reviewer...",
-    "submitterNoteHint": "Optional context that will be included with every submission in this batch",
-    "stationCellSummary": "{{stations}} stations · {{cells}} cells",
-    "submit": "Submit batch",
-    "submitSuccess": "Batch submitted for review",
-    "addOperation": "Add",
-    "currentValue": "Current value:",
-    "newValue": "New value:",
-    "includeField": "Include {{rat}} {{field}} from analyzer row {{row}}",
-    "notIncluded": "Not sent",
     "fieldsToSend": "Fields to send",
     "fieldsToSendSummary": "Fields to send: {{selected, number}} of {{total, number}} values included",
     "optionalFields": "Optional fields",
     "requiredField": "Required",
     "requiredForNewCells": "Required for new cells",
     "requiredFieldsHint": "Fields required to create new cells always stay included",
-    "selectDuplexForCell": "Select duplex for analyzer row {{row}}",
+    "includeField": "Include {{rat}} {{field}} from analyzer row {{row}}",
+    "notIncluded": "Not sent",
+    "nothingSelectedTitle": "Choose at least one change",
+    "nothingSelectedDescription": "Select a field in a change row or use Fields to send before continuing",
+    "includedCellCount": "Included {{included}} of {{total}} cell changes",
+    "currentValue": "Current value:",
+    "newValue": "New value:",
+    "sourceFile": "Source file",
+    "unknownFile": "Analyzer import",
+    "submitterNotePlaceholder": "Add a note for the reviewer...",
+    "submitSuccess": "Batch submitted for review",
+    "addOperation": "Add",
     "bandNotMatched": "Band not matched",
     "removeCell": "Remove analyzer row {{row}} from this batch",
     "removeStation": "Remove station {{stationId}} from this batch",
     "restoreRemoved": "Restore removed",
-    "conflictBadge": "Conflict",
     "noStations": "No changes left to submit",
-    "noStationsDescription": "Restore the removed changes or return to the analyzer to choose a different set",
     "backToAnalyzer": "Back to analyzer",
-    "conflictsWarning": "Remove conflicting entries before submitting",
-    "unresolvedBandsTitle": "Band selection required",
-    "unresolvedBandsWarning": "Choose a duplex where available or remove entries whose band could not be matched",
-    "issuesTitle": "Action required",
-    "nothingSelectedTitle": "Choose at least one change",
-    "nothingSelectedDescription": "Select a field in a change row or use Fields to send before continuing",
-    "readyTitle": "Ready to submit",
-    "readyDescription": "All selected changes have the information required for submission",
-    "batchRateLimit": "Limited to 4 batch submissions per 32 hours",
-    "applyDirectly": "Apply directly",
-    "applyDirectlyHint": "Editors can bypass review and update the database immediately",
-    "applySuccess": "Changes applied successfully",
-    "applyDirectlyConfirmTitle": "Apply changes directly?",
-    "applyDirectlyConfirmDesc": "This will immediately update the database without going through the submission review process. This action cannot be reverted",
     "loading": "Loading analyzer submission review",
     "loadErrorTitle": "The review could not be loaded",
     "loadErrorDescription": "Station settings or band data are unavailable. Try loading them again"
@@ -254,29 +202,101 @@
     "fetchFailed": "Failed to fetch identifiers"
   },
   "siblingSectors": {
-    "fetchFrom": "Copy from {{brand}}",
-    "fetching": "Copying...",
     "notFound": "No sibling azimuths found",
-    "fetched": "Azimuths copied from sibling station",
     "fetchFailed": "Failed to copy azimuths"
   },
   "azimuthFetch": {
     "fetch": "Fetch azimuths",
     "si2pem": {
       "notFound": "No azimuths found in the latest SI2PEM laboratory report",
-      "fetched": "Azimuths fetched from the latest SI2PEM laboratory report",
       "fetchFailed": "Failed to fetch azimuths from the latest SI2PEM laboratory report"
     },
     "uke": {
-      "fetched": "Azimuths fetched from UKE",
       "fetchFailed": "Failed to fetch azimuths from UKE"
     }
   },
   "ukeSectors": {
-    "fetch": "Import from UKE",
-    "fetching": "Importing...",
-    "notFound": "No UKE azimuths found for this station and operator",
-    "fetched": "Azimuths imported from UKE",
-    "fetchFailed": "Failed to import UKE azimuths"
+    "notFound": "No UKE azimuths found for this station and operator"
+  },
+  "review": {
+    "tabs": {
+      "submission": "Submission"
+    },
+    "origin": {
+      "analyzer": "From the analyzer"
+    },
+    "reload": "Reload",
+    "partnerAzimuths": "The partner's station {{station}} will get the same azimuths",
+    "queue": {
+      "place_one": "{{place, number}} of {{count, number}} pending",
+      "place_other": "{{place, number}} of {{count, number}} pending",
+      "pending_one": "{{count, number}} pending",
+      "pending_other": "{{count, number}} pending",
+      "previous": "Previous submission",
+      "next": "Next submission"
+    },
+    "changes": {
+      "corrections": "Your corrections: {{count, number}} · saved when you approve",
+      "empty": "The submission does not change the station's data",
+      "applied": "Approved - the station already has these changes. Below is what the submission held, and the station's history shows what was written to the database"
+    },
+    "notices": {
+      "stationChangedPlain": "The station changed after the submission was sent",
+      "stationChanged": "The station changed after the submission was sent: {{summary}}",
+      "latestChange": "the latest {{when}}",
+      "showInHistory": "Show in history",
+      "placeField_one": "{{field}} belongs to the place: it will also change for {{count, number}} other station",
+      "placeField_other": "{{field}} belongs to the place: it will also change for {{count, number}} other stations",
+      "placeFields_one": "{{fields}} belong to the place: they will also change for {{count, number}} other station",
+      "placeFields_other": "{{fields}} belong to the place: they will also change for {{count, number}} other stations",
+      "placeMoved_one": "The whole place will move, together with {{count, number}} other station",
+      "placeMoved_other": "The whole place will move, together with {{count, number}} other stations",
+      "proposedOwner": "The submission proposes a new structure owner: {{name}}",
+      "ownerCreatedOnApproval": "It will be created on approval",
+      "similarOwner": "A similar one is already on the list: {{name}}",
+      "renameOwner": "Correct the name",
+      "useExistingOwner": "Use the existing one",
+      "orphanCells_one": "The submission changes {{count, number}} cell that is no longer on the station. This entry blocks the approval and goes away when you save a correction to the cells",
+      "orphanCells_other": "The submission changes {{count, number}} cells that are no longer on the station. These entries block the approval and go away when you save a correction to the cells",
+      "orphanSectors_one": "The submission changes {{count, number}} azimuth that is no longer on the station. This entry leaves the submission when you save a correction to the azimuths",
+      "orphanSectors_other": "The submission changes {{count, number}} azimuths that are no longer on the station. These entries leave the submission when you save a correction to the azimuths"
+    },
+    "ownerName": {
+      "title": "Correct the structure owner's name",
+      "description": "An owner with this name will be created when you approve the submission",
+      "submit": "Correct the name"
+    },
+    "approve": {
+      "title": "Approve this submission?",
+      "stationChanges_one": "Station {{station}}: {{count, number}} change in the submission",
+      "stationChanges_other": "Station {{station}}: {{count, number}} changes in the submission",
+      "stationCreated": "Station {{station}} will be created",
+      "stationDeleted": "Station {{station}} will be marked as inactive",
+      "newOwner": "A new structure owner will be created: {{name}}",
+      "placeChanges_one": "Place {{place}}: {{changes}}, also for {{count, number}} other station",
+      "placeChanges_other": "Place {{place}}: {{changes}}, also for {{count, number}} other stations",
+      "placeMoved_one": "Place {{place}} will move together with {{count, number}} other station",
+      "placeMoved_other": "Place {{place}} will move together with {{count, number}} other stations",
+      "placeFields": {
+        "regionId": "new region",
+        "city": "new city",
+        "address": "new address",
+        "structureType": "new structure",
+        "structureOwner": "new owner",
+        "structureNote": "new structure note"
+      },
+      "photos_one": "{{count, number}} photo will go to the location and the station",
+      "photos_other": "{{count, number}} photos will go to the location and the station",
+      "corrections": "Your corrections: {{count, number}} - saved together with the approval",
+      "noteLabel": "Note for the submitter",
+      "notePlaceholder": "Optional, e.g. a thank-you or what you corrected"
+    },
+    "reject": {
+      "title": "Reject this submission?",
+      "description": "Nothing changes in the database. The submission's photos are deleted after 30 days",
+      "noteLabel": "Reason for rejection",
+      "notePlaceholder": "Tell the submitter what is wrong",
+      "submit": "Reject"
+    }
   }
 }

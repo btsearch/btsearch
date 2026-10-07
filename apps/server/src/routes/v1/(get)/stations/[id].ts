@@ -13,14 +13,16 @@ import {
   stations,
   umtsCells,
 } from "@openbts/drizzle";
-import { StationResponseType } from "@openbts/proto/server";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { HIDDEN_STRUCTURE_COLUMNS, STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
 import { findPhysicalStation, physicalStationSchema } from "../../../../features/stations/physicalStations.js";
+import { toLegacyCellDetails } from "../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { IdParams, JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -35,7 +37,7 @@ const umtsCellsSchema = createSelectSchema(umtsCells).omit({ cell_id: true });
 const lteCellsSchema = createSelectSchema(lteCells).omit({ cell_id: true });
 const nrCellsSchema = createSelectSchema(nrCells).omit({ cell_id: true });
 const cellDetailsSchema = z.union([gsmCellsSchema, umtsCellsSchema, lteCellsSchema, nrCellsSchema]).nullable();
-const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true });
+const locationSchema = createSelectSchema(locations).omit({ point: true, region_id: true, ...STRUCTURE_COLUMNS });
 const operatorSchema = createSelectSchema(operators);
 const extraIdentificatorsSchema = createSelectSchema(extraIdentificators).omit({ station_id: true });
 const sectorsSchema = createSelectSchema(stationSectors).omit({ station_id: true });
@@ -83,7 +85,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
     where: { id },
     with: {
       cells: { with: { band: true, gsm: true, umts: true, lte: true, nr: true }, columns: { band_id: false, station_id: false } },
-      location: { columns: { point: false, region_id: false }, with: { region: true } },
+      location: { columns: { point: false, region_id: false, ...HIDDEN_STRUCTURE_COLUMNS }, with: { region: true } },
       operator: true,
       extra_identificators: { columns: { station_id: false } },
       sectors: {
@@ -97,11 +99,15 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 
   if (!station) throw new ErrorResponse("NOT_FOUND");
 
-  const physicalStation = await findPhysicalStation(station.id, station.location?.id, station.operator?.mnc);
+  const [physicalStation, featuresByStation] = await Promise.all([
+    findPhysicalStation(station.id, station.location?.id, station.operator?.mnc),
+    getStationCountryFeatures(station.cells.length > 0 ? [station.id] : []),
+  ]);
+  const features = featuresByStation.get(station.id) ?? disabledCountryFeatures;
 
   const cells: CellResponse[] = (station.cells as CellWithRats[]).map((cell) => {
     const { gsm, umts, lte, nr, band, ...rest } = cell;
-    const details: CellDetails = gsm ?? umts ?? lte ?? nr ?? null;
+    const details: CellDetails = toLegacyCellDetails({ gsm, umts, lte, nr }, features);
     return { ...rest, band, details };
   });
 
@@ -116,7 +122,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<JSONBody
 const getStation: Route<IdParams, StationResponse> = {
   url: "/stations/:id",
   method: "GET",
-  config: { permissions: ["read:stations"], allowGuestAccess: true, proto: StationResponseType },
+  config: { permissions: ["read:stations"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

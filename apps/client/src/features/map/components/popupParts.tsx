@@ -1,21 +1,24 @@
 import { Copy01Icon, Location01Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { StationStatus } from "@openbts/shared/contract";
 import { type ComponentProps, type ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { DEFAULT_COLOR } from "../geojson";
+import { type BrandLook, BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { OperatorMark } from "@/features/station-details/components/dialogOperatorName";
+import { toV1StationStatus } from "@/features/station-details/station/utils/stations";
+import { StationStatusBadge } from "@/features/stations/components/StationStatusBadge";
 import { useGpsFormat } from "@/hooks/usePreferences";
-import { getOperatorColor, getOperatorTintGradient } from "@/lib/cellular/operators";
+import { getOperatorTintGradient } from "@/lib/cellular/operators";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { cn } from "@/lib/utils";
 
 const AddToListPopover = lazy(() => import("@/features/lists/components/addToListPopover").then((m) => ({ default: m.AddToListPopover })));
 
 const COPIED_RESET_MS = 2000;
+const POPUP_MARK_SIZE = 16;
 const TITLE_RESERVE_CLASS_NAMES = ["", "pr-5.5", "pr-11.5", "pr-17.5"];
 
 function useCopyToClipboard() {
@@ -117,11 +120,13 @@ type PopupLocationHeaderProps = {
   city?: string | null;
   region?: string | null;
   address?: string | null;
+  description?: ReactNode;
   actions?: ReactNode;
 };
 
-export function PopupLocationHeader({ city, region, address, actions }: PopupLocationHeaderProps) {
+export function PopupLocationHeader({ city, region, address, description, actions }: PopupLocationHeaderProps) {
   const { t } = useTranslation("main");
+  const details = description ?? address;
 
   return (
     <div className={cn("flow-root border-b border-border/50 py-2 pl-3", actions ? "pr-1.5" : "pr-3")}>
@@ -138,7 +143,7 @@ export function PopupLocationHeader({ city, region, address, actions }: PopupLoc
           </>
         ) : null}
       </h3>
-      {address ? <p className="text-[11px] text-muted-foreground">{address}</p> : null}
+      {details ? <p className="text-[11px] text-muted-foreground">{details}</p> : null}
     </div>
   );
 }
@@ -157,8 +162,29 @@ export function PopupExpiredLabel() {
   return <span className="shrink-0 text-[11px] leading-none font-semibold text-red-700 dark:text-red-300">{t("status.expired")}</span>;
 }
 
-type PopupRowProps = {
-  mnc: number | null | undefined;
+type PopupStatusBadgeProps = {
+  status: StationStatus | null;
+  statusChangedAt?: string | null;
+};
+
+export function PopupStatusBadge({ status, statusChangedAt }: PopupStatusBadgeProps) {
+  if (status === null || status === "active") return null;
+
+  return <StationStatusBadge status={toV1StationStatus(status)} statusChangedAt={statusChangedAt ?? undefined} />;
+}
+
+type PopupBrandMarkProps = {
+  brand: BrandLook | null;
+  color: string;
+};
+
+export function PopupBrandMark({ brand, color }: PopupBrandMarkProps) {
+  return <BrandMark brand={{ color, logo: brand?.logo ?? null }} size={POPUP_MARK_SIZE} />;
+}
+
+type PopupRowFrameProps = {
+  mark: ReactNode;
+  color: string;
   title: ReactNode;
   actions?: ReactNode;
   actionCount?: number;
@@ -167,13 +193,12 @@ type PopupRowProps = {
   children?: ReactNode;
 };
 
-export function PopupRow({ mnc, title, actions, actionCount = 0, onOpen, className, children }: PopupRowProps) {
-  const hasMnc = mnc !== null && mnc !== undefined;
-  const style = { backgroundImage: getOperatorTintGradient(hasMnc ? getOperatorColor(mnc) : DEFAULT_COLOR) };
+export function PopupRowFrame({ mark, color, title, actions, actionCount = 0, onOpen, className, children }: PopupRowFrameProps) {
+  const style = { backgroundImage: getOperatorTintGradient(color) };
   const body = (
     <>
-      <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-        {hasMnc ? <OperatorMark mnc={mnc} compact /> : <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: DEFAULT_COLOR }} />}
+      <span className="flex h-4 min-w-4 shrink-0 items-center justify-center" aria-hidden="true">
+        {mark}
       </span>
       <div className="min-w-0 flex-1">
         <div className={cn("flex min-h-4 flex-wrap items-center gap-x-1.5 gap-y-0.5", TITLE_RESERVE_CLASS_NAMES[actionCount])}>{title}</div>
@@ -183,7 +208,7 @@ export function PopupRow({ mnc, title, actions, actionCount = 0, onOpen, classNa
   );
 
   return (
-    <div className="relative border-b border-border/30 last:border-0">
+    <div className="group/popup-row relative border-b border-border/30 last:border-0">
       {onOpen ? (
         <button
           type="button"
@@ -204,4 +229,10 @@ export function PopupRow({ mnc, title, actions, actionCount = 0, onOpen, classNa
       {actions ? <div className="absolute top-1 right-1.5 flex items-center">{actions}</div> : null}
     </div>
   );
+}
+
+type PopupRowProps = Omit<PopupRowFrameProps, "mark"> & { brand: BrandLook | null };
+
+export function PopupRow({ brand, color, ...frameProps }: PopupRowProps) {
+  return <PopupRowFrame mark={<PopupBrandMark brand={brand} color={color} />} color={color} {...frameProps} />;
 }

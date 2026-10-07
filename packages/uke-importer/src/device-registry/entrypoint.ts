@@ -5,7 +5,7 @@ import { unlinkSync } from "node:fs";
 import path from "node:path";
 import url from "node:url";
 
-import { BATCH_SIZE, DOWNLOAD_DIR, PERMITS_DEVICES_URL, PERMIT_FILE_OPERATOR_MAP, REGION_BY_TERYT_PREFIX } from "../config.js";
+import { BATCH_SIZE, COUNTRY_CODE, DOWNLOAD_DIR, PERMITS_DEVICES_URL, PERMIT_FILE_OPERATOR_MAP, REGION_BY_TERYT_PREFIX } from "../config.js";
 import { db } from "../database.js";
 import { getLastImportedFileNames, recordImportMetadata } from "../import-check.js";
 import { scrapePermitDeviceLinks } from "../scrape.js";
@@ -49,6 +49,7 @@ export async function importDeviceRegistry(): Promise<boolean> {
         name: {
           in: operatorNamesNeeded,
         },
+        countryCode: COUNTRY_CODE,
       },
     });
     for (const operator of existingOperators) operatorIds.set(operator.name, operator.id);

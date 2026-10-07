@@ -1,33 +1,24 @@
-const BAND_ORDER = [
-  "GSM900",
-  "GSM1800",
-  "UMTS900",
-  "UMTS2100",
-  "LTE700",
-  "LTE800",
-  "LTE900",
-  "LTE1800",
-  "LTE2100",
-  "LTE2600",
-  "NR700",
-  "NR900",
-  "NR1800",
-  "NR2100",
-  "NR2600",
-  "NR3500",
-  "GSM-R900",
-  "IOT900",
-  "CDMA420",
-  "LTE420",
-  "LTE450",
-] as const;
+import { useQuery } from "@tanstack/react-query";
 
-const normalizeBandName = (bandName: string) => bandName.replace(/\s+/g, "");
+import { registerBandsQueryOptions } from "@/features/map/api";
 
-const BAND_ORDER_INDEX = new Map(BAND_ORDER.map((band, index) => [normalizeBandName(band), index]));
+type OrderedBand = { id: number; name: string };
+export type BandComparator = (a: OrderedBand, b: OrderedBand) => number;
 
-export function compareBandNames(a: string, b: string): number {
-  const orderA = BAND_ORDER_INDEX.get(normalizeBandName(a)) ?? Number.MAX_SAFE_INTEGER;
-  const orderB = BAND_ORDER_INDEX.get(normalizeBandName(b)) ?? Number.MAX_SAFE_INTEGER;
-  return orderA - orderB || a.localeCompare(b, undefined, { numeric: true });
+function compareBandsByName(a: OrderedBand, b: OrderedBand): number {
+  return a.name.localeCompare(b.name, undefined, { numeric: true });
+}
+
+function toRegisterBandComparator(registerBands: readonly { id: number }[]): BandComparator {
+  const positions = new Map(registerBands.map((band, index) => [band.id, index]));
+  return (a, b) => {
+    const positionA = positions.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+    const positionB = positions.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+    return positionA - positionB || compareBandsByName(a, b);
+  };
+}
+
+export function useRegisterBandComparator(): BandComparator {
+  const { data } = useQuery({ ...registerBandsQueryOptions(), select: toRegisterBandComparator });
+  return data ?? compareBandsByName;
 }

@@ -8,16 +8,21 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FLOATING_DIALOG_FADE_MOTION, FLOATING_DIALOG_SCALE_MOTION } from "../animation";
 import {
-  FLOATING_DIALOG_DESKTOP_MIN_WIDTH,
+  FLOATING_DIALOG_DESKTOP_MIN_SIZE,
+  type FloatingDialogFitAnchor,
   type FloatingDialogInteractionMode,
   type FloatingDialogRect,
+  type FloatingDialogSize,
   applyFloatingDialogRect,
   clampFloatingDialogRect,
+  getCollapsedFloatingDialogHeight,
+  getFittedFloatingDialogY,
   getFloatingDialogCursor,
   getFloatingDialogInteractionRect,
   getFloatingDialogPosition,
@@ -38,6 +43,9 @@ type FloatingDialogFrameProps = {
   zIndex: number;
   contentKey?: string;
   fitHeightToContent?: boolean;
+  fitAnchor?: FloatingDialogFitAnchor;
+  minSize?: FloatingDialogSize;
+  isCollapsed?: boolean;
   onFocus: () => void;
   onRectChange: (rect: FloatingDialogRect) => void;
   children: (props: FloatingDialogRenderProps) => ReactNode;
@@ -50,6 +58,7 @@ type InteractionState = {
   startY: number;
   startRect: FloatingDialogRect;
   nextRect: FloatingDialogRect;
+  sizeLimit: FloatingDialogSize;
   frameId: number | null;
 };
 
@@ -58,11 +67,18 @@ function isInteractiveTarget(target: EventTarget | null) {
   return target.closest("button,a,input,textarea,select,[role='button']") !== null;
 }
 
+function getSizeLimit(minSize: FloatingDialogSize, isCollapsed: boolean): FloatingDialogSize {
+  return isCollapsed ? { width: minSize.width, height: 0 } : minSize;
+}
+
 export function FloatingDialogFrame({
   rect,
   zIndex,
   contentKey,
   fitHeightToContent = true,
+  fitAnchor = "center",
+  minSize = FLOATING_DIALOG_DESKTOP_MIN_SIZE,
+  isCollapsed = false,
   onFocus,
   onRectChange,
   children,
@@ -70,25 +86,30 @@ export function FloatingDialogFrame({
   const { t } = useTranslation("common");
   const isPresent = useIsPresent();
   const reduceMotion = useReducedMotion() === true;
+  const [isHeightManual, setIsHeightManual] = useState(false);
+  const [bodyContentElement, setBodyContentElement] = useState<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const bodyContentRef = useRef<HTMLDivElement>(null);
+  const bodyContentRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<InteractionState | null>(null);
   const userResizedHeightRef = useRef(false);
+  const expandedHeightRef = useRef<number | null>(null);
+  const minSizeRef = useRef(minSize);
   const dialogRectRef = useRef(rect);
   const onRectChangeRef = useRef(onRectChange);
 
   useLayoutEffect(() => {
     dialogRectRef.current = rect;
     onRectChangeRef.current = onRectChange;
-    const nextRect = clampFloatingDialogRect(rect);
+    minSizeRef.current = minSize;
+    const nextRect = clampFloatingDialogRect(rect, getSizeLimit(minSize, expandedHeightRef.current !== null));
     applyFloatingDialogRect(panelRef.current, nextRect);
     if (shouldSyncFloatingDialogRect(rect, nextRect)) {
       dialogRectRef.current = nextRect;
       onRectChangeRef.current(nextRect);
     }
-  }, [onRectChange, rect]);
+  }, [minSize, onRectChange, rect]);
 
   useEffect(
     () => () => {
@@ -100,8 +121,13 @@ export function FloatingDialogFrame({
     [],
   );
 
+  const attachBodyContent = useCallback((element: HTMLDivElement | null) => {
+    bodyContentRef.current = element;
+    setBodyContentElement(element);
+  }, []);
+
   const fitDialogToContent = useCallback(() => {
-    if (!fitHeightToContent || userResizedHeightRef.current || interactionRef.current !== null) return;
+    if (!fitHeightToContent || userResizedHeightRef.current || interactionRef.current !== null || expandedHeightRef.current !== null) return;
 
     const content = contentRef.current;
     const body = bodyRef.current;
@@ -109,25 +135,25 @@ export function FloatingDialogFrame({
     if (content === null || body === null || bodyContent === null) return;
 
     const currentRect = dialogRectRef.current;
+    const sizeLimit = minSizeRef.current;
     const naturalHeight = getNaturalFloatingDialogHeight(content, body, bodyContent);
-    const targetHeight = clampFloatingDialogRect({ ...currentRect, height: naturalHeight }).height;
-    const nextRect = clampFloatingDialogRect({
-      ...currentRect,
-      y: currentRect.y + (currentRect.height - targetHeight) / 2,
-      height: targetHeight,
-    });
+    const targetHeight = clampFloatingDialogRect({ ...currentRect, height: naturalHeight }, sizeLimit).height;
+    const nextRect = clampFloatingDialogRect(
+      { ...currentRect, y: getFittedFloatingDialogY(currentRect, targetHeight, fitAnchor), height: targetHeight },
+      sizeLimit,
+    );
 
     if (!shouldSyncFloatingDialogRect(currentRect, nextRect)) return;
     dialogRectRef.current = nextRect;
     applyFloatingDialogRect(panelRef.current, nextRect);
     onRectChangeRef.current(nextRect);
-  }, [fitHeightToContent]);
+  }, [fitAnchor, fitHeightToContent]);
 
   useLayoutEffect(() => {
     if (!fitHeightToContent) return;
 
-    const bodyContent = bodyContentRef.current;
-    if (bodyContent === null) return;
+    fitDialogToContent();
+    if (bodyContentElement === null) return;
 
     let frameId: number | null = null;
     const scheduleFit = () => {
@@ -138,16 +164,35 @@ export function FloatingDialogFrame({
       });
     };
 
-    fitDialogToContent();
-
     const resizeObserver = new ResizeObserver(scheduleFit);
-    resizeObserver.observe(bodyContent);
+    resizeObserver.observe(bodyContentElement);
 
     return () => {
       resizeObserver.disconnect();
       if (frameId !== null) cancelAnimationFrame(frameId);
     };
-  }, [contentKey, fitDialogToContent, fitHeightToContent]);
+  }, [bodyContentElement, contentKey, fitDialogToContent, fitHeightToContent]);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    const body = bodyRef.current;
+    const bodyContent = bodyContentRef.current;
+    const expandedHeight = expandedHeightRef.current;
+    if (isCollapsed === (expandedHeight !== null) || content === null || body === null) return;
+
+    const currentRect = dialogRectRef.current;
+    let height = expandedHeight ?? getCollapsedFloatingDialogHeight(content, body);
+    if (expandedHeight !== null && fitHeightToContent && !userResizedHeightRef.current && bodyContent !== null) {
+      height = getNaturalFloatingDialogHeight(content, body, bodyContent);
+    }
+
+    expandedHeightRef.current = isCollapsed ? currentRect.height : null;
+    const y = fitAnchor === "bottom" ? currentRect.y + currentRect.height - height : currentRect.y;
+    const nextRect = clampFloatingDialogRect({ ...currentRect, y, height }, getSizeLimit(minSizeRef.current, isCollapsed));
+    dialogRectRef.current = nextRect;
+    applyFloatingDialogRect(panelRef.current, nextRect);
+    onRectChangeRef.current(nextRect);
+  }, [fitAnchor, fitHeightToContent, isCollapsed]);
 
   const beginInteraction = useCallback(
     (event: ReactPointerEvent<HTMLElement>, mode: FloatingDialogInteractionMode) => {
@@ -159,8 +204,12 @@ export function FloatingDialogFrame({
       event.currentTarget.setPointerCapture(event.pointerId);
       document.body.style.userSelect = "none";
       document.body.style.cursor = getFloatingDialogCursor(mode);
-      if (mode === "resize-corner") userResizedHeightRef.current = true;
-      const startRect = clampFloatingDialogRect(dialogRectRef.current);
+      if (mode === "resize-corner") {
+        userResizedHeightRef.current = true;
+        setIsHeightManual(true);
+      }
+      const sizeLimit = getSizeLimit(minSizeRef.current, expandedHeightRef.current !== null);
+      const startRect = clampFloatingDialogRect(dialogRectRef.current, sizeLimit);
       interactionRef.current = {
         pointerId: event.pointerId,
         mode,
@@ -168,6 +217,7 @@ export function FloatingDialogFrame({
         startY: event.clientY,
         startRect,
         nextRect: startRect,
+        sizeLimit,
         frameId: null,
       };
     },
@@ -183,7 +233,7 @@ export function FloatingDialogFrame({
 
     const deltaX = event.clientX - interaction.startX;
     const deltaY = event.clientY - interaction.startY;
-    const nextRect = getFloatingDialogInteractionRect(interaction.mode, interaction.startRect, deltaX, deltaY);
+    const nextRect = getFloatingDialogInteractionRect(interaction.mode, interaction.startRect, deltaX, deltaY, interaction.sizeLimit);
 
     interaction.nextRect = nextRect;
     if (interaction.frameId === null) {
@@ -194,21 +244,25 @@ export function FloatingDialogFrame({
     }
   }, []);
 
-  const endInteraction = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    const interaction = interactionRef.current;
-    if (interaction === null || interaction.pointerId !== event.pointerId) return;
+  const endInteraction = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      const interaction = interactionRef.current;
+      if (interaction === null || interaction.pointerId !== event.pointerId) return;
 
-    const nextRect = interaction.nextRect;
-    event.preventDefault();
-    event.stopPropagation();
-    if (interaction.frameId !== null) cancelAnimationFrame(interaction.frameId);
-    interactionRef.current = null;
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
-    dialogRectRef.current = nextRect;
-    applyFloatingDialogRect(panelRef.current, nextRect);
-    onRectChangeRef.current(nextRect);
-  }, []);
+      const nextRect = interaction.nextRect;
+      event.preventDefault();
+      event.stopPropagation();
+      if (interaction.frameId !== null) cancelAnimationFrame(interaction.frameId);
+      interactionRef.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      dialogRectRef.current = nextRect;
+      applyFloatingDialogRect(panelRef.current, nextRect);
+      onRectChangeRef.current(nextRect);
+      if (interaction.mode === "resize-horizontal") fitDialogToContent();
+    },
+    [fitDialogToContent],
+  );
 
   return (
     <motion.div
@@ -216,17 +270,19 @@ export function FloatingDialogFrame({
       className="fixed pointer-events-auto transition-[left,top,width,height] duration-100 ease-[ease] motion-reduce:transition-none"
       style={{
         ...getFloatingDialogPosition(rect),
-        minWidth: FLOATING_DIALOG_DESKTOP_MIN_WIDTH,
+        minWidth: minSize.width,
         zIndex,
       }}
       inert={!isPresent}
+      data-floating-dialog-key={contentKey}
+      data-height-mode={isHeightManual ? "manual" : "auto"}
       onPointerDown={onFocus}
       {...(reduceMotion ? FLOATING_DIALOG_FADE_MOTION : FLOATING_DIALOG_SCALE_MOTION)}
     >
       {children({
         contentRef,
         bodyRef,
-        bodyContentRef,
+        bodyContentRef: attachBodyContent,
         onContentLayoutChange: fitDialogToContent,
         headerDragProps: {
           className: "cursor-grab active:cursor-grabbing select-none touch-none",
@@ -245,15 +301,17 @@ export function FloatingDialogFrame({
         onPointerUp={endInteraction}
         onPointerCancel={endInteraction}
       />
-      <button
-        type="button"
-        aria-label={t("actions.resize")}
-        className="absolute bottom-1 right-1 pointer-events-auto size-5 rounded-br-2xl cursor-nwse-resize touch-none opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 before:absolute before:right-1 before:bottom-1 before:h-2.5 before:w-2.5 before:border-r before:border-b before:border-muted-foreground"
-        onPointerDown={(event) => beginInteraction(event, "resize-corner")}
-        onPointerMove={handlePointerMove}
-        onPointerUp={endInteraction}
-        onPointerCancel={endInteraction}
-      />
+      {isCollapsed ? null : (
+        <button
+          type="button"
+          aria-label={t("actions.resize")}
+          className="absolute bottom-1 right-1 pointer-events-auto size-5 rounded-br-2xl cursor-nwse-resize touch-none opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 before:absolute before:right-1 before:bottom-1 before:h-2.5 before:w-2.5 before:border-r before:border-b before:border-muted-foreground"
+          onPointerDown={(event) => beginInteraction(event, "resize-corner")}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endInteraction}
+          onPointerCancel={endInteraction}
+        />
+      )}
     </motion.div>
   );
 }

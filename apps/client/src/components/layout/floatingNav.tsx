@@ -28,6 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type PageSection, usePageSectionsActiveId, usePageSectionsList } from "@/contexts/pageSections";
+import { useReferenceAccess } from "@/features/admin/reference/access/useReferenceAccess";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNavLists } from "@/hooks/useNavLists";
@@ -795,6 +796,7 @@ export function FloatingNav() {
   const shellTransition = reduceMotion ? INSTANT_TRANSITION : FLOATING_NAV_SHELL_TRANSITION;
   const { data: session } = authClient.useSession();
   const { data: settings } = useSettings();
+  const { canOpenCountries } = useReferenceAccess();
   const { favoriteSet, lists: navLists } = useNavLists();
   const [navState, dispatchNav] = useReducer(floatingNavReducer, pathname, createInitialFloatingNavState);
   const { hidden, showCount, expandedKey, collapsedActiveKey, mobileSectionKey, subnavReady } = navState;
@@ -803,8 +805,8 @@ export function FloatingNav() {
   const navRef = useRef<HTMLElement>(null);
   const userRole = session?.user?.role as string | undefined;
   const isLoggedIn = session?.user !== undefined && session.user !== null;
-  const showAuth = isLoggedIn && settings?.submissionsEnabled === true;
-  const showLists = isLoggedIn && settings?.enableUserLists === true;
+  const showAuth = isLoggedIn && settings?.features.submissions === true;
+  const showLists = isLoggedIn && settings?.features.lists === true;
 
   useEffect(() => {
     if (hidden) {
@@ -853,10 +855,10 @@ export function FloatingNav() {
       ...translateNav(navMainConfig, t),
       ...(showAuth ? translateNav(authNavConfig, t) : []),
       ...translatedListSections,
-      ...translateAdminNav(adminNavConfig, t, userRole, settings),
+      ...translateAdminNav(adminNavConfig, t, userRole, settings, canOpenCountries),
       ...infoSections,
     ];
-  }, [favoriteSet, navLists, settings, showAuth, showLists, t, userRole]);
+  }, [canOpenCountries, favoriteSet, navLists, settings, showAuth, showLists, t, userRole]);
   const activeSection = useMemo(() => getActiveNavSection(sections, pathname), [sections, pathname]);
   const expandedSection = sections.find((section) => section.key === expandedKey) ?? null;
   const displayedSection = expandedSection ?? (activeSection?.key === collapsedActiveKey ? null : activeSection);

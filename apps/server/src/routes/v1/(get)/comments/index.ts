@@ -6,6 +6,9 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.ts";
 import { ErrorResponse } from "../../../../errors.ts";
+import { accessFromRequest } from "../../../../features/access/access.ts";
+import { stationInArea } from "../../../../features/access/filters.ts";
+import { stationIdInLegacyCountry } from "../../../../features/countries/legacy.ts";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.ts";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.ts";
 
@@ -47,8 +50,13 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
 
   const { limit, offset, search, author_ids, status, sortBy, sort } = req.query;
 
+  const access = await accessFromRequest(req);
+  if (access === null) throw new ErrorResponse("UNAUTHORIZED");
+
   const buildWhereConditions = (fields: typeof stationComments) => {
-    const conditions: ReturnType<typeof sql>[] = [];
+    const conditions: ReturnType<typeof sql>[] = [stationIdInLegacyCountry(fields.station_id)];
+
+    if (access.role !== "admin") conditions.push(stationInArea(access.grants, fields.station_id));
 
     if (search) {
       const like = `%${search}%`;

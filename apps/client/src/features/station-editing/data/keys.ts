@@ -1,0 +1,20 @@
+export const editingKeys = {
+  submissionRoot: ["submission", "v2"] as const,
+  submission: (submissionId: string) => ["submission", "v2", submissionId] as const,
+  submissionPhotosRoot: ["submission-photos"] as const,
+  submissionPhotosOf: (submissionId: string) => ["submission-photos", submissionId] as const,
+  submissionPhotos: (submissionId: string) => ["submission-photos", submissionId, "v2"] as const,
+  mySubmissionsRoot: ["my-submissions"] as const,
+  mySubmissions: (userId: string | undefined, status: string, operatorIds: readonly number[], search: string, countryCodes: readonly string[]) =>
+    ["my-submissions", "v2", userId, status, operatorIds, search, countryCodes] as const,
+  adminSubmissionsRoot: ["admin", "submissions"] as const,
+  reviewQueue: (...parts: readonly unknown[]) => ["admin", "submissions", "queue", ...parts] as const,
+  pendingSubmissionsCount: ["pending-submissions-count"] as const,
+  dashboardPendingSubmissions: ["admin", "dashboard", "pending-submissions"] as const,
+  pickerLocationsRoot: ["picker-locations"] as const,
+  pickerLocations: (bbox: string, includeEmpty: boolean) => ["picker-locations", "v2", bbox, includeEmpty] as const,
+  registerLocations: (bounds: string, wantsAzimuths: boolean) => ["picker-register-locations", bounds, wantsAzimuths] as const,
+  regionAt: (latitude: number | null, longitude: number | null) => ["regions", "v2", "at", latitude, longitude] as const,
+  duplicateSiteIdRoot: ["duplicate-station-check"] as const,
+  duplicateSiteId: (siteId: string, operatorId: number | null) => ["duplicate-station-check", "v2", siteId, operatorId] as const,
+};

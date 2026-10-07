@@ -47,6 +47,7 @@ x-server-common: &server-common
     timeout: 5s
     retries: 3
     start_period: 5s
+  stop_grace_period: 30s
   deploy:
     replicas: 1
     update_config:

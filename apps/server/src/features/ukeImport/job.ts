@@ -99,19 +99,44 @@ async function computeImportDelta(baseline: ImportBaseline, startedAt: string): 
   };
 }
 
-const DELETED_ENTRIES_RETENTION_DAYS = Number(process.env.DELETED_ENTRIES_RETENTION_DAYS) || 180;
+const DELETED_ENTRIES_RETENTION_DAYS = Number(process.env.DELETED_ENTRIES_RETENTION_DAYS) || 1;
 const REDIS_KEY = "uke:import:status";
 const REDIS_LOCK_KEY = "uke:import:lock";
-const LOCK_TTL_SECONDS = 3600;
+const REDIS_HEARTBEAT_KEY = "uke:import:heartbeat";
+const LOCK_TTL_SECONDS = 600;
 const LOCK_RENEW_INTERVAL_MS = 60_000;
+const HEARTBEAT_TTL_SECONDS = LOCK_TTL_SECONDS + (2 * LOCK_RENEW_INTERVAL_MS) / 1000;
 const MAX_IMPORT_DURATION_MS = 3 * 60 * 60 * 1000;
 const WORKER_TIMEOUT_MS = 60 * 60 * 1000;
 const INTERRUPTED_JOB_ERROR = "Import was interrupted before it finished";
+const SUPERSEDED_JOB_ERROR = "Another import took over while this one was running";
+const LOCK_RENEWED = 1;
+const LOCK_RETAKEN = 2;
+const RENEW_OR_RETAKE_SCRIPT = `
+local owner = redis.call("GET", KEYS[1])
+if owner == ARGV[1] then
+  redis.call("EXPIRE", KEYS[1], ARGV[2])
+  redis.call("SET", KEYS[2], ARGV[1], "EX", ARGV[3])
+  return 1
+end
+if not owner then
+  redis.call("SET", KEYS[1], ARGV[1], "EX", ARGV[2])
+  redis.call("SET", KEYS[2], ARGV[1], "EX", ARGV[3])
+  return 2
+end
+return 0`;
+const SAVE_STATUS_SCRIPT = `
+local owner = redis.call("GET", KEYS[1])
+if owner and owner ~= ARGV[1] then return 0 end
+redis.call("SET", KEYS[2], ARGV[2])
+return 1`;
+
+const supersededJobIds = new Set<string>();
 const SOURCE_STEP_KEYS = new Set<ImportStepKey>(SOURCE_IMPORT_STEP_KEYS);
 const HISTORY_KEY = "uke:import:history";
 const HISTORY_RETENTION_SECONDS = 7 * 24 * 60 * 60;
 const HISTORY_RETENTION_MS = HISTORY_RETENTION_SECONDS * 1000;
-const STATISTICS_CACHE_PATTERNS = ["stats:summary:*", "stats:permits:*", "stats:voivodeships:*", "stats:stations:history:*"];
+const STATISTICS_CACHE_PATTERNS = ["stats:summary:*", "stats:permits:*", "stats:voivodeships:*", "stats:stations:history:*", "statistics:v2:*"];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_PATH = join(__dirname, "..", "..", "workers", "ukeImport.worker.js");
@@ -359,7 +384,13 @@ function makeSteps(): ImportStep[] {
 }
 
 async function saveJob(job: ImportJob): Promise<void> {
-  await redis.set(REDIS_KEY, JSON.stringify(job));
+  if (supersededJobIds.has(job.id)) throw new Error(SUPERSEDED_JOB_ERROR);
+
+  const saved = await redis.eval(SAVE_STATUS_SCRIPT, { keys: [REDIS_LOCK_KEY, REDIS_KEY], arguments: [job.id, JSON.stringify(job)] });
+  if (saved === 1) return;
+
+  supersededJobIds.add(job.id);
+  throw new Error(SUPERSEDED_JOB_ERROR);
 }
 
 function shouldKeepInHistory(job: ImportJobStatus): boolean {
@@ -384,25 +415,38 @@ async function releaseImportLock(token: string): Promise<void> {
   });
 }
 
-async function renewImportLock(token: string): Promise<void> {
-  const renewed = await redis.eval('if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("EXPIRE", KEYS[1], ARGV[2]) end return 0', {
-    keys: [REDIS_LOCK_KEY],
-    arguments: [token, String(LOCK_TTL_SECONDS)],
-  });
-  if (renewed !== 1) logger.error("UKE import lock lost while job is running");
-}
-
 function keepImportLockAlive(token: string): () => void {
   const deadline = Date.now() + MAX_IMPORT_DURATION_MS;
+  let isStopped = false;
+
+  async function renew(): Promise<void> {
+    const outcome = await redis.eval(RENEW_OR_RETAKE_SCRIPT, {
+      keys: [REDIS_LOCK_KEY, REDIS_HEARTBEAT_KEY],
+      arguments: [token, String(LOCK_TTL_SECONDS), String(HEARTBEAT_TTL_SECONDS)],
+    });
+    if (isStopped) {
+      if (outcome === LOCK_RETAKEN) await releaseImportLock(token);
+      return;
+    }
+    if (outcome === LOCK_RENEWED) return;
+
+    if (outcome !== LOCK_RETAKEN) supersededJobIds.add(token);
+    logger.error("UKE import lock lost while job is running", { retaken: outcome === LOCK_RETAKEN });
+  }
+
   const renewal = setInterval(() => {
     if (Date.now() < deadline) {
-      void renewImportLock(token).catch((error) => logger.error("Failed to renew UKE import lock", { error }));
+      void renew().catch((error) => logger.error("Failed to renew UKE import lock", { error }));
       return;
     }
     clearInterval(renewal);
     logger.error("UKE import exceeded its maximum duration, lock renewal stopped", { maxDurationMs: MAX_IMPORT_DURATION_MS });
   }, LOCK_RENEW_INTERVAL_MS);
-  return () => clearInterval(renewal);
+
+  return () => {
+    isStopped = true;
+    clearInterval(renewal);
+  };
 }
 
 async function findStatisticsCacheKeyBatches(pattern: string): Promise<string[][]> {
@@ -501,9 +545,9 @@ function withInterruptedState(job: ImportJobStatus, activeJobId: string | null):
 }
 
 export async function getImportJobStatus(): Promise<ImportJobStatus> {
-  const [raw, activeJobId] = await Promise.all([redis.get(REDIS_KEY), redis.get(REDIS_LOCK_KEY)]);
+  const [raw, lockOwnerId, heartbeatJobId] = await Promise.all([redis.get(REDIS_KEY), redis.get(REDIS_LOCK_KEY), redis.get(REDIS_HEARTBEAT_KEY)]);
   if (!raw) return { state: "idle", steps: [] };
-  return withInterruptedState(JSON.parse(raw) as ImportJobStatus, activeJobId);
+  return withInterruptedState(JSON.parse(raw) as ImportJobStatus, lockOwnerId ?? heartbeatJobId);
 }
 
 export async function getImportJobHistory(): Promise<ImportJobStatus[]> {
@@ -538,6 +582,7 @@ export async function startImportJob(
     steps: makeSteps(),
   };
   try {
+    await redis.set(REDIS_HEARTBEAT_KEY, id, { expiration: { type: "EX", value: HEARTBEAT_TTL_SECONDS } });
     await archiveInterruptedJob().catch((error) => logger.error("Failed to archive interrupted UKE import", { error: errorMessage(error) }));
     await saveJob(job);
   } catch (error) {
@@ -637,7 +682,7 @@ async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
       await saveJob(job);
     }
 
-    if (permitDataChanged || permitSourceFailed) {
+    if (anySourceChanged || permitSourceFailed) {
       await runStep(job, "refresh_statistics", invalidateStatisticsCache, { optional: true });
     } else {
       markSkipped(job, "refresh_statistics");
@@ -681,10 +726,11 @@ async function runJob(job: ImportJob, options: ImportOptions): Promise<void> {
     logger.error("UKE import job failed", { error: describeErrors(job.steps, job.error) });
   } finally {
     try {
-      await runStep(job, "cleanup", cleanupDownloads, { optional: true });
+      if (!supersededJobIds.has(job.id)) await runStep(job, "cleanup", cleanupDownloads, { optional: true });
       if (shouldKeepInHistory(job)) await addJobToHistory(job);
     } finally {
       stopLockRenewal();
+      supersededJobIds.delete(job.id);
       await releaseImportLock(job.id);
     }
   }

@@ -4,6 +4,7 @@ import type { redis } from "../../database/redis.js";
 import type { TokenTier, UserRole } from "../../interfaces/auth.interface.js";
 import { generateFingerprint } from "../../utils/fingerprint.js";
 import { logger } from "../../utils/logger.js";
+import { CounterPausedError, hitCounter } from "./counter.js";
 
 export type QuotaTier = {
   max: number;
@@ -128,10 +129,9 @@ export class QuotaService {
       };
     }
 
-    const [newCount, ttlResult] = (await this.redis.multi().incr(key).ttl(key).exec()) as unknown as [number, number];
-    if (newCount === 1) await this.redis.expire(key, quota.window);
-
-    const ttl = newCount === 1 ? quota.window : ttlResult > 0 ? ttlResult : quota.window;
+    const hit = await hitCounter(this.redis, key, quota.window);
+    const newCount = hit.count;
+    const ttl = Math.max(hit.ttl, 1);
     const resetTime = Math.floor(Date.now() / 1000) + ttl;
 
     if (newCount > quota.max) {
@@ -162,7 +162,7 @@ export class QuotaService {
 
       return await this.check(key, quota);
     } catch (err) {
-      logger.error("quota.service.processRequest", { err });
+      if (!(err instanceof CounterPausedError)) logger.error("quota.service.processRequest", { err });
       return null;
     }
   }

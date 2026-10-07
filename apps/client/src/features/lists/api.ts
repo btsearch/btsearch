@@ -1,85 +1,77 @@
-import { API_BASE, fetchJson } from "@/lib/api";
+import type { List, ListCreate, ListItems, ListOperatorCount, ListUpdate, Me, Paging } from "@openbts/shared/contract";
+import { type QueryClient, queryOptions, skipToken } from "@tanstack/react-query";
 
-export type ListOperator = { name: string; mnc: number | null; count: number };
+import { API_V2_BASE, JSON_HEADERS, fetchJson, fetchV2Data } from "@/lib/api";
+import { meQueryOptions } from "@/lib/auth/me";
 
-export type UserListSummary = {
-  id: number;
-  uuid: string;
-  name: string;
-  description: string | null;
-  is_public: boolean | null;
-  notificationsEnabled: boolean;
-  stations: { internal: number[]; uke: number[] };
-  radiolines: number[];
-  stationCount: number;
-  radiolineCount: number;
-  operators: ListOperator[];
-  createdAt: string;
-  updatedAt: string;
-  createdBy: { uuid: string; name?: string; username?: string | null; image?: string | null };
+export type ListWithItems = Omit<List, "items" | "owner" | "operatorCounts"> & { items: ListItems };
+export type OwnList = ListWithItems & { operatorCounts: ListOperatorCount[] };
+
+type OwnLists = {
+  lists: OwnList[];
+  total: number;
 };
 
-export type UserListDetail = {
-  id: number;
-  uuid: string;
-  name: string;
-  description: string | null;
-  is_public: boolean | null;
-  notificationsEnabled: boolean;
-  stations: { internal: number[]; uke: number[] };
-  radiolines: number[];
-  createdAt: string;
-  updatedAt: string;
+type OwnListPage = { data: OwnList[]; paging: Paging };
+
+export const LIST_NAME_MAX_LENGTH = 100;
+export const LIST_DESCRIPTION_MAX_LENGTH = 1000;
+
+export const listKeys = {
+  ownLists: () => ["user-lists"] as const,
+  everyList: () => ["list"] as const,
+  list: (listId: string) => ["list", listId] as const,
 };
 
-type ListsResponse = { data: UserListSummary[]; totalCount: number; maxLists: number };
-type ListDetailResponse = { data: UserListDetail };
-type CreateListBody = {
-  name: string;
-  description?: string;
-  is_public?: boolean;
-  stations: { internal: number[]; uke: number[] };
-  radiolines?: number[];
-};
-type UpdateListBody = Partial<{
-  name: string;
-  description: string | null;
-  is_public: boolean;
-  notificationsEnabled: boolean;
-  stations: { internal: number[]; uke: number[] };
-  radiolines: number[];
-}>;
+const LIST_INCLUDE = "items";
+const OWN_LISTS_INCLUDE = "items,operatorCounts";
+const OWN_LISTS_LIMIT = 50;
 
-export async function fetchUserLists(limit = 50, page = 1, search?: string, all?: boolean): Promise<ListsResponse> {
-  const params = new URLSearchParams({ limit: String(limit), page: String(page) });
-  if (search) params.set("search", search);
-  if (all) params.set("all", "true");
-  return fetchJson<ListsResponse>(`${API_BASE}/lists?${params.toString()}`);
+async function fetchOwnLists(signal?: AbortSignal): Promise<OwnLists> {
+  const params = new URLSearchParams({ include: OWN_LISTS_INCLUDE, limit: String(OWN_LISTS_LIMIT), includeTotal: "true" });
+  const page = await fetchJson<OwnListPage>(`${API_V2_BASE}/lists?${params.toString()}`, { signal });
+  return { lists: page.data, total: page.paging.total ?? page.data.length };
 }
 
-export async function fetchListByUuid(uuid: string): Promise<UserListDetail> {
-  const res = await fetchJson<ListDetailResponse>(`${API_BASE}/lists/${uuid}`);
-  return res.data;
+function fetchList(listId: string, signal?: AbortSignal): Promise<ListWithItems> {
+  return fetchV2Data<ListWithItems>(`lists/${encodeURIComponent(listId)}?include=${LIST_INCLUDE}`, { signal });
 }
 
-export async function createList(data: CreateListBody): Promise<UserListSummary> {
-  const res = await fetchJson<{ data: UserListSummary }>(`${API_BASE}/lists`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+function readListLimit(me: Me): number {
+  return me.limits.lists;
+}
+
+export function createOwnList(list: ListCreate): Promise<List> {
+  return fetchV2Data<List>("lists", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(list) });
+}
+
+export function updateList(listId: string, change: ListUpdate): Promise<List> {
+  return fetchV2Data<List>(`lists/${encodeURIComponent(listId)}`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(change) });
+}
+
+export async function deleteList(listId: string): Promise<void> {
+  await fetchJson(`${API_V2_BASE}/lists/${encodeURIComponent(listId)}`, { method: "DELETE" });
+}
+
+export function ownListsQueryOptions() {
+  return queryOptions({
+    queryKey: [...listKeys.ownLists(), "mine", "v2", OWN_LISTS_INCLUDE] as const,
+    queryFn: ({ signal }) => fetchOwnLists(signal),
   });
-  return res.data;
 }
 
-export async function updateList(uuid: string, data: UpdateListBody): Promise<UserListSummary> {
-  const res = await fetchJson<{ data: UserListSummary }>(`${API_BASE}/lists/${uuid}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+export function listQueryOptions(listId: string) {
+  return queryOptions({
+    queryKey: [...listKeys.list(listId), "v2", LIST_INCLUDE] as const,
+    queryFn: listId === "" ? skipToken : ({ signal }) => fetchList(listId, signal),
   });
-  return res.data;
 }
 
-export async function deleteList(uuid: string): Promise<void> {
-  await fetchJson(`${API_BASE}/lists/${uuid}`, { method: "DELETE" });
+export function listLimitQueryOptions(userId: string) {
+  return queryOptions({ ...meQueryOptions(userId), select: readListLimit });
+}
+
+export function prefetchOwnLists(queryClient: QueryClient, userId: string): void {
+  void queryClient.prefetchQuery(ownListsQueryOptions());
+  void queryClient.prefetchQuery(meQueryOptions(userId));
 }

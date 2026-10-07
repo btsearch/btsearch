@@ -1,46 +1,63 @@
-import { FilterIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
-import { type FocusEvent, type KeyboardEvent, type ReactElement, memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
+import {
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+  memo,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
-import { FILTER_KEYWORDS } from "../../constants.js";
-import { type StationFiltersUpdater, changeFilterSource, getMapFilterKeybindUpdater, getMapVisibilityKeybind } from "../../filterKeybinds.js";
-import { parseFilters } from "../../filters.js";
-import { useFilterHandlers } from "../../hooks/useFilterHandlers.js";
-import { useMapKeybinds } from "../../hooks/useMapKeybinds.js";
-import { useSearchState } from "../../hooks/useSearchState.js";
+import { FILTER_KEYWORDS } from "../../constants";
+import type { MapCountries } from "../../data/mapCountries";
+import { type MapFilters, type MapFiltersChange, changeMapFilterSource, countActiveMapFilters } from "../../data/mapFilters";
+import { getMapMaxBounds, listKeybindOperatorIds, useMapLookups } from "../../data/mapLookups";
+import { getMapFilterKeybindUpdater, getMapVisibilityKeybind } from "../../filterKeybinds";
+import { parseFilters } from "../../filters";
+import { useMapKeybinds } from "../../hooks/useMapKeybinds";
+import { useSearchState } from "../../hooks/useSearchState";
 import {
-  type SearchStation,
+  type StationSearchHit,
   type UkeSearchPermitStation,
   type UkeSearchRadioline,
+  isRejectedSearchQuery,
   parseGpsCoordinates,
-  searchLocations,
-  searchStations,
   searchUkePermits,
-} from "../../searchApi.js";
-import { MapCursorInfo } from "../mapCursorInfo.js";
-import { AutocompleteDropdown } from "./autocompleteDropdown.js";
-import { FilterButton } from "./filterButton.js";
-import { FilterPanel } from "./mapFilterPanel.js";
-import { MapStyleSwitcher } from "./mapStyleSwitcher.js";
-import { MobileStatsPanel } from "./mobileStatsPanel.js";
-import { SearchInput } from "./searchInput.js";
-import { type SearchOption, buildAutocompleteOptions, buildSearchResultOptions } from "./searchOptions.js";
-import { type SearchFailureSource, SearchResults, type SearchSurfaceState } from "./searchResults.js";
-import { StationCounter } from "./stationCounter.js";
-import { useSearchNavigation } from "./useSearchNavigation.js";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet.js";
-import { bandsQueryOptions, operatorsQueryOptions } from "@/features/shared/queries.js";
-import { useIsMobile } from "@/hooks/useMobile.js";
-import { usePreferences } from "@/hooks/usePreferences.js";
-import { reverseGeocode } from "@/lib/geo/geocoding.js";
-import { cn } from "@/lib/utils.js";
-import type { StationFilters, StationSource } from "@/types/station.js";
+  stationSearchQueryOptions,
+} from "../../searchApi";
+import { MapCursorInfo } from "../mapCursorInfo";
+import { AutocompleteDropdown } from "./autocompleteDropdown";
+import { FilterButton } from "./filterButton";
+import { SmoothHeight, useCalmTransition } from "./mapFilterMotion";
+import { FilterPanel } from "./mapFilterPanel";
+import { findKeybindCountryCode } from "./mapFilterPanelRules";
+import { MapStyleSwitcher } from "./mapStyleSwitcher";
+import { MobileStatsPanel } from "./mobileStatsPanel";
+import { SearchInput } from "./searchInput";
+import { type SearchOption, buildAutocompleteOptions, buildSearchResultOptions } from "./searchOptions";
+import { type SearchFailureSource, SearchResults, type SearchSurfaceState } from "./searchResultsContent";
+import { StationCounter } from "./stationCounter";
+import { useSearchNavigation } from "./useSearchNavigation";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/useMobile";
+import { usePreferences } from "@/hooks/usePreferences";
+import { placeAtQueryOptions, placeSearchQueryOptions } from "@/lib/geo/geocoding";
+import { cn } from "@/lib/utils";
+import type { StationSource } from "@/types/station";
 
 const MAP_FILTER_KEYWORDS = FILTER_KEYWORDS.filter((kw) => kw.availableOn.includes("map"));
 const MAP_SEARCH_MODE_STORAGE_KEY = "map:search:affectMap";
+const UKE_SEARCH_STALE_TIME = 1000 * 60 * 5;
 const EMPTY_RESULTS: never[] = [];
+const PANEL_EXPANDED = { height: "auto", opacity: 1 } as const;
+const PANEL_COLLAPSED = { height: 0, opacity: 0 } as const;
 type MapSearchMode = "results" | "map";
 
 function loadMapSearchMode(): MapSearchMode {
@@ -63,23 +80,44 @@ type MapSearchOverlayProps = {
   radioLineCount?: number;
   radioLineTotalCount?: number;
   isRadioLinesFetching?: boolean;
-  filters: StationFilters;
+  filters: MapFilters;
+  mapCountries: MapCountries;
   zoom?: number;
   activeMarker?: { latitude: number; longitude: number } | null;
   onActiveMarkerClear?: () => void;
-  onFiltersChange: (update: StationFilters | StationFiltersUpdater) => void;
+  onFiltersChange: (update: MapFiltersChange) => void;
   onLocationSelect?: (lat: number, lon: number) => void;
-  onStationSelect?: (station: SearchStation) => void;
+  onStationSelect?: (station: StationSearchHit) => void;
   onUkeStationSelect?: (station: UkeSearchPermitStation) => void;
   onRadiolineSelect?: (radioline: UkeSearchRadioline) => void;
-  hideSource?: boolean;
-  showHeatmap?: boolean;
   onToggleHeatmap?: () => void;
-  showPlannedMeasurements?: boolean;
   onTogglePlannedMeasurements?: () => void;
   onFilterQueryChange?: (q: string | undefined) => void;
+  rejectedSearchText?: string;
   mapContext?: ReactElement;
 };
+
+function SearchPanelFrame({ children }: { children: ReactNode }) {
+  const isPresent = useIsPresent();
+  const transition = useCalmTransition();
+
+  return (
+    <motion.div
+      inert={!isPresent}
+      initial={PANEL_COLLAPSED}
+      animate={PANEL_EXPANDED}
+      exit={PANEL_COLLAPSED}
+      transition={transition}
+      className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-compact/search:hidden")}
+    >
+      <SmoothHeight className="m-0" contentClassName="p-0">
+        <div className="flex max-h-[min(70dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
+          {children}
+        </div>
+      </SmoothHeight>
+    </motion.div>
+  );
+}
 
 export const MapSearchOverlay = memo(function MapSearchOverlay({
   locationCount,
@@ -88,6 +126,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   radioLineTotalCount = 0,
   isRadioLinesFetching = false,
   filters,
+  mapCountries,
   zoom,
   activeMarker,
   onActiveMarkerClear,
@@ -96,22 +135,23 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   onStationSelect,
   onUkeStationSelect,
   onRadiolineSelect,
-  hideSource = false,
-  showHeatmap = false,
   onToggleHeatmap,
-  showPlannedMeasurements = false,
   onTogglePlannedMeasurements,
   onFilterQueryChange,
+  rejectedSearchText,
   mapContext,
 }: MapSearchOverlayProps) {
-  const { t } = useTranslation("main");
+  const { i18n } = useTranslation();
   const [showFilters, setShowFilters] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const filterPanelRef = useRef<HTMLFieldSetElement>(null);
+  const filterPanelId = useId();
   const isMobile = useIsMobile();
 
   const { preferences, updatePreferences } = usePreferences();
+  const { lookups } = useMapLookups();
   const isUkeSource = filters.source === "uke";
+  const { isRegisterOnScreen } = mapCountries;
   const supportsMapMode = onFilterQueryChange !== undefined;
   const [storedSearchMode, setStoredSearchMode] = useState<MapSearchMode>(loadMapSearchMode);
   const searchMode = supportsMapMode && !isUkeSource ? storedSearchMode : "results";
@@ -130,9 +170,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     inputRef,
     focusedChipIndex,
     handleContainerBlur,
-    handleInputChange,
-    handleInputFocus,
-    handleInputClick,
+    handleInputChange: changeSearchInput,
+    handleInputFocus: focusSearchInput,
+    handleInputClick: clickSearchInput,
     openOverlay,
     handleKeyDown: handleChipKeyDown,
     applyAutocomplete,
@@ -144,102 +184,74 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     parseFilters,
     resultsEnabled: searchMode === "results",
   });
-  const handleSearchModeChange = useCallback(
-    (mode: MapSearchMode) => {
-      if (mode === "map" && (!supportsMapMode || isUkeSource)) return;
-      setStoredSearchMode(mode);
-      saveMapSearchMode(mode);
-      if (mode === "map") {
-        closeOverlay();
-        return;
-      }
-      onFilterQueryChange?.(undefined);
-      if (isFocused) openOverlay(true);
-    },
-    [closeOverlay, isFocused, isUkeSource, onFilterQueryChange, openOverlay, supportsMapMode],
-  );
-  const handleFiltersChange = useCallback(
-    (update: StationFilters | StationFiltersUpdater) => {
-      const nextFilters = typeof update === "function" ? update(filters) : update;
-      if (supportsMapMode && nextFilters.source === "uke" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
-      if (nextFilters.source === "uke" && isFocused && query.trim() !== "") openOverlay(true, false);
-      onFiltersChange(update);
-    },
-    [filters, isFocused, onFilterQueryChange, onFiltersChange, openOverlay, query, storedSearchMode, supportsMapMode],
-  );
-  const showMobileMapContext = isMobile && mapContext !== undefined && !mobileExpanded && !isFocused;
 
-  const { data: operators = [] } = useQuery(operatorsQueryOptions());
+  function handleSearchModeChange(mode: MapSearchMode) {
+    if (mode === "map" && (!supportsMapMode || isUkeSource)) return;
+    setStoredSearchMode(mode);
+    saveMapSearchMode(mode);
+    if (mode === "map") {
+      closeOverlay();
+      return;
+    }
+    if (!isMobile) setShowFilters(false);
+    onFilterQueryChange?.(undefined);
+    if (isFocused) openOverlay(true);
+  }
 
-  const { data: bands = [] } = useQuery(bandsQueryOptions());
+  function handleFiltersChange(update: MapFiltersChange) {
+    const nextFilters = typeof update === "function" ? update(filters) : update;
+    if (supportsMapMode && nextFilters.source === "uke" && storedSearchMode === "map") onFilterQueryChange?.(undefined);
+    if (nextFilters.source === "uke" && isFocused && query.trim() !== "" && (isMobile || !showFilters)) openOverlay(true, false);
+    onFiltersChange(update);
+  }
 
-  const uniqueBandValues = useMemo(() => {
-    const values = [...new Set(bands.map((b) => b.value))];
-    return values.sort((a, b) => a - b);
-  }, [bands]);
-
-  const {
-    handleToggleOperator,
-    handleToggleBand,
-    handleToggleRat,
-    handleToggleStatus,
-    handleClearAllRats,
-    handleClearAllBands,
-    handleRecentDaysChange,
-    handleRecentDateFieldChange,
-    handleClearFilters,
-    activeFilterCount,
-  } = useFilterHandlers({ filters, onFiltersChange: handleFiltersChange });
-
-  const gpsCoords = useMemo(() => parseGpsCoordinates(debouncedQuery), [debouncedQuery]);
+  const maxBounds = useMemo(() => (lookups === undefined ? undefined : getMapMaxBounds(lookups.countries)), [lookups]);
+  const gpsCoords = useMemo(() => parseGpsCoordinates(debouncedQuery, maxBounds), [debouncedQuery, maxBounds]);
+  const gpsPoint = gpsCoords === null ? null : { latitude: gpsCoords.lat, longitude: gpsCoords.lng };
   const resultsQueryEnabled = searchMode === "results" && activeOverlay === "results" && debouncedQuery.trim().length > 0;
   const canSearchInternalStations = onStationSelect !== undefined;
   const canSearchUke = onUkeStationSelect !== undefined || onRadiolineSelect !== undefined;
+  const shouldSearchStations = resultsQueryEnabled && !isUkeSource && canSearchInternalStations;
+  const shouldSearchUke = resultsQueryEnabled && isUkeSource && canSearchUke;
 
-  const reverseGeocodeQuery = useQuery({
-    queryKey: ["reverse-geocode", gpsCoords?.lat, gpsCoords?.lng],
-    queryFn: ({ signal }) => reverseGeocode(gpsCoords!.lat, gpsCoords!.lng, signal),
-    enabled: resultsQueryEnabled && onLocationSelect !== undefined && !!gpsCoords,
-    staleTime: 1000 * 60 * 60,
+  const gpsPlaceQuery = useQuery({
+    ...placeAtQueryOptions(gpsPoint, i18n.language),
+    enabled: resultsQueryEnabled && onLocationSelect !== undefined && gpsPoint !== null,
   });
 
-  const reverseGeocodeData = reverseGeocodeQuery.data;
+  const gpsPlace = gpsPlaceQuery.data ?? null;
   const gpsResult = useMemo(() => {
-    if (!gpsCoords) return null;
-    const place = reverseGeocodeData?.result;
-    return { lat: gpsCoords.lat, lng: gpsCoords.lng, address: place ? [place.name, place.description].filter(Boolean).join(", ") : null };
-  }, [gpsCoords, reverseGeocodeData]);
-  const gpsSource = reverseGeocodeData?.result ? reverseGeocodeData.source : null;
+    if (gpsCoords === null) return null;
+    const address = gpsPlace === null ? null : [gpsPlace.name, gpsPlace.description].filter(Boolean).join(", ");
+    return { lat: gpsCoords.lat, lng: gpsCoords.lng, address };
+  }, [gpsCoords, gpsPlace]);
+  const gpsSource = gpsPlace?.source ?? null;
 
   const shouldSearchLocations = resultsQueryEnabled && onLocationSelect !== undefined && searchKeyword.trim().length >= 3;
 
   const locationQuery = useQuery({
-    queryKey: ["geocoding-search", searchKeyword],
-    queryFn: ({ signal }) => searchLocations(searchKeyword, signal),
+    ...placeSearchQueryOptions(searchKeyword, { countryCodes: mapCountries.onScreen, language: i18n.language }),
     enabled: shouldSearchLocations,
-    staleTime: 1000 * 60 * 60,
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 
   const stationQuery = useQuery({
-    queryKey: ["station-search", debouncedQuery, filters.source],
-    queryFn: () => searchStations(debouncedQuery),
-    enabled: resultsQueryEnabled && !isUkeSource && canSearchInternalStations,
-    staleTime: 1000 * 60 * 5,
-    placeholderData: (previous) => previous,
+    ...stationSearchQueryOptions(debouncedQuery),
+    enabled: shouldSearchStations,
+    placeholderData: keepPreviousData,
   });
 
   const ukeQuery = useQuery({
     queryKey: ["uke-search", debouncedQuery, filters.source],
     queryFn: () => searchUkePermits(debouncedQuery),
-    enabled: resultsQueryEnabled && isUkeSource && canSearchUke,
-    staleTime: 1000 * 60 * 5,
-    placeholderData: (previous) => previous,
+    enabled: shouldSearchUke,
+    staleTime: UKE_SEARCH_STALE_TIME,
+    placeholderData: keepPreviousData,
   });
 
-  const locationResults = shouldSearchLocations ? (locationQuery.data?.results ?? EMPTY_RESULTS) : EMPTY_RESULTS;
-  const locationSource = shouldSearchLocations ? (locationQuery.data?.source ?? null) : null;
-  const stationResults = isUkeSource ? EMPTY_RESULTS : (stationQuery.data ?? EMPTY_RESULTS);
+  const locationResults = shouldSearchLocations ? (locationQuery.data ?? EMPTY_RESULTS) : EMPTY_RESULTS;
+  const locationSource = locationResults.at(0)?.source ?? null;
+  const stationResults = isUkeSource ? EMPTY_RESULTS : (stationQuery.data?.hits ?? EMPTY_RESULTS);
   const permitResults = isUkeSource ? (ukeQuery.data?.stations ?? EMPTY_RESULTS) : EMPTY_RESULTS;
   const radiolineResults = isUkeSource ? (ukeQuery.data?.radiolines ?? EMPTY_RESULTS) : EMPTY_RESULTS;
   const builtSearchResults = useMemo(
@@ -274,9 +286,16 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     ],
   );
   const searchResultOptions = builtSearchResults.options;
+  const showsStationGroup = builtSearchResults.groups.some((group) => group.kind === "station");
+  const stationTotalCount = showsStationGroup ? (stationQuery.data?.total ?? 0) : 0;
   const autocompleteSearchOptions = useMemo(() => buildAutocompleteOptions(autocompleteOptions), [autocompleteOptions]);
-  const showAutocomplete = !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
-  const showResults = searchMode === "results" && activeOverlay === "results";
+  const showDesktopFilters = showFilters && !isMobile;
+  const canShowSearch = !showDesktopFilters;
+  const showAutocomplete = canShowSearch && !isUkeSource && activeOverlay === "autocomplete" && autocompleteOptions.length > 0;
+  const showResults = canShowSearch && searchMode === "results" && activeOverlay === "results";
+  const isMobileSearchExpanded = mobileExpanded || showAutocomplete || showResults;
+  const isMobileSearchCollapsed = isMobile && !isMobileSearchExpanded && !isFocused;
+  const showMobileMapContext = isMobileSearchCollapsed && mapContext !== undefined;
   let candidateNavigationOptions: SearchOption[] = EMPTY_RESULTS;
   if (!isUkeSource && autocompleteOptions.length > 0) candidateNavigationOptions = autocompleteSearchOptions;
   else if (searchMode === "results") candidateNavigationOptions = searchResultOptions;
@@ -286,20 +305,23 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   else if (showResults) navigationOptions = searchResultOptions;
   const listboxId = useId();
   const navigation = useSearchNavigation(navigationOptions, listboxId, `${searchMode}:${query}`);
+  const hasLocationSearchFailed = shouldSearchLocations && locationQuery.isError;
+  const hasStationSearchFailed = shouldSearchStations && stationQuery.isError && !isRejectedSearchQuery(stationQuery.error);
+  const hasUkeSearchFailed = shouldSearchUke && ukeQuery.isError;
   const failedSources: SearchFailureSource[] = [];
-  if (shouldSearchLocations && locationQuery.isError) failedSources.push("locations");
-  if (resultsQueryEnabled && !isUkeSource && canSearchInternalStations && stationQuery.isError) failedSources.push("stations");
-  if (resultsQueryEnabled && isUkeSource && canSearchUke && ukeQuery.isError) failedSources.push("uke");
+  if (hasLocationSearchFailed) failedSources.push("locations");
+  if (hasStationSearchFailed) failedSources.push("stations");
+  if (hasUkeSearchFailed) failedSources.push("uke");
 
   const querySettled = query === debouncedQuery;
   const participatingQueryIsFetching =
     (shouldSearchLocations && locationQuery.fetchStatus === "fetching") ||
-    (resultsQueryEnabled && !isUkeSource && canSearchInternalStations && stationQuery.fetchStatus === "fetching") ||
-    (resultsQueryEnabled && isUkeSource && canSearchUke && ukeQuery.fetchStatus === "fetching");
+    (shouldSearchStations && stationQuery.fetchStatus === "fetching") ||
+    (shouldSearchUke && ukeQuery.fetchStatus === "fetching");
   const hasPlaceholderData =
     (shouldSearchLocations && locationQuery.isPlaceholderData) ||
-    (resultsQueryEnabled && !isUkeSource && canSearchInternalStations && stationQuery.isPlaceholderData) ||
-    (resultsQueryEnabled && isUkeSource && canSearchUke && ukeQuery.isPlaceholderData);
+    (shouldSearchStations && stationQuery.isPlaceholderData) ||
+    (shouldSearchUke && ukeQuery.isPlaceholderData);
   const hasSearchResults = searchResultOptions.length > 0;
   let searchSurfaceState: SearchSurfaceState;
   if (hasSearchResults) {
@@ -328,9 +350,9 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   function retryFailedSearches() {
     const retries: Promise<unknown>[] = [];
-    if (shouldSearchLocations && locationQuery.isError) retries.push(locationQuery.refetch());
-    if (resultsQueryEnabled && !isUkeSource && canSearchInternalStations && stationQuery.isError) retries.push(stationQuery.refetch());
-    if (resultsQueryEnabled && isUkeSource && canSearchUke && ukeQuery.isError) retries.push(ukeQuery.refetch());
+    if (hasLocationSearchFailed) retries.push(locationQuery.refetch());
+    if (hasStationSearchFailed) retries.push(stationQuery.refetch());
+    if (hasUkeSearchFailed) retries.push(ukeQuery.refetch());
     void Promise.allSettled(retries);
   }
 
@@ -372,11 +394,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (navigationOptions.length === 0) return;
       e.preventDefault();
-      if (!activeOverlay) handleInputClick();
+      if (!activeOverlay || (!isMobile && showFilters)) handleInputClick();
       navigation.move(e.key === "ArrowDown" ? 1 : -1);
       return;
     }
-    if (e.key === "Enter" && activeOverlay && navigationOptions.length > 0) {
+    if (e.key === "Enter" && (showAutocomplete || showResults) && navigationOptions.length > 0) {
       e.preventDefault();
       selectSearchOption(navigation.activeOption ?? navigationOptions[0]);
       return;
@@ -403,21 +425,42 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
   }
 
   function handleSearchBlur(event: FocusEvent<HTMLElement>) {
-    handleContainerBlur(event);
     const nextTarget = event.relatedTarget as Node | null;
-    if (containerRef.current?.contains(nextTarget)) return;
+    const filterPanel = filterPanelRef.current;
+    if (filterPanel?.contains(event.target) && filterPanel.contains(nextTarget)) return;
+    handleContainerBlur(event, filterPanel);
+    if (containerRef.current?.contains(nextTarget) && !filterPanel?.contains(nextTarget)) return;
     navigation.reset();
     handleMobileCollapse();
   }
 
   function handleToggleFilters() {
+    if (!showFilters && !isMobile) {
+      closeOverlay();
+      navigation.reset();
+    }
     setShowFilters((prev) => !prev);
+  }
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (!isMobile) setShowFilters(false);
+    changeSearchInput(event);
+  }
+
+  function handleInputFocus() {
+    if (!isMobile) setShowFilters(false);
+    focusSearchInput();
+  }
+
+  function handleInputClick() {
+    if (!isMobile) setShowFilters(false);
+    clickSearchInput();
   }
 
   useMapKeybinds(({ key, shiftKey }) => {
     if (key === "f" && !shiftKey) {
       (document.activeElement as HTMLElement)?.blur();
-      setShowFilters((prev) => !prev);
+      handleToggleFilters();
       return true;
     }
 
@@ -431,7 +474,10 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       return true;
     }
 
-    const updateFilters = getMapFilterKeybindUpdater(key, shiftKey);
+    const updateFilters = getMapFilterKeybindUpdater(key, shiftKey, {
+      operatorIds: listKeybindOperatorIds(lookups, findKeybindCountryCode(filters, mapCountries)),
+      isRegisterOnScreen,
+    });
     if (updateFilters !== undefined) {
       handleFiltersChange(updateFilters);
       return true;
@@ -444,6 +490,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
         onToggleHeatmap?.();
         return true;
       case "p":
+        if (!isRegisterOnScreen) return false;
         onTogglePlannedMeasurements?.();
         return true;
       default:
@@ -453,21 +500,23 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
 
   useEffect(() => {
     if (!preferences.hideFiltersOnMapClick || !showFilters) return;
+    const searchContainer = containerRef.current;
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Node | null;
-      if (filterPanelRef.current?.contains(target)) return;
+      if (searchContainer?.contains(target) || filterPanelRef.current?.contains(target)) return;
       if ((target as Element)?.closest("[data-filter-toggle]")) return;
       setShowFilters(false);
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [preferences.hideFiltersOnMapClick, showFilters]);
+  }, [containerRef, preferences.hideFiltersOnMapClick, showFilters]);
 
-  const handleSourceChange = useCallback(
-    (source: StationSource) => handleFiltersChange((prev) => changeFilterSource(prev, source)),
-    [handleFiltersChange],
-  );
+  function handleSourceChange(source: StationSource) {
+    handleFiltersChange((current) => changeMapFilterSource(current, source));
+  }
+
   const showFloatingMobileMapControls = isMobile && preferences.navMode === "floating";
+  const activeFilterCount = countActiveMapFilters(filters, lookups?.operators);
   const mobileStatsPanel = (
     <MobileStatsPanel
       locationCount={locationCount}
@@ -479,7 +528,19 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
       searchMode={statsSearchMode as "bounds" | "search"}
       zoom={zoom}
       source={filters.source}
+      mapCountries={mapCountries}
       onSourceChange={handleSourceChange}
+    />
+  );
+  const filterPanel = (
+    <FilterPanel
+      isSheet={isMobile}
+      filters={filters}
+      mapCountries={mapCountries}
+      onFiltersChange={handleFiltersChange}
+      onSourceChange={handleSourceChange}
+      onToggleHeatmap={onToggleHeatmap}
+      onTogglePlannedMeasurements={onTogglePlannedMeasurements}
     />
   );
   return (
@@ -496,7 +557,12 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
           <search
             ref={containerRef}
             onBlurCapture={handleSearchBlur}
-            className={cn("relative", showMobileMapContext ? "shrink-0" : "min-w-0 flex-1")}
+            data-compact={isMobileSearchCollapsed ? "" : undefined}
+            className={cn(
+              "group/search relative rounded-2xl border bg-background/95 shadow-xl backdrop-blur-md transition-[border-color,box-shadow] duration-200",
+              isFocused && "border-primary/30 ring-2 ring-primary/20",
+              isMobileSearchCollapsed ? "ml-auto shrink-0" : "min-w-0 flex-1",
+            )}
           >
             <SearchInput
               inputRef={inputRef}
@@ -504,10 +570,11 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               parsedFilters={parsedFilters}
               focusedChipIndex={focusedChipIndex}
               isBusy={isSearchBusy}
+              isQueryRejected={rejectedSearchText === query}
               query={query}
               isFocused={isFocused}
               isMobile={isMobile}
-              mobileExpanded={mobileExpanded}
+              mobileExpanded={isMobileSearchExpanded}
               listboxId={hasActiveListbox ? listboxId : undefined}
               activeOptionId={hasActiveListbox ? navigation.activeOptionId : undefined}
               isExpanded={hasActiveListbox}
@@ -524,124 +591,71 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
               filterSlot={
                 <>
                   <div className="h-6 w-px bg-border shrink-0" />
-                  <FilterButton showFilters={showFilters} activeFilterCount={activeFilterCount} onClick={handleToggleFilters} />
+                  <FilterButton
+                    showFilters={showFilters}
+                    activeFilterCount={activeFilterCount}
+                    panelId={showDesktopFilters ? filterPanelId : undefined}
+                    onClick={handleToggleFilters}
+                  />
                 </>
+              }
+              mobileControls={
+                isMobile ? (
+                  <div className={cn("flex justify-end md:hidden", (showAutocomplete || showResults) && "invisible")}>
+                    <div className="pointer-events-auto relative shrink-0">
+                      <MapStyleSwitcher position="search" />
+                    </div>
+                  </div>
+                ) : undefined
               }
             />
 
-            {showAutocomplete && (
-              <div className="max-md:absolute max-md:inset-x-0 max-md:top-full max-md:z-10">
-                <AutocompleteDropdown
-                  options={autocompleteOptions}
-                  listboxId={listboxId}
-                  activeKey={navigation.activeKey}
-                  onActiveKeyChange={navigation.setActiveKey}
-                  onSelect={applyAutocomplete}
-                />
-              </div>
-            )}
-
-            {showResults && (
-              <div className="max-md:absolute max-md:inset-x-0 max-md:top-full max-md:z-10">
-                <SearchResults
-                  state={searchSurfaceState}
-                  listboxId={listboxId}
-                  activeKey={navigation.activeKey}
-                  queryText={searchKeyword}
-                  isGpsAddressLoading={reverseGeocodeQuery.fetchStatus === "fetching"}
-                  groups={builtSearchResults.groups}
-                  stationTotalCount={builtSearchResults.stationTotalCount}
-                  onActiveKeyChange={navigation.setActiveKey}
-                  onRetry={retryFailedSearches}
-                  onSelect={selectSearchOption}
-                />
-              </div>
-            )}
+            <AnimatePresence>
+              {showAutocomplete || showResults || showDesktopFilters ? (
+                <SearchPanelFrame key="panels">
+                  {showAutocomplete ? (
+                    <AutocompleteDropdown
+                      embedded
+                      options={autocompleteOptions}
+                      listboxId={listboxId}
+                      activeKey={navigation.activeKey}
+                      onActiveKeyChange={navigation.setActiveKey}
+                      onSelect={applyAutocomplete}
+                    />
+                  ) : null}
+                  {showResults ? (
+                    <SearchResults
+                      state={searchSurfaceState}
+                      listboxId={listboxId}
+                      activeKey={navigation.activeKey}
+                      queryText={searchKeyword}
+                      isGpsAddressLoading={gpsPlaceQuery.fetchStatus === "fetching"}
+                      groups={builtSearchResults.groups}
+                      stationTotalCount={stationTotalCount}
+                      onActiveKeyChange={navigation.setActiveKey}
+                      onRetry={retryFailedSearches}
+                      onSelect={selectSearchOption}
+                    />
+                  ) : null}
+                  {showDesktopFilters ? (
+                    <fieldset id={filterPanelId} ref={filterPanelRef} tabIndex={-1} className="flex min-h-0 min-w-0 flex-col">
+                      {filterPanel}
+                    </fieldset>
+                  ) : null}
+                </SearchPanelFrame>
+              ) : null}
+            </AnimatePresence>
           </search>
         </div>
-
-        {isMobile ? (
-          <div className="mt-2 flex justify-end md:hidden">
-            <div className="pointer-events-auto relative shrink-0">
-              <MapStyleSwitcher position="search" />
-            </div>
-          </div>
-        ) : null}
-
-        {showFilters && !isMobile && (
-          <fieldset ref={filterPanelRef} tabIndex={-1}>
-            <FilterPanel
-              filters={filters}
-              operators={operators}
-              uniqueBandValues={uniqueBandValues}
-              activeFilterCount={activeFilterCount}
-              onFiltersChange={handleFiltersChange}
-              onToggleOperator={handleToggleOperator}
-              onToggleBand={handleToggleBand}
-              onToggleRat={handleToggleRat}
-              onRecentDaysChange={handleRecentDaysChange}
-              onRecentDateFieldChange={handleRecentDateFieldChange}
-              onToggleStatus={handleToggleStatus}
-              onClearAllRats={handleClearAllRats}
-              onClearAllBands={handleClearAllBands}
-              onClearFilters={handleClearFilters}
-              hideSource={hideSource}
-              showHeatmap={showHeatmap}
-              onToggleHeatmap={onToggleHeatmap}
-              showPlannedMeasurements={showPlannedMeasurements}
-              onTogglePlannedMeasurements={onTogglePlannedMeasurements}
-            />
-          </fieldset>
-        )}
       </div>
 
-      {isMobile && (
+      {isMobile ? (
         <Sheet open={showFilters} onOpenChange={setShowFilters}>
           <SheetContent side="bottom" className="max-h-[85dvh] flex flex-col gap-0 p-0 rounded-t-2xl" showCloseButton={false}>
-            <SheetHeader className="px-4 py-3 border-b bg-muted/30 shrink-0">
-              <div className="flex items-center justify-between">
-                <SheetTitle className="flex items-center gap-2 text-sm">
-                  <HugeiconsIcon icon={FilterIcon} className="size-4 shrink-0" />
-                  <span>{t("common:labels.filters")}</span>
-                </SheetTitle>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearFilters}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {t("common:actions.clearAll")}
-                  </button>
-                )}
-              </div>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto overscroll-contain">
-              <FilterPanel
-                filters={filters}
-                operators={operators}
-                uniqueBandValues={uniqueBandValues}
-                activeFilterCount={activeFilterCount}
-                onFiltersChange={handleFiltersChange}
-                onToggleOperator={handleToggleOperator}
-                onToggleBand={handleToggleBand}
-                onToggleRat={handleToggleRat}
-                onRecentDaysChange={handleRecentDaysChange}
-                onRecentDateFieldChange={handleRecentDateFieldChange}
-                onToggleStatus={handleToggleStatus}
-                onClearAllRats={handleClearAllRats}
-                onClearAllBands={handleClearAllBands}
-                onClearFilters={handleClearFilters}
-                isSheet
-                hideSource={hideSource}
-                showHeatmap={showHeatmap}
-                onToggleHeatmap={onToggleHeatmap}
-                showPlannedMeasurements={showPlannedMeasurements}
-                onTogglePlannedMeasurements={onTogglePlannedMeasurements}
-              />
-            </div>
+            {filterPanel}
           </SheetContent>
         </Sheet>
-      )}
+      ) : null}
 
       <div className="hidden md:flex absolute top-4 left-4 z-10 flex-col items-start gap-1.5 pointer-events-none">
         {!isMobile && mapContext !== undefined ? <div className="pointer-events-auto max-w-xs">{mapContext}</div> : null}
@@ -656,6 +670,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
             showStations={filters.showStations}
             zoom={zoom}
             source={filters.source}
+            mapCountries={mapCountries}
             onSourceChange={handleSourceChange}
           />
         </div>

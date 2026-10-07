@@ -9,6 +9,7 @@ export interface Announcement {
 }
 
 export interface RuntimeSettings {
+  maintenanceEnabled: boolean;
   enforceAuthForAllRoutes: boolean;
   allowedUnauthenticatedRoutes: NonEmptyString[];
   disabledRoutes: NonEmptyString[];
@@ -20,10 +21,20 @@ export interface RuntimeSettings {
   announcement: Announcement;
 }
 
+export interface RuntimeSettingsPatch extends Partial<Omit<RuntimeSettings, "allowedUnauthenticatedRoutes" | "disabledRoutes" | "announcement">> {
+  allowedUnauthenticatedRoutes?: string[];
+  disabledRoutes?: string[];
+  announcement?: Partial<Announcement>;
+}
+
+type StoredRuntimeSettings = Omit<RuntimeSettings, "maintenanceEnabled"> & { maintenanceEnabled?: boolean };
+
 const SETTINGS_KEY = "runtime:settings";
 const CHANNEL = "runtime:settings:updates";
+const RESYNC_INTERVAL_MS = 60_000;
 
 const defaultSettings: RuntimeSettings = {
+  maintenanceEnabled: false,
   enforceAuthForAllRoutes: false,
   allowedUnauthenticatedRoutes: ["/api/v1/auth"] as NonEmptyString[],
   disabledRoutes: [],
@@ -42,10 +53,11 @@ function isNonEmptyString(value: unknown): value is NonEmptyString {
   return typeof value === "string" && value.length > 0;
 }
 
-function isSettings(obj: unknown): obj is RuntimeSettings {
+function isStoredSettings(obj: unknown): obj is StoredRuntimeSettings {
   if (!obj || typeof obj !== "object") return false;
-  const candidate = obj as RuntimeSettings;
+  const candidate = obj as StoredRuntimeSettings;
   return (
+    (candidate.maintenanceEnabled === undefined || typeof candidate.maintenanceEnabled === "boolean") &&
     typeof candidate.enforceAuthForAllRoutes === "boolean" &&
     Array.isArray(candidate.allowedUnauthenticatedRoutes) &&
     candidate.allowedUnauthenticatedRoutes.every(isNonEmptyString) &&
@@ -64,8 +76,27 @@ function isSettings(obj: unknown): obj is RuntimeSettings {
   );
 }
 
-function deepMergeSettings(base: RuntimeSettings, patch: Partial<RuntimeSettings>): RuntimeSettings {
+function parseSettings(json: string | null): RuntimeSettings | null {
+  if (!json) return null;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return isStoredSettings(parsed) ? { ...parsed, maintenanceEnabled: parsed.maintenanceEnabled ?? false } : null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeAnnouncement(base: Announcement, patch: Partial<Announcement>): Announcement {
+  return {
+    message: patch.message ?? base.message,
+    enabled: patch.enabled ?? base.enabled,
+    type: patch.type ?? base.type,
+  };
+}
+
+export function mergeRuntimeSettings(base: RuntimeSettings, patch: RuntimeSettingsPatch): RuntimeSettings {
   const next: RuntimeSettings = { ...base };
+  if (typeof patch.maintenanceEnabled === "boolean") next.maintenanceEnabled = patch.maintenanceEnabled;
   if (typeof patch.enforceAuthForAllRoutes === "boolean") next.enforceAuthForAllRoutes = patch.enforceAuthForAllRoutes;
   if (typeof patch.enableStationComments === "boolean") next.enableStationComments = patch.enableStationComments;
   if (typeof patch.commentQueueEnabled === "boolean") next.commentQueueEnabled = patch.commentQueueEnabled;
@@ -75,8 +106,13 @@ function deepMergeSettings(base: RuntimeSettings, patch: Partial<RuntimeSettings
   if (Array.isArray(patch.allowedUnauthenticatedRoutes))
     next.allowedUnauthenticatedRoutes = patch.allowedUnauthenticatedRoutes.filter(isNonEmptyString) as NonEmptyString[];
   if (Array.isArray(patch.disabledRoutes)) next.disabledRoutes = patch.disabledRoutes.filter(isNonEmptyString) as NonEmptyString[];
-  if (patch.announcement && typeof patch.announcement === "object") next.announcement = { ...patch.announcement };
+  if (patch.announcement && typeof patch.announcement === "object") next.announcement = mergeAnnouncement(base.announcement, patch.announcement);
   return next;
+}
+
+async function resyncRuntimeSettings(): Promise<void> {
+  const stored = parseSettings(await redis.get(SETTINGS_KEY).catch(() => null));
+  if (stored && JSON.stringify(stored) !== JSON.stringify(inMemorySettings)) inMemorySettings = stored;
 }
 
 export async function initRuntimeSettings(): Promise<void> {
@@ -84,15 +120,7 @@ export async function initRuntimeSettings(): Promise<void> {
   try {
     const existing = await redis.get(SETTINGS_KEY);
     if (existing) {
-      const parsed = JSON.parse(existing);
-      if (isSettings(parsed)) {
-        inMemorySettings = parsed;
-      } else if (parsed && typeof parsed === "object") {
-        inMemorySettings = deepMergeSettings(defaultSettings, parsed);
-        await redis.set(SETTINGS_KEY, JSON.stringify(inMemorySettings));
-      } else {
-        inMemorySettings = { ...defaultSettings };
-      }
+      inMemorySettings = parseSettings(existing) ?? { ...defaultSettings };
     } else {
       await redis.set(SETTINGS_KEY, JSON.stringify(defaultSettings));
       inMemorySettings = { ...defaultSettings };
@@ -104,11 +132,10 @@ export async function initRuntimeSettings(): Promise<void> {
   const subscriber = redis.duplicate();
   await subscriber.connect();
   await subscriber.subscribe(CHANNEL, (message) => {
-    try {
-      const parsed = JSON.parse(message);
-      if (isSettings(parsed)) inMemorySettings = parsed;
-    } catch {}
+    const published = parseSettings(message);
+    if (published) inMemorySettings = published;
   });
+  setInterval(() => void resyncRuntimeSettings(), RESYNC_INTERVAL_MS).unref();
 
   initialized = true;
 }
@@ -117,12 +144,14 @@ export function getRuntimeSettings(): RuntimeSettings {
   return inMemorySettings;
 }
 
-export async function updateRuntimeSettings(patch: Partial<RuntimeSettings>): Promise<RuntimeSettings> {
-  const next = deepMergeSettings(inMemorySettings, patch);
-  inMemorySettings = next;
-  const json = JSON.stringify(next);
-  await Promise.all([redis.set(SETTINGS_KEY, json), redis.publish(CHANNEL, json)]);
-  return next;
+export async function loadStoredRuntimeSettings(): Promise<RuntimeSettings> {
+  return parseSettings(await redis.get(SETTINGS_KEY)) ?? inMemorySettings;
+}
+
+export async function saveRuntimeSettings(settings: RuntimeSettings): Promise<void> {
+  const json = JSON.stringify(settings);
+  await redis.multi().set(SETTINGS_KEY, json).publish(CHANNEL, json).exec();
+  inMemorySettings = settings;
 }
 
 export function getDefaultRuntimeSettings(): RuntimeSettings {

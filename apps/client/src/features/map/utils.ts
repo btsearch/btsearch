@@ -1,3 +1,4 @@
+import type { Cell as StationCell } from "@openbts/shared/contract";
 import {
   calculateBearing,
   calculateDistance,
@@ -10,9 +11,10 @@ import {
   getModulationBits,
 } from "@openbts/shared/radiolinesUtils";
 
+import { toRatType } from "@/features/station-details/station/utils/bands";
 import { resolveOperatorMnc } from "@/lib/cellular/operators";
 import { isPermitExpired } from "@/lib/dateUtils";
-import type { Cell, LocationInfo, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation, UkeStationPermit } from "@/types/station";
+import type { Cell, RadioLine, UkeLocationWithPermits, UkePermit, UkeStation, UkeStationPermit } from "@/types/station";
 
 export {
   calculateBearing,
@@ -27,17 +29,6 @@ export {
 };
 
 import { RAT_ORDER } from "./constants";
-
-export function toLocationInfo(loc: {
-  id: number;
-  city?: string;
-  address?: string;
-  latitude: number;
-  longitude: number;
-  region?: { name: string };
-}): LocationInfo {
-  return { id: loc.id, city: loc.city, address: loc.address, region: loc.region?.name, latitude: loc.latitude, longitude: loc.longitude };
-}
 
 const TA_STEP = {
   GSM: 554, // ~554 m per step
@@ -148,6 +139,10 @@ export function getStationBands(cells: Cell[]): string[] {
   return sortBands([...new Set(cells.map((c) => `${c.rat}${c.band.value ?? ""}`))]);
 }
 
+export function getCellTechnologyBands(cells: readonly StationCell[]): string[] {
+  return sortBands([...new Set(cells.map((cell) => `${toRatType(cell.rat)}${cell.band?.labelMhz ?? ""}`))]);
+}
+
 export function getPermitBands(permits: { band?: UkeStationPermit["band"] }[]): string[] {
   const bands = permits.reduce<string[]>((acc, p) => {
     if (!p.band) return acc;
@@ -158,7 +153,7 @@ export function getPermitBands(permits: { band?: UkeStationPermit["band"] }[]): 
   return sortBands([...new Set(bands)]);
 }
 
-export function getRadioLineMnc(link: DuplexRadioLink): number | null | undefined {
+export function getRadioLineMnc(link: DuplexRadioLink): number | null {
   const first = link.directions[0];
   return resolveOperatorMnc(first.operator?.mnc, first.operator?.name);
 }

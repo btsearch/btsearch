@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { defineScope } from "../../../../features/access/scope.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import { stationStatusUpdate } from "../../../../features/stations/status.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
@@ -58,7 +59,7 @@ const deleteStation: Route<IdParams, void> = {
   url: "/stations/:id",
   method: "DELETE",
   schema: schemaRoute,
-  config: { permissions: ["delete:stations"] },
+  config: { permissions: ["delete:stations"], scope: defineScope<IdParams>((req) => ({ stationIds: [req.params.id] })) },
   handler,
 };
 

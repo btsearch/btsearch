@@ -4,7 +4,7 @@ import { and, eq, isNull, ne, notInArray, or } from "drizzle-orm";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
-import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateSpec } from "./identityDuplicateSpecs.js";
+import { type CellIdentityDuplicateDetails, getCellIdentityDuplicateSpec, isUnknownCellIdentity } from "./identityDuplicateSpecs.js";
 import { type PciDuplicateDetails, type PciDuplicateSpec, getPciDuplicateKey, getPciDuplicateSpec } from "./pciDuplicateSpecs.js";
 
 type CellIdentityDuplicateEntry = {
@@ -203,7 +203,7 @@ function getCellIdentityDuplicateEntriesByRat(sources: CellIdentityDuplicateSour
 
   for (const source of sources) {
     const spec = getCellIdentityDuplicateSpec(source.rat);
-    if (!spec || !source.details) continue;
+    if (!spec || !source.details || isUnknownCellIdentity(spec, source.details)) continue;
 
     const values: Record<string, number> = {};
     for (const { field } of spec.fields) {

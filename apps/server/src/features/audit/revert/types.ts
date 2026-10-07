@@ -3,6 +3,7 @@ import type { AuditEntity } from "@openbts/shared/audit";
 import type { DbTx } from "../../../types/global.js";
 import type { AuditContext } from "../context.js";
 import type { AuditEntry, AuditOperationSummary, AuditRecorder } from "../types.js";
+import type { RevertReason } from "./revertibility.js";
 
 export type RevertConflictKind =
   | "missing"
@@ -41,7 +42,7 @@ export type RevertConflict = {
 
 export type RevertSkipped = {
   entry_id: number;
-  reason: string;
+  reason: RevertReason | RevertConflictKind;
   message?: string;
 };
 
@@ -64,6 +65,7 @@ export type RevertOperationInput = {
   entryIds?: readonly number[];
   force: boolean;
   ctx: AuditContext;
+  countryCodes?: readonly string[];
 };
 
 export type SequenceTable =
@@ -84,6 +86,7 @@ export type ApplyState = {
   sequenceTables: Set<SequenceTable>;
   sectorIdRemap: Map<number, number>;
   touchedLocationIds: Set<number>;
+  indirectlyRevertedEntryIds: Set<number>;
   stationOrLocationWritten: boolean;
 };
 
@@ -144,6 +147,7 @@ export type StrategyContext = {
   tx: DbTx;
   pendingInserts: PendingInserts;
   selectedEntries: readonly AuditEntry[];
+  operationEntries: readonly AuditEntry[];
 };
 
 export type RevertStrategy = (context: StrategyContext, entry: AuditEntry) => Promise<PlannedEntry>;
@@ -157,6 +161,7 @@ export function emptyApplyState(): ApplyState {
     sequenceTables: new Set(),
     sectorIdRemap: new Map(),
     touchedLocationIds: new Set(),
+    indirectlyRevertedEntryIds: new Set(),
     stationOrLocationWritten: false,
   };
 }

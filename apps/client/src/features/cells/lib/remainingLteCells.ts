@@ -139,14 +139,6 @@ export function supportsRemainingLTECells(operatorMnc?: number | null): boolean 
   return getSectorRule(operatorMnc) !== null;
 }
 
-export function createRemainingLTEDetails(details: Readonly<Record<string, unknown>>, clid: number): Record<string, unknown> {
-  const next = { ...details };
-  delete next.ecid;
-  delete next.pci;
-  next.clid = clid;
-  return next;
-}
-
 export function buildRemainingLTECells<T>({ operatorMnc, cells, getBandId, getDetails, createCell }: BuildRemainingLTECellsOptions<T>): T[] {
   const rule = getSectorRule(operatorMnc);
   if (rule === null) return [];
@@ -178,6 +170,7 @@ export function buildRemainingLTECells<T>({ operatorMnc, cells, getBandId, getDe
       sectorCount,
     );
     if (sequence === null) continue;
+    if (!rule.supportsFourthSector && group.some((seed) => getSectorIndex(seed.identity, sequence, rule) === null)) continue;
     const source = group.find((seed) => getSectorIndex(seed.identity, sequence, rule) !== null);
     if (source === undefined) continue;
 

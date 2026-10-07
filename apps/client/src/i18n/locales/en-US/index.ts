@@ -3,7 +3,6 @@ import enUSAuth from "./auth.json";
 import enUSCellAnalyzer from "./cellAnalyzer.json";
 import enUSClfExport from "./clfExport.json";
 import enUSCommon from "./common.json";
-import enUSDeletedEntries from "./deletedEntries.json";
 import enUSKMZ from "./kmz.json";
 import enUSLightbox from "./lightbox.json";
 import enUSLists from "./lists.json";
@@ -32,7 +31,6 @@ export const enUSResources = {
   auth: enUSAuth,
   settings: enUSSettings,
   admin: enUSAdmin,
-  deletedEntries: enUSDeletedEntries,
   statistics: enUSStatistics,
   notifications: enUSNotifications,
   lists: enUSLists,

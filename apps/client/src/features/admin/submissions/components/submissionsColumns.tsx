@@ -5,26 +5,28 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  type GetOperatorById,
   SubmissionChangesSummary,
   SubmissionStationSummary,
   SubmissionStatusSummary,
   SubmissionSubmitterSummary,
   SubmissionTimestamp,
 } from "./submissionListParts";
-import type { SubmissionListItem } from "@/features/admin/submissions/types";
+import type { SubmissionListRow } from "@/features/admin/submissions/types";
 import type { AppTableFeatures } from "@/lib/tableFeatures";
-import type { Operator } from "@/types/station";
 
-const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListItem>();
+const columnHelper = createColumnHelper<AppTableFeatures, SubmissionListRow>();
 
 export function useSubmissionsColumns({
   sortOrder,
   onSortToggle,
   getOperatorById,
+  hasCountryTile,
 }: {
   sortOrder: "asc" | "desc";
   onSortToggle: () => void;
-  getOperatorById: (operatorId: number | null | undefined) => Operator | undefined;
+  getOperatorById: GetOperatorById;
+  hasCountryTile: boolean;
 }) {
   const { t } = useTranslation(["submissions", "common"]);
 
@@ -35,7 +37,7 @@ export function useSubmissionsColumns({
           id: "station",
           header: t("common:labels.station"),
           size: 220,
-          cell: ({ row }) => <SubmissionStationSummary submission={row.original} getOperatorById={getOperatorById} />,
+          cell: ({ row }) => <SubmissionStationSummary submission={row.original} getOperatorById={getOperatorById} hasCountryTile={hasCountryTile} />,
         }),
         columnHelper.display({
           id: "changes",
@@ -76,6 +78,6 @@ export function useSubmissionsColumns({
           cell: ({ row }) => <SubmissionStatusSummary submission={row.original} inline />,
         }),
       ]),
-    [getOperatorById, onSortToggle, sortOrder, t],
+    [getOperatorById, hasCountryTile, onSortToggle, sortOrder, t],
   );
 }

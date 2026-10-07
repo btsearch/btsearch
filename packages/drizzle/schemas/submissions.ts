@@ -1,5 +1,6 @@
 import {
   boolean,
+  char,
   check,
   doublePrecision,
   index,
@@ -16,10 +17,25 @@ import {
 import { sql } from "drizzle-orm/sql";
 
 import { locationPhotos, users } from "./auth.ts";
-import { CellType, NRType, UplinkType, bands, cells, operators, ratEnum, regions, stationSectors, stations } from "./bts.ts";
+import {
+  CellType,
+  NRType,
+  StructureType,
+  UplinkType,
+  bands,
+  cells,
+  countries,
+  operators,
+  ratEnum,
+  regions,
+  stationSectors,
+  stations,
+  structureOwners,
+} from "./bts.ts";
 
 export const SubmissionStatus = pgEnum("submission_status", ["pending", "approved", "rejected"]);
 export const SubmissionTypeEnum = pgEnum("submission_type", ["new", "update", "delete"]);
+export const SubmissionOriginEnum = pgEnum("submission_origin", ["manual", "analyzer"]);
 export const CellOperationEnum = pgEnum("cell_operation", ["add", "update", "delete"]);
 export const SectorOperationEnum = pgEnum("sector_operation", ["add", "update", "delete"]);
 export const StationOperationEnum = pgEnum("station_operation", ["add", "update", "delete"]);
@@ -34,7 +50,17 @@ export const ProposedStationFieldEnum = pgEnum("proposed_station_field", [
   "uplink_speed",
   "uplink_model",
 ]);
-export const ProposedLocationFieldEnum = pgEnum("proposed_location_field", ["region_id", "city", "address", "longitude", "latitude"]);
+export const ProposedLocationFieldEnum = pgEnum("proposed_location_field", [
+  "region_id",
+  "city",
+  "address",
+  "longitude",
+  "latitude",
+  "structure_type",
+  "structure_owner_id",
+  "structure_note",
+]);
+export const LocationMoveEnum = pgEnum("location_move", ["station", "location"]);
 export const SubmissionsSchema = pgSchema("submissions");
 
 /**
@@ -51,6 +77,7 @@ export const submissions = SubmissionsSchema.table(
     submitter_id: uuid("submitter_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
     status: SubmissionStatus("status").notNull().default("pending"),
     type: SubmissionTypeEnum("type").notNull().default("new"),
+    origin: SubmissionOriginEnum("origin").notNull().default("manual"),
     reviewer_id: uuid("reviewer_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }),
     review_notes: text("review_notes"),
     submitter_note: text("submitter_note"),
@@ -58,6 +85,7 @@ export const submissions = SubmissionsSchema.table(
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     reviewed_at: timestamp({ withTimezone: true }),
     pending_photos: integer("pending_photos"),
+    country_code: char("country_code", { length: 2 }).references(() => countries.code, { onDelete: "set null", onUpdate: "cascade" }),
   },
   (t) => [
     index("submission_station_id_idx").on(t.station_id),
@@ -65,6 +93,7 @@ export const submissions = SubmissionsSchema.table(
     index("submission_reviewer_id_idx").on(t.reviewer_id),
     index("submission_status_idx").on(t.status),
     index("submission_created_at_idx").on(t.createdAt),
+    index("submission_country_code_idx").on(t.country_code),
   ],
 );
 
@@ -76,7 +105,7 @@ export const proposedCells = SubmissionsSchema.table(
     operation: CellOperationEnum("operation").notNull().default("add"),
     target_cell_id: integer("target_cell_id").references(() => cells.id, { onDelete: "cascade", onUpdate: "cascade" }),
     station_id: integer("station_id").references(() => stations.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    band_id: integer("band_id").references(() => bands.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    band_id: integer("band_id").references(() => bands.id, { onDelete: "restrict", onUpdate: "cascade" }),
     target_sector_id: integer("target_sector_id").references(() => stationSectors.id, { onDelete: "set null", onUpdate: "cascade" }),
     sector_local_id: text("sector_local_id"),
     sector_unassigned: boolean("sector_unassigned").default(false).notNull(),
@@ -118,8 +147,13 @@ export const proposedGSMCells = SubmissionsSchema.table(
     lac: integer("lac").notNull(),
     cid: integer("cid").notNull(),
     e_gsm: boolean("e_gsm").default(false),
+    bsic: integer("bsic"),
   },
-  (t) => [check("gsm_lac_check", sql`${t.lac} BETWEEN 0 AND 65535`), check("gsm_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`)],
+  (t) => [
+    check("gsm_lac_check", sql`${t.lac} BETWEEN 0 AND 65535`),
+    check("gsm_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
+    check("gsm_bsic_check", sql`${t.bsic} BETWEEN 0 AND 63`),
+  ],
 );
 
 export const proposedUMTSCells = SubmissionsSchema.table(
@@ -132,12 +166,14 @@ export const proposedUMTSCells = SubmissionsSchema.table(
     arfcn: integer("arfcn"),
     rnc: integer("rnc").notNull(),
     cid: integer("cid").notNull(),
+    psc: integer("psc"),
   },
   (t) => [
     check("umts_lac_check", sql`${t.lac} BETWEEN 0 AND 65535`),
     check("umts_rnc_check", sql`${t.rnc} BETWEEN 0 AND 65535`),
     check("umts_cid_check", sql`${t.cid} BETWEEN 0 AND 65535`),
     check("umts_arfcn_check", sql`${t.arfcn} BETWEEN 0 AND 16383`),
+    check("umts_psc_check", sql`${t.psc} BETWEEN 0 AND 511`),
   ],
 );
 
@@ -220,16 +256,24 @@ export const proposedLocations = SubmissionsSchema.table(
   {
     id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
     submission_id: uuid("submission_id").references(() => submissions.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    region_id: integer("region_id").references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    region_id: integer("region_id").references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" }),
     city: varchar("city", { length: 100 }),
     address: text("address"),
+    structure_type: StructureType("structure_type"),
+    structure_owner_id: integer("structure_owner_id").references(() => structureOwners.id, { onDelete: "set null", onUpdate: "cascade" }),
+    structure_owner_name: varchar("structure_owner_name", { length: 100 }),
+    structure_note: varchar("structure_note", { length: 150 }),
     longitude: doublePrecision("longitude"),
     latitude: doublePrecision("latitude"),
+    move: LocationMoveEnum("move").notNull().default("station"),
     changed_fields: ProposedLocationFieldEnum("changed_fields").array(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("proposed_locations_submission_id_idx").on(t.submission_id)],
+  (t) => [
+    index("proposed_locations_submission_id_idx").on(t.submission_id),
+    check("proposed_locations_structure_owner_id_or_name", sql`num_nulls(${t.structure_owner_id}, ${t.structure_owner_name}) > 0`),
+  ],
 );
 
 export const submissionPhotos = SubmissionsSchema.table(

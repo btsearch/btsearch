@@ -13,17 +13,19 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { POINT_LAYER_ID, SOURCE_ID } from "../constants";
+import { MAP_POINT_STATUS_STROKE_COLORS, MAP_POINT_STROKE_COLOR } from "../geojson";
 import { syncMarkerImages, syncPieImages } from "../pieChart";
 import { onBeforeStyleChange } from "@/components/ui/map";
 import type { MapPointStyle } from "@/hooks/usePreferences";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
+import type { StationSource } from "@/types/station";
 
-type FeatureClickData = {
+export type FeatureClickData = {
   coordinates: [number, number];
   locationId: number;
   city?: string;
   address?: string;
-  source: string;
+  source: StationSource;
 };
 
 type FeatureClickHandler = (data: FeatureClickData) => void;
@@ -89,7 +91,15 @@ const CIRCLE_LAYER_CONFIG: LayerSpecification = {
     "circle-color": ["get", "color"],
     "circle-radius": 7,
     "circle-stroke-width": 2,
-    "circle-stroke-color": ["match", ["get", "status"], "pending", "#eab308", "inactive", "#ef4444", "#fff"],
+    "circle-stroke-color": [
+      "match",
+      ["get", "status"],
+      "awaitingCells",
+      MAP_POINT_STATUS_STROKE_COLORS.awaitingCells,
+      "inactive",
+      MAP_POINT_STATUS_STROKE_COLORS.inactive,
+      MAP_POINT_STROKE_COLOR,
+    ],
   },
 };
 
@@ -142,7 +152,7 @@ function extractFeatureClickData(feature: GeoJSONFeature): FeatureClickData | nu
     locationId,
     city,
     address,
-    source: source || "internal",
+    source: source === "uke" ? "uke" : "internal",
   };
 }
 
@@ -221,9 +231,7 @@ export function useMapLayer({
           if (!map.getLayer(SYMBOL_LAYER_ID)) map.addLayer(SYMBOL_LAYER_CONFIG);
           syncPieImages(map, geoJSONRef.current.features, addedImagesRef.current);
         }
-      } catch {
-        // Layers may not exist
-      }
+      } catch {}
     };
 
     const handleMouseDown = (e: MapMouseEvent) => {

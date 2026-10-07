@@ -1,35 +1,34 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, keepPreviousData, useQuery } from "@tanstack/react-query";
 import { type GeoJSONSource, type MapLayerMouseEvent, type Map as MapLibreMap, Popup } from "maplibre-gl";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { PemPopupContent } from "../components/pemPopupContent";
 import { PLANNED_PEM_LAYER_ID, PLANNED_PEM_SOURCE_ID } from "../constants";
+import { type MapLookups, getOperatorLook, useMapLookups } from "../data/mapLookups";
+import { listRegisterOperators } from "../data/mapRequests";
+import { useMapQueryHousekeeping } from "./useMapQueryHousekeeping";
 import { onBeforeStyleChange } from "@/components/ui/map";
-import type { PlannedPEMStation } from "@/features/si2pem/api";
-import { API_BASE } from "@/lib/api";
-import { getOperatorColor } from "@/lib/cellular/operators";
+import { MAP_PLANNED_MEASUREMENTS_FAMILY, type MapPlannedMeasurement, mapPlannedMeasurementsQueryOptions } from "@/features/si2pem/api";
 import { hasReliableHoverPointer } from "@/lib/dom/pointer";
 import { queryClient } from "@/lib/queryClient";
 
 const PEM_BOX_IMAGE_ID = "pem-box";
+const PLANNED_MEASUREMENT_QUERY_FAMILIES = new Set([MAP_PLANNED_MEASUREMENTS_FAMILY]);
+const NO_OPERATOR_IDS: readonly number[] = [];
 
 type PopupState = { popup: Popup; root: ReturnType<typeof createRoot> };
 type PlannedMeasurementProperties = {
-  station_id: string | null;
-  internal_station_id: number | null;
+  siteId: string | null;
+  stationId: number | null;
+  operatorId: number | null;
   color: string;
-  operator_name: string | null;
-  operator_mnc: number | null;
-  region_name: string | null;
-  status: PlannedPEMStation["status"];
-  disabled_date: string | null;
-  date_from: string | null;
-  date_to: string | null;
-  lab_name: string | null;
-  lab_pca: string | null;
-  city: string;
-  address: string;
+  startsOn: string | null;
+  endsOn: string | null;
+  laboratoryName: string | null;
+  accreditationNumber: string | null;
+  city: string | null;
+  address: string | null;
 };
 type PlannedMeasurementFeature = {
   type: "Feature";
@@ -37,6 +36,8 @@ type PlannedMeasurementFeature = {
   properties: PlannedMeasurementProperties;
 };
 type PlannedMeasurementFeatureCollection = { type: "FeatureCollection"; features: PlannedMeasurementFeature[] };
+
+const NO_MEASUREMENT_FEATURES: PlannedMeasurementFeatureCollection = { type: "FeatureCollection", features: [] };
 
 function destroyPopup(state: PopupState | null): null {
   state?.popup.remove();
@@ -58,74 +59,93 @@ function createBoxSDF(size: number, padding: number, borderWidth: number): Image
   return ctx.getImageData(0, 0, size, size);
 }
 
-async function fetchMeasurements(bounds: string, operators: number[], signal: AbortSignal): Promise<PlannedMeasurementFeatureCollection | null> {
-  const params = new URLSearchParams({ bounds });
-  if (operators.length) params.set("operators", operators.join(","));
-  const res = await fetch(`${API_BASE}/pem/planned?${params.toString()}`, { signal });
-  if (!res.ok) return null;
-  const { data }: { totalCount: number; data: PlannedPEMStation[] } = await res.json();
+function toMeasurementFeature(measurement: MapPlannedMeasurement, lookups: MapLookups): PlannedMeasurementFeature {
+  const operatorLook = getOperatorLook(lookups, measurement.operatorId);
+
   return {
-    type: "FeatureCollection",
-    features: data.map((f) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [f.location.longitude, f.location.latitude] },
-      properties: {
-        station_id: f.station_id,
-        internal_station_id: f.internal_station_id,
-        color: getOperatorColor(f.operator?.mnc ?? 0),
-        operator_name: f.operator?.name ?? null,
-        operator_mnc: f.operator?.mnc ?? null,
-        region_name: f.region?.name ?? null,
-        status: f.status,
-        disabled_date: f.disabled_date ?? null,
-        date_from: f.date?.from ?? null,
-        date_to: f.date?.to ?? null,
-        lab_name: f.lab?.name ?? null,
-        lab_pca: f.lab?.PCA ?? null,
-        city: f.location.city,
-        address: f.location.address,
-      },
-    })),
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [measurement.location.longitude, measurement.location.latitude] },
+    properties: {
+      siteId: measurement.siteId,
+      stationId: measurement.stationId,
+      operatorId: measurement.operatorId,
+      color: operatorLook.color,
+      startsOn: measurement.startsOn,
+      endsOn: measurement.endsOn,
+      laboratoryName: measurement.laboratory?.name ?? null,
+      accreditationNumber: measurement.laboratory?.accreditationNumber ?? null,
+      city: measurement.location.city,
+      address: measurement.location.address,
+    },
   };
 }
 
-function getBoundsString(map: MapLibreMap): string {
-  const b = map.getBounds();
-  return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+function toMeasurementFeatures(measurements: readonly MapPlannedMeasurement[], lookups: MapLookups): PlannedMeasurementFeatureCollection {
+  return { type: "FeatureCollection", features: measurements.map((measurement) => toMeasurementFeature(measurement, lookups)) };
 }
+
+function readText(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === "number" ? value : null;
+}
+
+type UsePlannedMeasurementsLayerArgs = {
+  map: MapLibreMap | null;
+  isLoaded: boolean;
+  enabled: boolean;
+  bbox: string;
+  isMoving: boolean;
+  operatorIds: readonly number[];
+  isPickingReceiver?: boolean;
+  onOpenStation: (stationId: number) => boolean | void;
+};
 
 export function usePlannedMeasurementsLayer({
   map,
   isLoaded,
   enabled,
-  operators = [],
+  bbox,
+  isMoving,
+  operatorIds,
+  isPickingReceiver = false,
   onOpenStation,
-}: {
-  map: MapLibreMap | null;
-  isLoaded: boolean;
-  enabled: boolean;
-  operators?: number[];
-  onOpenStation: (stationId: number) => boolean | void;
-}) {
+}: UsePlannedMeasurementsLayerArgs) {
   const popupRef = useRef<PopupState | null>(null);
-  const operatorsKey = operators.join(",");
+  const shownFeaturesRef = useRef(NO_MEASUREMENT_FEATURES);
   const openStation = useEffectEvent(onOpenStation);
+  const readIsPickingReceiver = useEffectEvent(() => isPickingReceiver);
+  const { lookups } = useMapLookups();
+
+  useMapQueryHousekeeping({ bounds: bbox, isMoving, queryFamilies: PLANNED_MEASUREMENT_QUERY_FAMILIES });
+
+  const registerOperators = listRegisterOperators(operatorIds, lookups?.operators);
+  const registerOperatorIds = registerOperators?.map((operator) => operator.id) ?? NO_OPERATOR_IDS;
+  const { data: measurements } = useQuery({
+    ...mapPlannedMeasurementsQueryOptions(bbox, registerOperatorIds),
+    enabled: enabled && registerOperators !== null && !isMoving,
+    placeholderData: keepPreviousData,
+  });
+
+  const features = useMemo(
+    () => (measurements === undefined || lookups === undefined ? null : toMeasurementFeatures(measurements, lookups)),
+    [measurements, lookups],
+  );
+
+  useEffect(() => {
+    if (features !== null) shownFeaturesRef.current = features;
+  }, [features]);
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return;
-    let lastData: PlannedMeasurementFeatureCollection = { type: "FeatureCollection", features: [] };
-    let requestController: AbortController | null = null;
-    const selectedOperators = operatorsKey ? operatorsKey.split(",").map(Number) : [];
     const useHoverListeners = hasReliableHoverPointer();
 
     const initLayer = () => {
       try {
-        if (!map.hasImage(PEM_BOX_IMAGE_ID)) {
-          map.addImage(PEM_BOX_IMAGE_ID, createBoxSDF(18, 2, 2), { sdf: true });
-        }
-        if (!map.getSource(PLANNED_PEM_SOURCE_ID)) {
-          map.addSource(PLANNED_PEM_SOURCE_ID, { type: "geojson", data: lastData });
-        }
+        if (!map.hasImage(PEM_BOX_IMAGE_ID)) map.addImage(PEM_BOX_IMAGE_ID, createBoxSDF(18, 2, 2), { sdf: true });
+        if (!map.getSource(PLANNED_PEM_SOURCE_ID)) map.addSource(PLANNED_PEM_SOURCE_ID, { type: "geojson", data: shownFeaturesRef.current });
         if (!map.getLayer(PLANNED_PEM_LAYER_ID)) {
           map.addLayer({
             id: PLANNED_PEM_LAYER_ID,
@@ -146,27 +166,14 @@ export function usePlannedMeasurementsLayer({
       } catch {}
     };
 
-    const loadData = () => {
-      requestController?.abort();
-      const controller = new AbortController();
-      requestController = controller;
-      fetchMeasurements(getBoundsString(map), selectedOperators, controller.signal)
-        .then((data) => {
-          if (controller.signal.aborted || !data) return;
-          lastData = data;
-          try {
-            void (map.getSource(PLANNED_PEM_SOURCE_ID) as GeoJSONSource)?.setData(data);
-          } catch {}
-        })
-        .catch(() => {});
-    };
-
     const handleClick = (e: MapLayerMouseEvent) => {
+      if (readIsPickingReceiver()) return;
+
       const feature = e.features?.[0];
-      const properties = feature?.properties as PlannedMeasurementProperties | undefined;
-      if (!feature || !properties || feature.geometry.type !== "Point") return;
+      if (!feature || feature.geometry.type !== "Point") return;
       const [longitude, latitude] = feature.geometry.coordinates;
-      const internalStationId = typeof properties.internal_station_id === "number" ? properties.internal_station_id : null;
+      const { properties } = feature;
+      const stationId = readNumber(properties.stationId);
 
       popupRef.current = destroyPopup(popupRef.current);
 
@@ -193,26 +200,22 @@ export function usePlannedMeasurementsLayer({
       root.render(
         <QueryClientProvider client={queryClient}>
           <PemPopupContent
-            stationId={properties.station_id}
-            operatorName={properties.operator_name}
-            operatorMnc={properties.operator_mnc}
-            regionName={properties.region_name}
-            status={properties.status}
-            disabledDate={properties.disabled_date}
-            dateFrom={properties.date_from}
-            dateTo={properties.date_to}
-            labName={properties.lab_name}
-            labPca={properties.lab_pca}
-            city={properties.city}
-            address={properties.address}
+            siteId={readText(properties.siteId)}
+            operatorId={readNumber(properties.operatorId)}
+            startsOn={readText(properties.startsOn)}
+            endsOn={readText(properties.endsOn)}
+            laboratoryName={readText(properties.laboratoryName)}
+            accreditationNumber={readText(properties.accreditationNumber)}
+            city={readText(properties.city)}
+            address={readText(properties.address)}
             latitude={latitude}
             longitude={longitude}
             onClose={() => popup.remove()}
             onOpenStation={
-              internalStationId === null
+              stationId === null
                 ? undefined
                 : () => {
-                    if (openStation(internalStationId) !== false) popup.remove();
+                    if (openStation(stationId) !== false) popup.remove();
                   }
             }
           />
@@ -246,17 +249,13 @@ export function usePlannedMeasurementsLayer({
     };
 
     initLayer();
-    loadData();
     map.on("styledata", initLayer);
-    map.on("moveend", loadData);
     attachLayerListeners();
     const unsubscribe = onBeforeStyleChange(map, detachLayerListeners);
 
     return () => {
-      requestController?.abort();
       popupRef.current = destroyPopup(popupRef.current);
       map.off("styledata", initLayer);
-      map.off("moveend", loadData);
       unsubscribe();
       detachLayerListeners();
       try {
@@ -266,5 +265,12 @@ export function usePlannedMeasurementsLayer({
         }
       } catch {}
     };
-  }, [map, isLoaded, enabled, operatorsKey]);
+  }, [map, isLoaded, enabled]);
+
+  useEffect(() => {
+    if (!map || !isLoaded || !enabled || features === null) return;
+    try {
+      void (map.getSource(PLANNED_PEM_SOURCE_ID) as GeoJSONSource | undefined)?.setData(features);
+    } catch {}
+  }, [map, isLoaded, enabled, features]);
 }

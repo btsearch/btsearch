@@ -86,7 +86,7 @@ function getGenericChannel(cell: NsgCell): number | null {
 }
 
 function identityField(cell: NsgCell, key: string, value: number | null): DisplayField {
-  return { key, label: getRatDetailFieldLabel(getDisplayRat(cell.rat), key, "station"), value };
+  return { key, label: getRatDetailFieldLabel(getDisplayRat(cell.rat), key), value };
 }
 
 function nrIdentityField(cell: NsgCell, key: "gnbid" | "clid", value: number | null): DisplayField {

@@ -20,25 +20,41 @@ import { OGImagesController } from "./controllers/seo/og-images.controller.js";
 import { SEOPagesController } from "./controllers/seo/pages.controller.js";
 import { SitemapController } from "./controllers/seo/sitemap.controller.js";
 import { APIv1Controller } from "./controllers/v1.controller.js";
+import { APIv2Controller } from "./controllers/v2.controller.js";
 import { redisReady } from "./database/redis.js";
-import { DetailedErrorResponse, type ErrorResponse, ValidationError } from "./errors.js";
+import { DetailedErrorResponse, ErrorResponse, ValidationError, callerFaultResponse } from "./errors.js";
+import { recordRoutePattern } from "./features/settings/routeRules.js";
 import { OnRequestHook } from "./hooks/onRequest.hook.js";
 import { OnSendHook } from "./hooks/onSend.hook.js";
 import { PreHandlerHook } from "./hooks/preHandler.hook.js";
-import { PreSerializationHook } from "./hooks/preSerialization.hook.js";
 import type { FastifyZodInstance } from "./interfaces/fastify.interface.js";
 import { isFirstPartyOrigin } from "./lib/firstPartyOrigin.js";
 import { getRuntimeSettings, initRuntimeSettings } from "./lib/runtimeSettings.js";
 import { loadDisposableEmailBlocklist } from "./plugins/auth/disposableEmailBlocklist.js";
 import { auth } from "./plugins/betterauth.plugin.js";
 import { registerRateLimit } from "./plugins/ratelimit.plugin.js";
-import { logger, serializeError } from "./utils/logger.js";
+import { flushLogs, logger, serializeError } from "./utils/logger.js";
+
+function missesOwnDiscriminator(issues: $ZodIssue[]): boolean {
+  return issues.some((issue) => issue.code === "invalid_union" && issue.errors.length === 0 && issue.path.length === 1);
+}
+
+function namesAnotherAction(issues: $ZodIssue[]): boolean {
+  return issues.some((issue) => issue.code === "invalid_value" && issue.path.length === 1 && issue.path[0] === "action");
+}
+
+function branchesOfSentShape(branches: $ZodIssue[][]): $ZodIssue[][] {
+  if (!branches.some(missesOwnDiscriminator)) return branches;
+
+  const sent = branches.filter((issues) => !missesOwnDiscriminator(issues) && !namesAnotherAction(issues));
+  return sent.length > 0 ? sent : branches;
+}
 
 function flattenZodIssues(issues: $ZodIssue[], pathPrefix: string[] = []): { field: string; validationMessage: string }[] {
   return issues.flatMap((issue) => {
     const path = [...pathPrefix, ...issue.path.map(String)];
     if (issue.code === "invalid_union") {
-      const branches = issue.errors.map((branchIssues) => flattenZodIssues(branchIssues, path));
+      const branches = branchesOfSentShape(issue.errors).map((branchIssues) => flattenZodIssues(branchIssues, path));
       const best = branches.reduce<{ field: string; validationMessage: string }[]>((a, b) => (a.length <= b.length ? a : b), branches[0] ?? []);
       return best.length > 0 ? best : [{ field: path.join("/") || "unknown", validationMessage: "Invalid input" }];
     }
@@ -46,6 +62,7 @@ function flattenZodIssues(issues: $ZodIssue[], pathPrefix: string[] = []): { fie
   });
 }
 
+const UPLOADED_SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 const CORS_OPTIONS = {
   methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: [
@@ -120,8 +137,8 @@ export default class App {
     this.fastify.decorateRequest(requestStartTime, 0);
     this.fastify.addHook("onRequest", OnRequestHook);
     this.fastify.addHook("preHandler", PreHandlerHook);
-    this.fastify.addHook("preSerialization", PreSerializationHook);
     this.fastify.addHook("onSend", OnSendHook);
+    this.fastify.addHook("onRoute", (route) => recordRoutePattern(route.url));
     registerRateLimit(this.fastify);
     this.fastify.setErrorHandler((error, req, res) => {
       if (hasZodFastifySchemaValidationErrors(error)) {
@@ -130,7 +147,7 @@ export default class App {
           const unionBranches = getUnionBranchIssues(issue.params);
           if (issue.keyword === "invalid_union" && unionBranches?.length) {
             const prefix = field.split("/").filter(Boolean);
-            const branches = unionBranches.map((branchIssues) => flattenZodIssues(branchIssues, prefix));
+            const branches = branchesOfSentShape(unionBranches).map((branchIssues) => flattenZodIssues(branchIssues, prefix));
             const best = branches.reduce<{ field: string; validationMessage: string }[]>((a, b) => (a.length <= b.length ? a : b), branches[0] ?? []);
             return best.length > 0 ? best : [{ field, validationMessage: "Invalid input" }];
           }
@@ -141,12 +158,13 @@ export default class App {
         });
       }
 
-      const err = error as ErrorResponse | ValidationError;
+      const err = (callerFaultResponse(error) ?? error) as ErrorResponse | ValidationError;
       const statusCode = err.statusCode || 500;
-      const message = err.message || "An internal server error occurred.";
+      const isUnexpected = statusCode >= 500 && !(err instanceof ErrorResponse);
+      const message = isUnexpected || !err.message ? "An internal server error occurred." : err.message;
       const code = err.code || "INTERNAL_SERVER_ERROR";
 
-      if (code !== "UNAUTHORIZED" && statusCode !== 404 && statusCode !== 429) {
+      if (code !== "UNAUTHORIZED" && code !== "MAINTENANCE_MODE" && statusCode !== 404 && statusCode !== 429) {
         logger.error(err.code, {
           ...serializeError(err),
           statusCode,
@@ -183,6 +201,7 @@ export default class App {
       const responseError = errorResponse.errors[0];
       if (responseError && (err instanceof ValidationError || err instanceof DetailedErrorResponse)) responseError.details = err.details;
 
+      if (code === "MAINTENANCE_MODE") res.header("Cache-Control", "no-store");
       return res.status(statusCode).send(errorResponse);
     });
     this.fastify.setNotFoundHandler((_req, res) => {
@@ -213,6 +232,13 @@ export default class App {
         url: "/api/v1/openapi.yaml",
       },
     });
+    this.fastify.register(scalarReference, {
+      routePrefix: "/api/v2/docs",
+      configuration: {
+        title: "BTSearch API v2 Documentation",
+        url: "/api/v2/openapi.json",
+      },
+    });
     this.fastify.register(staticServe, {
       root: resolve(process.cwd(), "static"),
       prefix: "/",
@@ -224,8 +250,12 @@ export default class App {
       decorateReply: false,
       maxAge: "365d",
       immutable: true,
-      setHeaders: (reply) => {
+      setHeaders: (reply, filePath) => {
         if (getRuntimeSettings().enforceAuthForAllRoutes) reply.header("Cache-Control", "private, max-age=31536000, immutable");
+        if (!filePath.endsWith(".svg")) return;
+
+        reply.header("Content-Security-Policy", UPLOADED_SVG_POLICY);
+        reply.header("X-Content-Type-Options", "nosniff");
       },
     });
     this.fastify.get("/api/v1/openapi.yaml", (_req, res) => res.sendFile("openapi.yaml"));
@@ -235,6 +265,7 @@ export default class App {
     this.fastify.register(SEOPagesController);
     this.fastify.register(OGImagesController);
     this.fastify.register(APIv1Controller, { prefix: "/api/v1" });
+    this.fastify.register(APIv2Controller, { prefix: "/api/v2" });
   }
 
   public async listen(port: number): Promise<void> {
@@ -243,7 +274,9 @@ export default class App {
       await this.fastify.listen({ port, host: "0.0.0.0" });
       this.dlogger("Server is ready on port %d", port);
     } catch (err) {
+      logger.error("server.start", { error: err });
       this.dlogger("Error starting server: %O", err);
+      await flushLogs();
       process.exit(1);
     }
   }

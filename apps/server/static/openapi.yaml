@@ -3,7 +3,7 @@ info:
   title: BTSearch API
   description: |
     API documentation for BTSearch Backend
-    Last updated: 2026-09-30
+    Last updated: 2026-10-06
   version: 1.4.3
 
 servers:
@@ -12,7 +12,6 @@ servers:
 
 tags:
   - name: Health
-  - name: Settings
   - name: Stats
   - name: Cells
   - name: Stations
@@ -24,8 +23,6 @@ tags:
   - name: Locations
   - name: Submissions
   - name: Notifications
-  - name: Deleted Entries
-  - name: Analyzer
   - name: Search
   - name: Audit Logs
   - name: UKE
@@ -54,48 +51,6 @@ paths:
                     properties:
                       status: { type: string, example: ok }
                       timestamp: { type: string, format: date-time }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /settings:
-    get:
-      tags: [Settings]
-      summary: Get runtime settings
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    $ref: "#/components/schemas/RuntimeSettings"
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    patch:
-      tags: [Settings]
-      summary: Update runtime settings
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RuntimeSettingsPatch"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: "#/components/schemas/RuntimeSettings" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /stats:
@@ -1736,7 +1691,7 @@ paths:
           schema: { type: string, enum: [id, updatedAt, createdAt] }
         - name: azimuths
           in: query
-          description: Include station sector azimuths under each station when true
+          description: Include station sector azimuths under each station when true. When the request names technologies or bands (`rat`, `bands`, or the `rat:` and `band:` keywords in `q`), a station's azimuths are only the ones that have such a cell, and the ones that have no cells attached. `rat` and `bands` together ask for one cell that is both, as the station filter does. `iot` in `rat` counts a cell that is IoT-capable
           schema: { type: boolean, default: false }
         - name: status
           in: query
@@ -1812,10 +1767,6 @@ paths:
         - name: since
           in: query
           schema: { type: string, pattern: "^(createdAt|updatedAt)(?:,(createdAt|updatedAt))?:\\d+$" }
-        - name: azimuths
-          in: query
-          description: Include station sector azimuths under each station when true
-          schema: { type: boolean, default: false }
         - name: status
           in: query
           description: "Comma-separated station statuses to include. Defaults to `published,pending`"
@@ -2138,50 +2089,6 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /submissions:
-    get:
-      tags: [Submissions]
-      summary: List own submissions
-      description: Returns only submissions belonging to the authenticated user
-      security:
-        - CookieAuth: []
-      parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
-        - name: offset
-          in: query
-          schema: { type: integer, minimum: 0, default: 0 }
-        - name: status
-          in: query
-          schema: { type: string, enum: [pending, approved, rejected] }
-        - name: type
-          in: query
-          schema: { type: string, enum: [new, update, delete] }
-        - name: operators
-          in: query
-          description: Comma-separated PLMN numbers. Matches the linked station's operator or, for new stations, the proposed station's operator
-          schema: { type: string, pattern: "^\\d+(,\\d+)*$" }
-        - name: search
-          in: query
-          description: Search by submission ID prefix, station ID, or proposed station ID
-          schema: { type: string }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, totalCount]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/SubmissionWithRelations" } }
-                  totalCount: { type: integer }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
   /admin/users/search:
     get:
       tags: [Admin]
@@ -2222,430 +2129,11 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /submissions/admin:
-    get:
-      tags: [Submissions]
-      summary: List all submissions (admin)
-      description: Returns all submissions across all users. Requires `read_all:submissions` permission
-      security:
-        - CookieAuth: []
-      parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
-        - name: offset
-          in: query
-          schema: { type: integer, minimum: 0, default: 0 }
-        - name: status
-          in: query
-          schema: { type: string, enum: [pending, approved, rejected] }
-        - name: type
-          in: query
-          schema: { type: string, enum: [new, update, delete] }
-        - name: submitter_ids
-          in: query
-          description: Comma-separated list of submitter user IDs to filter by
-          schema: { type: string }
-        - name: operators
-          in: query
-          description: Comma-separated operator PLMNs to filter by
-          schema: { type: string, pattern: '^\d+(,\d+)*$' }
-        - name: regions
-          in: query
-          description: Comma-separated 3-letter region codes to filter by
-          schema: { type: string, pattern: "^[A-Z]{3}(,[A-Z]{3})*$" }
-        - name: search
-          in: query
-          description: Search by submission ID prefix or station ID
-          schema: { type: string }
-        - name: sort
-          in: query
-          description: Sort direction by createdAt. Defaults to asc (oldest first)
-          schema: { type: string, enum: [asc, desc], default: asc }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, totalCount]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/SubmissionWithRelations" } }
-                  totalCount: { type: integer }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    post:
-      tags: [Submissions]
-      summary: Create submission(s) (single object or array of 1-10)
-      description: If any of the items in the array is invalid or will throw an error, the entire request will be rejected with an error and no submissions will be created
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: "#/components/schemas/SubmissionCreateSingle"
-                - type: array
-                  minItems: 1
-                  maxItems: 10
-                  items: { $ref: "#/components/schemas/SubmissionCreateSingle" }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/SubmissionCreateResponse" } }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/{id}:
-    get:
-      tags: [Submissions]
-      summary: Get submission by ID (UUID)
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: "#/components/schemas/SubmissionFull" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    patch:
-      tags: [Submissions]
-      summary: Update submission
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/SubmissionUpdate" }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: "#/components/schemas/SubmissionWithCells" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    delete:
-      tags: [Submissions]
-      summary: Delete submission
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      responses:
-        "204": { description: No Content }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/{id}/approve:
-    post:
-      tags: [Submissions]
-      summary: Approve submission
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                review_notes: { type: string, nullable: true }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: "#/components/schemas/Submission" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/{id}/reject:
-    post:
-      tags: [Submissions]
-      summary: Reject submission
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                review_notes: { type: string, nullable: true }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: "#/components/schemas/Submission" }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/{id}/photos:
-    get:
-      tags: [Submissions]
-      summary: List photos for a submission
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/SubmissionPhoto" } }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    post:
-      tags: [Submissions]
-      summary: Upload photos for a submission (multipart/form-data)
-      description: Accepts interleaved `notes`, `takenAts` and `isMains` fields alongside `files` fields, each corresponding to the file at the same index. Max 10 photos per submission, max 20 MB per file; sending one file per request is recommended. Only the submission's owner can upload while status is pending
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                notes: { type: string, description: "Optional note for the corresponding file (max 100 chars)" }
-                takenAts:
-                  {
-                    type: string,
-                    format: date-time,
-                    nullable: true,
-                    description: "Optional ISO 8601 datetime when the corresponding photo was taken, must not be in the future. When empty, the photo's EXIF capture date is used",
-                  }
-                isMains:
-                  {
-                    type: string,
-                    enum: ["true", "false"],
-                    description: "Whether the corresponding photo should become the station's main photo on approval. At most one file may be marked; any previously proposed main for this submission is cleared",
-                  }
-                files: { type: string, format: binary }
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/UploadedPhoto" } }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/{id}/photos/{photo_id}:
-    patch:
-      tags: [Submissions]
-      summary: Update a submission photo note
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: photo_id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: At least one field (note or taken_at) must be provided
-              properties:
-                note: { type: string, maxLength: 100 }
-                taken_at:
-                  { type: string, format: date-time, nullable: true, description: "Date the photo was taken (ISO 8601), must not be in the future" }
-      responses:
-        "204": { description: No Content }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    delete:
-      tags: [Submissions]
-      summary: Delete a submission photo
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: photo_id
-          in: path
-          required: true
-          schema: { type: integer }
-      responses:
-        "204": { description: No Content }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/batch:
-    post:
-      tags: [Submissions]
-      summary: Create a batch of submissions
-      description: |
-        Creates up to 25 submissions in a single atomic transaction. If any item fails validation the entire batch is rejected and no submissions are created.
-        Each item must include at least 2 cell changes. A shared `submitter_note` can be provided at the top level and will be used for any item that does not supply its own note.
-      security:
-        - CookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [items]
-              properties:
-                submitter_note:
-                  type: string
-                  maxLength: 2000
-                  nullable: true
-                items:
-                  type: array
-                  minItems: 1
-                  maxItems: 25
-                  items: { $ref: "#/components/schemas/SubmissionCreateSingle" }
-      responses:
-        "200":
-          description: All submissions created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/SubmissionCreateResponse" } }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
   /submissions/cleanup:
     post:
       tags: [Submissions]
       summary: Clean up old submissions
-      description: Deletes proposed data (cells, sectors, stations, locations) for submissions older than 1 month
+      description: Deletes proposed data (cells, sectors, stations, locations) for approved and rejected submissions older than 1 month. Pending submissions are never touched
       security:
         - CookieAuth: []
       responses:
@@ -2662,32 +2150,6 @@ paths:
                     required: [cleaned]
                     properties:
                       cleaned: { type: integer }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /submissions/cleanup-photos:
-    post:
-      tags: [Submissions]
-      summary: Clean up rejected submission photos
-      description: Deletes attachment files and records for photos uploaded to rejected submissions that were never assigned to a station
-      security:
-        - CookieAuth: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [deleted]
-                    properties:
-                      deleted: { type: integer }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
@@ -2778,332 +2240,6 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /deleted-entries:
-    get:
-      tags: [Deleted Entries]
-      summary: List deleted entries
-      parameters:
-        - name: source_table
-          in: query
-          schema: { type: string, enum: [uke_permits, uke_radiolines] }
-        - name: source_type
-          in: query
-          schema: { type: string, enum: [permits, device_registry, radiolines] }
-        - name: from
-          in: query
-          schema: { type: string, format: date }
-        - name: to
-          in: query
-          schema: { type: string, format: date }
-        - name: page
-          in: query
-          schema: { type: integer, minimum: 1, default: 1 }
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
-        - name: search
-          in: query
-          schema: { type: string }
-        - name: sort
-          in: query
-          description: Sort direction by deleted_at, ties broken by id. Defaults to desc (newest first)
-          schema: { type: string, enum: [asc, desc], default: desc }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, totalCount]
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: "#/components/schemas/DeletedEntry" }
-                  totalCount: { type: integer }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /deleted-entries/summary:
-    get:
-      tags: [Deleted Entries]
-      summary: Get summary of deleted entries
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [total_deleted, by_source, by_import]
-                    properties:
-                      total_deleted: { type: integer }
-                      by_source:
-                        type: array
-                        items: { $ref: "#/components/schemas/DeletedEntriesBySource" }
-                      by_import:
-                        type: array
-                        items: { $ref: "#/components/schemas/DeletedEntriesByImport" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /analyzer:
-    post:
-      tags: [Analyzer]
-      summary: Analyze NTM/NetMonster log cells against the database
-      description: Cross-references up to 20,000 parsed cell records against the internal station database. Returns a result for each input cell indicating whether it was found, probably matched, or not found
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [cells]
-              properties:
-                cells:
-                  type: array
-                  minItems: 1
-                  maxItems: 20000
-                  items:
-                    oneOf:
-                      - type: object
-                        required: [rat, mnc, lac, cid]
-                        properties:
-                          rat: { type: string, enum: [GSM] }
-                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
-                          lac: { type: integer, minimum: 0, maximum: 65535 }
-                          cid: { type: integer, minimum: 0, maximum: 65535 }
-                      - type: object
-                        required: [rat, mnc, lac, cid, rnc]
-                        properties:
-                          rat: { type: string, enum: [UMTS] }
-                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
-                          lac: { type: integer, minimum: 0, maximum: 65535 }
-                          cid: { type: integer, minimum: 0, maximum: 65535 }
-                          rnc: { type: integer, minimum: 0, maximum: 65535, nullable: true }
-                          uarfcn: { type: integer, minimum: 0, maximum: 16383 }
-                      - type: object
-                        required: [rat, mnc, tac, enbid, clid, pci]
-                        properties:
-                          rat: { type: string, enum: [LTE] }
-                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
-                          tac: { type: integer, minimum: 0, maximum: 65535 }
-                          enbid: { type: integer, minimum: 0, maximum: 1048575 }
-                          clid: { type: integer, minimum: 0, maximum: 255 }
-                          pci: { type: integer, minimum: 0, maximum: 503 }
-                          earfcn: { type: integer, minimum: 0, maximum: 262143 }
-                      - type: object
-                        required: [rat, mnc]
-                        properties:
-                          rat: { type: string, enum: [NR] }
-                          mnc: { type: integer, description: "PLMN (e.g. 26002)" }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      required: [status, warnings]
-                      properties:
-                        status:
-                          type: string
-                          enum: [found, probable, not_found, unsupported]
-                        warnings:
-                          type: array
-                          items:
-                            {
-                              type: string,
-                              enum:
-                                [lac_mismatch, rnc_mismatch, uarfcn_mismatch, tac_mismatch, pci_mismatch, pci_missing, earfcn_mismatch, enbid_only],
-                            }
-                        station:
-                          $ref: "#/components/schemas/AnalyzerStation"
-                        cell:
-                          oneOf:
-                            - type: object
-                              required: [rat, type, lac, cid]
-                              properties:
-                                rat: { type: string, enum: [GSM] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                notes: { type: string, nullable: true }
-                                lac: { type: integer }
-                                cid: { type: integer }
-                            - type: object
-                              required: [rat, type, rnc, cid]
-                              properties:
-                                rat: { type: string, enum: [UMTS] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                notes: { type: string, nullable: true }
-                                rnc: { type: integer, minimum: 0, maximum: 65535 }
-                                cid: { type: integer, minimum: 0, maximum: 65535 }
-                                lac: { type: integer, minimum: 0, maximum: 65535, nullable: true }
-                                arfcn: { type: integer, minimum: 0, maximum: 16383, nullable: true }
-                            - type: object
-                              required: [rat, type, enbid]
-                              properties:
-                                rat: { type: string, enum: [LTE] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                notes: { type: string, nullable: true }
-                                enbid: { type: integer, minimum: 0, maximum: 1048575 }
-                                clid: { type: integer, minimum: 0, maximum: 255, nullable: true }
-                                tac: { type: integer, minimum: 0, maximum: 65535, nullable: true }
-                                pci: { type: integer, minimum: 0, maximum: 503, nullable: true }
-                                earfcn: { type: integer, minimum: 0, maximum: 262143, nullable: true }
-                            - type: object
-                              required: [rat]
-                              properties:
-                                rat: { type: string, enum: [NR] }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /analyzer/apply:
-    post:
-      tags: [Analyzer]
-      summary: Apply cell additions and updates from analyzer results
-      description: |
-        Applies a batch of cell add/update operations to stations. Each item in the batch targets one station and contains one or more cell operations.
-        The batch is capped at 25 station items.
-      security:
-        - CookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [items]
-              properties:
-                items:
-                  type: array
-                  minItems: 1
-                  maxItems: 25
-                  items:
-                    type: object
-                    required: [station_id, cells]
-                    properties:
-                      station_id:
-                        type: integer
-                      cells:
-                        type: array
-                        minItems: 1
-                        items:
-                          oneOf:
-                            - description: Add a new GSM cell
-                              type: object
-                              required: [operation, band_id, rat, details]
-                              properties:
-                                operation: { type: string, enum: [add] }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [GSM] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/GsmCellDetails" }
-                            - description: Add a new UMTS cell
-                              type: object
-                              required: [operation, band_id, rat, details]
-                              properties:
-                                operation: { type: string, enum: [add] }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [UMTS] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/UmtsCellDetailsInsert" }
-                            - description: Add a new LTE cell
-                              type: object
-                              required: [operation, band_id, rat, details]
-                              properties:
-                                operation: { type: string, enum: [add] }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [LTE] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/LteCellDetailsInsert" }
-                            - description: Add a new NR cell
-                              type: object
-                              required: [operation, band_id, rat, details]
-                              properties:
-                                operation: { type: string, enum: [add] }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [NR] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/NrCellDetailsInsert" }
-                            - description: Update an existing GSM cell
-                              type: object
-                              required: [operation, band_id, rat, target_cell_id]
-                              properties:
-                                operation: { type: string, enum: [update] }
-                                target_cell_id: { type: integer }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [GSM] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/GsmCellDetails" }
-                            - description: Update an existing UMTS cell
-                              type: object
-                              required: [operation, band_id, rat, target_cell_id]
-                              properties:
-                                operation: { type: string, enum: [update] }
-                                target_cell_id: { type: integer }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [UMTS] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/UmtsCellDetailsInsert" }
-                            - description: Update an existing LTE cell
-                              type: object
-                              required: [operation, band_id, rat, target_cell_id]
-                              properties:
-                                operation: { type: string, enum: [update] }
-                                target_cell_id: { type: integer }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [LTE] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/LteCellDetailsInsert" }
-                            - description: Update an existing NR cell
-                              type: object
-                              required: [operation, band_id, rat, target_cell_id]
-                              properties:
-                                operation: { type: string, enum: [update] }
-                                target_cell_id: { type: integer }
-                                band_id: { type: integer }
-                                rat: { type: string, enum: [NR] }
-                                type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-                                details: { $ref: "#/components/schemas/NrCellDetailsInsert" }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      required: [station_id, applied]
-                      properties:
-                        station_id: { type: integer }
-                        applied:
-                          type: integer
-                          description: Number of cell operations successfully applied for this station
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
   /search:
     post:
       tags: [Search]
@@ -3156,6 +2292,9 @@ paths:
     get:
       tags: [Audit Logs]
       summary: List audit operations
+      description: >-
+        Admins see every operation. A signed-in country maintainer sees only the operations whose `country_code` is a country they maintain.
+        Everyone else gets 403.
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3222,6 +2361,7 @@ paths:
     get:
       tags: [Audit Logs]
       summary: Get an audit operation and its entries
+      description: A country maintainer gets 404 for an operation outside the countries they maintain.
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3247,6 +2387,9 @@ paths:
     post:
       tags: [Audit Logs]
       summary: Revert all supported changes in an operation or selected entries
+      description: >-
+        A country maintainer can revert an operation of a country they maintain. They get 404 for any other operation, and 403 when the rows
+        the operation changed have since moved to another country.
       security:
         - ApiKeyAuth: []
         - CookieAuth: []
@@ -3272,6 +2415,28 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/AuditConflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /uke/bands:
+    get:
+      tags: [UKE]
+      summary: List UKE permit band labels
+      description: |
+        Returns all permit labels ordered by technology and MHz. Each label has the v1 band shape, with `duplex` and `code` always null.
+        These labels are separate from the bands used by cells and country band plans.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Band" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -4664,51 +3829,6 @@ components:
                     field: { type: string }
                     validationMessage: { type: string, nullable: true }
 
-    RuntimeSettings:
-      type: object
-      required:
-        [
-          enforceAuthForAllRoutes,
-          allowedUnauthenticatedRoutes,
-          disabledRoutes,
-          enableStationComments,
-          commentQueueEnabled,
-          submissionsEnabled,
-          photosEnabled,
-          announcement,
-        ]
-      properties:
-        enforceAuthForAllRoutes: { type: boolean }
-        allowedUnauthenticatedRoutes: { type: array, items: { type: string } }
-        disabledRoutes: { type: array, items: { type: string } }
-        enableStationComments: { type: boolean }
-        commentQueueEnabled: { type: boolean }
-        submissionsEnabled: { type: boolean }
-        photosEnabled: { type: boolean }
-        announcement:
-          type: object
-          required: [message, enabled, type]
-          properties:
-            message: { type: string }
-            enabled: { type: boolean }
-            type: { type: string, enum: [info, warning, error] }
-    RuntimeSettingsPatch:
-      type: object
-      properties:
-        enforceAuthForAllRoutes: { type: boolean }
-        allowedUnauthenticatedRoutes: { type: array, items: { type: string } }
-        disabledRoutes: { type: array, items: { type: string } }
-        enableStationComments: { type: boolean }
-        commentQueueEnabled: { type: boolean }
-        submissionsEnabled: { type: boolean }
-        photosEnabled: { type: boolean }
-        announcement:
-          type: object
-          properties:
-            message: { type: string }
-            enabled: { type: boolean }
-            type: { type: string, enum: [info, warning, error] }
-
     PhotoAuthor:
       type: object
       nullable: true
@@ -4775,12 +3895,6 @@ components:
         taken_at: { type: string, format: date-time, nullable: true, description: "Date the photo was taken" }
         createdAt: { type: string, format: date-time }
         author: { $ref: "#/components/schemas/PhotoAuthor" }
-    LocationPhotoSelection:
-      allOf:
-        - $ref: "#/components/schemas/LocationPhoto"
-        - type: object
-          properties:
-            is_main: { type: boolean }
     Notification:
       type: object
       required: [id, type, title, readAt, createdAt, updatedAt, actionUrl, station, submission, actor, note, changes, count]
@@ -4853,22 +3967,6 @@ components:
             ukeStationsAdded: { type: integer }
             removedFromUke: { type: boolean }
         count: { type: integer, description: Number of events merged into this notification }
-    SubmissionPhoto:
-      type: object
-      required: [id, attachment_uuid, mime_type, width, height, has_thumb, has_full, note, taken_at, is_main, createdAt, author]
-      properties:
-        id: { type: integer }
-        attachment_uuid: { type: string, format: uuid }
-        mime_type: { type: string }
-        width: { $ref: "#/components/schemas/PhotoWidth" }
-        height: { $ref: "#/components/schemas/PhotoHeight" }
-        has_thumb: { $ref: "#/components/schemas/PhotoHasThumb" }
-        has_full: { $ref: "#/components/schemas/PhotoHasFull" }
-        note: { type: string, maxLength: 100, nullable: true }
-        taken_at: { type: string, format: date-time, nullable: true }
-        is_main: { type: boolean, description: "Whether this photo is proposed as the station's main photo once the submission is approved" }
-        createdAt: { type: string, format: date-time }
-        author: { $ref: "#/components/schemas/PhotoAuthor" }
 
     Band:
       type: object
@@ -4877,8 +3975,9 @@ components:
         value: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
         name: { type: string }
-        duplex: { type: string, enum: [FDD, TDD], nullable: true }
+        duplex: { type: string, enum: [FDD, TDD, SDL], nullable: true }
         variant: { type: string, enum: [commercial, railway] }
+        code: { type: string, nullable: true, description: "3GPP band, for example B3, n78, VIII or E-GSM900" }
     BandCreate:
       type: object
       required: [rat, name]
@@ -4886,16 +3985,18 @@ components:
         value: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
         name: { type: string }
-        duplex: { type: string, enum: [FDD, TDD], nullable: true }
+        duplex: { type: string, enum: [FDD, TDD, SDL], nullable: true }
         variant: { type: string, enum: [commercial, railway] }
+        code: { type: string, nullable: true }
     BandUpdate:
       type: object
       properties:
         value: { type: integer, nullable: true }
         rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR, IOT] }
         name: { type: string }
-        duplex: { type: string, enum: [FDD, TDD], nullable: true }
+        duplex: { type: string, enum: [FDD, TDD, SDL], nullable: true }
         variant: { type: string, enum: [commercial, railway] }
+        code: { type: string, nullable: true }
 
     Operator:
       type: object
@@ -4905,6 +4006,10 @@ components:
         full_name: { type: string }
         parent_id: { type: integer, nullable: true }
         mnc: { type: integer, nullable: true }
+        countryCode: { type: string, description: "ISO 3166-1 alpha-2 country code" }
+        brandId: { type: integer, nullable: true }
+        shortCode: { type: string, nullable: true }
+        sortPriority: { type: integer, nullable: true, description: "Position among the country's main operators, lowest first" }
     OperatorCreate:
       type: object
       required: [name, full_name]
@@ -4927,6 +4032,8 @@ components:
         id: { type: integer }
         name: { type: string }
         code: { type: string }
+        countryCode: { type: string, description: "ISO 3166-1 alpha-2 country code" }
+        isoCode: { type: string, nullable: true, description: "ISO 3166-2 code, for example PL-14" }
     RegionCreate:
       type: object
       required: [name, code]
@@ -4988,7 +4095,7 @@ components:
             cells: { type: array, items: { $ref: "#/components/schemas/CellWithBand" } }
             sectors:
               type: array
-              description: Included only when the location endpoint is called with `?azimuths=true`
+              description: Included only when `GET /locations` is called with `?azimuths=true`. Follows the technologies and bands the request names, see that parameter
               items: { $ref: "#/components/schemas/StationSector" }
             operator:
               allOf:
@@ -5012,19 +4119,6 @@ components:
         status: { type: string, enum: [published, inactive, pending] }
         operator: { $ref: "#/components/schemas/Operator" }
 
-    AnalyzerStation:
-      type: object
-      required: [id, station_id, updatedAt, createdAt, operator, location]
-      properties:
-        id: { type: integer }
-        station_id: { type: string }
-        notes: { type: string, nullable: true }
-        extra_address: { type: string, nullable: true }
-        updatedAt: { type: string, format: date-time }
-        createdAt: { type: string, format: date-time }
-        is_confirmed: { type: boolean, nullable: true }
-        operator: { $ref: "#/components/schemas/Operator" }
-        location: { $ref: "#/components/schemas/LocationWithRegion" }
     StationRecord:
       type: object
       description: Raw station database record as returned by update operations (no joined relations)
@@ -5304,7 +4398,7 @@ components:
         station_id: { type: integer }
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
-        rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        rat: { type: string, enum: [GSM, UMTS, LTE, NR] }
         type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
@@ -5314,7 +4408,7 @@ components:
       properties:
         band_id: { type: integer }
         sector_id: { type: integer, nullable: true }
-        rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        rat: { type: string, enum: [GSM, UMTS, LTE, NR] }
         type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }
@@ -5348,310 +4442,6 @@ components:
                   description: "Null when the author's profile is private, unless the viewer is the author, an editor or an admin"
                 image: { type: string, nullable: true }
 
-    Submission:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        station_id: { type: integer, nullable: true }
-        submitter_id: { type: string, format: uuid, nullable: true }
-        status: { type: string, enum: [pending, approved, rejected] }
-        type: { type: string, enum: [new, update, delete] }
-        reviewer_id: { type: string, format: uuid, nullable: true }
-        review_notes: { type: string, nullable: true }
-        submitter_note: { type: string, nullable: true }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-        reviewed_at: { type: string, format: date-time, nullable: true }
-    SubmissionCreateSingle:
-      type: object
-      properties:
-        station_id: { type: integer, nullable: true }
-        type: { type: string, enum: [new, update, delete] }
-        submitter_note: { type: string, nullable: true }
-        station:
-          allOf:
-            - $ref: "#/components/schemas/ProposedStationInsert"
-          nullable: true
-        location:
-          allOf:
-            - $ref: "#/components/schemas/ProposedLocationInsert"
-          nullable: true
-        sectors:
-          type: array
-          nullable: true
-          description: One entry per added, edited or removed azimuth; untouched azimuths are left out. Entries without `operation` are read as the complete azimuth list
-          items: { $ref: "#/components/schemas/ProposedSectorInsert" }
-        cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellInsert" }, nullable: true }
-        pending_photos: { type: integer, nullable: true, description: "Number of photos expected to be uploaded after submission creation" }
-        location_photo_ids:
-          {
-            type: array,
-            items: { type: integer },
-            maxItems: 50,
-            nullable: true,
-            description: "IDs of location photos the submitter wants assigned to the station",
-          }
-        location_photo_ids_to_remove:
-          {
-            type: array,
-            items: { type: integer },
-            maxItems: 50,
-            nullable: true,
-            description: "IDs of currently assigned station photos the submitter wants removed from the station",
-          }
-        main_location_photo_id:
-          { type: integer, nullable: true, description: "ID from `location_photo_ids` to mark as the main station photo when approved" }
-    ProposedStationInsert:
-      type: object
-      description: New stations need `operator_id`. Updates store only the fields that changed, and `null` clears extra identifiers or uplink fields
-      properties:
-        operation: { type: string, enum: [add, update, delete], default: add }
-        target_station_id: { type: integer, nullable: true }
-        station_id: { type: string, nullable: true }
-        operator_id: { type: integer, nullable: true }
-        notes: { type: string, nullable: true }
-        networks_id: { type: integer, nullable: true }
-        networks_name: { type: string, nullable: true, maxLength: 50 }
-        mno_name: { type: string, nullable: true, maxLength: 50 }
-        uplink_type:
-          {
-            type: string,
-            enum: [fiber, microwave, satellite],
-            nullable: true,
-            description: "For update submissions, omitting the field keeps the station's current uplink and `null` removes it",
-          }
-        uplink_speed: { type: integer, nullable: true, minimum: 1, maximum: 2147483647, description: "Uplink capacity in Mbps" }
-        uplink_model: { type: string, nullable: true, maxLength: 100, description: "Microwave link equipment model. Ignored for other types" }
-    ProposedLocationInsert:
-      type: object
-      description: New stations and stations without a location need a region and coordinates. Updates store only the fields that changed, and `null` clears city or address
-      properties:
-        region_id: { type: integer, nullable: true }
-        city: { type: string, nullable: true }
-        address: { type: string, nullable: true }
-        longitude: { type: number, nullable: true }
-        latitude: { type: number, nullable: true }
-    ProposedSectorInsert:
-      type: object
-      required: [local_id, azimuth]
-      properties:
-        operation:
-          type: string
-          enum: [add, update, delete]
-          nullable: true
-          description: Omit on every entry to send the complete azimuth list instead of changes
-        target_sector_id:
-          { type: integer, nullable: true, description: "Existing station sector ID being edited or removed. Omit/null for a newly proposed sector" }
-        local_id:
-          { type: string, description: "Client-generated identifier used by proposed cells to reference this proposed sector before approval" }
-        azimuth: { type: integer, minimum: 0, maximum: 360, description: "New azimuth. For `delete` the azimuth being removed" }
-    ProposedCellInsert:
-      type: object
-      properties:
-        target_cell_id: { type: integer, nullable: true }
-        station_id: { type: integer, nullable: true }
-        band_id: { type: integer, nullable: true }
-        target_sector_id: { type: integer, nullable: true, description: "Existing station sector ID to assign to the proposed cell" }
-        sector_local_id: { type: string, nullable: true, description: "Local ID of a proposed sector to assign to the proposed cell" }
-        sector_unassigned: { type: boolean, nullable: true, description: "When true, approval clears the cell sector assignment" }
-        rat: { type: string, enum: [GSM, UMTS, LTE, NR], nullable: true }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-        notes: { type: string, nullable: true }
-        is_confirmed:
-          { type: boolean, nullable: true, description: "Only respected when sent by an admin; regular submitters cannot self-confirm cells" }
-        operation: { type: string, enum: [add, update, delete] }
-        details:
-          allOf:
-            - $ref: "#/components/schemas/CellDetailsInsert"
-          nullable: true
-    SubmissionWithRelations:
-      allOf:
-        - $ref: "#/components/schemas/Submission"
-        - type: object
-          properties:
-            station:
-              allOf:
-                - $ref: "#/components/schemas/Station"
-              nullable: true
-            submitter:
-              allOf:
-                - $ref: "#/components/schemas/UserPublic"
-              nullable: true
-            reviewer:
-              allOf:
-                - $ref: "#/components/schemas/UserPublic"
-              nullable: true
-            cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellWithDetails" } }
-            proposedStation:
-              allOf:
-                - $ref: "#/components/schemas/ProposedStation"
-              nullable: true
-    SubmissionFull:
-      allOf:
-        - $ref: "#/components/schemas/Submission"
-        - type: object
-          properties:
-            station:
-              allOf:
-                - $ref: "#/components/schemas/Station"
-              nullable: true
-            submitter:
-              allOf:
-                - $ref: "#/components/schemas/UserFull"
-              nullable: true
-            reviewer:
-              allOf:
-                - $ref: "#/components/schemas/UserPublic"
-              nullable: true
-            proposedLocation:
-              allOf:
-                - $ref: "#/components/schemas/ProposedLocation"
-              nullable: true
-            proposedStation:
-              allOf:
-                - $ref: "#/components/schemas/ProposedStation"
-              nullable: true
-            sectors: { type: array, items: { $ref: "#/components/schemas/ProposedSector" } }
-            cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellWithDetails" } }
-            locationPhotoSelections: { type: array, items: { $ref: "#/components/schemas/LocationPhotoSelection" } }
-            locationPhotoRemovalSelections: { type: array, items: { $ref: "#/components/schemas/LocationPhoto" } }
-    SubmissionWithCells:
-      allOf:
-        - $ref: "#/components/schemas/Submission"
-        - type: object
-          properties:
-            sectors: { type: array, items: { $ref: "#/components/schemas/ProposedSector" } }
-            cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellWithDetails" } }
-    SubmissionCreateResponse:
-      allOf:
-        - $ref: "#/components/schemas/Submission"
-        - type: object
-          properties:
-            proposedStation:
-              allOf:
-                - $ref: "#/components/schemas/ProposedStation"
-              nullable: true
-            proposedLocation:
-              allOf:
-                - $ref: "#/components/schemas/ProposedLocation"
-              nullable: true
-            sectors: { type: array, items: { $ref: "#/components/schemas/ProposedSector" }, nullable: true }
-            cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellWithDetails" }, nullable: true }
-            pending_photos: { type: integer, nullable: true, description: "Number of photos expected to be uploaded after submission creation" }
-    SubmissionUpdate:
-      type: object
-      properties:
-        review_notes: { type: string, nullable: true }
-        submitter_note: { type: string, nullable: true }
-        station:
-          allOf:
-            - $ref: "#/components/schemas/ProposedStationInsert"
-          nullable: true
-        location:
-          allOf:
-            - $ref: "#/components/schemas/ProposedLocationInsert"
-          nullable: true
-        sectors:
-          type: array
-          nullable: true
-          description: Replaces the stored azimuth changes. An empty array drops them
-          items: { $ref: "#/components/schemas/ProposedSectorInsert" }
-        cells: { type: array, items: { $ref: "#/components/schemas/ProposedCellUpdate" }, nullable: true }
-    ProposedSector:
-      type: object
-      properties:
-        id: { type: integer }
-        submission_id: { type: string, format: uuid, nullable: true }
-        operation:
-          type: string
-          enum: [add, update, delete]
-          nullable: true
-          description: "`null` for older submissions, whose rows are the complete azimuth list"
-        target_sector_id: { type: integer, nullable: true }
-        local_id: { type: string }
-        azimuth: { type: integer, minimum: 0, maximum: 360 }
-        updatedAt: { type: string, format: date-time }
-        createdAt: { type: string, format: date-time }
-    ProposedCellWithDetails:
-      type: object
-      properties:
-        id: { type: integer }
-        submission_id: { type: string, format: uuid }
-        operation: { type: string, enum: [add, update, delete] }
-        target_cell_id: { type: integer, nullable: true }
-        station_id: { type: integer, nullable: true }
-        band_id: { type: integer, nullable: true }
-        target_sector_id: { type: integer, nullable: true }
-        sector_local_id: { type: string, nullable: true }
-        sector_unassigned: { type: boolean, nullable: true }
-        rat: { type: string, nullable: true }
-        type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
-        notes: { type: string, nullable: true }
-        is_confirmed: { type: boolean, nullable: true }
-        details:
-          allOf:
-            - $ref: "#/components/schemas/CellDetails"
-          nullable: true
-    ProposedCellUpdate:
-      allOf:
-        - $ref: "#/components/schemas/ProposedCellInsert"
-    ProposedStation:
-      type: object
-      properties:
-        id: { type: integer }
-        submission_id: { type: string, format: uuid, nullable: true }
-        operation: { type: string, enum: [add, update, delete] }
-        target_station_id: { type: integer, nullable: true }
-        station_id: { type: string, nullable: true }
-        operator_id: { type: integer, nullable: true }
-        notes: { type: string, nullable: true }
-        networks_id: { type: integer, nullable: true }
-        networks_name: { type: string, nullable: true }
-        mno_name: { type: string, nullable: true }
-        uplink_type: { type: string, enum: [fiber, microwave, satellite], nullable: true }
-        uplink_speed: { type: integer, nullable: true, description: "Uplink capacity in Mbps" }
-        uplink_model: { type: string, nullable: true }
-        changed_fields:
-          type: array
-          nullable: true
-          items:
-            { type: string, enum: [station_id, operator_id, notes, networks_id, networks_name, mno_name, uplink_type, uplink_speed, uplink_model] }
-          description: Fields this update changes; listed `null` fields get cleared. `null` for new stations and older submissions, where every non-null field is a change
-        is_confirmed: { type: boolean, nullable: true }
-        updatedAt: { type: string, format: date-time }
-        createdAt: { type: string, format: date-time }
-    ProposedLocation:
-      type: object
-      properties:
-        id: { type: integer }
-        submission_id: { type: string, format: uuid, nullable: true }
-        region_id: { type: integer, nullable: true }
-        city: { type: string, nullable: true }
-        address: { type: string, nullable: true }
-        longitude: { type: number, nullable: true }
-        latitude: { type: number, nullable: true }
-        changed_fields:
-          type: array
-          nullable: true
-          items: { type: string, enum: [region_id, city, address, longitude, latitude] }
-          description: Fields this update changes; listed `null` fields get cleared. `null` for new stations and older submissions, where every non-null field is a change
-        updatedAt: { type: string, format: date-time }
-        createdAt: { type: string, format: date-time }
-    UserPublic:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        name: { type: string, nullable: true }
-        image: { type: string, nullable: true }
-        username: { type: string, nullable: true }
-    UserFull:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        username: { type: string, nullable: true }
-        email: { type: string }
-        image: { type: string, nullable: true }
-        name: { type: string }
     UserProfile:
       type: object
       required: [user, visibility, restricted, contact, contactHidden, hunter, comments]
@@ -5755,12 +4545,31 @@ components:
         - operator.create
         - operator.update
         - operator.delete
+        - brand.create
+        - brand.update
+        - brand.delete
+        - structure_owner.create
+        - structure_owner.update
+        - structure_owner.delete
         - band.create
         - band.update
         - band.delete
         - region.create
         - region.update
         - region.delete
+        - country.create
+        - country.update
+        - country.delete
+        - country.bands
+        - grant.create
+        - grant.update
+        - grant.delete
+        - user.role
+        - user.email
+        - user.password
+        - user.ban
+        - user.unban
+        - user.delete
         - list.create
         - list.update
         - list.delete
@@ -5784,8 +4593,14 @@ components:
         - submissions
         - submission_photos
         - operators
+        - brands
+        - structure_owners
         - bands
         - regions
+        - countries
+        - country_bands
+        - role_grants
+        - users
         - user_lists
         - settings
     AuditOp:
@@ -5823,6 +4638,7 @@ components:
           ip_address,
           user_agent,
           metadata,
+          country_code,
           reverts_operation_id,
           reverted_by_operation_id,
           entry_count,
@@ -5834,6 +4650,10 @@ components:
         kind: { $ref: "#/components/schemas/AuditOperationKind" }
         source: { $ref: "#/components/schemas/AuditSource" }
         client_key: { type: string, format: uuid, nullable: true }
+        country_code:
+          type: string
+          nullable: true
+          description: The one country every changed row of the operation belongs to; null when it spans countries or changes shared reference data
         createdAt: { type: string, format: date-time }
         actor:
           allOf: [{ $ref: "#/components/schemas/AuditUserSummary" }]
@@ -5841,8 +4661,8 @@ components:
         performer:
           allOf: [{ $ref: "#/components/schemas/AuditUserSummary" }]
           nullable: true
-        ip_address: { type: string, nullable: true }
-        user_agent: { type: string, nullable: true }
+        ip_address: { type: string, nullable: true, description: Always null for a country maintainer }
+        user_agent: { type: string, nullable: true, description: Always null for a country maintainer }
         metadata: { type: object, nullable: true, additionalProperties: true }
         reverts_operation_id: { type: integer, nullable: true }
         reverted_by_operation_id: { type: integer, nullable: true }
@@ -6084,6 +4904,7 @@ components:
         id: { type: integer }
         name: { type: string }
         full_name: { type: string }
+        brandId: { type: integer, nullable: true }
     UkeStation:
       type: object
       properties:
@@ -6371,29 +5192,6 @@ components:
         stations: { type: integer }
         cells: { type: integer }
 
-    # Deleted entries schemas
-    DeletedEntry:
-      type: object
-      properties:
-        id: { type: integer }
-        source_table: { type: string }
-        source_id: { type: integer }
-        source_type: { type: string }
-        data: { type: object }
-        deleted_at: { type: string, format: date-time }
-        import_id: { type: integer, nullable: true }
-    DeletedEntriesBySource:
-      type: object
-      properties:
-        source_type: { type: string }
-        count: { type: integer }
-    DeletedEntriesByImport:
-      type: object
-      properties:
-        import_id: { type: integer }
-        date: { type: string, format: date }
-        deleted_count: { type: integer }
-
     # UKE unassigned permits schema
     UnassignedPermitStation:
       type: object
@@ -6421,7 +5219,7 @@ components:
       properties:
         cell_id: { type: integer }
         band_id: { type: integer }
-        rat: { type: string, enum: [GSM, CDMA, UMTS, LTE, NR] }
+        rat: { type: string, enum: [GSM, UMTS, LTE, NR] }
         type: { type: string, enum: [MACROCELL, MICROCELL, PICOCELL, FEMTOCELL], nullable: true }
         notes: { type: string, nullable: true }
         is_confirmed: { type: boolean, nullable: true }

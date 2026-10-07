@@ -15,10 +15,32 @@ interface RequireRoleProps {
   allowedRoles?: string[];
 }
 
-export function RequireRole({ children, allowedRoles = ["admin"] }: RequireRoleProps) {
-  const { data: session, isPending } = useSettledSession();
+export function ForbiddenState() {
   const { t } = useTranslation("common");
   const router = useRouter();
+
+  return (
+    <PageErrorState
+      tone="neutral"
+      icon={SecurityLockIcon}
+      title={t("errorPage.forbidden.title")}
+      description={t("errorPage.forbidden.description")}
+      signal="barred"
+      action={
+        <>
+          <MapLinkButton />
+          <Button type="button" variant="outline" className="cursor-pointer" onClick={() => router.history.back()}>
+            <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
+            {t("actions.back")}
+          </Button>
+        </>
+      }
+    />
+  );
+}
+
+export function RequireRole({ children, allowedRoles = ["admin"] }: RequireRoleProps) {
+  const { data: session, isPending } = useSettledSession();
 
   if (isPending) return null;
 
@@ -26,25 +48,7 @@ export function RequireRole({ children, allowedRoles = ["admin"] }: RequireRoleP
 
   const userRole = session.user.role || "user";
 
-  if (!allowedRoles.includes(userRole))
-    return (
-      <PageErrorState
-        tone="neutral"
-        icon={SecurityLockIcon}
-        title={t("errorPage.forbidden.title")}
-        description={t("errorPage.forbidden.description")}
-        signal="barred"
-        action={
-          <>
-            <MapLinkButton />
-            <Button variant="outline" onClick={() => router.history.back()}>
-              <HugeiconsIcon icon={ArrowLeft01Icon} data-icon="inline-start" aria-hidden="true" />
-              {t("actions.back")}
-            </Button>
-          </>
-        }
-      />
-    );
+  if (!allowedRoles.includes(userRole)) return <ForbiddenState />;
 
   return <>{children}</>;
 }

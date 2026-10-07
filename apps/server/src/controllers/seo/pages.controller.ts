@@ -14,9 +14,11 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { baseUrl, clientOrigin, dlogger, siteName } from "../../config.js";
 import db from "../../database/psql.js";
 import redis from "../../database/redis.js";
+import { locationInPublicCountry } from "../../features/countries/visibility.js";
 import type { FastifyZodInstance } from "../../interfaces/fastify.interface.js";
 import { SingleFlight } from "../../lib/async/singleFlight.js";
 import { escapeHtml } from "../../lib/html.js";
+import { getRuntimeSettings } from "../../lib/runtimeSettings.js";
 
 const SHELL_TTL_MS = 60_000;
 const SHELL_MAX_STALE_MS = 5 * 60_000;
@@ -148,7 +150,7 @@ async function buildStationFragment(id: number): Promise<string | null> {
     .innerJoin(locations, eq(stations.location_id, locations.id))
     .leftJoin(regions, eq(locations.region_id, regions.id))
     .leftJoin(extraIdentificators, eq(extraIdentificators.station_id, stations.id))
-    .where(eq(stations.id, id))
+    .where(and(eq(stations.id, id), locationInPublicCountry(stations.location_id)))
     .limit(1);
 
   const station = rows[0];
@@ -190,7 +192,7 @@ async function buildLocationFragment(id: number): Promise<string | null> {
     })
     .from(locations)
     .leftJoin(regions, eq(locations.region_id, regions.id))
-    .where(eq(locations.id, id))
+    .where(and(eq(locations.id, id), locationInPublicCountry(locations.id)))
     .limit(1);
 
   const location = rows[0];
@@ -243,14 +245,19 @@ async function handlePage(req: FastifyRequest, res: FastifyReply, kind: "station
     return res.status(503).send({ errors: [{ code: "SHELL_UNAVAILABLE", message: "Client application is unavailable" }] });
   }
 
+  res.header("Content-Type", "text/html; charset=utf-8");
+  const cleanShell = stripSEOFallback(shell);
+  if (getRuntimeSettings().maintenanceEnabled) {
+    res.header("Cache-Control", "no-store");
+    return res.status(503).send(cleanShell);
+  }
+
   let fragment: string | null = null;
   if (numericId !== null) {
     const cacheKey = `${FRAGMENT_CACHE_KEY_PREFIX}:${kind}:${numericId}`;
     fragment = await cachedFragment(cacheKey, () => buildPageFragment(kind, numericId));
   }
 
-  res.header("Content-Type", "text/html; charset=utf-8");
-  const cleanShell = stripSEOFallback(shell);
   if (fragment === null) {
     res.header("Cache-Control", "no-cache");
     return res.status(404).send(cleanShell.replace("</head>", `${NOINDEX_TAG}\n</head>`));

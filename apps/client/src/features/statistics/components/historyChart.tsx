@@ -1,9 +1,10 @@
+import type { Operator } from "@openbts/shared/contract";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { StatsHistoryRow, StatsOperator, StatsStationsHistoryRow } from "../api";
-import { compareBandNames } from "../lib/bandOrder";
+import { type BandComparator, useRegisterBandComparator } from "../lib/bandOrder";
 import { operatorDataKey, operatorSeries } from "../lib/series";
 import { statsHistoryQueryOptions, statsStationsHistoryQueryOptions } from "../queries";
 import type { ChartType } from "./chartTypeContext";
@@ -13,7 +14,6 @@ import { StatChartCard } from "./statChartCard";
 import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Operator } from "@/types/station";
 
 type ViewMode = "by-band" | "by-operator";
 
@@ -55,7 +55,7 @@ function buildChartData(rows: { date: string; operator: StatsOperator; unique_st
   return { chartData, series };
 }
 
-function useBandCharts(historyData: StatsHistoryRow[] | undefined): BandChartData[] {
+function useBandCharts(historyData: StatsHistoryRow[] | undefined, compareBands: BandComparator): BandChartData[] {
   return useMemo(() => {
     if (!historyData?.length) return [];
 
@@ -66,13 +66,13 @@ function useBandCharts(historyData: StatsHistoryRow[] | undefined): BandChartDat
       bandGroups.set(row.band.name, group);
     }
 
-    return [...bandGroups.entries()]
-      .map(([bandName, rows]) => ({
-        bandName,
+    return [...bandGroups.values()]
+      .sort((a, b) => compareBands(a[0].band, b[0].band))
+      .map((rows) => ({
+        bandName: rows[0].band.name,
         ...buildChartData(rows),
-      }))
-      .sort((a, b) => compareBandNames(a.bandName, b.bandName));
-  }, [historyData]);
+      }));
+  }, [historyData, compareBands]);
 }
 
 function useOperatorChart(stationsData: StatsStationsHistoryRow[] | undefined): ChartData {
@@ -133,7 +133,7 @@ function OperatorHistoryCard({
   );
 }
 
-export function HistoryChart({ operators }: { operators?: Operator[] }) {
+export function HistoryChart({ operators }: { operators?: Pick<Operator, "id" | "name">[] }) {
   const { t } = useTranslation("statistics");
   const { t: tCommon } = useTranslation("common");
   const [operatorId, setOperatorId] = useState<number | undefined>();
@@ -163,7 +163,8 @@ export function HistoryChart({ operators }: { operators?: Operator[] }) {
     enabled: viewMode === "by-operator",
   });
   const isLoading = viewMode === "by-band" ? bandLoading : stationsLoading;
-  const bandCharts = useBandCharts(viewMode === "by-band" ? historyData : undefined);
+  const compareBands = useRegisterBandComparator();
+  const bandCharts = useBandCharts(viewMode === "by-band" ? historyData : undefined, compareBands);
   const operatorChart = useOperatorChart(viewMode === "by-operator" ? stationsData : undefined);
 
   const operatorItems = useMemo(

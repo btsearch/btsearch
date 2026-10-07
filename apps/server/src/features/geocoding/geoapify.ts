@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-import { GEOCODING_COUNTRY, GEOCODING_LANGUAGE, GEOCODING_SEARCH_LIMIT } from "./config.js";
+import { GEOCODING_SEARCH_LIMIT } from "./config.js";
 import { GeocodingProviderError, createResultId, describePlace, fetchProviderJson, formatRegion, getStatusCooldownMs, pickText } from "./provider.js";
 import type { GeocodingKind, GeocodingProvider, GeocodingResult } from "./types.js";
 
@@ -78,7 +78,7 @@ function parseResult(item: unknown): GeocodingResult | null {
 
 async function requestResults(apiKey: string, endpoint: "autocomplete" | "reverse", params: Record<string, string>): Promise<GeocodingResult[]> {
   const url = new URL(`${GEOAPIFY_API_URL}/${endpoint}`);
-  url.search = new URLSearchParams({ ...params, lang: GEOCODING_LANGUAGE, format: "json", apiKey }).toString();
+  url.search = new URLSearchParams({ ...params, format: "json", apiKey }).toString();
 
   const { status, body } = await fetchProviderJson(url);
   if (status !== 200) {
@@ -94,15 +94,14 @@ async function requestResults(apiKey: string, endpoint: "autocomplete" | "revers
 export function createGeoapifyProvider(apiKey: string): GeocodingProvider {
   return {
     source: "geoapify",
-    search(query) {
-      return requestResults(apiKey, "autocomplete", {
-        text: query,
-        filter: `countrycode:${GEOCODING_COUNTRY}`,
-        limit: String(GEOCODING_SEARCH_LIMIT),
-      });
+    search(query, { language, countryCodes }) {
+      const params: Record<string, string> = { text: query, limit: String(GEOCODING_SEARCH_LIMIT), lang: language };
+      if (countryCodes.length > 0) params.filter = `countrycode:${countryCodes.join(",")}`;
+
+      return requestResults(apiKey, "autocomplete", params);
     },
-    async reverse(latitude, longitude) {
-      const [result] = await requestResults(apiKey, "reverse", { lat: String(latitude), lon: String(longitude) });
+    async reverse(latitude, longitude, language) {
+      const [result] = await requestResults(apiKey, "reverse", { lat: String(latitude), lon: String(longitude), lang: language });
       return result ?? null;
     },
   };

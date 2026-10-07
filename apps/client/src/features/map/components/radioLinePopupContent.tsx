@@ -1,6 +1,6 @@
 import { ArrowRight02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { memo } from "react";
+import type { ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DuplexRadioLink } from "../utils";
@@ -17,9 +17,11 @@ import {
   getRadioLineMnc,
 } from "../utils";
 import { DirectionalSpeedBadge } from "./directionalSpeedBadge";
-import { PopupAddToListButton, PopupExpiredLabel, PopupOperatorName, PopupRow, PopupShareButton } from "./popupParts";
+import { PopupAddToListButton, PopupBrandMark, PopupExpiredLabel, PopupOperatorName, PopupRowFrame, PopupShareButton } from "./popupParts";
 import { CloseButton } from "@/components/ui/close-button";
-import { normalizeOperatorName } from "@/lib/cellular/operators";
+import { RadioLineOperatorMark } from "@/features/station-details/components/radioLineOperatorMark";
+import { FALLBACK_BRAND_COLOR } from "@/features/station-details/station/utils/brands";
+import { getOperatorColor, normalizeOperatorName } from "@/lib/cellular/operators";
 import { cn } from "@/lib/utils";
 import type { RadioLine } from "@/types/station";
 
@@ -30,7 +32,7 @@ function pairDirections(link: DuplexRadioLink): RadioLine[][] {
   return pairs;
 }
 
-export function RadioLineTitle({ link }: { link: DuplexRadioLink }) {
+function RadioLineTitle({ link }: { link: DuplexRadioLink }) {
   const { t } = useTranslation("main");
   const first = link.directions[0];
 
@@ -103,6 +105,18 @@ export function RadioLineDetails({ link }: { link: DuplexRadioLink }) {
   );
 }
 
+type RadioLineRowProps = Omit<ComponentProps<typeof PopupRowFrame>, "mark" | "color" | "title"> & {
+  link: DuplexRadioLink;
+};
+
+export function RadioLineRow({ link, ...frameProps }: RadioLineRowProps) {
+  const mnc = getRadioLineMnc(link);
+  const color = mnc === null ? FALLBACK_BRAND_COLOR : getOperatorColor(mnc);
+  const mark = mnc === null ? <PopupBrandMark brand={null} color={color} /> : <RadioLineOperatorMark mnc={mnc} compact />;
+
+  return <PopupRowFrame mark={mark} color={color} title={<RadioLineTitle link={link} />} {...frameProps} />;
+}
+
 type RadioLinePopupContentProps = {
   link: DuplexRadioLink;
   showAddToList?: boolean;
@@ -110,21 +124,15 @@ type RadioLinePopupContentProps = {
   onClose?: () => void;
 };
 
-export const RadioLinePopupContent = memo(function RadioLinePopupContent({
-  link,
-  showAddToList = false,
-  onOpenDetails,
-  onClose,
-}: RadioLinePopupContentProps) {
+export function RadioLinePopupContent({ link, showAddToList = false, onOpenDetails, onClose }: RadioLinePopupContentProps) {
   const { t } = useTranslation("main");
   const first = link.directions[0];
   const actionCount = (showAddToList ? 1 : 0) + 1 + (onClose ? 1 : 0);
 
   return (
-    <PopupRow
-      mnc={getRadioLineMnc(link)}
+    <RadioLineRow
+      link={link}
       onOpen={() => onOpenDetails(link)}
-      title={<RadioLineTitle link={link} />}
       actionCount={actionCount}
       actions={
         <>
@@ -139,6 +147,6 @@ export const RadioLinePopupContent = memo(function RadioLinePopupContent({
       }
     >
       <RadioLineDetails link={link} />
-    </PopupRow>
+    </RadioLineRow>
   );
-});
+}

@@ -7,6 +7,10 @@ export function formatCoordinates(lat: number, lng: number, format: GpsFormat): 
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
+export function formatCoordinate(value: number, axis: "lat" | "lng", format: GpsFormat): string {
+  return format === "dms" ? toDms(value, axis) : value.toFixed(5);
+}
+
 function toDms(decimal: number, axis: "lat" | "lng"): string {
   const absolute = Math.abs(decimal);
   const degrees = Math.floor(absolute);

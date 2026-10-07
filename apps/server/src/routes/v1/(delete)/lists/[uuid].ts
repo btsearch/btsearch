@@ -5,11 +5,11 @@ import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
+import { hasStaffPermission } from "../../../../features/access/staff.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../interfaces/routes.interface.js";
 import { getRuntimeSettings } from "../../../../lib/runtimeSettings.js";
-import { verifyPermissions } from "../../../../plugins/auth/utils.js";
 
 const schemaRoute = {
   params: z.object({
@@ -28,7 +28,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
 
   const [list, isAdmin] = await Promise.all([
     db.query.userLists.findFirst({ where: { uuid } }),
-    verifyPermissions(userId, { user_lists: ["manage_all"] }),
+    hasStaffPermission(req, { user_lists: ["manage_all"] }),
   ]);
   if (!list) throw new ErrorResponse("NOT_FOUND");
   if (!isAdmin && list.created_by !== userId) throw new ErrorResponse("FORBIDDEN");
@@ -38,7 +38,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
     await audit.log({ entity: "user_lists", op: "delete", recordId: list.id, old: list });
   }).catch((error) => {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("FAILED_TO_DELETE");
+    throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });
   });
 
   return res.status(204).send();

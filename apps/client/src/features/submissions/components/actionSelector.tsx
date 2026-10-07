@@ -3,58 +3,46 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslation } from "react-i18next";
 
 import type { StationAction } from "../types";
+import { SegmentButton, SegmentSwitch } from "./segmentSwitch";
 import { cn } from "@/lib/utils";
 
-export interface ActionSelectorProps {
+type ActionSelectorProps = {
   action: StationAction;
+  isLocked: boolean;
   onActionChange: (action: StationAction) => void;
-}
+};
 
-export function ActionSelector({ action, onActionChange }: ActionSelectorProps) {
+export function ActionSelector({ action, isLocked, onActionChange }: ActionSelectorProps) {
   const { t } = useTranslation(["submissions", "common"]);
+  const isDelete = action === "delete";
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-b-xl border-t bg-muted/30 px-3 py-1.5">
       <div className="flex min-w-0 items-center gap-2">
         <HugeiconsIcon
-          icon={action === "delete" ? Delete02Icon : PencilEdit02Icon}
-          className={cn("size-4 shrink-0", action === "delete" ? "text-destructive" : "text-muted-foreground")}
+          icon={isDelete ? Delete02Icon : PencilEdit02Icon}
+          className={cn("size-4 shrink-0", isDelete ? "text-destructive" : "text-muted-foreground")}
           aria-hidden="true"
         />
         <span className="truncate text-sm font-semibold">{t("actionSelector.title")}</span>
       </div>
-      <div className="flex shrink-0 items-center rounded-lg border bg-card p-0.5 shadow-sm">
-        <button
-          type="button"
-          aria-label={t("common:submissionType.update")}
-          aria-pressed={action === "update"}
+      <SegmentSwitch label={t("actionSelector.title")}>
+        <SegmentButton
+          label={t("common:submissionType.update")}
+          icon={PencilEdit02Icon}
+          isActive={!isDelete}
+          isDisabled={isLocked}
           onClick={() => onActionChange("update")}
-          className={cn(
-            "flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium transition-all focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            action === "update"
-              ? "bg-background text-foreground shadow-sm ring-1 ring-foreground/50"
-              : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-          )}
-        >
-          <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-          <span className="hidden sm:inline">{t("common:submissionType.update")}</span>
-        </button>
-        <button
-          type="button"
-          aria-label={t("common:submissionType.delete")}
-          aria-pressed={action === "delete"}
+        />
+        <SegmentButton
+          label={t("common:submissionType.delete")}
+          icon={Delete02Icon}
+          isActive={isDelete}
+          isDisabled={isLocked}
+          isDestructive
           onClick={() => onActionChange("delete")}
-          className={cn(
-            "flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium transition-all focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            action === "delete"
-              ? "bg-background text-foreground shadow-sm ring-1 ring-destructive/70"
-              : "text-muted-foreground hover:text-foreground hover:bg-destructive/5",
-          )}
-        >
-          <HugeiconsIcon icon={Delete02Icon} className="size-3.5 text-destructive" />
-          <span className="hidden sm:inline">{t("common:submissionType.delete")}</span>
-        </button>
-      </div>
+        />
+      </SegmentSwitch>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { findForeignStationIds } from "../../../../features/countries/legacy.js";
 import { MAX_USER_LISTS } from "../../../../features/lists/limits.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
@@ -45,11 +46,15 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
   if ((listCountRow?.count ?? 0) >= MAX_USER_LISTS)
     throw new ErrorResponse("LIST_LIMIT_REACHED", { message: `You have reached the maximum limit of ${MAX_USER_LISTS} lists` });
 
+  const { internal, uke } = req.body.stations;
+  const foreign = await findForeignStationIds(internal);
+
   const created = await runAuditedOperation(auditContextFromRequest(req), { kind: "list.create" }, async (tx, audit) => {
     const [result] = await tx
       .insert(userLists)
       .values({
         ...req.body,
+        stations: { internal: internal.filter((id) => !foreign.has(id)), uke },
         radiolines: req.body.radiolines ?? [],
         created_by: userId,
       })
@@ -60,7 +65,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
     return result;
   }).catch((error) => {
     if (error instanceof ErrorResponse) throw error;
-    throw new ErrorResponse("FAILED_TO_CREATE");
+    throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
   });
 
   return res.send({ data: created });

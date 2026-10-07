@@ -39,7 +39,7 @@ export function LightboxDetails({ open, compact, slide, naturalSize, onClose }: 
       {naturalSize ? (
         <LightboxDetailRow label={t("resolution")}>
           <span className="tabular-nums">
-            {naturalSize.width} × {naturalSize.height}
+            {naturalSize.width} x {naturalSize.height}
           </span>
         </LightboxDetailRow>
       ) : null}

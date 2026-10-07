@@ -1,3 +1,6 @@
+import type { FastifyError } from "fastify";
+import postgres from "postgres";
+
 export class ErrorResponse extends Error {
   code: ErrorCode;
   statusCode: number;
@@ -57,18 +60,20 @@ export type ErrorCode =
   | "DUPLICATE_ENTRY"
   | "CONFLICT"
   | "SERVICE_UNAVAILABLE"
+  | "MAINTENANCE_MODE"
   | "TWO_FACTOR_REQUIRED"
   | "DUPLICATE_REQUEST"
   | "PHOTO_TOO_SMALL"
   | "PHOTO_TOO_BLURRY"
-  | "LIST_LIMIT_REACHED";
+  | "LIST_LIMIT_REACHED"
+  | "FEATURE_DISABLED";
 
 interface ErrorDefinition {
   message: string;
   statusCode: number;
 }
 
-const errors: Record<ErrorCode, ErrorDefinition> = {
+export const errors: Record<ErrorCode, ErrorDefinition> = {
   INTERNAL_SERVER_ERROR: {
     message: "An internal server error occurred.",
     statusCode: 500,
@@ -141,6 +146,10 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
     message: "The service is temporarily unavailable.",
     statusCode: 503,
   },
+  MAINTENANCE_MODE: {
+    message: "The site is temporarily unavailable for maintenance. Please try again later.",
+    statusCode: 503,
+  },
   TWO_FACTOR_REQUIRED: {
     message: "Two-factor authentication must be enabled to access this resource.",
     statusCode: 403,
@@ -161,4 +170,83 @@ const errors: Record<ErrorCode, ErrorDefinition> = {
     message: "You have reached the maximum number of lists.",
     statusCode: 400,
   },
+  FEATURE_DISABLED: {
+    message: "This feature is disabled.",
+    statusCode: 403,
+  },
 };
+
+const GENERIC_FAILURE_CODES = new Set<ErrorCode>(["INTERNAL_SERVER_ERROR", "FAILED_TO_CREATE", "FAILED_TO_UPDATE", "FAILED_TO_DELETE"]);
+const CAUSE_CHAIN_LIMIT = 6;
+const STRING_DATA_RIGHT_TRUNCATION = "22001";
+const NUMERIC_VALUE_OUT_OF_RANGE = "22003";
+const INVALID_DATETIME_FORMAT = "22007";
+const DATETIME_FIELD_OVERFLOW = "22008";
+const CHARACTER_NOT_IN_REPERTOIRE = "22021";
+const INVALID_TEXT_REPRESENTATION = "22P02";
+const RESTRICT_VIOLATION = "23001";
+export const FOREIGN_KEY_VIOLATION = "23503";
+const CHECK_VIOLATION = "23514";
+export const UNIQUE_VIOLATION = "23505";
+export const SERIALIZATION_FAILURE = "40001";
+export const DEADLOCK_DETECTED = "40P01";
+const DELETE_STATEMENT = /^\s*delete\b/i;
+const STILL_REFERENCED_MESSAGE = "Cannot delete a record that other records still use.";
+const MALFORMED_MULTIPART = /^Multipart: Boundary not found$|unexpected end of multipart data$/i;
+export const MALFORMED_MULTIPART_MESSAGE = "The multipart request body is malformed or incomplete.";
+
+function postgresCause(error: unknown): postgres.PostgresError | null {
+  let current = error;
+  for (let depth = 0; depth < CAUSE_CHAIN_LIMIT && current instanceof Error; depth++) {
+    if (current instanceof postgres.PostgresError) return current;
+    current = current.cause;
+  }
+  return null;
+}
+
+export function isStillReferenced(databaseError: postgres.PostgresError): boolean {
+  const refusesDelete = databaseError.code === FOREIGN_KEY_VIOLATION && DELETE_STATEMENT.test(databaseError.query);
+  return databaseError.code === RESTRICT_VIOLATION || refusesDelete;
+}
+
+function isGenericFailure(error: ErrorResponse): boolean {
+  return GENERIC_FAILURE_CODES.has(error.code) && error.message === errors[error.code].message;
+}
+
+function parserFault(error: unknown): Error | null {
+  let current = error;
+  for (let depth = 0; depth < CAUSE_CHAIN_LIMIT && current instanceof Error; depth++) {
+    const { name, statusCode }: Partial<FastifyError> = current;
+    if (name === "FastifyError" && statusCode !== undefined && statusCode < 500) return current;
+    if (MALFORMED_MULTIPART.test(current.message)) return new ErrorResponse("BAD_REQUEST", { message: MALFORMED_MULTIPART_MESSAGE, cause: error });
+    current = current.cause;
+  }
+  return null;
+}
+
+export function callerFaultResponse(error: unknown): Error | null {
+  if (error instanceof ErrorResponse && !isGenericFailure(error)) return null;
+
+  const databaseError = postgresCause(error);
+  if (databaseError === null) return parserFault(error);
+  if (isStillReferenced(databaseError)) return new ErrorResponse("CONFLICT", { message: STILL_REFERENCED_MESSAGE, cause: error });
+
+  switch (databaseError.code) {
+    case NUMERIC_VALUE_OUT_OF_RANGE:
+    case DATETIME_FIELD_OVERFLOW:
+      return new ErrorResponse("BAD_REQUEST", { message: "A value in the request is out of range.", cause: error });
+    case STRING_DATA_RIGHT_TRUNCATION:
+      return new ErrorResponse("BAD_REQUEST", { message: "A value in the request is too long.", cause: error });
+    case INVALID_DATETIME_FORMAT:
+    case CHARACTER_NOT_IN_REPERTOIRE:
+    case INVALID_TEXT_REPRESENTATION:
+    case CHECK_VIOLATION:
+      return new ErrorResponse("BAD_REQUEST", { message: "A value in the request is not valid.", cause: error });
+    case FOREIGN_KEY_VIOLATION:
+      return new ErrorResponse("BAD_REQUEST", { message: "The request refers to a record that does not exist.", cause: error });
+    case UNIQUE_VIOLATION:
+      return new ErrorResponse("DUPLICATE_ENTRY", { cause: error });
+    default:
+      return null;
+  }
+}

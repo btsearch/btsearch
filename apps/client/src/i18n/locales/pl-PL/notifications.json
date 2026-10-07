@@ -13,14 +13,14 @@
   "pushDescription": "Otrzymuj powiadomienia o aktualizacjach zgłoszeń",
   "ukeStationDeleted": "Stacja usunięta z danych UKE",
   "types": {
-    "submission_approved": "Zgłoszenie zatwierdzone",
-    "submission_rejected": "Zgłoszenie odrzucone",
-    "submission_photo_upload_failed": "Zgłoszenie usunięte, ponieważ zdjęcia nie zostały przesłane",
-    "new_submission": "Nowe zgłoszenie",
-    "station_cells_changed": "Zmieniono komórki stacji",
-    "station_photos_added": "Dodano zdjęcia stacji",
-    "station_comment_approved": "Nowy komentarz na stacji",
-    "station_uke_permit_added": "Zmieniono pozwolenia UKE"
+    "submissionAccepted": "Zgłoszenie zatwierdzone",
+    "submissionRejected": "Zgłoszenie odrzucone",
+    "submissionPhotoUploadFailed": "Zgłoszenie usunięte, ponieważ zdjęcia nie zostały przesłane",
+    "submissionCreated": "Nowe zgłoszenie",
+    "stationCellsChanged": "Zmieniono komórki stacji",
+    "stationPhotosAdded": "Dodano zdjęcia stacji",
+    "stationCommentApproved": "Nowy komentarz na stacji",
+    "officialPermitsChanged": "Zmieniono pozwolenia UKE"
   },
   "facts": {
     "cellsAdded_one": "<n>{{count}}</n> dodana",

@@ -4,14 +4,16 @@ import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
-import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { defineScope, locationRefs } from "../../../../features/access/scope.js";
+import { STRUCTURE_COLUMNS } from "../../../../features/locations/structure.js";
+import { findOrCreateLocation } from "../../../../features/locations/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
-const locationsSelectSchema = createSelectSchema(locations);
+const locationsSelectSchema = createSelectSchema(locations).omit(STRUCTURE_COLUMNS);
 const locationsInsertSchema = createInsertSchema(locations)
+  .omit(STRUCTURE_COLUMNS)
   .strict()
   .superRefine((data, ctx) => {
     if (hasGenericAddressMarker(data.address))
@@ -30,17 +32,7 @@ const schemaRoute = {
 
 async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<ResponseData>>) {
   try {
-    const existing = await db.query.locations.findFirst({
-      where: { AND: [{ longitude: req.body.longitude }, { latitude: req.body.latitude }] },
-    });
-    if (existing) return res.send({ data: existing });
-
-    const location = await runAuditedOperation(auditContextFromRequest(req), { kind: "location.create" }, async (tx, audit) => {
-      const [created] = await tx.insert(locations).values(req.body).returning();
-      if (!created) throw new ErrorResponse("FAILED_TO_CREATE");
-      await audit.log({ entity: "locations", op: "create", recordId: created.id, new: created });
-      return created;
-    });
+    const { location } = await findOrCreateLocation(req, req.body);
     return res.send({ data: location });
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
@@ -51,7 +43,7 @@ async function handler(req: FastifyRequest<ReqBody>, res: ReplyPayload<JSONBody<
 const createLocation: Route<ReqBody, ResponseData> = {
   url: "/locations",
   method: "POST",
-  config: { permissions: ["create:locations"] },
+  config: { permissions: ["create:locations"], scope: defineScope<ReqBody>((req) => locationRefs(req.body)) },
   schema: schemaRoute,
   handler,
 };

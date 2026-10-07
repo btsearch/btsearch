@@ -1,4 +1,4 @@
-import { bands, operators, statsSnapshots, ukePermits, ukeStations } from "@openbts/drizzle";
+import { operators, statsSnapshots, ukeBands, ukePermits, ukeStations } from "@openbts/drizzle";
 import { and, count, countDistinct, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "../../database/psql.js";
@@ -110,11 +110,11 @@ export async function getSnapshotDelta(): Promise<SnapshotDelta | null> {
         band_id: statsSnapshots.band_id,
         permits_count: statsSnapshots.permits_count,
         operator_name: operators.name,
-        band_name: bands.name,
+        band_name: ukeBands.name,
       })
       .from(statsSnapshots)
       .leftJoin(operators, eq(statsSnapshots.operator_id, operators.id))
-      .leftJoin(bands, eq(statsSnapshots.band_id!, bands.id))
+      .leftJoin(ukeBands, eq(statsSnapshots.band_id!, ukeBands.id))
       .where(and(eq(statsSnapshots.snapshot_date, date), isNotNull(statsSnapshots.band_id)));
 
   const [currentRows, previousRows] = await Promise.all([fetchRows(currentDate), fetchRows(previousDate)]);

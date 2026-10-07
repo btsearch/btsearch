@@ -4,6 +4,9 @@ import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
+import { stationIdInLegacyCountry } from "../../../../features/countries/legacy.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../features/stations/countryFeatures.js";
+import { toLegacyCellDetails } from "../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -49,6 +52,7 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
   const rows = await db.query.cells.findMany({
     where: {
       station: { status: "published" },
+      RAW: (fields) => stationIdInLegacyCountry(fields.station_id),
     },
     with: {
       station: {
@@ -65,11 +69,13 @@ async function handler(req: FastifyRequest<ReqQuery>, res: ReplyPayload<JSONBody
     orderBy: { id: "asc" },
   });
 
+  const featuresByStation = await getStationCountryFeatures(rows.map((cell) => cell.station.id));
   const data: ResponseData = rows.map((cell: CellWithRat) => {
     const { gsm, umts, lte, nr, ...rest } = cell;
+    const features = featuresByStation.get(cell.station.id) ?? disabledCountryFeatures;
     return {
       ...rest,
-      details: gsm ?? umts ?? lte ?? nr ?? null,
+      details: toLegacyCellDetails({ gsm, umts, lte, nr }, features),
     };
   });
 

@@ -1,11 +1,12 @@
 import { bands, cells, gsmCells, lteCells, nrCells, umtsCells } from "@openbts/drizzle";
-import { CellsResponseType } from "@openbts/proto/server";
 import { createSelectSchema } from "drizzle-orm/zod";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
+import { disabledCountryFeatures, getStationCountryFeatures } from "../../../../../../features/stations/countryFeatures.js";
+import { toLegacyCellDetails } from "../../../../../../features/stations/serialize.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../../interfaces/routes.interface.js";
 
@@ -49,10 +50,13 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
     },
   });
   if (!station) throw new ErrorResponse("NOT_FOUND");
+  const featuresByStation = await getStationCountryFeatures(station.cells.length > 0 ? [station_id] : []);
+  const features = featuresByStation.get(station_id) ?? disabledCountryFeatures;
 
   const data = (station.cells as CellWithRats[]).map((cell) => {
     const { gsm, umts, lte, nr, ...rest } = cell;
-    return { ...rest, details: gsm ?? umts ?? lte ?? nr ?? null };
+    const details = toLegacyCellDetails({ gsm, umts, lte, nr }, features);
+    return { ...rest, details };
   });
 
   return res.send({ data });
@@ -61,7 +65,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
 const getCellsFromStation: Route<ReqParams, Cells> = {
   url: "/stations/:station_id/cells",
   method: "GET",
-  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true, proto: CellsResponseType },
+  config: { permissions: ["read:stations", "read:cells"], allowGuestAccess: true },
   schema: schemaRoute,
   handler,
 };

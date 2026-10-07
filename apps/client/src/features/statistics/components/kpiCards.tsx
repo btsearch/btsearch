@@ -1,4 +1,5 @@
 import NumberFlow, { continuous } from "@number-flow/react";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,8 +7,10 @@ import type { StatsSummary } from "../api";
 import type { ChartErrorProps } from "./statChartCard";
 import { InlineError } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { registerBandsQueryOptions } from "@/features/map/api";
+import { compareRatsByName, toRegisterRatComparator } from "@/features/shared/rat";
 
-const RAT_ORDER = ["NR", "LTE", "UMTS", "CDMA", "GSM", "IOT"];
+const INTERNAL_RAT_ORDER = ["NR", "LTE", "UMTS", "GSM"];
 
 type KpiCardsProps = { data?: StatsSummary; isLoading: boolean } & ChartErrorProps;
 
@@ -87,8 +90,9 @@ function KpiTile({
 export function UkeKpiCards({ data, isLoading, isError, onRetry, isRetrying }: KpiCardsProps) {
   const { t, i18n } = useTranslation("statistics");
   const { ref, visible } = useContainerVisible();
+  const { data: compareRats = compareRatsByName } = useQuery({ ...registerBandsQueryOptions(), select: toRegisterRatComparator });
 
-  const sortedRats = useMemo(() => (data ? [...data.by_rat].sort((a, b) => RAT_ORDER.indexOf(a.rat) - RAT_ORDER.indexOf(b.rat)) : []), [data]);
+  const sortedRats = useMemo(() => (data ? [...data.by_rat].sort((a, b) => compareRats(a.rat, b.rat)) : []), [data, compareRats]);
 
   if (isLoading) return <KpiSkeleton />;
   if (!data) return isError ? <InlineError onRetry={onRetry} isRetrying={isRetrying} /> : null;
@@ -119,7 +123,7 @@ export function InternalKpiCards({ data, isLoading, isError, onRetry, isRetrying
   const { ref, visible } = useContainerVisible();
 
   const sortedRats = useMemo(
-    () => (data ? [...data.internal.by_rat].sort((a, b) => RAT_ORDER.indexOf(a.rat) - RAT_ORDER.indexOf(b.rat)) : []),
+    () => (data ? [...data.internal.by_rat].sort((a, b) => INTERNAL_RAT_ORDER.indexOf(a.rat) - INTERNAL_RAT_ORDER.indexOf(b.rat)) : []),
     [data],
   );
 

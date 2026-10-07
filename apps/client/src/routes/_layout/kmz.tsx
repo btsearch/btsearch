@@ -39,7 +39,7 @@ import {
 } from "@/features/kmz/api";
 import { useKmzDates, useKmzList } from "@/features/kmz/hooks";
 import { ClearFiltersButton } from "@/features/shared/filterPanel";
-import { regionsQueryOptions } from "@/features/shared/queries";
+import { regionsQueryOptions } from "@/features/shared/lookups";
 import { useIsMobile } from "@/hooks/useMobile";
 import { formatDayMonthYear, formatFileSize } from "@/lib/format";
 import { buildStaticPageHead } from "@/lib/seo";
@@ -320,7 +320,10 @@ function KmzListPage() {
     { type, source, date: selectedDate, region },
     { enabled: selectedDate !== null },
   );
-  const { data: regions = [] } = useQuery(regionsQueryOptions());
+  const { data: regions = [] } = useQuery({
+    ...regionsQueryOptions(),
+    select: (regions) => regions.filter((region) => region.countryCode === "PL"),
+  });
 
   const selectedRegion = useMemo(() => (region === null ? null : (regions.find((item) => item.code === region) ?? null)), [region, regions]);
 

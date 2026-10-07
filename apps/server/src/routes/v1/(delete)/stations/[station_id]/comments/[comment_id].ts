@@ -1,18 +1,11 @@
-import { attachments, stationComments } from "@openbts/drizzle";
-import { eq, inArray } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../../errors.js";
-import { auditContextFromRequest, runAuditedOperation } from "../../../../../../features/audit/index.js";
+import { canModerateComments, removeStationComment } from "../../../../../../features/comments/write.js";
 import type { ReplyPayload } from "../../../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, Route } from "../../../../../../interfaces/routes.interface.js";
-import { verifyPermissions } from "../../../../../../plugins/auth/utils.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const schemaRoute = {
   params: z.object({
@@ -37,33 +30,11 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<EmptyRe
   });
   if (!comment) throw new ErrorResponse("NOT_FOUND");
 
-  const isPrivileged = await verifyPermissions(userId, { comments: ["moderate"] });
+  const isPrivileged = await canModerateComments(req, station_id);
   if (comment.user_id !== userId && !isPrivileged) throw new ErrorResponse("FORBIDDEN");
 
   try {
-    const commentAttachments = comment.attachments ?? [];
-    const uuids = commentAttachments.map((attachment) => attachment.uuid);
-
-    await runAuditedOperation(auditContextFromRequest(req), { kind: "comment.delete" }, async (tx, audit) => {
-      await tx.delete(stationComments).where(eq(stationComments.id, comment_id));
-      if (uuids.length > 0) await tx.delete(attachments).where(inArray(attachments.uuid, uuids));
-
-      await audit.log({
-        entity: "station_comments",
-        op: "delete",
-        recordId: comment_id,
-        stationId: station_id,
-        old: comment,
-      });
-    });
-
-    await Promise.all(
-      uuids.map(async (uuid) => {
-        try {
-          await fs.unlink(path.join(UPLOAD_DIR, `${uuid}.webp`));
-        } catch {}
-      }),
-    );
+    await removeStationComment(req, comment);
 
     return res.status(204).send();
   } catch (error) {

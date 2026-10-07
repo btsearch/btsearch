@@ -11,14 +11,18 @@ import type {
   SI2PEMReportDialogPayload,
   StationDialogTarget,
   StationHistoryDialogPayload,
+  TerrainProfileDialogPayload,
 } from "../types";
 import type { DuplexRadioLink } from "@/features/map/utils";
+import { isTextEntryTarget } from "@/features/terrain-profile/focus";
 import type { StationSource, UkeStation } from "@/types/station";
 
 const FLOATING_DIALOG_Z_INDEX_BASE = 40;
 const MAX_DIALOGS_PER_KIND = 2;
+const TERRAIN_PROFILE_DIALOG_KEY = "terrain-profile";
+const TERRAIN_PROFILE_DIALOG_SELECTOR = `[data-floating-dialog-key="${TERRAIN_PROFILE_DIALOG_KEY}"]`;
 const INITIAL_DIALOG_SIZES: Partial<Record<FloatingDialogKind, { width: number; height: number }>> = {
-  "si2pem-report": { width: 730, height: 800 },
+  "si2pem-report": { width: 1000, height: 540 },
   "station-history": { width: 900, height: 680 },
 };
 
@@ -45,9 +49,11 @@ function getDialogKey(request: FloatingDialogOpenRequest): string {
     case "radioline":
       return `radioline:${request.link.groupId}`;
     case "si2pem-report":
-      return `si2pem-report:${request.report.details.document_url}`;
+      return `si2pem-report:${request.report.url}`;
     case "station-history":
       return `station-history:${request.stationId}`;
+    case "terrain-profile":
+      return TERRAIN_PROFILE_DIALOG_KEY;
     default:
       return assertNever(request);
   }
@@ -60,25 +66,35 @@ function hasSamePayload(dialog: FloatingDialogItem, request: FloatingDialogOpenR
     case "radioline":
       return dialog.kind === "radioline" && dialog.link === request.link;
     case "si2pem-report":
-      return (
-        dialog.kind === "si2pem-report" &&
-        dialog.report === request.report &&
-        dialog.latitude === request.latitude &&
-        dialog.longitude === request.longitude &&
-        dialog.operatorName === request.operatorName &&
-        dialog.operatorMnc === request.operatorMnc
-      );
+      return false;
     case "station-history":
       return (
         dialog.kind === "station-history" &&
         dialog.stationId === request.stationId &&
         dialog.stationCode === request.stationCode &&
         dialog.operatorName === request.operatorName &&
-        dialog.operatorMnc === request.operatorMnc
+        dialog.operatorBrandId === request.operatorBrandId
+      );
+    case "terrain-profile":
+      return (
+        dialog.kind === "terrain-profile" &&
+        dialog.placement === request.placement &&
+        dialog.isCollapsed === request.isCollapsed &&
+        dialog.renderPanel === request.renderPanel
       );
     default:
       return assertNever(request);
   }
+}
+
+function isTypingOutsideTerrainProfileDialog(target: EventTarget | null): boolean {
+  if (!(target instanceof Element) || !isTextEntryTarget(target)) return false;
+  return target.closest(TERRAIN_PROFILE_DIALOG_SELECTOR) === null;
+}
+
+function createDialogRect(request: FloatingDialogOpenRequest, familyCount: number): FloatingDialogRect {
+  if (request.kind === "terrain-profile") return request.placement;
+  return createInitialFloatingDialogRect(familyCount, INITIAL_DIALOG_SIZES[request.kind]);
 }
 
 export function useFloatingDialogStackState() {
@@ -86,6 +102,7 @@ export function useFloatingDialogStackState() {
   const [dialogs, setDialogs] = useState<FloatingDialogItem[]>([]);
   const dialogsRef = useRef<FloatingDialogItem[]>([]);
   const lastFrameIdRef = useRef(0);
+  const lastReportOpenRequestIdRef = useRef(0);
 
   const setDialogsSynced = useCallback((updater: (current: FloatingDialogItem[]) => FloatingDialogItem[]) => {
     const current = dialogsRef.current;
@@ -136,7 +153,7 @@ export function useFloatingDialogStackState() {
         ...request,
         key,
         frameId: lastFrameIdRef.current,
-        rect: createInitialFloatingDialogRect(familyCount, INITIAL_DIALOG_SIZES[request.kind]),
+        rect: createDialogRect(request, familyCount),
         zIndex: getNextZIndex(current),
       };
       setDialogsSynced((previous) => [...previous, dialog]);
@@ -172,7 +189,10 @@ export function useFloatingDialogStackState() {
     [setDialogsSynced],
   );
 
-  const openStationDialog = useCallback((id: number, source: StationSource) => openDialog({ kind: "station", id, source }), [openDialog]);
+  const openStationDialog = useCallback(
+    (id: number, source: StationSource, locationId?: number) => openDialog({ kind: "station", id, source, locationId }),
+    [openDialog],
+  );
 
   const openUkePermitDialog = useCallback(
     (station: UkeStation) => openDialog({ kind: "station", id: station.id, source: "uke", ukeStation: station }),
@@ -181,7 +201,13 @@ export function useFloatingDialogStackState() {
 
   const openRadioLineDialog = useCallback((link: DuplexRadioLink) => openDialog({ kind: "radioline", link }), [openDialog]);
 
-  const openSI2PEMReportDialog = useCallback((payload: SI2PEMReportDialogPayload) => openDialog({ kind: "si2pem-report", ...payload }), [openDialog]);
+  const openSI2PEMReportDialog = useCallback(
+    (payload: SI2PEMReportDialogPayload) => {
+      lastReportOpenRequestIdRef.current += 1;
+      return openDialog({ kind: "si2pem-report", ...payload, openRequestId: lastReportOpenRequestIdRef.current });
+    },
+    [openDialog],
+  );
 
   const openStationHistoryDialog = useCallback(
     (payload: StationHistoryDialogPayload) => openDialog({ kind: "station-history", ...payload }),
@@ -194,6 +220,24 @@ export function useFloatingDialogStackState() {
     },
     [setDialogsSynced],
   );
+
+  const requestCloseDialog = useCallback(
+    (key: string) => {
+      const dialog = dialogsRef.current.find((item) => item.key === key);
+      if (dialog?.kind === "terrain-profile") dialog.onRequestClose();
+      else closeDialog(key);
+    },
+    [closeDialog],
+  );
+
+  const openTerrainProfileDialog = useCallback(
+    (payload: TerrainProfileDialogPayload) => openDialog({ kind: "terrain-profile", ...payload }),
+    [openDialog],
+  );
+
+  const closeTerrainProfileDialog = useCallback(() => closeDialog(TERRAIN_PROFILE_DIALOG_KEY), [closeDialog]);
+
+  const focusTerrainProfileDialog = useCallback(() => focusDialog(TERRAIN_PROFILE_DIALOG_KEY), [focusDialog]);
 
   const updateDialogRect = useCallback(
     (key: string, rect: FloatingDialogRect) => {
@@ -212,14 +256,15 @@ export function useFloatingDialogStackState() {
 
       const topDialog = getTopDialog(dialogsRef.current);
       if (topDialog === undefined) return;
+      if (topDialog.kind === "terrain-profile" && isTypingOutsideTerrainProfileDialog(event.target)) return;
 
       event.preventDefault();
-      closeDialog(topDialog.key);
+      requestCloseDialog(topDialog.key);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeDialog]);
+  }, [requestCloseDialog]);
 
   return {
     dialogs,
@@ -229,7 +274,10 @@ export function useFloatingDialogStackState() {
     openRadioLineDialog,
     openSI2PEMReportDialog,
     openStationHistoryDialog,
-    closeDialog,
+    openTerrainProfileDialog,
+    closeTerrainProfileDialog,
+    focusTerrainProfileDialog,
+    requestCloseDialog,
     focusDialog,
     updateDialogRect,
   };

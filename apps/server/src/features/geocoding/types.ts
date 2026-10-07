@@ -1,7 +1,6 @@
+import { GEOCODING_KINDS } from "@openbts/shared/contract";
+import type { GeocodingKind, GeocodingSource } from "@openbts/shared/contract";
 import { z } from "zod/v4";
-
-const GEOCODING_SOURCES = ["geoapify", "locationiq"] as const;
-const GEOCODING_KINDS = ["country", "region", "county", "city", "district", "postcode", "street", "address", "place"] as const;
 
 export const GeocodingResultSchema = z.object({
   id: z.string(),
@@ -23,26 +22,15 @@ export const GeocodingResultSchema = z.object({
   }),
 });
 
-const GeocodingSourceSchema = z.enum(GEOCODING_SOURCES).nullable();
-
-export const GeocodingSearchResponseSchema = z.object({
-  source: GeocodingSourceSchema,
-  results: z.array(GeocodingResultSchema),
-});
-
-export const ReverseGeocodingResponseSchema = z.object({
-  source: GeocodingSourceSchema,
-  result: GeocodingResultSchema.nullable(),
-});
-
-export type GeocodingSource = (typeof GEOCODING_SOURCES)[number];
-export type GeocodingKind = (typeof GEOCODING_KINDS)[number];
+export type { GeocodingKind, GeocodingSource };
 export type GeocodingResult = z.infer<typeof GeocodingResultSchema>;
-export type GeocodingSearchResponse = z.infer<typeof GeocodingSearchResponseSchema>;
-export type ReverseGeocodingResponse = z.infer<typeof ReverseGeocodingResponseSchema>;
+export type GeocodingSearchResponse = { source: GeocodingSource | null; results: GeocodingResult[] };
+export type ReverseGeocodingResponse = { source: GeocodingSource | null; result: GeocodingResult | null };
+
+export type GeocodingScope = { language: string; countryCodes: readonly string[] };
 
 export type GeocodingProvider = {
   source: GeocodingSource;
-  search(query: string): Promise<GeocodingResult[]>;
-  reverse(latitude: number, longitude: number): Promise<GeocodingResult | null>;
+  search(query: string, scope: GeocodingScope): Promise<GeocodingResult[]>;
+  reverse(latitude: number, longitude: number, language: string): Promise<GeocodingResult | null>;
 };

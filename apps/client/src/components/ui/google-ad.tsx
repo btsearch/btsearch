@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef } from "react";
 
 import { authClient } from "@/lib/auth/client";
+import { STAFF_ROLES } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -21,8 +22,6 @@ interface GoogleAdProps {
   children?: ReactNode;
   className?: string;
 }
-
-const PRIVILEGED_ROLES = new Set(["admin", "editor"]);
 
 const AD_FORMAT_STYLES: Record<AdFormat, CSSProperties> = {
   auto: { display: "block", minHeight: 100 },
@@ -47,7 +46,7 @@ function pushAd() {
 
 export function GoogleAd({ adSlot, adFormat = "auto", adSize, children, className }: GoogleAdProps) {
   const { data: session, isPending } = authClient.useSession();
-  const shouldRenderAd = !!AD_CLIENT && !PRIVILEGED_ROLES.has(session?.user?.role as string);
+  const shouldRenderAd = !!AD_CLIENT && !STAFF_ROLES.has(session?.user?.role as string);
   const containerRef = useRef<HTMLDivElement>(null);
   const pushed = useRef(false);
 

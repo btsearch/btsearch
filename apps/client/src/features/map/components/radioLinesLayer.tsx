@@ -25,10 +25,17 @@ type RadioLinesLayerProps = {
   radioLines: RadioLine[];
   pendingRadiolineId?: number | null;
   showAddToList?: boolean;
+  isPickingReceiver?: boolean;
   onPendingRadiolineConsumed?: (id: null) => void;
 };
 
-export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAddToList, onPendingRadiolineConsumed }: RadioLinesLayerProps) {
+export default function RadioLinesLayer({
+  radioLines,
+  pendingRadiolineId,
+  showAddToList,
+  isPickingReceiver = false,
+  onPendingRadiolineConsumed,
+}: RadioLinesLayerProps) {
   const { t } = useTranslation("common");
   const { map, isLoaded } = useMap();
   const { preferences } = usePreferences();
@@ -146,6 +153,7 @@ export default function RadioLinesLayer({ radioLines, pendingRadiolineId, showAd
     endpointsGeoJSON: endpoints,
     duplexLinks,
     minZoom: preferences.radiolinesMinZoom,
+    isPickingReceiver,
     onFeatureClick: handleFeatureClick,
   });
 

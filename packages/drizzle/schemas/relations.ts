@@ -18,6 +18,8 @@ import {
   oauthResources,
   passkeys,
   pushSubscriptions,
+  roleGrantRegions,
+  roleGrants,
   sessions,
   stationComments,
   stationPhotoSelections,
@@ -29,7 +31,10 @@ import {
 } from "./auth.ts";
 import {
   bands,
+  brands,
   cells,
+  countries,
+  countryBands,
   deletedEntries,
   extraIdentificators,
   gsmCells,
@@ -46,6 +51,8 @@ import {
   stations,
   stationsPermits,
   statsSnapshots,
+  structureOwners,
+  ukeBands,
   ukeImportMetadata,
   ukeLocations,
   ukeOperators,
@@ -72,14 +79,19 @@ import {
 export const relations = defineRelations(
   {
     bands,
+    brands,
     cells,
+    countries,
+    countryBands,
     locations,
     operators,
+    structureOwners,
     regions,
     stations,
     stationSectors,
     stationUplinks,
     ukeStations,
+    ukeBands,
     ukePermits,
     ukePermitSectors,
     radioLinesManufacturers,
@@ -110,6 +122,8 @@ export const relations = defineRelations(
     oauthResources,
     passkeys,
     pushSubscriptions,
+    roleGrants,
+    roleGrantRegions,
     sessions,
     locationPhotos,
     stationComments,
@@ -135,16 +149,104 @@ export const relations = defineRelations(
     statsSnapshots,
   },
   (helpers) => ({
+    countries: {
+      regions: helpers.many.regions(),
+      operators: helpers.many.operators(),
+      bandPlan: helpers.many.countryBands(),
+    },
+    countryBands: {
+      country: helpers.one.countries({
+        from: helpers.countryBands.countryCode,
+        to: helpers.countries.code,
+        optional: false,
+      }),
+      band: helpers.one.bands({
+        from: helpers.countryBands.bandId,
+        to: helpers.bands.id,
+        optional: false,
+      }),
+    },
+    roleGrants: {
+      user: helpers.one.users({
+        from: helpers.roleGrants.userId,
+        to: helpers.users.id,
+        alias: "grantee",
+        optional: false,
+      }),
+      grantedBy: helpers.one.users({
+        from: helpers.roleGrants.grantedById,
+        to: helpers.users.id,
+        alias: "grantor",
+      }),
+      country: helpers.one.countries({
+        from: helpers.roleGrants.countryCode,
+        to: helpers.countries.code,
+        optional: false,
+      }),
+      regions: helpers.many.roleGrantRegions(),
+    },
+    roleGrantRegions: {
+      grant: helpers.one.roleGrants({
+        from: helpers.roleGrantRegions.grantId,
+        to: helpers.roleGrants.id,
+        optional: false,
+      }),
+      region: helpers.one.regions({
+        from: helpers.roleGrantRegions.regionId,
+        to: helpers.regions.id,
+        optional: false,
+      }),
+    },
+    brands: {
+      operators: helpers.many.operators(),
+      ukeOperators: helpers.many.ukeOperators(),
+      structureOwners: helpers.many.structureOwners(),
+    },
+    structureOwners: {
+      country: helpers.one.countries({
+        from: helpers.structureOwners.countryCode,
+        to: helpers.countries.code,
+      }),
+      brand: helpers.one.brands({
+        from: helpers.structureOwners.brandId,
+        to: helpers.brands.id,
+      }),
+      operator: helpers.one.operators({
+        from: helpers.structureOwners.operatorId,
+        to: helpers.operators.id,
+      }),
+      locations: helpers.many.locations(),
+    },
+    ukeOperators: {
+      brand: helpers.one.brands({
+        from: helpers.ukeOperators.brandId,
+        to: helpers.brands.id,
+      }),
+    },
     operators: {
       parent: helpers.one.operators({
         from: helpers.operators.parent_id,
         to: helpers.operators.id,
       }),
       children: helpers.many.operators(),
+      country: helpers.one.countries({
+        from: helpers.operators.countryCode,
+        to: helpers.countries.code,
+        optional: false,
+      }),
+      brand: helpers.one.brands({
+        from: helpers.operators.brandId,
+        to: helpers.brands.id,
+      }),
       stations: helpers.many.stations(),
       ukeStations: helpers.many.ukeStations(),
     },
     regions: {
+      country: helpers.one.countries({
+        from: helpers.regions.countryCode,
+        to: helpers.countries.code,
+        optional: false,
+      }),
       locations: helpers.many.locations(),
       ukeLocations: helpers.many.ukeLocations(),
     },
@@ -153,6 +255,10 @@ export const relations = defineRelations(
         from: helpers.locations.region_id,
         to: helpers.regions.id,
         optional: false,
+      }),
+      structureOwner: helpers.one.structureOwners({
+        from: helpers.locations.structure_owner_id,
+        to: helpers.structureOwners.id,
       }),
       stations: helpers.many.stations(),
     },
@@ -227,6 +333,7 @@ export const relations = defineRelations(
     },
     bands: {
       cells: helpers.many.cells(),
+      countryPlans: helpers.many.countryBands(),
     },
     gsmCells: {
       cell: helpers.one.cells({
@@ -488,9 +595,9 @@ export const relations = defineRelations(
       }),
     },
     ukePermits: {
-      band: helpers.one.bands({
+      band: helpers.one.ukeBands({
         from: helpers.ukePermits.band_id,
-        to: helpers.bands.id,
+        to: helpers.ukeBands.id,
         optional: false,
       }),
       station: helpers.one.ukeStations({
@@ -693,9 +800,9 @@ export const relations = defineRelations(
         to: helpers.operators.id,
         optional: false,
       }),
-      band: helpers.one.bands({
+      band: helpers.one.ukeBands({
         from: helpers.statsSnapshots.band_id,
-        to: helpers.bands.id,
+        to: helpers.ukeBands.id,
         optional: false,
       }),
     },

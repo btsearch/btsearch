@@ -10,15 +10,19 @@ import {
 } from "@openbts/drizzle";
 import db from "@openbts/drizzle/db";
 import { hasGenericAddressMarker } from "@openbts/shared/addressValidation";
-import { isARFCNValidForBand } from "@openbts/shared/frequency";
 import { and, count, eq, inArray } from "drizzle-orm/sql";
 import { createInsertSchema, createSelectSchema } from "drizzle-orm/zod";
 import z from "zod";
 
 import { ErrorResponse } from "../../errors.js";
+import { unique } from "../../lib/collections.js";
 import type { DbTx } from "../../types/global.js";
-import { formatARFCNBandErrorMessage } from "../cells/arfcnValidation.js";
-import { checkCellDuplicatesBatch, checkLTEClidConsistency, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { validateCellBandsInCountry } from "../cells/arfcnValidation.js";
+import { checkCellDuplicatesBatch, checkPciDuplicates } from "../cells/duplicateCheck.js";
+import { NORMAL_RATS } from "../cells/ratCellPersistence.js";
+import { assertCellUpdateFitsStoredRat, refuseNsaFields } from "../cells/ratCellSchemas.js";
+import { findPlacementCountryCode } from "../stations/country.js";
+import type { StationStatus } from "../stations/status.js";
 import { uplinkSpeedSchema } from "../stations/uplink.js";
 import {
   type ProposedLocationChanges,
@@ -34,6 +38,7 @@ import {
   makeDetailsRatRefine,
   normalizeText,
   nrInsertSchemaBase,
+  stampSubmissionCountry,
   stationUpdateDiffers,
   stripUnchangedProposalData,
   umtsInsertSchema,
@@ -43,44 +48,43 @@ import {
 
 export const submissionsSelectSchema = createSelectSchema(submissions);
 export const submissionsInsertBase = createInsertSchema(submissions).omit({ createdAt: true, updatedAt: true, submitter_id: true });
-export const proposedStationInsert = createInsertSchema(proposedStations)
+const proposedStationInsert = createInsertSchema(proposedStations)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
   .extend({ uplink_speed: uplinkSpeedSchema.nullable().optional() })
   .strict();
-export const proposedLocationInsert = createInsertSchema(proposedLocations)
-  .omit({ createdAt: true, updatedAt: true, submission_id: true, changed_fields: true })
-  .strict()
-  .superRefine((data, ctx) => {
-    if (hasGenericAddressMarker(data.address))
-      ctx.addIssue({ code: "custom", message: "Address must not contain variants of własny", path: ["address"] });
-  });
-export const nrInsertSchema = nrInsertSchemaBase.superRefine((data, ctx) => {
-  if (data.type === "nsa") {
-    for (const field of ["nrtac", "clid", "gnbid"] as const) {
-      if (data[field] !== null && data[field] !== undefined)
-        ctx.addIssue({ code: "custom", message: `${field} must not be set for NSA NR cells`, path: [field] });
-    }
-    if (data.supports_nr_redcap === true) {
-      ctx.addIssue({ code: "custom", message: "supports_nr_redcap must not be set for NSA NR cells", path: ["supports_nr_redcap"] });
-    }
-  }
+const proposedLocationInsertBase = createInsertSchema(proposedLocations).omit({
+  createdAt: true,
+  updatedAt: true,
+  submission_id: true,
+  changed_fields: true,
 });
+
+export function refuseGenericAddress(location: { address?: string | null }, ctx: z.RefinementCtx): void {
+  if (hasGenericAddressMarker(location.address)) {
+    ctx.addIssue({ code: "custom", message: "Address must not contain variants of własny", path: ["address"] });
+  }
+}
+
+export const proposedLocationInsert = proposedLocationInsertBase.strict().superRefine(refuseGenericAddress);
+export const nrInsertSchema = nrInsertSchemaBase.superRefine(refuseNsaFields);
 export const proposedSectorInsert = createInsertSchema(proposedSectors).omit({ createdAt: true, updatedAt: true, submission_id: true }).strict();
-export const proposedCellInsertBase = createInsertSchema(proposedCells)
+const proposedCellInsertBase = createInsertSchema(proposedCells)
   .omit({ createdAt: true, updatedAt: true, submission_id: true, is_confirmed: true, operation: true })
   .extend({
+    rat: z.enum(NORMAL_RATS).nullable().optional(),
     operation: z.enum(["add", "update", "delete"]).optional(),
     details: z.unknown().optional(),
   })
   .strict();
-export const proposedCellInsert = proposedCellInsertBase.superRefine(
+const proposedCellInsert = proposedCellInsertBase.superRefine(
   makeDetailsRatRefine({ GSM: gsmInsertSchema, UMTS: umtsInsertSchema, LTE: lteInsertSchema, NR: nrInsertSchema }),
 );
 
-export const singleSubmissionSchema = z
+const singleSubmissionSchema = z
   .object({
     station_id: submissionsInsertBase.shape.station_id.optional(),
     type: submissionsInsertBase.shape.type.optional(),
+    origin: submissionsInsertBase.shape.origin.optional(),
     submitter_note: z.string().optional(),
     station: proposedStationInsert.optional(),
     location: proposedLocationInsert.optional(),
@@ -103,6 +107,16 @@ export const singleSubmissionSchema = z
   });
 
 export type SingleSubmission = z.infer<typeof singleSubmissionSchema>;
+export type ChangeCell = NonNullable<SingleSubmission["cells"]>[number] & {
+  is_confirmed?: boolean;
+  destination_station_id?: number;
+};
+export type SubmissionChange = Omit<SingleSubmission, "location" | "cells"> & {
+  location?: SingleSubmission["location"] | null;
+  cells?: ChangeCell[];
+  station_status?: StationStatus;
+  station_is_confirmed?: boolean;
+};
 export type SubmissionWithExtras = z.infer<typeof submissionsSelectSchema> & {
   proposedStation?: z.infer<typeof proposedStationInsert>;
   proposedLocation?: z.infer<typeof proposedLocationInsert>;
@@ -110,28 +124,72 @@ export type SubmissionWithExtras = z.infer<typeof submissionsSelectSchema> & {
   cells?: z.infer<typeof proposedCellInsert>[];
 };
 
-export function hasMeaningfulChanges(input: SingleSubmission): boolean {
-  if (input.type === "delete") return true;
-  if (input.type === "update" && (Object.keys(input.station ?? {}).length > 0 || Object.keys(input.location ?? {}).length > 0)) return true;
-  const { station_id: _, type: __, ...payload } = input;
+function hasEditorFields(change: SubmissionChange): boolean {
+  if (change.station_status !== undefined || change.station_is_confirmed !== undefined || change.location === null) return true;
+  return (change.cells ?? []).some((cell) => cell.is_confirmed !== undefined || cell.destination_station_id !== undefined);
+}
+
+function hasSentFields(part: object | null | undefined): boolean {
+  return Object.values(part ?? {}).some((value) => value !== undefined);
+}
+
+export function hasMeaningfulChanges(input: SubmissionChange): boolean {
+  if (input.type === "delete" || hasEditorFields(input)) return true;
+  if (input.type === "update" && (hasSentFields(input.station) || hasSentFields(input.location))) return true;
+  const { station_id: _stationId, type: _type, origin: _origin, ...payload } = input;
   return isNonEmpty(payload);
 }
 
-export async function validateSubmission(input: SingleSubmission): Promise<void> {
-  const { station_id, type, station: stationData, location: locationData } = input;
+export async function assertTargetCellsFit(
+  cells: readonly Pick<ChangeCell, "operation" | "target_cell_id" | "rat">[],
+  stationId: number | null,
+): Promise<void> {
+  const targetingCells = cells.filter((cell) => cell.operation === "update" || cell.operation === "delete");
+  const targetCellIds = unique(targetingCells.map((cell) => cell.target_cell_id));
+  if (targetCellIds.length === 0) return;
+
+  const targetCells = await db.query.cells.findMany({ where: { id: { in: targetCellIds } }, columns: { id: true, rat: true, station_id: true } });
+  const targetCellById = new Map(targetCells.map((cell) => [cell.id, cell]));
+  for (const { operation, target_cell_id: targetCellId, rat } of targetingCells) {
+    if (typeof targetCellId !== "number") continue;
+
+    const targetCell = targetCellById.get(targetCellId);
+    if (!targetCell || targetCell.station_id !== stationId) {
+      throw new ErrorResponse("NOT_FOUND", { message: `Cell ${targetCellId} does not exist on this station` });
+    }
+    if (operation === "update") assertCellUpdateFitsStoredRat(targetCell, { rat: rat ?? undefined });
+  }
+}
+
+export function validateSubmission(input: SingleSubmission): Promise<void> {
+  return validateChange(input, "review");
+}
+
+export async function validateChange(input: SubmissionChange, handling: "review" | "direct"): Promise<void> {
+  const { station_id, type, station: stationData } = input;
+  const locationData = input.location ?? undefined;
+  const waitsForReview = handling === "review";
 
   const isNewStation = (type ?? "new") === "new";
   const createsPendingStation = isNewStation && (input.cells?.length ?? 0) === 0;
-  if (createsPendingStation && input.pending_photos === undefined)
+  if (waitsForReview && createsPendingStation && input.pending_photos === undefined) {
     throw new ErrorResponse("BAD_REQUEST", { message: "At least one photo is required when submitting a new station without cells" });
+  }
 
+  if (isNewStation && !stationData?.station_id?.trim()) throw new ErrorResponse("BAD_REQUEST", { message: "A new station needs a station ID" });
   if (isNewStation && stationData && typeof stationData.operator_id !== "number")
     throw new ErrorResponse("BAD_REQUEST", { message: "operator_id is required for new stations" });
+  if (isNewStation && stationData && !stationData.uplink_type && typeof stationData.uplink_speed === "number") {
+    throw new ErrorResponse("BAD_REQUEST", { message: "A new station's uplink speed needs an uplink type" });
+  }
   if (isNewStation && locationData && !isCompleteLocation(locationData))
-    throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required for new station locations" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "A region and coordinates are required for a new station's location" });
 
   if ((type === "update" || type === "delete") && !station_id)
     throw new ErrorResponse("INVALID_QUERY", { message: "station_id is required for update and delete submissions" });
+  if (type === "delete" && ((input.cells?.length ?? 0) > 0 || (input.sectors?.length ?? 0) > 0)) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "A delete cannot carry cell or sector changes" });
+  }
 
   const stationId = station_id !== undefined ? Number(station_id) : null;
   if (stationId !== null && Number.isNaN(stationId)) throw new ErrorResponse("INVALID_QUERY");
@@ -176,16 +234,17 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
     type === "update" && stationId !== null ? db.query.stationUplinks.findFirst({ where: { station_id: stationId } }) : null,
   ]);
 
-  if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
-  if (stationId !== null && targetStation && targetStation.status !== "published" && targetStation.status !== "pending")
-    throw new ErrorResponse("NOT_FOUND", { message: "Station not found for the provided station_id" });
+  if (stationId !== null && !targetStation) throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
+  if (waitsForReview && stationId !== null && targetStation && targetStation.status !== "published" && targetStation.status !== "pending") {
+    throw new ErrorResponse("NOT_FOUND", { message: "Station not found" });
+  }
   if (type === "update" && locationData && !targetStation?.location && !isCompleteLocation(locationData))
-    throw new ErrorResponse("BAD_REQUEST", { message: "region_id, longitude and latitude are required when the station has no location" });
+    throw new ErrorResponse("BAD_REQUEST", { message: "A region and coordinates are required when the station has no location" });
   const sectorChanges = validateSectorChanges(input.sectors, targetStation?.sectors ?? [], input.cells);
 
   if (duplicateStation) {
     throw new ErrorResponse("BAD_REQUEST", {
-      message: "Station with the provided station_id and operator already exists. Use `existing` mode",
+      message: "A station with this station ID and operator already exists; update that station instead",
     });
   }
 
@@ -194,8 +253,13 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
 
   const operatorId = type === "new" ? stationData?.operator_id : targetStation?.operator_id;
 
+  const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
   if (input.cells && input.cells.length > 0) {
+    await assertTargetCellsFit(input.cells, isNewStation ? null : stationId);
     validateCellDuplicates(input.cells);
+    if (unique(allModifiedCellIds).length !== allModifiedCellIds.length) {
+      throw new ErrorResponse("BAD_REQUEST", { message: "A cell can be changed once per submission" });
+    }
     // await checkLTEClidConsistency(
     //   stationId,
     //   input.cells
@@ -208,21 +272,11 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
     //   input.cells.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined),
     //   operatorId,
     // );
-    const bandIds = [...new Set(input.cells.map((c) => c.band_id).filter((id): id is number => id !== null && id !== undefined))];
-    if (bandIds.length > 0) {
-      const bandRows = await db.query.bands.findMany({ where: { id: { in: bandIds } }, columns: { id: true, rat: true, value: true, duplex: true } });
-      const bandMap = new Map(bandRows.map((b) => [b.id, b]));
-      for (const cell of input.cells) {
-        if (cell.operation === "delete" || !cell.band_id || !cell.rat || !cell.details) continue;
-        const band = bandMap.get(cell.band_id);
-        if (!band?.value) continue;
-        const details = cell.details as Record<string, unknown>;
-        const arfcn = (details["earfcn"] ?? details["arfcn"]) as number | null | undefined;
-        if (arfcn === null || arfcn === undefined) continue;
-        if (!isARFCNValidForBand(cell.rat, band.value, arfcn, band.duplex))
-          throw new ErrorResponse("BAD_REQUEST", { message: formatARFCNBandErrorMessage(cell.rat, band.value, arfcn) });
-      }
-    }
+    const countryCode = await findPlacementCountryCode({ stationId, regionId: locationData?.region_id, operatorId: stationData?.operator_id });
+    await validateCellBandsInCountry(
+      input.cells.filter((cell) => cell.operation !== "delete"),
+      countryCode,
+    );
   }
 
   if (type === "update" && input.location_photo_ids && input.location_photo_ids.length > 0) {
@@ -249,10 +303,9 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
       throw new ErrorResponse("BAD_REQUEST", { message: "One or more location_photo_ids_to_remove are not assigned to this station" });
   }
 
-  const allModifiedCellIds = input.cells?.map((c) => c.target_cell_id).filter((id): id is number => id !== null && id !== undefined) ?? [];
   if (operatorId && input.cells && input.cells.length > 0) {
     const dupEntries = input.cells
-      .filter((cell) => cell.details && cell.operation !== "delete")
+      .filter((cell) => cell.details && cell.operation !== "delete" && cell.destination_station_id === undefined)
       .map((cell) => ({ rat: cell.rat!, details: cell.details as Record<string, unknown>, excludeCellId: cell.target_cell_id ?? undefined }));
     if (dupEntries.length > 0) await checkCellDuplicatesBatch(dupEntries, operatorId, allModifiedCellIds);
   }
@@ -272,7 +325,7 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
     );
   }
 
-  if (type === "update" && targetStation) {
+  if (waitsForReview && type === "update" && targetStation) {
     const hasStationChanges = !!stationData && stationUpdateDiffers(stationData, targetStation, targetExtraIdentifier ?? null, targetUplink ?? null);
 
     const currentLocation = targetStation.location;
@@ -297,6 +350,32 @@ export async function validateSubmission(input: SingleSubmission): Promise<void>
   }
 }
 
+export type PhotoPickInput = Pick<SingleSubmission, "location_photo_ids" | "location_photo_ids_to_remove" | "main_location_photo_id">;
+
+export async function insertPhotoPicks(tx: DbTx, submissionId: string, picks: PhotoPickInput): Promise<void> {
+  if (picks.location_photo_ids && picks.location_photo_ids.length > 0) {
+    await tx.insert(submissionLocationPhotoSelections).values(
+      picks.location_photo_ids.map((photoId) => ({
+        submission_id: submissionId,
+        location_photo_id: photoId,
+        is_main: photoId === picks.main_location_photo_id,
+        is_removal: false,
+      })),
+    );
+  }
+
+  if (picks.location_photo_ids_to_remove && picks.location_photo_ids_to_remove.length > 0) {
+    await tx.insert(submissionLocationPhotoSelections).values(
+      picks.location_photo_ids_to_remove.map((photoId) => ({
+        submission_id: submissionId,
+        location_photo_id: photoId,
+        is_main: false,
+        is_removal: true,
+      })),
+    );
+  }
+}
+
 export async function processSubmission(tx: DbTx, input: SingleSubmission, userId: string): Promise<SubmissionWithExtras> {
   const { station_id, type, submitter_note, station: stationData, location: locationData, sectors, cells: proposedCellsInput } = input;
 
@@ -318,6 +397,7 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
       submitter_id: userId,
       station_id: station_id ?? null,
       type,
+      origin: input.origin,
       submitter_note: submitter_note ?? null,
       pending_photos: input.pending_photos ?? null,
     })
@@ -336,33 +416,14 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
   if (locationDataToStore)
     await tx.insert(proposedLocations).values({
       ...locationDataToStore,
+      move: locationData?.move ?? "station",
       changed_fields: isStationUpdate ? changedLocationFields(locationDataToStore) : null,
       submission_id: submission.id,
     });
 
   if (sectors && sectors.length > 0) await tx.insert(proposedSectors).values(sectors.map((sector) => ({ ...sector, submission_id: submission.id })));
 
-  if (input.location_photo_ids && input.location_photo_ids.length > 0) {
-    await tx.insert(submissionLocationPhotoSelections).values(
-      input.location_photo_ids.map((photoId) => ({
-        submission_id: submission.id,
-        location_photo_id: photoId,
-        is_main: photoId === input.main_location_photo_id,
-        is_removal: false,
-      })),
-    );
-  }
-
-  if (input.location_photo_ids_to_remove && input.location_photo_ids_to_remove.length > 0) {
-    await tx.insert(submissionLocationPhotoSelections).values(
-      input.location_photo_ids_to_remove.map((photoId) => ({
-        submission_id: submission.id,
-        location_photo_id: photoId,
-        is_main: false,
-        is_removal: true,
-      })),
-    );
-  }
+  await insertPhotoPicks(tx, submission.id, input);
 
   if (proposedCellsInput && proposedCellsInput.length > 0) {
     /* eslint-disable no-await-in-loop */
@@ -388,18 +449,24 @@ export async function processSubmission(tx: DbTx, input: SingleSubmission, userI
         if (!base) throw new ErrorResponse("FAILED_TO_CREATE");
 
         if (cell.operation !== "delete") {
-          await insertProposedCellDetails(tx, cell.rat, cell.details as Record<string, unknown>, base.id);
+          const targetCellId = cell.operation === "update" ? (cell.target_cell_id ?? null) : null;
+          await insertProposedCellDetails(tx, cell.rat, cell.details as Record<string, unknown>, base.id, targetCellId);
         }
       } catch (error) {
         if (error instanceof ErrorResponse) throw error;
-        throw new ErrorResponse("FAILED_TO_CREATE", {
-          message: `Failed to create proposed ${typeof cell.rat === "string" ? cell.rat : "unknown"} cell: ${error instanceof Error ? error.message : "Unknown error"}`,
-          cause: error,
-        });
+        throw new ErrorResponse("FAILED_TO_CREATE", { cause: error });
       }
     }
     /* eslint-enable no-await-in-loop */
   }
 
-  return { ...submission, proposedStation: stationDataToStore, proposedLocation: locationDataToStore, sectors, cells: proposedCellsInput };
+  const countryCode = await stampSubmissionCountry(tx, submission.id);
+  return {
+    ...submission,
+    country_code: countryCode,
+    proposedStation: stationDataToStore,
+    proposedLocation: locationDataToStore,
+    sectors,
+    cells: proposedCellsInput,
+  };
 }

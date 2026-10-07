@@ -38,7 +38,7 @@ export function ExtraIdentificatorsDisplay({ data, operatorMnc }: ExtraIdentific
       {data.networks_id ? (
         <StationInfoItem icon={<NetWorksIcon className="size-4" />} label={t("labels.networksId")}>
           <span className="font-mono">{data.networks_id}</span>
-          <CopyButton text={String(data.networks_id)} />
+          <CopyButton text={String(data.networks_id)} fieldLabel={t("labels.networksId")} />
         </StationInfoItem>
       ) : null}
       {data.networks_name && (
@@ -48,7 +48,7 @@ export function ExtraIdentificatorsDisplay({ data, operatorMnc }: ExtraIdentific
               <TooltipTrigger render={<span className="min-w-0 truncate" />}>{data.networks_name}</TooltipTrigger>
               <TooltipContent>{data.networks_name}</TooltipContent>
             </Tooltip>
-            <CopyButton text={data.networks_name} />
+            <CopyButton text={data.networks_name} fieldLabel={t("labels.networksName")} />
           </div>
         </StationInfoItem>
       )}

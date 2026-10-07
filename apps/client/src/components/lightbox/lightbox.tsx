@@ -8,6 +8,7 @@ import type { LightboxProps, LightboxSlide } from "./types";
 import { Spinner } from "@/components/ui/spinner";
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+const PORTAL_CLASS = "dark [&_div:has(>[data-slot=hover-card-content])]:z-310";
 
 const loadViewer = () => import("./lightboxViewer");
 const LightboxViewer = lazy(() => loadViewer().then((module) => ({ default: module.LightboxViewer })));
@@ -28,6 +29,16 @@ function focusTarget(trigger: HTMLElement | null) {
   return trigger.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
 }
 
+function findMovedSlideIndex(previousSlides: LightboxSlide[], slides: LightboxSlide[], shownIndex: number | null) {
+  if (shownIndex === null || previousSlides.length === 0) return null;
+
+  const shownKey = previousSlides[Math.min(shownIndex, previousSlides.length - 1)].key;
+  if (slides[Math.min(shownIndex, slides.length - 1)].key === shownKey) return null;
+
+  const movedIndex = slides.findIndex((slide) => slide.key === shownKey);
+  return movedIndex === -1 ? null : movedIndex;
+}
+
 export function Lightbox({ slides, index, onIndexChange, onClose, loop, getTrigger }: LightboxProps) {
   const { t } = useTranslation("lightbox");
   const [shownIndex, setShownIndex] = useState<number | null>(null);
@@ -38,7 +49,12 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, getTrigg
   const handleRef = useRef<LightboxViewerHandle | null>(null);
   const finalFocusRef = useRef<HTMLElement | null>(null);
 
-  if (slides.length > 0 && slides !== retainedSlides) setRetainedSlides(slides);
+  if (slides.length > 0 && slides !== retainedSlides) {
+    const movedIndex = findMovedSlideIndex(retainedSlides, slides, shownIndex);
+
+    setRetainedSlides(slides);
+    if (movedIndex !== null) setShownIndex(movedIndex);
+  }
   const displaySlides = slides.length > 0 ? slides : retainedSlides;
   const requestedIndex = index !== null && slides.length > 0 ? Math.min(Math.max(index, 0), slides.length - 1) : null;
   const indexChanged = index !== prevIndex;
@@ -86,12 +102,13 @@ export function Lightbox({ slides, index, onIndexChange, onClose, loop, getTrigg
         onClose();
       }}
     >
-      <Dialog.Portal>
+      <Dialog.Portal className={PORTAL_CLASS}>
         <Dialog.Popup
           ref={popupRef}
           initialFocus={popupRef}
           finalFocus={finalFocusRef}
           onKeyDown={(event) => handleRef.current?.handleKeyDown(event)}
+          onClick={(event) => event.stopPropagation()}
           className="dark fixed inset-0 z-300 overscroll-none text-foreground outline-none select-none"
         >
           <Dialog.Title className="sr-only">{t("viewer")}</Dialog.Title>

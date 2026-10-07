@@ -1,11 +1,50 @@
+import { ANALYZER_NR_MAX } from "./analyzerImport";
+
 export type AnalyzerCell =
   | { rat: "GSM"; mnc: number; lac: number; cid: number }
   | { rat: "UMTS"; mnc: number; lac: number; cid: number; rnc: number | null; uarfcn?: number }
   | { rat: "LTE"; mnc: number; tac: number; enbid: number; clid: number; pci: number; earfcn?: number }
-  | { rat: "NR"; mnc: number; arfcn?: number };
-export type ParsedRow = AnalyzerCell & { description: string; rawLine: string };
+  | { rat: "NR"; mnc: number; arfcn?: number; nci?: number; tac?: number; pci?: number };
+export type ParsedRow = AnalyzerCell & { description: string; rawLine: string; plmn?: string };
 export type AnalyzerTextFormat = "ntm" | "netmonitor";
 export type FileFormat = AnalyzerTextFormat | "nsg";
+
+type UmtsRow = Extract<ParsedRow, { rat: "UMTS" }>;
+type LteRow = Extract<ParsedRow, { rat: "LTE" }>;
+type NrRow = Extract<ParsedRow, { rat: "NR" }>;
+type NrLineTexts = { nci: string | undefined; tac: string | undefined; pci: string | undefined; arfcn: string | undefined };
+
+const MCC_PATTERN = /^\d{3}$/;
+const MNC_PATTERN = /^\d{1,3}$/;
+const SHORTEST_MNC_LENGTH = 2;
+const WHOLE_NUMBER_PATTERN = /^\d+$/;
+const NTM_UNKNOWN_VALUE = 2_147_483_647;
+
+function withLinePlmn(row: ParsedRow, mccText: string, mncText: string): ParsedRow {
+  const mcc = mccText.trim();
+  const mnc = mncText.trim();
+  if (MCC_PATTERN.test(mcc) && MNC_PATTERN.test(mnc)) row.plmn = mcc + mnc.padStart(SHORTEST_MNC_LENGTH, "0");
+  return row;
+}
+
+function readWholeNumber(text: string | undefined, max: number): number | null {
+  const digits = text?.trim() ?? "";
+  if (!WHOLE_NUMBER_PATTERN.test(digits)) return null;
+  const value = Number(digits);
+  return value <= max ? value : null;
+}
+
+function withNrLineValues(row: NrRow, texts: NrLineTexts, unknownNci?: number): NrRow {
+  const nci = readWholeNumber(texts.nci, ANALYZER_NR_MAX.nci);
+  const tac = readWholeNumber(texts.tac, ANALYZER_NR_MAX.tac);
+  const pci = readWholeNumber(texts.pci, ANALYZER_NR_MAX.pci);
+  const arfcn = readWholeNumber(texts.arfcn, ANALYZER_NR_MAX.arfcn);
+  if (nci !== null && nci !== unknownNci) row.nci = nci;
+  if (tac !== null) row.tac = tac;
+  if (pci !== null) row.pci = pci;
+  if (arfcn !== null) row.arfcn = arfcn;
+  return row;
+}
 
 export function getAnalyzerFormatLabel(format: FileFormat | null): string {
   if (format === "nsg") return "NSG";
@@ -38,7 +77,7 @@ function parseNtmLine(line: string): ParsedRow | null {
     const cid = Number.parseInt(parts[3], 10);
     const lac = Number.parseInt(parts[4], 10);
     if (Number.isNaN(cid) || Number.isNaN(lac)) return null;
-    return { rat: "GSM", mnc, cid, lac, description, rawLine: line };
+    return withLinePlmn({ rat: "GSM", mnc, cid, lac, description, rawLine: line }, parts[1], parts[2]);
   }
 
   if (rat === "UMTS" && parts.length >= 7) {
@@ -47,7 +86,9 @@ function parseNtmLine(line: string): ParsedRow | null {
     const rnc = Number.parseInt(parts[5], 10);
     if (Number.isNaN(cid) || Number.isNaN(lac) || Number.isNaN(rnc)) return null;
     const uarfcn = Number.parseInt(parts[10], 10);
-    return { rat: "UMTS", mnc, cid, lac, rnc, ...(Number.isNaN(uarfcn) ? {} : { uarfcn }), description, rawLine: line };
+    const row: UmtsRow = { rat: "UMTS", mnc, cid, lac, rnc, description, rawLine: line };
+    if (!Number.isNaN(uarfcn)) row.uarfcn = uarfcn;
+    return withLinePlmn(row, parts[1], parts[2]);
   }
 
   if (rat === "LTE" && parts.length >= 7) {
@@ -57,12 +98,14 @@ function parseNtmLine(line: string): ParsedRow | null {
     const pci = Number.parseInt(parts[6], 10);
     if (Number.isNaN(clid) || Number.isNaN(tac) || Number.isNaN(enbid) || Number.isNaN(pci)) return null;
     const earfcn = Number.parseInt(parts[10], 10);
-    return { rat: "LTE", mnc, clid, tac, enbid, pci, ...(Number.isNaN(earfcn) ? {} : { earfcn }), description, rawLine: line };
+    const row: LteRow = { rat: "LTE", mnc, clid, tac, enbid, pci, description, rawLine: line };
+    if (!Number.isNaN(earfcn)) row.earfcn = earfcn;
+    return withLinePlmn(row, parts[1], parts[2]);
   }
 
   if (rat === "NR") {
-    const arfcn = Number.parseInt(parts[8], 10);
-    return { rat: "NR", mnc, ...(Number.isNaN(arfcn) ? {} : { arfcn }), description, rawLine: line };
+    const texts: NrLineTexts = { nci: parts[3], tac: parts[4], pci: parts[6], arfcn: parts[10] };
+    return withLinePlmn(withNrLineValues({ rat: "NR", mnc, description, rawLine: line }, texts, NTM_UNKNOWN_VALUE), parts[1], parts[2]);
   }
   return null;
 }
@@ -110,22 +153,23 @@ function parseNetMonitorLine(line: string): ParsedRow | null {
   switch (rat) {
     case "GSM": {
       if (Number.isNaN(lac) || Number.isNaN(cid)) return null;
-      return { rat: "GSM", mnc, lac, cid, description, rawLine: line };
+      return withLinePlmn({ rat: "GSM", mnc, lac, cid, description, rawLine: line }, parts[1], parts[2]);
     }
     case "UMTS": {
       if (Number.isNaN(lac) || Number.isNaN(cid)) return null;
       const rnc = Math.floor(cid / 65536);
       const shortCid = cid % 65536;
-      return { rat: "UMTS", mnc, lac, cid: shortCid, rnc, description, rawLine: line };
+      return withLinePlmn({ rat: "UMTS", mnc, lac, cid: shortCid, rnc, description, rawLine: line }, parts[1], parts[2]);
     }
     case "LTE": {
       if (Number.isNaN(lac) || Number.isNaN(cid) || Number.isNaN(psc)) return null;
       const enbid = Math.floor(cid / 256);
       const clid = cid % 256;
-      return { rat: "LTE", mnc, tac: lac, enbid, clid, pci: psc, earfcn: arfcn, description, rawLine: line };
+      return withLinePlmn({ rat: "LTE", mnc, tac: lac, enbid, clid, pci: psc, earfcn: arfcn, description, rawLine: line }, parts[1], parts[2]);
     }
     case "NR": {
-      return { rat: "NR", mnc, description, rawLine: line };
+      const texts: NrLineTexts = { nci: parts[4], tac: parts[3], pci: parts[5], arfcn: parts[6] };
+      return withLinePlmn(withNrLineValues({ rat: "NR", mnc, description, rawLine: line }, texts), parts[1], parts[2]);
     }
     default:
       return null;

@@ -1,93 +1,137 @@
-import { type Query, type QueryKey, keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Notification, NotificationList } from "@openbts/shared/contract";
+import { type QueryClient, type QueryKey, keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { NotificationsResponse } from "./api";
-import { markAllRead as apiMarkAllRead, markRead as apiMarkRead, fetchNotifications } from "./api";
+import { fetchNotificationList, markAllNotificationsRead, markNotificationRead, notificationKeys, unreadNotificationCountQueryOptions } from "./api";
 import { showApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
 
 export const NOTIFICATIONS_PAGE_SIZE = 20;
 const NOTIFICATIONS_MAX_LIMIT = 100;
+const MARK_ONE_READ_KEY = [...notificationKeys.all, "mark-one-read"] as const;
+const MARK_ALL_READ_KEY = [...notificationKeys.all, "mark-all-read"] as const;
 
-const notificationCaches = {
-  predicate: (query: Query) => query.queryKey[0] === "notifications" || query.queryKey[0] === "notifications-badge",
+type NotificationCachesSnapshot = {
+  lists: [QueryKey, NotificationList | undefined][];
+  unreadCount: number | undefined;
 };
 
-type NotificationsSnapshot = { previous: [QueryKey, NotificationsResponse | undefined][] };
+function toReadNotification(notification: Notification, readAt: string): Notification {
+  return notification.isRead ? notification : { ...notification, isRead: true, readAt };
+}
 
-export function useNotifications(limit = NOTIFICATIONS_PAGE_SIZE) {
+function toUnreadNotification(notification: Notification): Notification {
+  return { ...notification, isRead: false, readAt: null };
+}
+
+function keepPendingReadMarks(client: QueryClient, list: NotificationList): NotificationList {
+  const isMarkingAll = client.isMutating({ mutationKey: MARK_ALL_READ_KEY }) > 0;
+  const pendingMarks = client.getMutationCache().findAll({ mutationKey: MARK_ONE_READ_KEY, status: "pending" });
+  if (!isMarkingAll && pendingMarks.length === 0) return list;
+
+  const readAt = new Date().toISOString();
+  const markedIds = new Set(pendingMarks.map((mutation) => mutation.state.variables));
+  const isMarked = (notification: Notification) => isMarkingAll || markedIds.has(notification.id);
+  const data = list.data.map((notification) => (isMarked(notification) ? toReadNotification(notification, readAt) : notification));
+  return { ...list, data };
+}
+
+export function useNotifications(limit: number) {
   const { data: session } = authClient.useSession();
   const queryClient = useQueryClient();
+  const isSignedIn = !!session?.user;
 
-  const query = useQuery({
-    queryKey: ["notifications", limit],
-    queryFn: () => fetchNotifications({ limit, offset: 0 }),
+  const listQuery = useQuery({
+    queryKey: notificationKeys.list(limit),
+    queryFn: async ({ client, signal }) => keepPendingReadMarks(client, await fetchNotificationList(limit, signal)),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
     refetchIntervalInBackground: true,
     staleTime: 10_000,
-    enabled: !!session?.user,
+    enabled: isSignedIn,
   });
+  const unreadCountQuery = useQuery({ ...unreadNotificationCountQueryOptions(), enabled: isSignedIn });
 
-  const resyncNotifications = () => {
-    if (queryClient.isMutating({ mutationKey: ["notifications"] }) !== 1) return;
-    void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    void queryClient.invalidateQueries({ queryKey: ["notifications-badge"] });
+  const resyncNotifications = async () => {
+    await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+    const isLastPendingMark = queryClient.isMutating({ mutationKey: notificationKeys.all }) === 1;
+    if (isLastPendingMark) void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
   };
 
-  const applyOptimisticUpdate = async (update: (data: NotificationsResponse) => NotificationsResponse): Promise<NotificationsSnapshot> => {
-    await queryClient.cancelQueries(notificationCaches);
-    const previous = queryClient.getQueriesData<NotificationsResponse>(notificationCaches);
-    queryClient.setQueriesData<NotificationsResponse>(notificationCaches, (old) => (old ? update(old) : old));
-    return { previous };
+  const snapshotCaches = async (): Promise<NotificationCachesSnapshot> => {
+    await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+    return {
+      lists: queryClient.getQueriesData<NotificationList>({ queryKey: notificationKeys.lists }),
+      unreadCount: queryClient.getQueryData<number>(notificationKeys.unreadCount),
+    };
   };
 
-  const rollback = (error: Error, _variables: unknown, context: NotificationsSnapshot | undefined) => {
-    context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+  const updateCachedLists = (update: (notification: Notification) => Notification) => {
+    queryClient.setQueriesData<NotificationList>({ queryKey: notificationKeys.lists }, (list) =>
+      list === undefined ? list : { ...list, data: list.data.map(update) },
+    );
+  };
+
+  const updateCachedUnreadCount = (update: (count: number) => number) => {
+    queryClient.setQueryData<number>(notificationKeys.unreadCount, (count) => (count === undefined ? count : update(count)));
+  };
+
+  const rollback = (error: Error, _variables: unknown, snapshot: NotificationCachesSnapshot | undefined) => {
+    if (snapshot !== undefined) {
+      snapshot.lists.forEach(([queryKey, list]) => queryClient.setQueryData(queryKey, list));
+      queryClient.setQueryData(notificationKeys.unreadCount, snapshot.unreadCount);
+    }
     showApiError(error);
   };
 
   const markAllMutation = useMutation({
-    mutationKey: ["notifications"],
-    mutationFn: apiMarkAllRead,
-    onMutate: () => {
+    mutationKey: MARK_ALL_READ_KEY,
+    mutationFn: markAllNotificationsRead,
+    onMutate: async () => {
+      const snapshot = await snapshotCaches();
       const readAt = new Date().toISOString();
-      return applyOptimisticUpdate((old) => ({ ...old, totalUnread: 0, data: old.data.map((n) => ({ ...n, readAt: n.readAt ?? readAt })) }));
+      updateCachedLists((notification) => toReadNotification(notification, readAt));
+      updateCachedUnreadCount(() => 0);
+      return snapshot;
     },
     onError: rollback,
     onSettled: resyncNotifications,
   });
 
   const markReadMutation = useMutation({
-    mutationKey: ["notifications"],
-    mutationFn: apiMarkRead,
-    onMutate: (id: string) => {
+    mutationKey: MARK_ONE_READ_KEY,
+    mutationFn: markNotificationRead,
+    onMutate: async (id: string) => {
+      const snapshot = await snapshotCaches();
       const readAt = new Date().toISOString();
-      const wasUnread = queryClient
-        .getQueriesData<NotificationsResponse>(notificationCaches)
-        .some(([, data]) => data?.data.some((n) => n.id === id && n.readAt === null));
-      return applyOptimisticUpdate((old) => ({
-        ...old,
-        totalUnread: wasUnread ? Math.max(0, old.totalUnread - 1) : old.totalUnread,
-        data: old.data.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? readAt } : n)),
-      }));
+      const wasUnread = snapshot.lists.some(([, list]) => list?.data.some((notification) => notification.id === id && !notification.isRead));
+      updateCachedLists((notification) => (notification.id === id ? toReadNotification(notification, readAt) : notification));
+      if (wasUnread) updateCachedUnreadCount((count) => Math.max(0, count - 1));
+      return wasUnread;
     },
-    onError: rollback,
+    onError: (error, id, wasUnread) => {
+      const isMarkingAll = queryClient.isMutating({ mutationKey: MARK_ALL_READ_KEY }) > 0;
+      if (wasUnread && !isMarkingAll) {
+        updateCachedLists((notification) => (notification.id === id ? toUnreadNotification(notification) : notification));
+        updateCachedUnreadCount((count) => count + 1);
+      }
+      showApiError(error);
+    },
     onSettled: resyncNotifications,
   });
 
-  const notifications = query.data?.data ?? [];
-  const totalCount = query.data?.totalCount ?? 0;
+  const notifications = listQuery.data?.data ?? [];
+  const hasNextPage = listQuery.data !== undefined && listQuery.data.paging.nextCursor !== null;
 
   return {
     notifications,
-    totalUnread: query.data?.totalUnread ?? 0,
-    hasMore: notifications.length < totalCount && limit < NOTIFICATIONS_MAX_LIMIT,
-    reachedEnd: notifications.length >= totalCount,
+    unreadCount: unreadCountQuery.data ?? 0,
+    hasMore: hasNextPage && limit < NOTIFICATIONS_MAX_LIMIT,
+    reachedEnd: !hasNextPage,
     nextLimit: Math.min(limit + NOTIFICATIONS_PAGE_SIZE, NOTIFICATIONS_MAX_LIMIT),
-    isLoading: query.isLoading,
-    isLoadingMore: query.isPlaceholderData,
-    isLoadingError: query.isLoadingError,
-    refetch: query.refetch,
+    isLoading: listQuery.isLoading,
+    isLoadingMore: listQuery.isPlaceholderData,
+    isLoadingError: listQuery.isLoadingError,
+    refetch: listQuery.refetch,
     markAllRead: () => markAllMutation.mutate(),
     markRead: (id: string) => markReadMutation.mutate(id),
   };

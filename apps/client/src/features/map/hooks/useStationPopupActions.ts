@@ -7,16 +7,16 @@ type StationPopupArgs = Omit<Parameters<typeof useMapPopup>[0], "onOpenStationDe
 
 export function useStationPopupActions(args: StationPopupArgs) {
   const { openStationDialog, openUkePermitDialog } = useFloatingDialogStack();
-  const { showPopup, openLocations, closePopups, cleanup } = useMapPopup({
+  const { showPopup, followPoints, openLocations, popupContents, closePopups, cleanup } = useMapPopup({
     ...args,
     onOpenStationDetails: openStationDialog,
     onOpenUkeStationDetails: openUkePermitDialog,
   });
-  const popupActions = useMemo(() => ({ show: showPopup, cleanup }), [cleanup, showPopup]);
+  const popupActions = useMemo(() => ({ show: showPopup, followPoints, cleanup }), [cleanup, followPoints, showPopup]);
   const stationActions = useMemo(
     () => ({ openDetails: openStationDialog, openUkeDetails: openUkePermitDialog }),
     [openStationDialog, openUkePermitDialog],
   );
 
-  return { showPopup, openLocations, closePopups, popupActions, stationActions };
+  return { showPopup, openLocations, popupContents, closePopups, popupActions, stationActions };
 }

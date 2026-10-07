@@ -1,21 +1,19 @@
-import type { AuditUserSummary } from "../types";
+import type { UserRef } from "../types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserLink } from "@/features/user-profile/components/userLink";
 import { resolveAvatarUrl } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 type UserChipProps = {
-  user: AuditUserSummary | null;
+  user: UserRef | null;
   systemLabel: string;
   linked?: boolean;
-  className?: string;
 };
 
-export function UserChip({ user, systemLabel, linked = false, className }: UserChipProps) {
-  if (!user) return <span className={cn("text-muted-foreground italic text-xs", className)}>{systemLabel}</span>;
+export function UserChip({ user, systemLabel, linked = false }: UserChipProps) {
+  if (!user) return <span className="text-muted-foreground italic text-xs">{systemLabel}</span>;
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-2", className)}>
+    <div className="flex min-w-0 items-center gap-2">
       <Avatar className="size-6 shrink-0">
         <AvatarImage src={resolveAvatarUrl(user.image)} />
         <AvatarFallback className="text-[9px]">{(user.name ?? user.username ?? "?").charAt(0).toUpperCase()}</AvatarFallback>

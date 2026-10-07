@@ -2,8 +2,10 @@ import type { FastifyReply } from "fastify";
 import type { FastifyRequest } from "fastify/types/request.js";
 
 import { ErrorResponse } from "../../errors.js";
-import { auth } from "../../plugins/betterauth.plugin.js";
+import { asSessionLookup, auth } from "../../plugins/betterauth.plugin.js";
 import { logger } from "../../utils/logger.js";
+
+const SESSION_LOOKUP_PATH = "/api/v1/auth/get-session";
 
 async function handler(req: FastifyRequest, res: FastifyReply) {
   try {
@@ -20,7 +22,8 @@ async function handler(req: FastifyRequest, res: FastifyReply) {
       body: req.body ? (typeof req.body === "string" ? req.body : JSON.stringify(req.body)) : undefined,
     });
 
-    const response = await auth.handler(request);
+    const isSessionLookup = url.pathname === SESSION_LOOKUP_PATH;
+    const response = await (isSessionLookup ? asSessionLookup(() => auth.handler(request)) : auth.handler(request));
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.header(key, value));

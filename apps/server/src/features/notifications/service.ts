@@ -6,10 +6,13 @@ import db from "../../database/psql.js";
 import { getLabels, t } from "../../i18n/index.js";
 import type { DbTx } from "../../types/global.js";
 import { logger } from "../../utils/logger.js";
+import { coversTarget, loadStaffAccess } from "../access/access.js";
+import { resolveScopeTargets } from "../access/scope.js";
 import { type StationLabel, stationLabelMetadata } from "../submissions/stationLabels.js";
 import { coalesceOrCreateStationNotification } from "./coalesceOrCreateStationNotification.js";
 import { getStationWatchers } from "./getStationWatchers.js";
 import { getUkeStationWatchers } from "./getUkeStationWatchers.js";
+import { NON_PUBLIC_PUSH_ADDRESS, resolvePublicPushEndpoint, sendPushRequest } from "./publicPushEndpoint.js";
 
 const { VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env;
 
@@ -159,11 +162,12 @@ async function deliverPush(subs: { endpoint: string; p256dh: string; auth: strin
   await Promise.allSettled(
     subs.map(async (sub) => {
       try {
-        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        const endpoint = await resolvePublicPushEndpoint(sub.endpoint);
+        await sendPushRequest(webpush.generateRequestDetails({ endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload));
         anySucceeded = true;
       } catch (err: unknown) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 410 || status === 404) {
+        const { statusCode: status, code } = err as { statusCode?: number; code?: string };
+        if (status === 410 || status === 404 || code === NON_PUBLIC_PUSH_ADDRESS) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
           anySucceeded = true;
         } else {
@@ -470,15 +474,19 @@ export async function notifyUkeUpdate(): Promise<void> {
   );
 }
 
-const STAFF_ROLES = ["admin", "editor"];
-
 export async function notifyStaffNewSubmission(params: {
   submissionId: string;
   submitterName: string;
   submissionType: string;
   station?: StationLabel;
 }): Promise<void> {
-  const staffUsers = await db.select({ id: users.id, locale: users.locale }).from(users).where(inArray(users.role, STAFF_ROLES));
+  const [staff, targets] = await Promise.all([loadStaffAccess(), resolveScopeTargets({ submissionIds: [params.submissionId] })]);
+  const recipientIds = staff
+    .filter((access) => access.role === "admin" || targets.some((target) => coversTarget(access, target)))
+    .map((access) => access.userId);
+  if (recipientIds.length === 0) return;
+
+  const staffUsers = await db.select({ id: users.id, locale: users.locale }).from(users).where(inArray(users.id, recipientIds));
   if (staffUsers.length === 0) return;
 
   const metadata: Record<string, unknown> = {

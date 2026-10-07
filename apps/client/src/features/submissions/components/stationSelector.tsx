@@ -1,88 +1,180 @@
 import { Add01Icon, AirportTowerIcon, PencilEdit02Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { type ChangeEvent, type ReactNode, useCallback, useState } from "react";
+import { type KeyboardEvent, type ReactElement, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { type SearchStation, searchStations } from "../api";
+import { TARGET_SEARCH_MIN_LENGTH, targetStationSearchQueryOptions } from "../api";
 import type { SubmissionMode } from "../types";
+import { SegmentButton, SegmentSwitch } from "./segmentSwitch";
+import { BrandMark } from "@/components/cellular/brandMark";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { TechnologySummary } from "@/features/map/components/technologySummary";
-import { getStationBands } from "@/features/map/utils";
-import { StationTitle } from "@/features/station-details/components/stationTitle";
+import { type StationSearchHit, isRejectedSearchQuery } from "@/features/map/searchApi";
+import { getCellTechnologyBands } from "@/features/map/utils";
+import { brandsQueryOptions } from "@/features/shared/lookups";
+import type { StationRecord } from "@/features/station-details/station/types";
+import { getOperatorBrand } from "@/features/station-details/station/utils/brands";
+import { NETWORKS_ID_KIND, findStationIdentifier } from "@/features/station-details/station/utils/stations";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { normalizeSearchText } from "@/lib/apiValues";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 import { cn } from "@/lib/utils";
+
+export type TargetStation = Pick<StationRecord, "id" | "siteId" | "operator" | "identifiers" | "location" | "cells">;
 
 type StationSelectorProps = {
   mode: SubmissionMode;
-  selectedStation: SearchStation | null;
+  station: TargetStation | null;
+  isStationLoading: boolean;
+  stationError: ReactElement | null;
+  isLocked: boolean;
+  focusesModeSwitch: boolean;
   onModeChange: (mode: SubmissionMode) => void;
-  onStationSelect: (station: SearchStation | null) => void;
+  onStationPick: (station: StationSearchHit) => void;
+  onStationClear: () => void;
 };
 
-function StationSummary({ station, action }: { station: SearchStation; action?: ReactNode }) {
-  const location = [station.location?.city, station.extra_address ?? station.location?.address]
-    .filter((value): value is string => Boolean(value))
-    .join(" · ");
+type SelectorBodyProps = Omit<StationSelectorProps, "focusesModeSwitch" | "onModeChange">;
+
+type StationSummaryProps = {
+  station: TargetStation;
+  action?: ReactNode;
+};
+
+type StationSearchProps = {
+  onStationPick: (station: StationSearchHit) => void;
+};
+
+type StationSearchResultsProps = StationSearchProps & {
+  searchText: string;
+  isSettling: boolean;
+};
+
+const SEARCH_DELAY_MS = 300;
+const NO_HITS: StationSearchHit[] = [];
+const HIT_CLASS = cn(
+  "group min-h-11 w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/70",
+  "focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+);
+const STATE_CLASS = "p-3 text-center text-sm text-muted-foreground";
+
+function StationSummary({ station, action }: StationSummaryProps) {
+  const { data: brands } = useQuery(brandsQueryOptions());
+  const { operator } = station;
+  const place = [station.location?.city, station.location?.address].filter((part): part is string => Boolean(part)).join(" · ");
+  const networksId = findStationIdentifier(station.identifiers, NETWORKS_ID_KIND);
 
   return (
     <div className="min-w-0 flex-1">
       <div className="flex min-w-0 items-center gap-2">
-        <StationTitle stationId={station.station_id} operator={station.operator ?? undefined} stationIdClassName="group-hover:underline" />
-        {station.extra_identificators?.networks_id ? (
-          <span className="shrink-0 font-mono text-[11px] text-foreground/70">N!{station.extra_identificators.networks_id}</span>
-        ) : null}
-        {action ? <div className="ml-auto shrink-0">{action}</div> : null}
+        {operator === null ? null : (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <BrandMark brand={getOperatorBrand(operator, brands)} size={16} />
+            <span className="min-w-0 truncate text-xs font-medium text-foreground">{operator.name}</span>
+          </span>
+        )}
+        <span className="shrink-0 font-mono text-sm font-medium text-foreground tabular-nums group-hover:underline">{station.siteId}</span>
+        {networksId === null ? null : <span className="shrink-0 font-mono text-[11px] text-foreground/70">N!{networksId}</span>}
+        {action === undefined ? null : <div className="ml-auto shrink-0">{action}</div>}
       </div>
-      {location ? <p className="mt-1 truncate text-[11px] text-muted-foreground">{location}</p> : null}
-      <TechnologySummary bands={getStationBands(station.cells)} className="mt-0.5 pl-0" />
+      {place === "" ? null : <p className="mt-1 truncate text-[11px] text-muted-foreground">{place}</p>}
+      <TechnologySummary bands={getCellTechnologyBands(station.cells)} className="mt-0.5 pl-0" />
     </div>
   );
 }
 
-export function StationSelector({ mode, selectedStation, onModeChange, onStationSelect }: StationSelectorProps) {
-  const { t } = useTranslation(["submissions", "common"]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(searchQuery, 300);
-  const [isOpen, setIsOpen] = useState(false);
+function StationSearchResults({ searchText, isSettling, onStationPick }: StationSearchResultsProps) {
+  const { t } = useTranslation(["common", "main"]);
+  const { data: hits = NO_HITS, error, isLoading, isLoadingError, isFetching, refetch } = useQuery(targetStationSearchQueryOptions(searchText));
 
-  const {
-    data: searchResults = [],
-    isLoading,
-    isLoadingError,
-    isFetching,
-    refetch,
-  } = useQuery({
-    queryKey: ["stations-search", debouncedQuery],
-    queryFn: () => searchStations(debouncedQuery),
-    enabled: debouncedQuery.length >= 2,
-    staleTime: 1000 * 30,
-  });
+  if (isSettling || isLoading) return <div className={STATE_CLASS}>{t("actions.loading")}</div>;
+  if (isLoadingError && isRejectedSearchQuery(error)) return <div className={STATE_CLASS}>{t("main:search.queryRejected")}</div>;
+  if (isLoadingError) {
+    return <InlineError size="sm" title={t("main:search.errorTitle")} onRetry={() => refetch()} isRetrying={isFetching} className="m-1" />;
+  }
+  if (hits.length === 0) return <div className={STATE_CLASS}>{t("main:search.noResults")}</div>;
 
-  const handleStationSelect = useCallback(
-    (station: SearchStation) => {
-      onStationSelect(station);
-      setSearchQuery("");
-      setIsOpen(false);
-    },
-    [onStationSelect],
+  return (
+    <div className="space-y-0.5 p-1">
+      {hits.map((hit) => (
+        <button type="button" key={hit.id} onClick={() => onStationPick(hit)} className={HIT_CLASS}>
+          <StationSummary station={hit} />
+        </button>
+      ))}
+    </div>
   );
+}
 
-  const handleClearSelection = useCallback(() => {
-    onStationSelect(null);
-    setSearchQuery("");
-  }, [onStationSelect]);
+function StationSearch({ onStationPick }: StationSearchProps) {
+  const { t } = useTranslation("common");
+  const [searchText, setSearchText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const delayedText = useDebouncedValue(searchText, SEARCH_DELAY_MS);
 
-  const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+  const typedText = normalizeSearchText(searchText);
+  const isSettling = typedText !== normalizeSearchText(delayedText);
+
+  function closeOnEscape(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") setIsOpen(false);
+  }
+
+  function changeSearchText(text: string) {
+    setSearchText(text);
     setIsOpen(true);
-  }, []);
+  }
 
-  const handleSearchFocus = useCallback(() => {
-    setIsOpen(true);
-  }, []);
+  return (
+    <div className="relative">
+      <HugeiconsIcon icon={Search01Icon} aria-hidden="true" className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        {...NO_AUTOFILL_PROPS}
+        aria-label={t("actions.selectStation")}
+        placeholder={t("placeholder.search")}
+        value={searchText}
+        onChange={(event) => changeSearchText(event.target.value)}
+        onFocus={() => setIsOpen(true)}
+        onKeyDown={closeOnEscape}
+        className="h-9 pl-10"
+      />
+      {isOpen && typedText.length >= TARGET_SEARCH_MIN_LENGTH ? (
+        <div className="custom-scrollbar absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-popover shadow-lg">
+          <StationSearchResults searchText={delayedText} isSettling={isSettling} onStationPick={onStationPick} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SelectorBody({ mode, station, isStationLoading, stationError, isLocked, onStationPick, onStationClear }: SelectorBodyProps) {
+  const { t } = useTranslation(["submissions", "common"]);
+
+  if (mode === "new") return <p className="text-sm text-muted-foreground">{t("submissionSelector.newStationHint")}</p>;
+  if (stationError !== null) return stationError;
+  if (station !== null) {
+    const clearButton = isLocked ? undefined : (
+      <Button type="button" variant="ghost" size="sm" onClick={onStationClear} className="h-8 cursor-pointer px-2 text-xs">
+        {t("common:actions.clear")}
+      </Button>
+    );
+    return <StationSummary station={station} action={clearButton} />;
+  }
+  if (!isStationLoading) return <StationSearch onStationPick={onStationPick} />;
+
+  return (
+    <div role="status" className="flex h-9 items-center gap-2 text-sm text-muted-foreground">
+      <Spinner aria-hidden="true" />
+      {t("common:actions.loading")}
+    </div>
+  );
+}
+
+export function StationSelector({ focusesModeSwitch, onModeChange, ...body }: StationSelectorProps) {
+  const { t } = useTranslation(["submissions", "common"]);
+  const { mode, isLocked } = body;
 
   return (
     <div>
@@ -91,93 +183,27 @@ export function StationSelector({ mode, selectedStation, onModeChange, onStation
           <HugeiconsIcon icon={AirportTowerIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="truncate text-sm font-semibold tracking-tight">{t("common:actions.selectStation")}</span>
         </div>
-        <div className="flex shrink-0 items-center rounded-lg border bg-card p-0.5 shadow-sm">
-          <button
-            type="button"
-            aria-label={t("submissionSelector.new")}
-            aria-pressed={mode === "new"}
+        <SegmentSwitch label={t("form.targetSwitch")}>
+          <SegmentButton
+            label={t("submissionSelector.new")}
+            icon={Add01Icon}
+            isActive={mode === "new"}
+            isDisabled={isLocked}
+            hasAutoFocus={focusesModeSwitch && mode === "new"}
             onClick={() => onModeChange("new")}
-            className={cn(
-              "flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium transition-all focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mode === "new"
-                ? "bg-background text-foreground shadow-sm ring-1 ring-foreground/50"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-            )}
-          >
-            <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-            <span className="hidden sm:inline">{t("submissionSelector.new")}</span>
-          </button>
-          <button
-            type="button"
-            aria-label={t("submissionSelector.existing")}
-            aria-pressed={mode === "existing"}
+          />
+          <SegmentButton
+            label={t("submissionSelector.existing")}
+            icon={PencilEdit02Icon}
+            isActive={mode === "existing"}
+            isDisabled={isLocked}
+            hasAutoFocus={focusesModeSwitch && mode === "existing"}
             onClick={() => onModeChange("existing")}
-            className={cn(
-              "flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium transition-all focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mode === "existing"
-                ? "bg-background text-foreground shadow-sm ring-1 ring-foreground/50"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-            )}
-          >
-            <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-            <span className="hidden sm:inline">{t("submissionSelector.existing")}</span>
-          </button>
-        </div>
+          />
+        </SegmentSwitch>
       </div>
-
       <div className="p-4">
-        {mode === "existing" && (
-          <div>
-            {selectedStation ? (
-              <StationSummary
-                station={selectedStation}
-                action={
-                  <Button type="button" variant="ghost" size="sm" onClick={handleClearSelection} className="h-8 cursor-pointer px-2 text-xs">
-                    {t("common:actions.clear")}
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="relative">
-                <HugeiconsIcon icon={Search01Icon} className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("common:placeholder.search")}
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onFocus={handleSearchFocus}
-                  className="pl-10 h-9"
-                />
-
-                {isOpen && searchQuery.length >= 2 && (
-                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {isLoading ? (
-                      <div className="p-3 text-center text-sm text-muted-foreground">{t("common:actions.loading")}</div>
-                    ) : isLoadingError ? (
-                      <InlineError size="sm" title={t("main:search.errorTitle")} onRetry={() => refetch()} isRetrying={isFetching} className="m-1" />
-                    ) : searchResults.length === 0 ? (
-                      <div className="p-3 text-center text-sm text-muted-foreground">{t("main:search.noResults")}</div>
-                    ) : (
-                      <div className="p-1 space-y-0.5">
-                        {searchResults.map((station) => (
-                          <button
-                            type="button"
-                            key={station.id}
-                            onClick={() => handleStationSelect(station)}
-                            className="group min-h-11 w-full cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/70 focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <StationSummary station={station} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {mode === "new" && <p className="text-sm text-muted-foreground">{t("submissionSelector.newStationHint")}</p>}
+        <SelectorBody {...body} />
       </div>
     </div>
   );

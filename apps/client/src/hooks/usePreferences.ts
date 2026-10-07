@@ -4,6 +4,7 @@ import {
   type ClfExportFormat,
   normalizeCLFDescriptionTemplates,
 } from "@openbts/shared/clfExportTemplates";
+import { MAX_LOCATION_LIST_LIMIT } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
@@ -20,6 +21,8 @@ export type NavMode = "sidebar" | "floating";
 export type CLFExportFormat = ClfExportFormat;
 export type clfExportFilters = {
   operators: number[];
+  countryCode?: string;
+  operatorIds?: number[];
   regions: string[];
   bands: number[];
   format: CLFExportFormat;
@@ -90,7 +93,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   navigationApps: ["google-maps"],
   navLinksDisplay: "inline",
   radiolinesMinZoom: 8,
-  mapStationsLimit: 1000,
+  mapStationsLimit: MAX_LOCATION_LIST_LIMIT,
   mapRadiolinesLimit: 500,
   showMapHoverTooltip: false,
   allowMultipleMapPopups: true,
@@ -364,7 +367,8 @@ export async function patchCloudPreferences(patch: CloudPreferencesPatch): Promi
 export function usePreferences() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
-  const userId = session?.user?.id;
+  const isActingAsAnotherUser = Boolean(session?.session.impersonatedBy);
+  const userId = isActingAsAnotherUser ? undefined : session?.user?.id;
   const preferences = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT_PREFERENCES);
   const activeProfile = useSyncExternalStore<PreferenceProfile>(subscribe, getProfileSnapshot, () => DEFAULT_PROFILE);
 

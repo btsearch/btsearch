@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { assertRealBand } from "../../../../features/bands/write.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -37,6 +38,10 @@ async function handler(req: FastifyRequest<RequestData>, res: ReplyPayload<JSONB
     },
   });
   if (!band) throw new ErrorResponse("NOT_FOUND");
+  if (req.body.rat !== undefined && req.body.rat !== band.rat) {
+    throw new ErrorResponse("BAD_REQUEST", { message: "A band cannot move to another technology" });
+  }
+  assertRealBand({ ...band, ...req.body });
 
   try {
     const updated = await runAuditedOperation(auditContextFromRequest(req), { kind: "band.update" }, async (tx, audit) => {

@@ -1,11 +1,10 @@
-import { bands } from "@openbts/drizzle";
-import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify/types/request.js";
 import { z } from "zod/v4";
 
 import db from "../../../../database/psql.js";
 import { ErrorResponse } from "../../../../errors.js";
 import { auditContextFromRequest, runAuditedOperation } from "../../../../features/audit/index.js";
+import { removeBand } from "../../../../features/bands/remove.js";
 import type { ReplyPayload } from "../../../../interfaces/fastify.interface.js";
 import type { EmptyResponse, IdParams, Route } from "../../../../interfaces/routes.interface.js";
 
@@ -26,10 +25,7 @@ async function handler(req: FastifyRequest<IdParams>, res: ReplyPayload<EmptyRes
   if (!band) throw new ErrorResponse("NOT_FOUND");
 
   try {
-    await runAuditedOperation(auditContextFromRequest(req), { kind: "band.delete" }, async (tx, audit) => {
-      await tx.delete(bands).where(eq(bands.id, id));
-      await audit.log({ entity: "bands", op: "delete", recordId: id, old: band });
-    });
+    await runAuditedOperation(auditContextFromRequest(req), { kind: "band.delete" }, (tx, audit) => removeBand(tx, audit, band));
   } catch (error) {
     if (error instanceof ErrorResponse) throw error;
     throw new ErrorResponse("FAILED_TO_DELETE", { cause: error });

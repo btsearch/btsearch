@@ -1,21 +1,7 @@
+import { useTranslation } from "react-i18next";
+
+import { groupTechnologyBands } from "@/features/station-details/station/utils/bands";
 import { cn } from "@/lib/utils";
-
-const TECHNOLOGY_BAND_PATTERN = /^(.+?)(\d+)$/;
-
-function groupTechnologyBands(bands: readonly string[]): Map<string, string[]> {
-  const technologies = new Map<string, string[]>();
-
-  for (const band of bands) {
-    const match = band.match(TECHNOLOGY_BAND_PATTERN);
-    const technology = match?.[1] ?? band;
-    const value = match?.[2];
-    const values = technologies.get(technology) ?? [];
-    if (value !== undefined) values.push(value);
-    technologies.set(technology, values);
-  }
-
-  return technologies;
-}
 
 type TechnologySummaryProps = {
   bands: readonly string[];
@@ -24,7 +10,8 @@ type TechnologySummaryProps = {
 };
 
 export function TechnologySummary({ bands, className, detail }: TechnologySummaryProps) {
-  const technologies = groupTechnologyBands(bands);
+  const { i18n } = useTranslation();
+  const technologies = groupTechnologyBands(bands, i18n.language);
   if (technologies.size === 0 && detail === undefined) return null;
 
   return (

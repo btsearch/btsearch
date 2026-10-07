@@ -1,8 +1,6 @@
 {
   "header": {
     "deleteStation": "Delete station",
-    "confirmDelete": "Are you sure you want to delete the station?",
-    "confirmDeleteDesc": "After deletion, the station will be marked as 'inactive' and will no longer be visible on the map or in search results",
     "deleteLocation": "Delete location",
     "confirmDeleteLocation": "Are you sure you want to delete this location?",
     "confirmDeleteLocationDesc": "This action cannot be undone. The location and its data will be permanently removed"
@@ -11,9 +9,7 @@
     "newStation": "Create new station"
   },
   "database": {
-    "title": "Base station database",
-    "description": "Search the base station database by station ID, cell ID, eNB ID, city, or address. Narrow results by operator, region, technology, band, and status",
-    "searchPlaceholder": "Search by station ID, city or address..."
+    "title": "Base station database"
   },
   "status": {
     "published": "Active",
@@ -47,8 +43,6 @@
     "addRemainingCells": "Add remaining cells",
     "confirmCells": "Confirm cells",
     "syncSectorsByPci": "Sync azimuths by PCI",
-    "noRats": "No cells yet. Select a radio technology above to add cells",
-    "pendingReadOnly": "Cells cannot be modified while this station has pending status. Change the status to published to edit cells",
     "noStationCells": "No cells found for this station",
     "noCells": "No cells yet. Click \"Add cell\" to add one",
     "diffAdded": "new",
@@ -58,26 +52,332 @@
     "unknownBand": "Unknown"
   },
   "inactiveBanner": {
-    "title": "Inactive station",
-    "description": "Not visible on the map. Pending deletion from the database"
-  },
-  "pendingBanner": {
-    "title": "Pending station",
-    "description": "Publicly visible without cells. Change the status to published to edit cells"
+    "title": "Inactive station"
   },
   "toast": {
     "locationSaved": "Location has been saved",
     "locationDeleted": "Location has been deleted",
-    "deleted": "Station has been deleted",
     "created": "Station has been created",
-    "operatorRequired": "Operator is required",
-    "locationRequired": "Location is required",
-    "sectorAzimuthsRequired": "Fill in azimuths (0-360)",
     "saved": "Station has been saved",
-    "refreshFailed": "The station was saved, but its latest data could not be loaded",
-    "noBands": "No available bands for {{rat}}",
-    "duplicateCid": "Duplicate CID found in {{rat}} cells",
-    "duplicateEnbidClid": "Duplicate eNBID+CLID combination found in LTE cells",
     "photoUploadFailed": "Station created but photo upload failed"
+  },
+  "list": {
+    "byRelevance": "by relevance",
+    "unconfirmed": "Unconfirmed",
+    "matched": "Match",
+    "cellsOfRat_one": "{{count, number}} {{rat}} cell",
+    "cellsOfRat_other": "{{count, number}} {{rat}} cells",
+    "searchPlaceholder": "Search by station ID, cell ID, city or address...",
+    "searchPlaceholderShort": "Search by station ID, city..."
+  },
+  "edit": {
+    "groups": {
+      "general": "Save"
+    },
+    "cellName": {
+      "noClid": "no CLID",
+      "noCid": "no CID",
+      "noAzimuth": "no azimuth"
+    },
+    "marks": {
+      "submitted": "Submitted",
+      "databaseValue": "Value in the database",
+      "submittedValue": "Value from the submission"
+    },
+    "changes": {
+      "stationConfirmed": "Marked as confirmed",
+      "stationUnconfirmed": "Marked as not confirmed",
+      "stationMoved": "Station moved by {{distance}}, to a new location",
+      "stationMovedToExisting": "Station moved by {{distance}}, to an existing location",
+      "locationMoved": "Whole location moved by {{distance}}",
+      "proposedOwner": "{{name}} (new)",
+      "sectorAdded": "New azimuth {{degrees}}°",
+      "sectorAddedOmni": "New omnidirectional azimuth",
+      "sectorAddedEmpty": "New azimuth without a value",
+      "sectorRemoved": "Removed azimuth {{degrees}}°",
+      "sectorRemovedOmni": "Removed omnidirectional azimuth",
+      "areaCodeAll": "{{field}} of all cells",
+      "areaCodeMixed": "different values",
+      "cellAdded": "New cell {{band}}",
+      "cellRemoved": "Removed cell {{band}}",
+      "cellRestored": "Restored cell {{band}}",
+      "cellConfirmed": "confirmed",
+      "cellUnconfirmed": "not confirmed",
+      "flagOn": "{{flag}} on",
+      "flagOff": "{{flag}} off",
+      "fields": {
+        "band": "band",
+        "azimuth": "azimuth",
+        "cellType": "type",
+        "note": "note",
+        "mode": "mode"
+      },
+      "photosAdded_one": "{{count, number}} new photo",
+      "photosAdded_other": "{{count, number}} new photos",
+      "photosShown_one": "The station will show {{count, number}} more photo",
+      "photosShown_other": "The station will show {{count, number}} more photos",
+      "photosHidden_one": "The station will stop showing {{count, number}} photo",
+      "photosHidden_other": "The station will stop showing {{count, number}} photos",
+      "mainPhoto": "New main photo"
+    },
+    "errors": {
+      "siteIdRequired": "Station ID: required",
+      "siteIdTooLong": "Station ID: at most {{max}} characters",
+      "operatorRequired": "Operator: required",
+      "networksIdInvalid": "N! ID: at most {{max}} digits and nothing else",
+      "identifierTooLong": "Name: at most {{max}} characters",
+      "backhaulMediumRequired": "Uplink: pick a type before you enter a speed",
+      "backhaulSpeedRange": "Speed: value from 1 to {{max}}",
+      "backhaulModelTooLong": "Model: at most {{max}} characters",
+      "coordinatesRequired": "Coordinates: required",
+      "coordinatesIncomplete": "Coordinates: enter both latitude and longitude",
+      "latitudeRange": "Latitude: value from -90 to 90",
+      "longitudeRange": "Longitude: value from -180 to 180",
+      "cityTooLong": "City: at most {{max}} characters",
+      "structureNoteTooLong": "Structure note: at most {{max}} characters",
+      "ownerNameLength": "Structure owner: a name of 1 to {{max}} characters",
+      "ownerMustBeListed": "Structure owner: pick one from the list or add a new one",
+      "azimuthEmpty": "Enter an azimuth or remove the empty field",
+      "azimuthRange": "Azimuth from 0 to 359 (360 = omnidirectional)",
+      "azimuthDuplicate": "Azimuth {{degrees}}° is repeated",
+      "tooManyAzimuths": "At most {{max}} azimuths per station",
+      "required": "{{field}}: required",
+      "range": "{{field}}: value from 0 to {{max}}",
+      "gnbidLengthRange": "gNBID length: an integer from {{min}} to {{max}} bits",
+      "bandRequired": "Band: required",
+      "modeRequired": "Mode: required",
+      "nsaField": "{{field}}: an NSA cell does not have this field",
+      "codeDisabled": "{{field}}: this field is turned off",
+      "cellIdentityDuplicate": "{{fields}} is repeated on this station",
+      "pciDuplicate": "PCI {{pci}} is repeated on this band",
+      "channelBandMismatch": "{{field}}: the channel does not fit the band",
+      "bandNotInPlan": "Band: not in this country's band plan",
+      "tooManyCellChanges": "At most {{max}} cell changes in one save",
+      "noteTooLong": "Note: at most {{max}} characters",
+      "tooManyUploads": "At most {{max}} new photos per submission",
+      "tooManyPicks": "At most {{max}} picked photos",
+      "mainPhotoNotPicked": "The main photo must be one of the picked photos"
+    },
+    "refusals": {
+      "unknown": "The server refused the save: {{message}}",
+      "invalidField": "The server refused this value: {{message}}",
+      "sectorGone": "An azimuth in this change no longer belongs to the station",
+      "cellGone": "This cell is no longer on the station",
+      "fieldNotForRat": "{{field}}: this field does not apply to {{rat}} cells",
+      "cellNotEditable": "This cell cannot be changed through a submission",
+      "unknownTogether": "A cell with a known {{node}} needs a {{cell}}",
+      "operatorGone": "The chosen operator does not exist",
+      "regionGone": "The chosen region does not exist",
+      "bandGone": "The chosen band does not exist",
+      "regionUnknown": "No region could be worked out from the coordinates - pick it by hand",
+      "ownerGone": "The chosen structure owner does not exist",
+      "ownerOtherCountry": "This structure owner belongs to another country than the location",
+      "locationIncomplete": "The location needs coordinates and a region",
+      "siteIdTaken": "This operator already has a station with this ID",
+      "alreadyAtLocation": "A station with this ID is already at exactly these coordinates",
+      "azimuthsNotUnique": "The azimuths of a station must be different",
+      "sectorHasCells": "An azimuth that still has cells cannot be removed",
+      "cellSectorInvalid": "A cell points at an azimuth that is not on this station",
+      "sectorsRefused": "The server refused the azimuth changes: {{message}}",
+      "bandWrongRat": "Band: does not fit the cell's technology",
+      "cellIdentityTaken": "{{fields}} {{values}}: the operator already has such a cell",
+      "pciTaken": "PCI {{pci}}: the station already has such a cell on this band",
+      "cellListedTwice": "The same cell is changed twice",
+      "noChanges": "The server found no changes",
+      "cellMoved": "This cell is on another station now",
+      "cellRatChanged": "A cell's technology cannot be changed",
+      "identifiersNotTaken": "This operator's stations do not take these identifiers",
+      "alreadyReviewed": "This submission has already been reviewed",
+      "stationGone": "The station does not exist or is inactive",
+      "countryClosed": "This country is not accepting submissions",
+      "outsideGrant": "Your editor access does not cover this region",
+      "forbidden": "You are not allowed to do this",
+      "featureDisabled": "This feature is turned off",
+      "duplicateEntry": "Such an entry already exists",
+      "photosGone": "One of the picked photos no longer exists",
+      "photosOtherLocation": "One of the picked photos does not belong to this station's location",
+      "photosNotShown": "The station does not show one of the photos to remove",
+      "deleteOnlyNote": "A removal submission can only carry a note"
+    },
+    "frame": {
+      "tabs": "Parts of the station",
+      "errorCount_one": "{{count, number}} error",
+      "errorCount_other": "{{count, number}} errors",
+      "errorsTitle": "Fix before saving",
+      "changeCount_one": "{{count, number}} change",
+      "changeCount_other": "{{count, number}} changes",
+      "changesTitle": "Changes to save",
+      "ownCorrection": "Your correction"
+    },
+    "stationCard": {
+      "networksIdPlaceholder": "e.g. 12345"
+    },
+    "azimuths": {
+      "cellsOnAzimuth_one": "{{count, number}} cell on this azimuth",
+      "cellsOnAzimuth_other": "{{count, number}} cells on this azimuth",
+      "remove": "Remove azimuth {{value}}",
+      "summaryEdit": "Edit azimuths",
+      "sources": {
+        "emfHint": "The latest report at these coordinates",
+        "registerHint": "Sectors from this station's permits",
+        "partner": "{{brand}} station",
+        "partnerHint": "The partner's station at the same place",
+        "note": "Before anything changes, you will see what is added and what is changed"
+      },
+      "preview": {
+        "emfTitle": "Azimuths from the EMF report",
+        "registerTitle": "Azimuths from UKE permits",
+        "partnerTitle": "Azimuths from the {{brand}} station",
+        "reportDate": "Report of {{date}}",
+        "latestReport": "Latest report",
+        "sectorAntennas_one": "{{count, number}} sector antenna",
+        "sectorAntennas_other": "{{count, number}} sector antennas",
+        "changed": "change",
+        "changedWithCells_one": "change, {{count, number}} cell stays assigned",
+        "changedWithCells_other": "change, {{count, number}} cells stay assigned",
+        "added": "new azimuth",
+        "apply_one": "Apply {{count, number}} change",
+        "apply_other": "Apply {{count, number}} changes"
+      }
+    },
+    "historyCard": {
+      "title": "History",
+      "openAll": "Full history",
+      "afterSubmission": "Changed after the submission was sent"
+    },
+    "location": {
+      "regionFromCoordinates": "set from the coordinates",
+      "regionFromCoordinatesHint": "The server works out the region from the coordinates",
+      "movedTitle": "New position, {{distance}} away",
+      "moveQuestion": "what should move?",
+      "moveLabel": "What to move",
+      "moveStation": "Only this station",
+      "moveLocation": "The whole location",
+      "stationToNew": "This station will move to a new location. The other stations and the photos of the place stay",
+      "stationToExisting": "This station will move to an existing location. The other stations and the photos of the place stay",
+      "stationAloneToNew": "This station will move to a new location together with the photos. The old place will be deleted",
+      "stationAloneToExisting": "This station will move to an existing location together with the photos. The old place will be deleted",
+      "locationWithStations_one": "The place will move together with {{count, number}} station and the photos",
+      "locationWithStations_other": "The place will move together with {{count, number}} stations and the photos",
+      "locationAlone": "The place will move together with the photos",
+      "mergeWithStations_one": "The place will merge with the location that is already there, together with {{count, number}} station and the photos",
+      "mergeWithStations_other": "The place will merge with the location that is already there, together with {{count, number}} stations and the photos",
+      "mergeAlone": "The place will merge with the location that is already there, together with the photos",
+      "structureNotePlaceholder": "e.g. chimney of a heating plant",
+      "sharedByStations": "City, address and structure belong to the place: {{total, number}} stations share them",
+      "stationsHere": "Stations at this place"
+    },
+    "owner": {
+      "newTag": "new",
+      "search": "Search owners",
+      "addNamed": "Add \"{{name}}\"",
+      "propose": "Propose owner",
+      "proposeNamed": "Propose \"{{name}}\"",
+      "proposedHint": "This owner is not on the list yet. An editor will add it when they accept the submission",
+      "proposeTitle": "Propose structure owner",
+      "proposeDescription": "An editor will check the name when they review the submission",
+      "proposeSubmit": "Propose"
+    },
+    "cells": {
+      "cardLabel": "{{rat}} cells",
+      "note": "Note",
+      "addNote": "Add a note",
+      "resetUnavailableCodes": "Reset unavailable codes",
+      "savedCodesUnchanged": "Saved codes stay unchanged",
+      "duplicate": "Duplicate",
+      "refuseDeletion": "Reject the deletion",
+      "newSector": "New...",
+      "columns": {
+        "mode": "Mode",
+        "gnbidLength": "gNBID bits",
+        "cellType": "Type"
+      },
+      "hints": {
+        "sector": "The antenna sector the cell belongs to",
+        "mode": "NSA (Non-Standalone) or SA (Standalone)",
+        "gnbidLength": "gNBID length: 22–32 bits. The remaining bits of the 36-bit NCI hold CLID",
+        "clid": "Cell ID within the base station",
+        "channel": "Downlink channel",
+        "eci": "E-UTRAN Cell Identifier · computed: eNBID x 256 + CLID",
+        "longCid": "Computed: RNC x 65536 + CID",
+        "nci": "NR Cell Identity · computed from gNBID and CLID",
+        "iot": "NB-IoT or LTE-M",
+        "eGsm": "Extended GSM 900 band",
+        "redCap": "Reduced Capability NR, SA cells only",
+        "saOnly": "Only for SA cells"
+      },
+      "areaCode": {
+        "sharedHint": "One value for all {{rat}} cells of this station",
+        "sharedLabel": "{{field}} of all {{rat}} cells",
+        "mixed_one": "{{field}}: {{count, number}} value",
+        "mixed_other": "{{field}}: {{count, number}} different values",
+        "unify": "Unify",
+        "unifyHint": "All {{rat}} cells get {{field}} {{value}}"
+      },
+      "tools": {
+        "button": "Tools",
+        "fillChannelsHint": "Fills empty fields by band and operator",
+        "addMissingCellsHint": "Completes the sectors of each band",
+        "assignSectorsHint": "Cells without an azimuth take it from the cell with the same PCI",
+        "assignSectorsHintNr": "NSA cells take the azimuth of the LTE cell with the same PCI"
+      },
+      "unchanged": {
+        "show_one": "Show {{count, number}} unchanged cell",
+        "show_other": "Show {{count, number}} unchanged cells",
+        "hide": "Hide unchanged cells"
+      },
+      "empty": {
+        "title": "This station has no cells yet",
+        "description": "Pick a technology and its table appears with the first row",
+        "addTechnology": "Add a technology"
+      },
+      "shortcuts": {
+        "button": "Shortcuts",
+        "title": "Shortcuts in the cell tables",
+        "nextRow": "the same field in the next cell",
+        "rowUpDown": "the same field one row up or down",
+        "fieldLeftRight": "the previous or next field of the row",
+        "newRow": "a new cell below the current one",
+        "duplicate": "a duplicate of the current cell",
+        "save": "save"
+      },
+      "legend": {
+        "wasInDatabase": "was in the database"
+      },
+      "sheet": {
+        "title": "{{rat}} · cell {{position}} of {{total}}",
+        "computed": "{{name}} - computed from {{node}} and {{cell}}",
+        "previous": "Previous cell",
+        "next": "Next cell"
+      }
+    },
+    "editor": {
+      "saveFirst": "Save or revert your changes first",
+      "revertShort": "Revert",
+      "restore": "Restore station",
+      "delete": {
+        "title": "Delete this station?",
+        "description": "The station will be marked as inactive and will disappear from the map. Its cells, photos and history stay. After 6 months without changes the server deletes it for good - until then you can restore it"
+      },
+      "inactiveStrip": {
+        "description": "it is not shown on the map. After 6 months without changes the server deletes it together with its cells"
+      },
+      "awaitingStrip": {
+        "title": "The station is waiting for cells",
+        "description": "it is publicly visible. It becomes active once its first cell is saved"
+      },
+      "toast": {
+        "deactivated": "The station was marked as inactive",
+        "restored": "The station was restored"
+      },
+      "saveRefused": {
+        "title": "Not saved - nothing was changed",
+        "fields_one": "The server refused {{count, number}} field. We marked it on the page",
+        "fields_other": "The server refused {{count, number}} fields. We marked them on the page",
+        "fieldsInTable_one": "The server refused {{count, number}} field. We marked it in the {{table}} table",
+        "fieldsInTable_other": "The server refused {{count, number}} fields. We marked them in the {{table}} table",
+        "show": "Show"
+      }
+    }
   }
 }

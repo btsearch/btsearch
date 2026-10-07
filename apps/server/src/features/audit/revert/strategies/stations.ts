@@ -6,6 +6,7 @@ import type { AuditEntry } from "../../types.js";
 import { type SnapshotRecord, recordIdNumber, requireSnapshot, snapshotToRow } from "../columns.js";
 import { changedFields, staleFields } from "../compare.js";
 import { type PlannedEntry, type StrategyContext, conflictFor } from "../types.js";
+import { assertRestoredCellsFitBands } from "./cells.js";
 import { createEmptyPlan, inverseMetadata, numberField, pendingInsertProvider, snapshotFieldNames, stringField } from "./common.js";
 
 const STATION_UNIQUE_CONSTRAINT = "stations_station_id_operator_unique";
@@ -170,6 +171,8 @@ export async function planStationRevert(context: StrategyContext, entry: AuditEn
   plan.finalize = async (tx, audit) => {
     const [restored] = await tx.select().from(stations).where(eq(stations.id, id)).limit(1);
     if (restored === undefined) throw new Error(`Updated station ${id} disappeared`);
+    const hasNewPlacement = restored.location_id !== current.location_id || restored.operator_id !== current.operator_id;
+    if (hasNewPlacement) await assertRestoredCellsFitBands(tx, entry, { cellIds: [], stationId: id });
     await audit.log({
       entity: "stations",
       op: "update",

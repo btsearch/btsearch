@@ -1,19 +1,11 @@
 import type { FastifyRequest } from "fastify/types/request.js";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod/v4";
 
 import db from "../../../../../database/psql.js";
 import { ErrorResponse } from "../../../../../errors.js";
+import { deleteAvatarFile } from "../../../../../features/users/avatarFile.js";
 import type { ReplyPayload } from "../../../../../interfaces/fastify.interface.js";
 import type { JSONBody, Route } from "../../../../../interfaces/routes.interface.js";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
-
-function isUploadedImage(image: string | null | undefined): boolean {
-  if (!image) return false;
-  return !image.startsWith("http") && image.endsWith(".webp");
-}
 
 const schemaRoute = {
   params: z.object({ userId: z.string() }),
@@ -33,13 +25,7 @@ async function handler(req: FastifyRequest<Params>, res: ReplyPayload<JSONBody<n
   });
 
   if (!targetUser) throw new ErrorResponse("NOT_FOUND");
-  if (!targetUser.image) return res.send({ data: null });
-
-  if (isUploadedImage(targetUser.image)) {
-    try {
-      await fs.unlink(path.join(UPLOAD_DIR, targetUser.image));
-    } catch {}
-  }
+  if (targetUser.image) await deleteAvatarFile(userId, targetUser.image);
 
   return res.send({ data: null });
 }

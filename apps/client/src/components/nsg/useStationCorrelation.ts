@@ -7,7 +7,7 @@ import {
   getAnalyzerRequestsIdentity,
   mapAnalyzerResults,
 } from "@/features/nsg-explorer/stations/correlation";
-import { analyzeCellsInChunks } from "@/lib/analyzer/api";
+import { matchNsgCells } from "@/features/nsg-explorer/stations/match";
 import { authClient } from "@/lib/auth/client";
 import type { NsgLog } from "@/lib/nsg-parser/model";
 
@@ -32,9 +32,9 @@ export function useStationCorrelation(log: NsgLog | null, requested: boolean): S
   const isSignedIn = !!session?.user;
   const available = !isAuthPending && isSignedIn && correlationKey !== null && requests.length > 0;
   const { data, error, isFetching, refetch } = useQuery({
-    queryKey: ["nsg", "station-correlation", correlationKey],
+    queryKey: ["nsg", "station-correlation", session?.user.id, correlationKey],
     queryFn: async ({ signal }) => {
-      const results = await analyzeCellsInChunks(
+      const results = await matchNsgCells(
         requests.map(({ input }) => input),
         signal,
       );

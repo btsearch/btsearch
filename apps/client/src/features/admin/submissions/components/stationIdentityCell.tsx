@@ -1,26 +1,41 @@
+import type { ComponentProps } from "react";
+import { useTranslation } from "react-i18next";
+
+import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { StationTitle } from "@/features/station-details/components/stationTitle";
+import { getCountryName } from "@/lib/geo/countryName";
 import { cn } from "@/lib/utils";
-import type { Operator } from "@/types/station";
 
 export function StationIdentityCell({
   className,
   stationId,
+  countryCode,
   operator,
   fallback,
   onStationClick,
 }: {
   className?: string;
   stationId: string | null;
-  operator: Operator | undefined;
+  countryCode: string | null;
+  operator: ComponentProps<typeof StationTitle>["operator"];
   fallback: string;
   onStationClick?: () => void;
 }) {
-  if (!stationId && !operator) return <span className={cn("text-muted-foreground italic text-xs", className)}>{fallback}</span>;
+  const { i18n } = useTranslation();
 
   const label = stationId ?? fallback;
-  const title = <StationTitle stationId={label} operator={operator} stationIdClassName="group-hover/header:underline" />;
+  const title = (
+    <>
+      {countryCode && <CountryCodeTile code={countryCode} size="xs" label={getCountryName(countryCode, i18n.language)} />}
+      {stationId || operator ? (
+        <StationTitle stationId={label} operator={operator} stationIdClassName="group-hover/header:underline" />
+      ) : (
+        <span className="text-muted-foreground italic text-xs">{fallback}</span>
+      )}
+    </>
+  );
 
-  if (onStationClick)
+  if (onStationClick) {
     return (
       <button
         type="button"
@@ -33,6 +48,7 @@ export function StationIdentityCell({
         {title}
       </button>
     );
+  }
 
   return <div className={cn("flex min-w-0 items-center gap-2", className)}>{title}</div>;
 }

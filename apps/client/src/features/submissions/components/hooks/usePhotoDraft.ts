@@ -1,38 +1,24 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
-export function usePhotoDraft() {
+import type { PhotoPicks } from "@/features/station-editing/model/bodies";
+
+export const NO_PHOTO_PICKS: PhotoPicks = { selectIds: [], removeIds: [], mainPhotoId: null };
+
+export function usePhotoDraft(storedPicks: PhotoPicks) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [notes, setNotes] = useState<string[]>([]);
   const [takenAts, setTakenAts] = useState<(Date | null)[]>([]);
-  const [locationPhotoIds, setLocationPhotoIds] = useState<number[]>([]);
-  const [locationPhotoIdsToRemove, setLocationPhotoIdsToRemove] = useState<number[]>([]);
-  const [mainLocationPhotoId, setMainLocationPhotoId] = useState<number | null>(null);
+  const [locationPhotoIds, setLocationPhotoIds] = useState<string[]>(() => [...storedPicks.selectIds]);
+  const [locationPhotoIdsToRemove, setLocationPhotoIdsToRemove] = useState<string[]>(() => [...storedPicks.removeIds]);
+  const [mainLocationPhotoId, setMainLocationPhotoId] = useState<string | null>(storedPicks.mainPhotoId);
   const [mainUploadPhotoIndex, setMainUploadPhotoIndex] = useState<number | null>(null);
 
-  const clearSelections = useCallback(() => {
-    setLocationPhotoIds([]);
-    setLocationPhotoIdsToRemove([]);
-    setMainLocationPhotoId(null);
-    setMainUploadPhotoIndex(null);
-  }, []);
-
-  const clearUploads = useCallback(() => {
+  function clearUploads() {
     setPhotos([]);
     setNotes([]);
     setTakenAts([]);
     setMainUploadPhotoIndex(null);
-  }, []);
-
-  const clear = useCallback(() => {
-    clearSelections();
-    clearUploads();
-  }, [clearSelections, clearUploads]);
-
-  const loadSelections = useCallback((selectedIds: number[], removedIds: number[], mainId: number | null) => {
-    setLocationPhotoIds(selectedIds);
-    setLocationPhotoIdsToRemove(removedIds);
-    setMainLocationPhotoId(mainId);
-  }, []);
+  }
 
   return {
     photos,
@@ -49,11 +35,19 @@ export function usePhotoDraft() {
     onMainLocationPhotoIdChange: setMainLocationPhotoId,
     mainUploadPhotoIndex,
     onMainUploadPhotoIndexChange: setMainUploadPhotoIndex,
-    clear,
-    clearSelections,
     clearUploads,
-    loadSelections,
   };
 }
 
-export type PhotoDraft = Omit<ReturnType<typeof usePhotoDraft>, "clear" | "clearSelections" | "clearUploads" | "loadSelections">;
+export type PhotoDraft = ReturnType<typeof usePhotoDraft>;
+
+export function toPhotoPicks({
+  locationPhotoIds,
+  locationPhotoIdsToRemove,
+  mainLocationPhotoId,
+}: Pick<PhotoDraft, "locationPhotoIds" | "locationPhotoIdsToRemove" | "mainLocationPhotoId">): PhotoPicks {
+  if (mainLocationPhotoId === null || locationPhotoIds.includes(mainLocationPhotoId)) {
+    return { selectIds: locationPhotoIds, removeIds: locationPhotoIdsToRemove, mainPhotoId: mainLocationPhotoId };
+  }
+  return { selectIds: [...locationPhotoIds, mainLocationPhotoId], removeIds: locationPhotoIdsToRemove, mainPhotoId: mainLocationPhotoId };
+}

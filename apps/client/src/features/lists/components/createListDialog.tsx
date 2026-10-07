@@ -5,12 +5,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { createList } from "@/features/lists/api";
-import { ApiResponseError, showApiError } from "@/lib/api";
+import { LIST_DESCRIPTION_MAX_LENGTH, LIST_NAME_MAX_LENGTH, createOwnList, listKeys } from "@/features/lists/api";
+import { ApiResponseError, isConflict, showApiError } from "@/lib/api";
+import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
 
 type Props = {
   open: boolean;
@@ -26,18 +28,20 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [takenName, setTakenName] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: createList,
+    mutationFn: createOwnList,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["user-lists"] });
+      void queryClient.invalidateQueries({ queryKey: listKeys.ownLists() });
       toast.success(t("lists:created"));
       onOpenChange(false);
-      setName("");
-      setDescription("");
-      setIsPublic(false);
     },
-    onError: (error) => {
+    onError: (error, list) => {
+      if (isConflict(error)) {
+        setTakenName(list.name);
+        return;
+      }
       if (error instanceof ApiResponseError && error.errors.some((entry) => entry.code === "LIST_LIMIT_REACHED")) {
         toast.error(t("lists:limitReached"), { description: t("lists:limitReachedHint") });
         return;
@@ -46,17 +50,20 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
     },
   });
 
+  const trimmedName = name.trim();
+  const isNameTaken = takenName === trimmedName;
+
   function handleSubmit() {
-    if (!name.trim()) return;
+    if (!open || !trimmedName || isNameTaken || mutation.isPending) return;
     mutation.mutate({
-      name: name.trim(),
+      name: trimmedName,
       description: description.trim() || undefined,
-      is_public: isPublic,
-      stations: {
-        internal: initialStationId ? [initialStationId] : [],
-        uke: initialUkeStationId ? [initialUkeStationId] : [],
+      isPublic,
+      items: {
+        stationIds: initialStationId ? [initialStationId] : [],
+        officialSiteIds: initialUkeStationId ? [initialUkeStationId] : [],
+        microwaveLinkIds: initialRadiolineIds ?? [],
       },
-      radiolines: initialRadiolineIds ?? [],
     });
   }
 
@@ -67,17 +74,28 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
           <DialogTitle>{t("lists:create")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
+          <Field data-invalid={isNameTaken || undefined}>
             <Label htmlFor="list-name">{t("common:labels.name")}</Label>
-            <Input id="list-name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-          </div>
+            <Input
+              id="list-name"
+              {...NO_AUTOFILL_PROPS}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              maxLength={LIST_NAME_MAX_LENGTH}
+              aria-invalid={isNameTaken || undefined}
+            />
+            {isNameTaken ? <FieldError>{t("lists:nameTaken")}</FieldError> : null}
+          </Field>
           <div className="space-y-2">
             <Label htmlFor="list-description">{t("lists:description")}</Label>
             <Input
               id="list-description"
+              {...NO_AUTOFILL_PROPS}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("common:placeholder.optional")}
+              maxLength={LIST_DESCRIPTION_MAX_LENGTH}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -89,7 +107,7 @@ export function CreateListDialog({ open, onOpenChange, initialStationId, initial
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("common:actions.cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim() || mutation.isPending}>
+          <Button onClick={handleSubmit} disabled={!trimmedName || isNameTaken || mutation.isPending}>
             {mutation.isPending ? <Spinner /> : t("lists:create")}
           </Button>
         </DialogFooter>
