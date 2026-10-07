@@ -13,7 +13,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link } from "@tanstack/react-router";
-import { type ComponentProps, useId, useState, useTransition } from "react";
+import { type ComponentProps, useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -152,6 +153,7 @@ function LanguageItem({ onOpen }: { onOpen?: () => void }) {
         onOpen();
       }}
       className={ITEM_CLASS}
+      data-language-row
     >
       <LanguageRowLabel />
       <HugeiconsIcon icon={ArrowRight01Icon} className="text-muted-foreground" />
@@ -238,13 +240,20 @@ export function AccountMenuContent({ user, className, ...props }: AccountMenuCon
   const { t } = useTranslation("nav");
   const isMobile = useIsMobile();
   const [languageView, setLanguageView] = useState(false);
+  const itemsRef = useRef<HTMLDivElement>(null);
+
+  const showLanguageView = (next: boolean) => {
+    flushSync(() => setLanguageView(next));
+    const selector = next ? '[role="menuitemradio"][aria-checked="true"]' : "[data-language-row]";
+    itemsRef.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+  };
 
   return (
     <DropdownMenuContent className={cn("@container w-72 p-0", className)} {...props}>
       <AccountMenuHeader user={user} />
-      <div className="p-1">
+      <div ref={itemsRef} className="p-1">
         {isMobile && languageView ? (
-          <LanguageView onBack={() => setLanguageView(false)} />
+          <LanguageView onBack={() => showLanguageView(false)} />
         ) : (
           <>
             <DropdownMenuItem render={<Link to="/settings" />} className={ITEM_CLASS}>
@@ -252,7 +261,7 @@ export function AccountMenuContent({ user, className, ...props }: AccountMenuCon
               {t("items.settings")}
             </DropdownMenuItem>
             <ThemeRow />
-            <LanguageItem onOpen={isMobile ? () => setLanguageView(true) : undefined} />
+            <LanguageItem onOpen={isMobile ? () => showLanguageView(true) : undefined} />
             <DropdownMenuSeparator />
             <SignOutItem />
           </>
