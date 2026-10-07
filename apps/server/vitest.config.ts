@@ -11,7 +11,6 @@ export default defineConfig({
       { find: "@openbts/drizzle/db", replacement: `${workspace}packages/drizzle/db.ts` },
       { find: "@openbts/drizzle/types", replacement: `${workspace}packages/drizzle/schemas/types.ts` },
       { find: "@openbts/drizzle", replacement: `${workspace}packages/drizzle/schemas/index.ts` },
-      { find: "@openbts/proto/server", replacement: `${workspace}packages/proto/src/server.ts` },
       { find: /^@openbts\/proto\/gen\/(.+)$/, replacement: `${workspace}packages/proto/src/gen/$1.ts` },
       { find: /^@openbts\/uke-importer\/(.+)$/, replacement: `${workspace}packages/uke-importer/src/$1.ts` },
     ],

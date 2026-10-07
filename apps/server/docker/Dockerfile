@@ -10,11 +10,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 COPY packages/typescript-configs/package.json ./packages/typescript-configs/
 COPY packages/drizzle/package.json ./packages/drizzle/
-COPY packages/proto/package.json ./packages/proto/
 COPY packages/uke-importer/package.json ./packages/uke-importer/
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/client/package.json ./apps/client/
-COPY apps/db-migrate/package.json ./apps/db-migrate/
 COPY apps/discord-bot/package.json ./apps/discord-bot/
 COPY apps/server/package.json ./apps/server/
 
@@ -22,7 +20,6 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/typescript-configs ./packages/typescript-configs
 COPY packages/drizzle ./packages/drizzle
-COPY packages/proto ./packages/proto
 COPY packages/uke-importer ./packages/uke-importer
 COPY packages/shared ./packages/shared
 COPY apps/server ./apps/server
@@ -30,7 +27,6 @@ COPY apps/server ./apps/server
 RUN pnpm --filter @openbts/drizzle build && \
     pnpm --filter @openbts/uke-importer build && \
     pnpm --filter @openbts/shared build && \
-    pnpm --filter @openbts/proto build && \
     pnpm --filter @openbts/sora build
 
 FROM node:26-alpine AS production-deps
@@ -44,11 +40,9 @@ RUN npm install --global pnpm@12.8.1
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages/typescript-configs/package.json ./packages/typescript-configs/
 COPY --from=builder /app/packages/drizzle/package.json ./packages/drizzle/
-COPY --from=builder /app/packages/proto/package.json ./packages/proto/
 COPY --from=builder /app/packages/uke-importer/package.json ./packages/uke-importer/
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/client/package.json ./apps/client/
-COPY --from=builder /app/apps/db-migrate/package.json ./apps/db-migrate/
 COPY --from=builder /app/apps/discord-bot/package.json ./apps/discord-bot/
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 
@@ -67,8 +61,6 @@ COPY --from=builder /app/packages/drizzle/dist ./packages/drizzle/dist
 COPY --from=builder /app/packages/drizzle/migrations ./packages/drizzle/migrations
 COPY --from=builder /app/packages/uke-importer/dist ./packages/uke-importer/dist
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
-COPY --from=builder /app/packages/proto/dist ./packages/proto/dist
-COPY --from=builder /app/packages/proto/src/gen ./packages/proto/src/gen
 COPY --from=builder /app/packages/uke-importer/poland.voivodeships.max.json ./packages/uke-importer/
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY apps/server/static ./static

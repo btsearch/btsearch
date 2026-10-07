@@ -5,7 +5,7 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "arrowParens": "always",
-  "ignorePatterns": ["*.gen.ts", "packages/proto/src/gen/**/*"],
+  "ignorePatterns": ["*.gen.ts"],
   "sortImports": {
     "newlinesBetween": true,
     "groups": [["builtin", "external"], ["internal", "parent", "sibling", "index", "unknown"], "type-import"]

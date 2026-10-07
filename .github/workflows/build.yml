@@ -22,8 +22,6 @@ jobs:
         run: pnpm --filter @openbts/uke-importer build
       - name: Build packages/shared
         run: pnpm --filter @openbts/shared build
-      - name: Build packages/proto
-        run: pnpm --filter @openbts/proto build
       - name: Build apps/server
         run: pnpm --filter @openbts/sora build
       - name: Build apps/client
