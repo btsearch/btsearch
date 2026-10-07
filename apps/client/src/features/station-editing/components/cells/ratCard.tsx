@@ -76,7 +76,6 @@ export function RatCard({ edit, rat, errorsByKey, texts, canConfirm, isNewCellCo
       <EditCard
         ariaLabel={t("stations:edit.cells.cardLabel", { rat: spec.name })}
         isCollapsible
-        isBarSticky
         open={isOpen}
         onOpenChange={setIsOpen}
         lead={<GenerationTag>{spec.generation}</GenerationTag>}

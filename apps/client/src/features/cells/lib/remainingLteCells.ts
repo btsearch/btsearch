@@ -170,6 +170,7 @@ export function buildRemainingLTECells<T>({ operatorMnc, cells, getBandId, getDe
       sectorCount,
     );
     if (sequence === null) continue;
+    if (!rule.supportsFourthSector && group.some((seed) => getSectorIndex(seed.identity, sequence, rule) === null)) continue;
     const source = group.find((seed) => getSectorIndex(seed.identity, sequence, rule) !== null);
     if (source === undefined) continue;
 
