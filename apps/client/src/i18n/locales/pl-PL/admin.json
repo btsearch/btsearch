@@ -189,7 +189,7 @@
       }
     },
     "announcementForm": {
-      "description": "Pasek nad każdą stroną serwisu. Odwiedzający może go zamknąć; po zmianie treści zobaczy go znowu",
+      "description": "Pasek nad każdą stroną serwisu",
       "visible": "Widoczne",
       "hidden": "Ukryte",
       "preview": "Podgląd",

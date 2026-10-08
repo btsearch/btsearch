@@ -139,9 +139,7 @@ export function WrittenView({ result, reference, isPhone, showsCountry, onBack }
             </Button>
           </>
         }
-      >
-        {t("cellAnalyzer:batch.appliedOneOperation")}
-      </StatusStrip>
+      />
       <div className="@container min-h-0 flex-1 overflow-y-auto p-3 max-md:px-2 max-md:pb-28">
         <StationCardColumns
           items={cards}

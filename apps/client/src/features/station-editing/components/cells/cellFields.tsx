@@ -1,3 +1,4 @@
+import type { SelectRootChangeEventDetails } from "@base-ui/react/select";
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { Band, CellType, NrMode } from "@openbts/shared/contract";
@@ -332,9 +333,13 @@ function SectorItems({ sectors, texts }: SectorItemsProps) {
 export function SectorField({ cellKey, sectorKey, sectors, texts, className, isInvalid, isLocked, dispatch, onSectorAdded }: SectorFieldProps) {
   const label = findSectorLabel(sectors, sectorKey);
 
-  function changeSector(value: string | null) {
+  function changeSector(value: string | null, details: SelectRootChangeEventDetails) {
+    if (value === null) {
+      details.cancel();
+      return;
+    }
     if (value !== NEW_SECTOR_VALUE) {
-      const nextKey = value === null || value === NO_SECTOR_VALUE ? null : value;
+      const nextKey = value === NO_SECTOR_VALUE ? null : value;
       dispatch({ type: "setCell", key: cellKey, patch: { sectorKey: nextKey } });
       return;
     }
@@ -346,7 +351,12 @@ export function SectorField({ cellKey, sectorKey, sectors, texts, className, isI
   }
 
   return (
-    <Select value={label === null ? NO_SECTOR_VALUE : sectorKey} onValueChange={changeSector} disabled={isLocked}>
+    <Select
+      key={sectors.map((sector) => sector.key).join(",")}
+      value={label === null ? NO_SECTOR_VALUE : sectorKey}
+      onValueChange={changeSector}
+      disabled={isLocked}
+    >
       <SelectTrigger
         size="sm"
         aria-label={texts.sector}
