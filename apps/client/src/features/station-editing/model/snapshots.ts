@@ -156,6 +156,8 @@ export function createCellDraft(rat: Rat, init: CellInit = {}): CellDraft {
   return {
     key: init.key ?? newDraftKey(),
     id: init.id ?? null,
+    createdAt: init.createdAt ?? null,
+    updatedAt: init.updatedAt ?? null,
     rat,
     bandId: init.bandId ?? null,
     sectorKey: init.sectorKey ?? null,
@@ -192,6 +194,8 @@ function toCellDraft(cell: Cell): CellDraft {
   return {
     key: toCellKey(cell.id),
     id: cell.id,
+    createdAt: cell.createdAt,
+    updatedAt: cell.updatedAt,
     rat: cell.rat,
     bandId: cell.bandId,
     sectorKey: cell.sectorId === null ? null : toSectorKey(cell.sectorId),

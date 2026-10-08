@@ -15,7 +15,7 @@ import { editTargetProps } from "../frame/editTargets";
 import { AreaCodeField } from "./areaCodeField";
 import { EMPTY_TEXT, ErrorLine, findSectorLabel, getBandMark } from "./cellFields";
 import type { CellColumn } from "./cellGrid";
-import { ROW_KIND_CLASSES } from "./cellRow";
+import { getCellRowClass } from "./cellRow";
 import {
   type CellErrorIndex,
   canEditCells,
@@ -91,7 +91,7 @@ function PhoneCellRowInner({ cell, rowKind, errors, band, sectors, columns, text
   const mark = band === undefined ? null : getBandMark(band);
 
   return (
-    <div {...cellRowProps(cell.key)} className={cn("relative border-t border-border/60", ROW_KIND_CLASSES[rowKind])}>
+    <div {...cellRowProps(cell.key)} className={cn("relative border-t border-border/60", getCellRowClass(cell, rowKind))}>
       <button
         type="button"
         onClick={() => onOpen(cell.key)}

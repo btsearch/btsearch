@@ -30,6 +30,7 @@ import type { CellTexts } from "./cellTexts";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getBandLabel } from "@/features/station-details/station/utils/bands";
+import { isRecent } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 
 type CellRowProps = {
@@ -81,6 +82,12 @@ export const ROW_KIND_CLASSES: Record<RowKind, string> = {
 };
 const ACTIONS_CLASS = "flex h-7 w-[60px] shrink-0 items-center justify-end gap-0.5";
 export const DELETE_BUTTON_CLASS = "hover:bg-destructive/15 hover:text-destructive dark:hover:bg-destructive/15";
+
+export function getCellRowClass(cell: CellDraft, kind: RowKind): string {
+  if (kind !== "same") return ROW_KIND_CLASSES[kind];
+  if (cell.createdAt !== null && isRecent(cell.createdAt)) return "bg-green-500/5";
+  return cell.updatedAt !== null && isRecent(cell.updatedAt) ? "bg-amber-500/5" : "";
+}
 
 function getCellLabel(cell: CellDraft, band: Band | undefined, sectors: readonly SectorDraft[], texts: CellTexts): string {
   const { name, cellIdField } = RAT_FIELDS[cell.rat];
@@ -297,7 +304,7 @@ function CellRowInner({
       role="group"
       aria-label={getCellLabel(cell, band, sectors, texts)}
       {...cellRowProps(cell.key, state.kind)}
-      className={cn(ROW_CLASS, ROW_KIND_CLASSES[state.kind])}
+      className={cn(ROW_CLASS, getCellRowClass(cell, state.kind))}
     >
       {columns.map(renderField)}
       <div className="@container/tail flex min-w-0 items-start gap-1.5">

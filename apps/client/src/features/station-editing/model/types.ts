@@ -68,6 +68,8 @@ export type SectorDraft = {
 export type CellDraft = {
   key: DraftKey;
   id: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
   rat: Rat;
   bandId: number | null;
   sectorKey: DraftKey | null;
