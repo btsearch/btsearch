@@ -638,7 +638,7 @@ export const MapSearchOverlay = memo(function MapSearchOverlay({
                     />
                   ) : null}
                   {showDesktopFilters ? (
-                    <fieldset id={filterPanelId} ref={filterPanelRef} tabIndex={-1} className="flex min-h-0 min-w-0 flex-col">
+                    <fieldset id={filterPanelId} ref={filterPanelRef} tabIndex={-1} className="flex max-h-[inherit] min-h-0 min-w-0 flex-col">
                       {filterPanel}
                     </fieldset>
                   ) : null}

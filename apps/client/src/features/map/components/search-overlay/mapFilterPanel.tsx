@@ -354,7 +354,7 @@ export function FilterPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden">
+    <div className="flex max-h-[inherit] min-h-0 flex-col overflow-hidden">
       <div className="flex shrink-0 items-center gap-2 border-t border-border/60 px-4 py-2">{heading}</div>
       <div className={cn("custom-scrollbar flex-1", FILTER_SECTIONS_CLASS, "pt-2")}>{sections}</div>
       {layerStrip}
