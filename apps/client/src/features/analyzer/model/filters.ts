@@ -4,6 +4,7 @@ import { UNKNOWN_BAND_KEY, getBandFacetKey, getBandFacetLabel } from "./bands";
 import type { AnalyzerLookups, DifferenceField, DifferenceFilter, DifferenceKind, RowFacts, RowStatus } from "./types";
 import { canMarkCountries, markSingleCountryKeys } from "@/features/map/components/search-overlay/mapFilterPanelRules";
 import type { MapOperator, MapOperatorGroup } from "@/features/map/data/mapLookups";
+import { getBandCode } from "@/features/station-details/station/utils/bands";
 import { FIRST_LIST_PAGE } from "@/features/stations/list/data/listPaging";
 
 export const ROW_STATUSES = ["found", "probable", "notFound"] as const;
@@ -61,7 +62,7 @@ export type FacetCounts = {
   unconfirmed: number;
 };
 
-export type BandFacet = { key: string; label: string | null; count: number; markCountryCode: string | null };
+export type BandFacet = { key: string; label: string | null; code: string | null; count: number; markCountryCode: string | null };
 
 type KeyedBand = { key: string; band: Band | undefined };
 
@@ -231,6 +232,7 @@ export function listBandFacets(
     .map(({ key, band }) => ({
       key,
       label: band === undefined || key === UNKNOWN_BAND_KEY ? null : getBandFacetLabel(band),
+      code: key === UNKNOWN_BAND_KEY ? null : getBandCode(band),
       count: counts.bands.get(key) ?? 0,
       markCountryCode: key === UNKNOWN_BAND_KEY ? null : (marks.get(key) ?? null),
     }));

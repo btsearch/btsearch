@@ -308,7 +308,6 @@ export async function deliverQueuedStationWatchNotifications(limit = 100): Promi
       id: notifications.id,
       userId: notifications.userId,
       type: notifications.type,
-      title: notifications.title,
       metadata: notifications.metadata,
       actionUrl: notifications.actionUrl,
       locale: users.locale,
@@ -351,7 +350,7 @@ export async function deliverQueuedStationWatchNotifications(limit = 100): Promi
       const strings = t(NOTIFICATION_TYPE_KEY[notification.type], notification.locale);
       const body = buildPushBody(strings.body, notification.metadata ?? undefined, notification.locale);
       const payload = JSON.stringify({
-        title: notification.title,
+        title: strings.title,
         body,
         actionUrl: notification.actionUrl,
         notificationId: notification.id,

@@ -20,7 +20,7 @@ import { GenerationTag } from "@/features/shared/RatGenerationLabel";
 import { toRatType } from "@/features/station-details/station/utils/bands";
 import { STATION_STATUS_TINTS } from "@/features/stations/components/stationStatusFilter";
 import { getCountryName } from "@/lib/geo/countryName";
-import { toggleValue } from "@/lib/utils";
+import { cn, toggleValue } from "@/lib/utils";
 
 type ResultStatus = (typeof ROW_STATUSES)[number];
 
@@ -209,8 +209,9 @@ export function OperatorSection({ filters, panel, onFiltersChange }: AnalyzerPan
 
 function BandPill({ facet, isActive, onToggle }: BandPillProps) {
   const { t, i18n } = useTranslation("cellAnalyzer");
-  const { key, label: bandLabel, count, markCountryCode } = facet;
+  const { key, label: bandLabel, code, count, markCountryCode } = facet;
   const label = bandLabel ?? t("stations:cells.unknownBand");
+  const codeClassName = cn("text-[11px]", isActive ? "text-primary-foreground" : "text-muted-foreground");
 
   if (key === UNKNOWN_BAND_KEY) {
     return (
@@ -220,25 +221,21 @@ function BandPill({ facet, isActive, onToggle }: BandPillProps) {
       </FacetPill>
     );
   }
-  if (markCountryCode === null) {
-    return (
-      <FacetPill active={isActive} onClick={() => onToggle(key)} className="font-mono tabular-nums">
-        <span>{label}</span>
-        <FacetCount count={count} isActive={isActive} />
-      </FacetPill>
-    );
-  }
+  const bandName = code === null ? label : `${label} ${code}`;
+  const countryLabel =
+    markCountryCode === null ? undefined : t("panel.bandOnlyIn", { band: bandName, country: getCountryName(markCountryCode, i18n.language) });
 
   return (
     <FacetPill
       active={isActive}
-      label={t("panel.bandOnlyIn", { band: label, country: getCountryName(markCountryCode, i18n.language) })}
+      label={countryLabel}
       onClick={() => onToggle(key)}
-      className="gap-[5px] pr-1.5 font-mono tabular-nums"
+      className={cn("font-mono tabular-nums", markCountryCode !== null && "gap-1.25 pr-1.5")}
     >
       <span>{label}</span>
+      {code === null ? null : <span className={codeClassName}>{code}</span>}
       <FacetCount count={count} isActive={isActive} />
-      <FacetCountryMark countryCode={markCountryCode} isActive={isActive} />
+      {markCountryCode === null ? null : <FacetCountryMark countryCode={markCountryCode} isActive={isActive} />}
     </FacetPill>
   );
 }

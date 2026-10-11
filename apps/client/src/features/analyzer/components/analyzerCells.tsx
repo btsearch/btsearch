@@ -17,11 +17,13 @@ import { useAnalyzerTexts } from "./analyzerTexts";
 import type { RowOpeners, RowView, StationView } from "./rowView";
 import { BrandMark } from "@/components/cellular/brandMark";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyValue } from "@/components/ui/emptyValue";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFloatingDialogStack } from "@/features/floating-dialogs/components/floatingDialogStackProvider";
+import { useCopyText } from "@/features/settings/copyText";
 import { getBandCode, getBandLabel, toRatType } from "@/features/station-details/station/utils/bands";
 import { LIST_DETAIL_SEPARATOR, ListCountryTile, ListIconMark } from "@/features/stations/list/components/table/listCells";
 import { LIST_ROW_LINK_CLASS } from "@/features/stations/list/components/table/listTableRow";
@@ -79,6 +81,11 @@ const OPERATOR_NAME_CLASS = "min-w-0 truncate text-[13.5px] leading-5 font-mediu
 const CHIP_CLASS = "inline-flex h-4 shrink-0 items-center gap-1 rounded-[5px] px-[5px] text-[11px] leading-[14px] font-medium whitespace-nowrap";
 const CHIP_VALUE_CLASS = "font-mono font-semibold tabular-nums text-foreground";
 const CHIP_LINE_CLASS = "flex min-w-0 flex-wrap items-center gap-1 md:flex-nowrap md:overflow-hidden";
+const CHIP_TONE_CLASSES: Record<IdChip["kind"], string> = {
+  same: "border-0 bg-muted",
+  changed: "border-amber-500/55 bg-amber-500/8",
+  added: "border-emerald-500/60 bg-emerald-500/6",
+};
 const REGISTER_TAG_CLASS = "h-4 bg-muted px-1.5 py-0 text-[10px] font-semibold whitespace-nowrap text-muted-foreground";
 const REGISTER_SITE_CLASS = cn("shrink-0 cursor-pointer font-mono text-xs leading-4 font-medium tabular-nums text-foreground", LIST_ROW_LINK_CLASS);
 const MORE_SITES_CLASS = cn(
@@ -180,42 +187,45 @@ export function OperatorCell({ view }: RowViewProps) {
 
 function IdChipMark({ chip }: { chip: IdChip }) {
   const { t } = useTranslation("cellAnalyzer");
-
-  if (chip.kind === "changed") {
-    const storedTitle = t("stations:edit.marks.databaseValue");
-    const fileTitle = t("table.fileValue");
-
-    return (
-      <span className={cn(CHIP_CLASS, "border border-amber-500/55 bg-amber-500/8 text-muted-foreground")}>
-        {chip.label}
-        <s title={storedTitle} className="font-mono tabular-nums text-amber-600 dark:text-amber-400">
-          <span className="sr-only">{storedTitle}: </span>
-          {chip.stored}
-        </s>
-        <span title={fileTitle} className={CHIP_VALUE_CLASS}>
-          <span className="sr-only">{fileTitle}: </span>
-          {chip.value}
-        </span>
-      </span>
-    );
-  }
-  if (chip.kind === "added") {
-    const title = t("table.missingInDatabase");
-
-    return (
-      <span title={title} className={cn(CHIP_CLASS, "border border-emerald-500/60 bg-emerald-500/6 text-muted-foreground")}>
-        {chip.label}
-        <span className={CHIP_VALUE_CLASS}>{chip.value}</span>
-        <span className="sr-only">, {title}</span>
-      </span>
-    );
-  }
+  const { copied, copy } = useCopyText();
+  const isChanged = chip.kind === "changed";
+  const label = t(copied ? "common:actions.copiedField" : "common:actions.copyField", { field: chip.label });
+  const storedTitle = t("stations:edit.marks.databaseValue");
+  const fileTitle = t("table.fileValue");
+  const missingTitle = chip.kind === "added" ? t("table.missingInDatabase") : null;
+  let accessibleLabel = `${label}: ${chip.value}`;
+  if (isChanged) accessibleLabel = `${label}, ${storedTitle}: ${chip.stored}, ${fileTitle}: ${chip.value}`;
+  else if (missingTitle !== null) accessibleLabel += `, ${missingTitle}`;
 
   return (
-    <span className={cn(CHIP_CLASS, "bg-muted text-muted-foreground")}>
-      {chip.label}
-      <span className={CHIP_VALUE_CLASS}>{chip.value}</span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={accessibleLabel}
+        onClick={() => copy(String(chip.value))}
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className={cn(CHIP_CLASS, "cursor-pointer py-0 text-muted-foreground transition-colors", CHIP_TONE_CLASSES[chip.kind])}
+          />
+        }
+      >
+        {chip.label}
+        {isChanged ? (
+          <s title={storedTitle} className="font-mono tabular-nums text-amber-600 dark:text-amber-400">
+            {chip.stored}
+          </s>
+        ) : null}
+        <span title={isChanged ? fileTitle : undefined} className={CHIP_VALUE_CLASS}>
+          {chip.value}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {label}
+        {missingTitle === null ? null : <span className="block">{missingTitle}</span>}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
