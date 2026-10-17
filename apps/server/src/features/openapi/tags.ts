@@ -6,7 +6,7 @@ export const TAGS: readonly DocumentedTag[] = [
     name: "stations",
     "x-displayName": "Stations",
     description:
-      "Stations are the heart of the API. A station is one operator's installation at a location, together with its cells and sectors. " +
+      "A station is one operator's installation at a location, together with its cells and sectors. " +
       "Use these endpoints to browse and filter stations, fetch a single one with everything attached, " +
       "and read its photos, comments and change history. " +
       "Editors can create, edit and deactivate stations directly. Everyone else suggests changes through submissions.",
@@ -148,6 +148,11 @@ export const TAGS: readonly DocumentedTag[] = [
     description: "Public user profiles with their contributions, and a user search for staff.",
   },
   {
+    name: "hunters",
+    "x-displayName": "Hunters",
+    description: "The hunters directory: people who help find and document stations in the regions they chose, and how to reach them.",
+  },
+  {
     name: "notifications",
     "x-displayName": "Notifications",
     description: "Your notifications about the stations you watch and about your own submissions.",
@@ -182,6 +187,6 @@ export const TAG_GROUPS: readonly TagGroup[] = [
   { name: "Contributions", tags: ["submissions", "comments", "lists"] },
   { name: "Reference data", tags: ["countries", "regions", "operators", "brands", "bands", "structure-owners"] },
   { name: "Official sources and tools", tags: ["official", "emf", "terrain-profiles", "geocoding"] },
-  { name: "Account", tags: ["me", "users", "notifications", "push-subscriptions"] },
+  { name: "Account", tags: ["me", "users", "hunters", "notifications", "push-subscriptions"] },
   { name: "Administration", tags: ["settings", "role-grants", "audit-operations"] },
 ];

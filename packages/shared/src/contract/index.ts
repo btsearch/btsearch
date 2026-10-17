@@ -11,6 +11,7 @@ export * from "./common.ts";
 export * from "./countries.ts";
 export * from "./emf.ts";
 export * from "./geocoding.ts";
+export * from "./hunters.ts";
 export * from "./lists.ts";
 export * from "./me.ts";
 export * from "./microwaveLinks.ts";

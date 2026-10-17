@@ -6,7 +6,7 @@ import type { FastifyRequest } from "fastify";
 
 import db from "../../database/psql.js";
 import { ErrorResponse } from "../../errors.js";
-import { assertCapabilityVisible } from "../countries/visibility.js";
+import { assertCapabilityVisible, loadHiddenCountryCodes } from "../countries/visibility.js";
 import { loadOfficialVisibility, officialLocationIsPublic } from "../official/visibility.js";
 import { stationCountryCode } from "../stations/country.js";
 
@@ -40,7 +40,8 @@ async function stationSite(req: FastifyRequest, stationId: number): Promise<EmfS
     .limit(1);
   if (!row) throw new ErrorResponse("NOT_FOUND");
   if (row.countryCode !== null && !capabilitiesFor(row.countryCode).emf) throw new ErrorResponse("NOT_FOUND");
-  await assertCapabilityVisible(req, "emf");
+  if (row.countryCode === null) await assertCapabilityVisible(req, "emf");
+  else if ((await loadHiddenCountryCodes(req)).includes(row.countryCode)) throw new ErrorResponse("NOT_FOUND");
 
   if (row.latitude === null || row.longitude === null) return null;
   return toSite(row.siteId, row.latitude, row.longitude, row.mnc);

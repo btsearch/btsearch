@@ -157,7 +157,6 @@ export const users = AuthSchema.table(
     contactInfo: jsonb("contact_info").$type<{ instagram?: string; facebook?: string; email?: string }>(),
     profileVisibility: text("profile_visibility").notNull().default("private"),
     hunterListing: boolean("hunter_listing").notNull().default(false),
-    hunterRegions: jsonb("hunter_regions").$type<number[]>().default([]),
     cloudPreferences: jsonb("cloud_preferences").$type<CloudPreferences>(),
   },
   (table) => [index("users_email_idx").on(table.email)],
@@ -200,6 +199,19 @@ export const roleGrantRegions = AuthSchema.table(
       .references(() => regions.id, { onDelete: "restrict", onUpdate: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.grantId, t.regionId] }), index("role_grant_regions_region_id_idx").on(t.regionId)],
+);
+
+export const hunterRegions = AuthSchema.table(
+  "hunter_regions",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.regionId] }), index("hunter_regions_region_id_idx").on(t.regionId)],
 );
 
 export const sessions = AuthSchema.table(

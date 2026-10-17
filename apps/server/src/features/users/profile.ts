@@ -15,14 +15,13 @@ import { loadUserRefViewer } from "./userRef.js";
 
 const userSelectSchema = createSelectSchema(users, {
   contactInfo: z.object({ instagram: z.string().optional(), facebook: z.string().optional(), email: z.string().optional() }).nullable(),
-  hunterRegions: z.array(z.number()).nullable(),
 });
 
 type UserRow = z.infer<typeof userSelectSchema>;
 export type ProfileUser = Pick<
   UserRow,
-  "id" | "username" | "name" | "image" | "bio" | "role" | "contactInfo" | "profileVisibility" | "hunterListing" | "hunterRegions" | "createdAt"
->;
+  "id" | "username" | "name" | "image" | "bio" | "role" | "contactInfo" | "profileVisibility" | "hunterListing" | "createdAt"
+> & { hunterRegions: { regionId: number }[] };
 
 const INSTAGRAM_HANDLE_PREFIX = /^@/;
 
@@ -51,9 +50,9 @@ export async function findProfileUser(username: string): Promise<ProfileUser> {
       contactInfo: true,
       profileVisibility: true,
       hunterListing: true,
-      hunterRegions: true,
       createdAt: true,
     },
+    with: { hunterRegions: { columns: { regionId: true }, orderBy: { regionId: "asc" } } },
   });
   if (!user) throw new ErrorResponse("NOT_FOUND");
   return user;
@@ -88,7 +87,7 @@ export async function loadUserProfile(req: FastifyRequest, username: string): Pr
   const contact = isRestricted ? null : normalizeContact(user.contactInfo);
   const isSignedIn = req.userSession?.user?.id !== undefined;
   const showsContact = isSignedIn || viewer.userId === user.id;
-  const hunterRegionIds = user.hunterRegions ?? [];
+  const hunterRegionIds = user.hunterRegions.map(({ regionId }) => regionId);
   const isHunter = user.profileVisibility === "public" && user.hunterListing && hunterRegionIds.length > 0;
   const showsComments = !isRestricted && getRuntimeSettings().enableStationComments;
 

@@ -1,19 +1,10 @@
+import type { OwnProfile } from "@openbts/shared/contract";
 import { queryOptions } from "@tanstack/react-query";
 import type { Session } from "better-auth";
 
 import { readAuthError } from "./authErrors";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { API_BASE, fetchJson, fetchV2Data } from "@/lib/api";
 import { authClient } from "@/lib/auth/client";
-
-type ProfileContactInfo = { instagram?: string; facebook?: string; email?: string };
-
-export type ProfileData = {
-  bio: string | null;
-  contactInfo: ProfileContactInfo | null;
-  profileVisibility: string;
-  hunterListing: boolean;
-  hunterRegions: number[];
-};
 
 export type UsageWindow = {
   used: number;
@@ -76,10 +67,10 @@ export type SessionDevice = {
 
 export type SessionWithDevice = Session & { device: SessionDevice };
 
-export function accountProfileQueryOptions(userId: string) {
+export function ownProfileQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: ["account", "profile", userId] as const,
-    queryFn: () => fetchJson<{ data: ProfileData }>(`${API_BASE}/account/profile`).then((response) => response.data),
+    queryKey: ["me", "profile", userId] as const,
+    queryFn: ({ signal }) => fetchV2Data<OwnProfile>("me/profile", { signal }),
   });
 }
 

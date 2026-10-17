@@ -19,7 +19,7 @@ const profile = {
   contactInfo: { instagram: " @tester ", facebook: "http://unsafe", email: " tester@example.com " },
   profileVisibility: "public",
   hunterListing: true,
-  hunterRegions: [1],
+  hunterRegions: [{ regionId: 1 }],
   createdAt: readDate,
 };
 

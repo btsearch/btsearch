@@ -366,7 +366,10 @@
       "title": "BTS hunters directory",
       "description": "Show yourself to other hunters. Choose the regions where you are active",
       "requiresPublic": "The directory requires a public profile",
+      "regionsLabel": "Regions",
       "regionsPlaceholder": "Search regions...",
+      "regionsCount": "{{count}} / {{max}}",
+      "removeRegion": "Remove {{name}}",
       "regionsHint": "Choose at least one region",
       "regionsMax": "You can pick up to {{max}} regions"
     }

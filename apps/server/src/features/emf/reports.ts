@@ -8,7 +8,7 @@ import { si2pem } from "./si2pem.js";
 import { type EmfSite, siteBox } from "./site.js";
 
 const REPORTS_CACHE = { freshTtlSeconds: 86400, staleTtlSeconds: 7 * 86400 };
-const CACHE_KEY_PREFIX = "emf:reports:v1";
+const CACHE_KEY_PREFIX = "emf:reports:v2";
 const MEASUREMENT_REPORT_LIMIT = 200;
 const FILING_REPORT_LIMIT = 25;
 const LABORATORY_MEASURE_TYPE = "lab";
@@ -77,7 +77,7 @@ async function fetchFilingReports(siteId: string, entityName: string): Promise<E
           registeredOn: si2pemDateToWarsawDay(filing.registration_date),
           publishedAt,
           laboratoryName: null,
-          filerName: filing.entity?.trim() || null,
+          filerName: filing.entity?.trim() || entityName,
           installationDocumentUrl: toSI2PEMFileUrl(filing.installation_file),
           hasAntennaTable: false,
         },

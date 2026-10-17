@@ -1,5 +1,6 @@
 import { Cancel01Icon, Location01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import type { Region } from "@openbts/shared/contract";
 import { type ComponentProps, type FocusEventHandler, type ReactNode, type Ref, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -10,14 +11,18 @@ import {
   ComboboxChip,
   ComboboxChips,
   ComboboxChipsInput,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
   ComboboxItem,
+  ComboboxLabel,
   ComboboxList,
 } from "@/components/ui/combobox";
+import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { NO_AUTOFILL_PROPS } from "@/lib/autofill";
+import { getCountryName } from "@/lib/geo/countryName";
 import { cn } from "@/lib/utils";
-import type { Region } from "@/types/station";
 
 type FilterPanelSectionProps = {
   title: ReactNode;
@@ -269,10 +274,54 @@ type RegionComboboxProps = {
   invalid?: boolean;
 };
 
+export type RegionGroup = { value: string; items: Region[] };
+
+export function groupRegionsByCountry(regions: Region[]): RegionGroup[] {
+  const groups = new Map<string, Region[]>();
+  for (const region of regions) {
+    const group = groups.get(region.countryCode);
+    if (group === undefined) groups.set(region.countryCode, [region]);
+    else group.push(region);
+  }
+  return [...groups].map(([countryCode, items]) => ({ value: countryCode, items }));
+}
+
+function renderRegionItem(region: Region) {
+  return (
+    <ComboboxItem key={region.id} value={region}>
+      {region.name}
+    </ComboboxItem>
+  );
+}
+
+export function RegionOptionList({ groups }: { groups: RegionGroup[] }) {
+  const { t, i18n } = useTranslation("common");
+
+  return (
+    <>
+      <ComboboxEmpty>{t("placeholder.noRegionsFound")}</ComboboxEmpty>
+      <ComboboxList>
+        {groups.length > 1
+          ? (group: RegionGroup) => (
+              <ComboboxGroup key={group.value} items={group.items}>
+                <ComboboxLabel className="flex items-center gap-1.5">
+                  <CountryCodeTile code={group.value} size="xs" />
+                  {getCountryName(group.value, i18n.language)}
+                </ComboboxLabel>
+                <ComboboxCollection>{renderRegionItem}</ComboboxCollection>
+              </ComboboxGroup>
+            )
+          : renderRegionItem}
+      </ComboboxList>
+    </>
+  );
+}
+
 export function RegionCombobox({ regions, selectedRegions, onChange, placeholder, invalid = false }: RegionComboboxProps) {
   const { t } = useTranslation("common");
   const chipsRef = useRef<HTMLDivElement>(null);
   const regionById = useMemo(() => new Map(regions.map((region) => [region.id, region])), [regions]);
+  const regionGroups = useMemo(() => groupRegionsByCountry(regions), [regions]);
   const selectedRegionItems = useMemo(
     () => selectedRegions.map((id) => regionById.get(id)).filter((region): region is Region => region !== undefined),
     [regionById, selectedRegions],
@@ -286,8 +335,8 @@ export function RegionCombobox({ regions, selectedRegions, onChange, placeholder
         multiple
         value={selectedRegionItems}
         onValueChange={(values) => onChange(values.map((region) => region.id))}
-        items={regions}
-        itemToStringLabel={(region) => region.name}
+        items={regionGroups.length > 1 ? regionGroups : regions}
+        itemToStringLabel={(region: Region) => region.name}
       >
         <ComboboxChips ref={chipsRef} className="h-8 min-h-8 max-h-8 flex-nowrap overflow-hidden text-sm has-data-[slot=combobox-chip]:px-2.5">
           <HugeiconsIcon icon={Location01Icon} className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
@@ -309,14 +358,7 @@ export function RegionCombobox({ regions, selectedRegions, onChange, placeholder
           />
         </ComboboxChips>
         <ComboboxContent anchor={chipsRef}>
-          <ComboboxList>
-            <ComboboxEmpty>{t("placeholder.noRegionsFound")}</ComboboxEmpty>
-            {regions.map((region) => (
-              <ComboboxItem key={region.id} value={region}>
-                {region.name}
-              </ComboboxItem>
-            ))}
-          </ComboboxList>
+          <RegionOptionList groups={regionGroups} />
         </ComboboxContent>
       </Combobox>
       {hiddenSelectedRegionCount > 0 ? (

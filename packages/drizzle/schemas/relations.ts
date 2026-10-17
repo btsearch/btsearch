@@ -6,6 +6,7 @@ import {
   attachments,
   auditLogs,
   auditOperations,
+  hunterRegions,
   jwks,
   locationPhotos,
   notifications,
@@ -120,6 +121,7 @@ export const relations = defineRelations(
     pushSubscriptions,
     roleGrants,
     roleGrantRegions,
+    hunterRegions,
     sessions,
     locationPhotos,
     stationComments,
@@ -187,6 +189,18 @@ export const relations = defineRelations(
       }),
       region: helpers.one.regions({
         from: helpers.roleGrantRegions.regionId,
+        to: helpers.regions.id,
+        optional: false,
+      }),
+    },
+    hunterRegions: {
+      user: helpers.one.users({
+        from: helpers.hunterRegions.userId,
+        to: helpers.users.id,
+        optional: false,
+      }),
+      region: helpers.one.regions({
+        from: helpers.hunterRegions.regionId,
         to: helpers.regions.id,
         optional: false,
       }),
@@ -451,6 +465,7 @@ export const relations = defineRelations(
       pushSubscriptions: helpers.many.pushSubscriptions(),
       stationWatches: helpers.many.stationWatches(),
       officialSiteWatches: helpers.many.officialSiteWatches(),
+      hunterRegions: helpers.many.hunterRegions(),
     },
     notifications: {
       user: helpers.one.users({

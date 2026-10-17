@@ -5,7 +5,7 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "arrowParens": "always",
-  "ignorePatterns": ["*.gen.ts"],
+  "ignorePatterns": ["*.gen.ts", "packages/drizzle/migrations/*/snapshot.json"],
   "sortImports": {
     "newlinesBetween": true,
     "groups": [["builtin", "external"], ["internal", "parent", "sibling", "index", "unknown"], "type-import"]

@@ -295,10 +295,14 @@
     }
   },
   "hunters": {
-    "subtitle": "Znajdź łowców BTS w swoim województwie",
+    "subtitle": "Znajdź łowców BTS w swoim regionie",
     "searchPlaceholder": "Szukaj po nazwie lub nicku...",
-    "allRegions": "Wszyscy",
-    "emptyTitle": "Brak łowców w tym regionie",
+    "allRegions": "Wszystkie regiony",
+    "countryFilter": "Kraj",
+    "alsoIn": "Także: {{codes}}",
+    "showAllRegions": "Pokaż wszystkie regiony",
+    "showFewerRegions": "Zwiń",
+    "emptyTitle": "Katalog jest jeszcze pusty",
     "emptySubtitle": "Dołącz do katalogu, żeby inni mogli Cię znaleźć",
     "joinCta": "Dołącz do katalogu",
     "errorTitle": "Nie udało się wczytać łowców",

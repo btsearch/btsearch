@@ -1,5 +1,6 @@
 import { ArrowUpRight01Icon, Facebook01Icon, Globe02Icon, InstagramIcon, Mail01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HUNTER_REGIONS_MAX, type OwnProfile, type Region } from "@openbts/shared/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";
@@ -7,8 +8,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { showSettingsError } from "../authErrors";
-import { type ProfileData, accountProfileQueryOptions } from "../queries";
+import { ownProfileQueryOptions } from "../queries";
 import { SETTINGS_SECTION_IDS } from "../sections";
+import { HunterRegionsPicker } from "./hunterRegionsPicker";
 import type { SettingsUser } from "./identityBanner";
 import {
   SETTINGS_DESCRIPTION_CLASS,
@@ -27,16 +29,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { RegionCombobox } from "@/features/shared/filterPanel";
 import { regionsQueryOptions } from "@/features/shared/lookups";
 import { USER_PROFILE_QUERY_KEY } from "@/features/user-profile/queries";
 import { useBeforeUnloadGuard } from "@/hooks/useBeforeUnloadGuard";
-import { API_BASE, fetchJson } from "@/lib/api";
+import { JSON_HEADERS, fetchV2Data } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { Region } from "@/types/station";
 
 const BIO_MAX_LENGTH = 500;
-const HUNTER_REGIONS_MAX = 20;
+const NO_REGIONS: Region[] = [];
 const BIO_LINK_PATTERN = /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;
 const INSTAGRAM_PATTERN = /^[a-zA-Z0-9._]{1,30}$/;
 const FACEBOOK_PATTERN = /^https:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9._%+-]{1,60}\/?$/;
@@ -52,15 +52,15 @@ type ProfileDraft = {
   hunterRegions: number[];
 };
 
-function toDraft(profile: ProfileData): ProfileDraft {
+function toDraft(profile: OwnProfile): ProfileDraft {
   return {
     bio: profile.bio ?? "",
-    instagram: profile.contactInfo?.instagram ?? "",
-    facebook: profile.contactInfo?.facebook ?? "",
-    contactEmail: profile.contactInfo?.email ?? "",
-    isPublic: profile.profileVisibility !== "private",
-    hunterListing: profile.hunterListing,
-    hunterRegions: profile.hunterRegions,
+    instagram: profile.contact.instagram ?? "",
+    facebook: profile.contact.facebook ?? "",
+    contactEmail: profile.contact.email ?? "",
+    isPublic: profile.visibility === "public",
+    hunterListing: profile.isListedAsHunter,
+    hunterRegions: profile.hunterRegionIds,
   };
 }
 
@@ -104,7 +104,7 @@ function ContactField({
   );
 }
 
-function ProfileCard({ user, profile, regions }: { user: SettingsUser; profile: ProfileData; regions: Region[] }) {
+function ProfileCard({ user, profile, regions }: { user: SettingsUser; profile: OwnProfile; regions: Region[] }) {
   const { t } = useTranslation(["settings", "common"]);
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(() => toDraft(profile));
@@ -120,26 +120,26 @@ function ProfileCard({ user, profile, regions }: { user: SettingsUser; profile: 
 
   const saveMutation = useMutation({
     mutationFn: (values: ProfileDraft) =>
-      fetchJson<{ data: ProfileData }>(`${API_BASE}/account/profile`, {
+      fetchV2Data<OwnProfile>("me/profile", {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           bio: values.bio.trim() || null,
-          contactInfo: {
-            instagram: values.instagram.trim() || undefined,
-            facebook: values.facebook.trim() || undefined,
-            email: values.contactEmail.trim() || undefined,
+          contact: {
+            instagram: values.instagram.trim() || null,
+            facebook: values.facebook.trim() || null,
+            email: values.contactEmail.trim() || null,
           },
-          profileVisibility: values.isPublic ? "public" : "private",
-          hunterListing: values.hunterListing,
-          hunterRegions: values.hunterRegions,
+          visibility: values.isPublic ? "public" : "private",
+          isListedAsHunter: values.hunterListing,
+          hunterRegionIds: values.hunterRegions,
         }),
       }),
-    onSuccess: ({ data }) => {
+    onSuccess: (data) => {
       const next = toDraft(data);
       setSaved(next);
       setDraft(next);
-      queryClient.setQueryData(accountProfileQueryOptions(user.id).queryKey, data);
+      queryClient.setQueryData(ownProfileQueryOptions(user.id).queryKey, data);
       void queryClient.invalidateQueries({ queryKey: USER_PROFILE_QUERY_KEY });
       toast.success(t("profile.saveSuccess"));
     },
@@ -274,24 +274,32 @@ function ProfileCard({ user, profile, regions }: { user: SettingsUser; profile: 
           </ContactField>
         </div>
       </div>
-      <div className="flex flex-wrap items-start gap-x-5 gap-y-3 border-t px-4 py-3.5 sm:px-5">
-        <div className="flex min-w-0 flex-[1_1_18rem] items-center gap-3.5">
-          <SettingsIconTile icon={UserGroupIcon} />
-          <div className="min-w-0">
-            <p id={huntersTitleId} className="text-sm leading-5 font-medium">
-              {t("profile.hunters.title")}
-            </p>
-            <p className={cn("mt-0.5", SETTINGS_DESCRIPTION_CLASS)}>{t("profile.hunters.description")}</p>
-            {draft.isPublic ? null : <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{t("profile.hunters.requiresPublic")}</p>}
+      <div className="border-t">
+        <div className="flex items-start gap-5 px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
+            <SettingsIconTile icon={UserGroupIcon} />
+            <div className="min-w-0">
+              <p id={huntersTitleId} className="text-sm leading-5 font-medium">
+                {t("profile.hunters.title")}
+              </p>
+              <p className={cn("mt-0.5", SETTINGS_DESCRIPTION_CLASS)}>{t("profile.hunters.description")}</p>
+              {draft.isPublic ? null : <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{t("profile.hunters.requiresPublic")}</p>}
+            </div>
           </div>
+          <Switch
+            checked={draft.hunterListing}
+            disabled={!draft.isPublic && !draft.hunterListing}
+            aria-labelledby={huntersTitleId}
+            onCheckedChange={(checked) => update({ hunterListing: checked })}
+            className="mt-2"
+          />
         </div>
         {draft.hunterListing ? (
-          <div className="flex min-w-0 flex-[1_1_20rem] flex-col gap-1.5 max-sm:order-last max-sm:basis-full">
-            <RegionCombobox
+          <div className="flex flex-col gap-2.5 px-4 pb-3.5 sm:pr-5 sm:pl-[4.125rem]">
+            <HunterRegionsPicker
               regions={regions}
-              selectedRegions={draft.hunterRegions}
+              selectedRegionIds={draft.hunterRegions}
               onChange={(regionIds) => update({ hunterRegions: regionIds })}
-              placeholder={t("profile.hunters.regionsPlaceholder")}
               invalid={regionsMissing || regionsTooMany}
             />
             <p className={cn("text-xs", regionsMissing || regionsTooMany ? "text-destructive" : "text-muted-foreground")}>
@@ -299,13 +307,6 @@ function ProfileCard({ user, profile, regions }: { user: SettingsUser; profile: 
             </p>
           </div>
         ) : null}
-        <Switch
-          checked={draft.hunterListing}
-          disabled={!draft.isPublic && !draft.hunterListing}
-          aria-labelledby={huntersTitleId}
-          onCheckedChange={(checked) => update({ hunterListing: checked })}
-          className="mt-2"
-        />
       </div>
       <SettingsCardFooter>
         {isDirty ? (
@@ -350,11 +351,8 @@ function ProfileSkeleton() {
 
 export function ProfileSection({ user }: { user: SettingsUser }) {
   const { t } = useTranslation("settings");
-  const { data: profile, isError, isFetching, refetch } = useQuery(accountProfileQueryOptions(user.id));
-  const { data: regions = [] } = useQuery({
-    ...regionsQueryOptions(),
-    select: (regions) => regions.filter((region) => region.countryCode === "PL"),
-  });
+  const { data: profile, isError, isFetching, refetch } = useQuery(ownProfileQueryOptions(user.id));
+  const { data: regions = NO_REGIONS } = useQuery(regionsQueryOptions());
 
   return (
     <SettingsSection id={SETTINGS_SECTION_IDS.profile} title={t("sections.profile")}>

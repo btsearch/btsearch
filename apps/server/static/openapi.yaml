@@ -17,7 +17,6 @@ tags:
   - name: Operators
   - name: Bands
   - name: Regions
-  - name: Hunters
   - name: Users
   - name: Locations
   - name: Submissions
@@ -1322,48 +1321,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "429": { $ref: "#/components/responses/TooManyRequests" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /hunters:
-    get:
-      tags: [Hunters]
-      summary: List BTS Hunters
-      description: Returns all users who opted into the BTS Hunters directory. Requires authentication.
-      security:
-        - ApiKeyAuth: []
-        - CookieAuth: []
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      required: [id, name, regions]
-                      properties:
-                        id: { type: string, format: uuid }
-                        name: { type: string }
-                        username: { type: string, nullable: true }
-                        image: { type: string, nullable: true }
-                        regions:
-                          type: array
-                          items: { type: integer }
-                          description: Array of region IDs from the /regions endpoint
-                        contactInfo:
-                          type: object
-                          nullable: true
-                          properties:
-                            instagram: { type: string }
-                            facebook: { type: string }
-                            email: { type: string, format: email }
-        "401": { $ref: "#/components/responses/Unauthorized" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 

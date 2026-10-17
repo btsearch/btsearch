@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import route from "../../../../../src/routes/v2/(delete)/terrain-profiles/[id].js";
-import { dbMock, redisMock } from "../../../../helpers/boundaries.js";
+import { cacheInRedis, dbMock, redisMock } from "../../../../helpers/boundaries.js";
+import { COUNTRY_VISIBILITY_KEY } from "../../../../helpers/officialDataFixtures.js";
 import { createRouteHarness } from "../../../../helpers/routeHarness.js";
 
 const id = "20ddf715-e424-4e63-8c73-cc1326c74b3a";
@@ -11,6 +12,7 @@ describe("DELETE /terrain-profiles/:id", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-06T10:00:00Z"));
+    cacheInRedis(COUNTRY_VISIBILITY_KEY, [{ code: "PL", isVisible: true }]);
   });
 
   it("cancels a pending profile, keeps its cached data, and sets a cancellation marker", async () => {
@@ -51,6 +53,17 @@ describe("DELETE /terrain-profiles/:id", () => {
     expect(redisMock.setEx).not.toHaveBeenCalled();
   });
 
+  it("returns 404 without cancelling when no country with terrain profiles is accessible", async () => {
+    const previous = JSON.stringify({ id, status: "pending", updatedAt: "2026-10-06T09:00:00Z" });
+    await redisMock.setEx(profileKey, 3600, previous);
+    cacheInRedis(COUNTRY_VISIBILITY_KEY, [{ code: "PL", isVisible: false }]);
+    const app = await createRouteHarness(route);
+
+    expect((await app.inject({ method: "DELETE", url: `/terrain-profiles/${id}` })).statusCode).toBe(404);
+    expect(await redisMock.get(profileKey)).toBe(previous);
+    expect(await redisMock.get(`${profileKey}:cancelled`)).toBeNull();
+  });
+
   it("rejects a profile id that is not a uuid before accessing Redis", async () => {
     const app = await createRouteHarness(route);
     const response = await app.inject({ method: "DELETE", url: "/terrain-profiles/not-a-uuid" });
@@ -61,7 +74,7 @@ describe("DELETE /terrain-profiles/:id", () => {
   });
 
   it("does not report successful cancellation when Redis cannot save the marker", async () => {
-    redisMock.get.mockResolvedValue(JSON.stringify({ id, status: "pending" }));
+    await redisMock.setEx(profileKey, 3600, JSON.stringify({ id, status: "pending" }));
     redisMock.setEx.mockRejectedValue(new Error("Redis unavailable"));
     const app = await createRouteHarness(route);
 

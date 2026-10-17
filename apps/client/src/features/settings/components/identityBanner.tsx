@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { accountProfileQueryOptions, apiKeysQueryOptions, isPublishableKey } from "../queries";
+import { apiKeysQueryOptions, isPublishableKey, ownProfileQueryOptions } from "../queries";
 import { SETTINGS_SECTION_IDS } from "../sections";
 import { scrollToSettingsSection } from "./settingsPrimitives";
 import { RoleBadge } from "@/components/app/roleBadge";
@@ -44,11 +44,11 @@ function StatusChip({ icon, iconClassName, label, sectionId }: { icon: IconSvgEl
 
 export function IdentityBanner({ user }: { user: SettingsUser }) {
   const { t, i18n } = useTranslation("settings");
-  const { data: profile } = useQuery(accountProfileQueryOptions(user.id));
+  const { data: profile } = useQuery(ownProfileQueryOptions(user.id));
   const { data: apiKeys } = useQuery(apiKeysQueryOptions(user.id));
 
-  const isPublic = profile ? profile.profileVisibility !== "private" : null;
-  const isHunter = profile ? profile.hunterListing && profile.profileVisibility !== "private" : false;
+  const isPublic = profile ? profile.visibility === "public" : null;
+  const isHunter = profile?.isListedAsHunter ?? false;
   const secretKeyCount = apiKeys ? apiKeys.keys.filter((key) => !isPublishableKey(key)).length : 0;
   const memberSince = new Date(user.createdAt).toLocaleDateString(i18n.language, { year: "numeric", month: "long", day: "numeric" });
 

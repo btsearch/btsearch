@@ -36,7 +36,7 @@ export type UserContact = z.infer<typeof userContactSchema>;
 
 export const HUNTER_REGIONS_MAX = 20;
 
-const LINK_PATTERN =/https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;
+const LINK_PATTERN = /https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}/i;
 const INSTAGRAM_HANDLE_PATTERN = /^[a-zA-Z0-9._]{1,30}$/;
 const FACEBOOK_URL_PATTERN = /^https:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9._%+-]{1,60}\/?$/;
 

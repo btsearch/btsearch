@@ -109,7 +109,7 @@ function SearchPanelFrame({ children }: { children: ReactNode }) {
       className={cn("relative z-10 overflow-hidden rounded-b-2xl", !isPresent && "group-data-compact/search:hidden")}
     >
       <SmoothHeight className="m-0" contentClassName="p-0">
-        <div className="flex max-h-[min(70dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
+        <div className="flex max-h-[min(85dvh,calc(100dvh-8rem-var(--floating-nav-map-offset,0rem)-var(--top-viewport-obstruction,0px)))] min-h-0 flex-col">
           {children}
         </div>
       </SmoothHeight>

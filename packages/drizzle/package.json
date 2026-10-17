@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate && tsx minifySnapshots.ts",
     "db:migrate": "tsx migrate.ts",
     "db:migrate:kit": "drizzle-kit migrate",
     "check-types": "tsc --noEmit"

@@ -123,9 +123,9 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
       contactInfo: true,
       profileVisibility: true,
       hunterListing: true,
-      hunterRegions: true,
       createdAt: true,
     },
+    with: { hunterRegions: { columns: { regionId: true }, orderBy: { regionId: "asc" } } },
   });
 
   if (!user) throw new ErrorResponse("NOT_FOUND");
@@ -134,7 +134,7 @@ async function handler(req: FastifyRequest<ReqParams>, res: ReplyPayload<JSONBod
   const restricted = visibility === "private" && viewer?.id !== user.id;
   const canSeeIdentity = !restricted || STAFF_ROLES.has(viewer?.role ?? "");
   const contact = restricted ? null : normalizeContact(user.contactInfo);
-  const hunterRegions = user.hunterRegions ?? [];
+  const hunterRegions = user.hunterRegions.map(({ regionId }) => regionId);
   const commentsEnabled = getRuntimeSettings().enableStationComments;
 
   res.header("Cache-Control", "private, no-store");

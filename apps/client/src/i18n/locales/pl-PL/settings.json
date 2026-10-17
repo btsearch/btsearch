@@ -368,10 +368,13 @@
     },
     "hunters": {
       "title": "Katalog łowców BTS",
-      "description": "Pokaż się innym łowcom. Wybierz województwa, w których działasz",
+      "description": "Pokaż się innym łowcom. Wybierz regiony, w których działasz",
       "requiresPublic": "Katalog wymaga publicznego profilu",
-      "regionsPlaceholder": "Wyszukaj województwo...",
-      "regionsHint": "Wybierz co najmniej jedno województwo",
+      "regionsLabel": "Regiony",
+      "regionsPlaceholder": "Wyszukaj region...",
+      "regionsCount": "{{count}} / {{max}}",
+      "removeRegion": "Usuń {{name}}",
+      "regionsHint": "Wybierz co najmniej jeden region",
       "regionsMax": "Możesz wybrać maksymalnie {{max}} regionów"
     }
   },
