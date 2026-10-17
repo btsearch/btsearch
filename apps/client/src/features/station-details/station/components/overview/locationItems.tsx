@@ -9,6 +9,7 @@ import { NavigationLinks } from "../../../components/navLinks";
 import { StationInfoItem } from "../../../components/stationInfoItem";
 import { CountryCodeTile } from "@/components/ui/countryCodeTile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { countriesQueryOptions } from "@/features/shared/lookups";
 import { usePreferences } from "@/hooks/usePreferences";
 import { formatCoordinates } from "@/lib/geo/coordinates";
 import { getCountryName } from "@/lib/geo/countryName";
@@ -42,10 +43,12 @@ export function CoordinatesItem({ latitude, longitude }: CoordinatesProps) {
 
 export function RegionItem({ countryCode, regionName }: RegionItemProps) {
   const { t, i18n } = useTranslation("stationDetails");
+  const { data: countries } = useQuery(countriesQueryOptions());
+  const hasCountryTile = countries !== undefined && countries.length > 1;
 
   return (
     <StationInfoItem icon={<HugeiconsIcon icon={Globe02Icon} aria-hidden="true" className="size-4" />} label={t("specs.region")}>
-      <CountryCodeTile code={countryCode} size="xs" label={getCountryName(countryCode, i18n.language)} />
+      {hasCountryTile ? <CountryCodeTile code={countryCode} size="xs" label={getCountryName(countryCode, i18n.language)} /> : null}
       <span>{regionName}</span>
     </StationInfoItem>
   );
